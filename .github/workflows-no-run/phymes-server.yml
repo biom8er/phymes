@@ -98,19 +98,19 @@ jobs:
       - name: Download HF models
         uses: ./.github/actions/hf-model-cache
       - name: Build wasm32-unknown-unknown
-        run: cargo build -p phymes-server --no-default-features --features wasip2-candle --target wasm32-unknown-unknown
+        run: cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
       - name: Install wasmtime
         uses: ./.github/actions/wasmtime-cache
-      - name: Build wasm32-wasip2 tests
-        run: cargo test -p phymes-server --no-default-features --features wasip2-candle --target wasm32-wasip2 --no-run --release
-      # - name: Run wasm32-wasip2 tests
+      - name: Build wasm32-wasip2 phymes-server tests
+        run: cargo test -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
+      # - name: Run wasm32-wasip2 phymes-server tests
       #   run: |
       #     export WASMTIME_HOME="$HOME/.wasmtime"
       #     export PATH="$PATH:$WASMTIME_HOME/bin"
       #     # DM: need to figure out a way to find the filename...
-      #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
-      - name: Build wasm32-wasip2 main
-        run: cargo build -p phymes-server --no-default-features --features wasip2-candle --target wasm32-wasip2 --release
+      #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-server-26200b790e92721b.wasm
+      - name: Build wasm32-wasip2 phymes-server main
+        run: cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release
 
   fmt:
     name: Rustfmt

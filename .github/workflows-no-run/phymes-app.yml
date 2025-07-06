@@ -52,11 +52,6 @@ jobs:
         run: cargo check -p phymes-app
       - name: Check compilation --all-targets --features web
         run: cargo check -p phymes-app --all-targets --features web
-      # DM: Error: The system library `gdk-3.0` required by crate `gdk-sys` was not found.
-      # - name: Check compilation --all-targets --features mobile
-      #   run: cargo check -p phymes-app --all-targets --features mobile
-      # - name: Check compilation --all-targets --features desktop
-      #   run: cargo check -p phymes-app --all-targets --features desktop
 
   fmt:
     name: Rustfmt phymes-app

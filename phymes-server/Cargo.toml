@@ -10,7 +10,6 @@ wasip2 =  ["phymes-core/wasip2", "phymes-agents/wasip2",
     "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "tokio/time",
     # Axum serverless extras
     "dep:futures-executor", "dep:tower-service"]
-wasip2-candle = ["wasip2", "phymes-agents/candle"]
 std = [
     "tokio/full", "dep:reqwest",
     # Axum defaults

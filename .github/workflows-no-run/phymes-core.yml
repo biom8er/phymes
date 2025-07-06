@@ -30,7 +30,7 @@ jobs:
       - name: Run tests
         run: cargo test -p phymes-core --features wsl
       - name: Run examples
-        run: cargo run --package phymes-core --features wsl --release --example addrows
+        run: cargo run -p phymes-core --features wsl --release --example addrows
 
   # test compilation features on linux
   linux-features:
@@ -59,21 +59,21 @@ jobs:
         uses: ./.github/actions/rust-build-env
         with:
           target: wasm32-unknown-unknown,wasm32-wasip2
-      - name: Build wasm32-unknown-unknown
+      - name: Build wasm32-unknown-unknown -p phymes-core
         run: cargo build -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
-      - name: Build wasm32-wasip2 tests
+      - name: Build wasm32-wasip2 -p phymes-core tests
         run: cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run
       - name: Install wasmtime
         uses: ./.github/actions/wasmtime-cache
       - name: Build wasm32-wasip2 examples
-        run: cargo build --package phymes-core --target wasm32-wasip2 --no-default-features --features wasip2 --release --example addrows
-      # - name: Run wasm32-wasip2 tests
+        run: cargo build -p phymes-core --target wasm32-wasip2 --no-default-features --features wasip2 --release --example addrows
+      # - name: Run wasm32-wasip2 -p phymes-core tests
       #   run: |
       #     export WASMTIME_HOME="$HOME/.wasmtime"
       #     export PATH="$PATH:$WASMTIME_HOME/bin"
       #     # DM: need to figure out a way to find the filename...
       #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-core-26200b790e92721b.wasm
-      - name: Run wasm32-wasip2 examples
+      - name: Run wasm32-wasip2 -p phymes-core examples
         run: |
           export WASMTIME_HOME="$HOME/.wasmtime"
           export PATH="$PATH:$WASMTIME_HOME/bin"

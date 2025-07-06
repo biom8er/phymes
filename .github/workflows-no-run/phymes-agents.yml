@@ -103,31 +103,27 @@ jobs:
           target: wasm32-unknown-unknown,wasm32-wasip2
       - name: Download HF models
         uses: ./.github/actions/hf-model-cache
-      - name: Build wasm32-unknown-unknown
+      - name: Build wasm32-unknown-unknown -p phymes-agents
         run: cargo build -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
       - name: Install wasmtime
         uses: ./.github/actions/wasmtime-cache
-      - name: Build wasm32-wasip2 tests
+      - name: Build wasm32-wasip2 -p phymes-agents tests
         run: cargo test -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-      # - name: Run wasm32-wasip2 tests
+      # - name: Run wasm32-wasip2 -p phymes-agents tests
       #   run: |
       #     export WASMTIME_HOME="$HOME/.wasmtime"
       #     export PATH="$PATH:$WASMTIME_HOME/bin"
       #     # DM: need to figure out a way to find the filename...
       #     wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
-      - name: Build wasm32-wasip2 examples
+      - name: Build wasm32-wasip2 -p phymes-agents examples
         run: |
           cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
           cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chatagent
-      - name: Run wasm32-wasip2 examples chatagent
+      - name: Run wasm32-wasip2 -p phymes-agents examples
         run: |
           export WASMTIME_HOME="$HOME/.wasmtime"
           export PATH="$PATH:$WASMTIME_HOME/bin"
           wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chatagent.wasm
-      - name: Run wasm32-wasip2 examples chat
-        run: |
-          export WASMTIME_HOME="$HOME/.wasmtime"
-          export PATH="$PATH:$WASMTIME_HOME/bin"
           wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 
   fmt:
