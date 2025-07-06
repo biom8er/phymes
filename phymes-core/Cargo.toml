@@ -17,7 +17,7 @@ wsl-gpu = ["wsl"]
 candle = [] # force use of candle models when openai_api is available
 
 [dependencies]
-arrow = { version = "54.3.1", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
+arrow = { version = "55.2.0", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
 pin-project-lite = "0.2.16"
 async-trait = "0.1.88"
 anyhow = "1.0.95"

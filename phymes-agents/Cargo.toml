@@ -21,7 +21,7 @@ candle = [] # force use of candle models when openai_api is available
 
 [dependencies]
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
-arrow = { version = "54.3.1", default-features = false, features = ["csv", "json", "ipc"] }
+arrow = { version = "55.2.0", default-features = false, features = ["csv", "json", "ipc"] }
 candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
 candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
 candle-transformers = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
