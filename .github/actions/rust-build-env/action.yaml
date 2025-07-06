@@ -46,6 +46,7 @@ runs:
         rustup component add rustfmt
     - if: ${{ steps.cache-wasmtime.outputs.cache-hit != 'true' }}
       name: Install latest mdbook
+      shell: bash
       run: |
         cargo install --git https://github.com/rust-lang/mdBook.git mdbook
     - name: Fixup git permissions
