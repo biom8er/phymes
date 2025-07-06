@@ -10,14 +10,14 @@ runs:
       # see https://github.com/nektos/act/issues/1513
       with:
         path: |
-          $HOME/.cache/hf/
+          ~/.cache/hf/
         key: hf-${{ hashFiles('**/config.json') }}
     - if: ${{ steps.cache-hf.outputs.cache-hit != 'true' }}
       name: Copy configs and tokenizers
       shell: bash
       run: |
-        mkdir -p $HOME/.cache/hf
-        cp -a $GITHUB_WORKSPACE/.cache/hf/. $HOME/.cache/hf/
+        mkdir -p ~/.cache/hf
+        cp -a $GITHUB_WORKSPACE/.cache/hf/. ~/.cache/hf/
     - if: ${{ steps.cache-hf.outputs.cache-hit != 'true' }}
       name: Install curl
       shell: bash
@@ -28,8 +28,8 @@ runs:
       name: Download models
       shell: bash
       run: |
-        curl -L -o $HOME/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/model.safetensors  https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/model.safetensors?download=true -sSf
-        curl -L -o $HOME/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/pytorch_model.bin  https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/pytorch_model.bin?download=true -sSf
-        curl -L -o $HOME/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-0.5b-instruct-q4_0.gguf  https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_0.gguf?download=true -sSf
-        curl -L -o $HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf  https://huggingface.co/Segilmez06/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf?download=true -sSf
-        curl -L -o $HOME/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf  https://huggingface.co/tensorblock/gte-Qwen2-1.5B-instruct-GGUF/resolve/main/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf?download=true -sSf
+        curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/model.safetensors  https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/model.safetensors?download=true -sSf
+        curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/pytorch_model.bin  https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/pytorch_model.bin?download=true -sSf
+        curl -L -o ~/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-0.5b-instruct-q4_0.gguf  https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_0.gguf?download=true -sSf
+        curl -L -o ~/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf  https://huggingface.co/Segilmez06/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf?download=true -sSf
+        curl -L -o ~/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf  https://huggingface.co/tensorblock/gte-Qwen2-1.5B-instruct-GGUF/resolve/main/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf?download=true -sSf
