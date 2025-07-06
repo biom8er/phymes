@@ -18,25 +18,25 @@ on:
 
 jobs:
 
-  # # test the crate on linux
-  # linux-test:
-  #   name: Test phymes-agents
-  #   runs-on: self-hosted #ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/rust-build-env
-  #     - name: Download HF models
-  #       uses: ./.github/actions/hf-model-cache
-  #     - name: Run tests
-  #       run: cargo test -p phymes-agents --features wsl,candle --release
-  #     - name: build examples
-  #       run: |
-  #         cargo run --package phymes-agents --features wsl,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
-  #         cargo run --package phymes-agents --features wsl,candle --release --example chatagent
-  #         cargo build --package phymes-agents --features wsl,candle --release --example cache
+  # test the crate on linux
+  linux-test:
+    name: Test phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Download HF models
+        uses: ./.github/actions/hf-model-cache
+      - name: Run tests
+        run: cargo test -p phymes-agents --features wsl,candle --release
+      - name: build examples
+        run: |
+          cargo run --package phymes-agents --features wsl,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+          cargo run --package phymes-agents --features wsl,candle --release --example chatagent
+          cargo build --package phymes-agents --features wsl,candle --release --example cache
 
   # test the crate on linux with cuda
   linux-cuda-test:
@@ -73,88 +73,88 @@ jobs:
           cargo run --package phymes-agents --features wsl-gpu,candle --release --example chat
           cargo run --package phymes-agents --features wsl-gpu,candle --release --example chatagent
 
-  # # test compilation features on linux (except those already built in other jobs)
-  # linux-features:
-  #   name: Check Compilation phymes-agents
-  #   runs-on: self-hosted #ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/rust-build-env
-  #     - name: Check compilation --all-targets
-  #       run: cargo check -p phymes-agents --all-targets
-  #     - name: Check compilation --all-targets --features wsl
-  #       run: cargo check -p phymes-agents --all-targets --features wsl
+  # test compilation features on linux (except those already built in other jobs)
+  linux-features:
+    name: Check Compilation phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Check compilation --all-targets
+        run: cargo check -p phymes-agents --all-targets
+      - name: Check compilation --all-targets --features wsl
+        run: cargo check -p phymes-agents --all-targets --features wsl
 
-  # # test crate on wasm32 in nightly rust
-  # wasm32-build:
-  #   name: Build wasm32 phymes-agents
-  #   runs-on: self-hosted #ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/rust-build-env
-  #       with:
-  #         target: wasm32-unknown-unknown,wasm32-wasip2
-  #     - name: Download HF models
-  #       uses: ./.github/actions/hf-model-cache
-  #     - name: Build wasm32-unknown-unknown
-  #       run: cargo build -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
-  #     - name: Install wasmtime
-  #       uses: ./.github/actions/wasmtime-cache
-  #     - name: Build wasm32-wasip2 tests
-  #       run: cargo test -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-  #     # - name: Run wasm32-wasip2 tests
-  #     #   run: |
-  #     #     export WASMTIME_HOME="$HOME/.wasmtime"
-  #     #     export PATH="$PATH:$WASMTIME_HOME/bin"
-  #     #     # DM: need to figure out a way to find the filename...
-  #     #     wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
-  #     - name: Build wasm32-wasip2 examples
-  #       run: |
-  #         cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
-  #         cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chatagent
-  #     - name: Run wasm32-wasip2 examples chatagent
-  #       run: |
-  #         export WASMTIME_HOME="$HOME/.wasmtime"
-  #         export PATH="$PATH:$WASMTIME_HOME/bin"
-  #         wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chatagent.wasm
-  #     - name: Run wasm32-wasip2 examples chat
-  #       run: |
-  #         export WASMTIME_HOME="$HOME/.wasmtime"
-  #         export PATH="$PATH:$WASMTIME_HOME/bin"
-  #         wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+  # test crate on wasm32 in nightly rust
+  wasm32-build:
+    name: Build wasm32 phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+        with:
+          target: wasm32-unknown-unknown,wasm32-wasip2
+      - name: Download HF models
+        uses: ./.github/actions/hf-model-cache
+      - name: Build wasm32-unknown-unknown
+        run: cargo build -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
+      - name: Install wasmtime
+        uses: ./.github/actions/wasmtime-cache
+      - name: Build wasm32-wasip2 tests
+        run: cargo test -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
+      # - name: Run wasm32-wasip2 tests
+      #   run: |
+      #     export WASMTIME_HOME="$HOME/.wasmtime"
+      #     export PATH="$PATH:$WASMTIME_HOME/bin"
+      #     # DM: need to figure out a way to find the filename...
+      #     wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
+      - name: Build wasm32-wasip2 examples
+        run: |
+          cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
+          cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chatagent
+      - name: Run wasm32-wasip2 examples chatagent
+        run: |
+          export WASMTIME_HOME="$HOME/.wasmtime"
+          export PATH="$PATH:$WASMTIME_HOME/bin"
+          wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chatagent.wasm
+      - name: Run wasm32-wasip2 examples chat
+        run: |
+          export WASMTIME_HOME="$HOME/.wasmtime"
+          export PATH="$PATH:$WASMTIME_HOME/bin"
+          wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 
-  # fmt:
-  #   name: Rustfmt phymes-agents
-  #   runs-on: self-hosted #ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/rust-build-env
-  #     - name: Setup Rustfmt
-  #       run: rustup component add rustfmt
-  #     - name: Rustfmt phymes-agents
-  #       run: cargo fmt -p phymes-agents -- --check
+  fmt:
+    name: Rustfmt phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Setup Rustfmt
+        run: rustup component add rustfmt
+      - name: Rustfmt phymes-agents
+        run: cargo fmt -p phymes-agents -- --check
 
-  # clippy:
-  #   name: Clippy phymes-agents
-  #   runs-on: self-hosted #ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/rust-build-env
-  #     - name: Setup Clippy
-  #       run: rustup component add clippy
-  #     - name: Clippy phymes-agents
-  #       run: |
-  #         cargo clippy -p phymes-agents --all-targets --features wsl,candle -- -D warnings
-  #         cargo clippy -p phymes-agents --all-targets --features wsl -- -D warnings
+  clippy:
+    name: Clippy phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Setup Clippy
+        run: rustup component add clippy
+      - name: Clippy phymes-agents
+        run: |
+          cargo clippy -p phymes-agents --all-targets --features wsl,candle -- -D warnings
+          cargo clippy -p phymes-agents --all-targets --features wsl -- -D warnings

@@ -1,108 +1,108 @@
-# # tests for the phymes-core crate
-# name: phymes-core
+# tests for the phymes-core crate
+name: phymes-core
 
-# concurrency:
-#   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
-#   cancel-in-progress: true
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
 
-# on:
-#   # always trigger
-#   push:
-#     branches:
-#       - main
-#   pull_request:
-#     paths:
-#       - .github/**
-#       - phymes-core/**
+on:
+  # always trigger
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - .github/**
+      - phymes-core/**
 
-# jobs:
+jobs:
 
-#   # test the crate on linux
-#   linux-test:
-#     name: Test phymes-core
-#     runs-on: self-hosted #ubuntu-latest
-#     container:
-#       image: amd64/rust
-#     steps:
-#       - uses: actions/checkout@v4
-#       - name: Setup Rust toolchain
-#         uses: ./.github/actions/rust-build-env
-#       - name: Run tests
-#         run: cargo test -p phymes-core --features wsl
-#       - name: Run examples
-#         run: cargo run --package phymes-core --features wsl --release --example addrows
+  # test the crate on linux
+  linux-test:
+    name: Test phymes-core
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Run tests
+        run: cargo test -p phymes-core --features wsl
+      - name: Run examples
+        run: cargo run --package phymes-core --features wsl --release --example addrows
 
-#   # test compilation features on linux
-#   linux-features:
-#     name: Check Compilation phymes-core
-#     runs-on: self-hosted #ubuntu-latest
-#     container:
-#       image: amd64/rust
-#     steps:
-#       - uses: actions/checkout@v4
-#       - name: Setup Rust toolchain
-#         uses: ./.github/actions/rust-build-env
-#       - name: Check compilation
-#         run: cargo check -p phymes-core
-#       - name: Check compilation --all-targets --all-features
-#         run: cargo check -p phymes-core --all-targets --all-features
+  # test compilation features on linux
+  linux-features:
+    name: Check Compilation phymes-core
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Check compilation
+        run: cargo check -p phymes-core
+      - name: Check compilation --all-targets --all-features
+        run: cargo check -p phymes-core --all-targets --all-features
 
-#   # test crate on wasm32 in nightly rust
-#   wasm32-build:
-#     name: Build wasm32 phymes-core
-#     runs-on: self-hosted #ubuntu-latest
-#     container:
-#       image: amd64/rust
-#     steps:
-#       - uses: actions/checkout@v4
-#       - name: Setup Rust toolchain
-#         uses: ./.github/actions/rust-build-env
-#         with:
-#           target: wasm32-unknown-unknown,wasm32-wasip2
-#       - name: Build wasm32-unknown-unknown
-#         run: cargo build -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
-#       - name: Build wasm32-wasip2 tests
-#         run: cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run
-#       - name: Install wasmtime
-#         uses: ./.github/actions/wasmtime-cache
-#       - name: Build wasm32-wasip2 examples
-#         run: cargo build --package phymes-core --target wasm32-wasip2 --no-default-features --features wasip2 --release --example addrows
-#       # - name: Run wasm32-wasip2 tests
-#       #   run: |
-#       #     export WASMTIME_HOME="$HOME/.wasmtime"
-#       #     export PATH="$PATH:$WASMTIME_HOME/bin"
-#       #     # DM: need to figure out a way to find the filename...
-#       #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-core-26200b790e92721b.wasm
-#       - name: Run wasm32-wasip2 examples
-#         run: |
-#           export WASMTIME_HOME="$HOME/.wasmtime"
-#           export PATH="$PATH:$WASMTIME_HOME/bin"
-#           wasmtime run target/wasm32-wasip2/release/examples/addrows.wasm
+  # test crate on wasm32 in nightly rust
+  wasm32-build:
+    name: Build wasm32 phymes-core
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+        with:
+          target: wasm32-unknown-unknown,wasm32-wasip2
+      - name: Build wasm32-unknown-unknown
+        run: cargo build -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
+      - name: Build wasm32-wasip2 tests
+        run: cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run
+      - name: Install wasmtime
+        uses: ./.github/actions/wasmtime-cache
+      - name: Build wasm32-wasip2 examples
+        run: cargo build --package phymes-core --target wasm32-wasip2 --no-default-features --features wasip2 --release --example addrows
+      # - name: Run wasm32-wasip2 tests
+      #   run: |
+      #     export WASMTIME_HOME="$HOME/.wasmtime"
+      #     export PATH="$PATH:$WASMTIME_HOME/bin"
+      #     # DM: need to figure out a way to find the filename...
+      #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-core-26200b790e92721b.wasm
+      - name: Run wasm32-wasip2 examples
+        run: |
+          export WASMTIME_HOME="$HOME/.wasmtime"
+          export PATH="$PATH:$WASMTIME_HOME/bin"
+          wasmtime run target/wasm32-wasip2/release/examples/addrows.wasm
 
-#   fmt:
-#     name: Rustfmt phymes-core
-#     runs-on: self-hosted #ubuntu-latest
-#     container:
-#       image: amd64/rust
-#     steps:
-#       - uses: actions/checkout@v4
-#       - name: Setup Rust toolchain
-#         uses: ./.github/actions/rust-build-env
-#       - name: Setup Rustfmt
-#         run: rustup component add rustfmt
-#       - name: Rustfmt phymes-core
-#         run: cargo fmt -p phymes-core -- --check
+  fmt:
+    name: Rustfmt phymes-core
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Setup Rustfmt
+        run: rustup component add rustfmt
+      - name: Rustfmt phymes-core
+        run: cargo fmt -p phymes-core -- --check
 
-#   clippy:
-#     name: Clippy phymes-core
-#     runs-on: self-hosted #ubuntu-latest
-#     container:
-#       image: amd64/rust
-#     steps:
-#       - uses: actions/checkout@v4
-#       - name: Setup Rust toolchain
-#         uses: ./.github/actions/rust-build-env
-#       - name: Setup Clippy
-#         run: rustup component add clippy
-#       - name: Clippy phymes-core
-#         run: cargo clippy -p phymes-core --tests --examples --all-features -- -D warnings
+  clippy:
+    name: Clippy phymes-core
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Setup Clippy
+        run: rustup component add clippy
+      - name: Clippy phymes-core
+        run: cargo clippy -p phymes-core --tests --examples --all-features -- -D warnings

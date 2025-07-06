@@ -19,20 +19,20 @@ on:
 
 jobs:
 
-  # # test the crate on linux
-  # linux-test:
-  #   name: Test phymes-server
-  #   runs-on: self-hosted #ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/rust-build-env
-  #     - name: Run tests
-  #       run: cargo test -p phymes-server --features wsl,candle
-  #     - name: build main
-  #       run: cargo build -p phymes-server --features wsl,candle
+  # test the crate on linux
+  linux-test:
+    name: Test phymes-server
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Run tests
+        run: cargo test -p phymes-server --features wsl,candle
+      - name: build main
+        run: cargo build -p phymes-server --features wsl,candle
 
   # test the crate on linux with cuda
   linux-cuda-test:
@@ -65,78 +65,78 @@ jobs:
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
           cargo test -p phymes-server --features wsl-gpu,candle
 
-  # # test compilation features on linux (except those already built in other jobs)
-  # linux-features:
-  #   name: Check Compilation phymes-server
-  #   runs-on: self-hosted #ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/rust-build-env
-  #     - name: Check compilation --all-targets
-  #       run: cargo check -p phymes-server --all-targets
-  #     - name: Check compilation --all-targets --features wsl
-  #       run: cargo check -p phymes-server --all-targets --features wsl
-  #     - name: Check compilation --all-targets --features wasip2
-  #       run: cargo check -p phymes-server --all-targets --features wasip2
+  # test compilation features on linux (except those already built in other jobs)
+  linux-features:
+    name: Check Compilation phymes-server
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Check compilation --all-targets
+        run: cargo check -p phymes-server --all-targets
+      - name: Check compilation --all-targets --features wsl
+        run: cargo check -p phymes-server --all-targets --features wsl
+      - name: Check compilation --all-targets --features wasip2
+        run: cargo check -p phymes-server --all-targets --features wasip2
 
-  # # test crate on wasm32 in nightly rust
-  # wasm32-build:
-  #   name: Build wasm32 phymes-server
-  #   runs-on: self-hosted #ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/rust-build-env
-  #       with:
-  #         target: wasm32-unknown-unknown,wasm32-wasip2
-  #     - name: Download HF models
-  #       uses: ./.github/actions/hf-model-cache
-  #     - name: Build wasm32-unknown-unknown
-  #       run: cargo build -p phymes-server --no-default-features --features wasip2-candle --target wasm32-unknown-unknown
-  #     - name: Install wasmtime
-  #       uses: ./.github/actions/wasmtime-cache
-  #     - name: Build wasm32-wasip2 tests
-  #       run: cargo test -p phymes-server --no-default-features --features wasip2-candle --target wasm32-wasip2 --no-run --release
-  #     # - name: Run wasm32-wasip2 tests
-  #     #   run: |
-  #     #     export WASMTIME_HOME="$HOME/.wasmtime"
-  #     #     export PATH="$PATH:$WASMTIME_HOME/bin"
-  #     #     # DM: need to figure out a way to find the filename...
-  #     #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
-  #     - name: Build wasm32-wasip2 main
-  #       run: cargo build -p phymes-server --no-default-features --features wasip2-candle --target wasm32-wasip2 --release
+  # test crate on wasm32 in nightly rust
+  wasm32-build:
+    name: Build wasm32 phymes-server
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+        with:
+          target: wasm32-unknown-unknown,wasm32-wasip2
+      - name: Download HF models
+        uses: ./.github/actions/hf-model-cache
+      - name: Build wasm32-unknown-unknown
+        run: cargo build -p phymes-server --no-default-features --features wasip2-candle --target wasm32-unknown-unknown
+      - name: Install wasmtime
+        uses: ./.github/actions/wasmtime-cache
+      - name: Build wasm32-wasip2 tests
+        run: cargo test -p phymes-server --no-default-features --features wasip2-candle --target wasm32-wasip2 --no-run --release
+      # - name: Run wasm32-wasip2 tests
+      #   run: |
+      #     export WASMTIME_HOME="$HOME/.wasmtime"
+      #     export PATH="$PATH:$WASMTIME_HOME/bin"
+      #     # DM: need to figure out a way to find the filename...
+      #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
+      - name: Build wasm32-wasip2 main
+        run: cargo build -p phymes-server --no-default-features --features wasip2-candle --target wasm32-wasip2 --release
 
-  # fmt:
-  #   name: Rustfmt
-  #   runs-on: self-hosted #ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/rust-build-env
-  #     - name: Setup Rustfmt
-  #       run: rustup component add rustfmt
-  #     - name: Rustfmt phymes-server
-  #       run: cargo fmt -p phymes-server -- --check
+  fmt:
+    name: Rustfmt
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Setup Rustfmt
+        run: rustup component add rustfmt
+      - name: Rustfmt phymes-server
+        run: cargo fmt -p phymes-server -- --check
 
-  # clippy:
-  #   name: Clippy
-  #   runs-on: self-hosted #ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/rust-build-env
-  #     - name: Setup Clippy
-  #       run: rustup component add clippy
-  #     - name: Clippy phymes-server
-  #       run: |
-  #         cargo clippy -p phymes-server --all-targets --features wsl,candle -- -D warnings
-  #         cargo clippy -p phymes-server --all-targets --features wasip2-candle -- -D warnings
+  clippy:
+    name: Clippy
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Setup Clippy
+        run: rustup component add clippy
+      - name: Clippy phymes-server
+        run: |
+          cargo clippy -p phymes-server --all-targets --features wsl,candle -- -D warnings
+          cargo clippy -p phymes-server --all-targets --features wasip2-candle -- -D warnings
