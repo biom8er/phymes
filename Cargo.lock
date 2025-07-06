@@ -842,7 +842,7 @@ dependencies = [
  "accelerate-src",
  "byteorder",
  "candle-kernels",
- "cudarc 0.16.5",
+ "cudarc",
  "gemm 0.17.1",
  "half",
  "intel-mkl-src",
@@ -1482,15 +1482,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d02f3b0da4c6504f86e9cd789d8dbafab48c2321be74e9987593de5a894d93d"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "cudarc"
-version = "0.9.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1871a911a2b9a3f66a285896a719159985683bf9903aa2cf89e0c9f53e14552"
-dependencies = [
- "half",
 ]
 
 [[package]]
@@ -5044,7 +5035,7 @@ dependencies = [
  "candle-nn",
  "candle-transformers",
  "clap",
- "cudarc 0.9.15",
+ "cudarc",
  "futures",
  "getrandom 0.2.16",
  "getrandom 0.3.3",
@@ -7050,7 +7041,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14053653d0b7fa7b21015aa9a62edc8af2f60aa6f9c54e66386ecce55f22ed29"
 dependencies = [
- "cudarc 0.16.5",
+ "cudarc",
  "half",
  "serde",
  "thiserror 1.0.69",

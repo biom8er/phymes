@@ -36,7 +36,7 @@ tracing-chrome = "0.7.1"
 tracing-subscriber = "0.3.7"
 accelerate-src = { version = "0.3.2", optional = true }
 intel-mkl-src = { version = "0.8.1", optional = true }
-cudarc = { version = "0.9.14", features = ["f16"], optional = true }
+cudarc = { version = "0.16.5", features = ["f16"], optional = true }
 # DM: need to debug the updated version
 # Must specify one of the following features: [cuda-version-from-build-system, cuda-12060, cuda-12050, cuda-12040, cuda-12030, cuda-12020, cuda-12010, cuda-12000, cuda-11080, cuda-11070, cuda-11060, cuda-11050, cuda-11040]
 # cudarc = { version = "0.12.1", features = ["f16"], optional = true }
