@@ -5,7 +5,7 @@ updates:
       - "**/*"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     target-branch: main
     groups:
       prost:
@@ -16,4 +16,4 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5

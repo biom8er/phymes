@@ -40,6 +40,7 @@ jobs:
 
   # test the crate on linux with cuda
   linux-cuda-test:
+    if: false # DM: issues initialzing NVML
     name: Test cuda phymes-agents
     runs-on: self-hosted #ubuntu-latest
     container:
