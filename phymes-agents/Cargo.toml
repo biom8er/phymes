@@ -1,0 +1,55 @@
+[package]
+name = "phymes-agents"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["wsl", "candle"]
+accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]
+mkl = ["dep:intel-mkl-src", "intel-mkl-src/mkl-static-lp64-iomp", "candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
+mkl-dynamic = ["dep:intel-mkl-src", "intel-mkl-src/mkl-dynamic-lp64-iomp", "candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
+cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+cudnn = ["candle-core/cudnn"]
+flash-attn = ["cuda", "candle-transformers/flash-attn"]
+nccl = ["cuda", "cudarc/nccl"]
+hf_hub = ["dep:candle-hf-hub", "tokenizers/onig", "tokio/full"]
+openai_api = ["dep:reqwest"]
+wasip2 = ["tokenizers/unstable_wasm", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "phymes-core/wasip2"]
+wsl = ["hf_hub", "phymes-core/wsl", "openai_api"]
+wsl-gpu = ["wsl", "cuda", "cudnn", "nccl", "phymes-core/wsl-gpu"]
+candle = [] # force use of candle models when openai_api is available
+
+[dependencies]
+phymes-core = { path = "../phymes-core", default-features = false, optional = true }
+arrow = { version = "54.3.1", default-features = false, features = ["csv", "json", "ipc"] }
+candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
+candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
+candle-transformers = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
+candle-flash-attn = { git = "https://github.com/huggingface/candle.git", version = "0.9.1", optional = true }
+tokio = { version = "1.45.1", default-features = false, optional = true}
+futures = { version = "0.3.31", default-features = false }
+reqwest = { version = "0.12.22", features = ["json", "stream"], default-features = false, optional = true }
+candle-hf-hub = { version = "0.3.3", features = ["tokio"], optional = true }
+clap = { version = "4.2.4", features = ["derive"] }
+anyhow = { version = "1", features = ["backtrace"] }
+tracing-chrome = "0.7.1"
+tracing-subscriber = "0.3.7"
+accelerate-src = { version = "0.3.2", optional = true }
+intel-mkl-src = { version = "0.8.1", optional = true }
+cudarc = { version = "0.9.14", features = ["f16"], optional = true }
+# DM: need to debug the updated version
+# Must specify one of the following features: [cuda-version-from-build-system, cuda-12060, cuda-12050, cuda-12040, cuda-12030, cuda-12020, cuda-12010, cuda-12000, cuda-11080, cuda-11070, cuda-11060, cuda-11050, cuda-11040]
+# cudarc = { version = "0.12.1", features = ["f16"], optional = true }
+tokenizers = { version = "0.21.1", default-features = false, optional = true }
+serde_json = "1.0.133"
+serde = "1.0.215"
+tracing = "0.1.41"
+new_string_template = "1.5"
+minijinja = "2.6.0"
+minijinja-contrib = { version = "2.6.0", features = ["pycompat"] }
+is_close = "0.1.3"
+intmap = "3.1.0"
+parking_lot = "0.12.3"
+bytes = "1.10.1"
+getrandom = { version = "0.3.1", features = ["wasm_js"] }
+getrandom_0_2 = { package = "getrandom", version = "0.2.15", features = ["js"] }

@@ -1,0 +1,41 @@
+[package]
+name = "phymes-app"
+version = "0.1.0"
+authors = ["Douglas McCloskey"]
+# DM: updating to 2024 causes many "error[E0716]: temporary value dropped while borrowed"
+#  when using dioxus `use_memo`
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.95"
+dioxus = { version = "0.6.0" }
+futures = "0.3.31"
+reqwest = { version = "0.12.22", features = ["json", "stream"], default-features = false }
+serde = { version = "1.0.219", features = ["derive"] }
+chrono = "0.4.41"
+bytes = "1.10.0"
+serde_json = "1.0.140"
+
+# DM: Cannot import phymes-core nor phymes-agents due to library conflicts with Dioxus!
+#phymes-core = { path = "../phymes-core" }
+#phymes-agents = { path = "../phymes-agents" }
+
+[features]
+default = ["web"]
+web = ["dioxus/web"]
+desktop = ["dioxus/desktop", "dioxus/launch"]
+mobile = ["dioxus/mobile"]
+
+[profile]
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"

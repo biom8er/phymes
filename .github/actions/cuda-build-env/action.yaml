@@ -1,0 +1,47 @@
+name: Prepare Rust Builder with Cuda containers
+description: 'Prepare Rust Build Environment with Cuda containers'
+inputs:
+  rust-version:
+    description: 'version of rust to install (e.g. stable)'
+    required: false
+    default: 'stable'
+  target:
+    description: 'target architecture(s)'
+    required: false
+    default: 'x86_64-unknown-linux-gnu'
+runs:
+  using: "composite"
+  steps:
+    - name: Cache Cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-cuda-${{ hashFiles('**/Cargo.lock') }}
+    - name: Install dependencies
+      shell: bash
+      run: |
+        apt update
+        DEBIAN_FRONTEND=noninteractive apt install --assume-yes git clang curl libssl-dev llvm libudev-dev make pkg-config protobuf-compiler
+    - name: Install Rust toolchain
+      shell: bash
+      run: |
+        echo "Installing ${{ inputs.rust-version }}"
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        . "$HOME/.cargo/env"
+        rustc --version 
+        rustup toolchain install ${{ inputs.rust-version }} --target ${{ inputs.target }}
+        rustup default ${{ inputs.rust-version }}
+    - name: Generate lockfile
+      shell: bash
+      run: |
+        export PATH="$PATH:$HOME/.cargo/bin"
+        cargo fetch  
+    - name: Fixup git permissions
+      # https://github.com/actions/checkout/issues/766
+      shell: bash
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"

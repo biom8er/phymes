@@ -1,0 +1,128 @@
+# Creates a github release on https://github.com/biom8er/phymes/releases
+# when a tag is pushed to the repository
+# see https://github.com/github-changelog-generator/github-changelog-generator 
+# for automated changelog instructions
+
+name: Release
+on:
+  push:
+    tags:
+      - '*'
+      - '!*-rc*'
+permissions:
+  contents: write
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+jobs:
+  release:
+    name: Publish
+    runs-on: self-hosted #ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Releases
+        run: |
+          version=${GITHUB_REF_NAME}
+          title="phymes ${version}"
+          notes_file=CHANGELOG.md
+          gh release create ${GITHUB_REF_NAME} \
+            --title "${title}" \
+            --notes-file ${notes_file} \
+            --verify-tag
+
+  bundle-candle:
+    needs: release
+    name: Bundle the application
+    runs-on: self-hosted #ubuntu-latest
+    strategy:
+      matrix:
+        version: [12.6.2, 12.9.1]
+        os: [ubuntu24.04]
+    container:
+      # DM: needs to match the version installed on the machine
+      # e.g., currently 12.6.2 for cudarc-0.12.1
+      image: nvidia/cuda:${{ matrix.version }}-cudnn-devel-${{ matrix.os }}
+      options: --gpus 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install dependencies
+        shell: bash
+        run: |
+          apt update
+          DEBIAN_FRONTEND=noninteractive apt install --assume-yes git clang curl libssl-dev llvm libudev-dev make pkg-config protobuf-compiler
+      - name: Install Rust toolchain
+        shell: bash
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          . "$HOME/.cargo/env"
+          rustc --version 
+          rustup toolchain install stable --target x86_64-unknown-linux-gnu
+          rustup default stable
+      - name: Disable debuginfo generation
+        # Disable full debug symbol generation to speed up CI build and keep memory down
+        # "1" means line tables only, which is useful for panic tracebacks.
+        shell: bash
+        run: echo "RUSTFLAGS=-C debuginfo=1" >> $GITHUB_ENV
+      - name: Build the server
+        run: |
+          cargo build -p phymes-server --features wsl-gpu,candle --release
+      - name: Install Dioxus
+        shell: bash
+        run: |
+          cargo install dioxus-cli --forced
+      - name: Build the application
+        run: |
+          dx bundle -p phymes-app --release
+      - name: Bundle the application
+        run: |
+          mv target/release/phymes-server target/dx/phymes-app/release/web/public/phymes-server
+          tar -czf phymes-candle-cuda${{ matrix.version }}-${{ matrix.os }}.tar.gz target/dx/phymes-app/release/web/public
+          gh release upload ${GITHUB_REF_NAME} phymes-candle-cuda${{ matrix.version }}-${{ matrix.os }}.tar.gz
+
+  bundle-openai:
+    name: Test phymes-server
+    runs-on: self-hosted #ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu24.04]
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Build the server
+        run: |
+          cargo build -p phymes-server --features wsl --release
+      - name: Install Dioxus
+        shell: bash
+        run: |
+          cargo install dioxus-cli --forced
+      - name: Build the application
+        run: |
+          dx bundle -p phymes-app --release
+      - name: Bundle the application
+        run: |
+          mv target/release/phymes-server target/dx/phymes-app/release/web/public/phymes-server
+          tar -czf phymes-openai-${{ matrix.os }}.tar.gz target/dx/phymes-app/release/web/public
+          gh release upload ${GITHUB_REF_NAME} phymes-openai-${{ matrix.os }}.tar.gz
+
+  publish:
+    name: publish to crates.io
+    runs-on: self-hosted #ubuntu-latest
+    needs: docs
+    steps:
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-builder
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          cargo publish -p phymes-core --no-verify
+          cargo publish -p phymes-agents --no-verify
+          cargo publish -p phymes-server --no-verify
+          cargo publish -p phymes-app --no-verify

@@ -1,0 +1,20 @@
+name: Prepare the wasmtime cache
+description: 'Prepare the wasmtime cache'
+runs:
+  using: "composite"
+  steps:
+    - name: Cache wasmtime
+      id: cache-wasmtime
+      uses: actions/cache@v4
+      # cache does not work with local testing using act
+      # see https://github.com/nektos/act/issues/1513
+      with:
+        path: |
+          ~/.wasmtime/
+        key: ${{ runner.os }}-wasmtime-${{ hashFiles('**/README.md') }}
+    - if: ${{ steps.cache-wasmtime.outputs.cache-hit != 'true' }}
+      shell: bash
+      name: Install wasmtime
+      run: |
+        touch ~/.bash_profile
+        curl https://wasmtime.dev/install.sh -sSf | bash

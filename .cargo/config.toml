@@ -1,0 +1,13 @@
+[build]
+# Disable full debug symbol generation to speed up CI build and keep memory down
+# "1" means line tables only, which is useful for panic tracebacks.
+rustflags = ["-C", "target-cpu=native", "-C", "debuginfo=1"]
+
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128", '--cfg', 'getrandom_backend="wasm_js"']
+
+[target.wasm32-wasip2]
+rustflags = ["-C", "target-feature=+simd128"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "target-feature=-avx,-avx2"]

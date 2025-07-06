@@ -1,0 +1,87 @@
+# # tests for the phymes-app crate
+# name: phymes-app
+
+# concurrency:
+#   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+#   cancel-in-progress: true
+
+# on:
+#   # always trigger
+#   push:
+#     branches:
+#       - main
+#   pull_request:
+#     paths:
+#       - .github/**
+#       - phymes-app/**
+
+# jobs:
+
+#   # test the crate on linux
+#   linux-test:
+#     name: Test phymes-app
+#     runs-on: self-hosted #ubuntu-latest
+#     container:
+#       image: amd64/rust
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           submodules: true
+#       - name: Setup Rust toolchain
+#         uses: ./.github/actions/rust-build-env
+#       - name: Install dioxus
+#         run: cargo install dioxus-cli
+#       - name: Build
+#         run: |
+#           cd phymes-app
+#           dx build
+
+#   # test compilation features on linux
+#   linux-features:
+#     name: Check Compilation phymes-app
+#     runs-on: self-hosted #ubuntu-latest
+#     container:
+#       image: amd64/rust
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           submodules: true
+#       - name: Setup Rust toolchain
+#         uses: ./.github/actions/rust-build-env
+#       - name: Check compilation
+#         run: cargo check -p phymes-app
+#       - name: Check compilation --all-targets --features web
+#         run: cargo check -p phymes-app --all-targets --features web
+#       # DM: Error: The system library `gdk-3.0` required by crate `gdk-sys` was not found.
+#       # - name: Check compilation --all-targets --features mobile
+#       #   run: cargo check -p phymes-app --all-targets --features mobile
+#       # - name: Check compilation --all-targets --features desktop
+#       #   run: cargo check -p phymes-app --all-targets --features desktop
+
+#   fmt:
+#     name: Rustfmt phymes-app
+#     runs-on: self-hosted #ubuntu-latest
+#     container:
+#       image: amd64/rust
+#     steps:
+#       - uses: actions/checkout@v4
+#       - name: Setup Rust toolchain
+#         uses: ./.github/actions/rust-build-env
+#       - name: Setup Rustfmt
+#         run: rustup component add rustfmt
+#       - name: Rustfmt phymes-app
+#         run: cargo fmt -p phymes-app -- --check
+
+#   clippy:
+#     name: Clippy phymes-app
+#     runs-on: self-hosted #ubuntu-latest
+#     container:
+#       image: amd64/rust
+#     steps:
+#       - uses: actions/checkout@v4
+#       - name: Setup Rust toolchain
+#         uses: ./.github/actions/rust-build-env
+#       - name: Setup Clippy
+#         run: rustup component add clippy
+#       - name: Clippy phymes-app
+#         run: cargo clippy -p phymes-app --all-targets -- -D warnings
