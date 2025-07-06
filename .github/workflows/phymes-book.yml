@@ -33,9 +33,6 @@ jobs:
           fetch-depth: 0
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
-      - name: Install latest mdbook
-        run: |
-          cargo install --git https://github.com/rust-lang/mdBook.git mdbook
       - name: Test Book
         run: |
           mdbook test phymes-book
@@ -52,3 +49,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          name: mdbook

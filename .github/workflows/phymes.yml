@@ -29,12 +29,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
+      - name: Download HF models
+        uses: ./.github/actions/hf-model-cache
       - name: Run tests
         run: cargo test
       - name: build main
         run: cargo build
-      - name: Download HF models
-        uses: ./.github/actions/hf-model-cache
       - name: Run examples for agents
         run: |
           cargo run --package phymes-agents --features wsl,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
@@ -107,7 +107,7 @@ jobs:
       - name: Install gtk 3.0 for phymes-app mobile/desktop
         run: |
           apt update
-          apt install --assume-yes libgtk-3-dev
+          apt install --assume-yes libgtk-3-dev libsoup-3.0-0
       - name: Check compilation -p phymes-app --all-targets --features mobile
         run: cargo check -p phymes-app --all-targets --features mobile
       - name: Check compilation -p phymes-app --all-targets --features desktop
@@ -128,8 +128,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
-        with:
-          target: wasm32-unknown-unknown,wasm32-wasip2
       - name: Download HF models
         uses: ./.github/actions/hf-model-cache
       - name: Install wasmtime
