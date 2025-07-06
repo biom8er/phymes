@@ -33,7 +33,7 @@ parking_lot = "0.12.3"
 web-time = "1.1.0"
 hashbrown = "0.15.4"
 chrono = { version = "0.4.41", features = ["wasmbind"] }
-minijinja = { version = "2.6.0", features = ["json"] }
+minijinja = { version = "2.11.0", features = ["json"] }
 minijinja-contrib = { version = "2.6.0", features = ["pycompat"] }
 candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
 tokenizers = { version = "0.21.1", default-features = false, optional = true }
