@@ -1,5 +1,5 @@
-# tests for the phymes-server crate
-name: phymes-server
+name: phymes
+description: CI for the phymess core, agents, server, and app crates
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -33,6 +33,8 @@ jobs:
         run: cargo test
       - name: build main
         run: cargo build
+      - name: Download HF models
+        uses: ./.github/actions/hf-model-cache
       - name: Run examples for agents
         run: |
           cargo run --package phymes-agents --features wsl,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
@@ -105,7 +107,7 @@ jobs:
       - name: Install gtk 3.0 for phymes-app mobile/desktop
         run: |
           apt update
-          apt install libgtk-3-dev
+          apt install --assume-yes libgtk-3-dev
       - name: Check compilation -p phymes-app --all-targets --features mobile
         run: cargo check -p phymes-app --all-targets --features mobile
       - name: Check compilation -p phymes-app --all-targets --features desktop
@@ -165,9 +167,9 @@ jobs:
           wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chatagent.wasm
           wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
       - name: Build wasm32-unknown-unknown -p phymes-server
-        run: cargo build -p phymes-server --no-default-features --features wasip2-candle --target wasm32-unknown-unknown
+        run: cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
       - name: Build wasm32-wasip2 -p phymes-server tests
-        run: cargo test -p phymes-server --no-default-features --features wasip2-candle --target wasm32-wasip2 --no-run --release
+        run: cargo test -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
       # - name: Run wasm32-wasip2 -p phymes-server tests
       #   run: |
       #     export WASMTIME_HOME="$HOME/.wasmtime"
@@ -175,7 +177,7 @@ jobs:
       #     # DM: need to figure out a way to find the filename...
       #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
       - name: Build wasm32-wasip2 main
-        run: cargo build -p phymes-server --no-default-features --features wasip2-candle --target wasm32-wasip2 --release
+        run: cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release
 
   fmt:
     name: Rustfmt

@@ -13,6 +13,7 @@ runs:
   using: "composite"
   steps:
     - name: Cache Cargo
+      id: cache-cargo
       uses: actions/cache@v4
       # see https://github.com/actions/cache/blob/main/examples.md#rust---cargo
       # cache does not work with local testing using act
@@ -25,7 +26,8 @@ runs:
           ~/.cargo/git/db/
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    - name: Generate lockfile
+    - if: ${{ steps.cache-wasmtime.outputs.cache-hit != 'true' }}
+      name: Generate lockfile
       shell: bash
       run: cargo fetch
     - name: Install Build Dependencies
@@ -33,16 +35,19 @@ runs:
       run: |
         apt update
         apt install --assume-yes protobuf-compiler clang
-    - name: Setup Rust toolchain
+    - if: ${{ steps.cache-wasmtime.outputs.cache-hit != 'true' }}
+      name: Setup Rust toolchain
       shell: bash
       run: |
         echo "Installing ${{ inputs.rust-version }}"
         rustup toolchain install ${{ inputs.rust-version }} --target ${{ inputs.target }}
         rustup default ${{ inputs.rust-version }}
-    # DM: backtraces break on wasm
-    # - name: Enable backtraces
-    #   shell: bash
-    #   run: echo "RUST_BACKTRACE=1" >> $GITHUB_ENV
+        rustup component add clippy
+        rustup component add rustfmt
+    - if: ${{ steps.cache-wasmtime.outputs.cache-hit != 'true' }}
+      name: Install latest mdbook
+      run: |
+        cargo install --git https://github.com/rust-lang/mdBook.git mdbook
     - name: Fixup git permissions
       # https://github.com/actions/checkout/issues/766
       shell: bash

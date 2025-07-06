@@ -24,6 +24,9 @@ jobs:
       contents: write  # To push a branch 
       pages: write  # To push to a GitHub Pages site
       id-token: write # To update the deployment status
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,19 +49,6 @@ jobs:
         with:
           name: mdbook
           path: target/book
-
-  deploy:
-    name: Deploy MDBook
-    runs-on: self-hosted #ubuntu-latest
-    needs: book
-    permissions:
-      contents: write  # To push a branch 
-      pages: write  # To push to a GitHub Pages site
-      id-token: write # To update the deployment status
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
