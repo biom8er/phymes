@@ -112,6 +112,11 @@ jobs:
         run: cargo check -p phymes-app --all-targets --features mobile
       - name: Check compilation -p phymes-app --all-targets --features desktop
         run: cargo check -p phymes-app --all-targets --features desktop
+      - name: Clippy phymes
+        run: |
+          cargo clippy --all-targets -- -D warnings
+      - name: Rustfmt phymes
+        run: cargo fmt --all -- --check
 
   # test crate on wasm32 in nightly rust
   wasm32-build:
@@ -178,32 +183,3 @@ jobs:
       #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
       - name: Build wasm32-wasip2 main
         run: cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release
-
-  fmt:
-    name: Rustfmt
-    runs-on: self-hosted #ubuntu-latest
-    container:
-      image: amd64/rust
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/rust-build-env
-      - name: Setup Rustfmt
-        run: rustup component add rustfmt
-      - name: Rustfmt phymes
-        run: cargo fmt --all -- --check
-
-  clippy:
-    name: Clippy
-    runs-on: self-hosted #ubuntu-latest
-    container:
-      image: amd64/rust
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/rust-build-env
-      - name: Setup Clippy
-        run: rustup component add clippy
-      - name: Clippy phymes
-        run: |
-          cargo clippy --all-targets -- -D warnings
