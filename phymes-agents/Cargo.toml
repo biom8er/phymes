@@ -46,7 +46,7 @@ serde = "1.0.215"
 tracing = "0.1.41"
 new_string_template = "1.5"
 minijinja = "2.6.0"
-minijinja-contrib = { version = "2.6.0", features = ["pycompat"] }
+minijinja-contrib = { version = "2.11.0", features = ["pycompat"] }
 is_close = "0.1.3"
 intmap = "3.1.0"
 parking_lot = "0.12.3"
