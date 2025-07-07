@@ -15,7 +15,7 @@ futures = "0.3.31"
 reqwest = { version = "0.12.22", features = ["json", "stream"], default-features = false }
 serde = { version = "1.0.219", features = ["derive"] }
 chrono = "0.4.41"
-bytes = "1.10.0"
+bytes = "1.10.1"
 serde_json = "1.0.140"
 
 # DM: Cannot import phymes-core nor phymes-agents due to library conflicts with Dioxus!
