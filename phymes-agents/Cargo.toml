@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Douglas McCloskey"]
 description = "The Agentic AI token and tensor services for PHYMES"
-license = "MIT and Apache-2.0"
+license = "MIT AND Apache-2.0"
+repository = "https://github.com/biom8er/phymes"
+documentation = "https://docs.rs/phymes-agents"
 
 [features]
 default = ["wsl", "candle"]

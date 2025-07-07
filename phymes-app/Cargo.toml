@@ -6,7 +6,9 @@ authors = ["Douglas McCloskey"]
 #  when using dioxus `use_memo`
 edition = "2021"
 description = "Front-end UI for PHYMES"
-license = "MIT and Apache-2.0"
+license = "MIT AND Apache-2.0"
+repository = "https://github.com/biom8er/phymes"
+documentation = "https://docs.rs/phymes-app"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
