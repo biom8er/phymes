@@ -1,6 +1,6 @@
 # PHYMES: Parallel HYpergraph MEssaging Streams
 
-[![CI Status](https://github.com/biom8er/phymes/actions/workflows/main.yml/badge.svg)](https://github.com/biom8er/phymes/actions/workflows/main.yml)
+[![CI Status](https://github.com/biom8er/phymes/actions/workflows/phymes.yml/badge.svg)](https://github.com/biom8er/phymes/actions/workflows/main.yml)
 [![Latest version](https://img.shields.io/crates/v/phymes-core.svg)](https://crates.io/crates/phymes-core)
 [![Documentation](https://docs.rs/phymes-core/badge.svg)](https://docs.rs/phymes-core)
 [![License](https://img.shields.io/github/license/base-org/node?color=blue)](https://github.com/biom8er/phymes/blob/main/LICENSE-MIT)
