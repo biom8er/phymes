@@ -26,29 +26,30 @@ runs:
           ~/.cargo/git/db/
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    - if: ${{ steps.cache-cargo.outputs.cache-hit != 'true' }}
-      name: Generate lockfile
-      shell: bash
-      run: cargo fetch
     - name: Install Build Dependencies
       shell: bash
       run: |
         apt update
         apt install --assume-yes protobuf-compiler clang
-    - if: ${{ steps.cache-cargo.outputs.cache-hit != 'true' }}
-      name: Setup Rust toolchain
+    - name: Setup Rust toolchain
       shell: bash
       run: |
         echo "Installing ${{ inputs.rust-version }}"
         rustup toolchain install ${{ inputs.rust-version }} --target ${{ inputs.target }}
         rustup default ${{ inputs.rust-version }}
+    - name: Install clippy and fmt
+      shell: bash
+      run: |
         rustup component add clippy
         rustup component add rustfmt
-    - if: ${{ steps.cache-cargo.outputs.cache-hit != 'true' }}
-      name: Install latest mdbook
+    - name: Install latest mdbook
       shell: bash
       run: |
         cargo install --git https://github.com/rust-lang/mdBook.git mdbook
+    - if: ${{ steps.cache-cargo.outputs.cache-hit != 'true' }}
+      name: Generate lockfile
+      shell: bash
+      run: cargo fetch
     - name: Fixup git permissions
       # https://github.com/actions/checkout/issues/766
       shell: bash

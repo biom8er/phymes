@@ -29,6 +29,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
+        with:
+          target: x86_64-unknown-linux-gnu
       - name: Download HF models
         uses: ./.github/actions/hf-model-cache
       - name: Run tests
@@ -51,7 +53,7 @@ jobs:
   # test the crate on linux with cuda
   linux-cuda-test:
     if: false # DM: issues initialzing NVML
-    name: Test cuda phymes-server
+    name: Test cuda phymes
     runs-on: self-hosted #ubuntu-latest
     container:
       # DM: needs to match the version installed on the machine
@@ -64,6 +66,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/cuda-build-env
+        with:
+          target: x86_64-unknown-linux-gnu
       - name: Check compilation
         # DM: If 'Failed to initialize NVML: GPU access blocked by the operating system' on WSL
         # "Inside the file /etc/nvidia-container-runtime/config.toml change no-cgroups from true to false"
@@ -96,6 +100,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
+        with:
+          target: wasm32-unknown-unknown,wasm32-wasip2
       - name: Check compilation -p phymes-core --all-targets --features wsl
         run: cargo check -p phymes-core --all-targets --features wsl
       - name: Check compilation -p phymes-core --all-targets --features wasip2
@@ -109,8 +115,7 @@ jobs:
       - name: Check compilation -p phymes-server --all-targets --features wasip2
         run: cargo check -p phymes-server --all-targets --features wasip2
       - name: Clippy phymes
-        run: |
-          cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
       - name: Rustfmt phymes
         run: cargo fmt --all -- --check
       - name: Install dependencies for phymes-app mobile/desktop
