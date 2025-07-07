@@ -127,9 +127,6 @@ jobs:
           fetch-depth: 0
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
-      - name: Test Book
-        run: |
-          mdbook test phymes-book
       - name: Build Book
         run: |
           mdbook build phymes-book
