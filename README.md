@@ -3,6 +3,7 @@
 [![CI Status](https://github.com/biom8er/phymes/actions/workflows/phymes.yml/badge.svg)](https://github.com/biom8er/phymes/actions/workflows/main.yml)
 [![Latest version](https://img.shields.io/crates/v/phymes-core.svg)](https://crates.io/crates/phymes-core)
 [![Documentation](https://docs.rs/phymes-core/badge.svg)](https://docs.rs/phymes-core)
+[![Guide](https://github.com/biom8er/phymes/actions/workflows/docs.yml/badge.svg)](https://biom8er.github.io/phymes/)
 [![License](https://img.shields.io/github/license/base-org/node?color=blue)](https://github.com/biom8er/phymes/blob/main/LICENSE-MIT)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/biom8er/phymes/blob/main/LICENSE-APACHE)
 
@@ -12,11 +13,11 @@
 
 🤔 What is PHYMES?
 
-PHYMES (Parallel HYpergraph MEssaging Streams) is a subject-based message passing algorithm based on directed hypergraphs which provide the expressivity needed to model the heterogeneity and complexity of the real world. 
+PHYMES (Parallel HYpergraph MEssaging Streams) is a subject-based message passing algorithm based on directed hypergraphs which provide the expressivity needed to model the heterogeneity and complexity of the real world. More details in the [guide].
 
 🤔 What can PHYMES do?
 
-Phymes can be used to build scalable Agentic AI workflows, (hyper)-graph algorithms, and world simulators. Examples for building a chat bot, a tool calling agent, and document RAG agent are provided using embedded token/tensor services or local/remote token/tensor services using OpenAI compatible APIs.
+PHYMES can be used to build scalable Agentic AI workflows, (hyper)-graph algorithms, and world simulators. Examples for building a chat bot, a tool calling agent, and document RAG agent are provided using embedded token/tensor services or local/remote token/tensor services using OpenAI compatible APIs.
 
 🤔 Why PHYMES?
 
@@ -28,10 +29,11 @@ Phymes can be used to build scalable Agentic AI workflows, (hyper)-graph algorit
 
 🤔 Who and what inspired PHYMES?
 
-The implementation of Phymes takes inspiration from [DataFusion], [Pregel], and [PyG].
+PHYMES takes inspiration from real world networks including biological networks. The implementation of PHYMES takes inspiration from [DataFusion], [Pregel], and [PyG]. 
 
 🙏 PHYMES would not be possible if it were not for the amazing open-sources projects that it is built on top of including [Arrow] and [Candle] with full-stack support from [Tokio], [Dioxus], and [Wasmtime].
 
+[guide]: https://biom8er.github.io/phymes/
 [Rust]: https://www.rust-lang.org/
 [Arrow]: https://arrow.apache.org/
 [Candle]: https://www.rust-lang.org/

@@ -1,4 +1,4 @@
-name: phymes-book
+name: guide
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -50,12 +50,7 @@ jobs:
         with:
           name: mdbook
           path: target/book
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: mdbook
-          
+
   docs:
     name: Upload cargo docs
     runs-on: self-hosted #ubuntu-latest
