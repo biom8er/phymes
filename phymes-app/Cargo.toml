@@ -10,7 +10,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.95"
-dioxus = { version = "0.6.0" }
+dioxus = { version = "0.6.3" }
 futures = "0.3.31"
 reqwest = { version = "0.12.22", features = ["json", "stream"], default-features = false }
 serde = { version = "1.0.219", features = ["derive"] }
