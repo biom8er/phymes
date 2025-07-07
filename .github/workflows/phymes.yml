@@ -36,15 +36,13 @@ jobs:
         uses: ./.github/actions/hf-model-cache
       - name: Run tests
         run: cargo test
-      - name: build main
-        run: cargo build
-      - name: Run examples for agents
-        run: |
-          cargo build --package phymes-agents --example chat
-          cargo build --package phymes-agents --example chatagent
-          cargo build --package phymes-agents --example cache
-      - name: Run examples for core
-        run: cargo run --package phymes-core --release --example addrows
+      # DM: Redundant with GPU and WASM tests
+      # - name: Run examples for agents
+      #   run: |          
+      #     cargo run --package phymes-agents --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+      #     cargo run --package phymes-agents --release --example chatagent
+      # - name: Run examples for core
+      #   run: cargo run --package phymes-core --release --example addrows
       - name: Install dioxus
         run: cargo install dioxus-cli
       - name: Build phymes-app
@@ -106,6 +104,8 @@ jobs:
         uses: ./.github/actions/rust-build-env
         with:
           target: x86_64-unknown-linux-gnu
+      - name: Check compilation --all-targets
+        run: cargo check --all-targets
       - name: Check compilation -p phymes-core --all-targets --features wsl
         run: cargo check -p phymes-core --all-targets --features wsl
       - name: Check compilation -p phymes-core --all-targets --features wasip2
@@ -150,7 +150,7 @@ jobs:
       - name: Install wasmtime
         uses: ./.github/actions/wasmtime-cache
       - name: Build wasm32-unknown-unknown -p phymes-core
-        run: cargo build -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
+        run: cargo check -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
       - name: Build wasm32-wasip2 -p phymes-core tests
         run: cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run
       - name: Build wasm32-wasip2 examples
