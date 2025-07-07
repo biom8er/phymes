@@ -10,11 +10,15 @@
 
 ## Introduction
 
-Welcome to the parallel hypergraph messaging stream project. 
+🤔 What is PHYMES?
 
-Phymes core algorithm is based on directed hypergraphs to provide the expressivity needed to model the heterogeneity and complexity of the real world. Phymes can be used to build scalable Agentic AI workflows, (hyper)-graph algorithms, and world simulators. The implementation of Phymes takes inspiration from [DataFusion], [Pregel], and [PyG]. See GitHub Pages for guides and tutorials.
+PHYMES (Parallel HYpergraph MEssaging Streams) is a message passing algorithm based on directed hypergraphs which provide the expressivity needed to model the heterogeneity and complexity of the real world. 
 
-Phymes is...
+🤔 What can PHYMES do?
+
+Phymes can be used to build scalable Agentic AI workflows, (hyper)-graph algorithms, and world simulators.
+
+🤔 Why PHYMES?
 
 🔐 written 100% in [Rust] for performance, safety, and security.<br>
 🏛️ built on top of well-established open-source projects [Arrow] and [Candle] with full-stack support from [Tokio], [Dioxus], and [Wasmtime].<br>
@@ -23,6 +27,10 @@ Phymes is...
 🧩 interoperable with existing stacks by interfacing with cross-platform [Arrow] and [WASM]/[WASI].<br>
 🧬 based on directed hypergraphs to model the complexities of the real world implemented using a publish-subscribe messaging model.<br>
 🔎 instrumented with tracing and customizable metrics to debug (hyper-)graph workflows faster.<br>
+
+🤔 Who and what inspired PHYMES?
+
+The implementation of Phymes takes inspiration from [DataFusion], [Pregel], and [PyG]. See GitHub Pages for guides and tutorials.
 
 [Rust]: https://www.rust-lang.org/
 [Arrow]: https://arrow.apache.org/

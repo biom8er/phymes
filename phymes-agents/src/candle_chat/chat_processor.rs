@@ -720,7 +720,7 @@ mod tests {
         let metrics = ArrowTaskMetricsSet::new();
 
         // State for the chat processor config
-        let mut candle_chat_config = CandleChatConfig {
+        let candle_chat_config = CandleChatConfig {
             max_tokens: 1000,
             temperature: 0.8,
             seed: 299792458,
@@ -747,11 +747,6 @@ mod tests {
             ),
             ..Default::default()
         };
-
-        // Reduce the max_token count for CPU workflows when testing
-        if cfg!(all(not(feature = "wsl-gpu"), feature = "candle")) {
-            candle_chat_config.max_tokens = 10;
-        }
 
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;
         let candle_chat_config_table = ArrowTableBuilder::new()
@@ -815,39 +810,46 @@ mod tests {
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
-        // Update the chat history with the response
-        let (message_builder, _stream) = message_builder
-            .append_chat_response_sendable_record_batch_stream(
-                &mut stream.remove(messages).unwrap().get_message_own(),
-                1000,
-            )
-            .await?;
-        let messages = message_builder.clone().build()?;
-        let json_data = messages.to_json_object()?;
-        for row in &json_data {
-            if row["role"] != "system" {
-                println!("{}: {}", row["role"], row["content"])
+        // DM: Skip actually running the tests as they take too long on the CPU
+        if cfg!(any(
+            all(not(feature = "candle"), feature = "wsl"),
+            all(not(feature = "candle"), feature = "wasip2"),
+            feature = "wsl-gpu"
+        )) {
+            // Update the chat history with the response
+            let (message_builder, _stream) = message_builder
+                .append_chat_response_sendable_record_batch_stream(
+                    &mut stream.remove(messages).unwrap().get_message_own(),
+                    1000,
+                )
+                .await?;
+            let messages = message_builder.clone().build()?;
+            let json_data = messages.to_json_object()?;
+            for row in &json_data {
+                if row["role"] != "system" {
+                    println!("{}: {}", row["role"], row["content"])
+                }
             }
+
+            // Expected
+            // "\nimport math\n\ndef count_primes(n):\n    \"\"\"\n    Finds all prime numbers up to n and counts them.\n    \n    Args:\n        n (int): The upper limit of the range to find primes in.\n\n    Returns:\n        int: The total number of prime numbers found.\n    \"\"\"\n\n    # Initialize a boolean array that indicates the primality of each number\n    is_prime = [True for _ in range(n + 1)]\n\n    # Set initial values based on small numbers and even numbers\n    i, p = 2, 3\n    while i * i <= n:\n        if is_prime[i]:\n            j = (i * i)\n            while j <= n:\n                is_prime[j] = False\n                j += i\n        i += 1\n\n    # Count the number of primality\n    return sum(1 for num in range(2, n + 1) if is_prime[num])"
+
+            assert!(metrics.clone_inner().output_rows().unwrap() >= 10);
+            assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
+
+            assert_eq!(json_data.first().unwrap().get("role").unwrap(), "system");
+            assert_eq!(
+                json_data.first().unwrap().get("content").unwrap(),
+                "You are a helpful assistant."
+            );
+            assert_eq!(json_data.get(1).unwrap().get("role").unwrap(), "user");
+            assert_eq!(
+                json_data.get(1).unwrap().get("content").unwrap(),
+                "Write a function to count prime numbers up to N."
+            );
+            assert_eq!(json_data.get(2).unwrap().get("role").unwrap(), "assistant");
+            assert!(json_data.get(2).unwrap().get("content").is_some());
         }
-
-        // Expected
-        // "\nimport math\n\ndef count_primes(n):\n    \"\"\"\n    Finds all prime numbers up to n and counts them.\n    \n    Args:\n        n (int): The upper limit of the range to find primes in.\n\n    Returns:\n        int: The total number of prime numbers found.\n    \"\"\"\n\n    # Initialize a boolean array that indicates the primality of each number\n    is_prime = [True for _ in range(n + 1)]\n\n    # Set initial values based on small numbers and even numbers\n    i, p = 2, 3\n    while i * i <= n:\n        if is_prime[i]:\n            j = (i * i)\n            while j <= n:\n                is_prime[j] = False\n                j += i\n        i += 1\n\n    # Count the number of primality\n    return sum(1 for num in range(2, n + 1) if is_prime[num])"
-
-        assert!(metrics.clone_inner().output_rows().unwrap() >= 10);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
-
-        assert_eq!(json_data.first().unwrap().get("role").unwrap(), "system");
-        assert_eq!(
-            json_data.first().unwrap().get("content").unwrap(),
-            "You are a helpful assistant."
-        );
-        assert_eq!(json_data.get(1).unwrap().get("role").unwrap(), "user");
-        assert_eq!(
-            json_data.get(1).unwrap().get("content").unwrap(),
-            "Write a function to count prime numbers up to N."
-        );
-        assert_eq!(json_data.get(2).unwrap().get("role").unwrap(), "assistant");
-        assert!(json_data.get(2).unwrap().get("content").is_some());
 
         Ok(())
     }

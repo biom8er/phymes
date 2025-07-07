@@ -50,4 +50,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          name: mdbook
+          artifact_name: mdbook
