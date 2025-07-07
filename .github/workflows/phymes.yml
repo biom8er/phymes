@@ -37,11 +37,11 @@ jobs:
         run: cargo build
       - name: Run examples for agents
         run: |
-          cargo run --package phymes-agents --features wsl,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
-          cargo run --package phymes-agents --features wsl,candle --release --example chatagent
-          cargo build --package phymes-agents --features wsl,candle --release --example cache
+          cargo run --package phymes-agents --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+          cargo build --package phymes-agents --example chatagent
+          cargo build --package phymes-agents --example cache
       - name: Run examples for core
-        run: cargo run --package phymes-core --features wsl --release --example addrows
+        run: cargo run --package phymes-core --release --example addrows
       - name: Install dioxus
         run: cargo install dioxus-cli
       - name: Build phymes-app
@@ -80,7 +80,11 @@ jobs:
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
           cargo test -p phymes-server --features wsl-gpu,candle
-          cargo test -p phymes-server --features wsl-gpu,agents
+          cargo test -p phymes-agents --features wsl-gpu,agents
+      - name: Run examples
+        run: |
+          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chat
+          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chatagent
 
   # test compilation features on linux (except those already built in other jobs)
   linux-features:
@@ -104,19 +108,19 @@ jobs:
         run: cargo check -p phymes-server --all-targets --features wsl
       - name: Check compilation -p phymes-server --all-targets --features wasip2
         run: cargo check -p phymes-server --all-targets --features wasip2
-      - name: Install gtk 3.0 for phymes-app mobile/desktop
-        run: |
-          apt update
-          apt install --assume-yes libgtk-3-dev libsoup-3.0-0
-      - name: Check compilation -p phymes-app --all-targets --features mobile
-        run: cargo check -p phymes-app --all-targets --features mobile
-      - name: Check compilation -p phymes-app --all-targets --features desktop
-        run: cargo check -p phymes-app --all-targets --features desktop
       - name: Clippy phymes
         run: |
           cargo clippy --all-targets -- -D warnings
       - name: Rustfmt phymes
         run: cargo fmt --all -- --check
+      - name: Install dependencies for phymes-app mobile/desktop
+        run: |
+          apt update
+          apt install -y libgtk-3-dev libsoup-3.0-0 libjavascriptcoregtk-4.1-dev
+      - name: Check compilation -p phymes-app --all-targets --features mobile
+        run: cargo check -p phymes-app --all-targets --features mobile
+      - name: Check compilation -p phymes-app --all-targets --features desktop
+        run: cargo check -p phymes-app --all-targets --features desktop
 
   # test crate on wasm32 in nightly rust
   wasm32-build:
