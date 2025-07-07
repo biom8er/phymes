@@ -63,23 +63,23 @@ jobs:
       # DM: need to mount the location of `nvidia-smi` and cuda libraries
       # see https://forums.developer.nvidia.com/t/nvidia-smi-command-not-found-in-docker-container/181131/4
       # see https://github.com/microsoft/wslg/blob/main/samples/container/Containers.md#containerized-applications-access-to-vgpu-accelerated-video
-      options: --gpus 0 -v /usr/lib/wsl/lib/:/usr/local/bin -v /mnt/wslg:/mnt/wslg --device=/dev/dxg
+      options: --gpus 0 -v /usr/lib/wsl/lib/:/usr/local/bin # -v /mnt/wslg:/mnt/wslg --device=/dev/dxg
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/cuda-build-env
         with:
           target: x86_64-unknown-linux-gnu
-      - name: Check compilation
+      - name: Check build
         # DM: If 'Failed to initialize NVML: GPU access blocked by the operating system' on WSL
         # "Inside the file /etc/nvidia-container-runtime/config.toml change no-cgroups from true to false"
+        # `sudo sed -i 's/no-cgroups = true/no-cgroups = false/' /etc/nvidia-container-runtime/config.toml`
         # see https://github.com/microsoft/WSL/issues/9962#issuecomment-206645917
         run: |
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
           cargo build -p phymes-server --features wsl-gpu,candle
-          cargo build -p phymes-agents --features wsl-gpu,candle
       - name: Run tests
         run: |
           export PATH="$PATH:$HOME/.cargo/bin"
@@ -89,6 +89,9 @@ jobs:
           cargo test -p phymes-agents --features wsl-gpu,agents
       - name: Run examples
         run: |
+          export PATH="$PATH:$HOME/.cargo/bin"
+          export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
+          export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
           cargo run --package phymes-agents --features wsl-gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
           cargo run --package phymes-agents --features wsl-gpu,candle --release --example chatagent
 

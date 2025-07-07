@@ -2,7 +2,7 @@
 
 ## Hypergraphs are powerful representations for the complexities of the real world
 
-Hypergraphs are a generalization of graphs that can better represent the complexities of the real world. For example, biochemical networks can be represented as a directed hypergraph where nodes are molecules and hyperedges are reactions that catalyze the conversion of molecules into other molecules. The directionalty of the reaction is lost when represented as an indirected graph and the grouping of molecules involved in the reaction is lost when using directed graphs.
+Hypergraphs are a generalization of graphs that can better represent the complexities of the real world. For example, biochemical networks can be represented as a directed hypergraph where nodes are molecules and hyperedges are reactions that catalyze the conversion of molecules into other molecules. The directionalty of the reaction is lost when represented as an undirected graph and the grouping of molecules involved in the reaction is lost when using directed graphs.
 
 Mathematically, the biochemical reaction hypergraph can be represented as an incidence matrix where the rows corresponding to molecules, the columns correspond to reactions, and the entries are positive or negative integers corresponding the the number of molecules consumed or produced by the reaction.
 
