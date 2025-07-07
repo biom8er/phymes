@@ -62,7 +62,7 @@ jobs:
       image: nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
       # DM: need to mount the location of `nvidia-smi` and cuda libraries
       # see https://forums.developer.nvidia.com/t/nvidia-smi-command-not-found-in-docker-container/181131/4
-      options: --gpus 0 -v /usr/lib/wsl/lib/:/usr/local/bin
+      options: --gpus 0 -v /usr/lib/wsl:/usr/lib/wsl -v /mnt/wslg:/mnt/wslg --device=/dev/dxg
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
@@ -76,7 +76,7 @@ jobs:
         run: |
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
-          export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
+          export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
           cargo build -p phymes-server --features wsl-gpu,candle
           cargo build -p phymes-agents --features wsl-gpu,candle
       - name: Run tests

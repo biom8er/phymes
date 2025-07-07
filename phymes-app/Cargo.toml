@@ -5,6 +5,8 @@ authors = ["Douglas McCloskey"]
 # DM: updating to 2024 causes many "error[E0716]: temporary value dropped while borrowed"
 #  when using dioxus `use_memo`
 edition = "2021"
+description = "Front-end UI for PHYMES"
+license = "MIT and Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

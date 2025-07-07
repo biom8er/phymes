@@ -2,6 +2,9 @@
 name = "phymes-agents"
 version = "0.1.0"
 edition = "2024"
+authors = ["Douglas McCloskey"]
+description = "The Agentic AI token and tensor services for PHYMES"
+license = "MIT and Apache-2.0"
 
 [features]
 default = ["wsl", "candle"]

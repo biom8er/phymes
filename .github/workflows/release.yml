@@ -45,8 +45,6 @@ jobs:
       options: --gpus 0
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Setup Rust toolchain
         uses: ./.github/actions/cuda-build-env
       - name: Build the server
@@ -75,8 +73,6 @@ jobs:
       image: amd64/rust
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
       - name: Build the server
@@ -98,10 +94,23 @@ jobs:
   publish:
     name: publish to crates.io
     runs-on: self-hosted #ubuntu-latest
-    needs: docs
     steps:
+      - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
+      - name: Run cargo doc
+        run: |
+          cargo doc --document-private-items --no-deps -p phymes-core --features wsl
+          cargo doc --document-private-items --no-deps -p phymes-agents --features wsl
+          cargo doc --document-private-items --no-deps -p phymes-server --features wsl
+          cargo doc --document-private-items --no-deps -p phymes-app
+      - name: Fix file permissions for docs
+        shell: sh
+        run: |
+          chmod -c -R +rX "target/doc" |
+          while read line; do
+              echo "::warning title=Invalid file permissions automatically fixed::$line"
+          done
       - name: Publish to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
