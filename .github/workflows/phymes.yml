@@ -13,6 +13,7 @@ on:
   pull_request:
     paths:
       - .github/**
+      - phymes-app/**
       - phymes-core/**
       - phymes-agents/**
       - phymes-server/**
@@ -21,7 +22,6 @@ jobs:
 
   # test the crate on linux
   linux-test:
-    if: false
     name: Test phymes
     runs-on: self-hosted #ubuntu-latest
     container:
@@ -53,7 +53,7 @@ jobs:
 
   # test the crate on linux with cuda
   linux-cuda-test:
-    # if: false # DM: issues initialzing NVML
+    if: false # DM: issues initialzing NVML
     name: Test cuda phymes
     runs-on: self-hosted #ubuntu-latest
     container:
@@ -62,8 +62,7 @@ jobs:
       image: nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
       # DM: need to mount the location of `nvidia-smi` and cuda libraries
       # see https://forums.developer.nvidia.com/t/nvidia-smi-command-not-found-in-docker-container/181131/4
-      # see https://github.com/microsoft/wslg/blob/main/samples/container/Containers.md#containerized-applications-access-to-vgpu-accelerated-video
-      options: --gpus 0 -v /usr/lib/wsl/lib/:/usr/local/bin # -v /mnt/wslg:/mnt/wslg --device=/dev/dxg
+      options: --gpus 0 -v /usr/lib/wsl/lib/:/usr/local/bin
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
@@ -97,7 +96,6 @@ jobs:
 
   # test compilation features on linux (except those already built in other jobs)
   linux-features:
-    if: false
     name: Check Compilation phymes
     runs-on: self-hosted #ubuntu-latest
     container:
@@ -137,7 +135,6 @@ jobs:
 
   # test crate on wasm32 in nightly rust
   wasm32-build:
-    if: false
     name: Build wasm32
     runs-on: self-hosted #ubuntu-latest
     container:

@@ -1,4 +1,4 @@
-name: docs
+name: phymes-book
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -10,8 +10,52 @@ on:
     branches:
       - main
   pull_request:
+    paths:
+      - .github/**
+      - phymes-book/**
+      - phymes-app/**
+      - phymes-core/**
+      - phymes-agents/**
+      - phymes-server/**
 
 jobs:
+  book:
+    name: Upload MDBook
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    permissions:
+      contents: write  # To push a branch 
+      pages: write  # To push to a GitHub Pages site
+      id-token: write # To update the deployment status
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Test Book
+        run: |
+          mdbook test phymes-book
+      - name: Build Book
+        run: |
+          mdbook build phymes-book
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: mdbook
+          path: target/book
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: mdbook
+          
   docs:
     name: Upload cargo docs
     runs-on: self-hosted #ubuntu-latest

@@ -10,7 +10,7 @@ While simplistic, this representation is already useful for decision science whe
 
 Hypergraphs can be further decomposed into binary and unary hyper edges. This decomposition better aligns with the binary and unary operators of computational graphs. This decomposition also aligns well with biochemical computational graphs where reactions can be broken down into steps describing the binding of individual molecules to a catalyst, the rearrangement of atoms, and the unbinding of individual molecules. When the exact steps are not known, a set of possible hypergraph configurations can be constructed and then weighted by their probability or used as the basis for follow up experiments to determine the exact steps.
 
-## Phymes is a parallel and streaming hypergraph algorithm primitive
+## Phymes is a parallel hypergraph message streaming algorithm
 
 Phymes is designed around the concept of a hypergraph where subjects are nodes and tasks are hyperedges. Phymes uses a publish-subscribe message passing scheme to implement the hypergraph. Specifically, tasks subscribe to and publish on subjects. The addition of processor metrics, tracing, and the subject tables themselves provides transparency on all hypergraph computation steps.
 

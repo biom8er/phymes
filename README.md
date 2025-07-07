@@ -28,7 +28,7 @@ Phymes can be used to build scalable Agentic AI workflows, (hyper)-graph algorit
 
 🤔 Who and what inspired PHYMES?
 
-The implementation of Phymes takes inspiration from [DataFusion], [Pregel], and [PyG]. See GitHub Pages for guides and tutorials.
+The implementation of Phymes takes inspiration from [DataFusion], [Pregel], and [PyG].
 
 🙏 PHYMES would not be possible if it were not for the amazing open-sources projects that it is built on top of including [Arrow] and [Candle] with full-stack support from [Tokio], [Dioxus], and [Wasmtime].
 
