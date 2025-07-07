@@ -2,6 +2,9 @@
 name = "phymes-core"
 version = "0.1.0"
 edition = "2024"
+authors = ["Douglas McCloskey"]
+description = "The core subject-based message passing algorithm of PHYMES"
+license = "MIT and Apache-2.0"
 
 [features]
 default = ["wsl","candle"]

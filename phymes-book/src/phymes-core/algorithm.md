@@ -2,7 +2,7 @@
 
 ## Hypergraphs are powerful representations for the complexities of the real world
 
-Hypergraphs are a generalization of graphs that can better represent the complexities of the real world. For example, biochemical networks can be represented as a directed hypergraph where nodes are molecules and hyperedges are reactions that catalyze the conversion of molecules into other molecules. The directionalty of the reaction is lost when represented as an indirected graph and the grouping of molecules involved in the reaction is lost when using directed graphs.
+Hypergraphs are a generalization of graphs that can better represent the complexities of the real world. For example, biochemical networks can be represented as a directed hypergraph where nodes are molecules and hyperedges are reactions that catalyze the conversion of molecules into other molecules. The directionalty of the reaction is lost when represented as an undirected graph and the grouping of molecules involved in the reaction is lost when using directed graphs.
 
 Mathematically, the biochemical reaction hypergraph can be represented as an incidence matrix where the rows corresponding to molecules, the columns correspond to reactions, and the entries are positive or negative integers corresponding the the number of molecules consumed or produced by the reaction.
 
@@ -10,7 +10,7 @@ While simplistic, this representation is already useful for decision science whe
 
 Hypergraphs can be further decomposed into binary and unary hyper edges. This decomposition better aligns with the binary and unary operators of computational graphs. This decomposition also aligns well with biochemical computational graphs where reactions can be broken down into steps describing the binding of individual molecules to a catalyst, the rearrangement of atoms, and the unbinding of individual molecules. When the exact steps are not known, a set of possible hypergraph configurations can be constructed and then weighted by their probability or used as the basis for follow up experiments to determine the exact steps.
 
-## Phymes is a parallel and streaming hypergraph algorithm primitive
+## Phymes is a parallel hypergraph message streaming algorithm
 
 Phymes is designed around the concept of a hypergraph where subjects are nodes and tasks are hyperedges. Phymes uses a publish-subscribe message passing scheme to implement the hypergraph. Specifically, tasks subscribe to and publish on subjects. The addition of processor metrics, tracing, and the subject tables themselves provides transparency on all hypergraph computation steps.
 

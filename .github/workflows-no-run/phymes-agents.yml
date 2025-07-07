@@ -1,0 +1,157 @@
+# tests for the phymes-agents crate
+name: phymes-agents
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+on:
+  # always trigger
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - .github/**
+      - phymes-agents/**
+      - phymes-core/**
+
+jobs:
+
+  # test the crate on linux
+  linux-test:
+    name: Test phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Download HF models
+        uses: ./.github/actions/hf-model-cache
+      - name: Run tests
+        run: cargo test -p phymes-agents --features wsl,candle --release
+      - name: build examples
+        run: |
+          cargo run --package phymes-agents --features wsl,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+          cargo run --package phymes-agents --features wsl,candle --release --example chatagent
+          cargo build --package phymes-agents --features wsl,candle --release --example cache
+
+  # test the crate on linux with cuda
+  linux-cuda-test:
+    if: false # DM: issues initialzing NVML
+    name: Test cuda phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      # DM: needs to match the version installed on the machine
+      # e.g., currently 12.6.2 for cudarc-0.12.1
+      image: nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
+      # DM: need to mount the location of `nvidia-smi` and cuda libraries
+      # see https://forums.developer.nvidia.com/t/nvidia-smi-command-not-found-in-docker-container/181131/4
+      options: --gpus 0 -v /usr/lib/wsl/lib/:/usr/local/bin
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/cuda-build-env
+      - name: Check compilation
+        # DM: If 'Failed to initialize NVML: GPU access blocked by the operating system' on WSL
+        # "Inside the file /etc/nvidia-container-runtime/config.toml change no-cgroups from true to false"
+        # see https://github.com/microsoft/WSL/issues/9962#issuecomment-2066459177
+        run: |
+          export PATH="$PATH:$HOME/.cargo/bin"
+          export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
+          export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
+          cargo build -p phymes-agents --features wsl-gpu,candle
+      - name: Run tests
+        run: |
+          export PATH="$PATH:$HOME/.cargo/bin"
+          export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
+          export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
+          cargo test -p phymes-agents --features wsl-gpu,candle --release
+      - name: Run examples
+        run: |
+          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chat
+          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chatagent
+
+  # test compilation features on linux (except those already built in other jobs)
+  linux-features:
+    name: Check Compilation phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Check compilation --all-targets
+        run: cargo check -p phymes-agents --all-targets
+      - name: Check compilation --all-targets --features wsl
+        run: cargo check -p phymes-agents --all-targets --features wsl
+
+  # test crate on wasm32 in nightly rust
+  wasm32-build:
+    name: Build wasm32 phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+        with:
+          target: wasm32-unknown-unknown,wasm32-wasip2
+      - name: Download HF models
+        uses: ./.github/actions/hf-model-cache
+      - name: Build wasm32-unknown-unknown -p phymes-agents
+        run: cargo build -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
+      - name: Install wasmtime
+        uses: ./.github/actions/wasmtime-cache
+      - name: Build wasm32-wasip2 -p phymes-agents tests
+        run: cargo test -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
+      # - name: Run wasm32-wasip2 -p phymes-agents tests
+      #   run: |
+      #     export WASMTIME_HOME="$HOME/.wasmtime"
+      #     export PATH="$PATH:$WASMTIME_HOME/bin"
+      #     # DM: need to figure out a way to find the filename...
+      #     wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
+      - name: Build wasm32-wasip2 -p phymes-agents examples
+        run: |
+          cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
+          cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chatagent
+      - name: Run wasm32-wasip2 -p phymes-agents examples
+        run: |
+          export WASMTIME_HOME="$HOME/.wasmtime"
+          export PATH="$PATH:$WASMTIME_HOME/bin"
+          wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chatagent.wasm
+          wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+
+  fmt:
+    name: Rustfmt phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Setup Rustfmt
+        run: rustup component add rustfmt
+      - name: Rustfmt phymes-agents
+        run: cargo fmt -p phymes-agents -- --check
+
+  clippy:
+    name: Clippy phymes-agents
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+      - name: Setup Clippy
+        run: rustup component add clippy
+      - name: Clippy phymes-agents
+        run: |
+          cargo clippy -p phymes-agents --all-targets --features wsl,candle -- -D warnings
+          cargo clippy -p phymes-agents --all-targets --features wsl -- -D warnings

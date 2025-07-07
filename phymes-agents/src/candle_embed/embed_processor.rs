@@ -666,7 +666,6 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(all(not(target_family = "wasm"), feature = "candle"))]
     #[tokio::test]
     async fn test_candle_embed_stream_nowasm() -> Result<()> {
         let config = CandleEmbedConfig {

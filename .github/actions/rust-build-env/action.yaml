@@ -1,18 +1,19 @@
 name: Prepare Rust Builder
-description: 'Prepare Rust Build Environment'
+description: Prepare Rust Build Environment
 inputs:
   rust-version:
-    description: 'version of rust to install (e.g. stable)'
+    description: version of rust to install (e.g. stable)
     required: false
-    default: 'stable'
+    default: stable
   target:
-    description: 'target architecture(s)'
+    description: target architecture(s)
     required: false
-    default: 'x86_64-unknown-linux-gnu'
+    default: x86_64-unknown-linux-gnu,wasm32-unknown-unknown,wasm32-wasip2
 runs:
   using: "composite"
   steps:
     - name: Cache Cargo
+      id: cache-cargo
       uses: actions/cache@v4
       # see https://github.com/actions/cache/blob/main/examples.md#rust---cargo
       # cache does not work with local testing using act
@@ -25,9 +26,6 @@ runs:
           ~/.cargo/git/db/
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    - name: Generate lockfile
-      shell: bash
-      run: cargo fetch
     - name: Install Build Dependencies
       shell: bash
       run: |
@@ -39,10 +37,19 @@ runs:
         echo "Installing ${{ inputs.rust-version }}"
         rustup toolchain install ${{ inputs.rust-version }} --target ${{ inputs.target }}
         rustup default ${{ inputs.rust-version }}
-    # DM: backtraces break on wasm
-    # - name: Enable backtraces
-    #   shell: bash
-    #   run: echo "RUST_BACKTRACE=1" >> $GITHUB_ENV
+    - name: Install clippy and fmt
+      shell: bash
+      run: |
+        rustup component add clippy
+        rustup component add rustfmt
+    - name: Install latest mdbook
+      shell: bash
+      run: |
+        cargo install --git https://github.com/rust-lang/mdBook.git mdbook
+    - if: ${{ steps.cache-cargo.outputs.cache-hit != 'true' }}
+      name: Generate lockfile
+      shell: bash
+      run: cargo fetch
     - name: Fixup git permissions
       # https://github.com/actions/checkout/issues/766
       shell: bash

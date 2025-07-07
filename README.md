@@ -1,6 +1,6 @@
 # PHYMES: Parallel HYpergraph MEssaging Streams
 
-[![CI Status](https://github.com/biom8er/phymes/actions/workflows/main.yml/badge.svg)](https://github.com/biom8er/phymes/actions/workflows/main.yml)
+[![CI Status](https://github.com/biom8er/phymes/actions/workflows/phymes.yml/badge.svg)](https://github.com/biom8er/phymes/actions/workflows/main.yml)
 [![Latest version](https://img.shields.io/crates/v/phymes-core.svg)](https://crates.io/crates/phymes-core)
 [![Documentation](https://docs.rs/phymes-core/badge.svg)](https://docs.rs/phymes-core)
 [![License](https://img.shields.io/github/license/base-org/node?color=blue)](https://github.com/biom8er/phymes/blob/main/LICENSE-MIT)
@@ -10,19 +10,27 @@
 
 ## Introduction
 
-Welcome to the parallel hypergraph messaging stream project. 
+🤔 What is PHYMES?
 
-Phymes core algorithm is based on directed hypergraphs to provide the expressivity needed to model the heterogeneity and complexity of the real world. Phymes can be used to build scalable Agentic AI workflows, (hyper)-graph algorithms, and world simulators. The implementation of Phymes takes inspiration from [DataFusion], [Pregel], and [PyG]. See GitHub Pages for guides and tutorials.
+PHYMES (Parallel HYpergraph MEssaging Streams) is a subject-based message passing algorithm based on directed hypergraphs which provide the expressivity needed to model the heterogeneity and complexity of the real world. 
 
-Phymes is...
+🤔 What can PHYMES do?
+
+Phymes can be used to build scalable Agentic AI workflows, (hyper)-graph algorithms, and world simulators. Examples for building a chat bot, a tool calling agent, and document RAG agent are provided using embedded token/tensor services or local/remote token/tensor services using OpenAI compatible APIs.
+
+🤔 Why PHYMES?
 
 🔐 written 100% in [Rust] for performance, safety, and security.<br>
-🏛️ built on top of well-established open-source projects [Arrow] and [Candle] with full-stack support from [Tokio], [Dioxus], and [Wasmtime].<br>
 🌎 deployable on any platform (Linux, MacOs, Win, Android, and iOS) and in the browser (WebAssembly).<br>
 💪 scalable to massive data sets using columnar in memory format, parallel and stream native processing, and GPU acceleration.<br>
 🧩 interoperable with existing stacks by interfacing with cross-platform [Arrow] and [WASM]/[WASI].<br>
-🧬 based on directed hypergraphs to model the complexities of the real world implemented using a publish-subscribe messaging model.<br>
 🔎 instrumented with tracing and customizable metrics to debug (hyper-)graph workflows faster.<br>
+
+🤔 Who and what inspired PHYMES?
+
+The implementation of Phymes takes inspiration from [DataFusion], [Pregel], and [PyG].
+
+🙏 PHYMES would not be possible if it were not for the amazing open-sources projects that it is built on top of including [Arrow] and [Candle] with full-stack support from [Tokio], [Dioxus], and [Wasmtime].
 
 [Rust]: https://www.rust-lang.org/
 [Arrow]: https://arrow.apache.org/

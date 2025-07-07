@@ -1,0 +1,200 @@
+name: phymes
+description: CI for the phymess core, agents, server, and app crates
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+on:
+  # always trigger
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - .github/**
+      - phymes-app/**
+      - phymes-core/**
+      - phymes-agents/**
+      - phymes-server/**
+
+jobs:
+
+  # test the crate on linux
+  linux-test:
+    name: Test phymes
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+        with:
+          target: x86_64-unknown-linux-gnu
+      - name: Download HF models
+        uses: ./.github/actions/hf-model-cache
+      - name: Run tests
+        run: cargo test
+      - name: build main
+        run: cargo build
+      - name: Run examples for agents
+        run: |
+          cargo build --package phymes-agents --example chat
+          cargo build --package phymes-agents --example chatagent
+          cargo build --package phymes-agents --example cache
+      - name: Run examples for core
+        run: cargo run --package phymes-core --release --example addrows
+      - name: Install dioxus
+        run: cargo install dioxus-cli
+      - name: Build phymes-app
+        run: |
+          dx build -p phymes-app
+
+  # test the crate on linux with cuda
+  linux-cuda-test:
+    if: false # DM: issues initialzing NVML
+    name: Test cuda phymes
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      # DM: needs to match the version installed on the machine
+      # e.g., currently 12.6.2 for cudarc-0.12.1
+      image: nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
+      # DM: need to mount the location of `nvidia-smi` and cuda libraries
+      # see https://forums.developer.nvidia.com/t/nvidia-smi-command-not-found-in-docker-container/181131/4
+      options: --gpus 0 -v /usr/lib/wsl/lib/:/usr/local/bin
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/cuda-build-env
+        with:
+          target: x86_64-unknown-linux-gnu
+      - name: Check build
+        # DM: If 'Failed to initialize NVML: GPU access blocked by the operating system' on WSL
+        # "Inside the file /etc/nvidia-container-runtime/config.toml change no-cgroups from true to false"
+        # `sudo sed -i 's/no-cgroups = true/no-cgroups = false/' /etc/nvidia-container-runtime/config.toml`
+        # see https://github.com/microsoft/WSL/issues/9962#issuecomment-206645917
+        run: |
+          export PATH="$PATH:$HOME/.cargo/bin"
+          export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
+          export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
+          cargo build -p phymes-server --features wsl-gpu,candle
+      - name: Run tests
+        run: |
+          export PATH="$PATH:$HOME/.cargo/bin"
+          export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
+          export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
+          cargo test -p phymes-server --features wsl-gpu,candle
+          cargo test -p phymes-agents --features wsl-gpu,agents
+      - name: Run examples
+        run: |
+          export PATH="$PATH:$HOME/.cargo/bin"
+          export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
+          export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
+          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chatagent
+
+  # test compilation features on linux (except those already built in other jobs)
+  linux-features:
+    name: Check Compilation phymes
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+        with:
+          target: x86_64-unknown-linux-gnu
+      - name: Check compilation -p phymes-core --all-targets --features wsl
+        run: cargo check -p phymes-core --all-targets --features wsl
+      - name: Check compilation -p phymes-core --all-targets --features wasip2
+        run: cargo check -p phymes-core --all-targets --features wasip2
+      - name: Check compilation -p phymes-agents --all-targets --features wsl
+        run: cargo check -p phymes-agents --all-targets --features wsl
+      - name: Check compilation -p phymes-agents --all-targets --features wasip2
+        run: cargo check -p phymes-agents --all-targets --features wasip2
+      - name: Check compilation -p phymes-server --all-targets --features wsl
+        run: cargo check -p phymes-server --all-targets --features wsl
+      - name: Check compilation -p phymes-server --all-targets --features wasip2
+        run: cargo check -p phymes-server --all-targets --features wasip2
+      - name: Clippy phymes
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Rustfmt phymes
+        run: cargo fmt --all -- --check
+      # DM: need to debug the installation dependencies for mobile/desktop
+      #  on the CI...
+      # - name: Install dependencies for phymes-app mobile/desktop
+      #   run: |
+      #     apt update
+      #     apt install -y libgtk-3-dev libsoup-3.0-0 libjavascriptcoregtk-4.1-dev
+      # - name: Check compilation -p phymes-app --all-targets --features mobile
+      #   run: cargo check -p phymes-app --all-targets --features mobile
+      # - name: Check compilation -p phymes-app --all-targets --features desktop
+      #   run: cargo check -p phymes-app --all-targets --features desktop
+
+  # test crate on wasm32 in nightly rust
+  wasm32-build:
+    name: Build wasm32
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+        with:
+          target: wasm32-unknown-unknown,wasm32-wasip2
+      - name: Download HF models
+        uses: ./.github/actions/hf-model-cache
+      - name: Install wasmtime
+        uses: ./.github/actions/wasmtime-cache
+      - name: Build wasm32-unknown-unknown -p phymes-core
+        run: cargo build -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
+      - name: Build wasm32-wasip2 -p phymes-core tests
+        run: cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run
+      - name: Build wasm32-wasip2 examples
+        run: cargo build -p phymes-core --target wasm32-wasip2 --no-default-features --features wasip2 --release --example addrows
+      # - name: Run wasm32-wasip2 -p phymes-core tests
+      #   run: |
+      #     export WASMTIME_HOME="$HOME/.wasmtime"
+      #     export PATH="$PATH:$WASMTIME_HOME/bin"
+      #     # DM: need to figure out a way to find the filename...
+      #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-core-26200b790e92721b.wasm
+      - name: Run wasm32-wasip2 -p phymes-core examples
+        run: |
+          export WASMTIME_HOME="$HOME/.wasmtime"
+          export PATH="$PATH:$WASMTIME_HOME/bin"
+          wasmtime run target/wasm32-wasip2/release/examples/addrows.wasm
+      - name: Build wasm32-unknown-unknown -p phymes-agents
+        run: cargo build -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
+      - name: Build wasm32-wasip2 -p phymes-agents tests
+        run: cargo test -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
+      # - name: Run wasm32-wasip2 -p phymes-agents tests
+      #   run: |
+      #     export WASMTIME_HOME="$HOME/.wasmtime"
+      #     export PATH="$PATH:$WASMTIME_HOME/bin"
+      #     # DM: need to figure out a way to find the filename...
+      #     wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
+      - name: Build wasm32-wasip2 -p phymes-agents examples
+        run: |
+          cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
+          cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chatagent
+      - name: Run wasm32-wasip2 -p phymes-agents examples
+        run: |
+          export WASMTIME_HOME="$HOME/.wasmtime"
+          export PATH="$PATH:$WASMTIME_HOME/bin"
+          wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chatagent.wasm
+          wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+      - name: Build wasm32-unknown-unknown -p phymes-server
+        run: cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
+      - name: Build wasm32-wasip2 -p phymes-server tests
+        run: cargo test -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
+      # - name: Run wasm32-wasip2 -p phymes-server tests
+      #   run: |
+      #     export WASMTIME_HOME="$HOME/.wasmtime"
+      #     export PATH="$PATH:$WASMTIME_HOME/bin"
+      #     # DM: need to figure out a way to find the filename...
+      #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
+      - name: Build wasm32-wasip2 main
+        run: cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release

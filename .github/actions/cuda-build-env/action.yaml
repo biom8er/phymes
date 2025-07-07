@@ -13,6 +13,7 @@ runs:
   using: "composite"
   steps:
     - name: Cache Cargo
+      id: cache-cargo
       uses: actions/cache@v4
       with:
         path: |
@@ -27,7 +28,8 @@ runs:
       run: |
         apt update
         DEBIAN_FRONTEND=noninteractive apt install --assume-yes git clang curl libssl-dev llvm libudev-dev make pkg-config protobuf-compiler
-    - name: Install Rust toolchain
+    - if: ${{ steps.cache-cargo.outputs.cache-hit != 'true' }}
+      name: Install Rust toolchain
       shell: bash
       run: |
         echo "Installing ${{ inputs.rust-version }}"
@@ -36,7 +38,8 @@ runs:
         rustc --version 
         rustup toolchain install ${{ inputs.rust-version }} --target ${{ inputs.target }}
         rustup default ${{ inputs.rust-version }}
-    - name: Generate lockfile
+    - if: ${{ steps.cache-cargo.outputs.cache-hit != 'true' }}
+      name: Generate lockfile
       shell: bash
       run: |
         export PATH="$PATH:$HOME/.cargo/bin"
