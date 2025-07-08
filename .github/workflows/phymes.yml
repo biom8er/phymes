@@ -18,6 +18,9 @@ on:
       - phymes-agents/**
       - phymes-server/**
 
+env:
+  RUST_BACKTRACE: 1
+
 jobs:
 
   # test the crate on linux
@@ -133,7 +136,7 @@ jobs:
       # - name: Check compilation -p phymes-app --all-targets --features desktop
       #   run: cargo check -p phymes-app --all-targets --features desktop
 
-  # test crate on wasm32 in nightly rust
+  # test crate on wasm32
   wasm32-build:
     name: Build wasm32
     runs-on: self-hosted #ubuntu-latest
