@@ -29,7 +29,7 @@ std = [
     "tracing-subscriber/env-filter",
     ]
 wsl = ["std", "phymes-core/wsl", "phymes-agents/wsl", "dep:tempfile"]
-wsl-gpu = ["std", "phymes-core/wsl-gpu", "phymes-agents/wsl-gpu"]
+gpu = ["phymes-agents/gpu"]
 candle = ["phymes-agents/candle"] # force use of candle models when openai_api is available
 
 [dependencies]

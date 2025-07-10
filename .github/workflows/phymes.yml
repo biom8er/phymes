@@ -79,21 +79,21 @@ jobs:
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo build -p phymes-server --features wsl-gpu,candle
+          cargo build -p phymes-server --features wsl,gpu,candle
       - name: Run tests
         run: |
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo test -p phymes-server --features wsl-gpu,candle
-          cargo test -p phymes-agents --features wsl-gpu,agents
+          cargo test -p phymes-server --features wsl,gpu,candle
+          cargo test -p phymes-agents --features wsl,gpu,candle
       - name: Run examples
         run: |
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
-          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chatagent
+          cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+          cargo run --package phymes-agents --features wsl,gpu,candle --release --example chatagent
 
   # test compilation features on linux (except those already built in other jobs)
   linux-features:

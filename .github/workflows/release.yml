@@ -53,7 +53,7 @@ jobs:
         uses: ./.github/actions/cuda-build-env
       - name: Build the server
         run: |
-          cargo build -p phymes-server --features wsl-gpu,candle --release
+          cargo build -p phymes-server --features wsl,gpu,candle --release
       - name: Install Dioxus
         shell: bash
         run: |

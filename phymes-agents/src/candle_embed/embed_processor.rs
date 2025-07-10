@@ -748,7 +748,7 @@ mod tests {
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
             all(not(feature = "candle"), feature = "wasip2"),
-            feature = "wsl-gpu"
+            feature = "gpu"
         )) {
             let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
             assert_eq!(embeddings.len(), 1);
