@@ -36,6 +36,6 @@ The message history for the active session plan. A chat interface is provided fo
 
 ### Metrics
 
-![metrics](../assets/2025-07-05_phymes-app_metrics.png.png)
+![metrics](../assets/2025-07-05_phymes-app_metrics.png)
 
 A list of metrics associated with the active session plan. Metrics are tracked per processor. A table in long form displays the values for the tracked metrics. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest. 
