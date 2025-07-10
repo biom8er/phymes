@@ -814,7 +814,7 @@ mod tests {
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
             all(not(feature = "candle"), feature = "wasip2"),
-            feature = "wsl-gpu"
+            feature = "gpu"
         )) {
             // Update the chat history with the response
             let (message_builder, _stream) = message_builder

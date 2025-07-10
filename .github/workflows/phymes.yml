@@ -18,6 +18,9 @@ on:
       - phymes-agents/**
       - phymes-server/**
 
+env:
+  RUST_BACKTRACE: 1
+
 jobs:
 
   # test the crate on linux
@@ -76,21 +79,21 @@ jobs:
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo build -p phymes-server --features wsl-gpu,candle
+          cargo build -p phymes-server --features wsl,gpu,candle
       - name: Run tests
         run: |
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo test -p phymes-server --features wsl-gpu,candle
-          cargo test -p phymes-agents --features wsl-gpu,agents
+          cargo test -p phymes-server --features wsl,gpu,candle
+          cargo test -p phymes-agents --features wsl,gpu,candle
       - name: Run examples
         run: |
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
-          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chatagent
+          cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+          cargo run --package phymes-agents --features wsl,gpu,candle --release --example chatagent
 
   # test compilation features on linux (except those already built in other jobs)
   linux-features:
@@ -133,7 +136,7 @@ jobs:
       # - name: Check compilation -p phymes-app --all-targets --features desktop
       #   run: cargo check -p phymes-app --all-targets --features desktop
 
-  # test crate on wasm32 in nightly rust
+  # test crate on wasm32
   wasm32-build:
     name: Build wasm32
     runs-on: self-hosted #ubuntu-latest
@@ -152,15 +155,14 @@ jobs:
       - name: Build wasm32-unknown-unknown -p phymes-core
         run: cargo check -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
       - name: Build wasm32-wasip2 -p phymes-core tests
-        run: cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run
+        run: cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
       - name: Build wasm32-wasip2 examples
         run: cargo build -p phymes-core --target wasm32-wasip2 --no-default-features --features wasip2 --release --example addrows
-      # - name: Run wasm32-wasip2 -p phymes-core tests
-      #   run: |
-      #     export WASMTIME_HOME="$HOME/.wasmtime"
-      #     export PATH="$PATH:$WASMTIME_HOME/bin"
-      #     # DM: need to figure out a way to find the filename...
-      #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-core-26200b790e92721b.wasm
+      - name: Run wasm32-wasip2 -p phymes-core tests
+        run: |
+          export WASMTIME_HOME="$HOME/.wasmtime"
+          export PATH="$PATH:$WASMTIME_HOME/bin"
+          for file in target/wasm32-wasip2/release/deps/phymes_core-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
       - name: Run wasm32-wasip2 -p phymes-core examples
         run: |
           export WASMTIME_HOME="$HOME/.wasmtime"
@@ -170,12 +172,11 @@ jobs:
         run: cargo build -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
       - name: Build wasm32-wasip2 -p phymes-agents tests
         run: cargo test -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-      # - name: Run wasm32-wasip2 -p phymes-agents tests
-      #   run: |
-      #     export WASMTIME_HOME="$HOME/.wasmtime"
-      #     export PATH="$PATH:$WASMTIME_HOME/bin"
-      #     # DM: need to figure out a way to find the filename...
-      #     wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
+      - name: Run wasm32-wasip2 -p phymes-agents tests
+        run: |
+          export WASMTIME_HOME="$HOME/.wasmtime"
+          export PATH="$PATH:$WASMTIME_HOME/bin"
+          for file in target/wasm32-wasip2/release/deps/phymes_agents-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
       - name: Build wasm32-wasip2 -p phymes-agents examples
         run: |
           cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
@@ -190,11 +191,10 @@ jobs:
         run: cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
       - name: Build wasm32-wasip2 -p phymes-server tests
         run: cargo test -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-      # - name: Run wasm32-wasip2 -p phymes-server tests
-      #   run: |
-      #     export WASMTIME_HOME="$HOME/.wasmtime"
-      #     export PATH="$PATH:$WASMTIME_HOME/bin"
-      #     # DM: need to figure out a way to find the filename...
-      #     wasmtime run target/wasm32-wasip2/debug/deps/phymes-agents-26200b790e92721b.wasm
+      - name: Run wasm32-wasip2 -p phymes-server tests
+        run: |
+          export WASMTIME_HOME="$HOME/.wasmtime"
+          export PATH="$PATH:$WASMTIME_HOME/bin"
+          for file in target/wasm32-wasip2/release/deps/phymes_server-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
       - name: Build wasm32-wasip2 main
         run: cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release

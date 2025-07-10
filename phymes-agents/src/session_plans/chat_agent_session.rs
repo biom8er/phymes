@@ -262,7 +262,7 @@ mod tests {
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
             all(not(feature = "candle"), feature = "wasip2"),
-            feature = "wsl-gpu"
+            feature = "gpu"
         )) {
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
                 session_stream.try_collect().await?;

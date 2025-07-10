@@ -18,7 +18,7 @@ wasip2 = ["tokenizers/unstable_wasm",
 wsl = ["dep:tempfile",
     "tokenizers/onig",
     "tokio/full"]
-wsl-gpu = ["wsl"]
+gpu = [] # for compatibility with agents
 candle = [] # force use of candle models when openai_api is available
 
 [dependencies]

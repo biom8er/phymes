@@ -158,7 +158,7 @@ This is a standard cargo project with workspaces. To build the different workspa
 cargo build -p phymes-core
 ```
 
-CPU, GPU, and WASM-specific compilation features are gated behind feature flags `wsl`, `wsl-gpu`, and `wasip2` respectively. The use of embedded Candle or OpenAI API token services are gated behind the feature flag `candle`, which indicates to use embedded candle models.
+CPU, GPU, and WASM-specific compilation features are gated behind feature flags `wsl`, `gpu`, and `wasip2` respectively. The use of embedded Candle or OpenAI API token services are gated behind the feature flag `candle`, which indicates to use embedded candle models.
 
 The following will build the `phymes-agents` workspace with different configurations of CPU and GPU acceleration for Tensor and Token services:
 
@@ -170,10 +170,10 @@ cargo build -p phymes-agents --features wsl --release
 cargo build -p phymes-agents --features wsl,candle --release
 
 # GPU support for tensor operations and local/remote OpenAI API token services
-cargo build -p phymes-agents --features wsl-gpu --release
+cargo build -p phymes-agents --features wsl,gpu --release
 
 # GPU support for tensor operations and embedded Candle for token services
-cargo build -p phymes-agents --features wsl-gpu,candle --release
+cargo build -p phymes-agents --features wsl,gpu,candle --release
 ```
 
 Please ensure that all CUDA related environmental variables are setup correctly for GPU acceleration. Most errors related to missing CUDA or CuDNN libraries are related to missing environmental variables particularly on WSL2.
@@ -273,14 +273,14 @@ cargo test test_session_update_state -p phymes-core --features wsl -- --no-captu
 cargo test --doc
 ```
 
-You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-agents crates have unit tests. Please note that many of the tests will in the phymes-agents crate do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-agents create, either enable GPU acceleration with Candle using `--features wsl-gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,openai_api` or `--feature wsl-gpu,openai_api` feature flags depending upon GPU availability.
+You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-agents crates have unit tests. Please note that many of the tests will in the phymes-agents crate do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-agents create, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,openai_api` or `--feature wsl,gpu,openai_api` feature flags depending upon GPU availability.
 
 ```bash
 # run tests for the phymes-core crate
 cargo test --package phymes-core --features wsl --release
 
 # run tests for the phymes-agents crate with GPU acceleration with Candle assets
-cargo test --package phymes-agents --features wsl-gpu,candle --release
+cargo test --package phymes-agents --features wsl,gpu,candle --release
 # or run tests for the phymes-agents crate on the CPU with OpenAI API token services
 cargo test --package phymes-agents --features wsl --release
 
@@ -322,8 +322,8 @@ Run examples using the Rust standard `cargo run` command. A few simple examples 
 cargo run --package phymes-core --features wsl --release --example addrows
 
 # run examples for the phymes-agents crate with GPU acceleration with Candle assets
-cargo run --package phymes-agents --features wsl-gpu,candle --release --example chat -- --candle-asset SmoLM2-135M-chat
-cargo run --package phymes-agents --features wsl-gpu,candle --release --example chatagent
+cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat -- --candle-asset SmoLM2-135M-chat
+cargo run --package phymes-agents --features wsl,gpu,candle --release --example chatagent
 
 # or run examples for the phymes-agents crate on the CPU with OpenAI API token services
 cargo run --package phymes-agents --features wsl --release --example chat -- --openai-asset Llama-3.2-1b-instruct
@@ -473,7 +473,7 @@ Second, build the server with the desired features.
 
 ```bash
 # GPU support and Candle token service
-cargo build --package phymes-server --features wsl-gpu,candle --release
+cargo build --package phymes-server --features wsl,gpu,candle --release
 
 # Or OpenAI API
 cargo build --package phymes-server --features wsl --release
@@ -503,7 +503,7 @@ Second, build the phymes-server application with the desired features.
 
 ```bash
 # GPU support and Candle token service
-cargo build --package phymes-server --features wsl-gpu,candle --release
+cargo build --package phymes-server --features wsl,gpu,candle --release
 
 # Or OpenAI API
 cargo build --package phymes-server --features wsl --release
@@ -569,13 +569,13 @@ In the second terminal:
 
 ```bash
 # default log level
-cargo run -p phymes-server --features wsl-gpu
+cargo run -p phymes-server --features wsl,gpu
 
 # only INFO level logs
-RUST_LOG=phymes_server=INFO cargo run -p phymes-server --features wsl-gpu
+RUST_LOG=phymes_server=INFO cargo run -p phymes-server --features wsl,gpu
 
 # debug level logs for phymes-server, phymes-core, and phymes-agents
-RUST_LOG=phymes_server=DEBUG,phymes_core=DEBUG,phymes_agents=DEBUG cargo run -p phymes-server --features wsl-gpu
+RUST_LOG=phymes_server=DEBUG,phymes_core=DEBUG,phymes_agents=DEBUG cargo run -p phymes-server --features wsl,gpu
 ```
 
 <!--- ANCHOR_END: deploying --->

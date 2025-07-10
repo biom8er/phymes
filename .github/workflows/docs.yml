@@ -72,9 +72,9 @@ jobs:
         uses: ./.github/actions/rust-build-env
       - name: Run cargo doc
         run: |
-          cargo doc --document-private-items --no-deps -p phymes-core --features wsl
-          cargo doc --document-private-items --no-deps -p phymes-agents --features wsl
-          cargo doc --document-private-items --no-deps -p phymes-server --features wsl
+          cargo doc --document-private-items --no-deps -p phymes-core
+          cargo doc --document-private-items --no-deps -p phymes-agents
+          cargo doc --document-private-items --no-deps -p phymes-server
           cargo doc --document-private-items --no-deps -p phymes-app
       - name: Fix file permissions for docs
         shell: sh

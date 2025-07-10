@@ -4,6 +4,7 @@
 # for automated changelog instructions
 
 name: Release
+
 on:
   push:
     tags:
@@ -11,8 +12,10 @@ on:
       - '!*-rc*'
 permissions:
   contents: write
+
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   release:
     name: Publish
@@ -50,7 +53,7 @@ jobs:
         uses: ./.github/actions/cuda-build-env
       - name: Build the server
         run: |
-          cargo build -p phymes-server --features wsl-gpu,candle --release
+          cargo build -p phymes-server --features wsl,gpu,candle --release
       - name: Install Dioxus
         shell: bash
         run: |
@@ -61,7 +64,7 @@ jobs:
       - name: Bundle the application
         run: |
           mv target/release/phymes-server target/dx/phymes-app/release/web/public/phymes-server
-          tar -czf phymes-candle-cuda${{ matrix.version }}-${{ matrix.os }}.tar.gz target/dx/phymes-app/release/web/public
+          tar -czf phymes-candle-cuda${{ matrix.version }}-${{ matrix.os }}.tar.gz -C target/dx/phymes-app/release/web/public .
           gh release upload ${GITHUB_REF_NAME} phymes-candle-cuda${{ matrix.version }}-${{ matrix.os }}.tar.gz
 
   bundle-openai:
@@ -77,6 +80,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
+        with:
+          target: x86_64-unknown-linux-gnu
       - name: Build the server
         run: |
           cargo build -p phymes-server --features wsl --release
@@ -90,8 +95,28 @@ jobs:
       - name: Bundle the application
         run: |
           mv target/release/phymes-server target/dx/phymes-app/release/web/public/phymes-server
-          tar -czf phymes-openai-${{ matrix.os }}.tar.gz target/dx/phymes-app/release/web/public
+          tar -czf phymes-openai-${{ matrix.os }}.tar.gz -C target/dx/phymes-app/release/web/public .
           gh release upload ${GITHUB_REF_NAME} phymes-openai-${{ matrix.os }}.tar.gz
+
+  bundle-wasm:
+    name: Bundle the application for wasm
+    needs: release
+    runs-on: self-hosted #ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/rust-build-env
+        with:
+          target: wasm32-wasip2
+      - name: Build the server
+        run: |
+          cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release
+      - name: Bundle the application
+        run: |
+          tar -czf phymes-candle-wasm32-wasip2.tar.gz -C target/wasm32-wasip2/release ./phymes-server.wasm
+          gh release upload ${GITHUB_REF_NAME} phymes-candle-wasm32-wasip2.tar.gz
 
   publish:
     name: publish to crates.io

@@ -21,7 +21,7 @@ hf_hub = ["dep:candle-hf-hub", "tokenizers/onig", "tokio/full"]
 openai_api = ["dep:reqwest"]
 wasip2 = ["tokenizers/unstable_wasm", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "phymes-core/wasip2"]
 wsl = ["hf_hub", "phymes-core/wsl", "openai_api"]
-wsl-gpu = ["wsl", "cuda", "cudnn", "nccl", "phymes-core/wsl-gpu"]
+gpu = ["cuda", "cudnn", "nccl"]
 candle = [] # force use of candle models when openai_api is available
 
 [dependencies]

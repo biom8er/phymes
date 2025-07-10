@@ -34,7 +34,7 @@ runs:
       run: |
         echo "Installing ${{ inputs.rust-version }}"
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
+        . "~/.cargo/env"
         rustc --version 
         rustup toolchain install ${{ inputs.rust-version }} --target ${{ inputs.target }}
         rustup default ${{ inputs.rust-version }}
@@ -42,7 +42,7 @@ runs:
       name: Generate lockfile
       shell: bash
       run: |
-        export PATH="$PATH:$HOME/.cargo/bin"
+        export PATH="$PATH:~/.cargo/bin"
         cargo fetch  
     - name: Fixup git permissions
       # https://github.com/actions/checkout/issues/766

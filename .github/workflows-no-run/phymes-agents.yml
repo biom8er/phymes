@@ -62,17 +62,17 @@ jobs:
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo build -p phymes-agents --features wsl-gpu,candle
+          cargo build -p phymes-agents --features wsl,gpu,candle
       - name: Run tests
         run: |
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo test -p phymes-agents --features wsl-gpu,candle --release
+          cargo test -p phymes-agents --features wsl,gpu,candle --release
       - name: Run examples
         run: |
-          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chat
-          cargo run --package phymes-agents --features wsl-gpu,candle --release --example chatagent
+          cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat
+          cargo run --package phymes-agents --features wsl,gpu,candle --release --example chatagent
 
   # test compilation features on linux (except those already built in other jobs)
   linux-features:
