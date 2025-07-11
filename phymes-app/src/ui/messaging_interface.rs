@@ -7,23 +7,16 @@ use reqwest::{self, header::CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Map, Value};
 
-use crate::ui::settings_state::ACTIVE_SESSION_NAME;
-
 // mod imports
-use super::backend::ADDR_BACKEND;
-use super::messaging_state::{
-    sync_current_message_content_state, sync_current_message_state, SyncCurrentMessageContentState,
-    SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
-};
-use super::sign_in_state::{EMAIL, JWT};
-use super::svg_icons::{
-    assistant_icon_svg,
-    // document_icon_svg, media_icon_svg, table_icon_svg,
-    // script_icon_svg, logs_icon_svg, forecast_icon_svg,
-    // omics_icon_svg, graph_icon_svg, alert_icon_svg,
-    // logo_icon_svg,
-    send_icon_svg,
-    user_icon_svg,
+use super::{
+    backend::{create_session_name, ADDR_BACKEND, GetSessionState},
+    messaging_state::{
+        clear_current_message_state, sync_current_message_content_state, sync_current_message_state, 
+        ClearCurrentMessageState, SyncCurrentMessageContentState, SyncCurrentMessageState,
+        CONTENT, INDEX, ROLE, TIMESTAMP},
+    sign_in_state::{EMAIL, JWT},
+    svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg},
+    settings_state::ACTIVE_SESSION_NAME,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -33,24 +26,70 @@ struct DioxusMessage {
     subject_name: String,
 }
 
-/// Create the session name by combining the user ID
-/// with the session plan
-pub fn create_session_name(email: &str, session_plan: &str) -> String {
-    let session_name = format!("{email}{session_plan}");
-    session_name
-}
-
 /// View for messaging between the user and AI assistant
 #[component]
 pub fn messaging_interface_view() -> Element {
     // intialize state and coroutines
     use_coroutine(sync_current_message_state);
     use_coroutine(sync_current_message_content_state);
+    use_coroutine(clear_current_message_state);
 
-    // DM: need to update the messages per session
+    // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
+    let get_session_state: Memo<GetSessionState> = use_memo(move || GetSessionState {
+        session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
+        subject_name: "".to_string(),
+    });
+
+    // Get the last 25 messages for the messages view
+    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
+    let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
+    let _ = use_resource(move || async move {
+        let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
+        clear_current_message_state.send(ClearCurrentMessageState {});
+        let addr = format!("{ADDR_BACKEND}/app/v1/subjects_info");
+        match reqwest::Client::new()
+            .post(addr)
+            .bearer_auth(JWT().to_string())
+            .header(CONTENT_TYPE, "application/json")
+            .body(data_serialized)
+            .send()
+            .await
+        {
+            Ok(stream) => {
+                let mut stream = stream.bytes_stream();
+                while let Some(Ok(bytes)) = stream.next().await {
+                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+                    let json_rows: Vec<Map<String, Value>> =
+                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|_err| {
+                            // DM: find a better way to give feedback to the user
+                            // content.write().push_str(format!("There was a error parsing SyncCurrentSubjectInfoState {err}.").as_str());
+                            Vec::new()
+                        });
+                    for row in json_rows.iter() {
+                        sync_current_message_state.send(SyncCurrentMessageState {
+                            role: row
+                                .get("role")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            content: row
+                                .get("content")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            // DM: missing index and timestamp
+                        });
+                    }
+                }
+            }
+            Err(_err) => (), //content.write().push_str(format!("There was a error getting subjects info {err}.").as_str()),
+        }
+    });
+
+    // initialize the first message (if the are no messages for the session)
     let num_messages = ROLE.len();
-
-    // initialize the first message
     if num_messages == 0 {
         let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
         sync_message.send(SyncCurrentMessageState {

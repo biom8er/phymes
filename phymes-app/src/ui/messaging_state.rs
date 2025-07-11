@@ -61,13 +61,9 @@ pub async fn sync_current_message_content_state(
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClearCurrentMessageState {}
 
-pub async fn clear_current_message_state(
-    mut rx: UnboundedReceiver<ClearCurrentMessageState>,
-) {
-    while let Some(updated_message_state) = rx.next().await {
-        (*ROLE.write()).clear();
-        (*CONTENT.write()).clear();
-        (*INDEX.write()).clear();
-        (*TIMESTAMP.write()).clear();
-    }
+pub async fn clear_current_message_state(mut _rx: UnboundedReceiver<ClearCurrentMessageState>) {
+    (*ROLE.write()).clear();
+    (*CONTENT.write()).clear();
+    (*INDEX.write()).clear();
+    (*TIMESTAMP.write()).clear();
 }

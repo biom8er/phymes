@@ -11,8 +11,7 @@ use std::sync::Arc;
 use super::svg_icons::{arrow_add_icon_svg, arrow_down_icon_svg, search_icon_svg, table_icon_svg};
 
 use crate::ui::{
-    backend::{GetSessionState, ADDR_BACKEND},
-    messaging_interface::create_session_name,
+    backend::{create_session_name, ADDR_BACKEND, GetSessionState},
     settings_interface::get_non_duplicated_sorted_subjects,
     settings_state::ACTIVE_SESSION_NAME,
     sign_in_state::{EMAIL, JWT},
@@ -106,7 +105,7 @@ pub fn subjects_modal() -> Element {
     use_coroutine(clear_subject_info_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state = use_memo(move || GetSessionState {
+    let get_session_state: Memo<GetSessionState> = use_memo(move || GetSessionState {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
     });

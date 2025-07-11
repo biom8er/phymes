@@ -4,8 +4,7 @@ use reqwest::{self, header::CONTENT_TYPE};
 use serde_json::{Map, Value};
 
 use crate::ui::{
-    backend::{GetSessionState, ADDR_BACKEND},
-    messaging_interface::create_session_name,
+    backend::{create_session_name, ADDR_BACKEND, GetSessionState},
     metrics_state::{
         clear_metrics_info_state, sync_current_metrics_info_state, ClearMetricsInfoState,
         SyncCurrentMetricsInfoState, METRIC_NAMES, METRIC_TASK_NAMES, METRIC_VALUES,
@@ -27,7 +26,7 @@ pub fn metrics_modal() -> Element {
     use_coroutine(clear_metrics_info_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state = use_memo(move || GetSessionState {
+    let get_session_state: Memo<GetSessionState> = use_memo(move || GetSessionState {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
     });

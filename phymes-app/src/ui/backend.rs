@@ -11,3 +11,10 @@ pub struct GetSessionState {
     pub session_name: String,
     pub subject_name: String,
 }
+
+/// Create the session name by combining the user ID
+/// with the session plan
+pub fn create_session_name(email: &str, session_plan: &str) -> String {
+    let session_name = format!("{email}{session_plan}");
+    session_name
+}
