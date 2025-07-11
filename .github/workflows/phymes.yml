@@ -38,7 +38,7 @@ jobs:
       - name: Download HF models
         uses: ./.github/actions/hf-model-cache
       - name: Run tests
-        run: cargo test
+        run: cargo test --release
       # DM: Redundant with GPU and WASM tests
       # - name: Run examples for agents
       #   run: |          
