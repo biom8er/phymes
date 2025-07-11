@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 use super::settings_interface::settings_modal;
 use super::subjects_interface::subjects_modal;
 
-use super::messaging_interface::chat_interface;
+use super::messaging_interface::messaging_interface;
 use super::metrics_interface::metrics_modal;
 use super::sign_in_interface::sign_in_modal;
 use super::svg_icons::{
@@ -131,7 +131,7 @@ pub fn main_window() -> Element {
             } else if header_menu.read().as_str() == "Tasks" {
                 tasks_modal {},
             } else if header_menu.read().as_str() == "Message" {
-                chat_interface {},
+                messaging_interface {},
             }else if header_menu.read().as_str() == "Metrics" {
                 metrics_modal {},
             }
@@ -143,7 +143,7 @@ pub fn main_window() -> Element {
 pub fn about_text_modal() -> Element {
     rsx! {
         div {
-            class: "sign-in-modal",
+            class: "messaging_list",
             p { "Welcome to Biom8er messaging application!" },
         }
     }

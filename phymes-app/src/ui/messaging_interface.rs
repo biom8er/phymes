@@ -11,7 +11,7 @@ use crate::ui::settings_state::ACTIVE_SESSION_NAME;
 
 // mod imports
 use super::backend::ADDR_BACKEND;
-use super::message_state::{
+use super::messaging_state::{
     sync_current_message_content_state, sync_current_message_state, SyncCurrentMessageContentState,
     SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
 };
@@ -42,7 +42,7 @@ pub fn create_session_name(email: &str, session_plan: &str) -> String {
 
 /// View for messaging between the user and AI assistant
 #[component]
-pub fn chat_interface() -> Element {
+pub fn messaging_interface() -> Element {
     // intialize state and coroutines
     use_coroutine(sync_current_message_state);
     use_coroutine(sync_current_message_content_state);
@@ -65,12 +65,12 @@ pub fn chat_interface() -> Element {
         // Check for sign-in
         if JWT.read().is_empty() {
             div {
-                class: "sign-in-modal",
+                class: "messaging_list",
                 p { "Please sign-in before messaging." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "sign-in-modal",
+                class: "messaging_list",
                 p { "Please activate a session before messaging." },
             }
         } else {

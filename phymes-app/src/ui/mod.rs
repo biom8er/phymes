@@ -10,7 +10,7 @@ pub mod sign_in_interface;
 pub mod subjects_interface;
 pub mod tasks_interface;
 
-pub mod message_state;
+pub mod messaging_state;
 pub mod metrics_state;
 pub mod settings_state;
 pub mod sign_in_state;
