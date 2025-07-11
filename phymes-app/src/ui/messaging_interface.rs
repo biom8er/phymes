@@ -42,13 +42,12 @@ pub fn create_session_name(email: &str, session_plan: &str) -> String {
 
 /// View for messaging between the user and AI assistant
 #[component]
-pub fn messaging_interface() -> Element {
+pub fn messaging_interface_view() -> Element {
     // intialize state and coroutines
     use_coroutine(sync_current_message_state);
     use_coroutine(sync_current_message_content_state);
 
-    #[allow(clippy::redundant_closure)]
-    let mut prompt = use_signal(|| String::new());
+    // DM: need to update the messages per session
     let num_messages = ROLE.len();
 
     // initialize the first message
@@ -112,9 +111,24 @@ pub fn messaging_interface() -> Element {
                     }
                 })}
             }
+        }
+    }
+}
 
-            // todo: thumbs up/down and feedback
+/// View for messaging between the user and AI assistant
+#[component]
+pub fn messaging_interface_footer() -> Element {
+    // intialize state and coroutines
+    use_coroutine(sync_current_message_state);
+    use_coroutine(sync_current_message_content_state);
 
+    #[allow(clippy::redundant_closure)]
+    let mut prompt = use_signal(|| String::new());
+
+    // render the chat messages
+    rsx! {
+        // Check for sign-in
+        if !JWT.read().is_empty() && !ACTIVE_SESSION_NAME.read().is_empty() {
             footer {
                 div {
                     class: "text_input",

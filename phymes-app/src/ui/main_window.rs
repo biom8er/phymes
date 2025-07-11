@@ -3,8 +3,7 @@ use dioxus::prelude::*;
 
 use super::settings_interface::settings_modal;
 use super::subjects_interface::subjects_modal;
-
-use super::messaging_interface::messaging_interface;
+use super::messaging_interface::{messaging_interface_view, messaging_interface_footer};
 use super::metrics_interface::metrics_modal;
 use super::sign_in_interface::sign_in_modal;
 use super::svg_icons::{
@@ -131,7 +130,8 @@ pub fn main_window() -> Element {
             } else if header_menu.read().as_str() == "Tasks" {
                 tasks_modal {},
             } else if header_menu.read().as_str() == "Message" {
-                messaging_interface {},
+                messaging_interface_view {},
+                messaging_interface_footer {},
             }else if header_menu.read().as_str() == "Metrics" {
                 metrics_modal {},
             }
