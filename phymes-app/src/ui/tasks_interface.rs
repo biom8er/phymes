@@ -55,6 +55,7 @@ pub fn tasks_modal() -> Element {
     let get_session_state: Memo<GetSessionState> = use_memo(move || GetSessionState {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
+        format: "".to_string(),
     });
 
     // Get the active session info for the task view

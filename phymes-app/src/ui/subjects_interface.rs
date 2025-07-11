@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::sync::Arc;
 
-use super::svg_icons::{arrow_add_icon_svg, arrow_down_icon_svg, search_icon_svg, table_icon_svg};
+use super::svg_icons::{arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg, table_icon_svg};
 
 use crate::ui::{
     backend::{create_session_name, ADDR_BACKEND, GetSessionState},
@@ -24,13 +24,21 @@ use crate::ui::{
 
 const SUBJECT_SCHEMA_HEADERS: [&str; 3] = ["Column", "Type", "Rows"];
 
-/// File upload
+/// Dioxus application put request
+/// same as phymes-server/src/handlers/session_state.rs
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct PutSessionState {
+    /// Session name to publish on
     pub session_name: String,
+    /// Subject name to publish on
     pub subject_name: String,
+    /// (Optional) document title
     pub document_name: String,
     pub text: String,
+    /// Publish method
+    /// Options are "Extend" or "Replace"
+    /// see phymes-core/src/table/arrow_table_publish.rs
+    pub publish: String
 }
 
 /// File download
@@ -108,6 +116,7 @@ pub fn subjects_modal() -> Element {
     let get_session_state: Memo<GetSessionState> = use_memo(move || GetSessionState {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
+        format: "".to_string(),
     });
 
     // Get the active session info for the subject view
@@ -230,7 +239,7 @@ pub fn subjects_modal() -> Element {
     #[allow(clippy::redundant_closure)]
     let mut content = use_signal(|| String::new());
 
-    let read_files = move |file_engine: Arc<dyn FileEngine>| async move {
+    let read_files = move |file_engine: Arc<dyn FileEngine>, publish: String| async move {
         let files = file_engine.files();
         for file_name in &files {
             if let Some(contents) = file_engine.read_file_to_string(file_name).await {
@@ -242,22 +251,21 @@ pub fn subjects_modal() -> Element {
                     subject_name: subject_shown.read().to_string(),
                     document_name: file_name.clone(),
                     text: contents,
+                    publish: publish.to_owned(),
                 });
-                // DM: for new we assume the documents are already chunked appropriately...
-                // let chunks = chunk_document(contents, 256);
-                // for chunk in chunks {
-                //     files_uploaded.write().push(UploadedFile {
-                //         name: file_name.clone(),
-                //         contents: chunk,
-                //     });
-                // }
             }
         }
     };
 
-    let upload_files = move |evt: FormEvent| async move {
+    let upload_files_extend = move |evt: FormEvent| async move {
         if let Some(file_engine) = evt.files() {
-            read_files(file_engine).await;
+            read_files(file_engine, "Extend".to_string()).await;
+        }
+    };
+
+    let upload_files_replace = move |evt: FormEvent| async move {
+        if let Some(file_engine) = evt.files() {
+            read_files(file_engine, "Replace".to_string()).await;
         }
     };
 
@@ -369,19 +377,36 @@ pub fn subjects_modal() -> Element {
                     div {
                         class: "file_upload_form",
                         div {
-                            id: "file_upload_form",
+                            id: "file_upload_extend_form",
                             h2 { "Add data to subject {subject_shown}" },
                             div {
                                 class: "drop_box",
                                 p { "CSV (comma delimiter with headers)" },
-                                label { r#for: "textreader", svg { dangerous_inner_html: arrow_add_icon_svg() } }
+                                label { r#for: "textread_extend", svg { dangerous_inner_html: arrow_add_icon_svg() } }
                                 input {
                                     r#type: "file",
                                     accept: ".csv,",
                                     multiple: true,
-                                    id: "textreader",
+                                    id: "textread_extend",
                                     directory: enable_directory_upload,
-                                    onchange: upload_files,
+                                    onchange: upload_files_extend,
+                                },
+                            }
+                        }
+                        div {
+                            id: "file_upload_replace_form",
+                            h2 { "Replace data of subject {subject_shown}" },
+                            div {
+                                class: "drop_box",
+                                p { "CSV (comma delimiter with headers)" },
+                                label { r#for: "textread_replace", svg { dangerous_inner_html: arrow_up_icon_svg() } }
+                                input {
+                                    r#type: "file",
+                                    accept: ".csv,",
+                                    multiple: true,
+                                    id: "textread_replace",
+                                    directory: enable_directory_upload,
+                                    onchange: upload_files_replace,
                                 },
                             }
                         }
@@ -399,6 +424,7 @@ pub fn subjects_modal() -> Element {
                                         let data = GetSessionState {
                                             session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
                                             subject_name: subject_shown.read().to_string(),
+                                            format: "csv_str".to_string(),
                                         };
                                         let data_serialized = serde_json::to_string(&data).unwrap();
                                         let addr = format!("{ADDR_BACKEND}/app/v1/get_state");
@@ -459,7 +485,7 @@ pub fn subjects_modal() -> Element {
                             onclick: move |_| async move {
                                 // Send files to the server
                                 for file in files_uploaded.read().iter() {
-                                    let data_serialized = serde_json::to_string(file).expect("Failed to serialize data!");
+                                    let data_serialized = serde_json::to_string(file).unwrap();
                                     let addr = format!("{ADDR_BACKEND}/app/v1/put_state");
                                     match reqwest::Client::new()
                                         .post(addr)

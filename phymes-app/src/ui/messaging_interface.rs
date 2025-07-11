@@ -36,22 +36,15 @@ pub fn messaging_interface_view() -> Element {
     use_coroutine(sync_current_message_content_state);
     use_coroutine(clear_current_message_state);
 
-    // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<GetSessionState> = use_memo(move || GetSessionState {
-        session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
-        subject_name: "".to_string(),
-    });
-
     // Get the last 25 messages for the messages view
     let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
     let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
     let _ = use_resource(move || async move {
-        clear_current_message_state.send(ClearCurrentMessageState {});
-        // let mut data = get_session_state();
-        // data.subject_name = MESSAGES_SUBJECT_NAME.to_string();        
+        clear_current_message_state.send(ClearCurrentMessageState {});       
         let data = GetSessionState {
             session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
             subject_name: MESSAGES_SUBJECT_NAME.to_string(),
+            format: "json_obj".to_string(),
         };
         let data_serialized = serde_json::to_string(&data).unwrap();
         let addr = format!("{ADDR_BACKEND}/app/v1/get_state");
