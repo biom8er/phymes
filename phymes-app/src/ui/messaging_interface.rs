@@ -96,6 +96,20 @@ pub fn messaging_interface_view() -> Element {
         }
     });
 
+    
+    let mermaid_init = r#"
+    <script type="module">
+        import mermaid from './mermaid.esm.min.mjs';
+    </script>
+    "#;
+    let content =  r#"
+<pre class="mermaid">
+    graph TD
+    A[Client] --> B[Load Balancer]
+    B --> C[Server01]
+    B --> D[Server02]
+</pre>"#;
+
     // initialize the first message (if the are no messages for the session)
     let num_messages = ROLE.len();
     if num_messages == 0 {
@@ -109,6 +123,9 @@ pub fn messaging_interface_view() -> Element {
 
     // render the chat messages
     rsx! {
+        document::Script { src: asset!("/assets/mermaid.esm.min.mjs") },
+        document::Script { dangerous_inner_html: mermaid_init },
+        document::Script { dangerous_inner_html: content },
         // Check for sign-in
         if JWT.read().is_empty() {
             div {
@@ -141,9 +158,6 @@ pub fn messaging_interface_view() -> Element {
                                     h3 { "{timestamp}" }
                                 }
                             } else {
-                                // TODO: change the color according to sign-in
-                                // not signed-in: Red
-                                // signed-in: White
                                 div {
                                     class: "entete",
                                     h3 { "{timestamp}" }
@@ -153,7 +167,8 @@ pub fn messaging_interface_view() -> Element {
                             }
                             div {
                                 class: "message",
-                                dangerous_inner_html: "<p>{content}</p>"
+                                dangerous_inner_html: "{content}"
+                                // dangerous_inner_html: "<p>{content}</p>"
                             }
                         }
                     }
