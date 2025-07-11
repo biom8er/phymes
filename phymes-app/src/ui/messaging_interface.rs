@@ -7,6 +7,8 @@ use reqwest::{self, header::CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Map, Value};
 
+const MESSAGES_SUBJECT_NAME: &str = "messages";
+
 // mod imports
 use super::{
     backend::{create_session_name, ADDR_BACKEND, GetSessionState},
@@ -44,9 +46,15 @@ pub fn messaging_interface_view() -> Element {
     let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
     let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
     let _ = use_resource(move || async move {
-        let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
         clear_current_message_state.send(ClearCurrentMessageState {});
-        let addr = format!("{ADDR_BACKEND}/app/v1/subjects_info");
+        // let mut data = get_session_state();
+        // data.subject_name = MESSAGES_SUBJECT_NAME.to_string();        
+        let data = GetSessionState {
+            session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
+            subject_name: MESSAGES_SUBJECT_NAME.to_string(),
+        };
+        let data_serialized = serde_json::to_string(&data).unwrap();
+        let addr = format!("{ADDR_BACKEND}/app/v1/get_state");
         match reqwest::Client::new()
             .post(addr)
             .bearer_auth(JWT().to_string())
@@ -66,26 +74,28 @@ pub fn messaging_interface_view() -> Element {
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        sync_current_message_state.send(SyncCurrentMessageState {
-                            role: row
-                                .get("role")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            content: row
-                                .get("content")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            timestamp: row
-                                .get("timestamp")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        });
+                        if row.get("role").is_some() {
+                            sync_current_message_state.send(SyncCurrentMessageState {
+                                role: row
+                                    .get("role")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                                content: row
+                                    .get("content")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                                timestamp: row
+                                    .get("timestamp")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                            });
+                        }
                     }
                 }
             }
@@ -196,11 +206,18 @@ pub fn messaging_interface_footer() -> Element {
                             let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
                             let sync_message_content = use_coroutine_handle::<SyncCurrentMessageContentState>();
 
+                            // signed in and ready to chat
+                            sync_message.send(SyncCurrentMessageState {
+                                role: "user".to_string(), 
+                                content: prompt.to_string(),
+                                timestamp: create_timestamp()
+                            });
+
                             // create the message
                             let data = DioxusMessage {
                                 content: prompt.to_string(),
                                 session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
-                                subject_name: "messages".to_string(),
+                                subject_name: MESSAGES_SUBJECT_NAME.to_string(),
                             };
                             prompt.write().clear();
                             let data_serialized = serde_json::to_string(&data).unwrap();
