@@ -6,6 +6,13 @@ use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
+/// Generate a timestamp that can be added to the message table
+/// Same as in phymes-agents/src/candle_chat/message_history.rs
+pub fn create_timestamp() -> String {
+    let now: DateTime<Utc> = Utc::now();
+    now.format("%a %b %e %T %Y").to_string()
+}
+
 // Current message state
 #[allow(clippy::redundant_closure)]
 pub static ROLE: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
@@ -20,6 +27,7 @@ pub static TIMESTAMP: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 pub struct SyncCurrentMessageState {
     pub role: String,
     pub content: String,
+    pub timestamp: String,
 }
 
 pub async fn sync_current_message_state(mut rx: UnboundedReceiver<SyncCurrentMessageState>) {
@@ -33,8 +41,7 @@ pub async fn sync_current_message_state(mut rx: UnboundedReceiver<SyncCurrentMes
             index += 1;
             (*INDEX.write()).push(index);
         }
-        let now: DateTime<Utc> = Utc::now();
-        (*TIMESTAMP.write()).push(now.format("%a %b %e %T %Y").to_string());
+        (*TIMESTAMP.write()).push(updated_message_state.timestamp);
     }
 }
 

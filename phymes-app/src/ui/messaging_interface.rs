@@ -11,7 +11,7 @@ use serde_json::{self, Map, Value};
 use super::{
     backend::{create_session_name, ADDR_BACKEND, GetSessionState},
     messaging_state::{
-        clear_current_message_state, sync_current_message_content_state, sync_current_message_state, 
+        clear_current_message_state, create_timestamp, sync_current_message_content_state, sync_current_message_state, 
         ClearCurrentMessageState, SyncCurrentMessageContentState, SyncCurrentMessageState,
         CONTENT, INDEX, ROLE, TIMESTAMP},
     sign_in_state::{EMAIL, JWT},
@@ -79,7 +79,12 @@ pub fn messaging_interface_view() -> Element {
                                 .as_str()
                                 .unwrap()
                                 .to_string(),
-                            // DM: missing index and timestamp
+                            timestamp: row
+                                .get("timestamp")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
                         });
                     }
                 }
@@ -94,7 +99,8 @@ pub fn messaging_interface_view() -> Element {
         let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
         sync_message.send(SyncCurrentMessageState {
             role: "assistant".to_string(), 
-            content: "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊".to_string()
+            content: "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊".to_string(),
+            timestamp: create_timestamp(),
         });
     }
 
@@ -189,8 +195,6 @@ pub fn messaging_interface_footer() -> Element {
                         onclick: move |_| async move {
                             let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
                             let sync_message_content = use_coroutine_handle::<SyncCurrentMessageContentState>();
-                            // signed in and ready to chat
-                            sync_message.send(SyncCurrentMessageState {role: "user".to_string(), content: prompt.to_string()});
 
                             // create the message
                             let data = DioxusMessage {
@@ -201,7 +205,11 @@ pub fn messaging_interface_footer() -> Element {
                             prompt.write().clear();
                             let data_serialized = serde_json::to_string(&data).unwrap();
                             let addr = format!("{ADDR_BACKEND}/app/v1/chat");
-                            sync_message.send(SyncCurrentMessageState {role: "assistant".to_string(), content: "Preparing response...".to_string()});
+                            sync_message.send(SyncCurrentMessageState {
+                                role: "assistant".to_string(), 
+                                content: "Preparing response...".to_string(),
+                                timestamp: create_timestamp()
+                            });
                             match reqwest::Client::new()
                                 .post(addr)
                                 .bearer_auth(JWT.to_string())

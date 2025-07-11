@@ -282,7 +282,7 @@ mod tests {
                 .to_json_object()?;
             for row in &json_data {
                 if row["role"] != "system" {
-                    println!("{}: {}", row["role"], row["content"])
+                    println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
                 }
             }
 

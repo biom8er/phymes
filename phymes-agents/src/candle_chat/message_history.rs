@@ -20,6 +20,7 @@ use crate::openai_asset::chat_completion::{
 };
 
 /// Generate a timestamp that can be added to the message table
+/// Same as in phymes-app/src/ui/messaging_state.rs
 pub fn create_timestamp() -> String {
     let now: DateTime<Utc> = Utc::now();
     now.format("%a %b %e %T %Y").to_string()
