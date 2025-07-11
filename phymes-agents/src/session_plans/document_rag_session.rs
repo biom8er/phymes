@@ -101,7 +101,8 @@ impl DocumentRAGSession<'_> {
     pub fn make_messages_table(&self) -> Result<ArrowTable> {
         let role = Field::new("role", DataType::Utf8, false);
         let content = Field::new("content", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content]));
+        let timestamp = Field::new("timestamp", DataType::Utf8, false);
+        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         ArrowTableBuilder::new()
             .with_name(self.state_messages_table_name)
             .with_schema(schema)
@@ -111,7 +112,8 @@ impl DocumentRAGSession<'_> {
     pub fn make_message_aggregator_table(&self) -> Result<ArrowTable> {
         let role = Field::new("role", DataType::Utf8, false);
         let content = Field::new("content", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content]));
+        let timestamp = Field::new("timestamp", DataType::Utf8, false);
+        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         ArrowTableBuilder::new()
             .with_name(self.message_aggregator_task_name)
             .with_schema(schema)
@@ -212,7 +214,8 @@ impl DocumentRAGSession<'_> {
     pub fn make_top_k_docs_table(&self) -> Result<ArrowTable> {
         let role = Field::new("role", DataType::Utf8, false);
         let content = Field::new("content", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content]));
+        let timestamp = Field::new("timestamp", DataType::Utf8, false);
+        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         ArrowTableBuilder::new()
             .with_name(self.state_top_k_docs_table_name)
             .with_schema(schema)
@@ -1033,7 +1036,7 @@ mod tests {
                 .to_json_object()?;
             for row in &json_data {
                 if row["role"] != "system" {
-                    println!("{}: {}", row["role"], row["content"])
+                    println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
                 }
             }
 

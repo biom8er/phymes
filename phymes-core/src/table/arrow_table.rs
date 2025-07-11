@@ -800,8 +800,14 @@ pub mod test_table {
             "What is Deep Learning?".to_string(),
             "magic!".to_string(),
         ]));
+        let timestamap: ArrayRef = Arc::new(StringArray::from(vec![
+            "Fri Jul 11 09:16:02 2025".to_string(),
+            "Fri Jul 11 09:16:20 2025".to_string(),
+            "Fri Jul 11 09:16:20 2025".to_string(),
+            "Fri Jul 11 09:16:21 2025".to_string(),
+        ]));
 
-        let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content)])?;
+        let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content), ("timestamp", timestamap)])?;
 
         let schema = batch.schema();
         ArrowTableBuilder::new()
