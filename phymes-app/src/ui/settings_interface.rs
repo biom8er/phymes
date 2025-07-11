@@ -8,6 +8,7 @@ use super::{
     },
     sign_in_state::{JWT, SESSION_NAMES},
     svg_icons::search_icon_svg,
+    messaging_state::{clear_current_message_state, ClearCurrentMessageState},
 };
 
 /// Get a non duplicated list of sorted subject names
@@ -26,6 +27,7 @@ pub fn get_non_duplicated_sorted_subjects(subjects: &[&str]) -> Vec<String> {
 pub fn settings_modal() -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_current_active_session_state);
+    use_coroutine(clear_current_message_state);
 
     // Dropdown signals
     let mut show_subject_dropdown = use_signal(|| false);
@@ -82,13 +84,16 @@ pub fn settings_modal() -> Element {
                         class: "dropdown_form_button",
                         onclick: move |_evt| async move {
                             // Reset the dropdown
-                            // content.write().clear();
                             let active_session = subject_dropdown.try_read().unwrap().to_string();
                             subject_dropdown.set(String::new());
 
                             // Set the active session
                             let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
                             sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
+
+                            // Reset the current session messaging
+                            let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
+                            clear_current_message_state.send(ClearCurrentMessageState {});
                         },
                         svg { dangerous_inner_html: search_icon_svg() },
                     },
