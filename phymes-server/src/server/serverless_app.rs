@@ -105,6 +105,7 @@ mod tests {
             Value::String(session_name.clone()),
         );
         map.insert("subject_name".to_string(), Value::String("".to_string()));
+        map.insert("format".to_string(), Value::String("".to_string()));
         let data = serde_json::to_string(&Value::Object(map)).unwrap();
 
         // Make the request for the subjects_info
@@ -209,6 +210,7 @@ mod tests {
             Value::String(session_name.clone()),
         );
         map.insert("subject_name".to_string(), Value::String("".to_string()));
+        map.insert("format".to_string(), Value::String("".to_string()));
         let data = serde_json::to_string(&Value::Object(map)).unwrap();
 
         // Make the request for the subjects_info
