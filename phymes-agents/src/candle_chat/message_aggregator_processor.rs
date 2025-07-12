@@ -105,7 +105,7 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Expected schema for messages
-        let field_names = ["role", "content"];
+        let field_names = ["role", "content", "timestamp"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -161,7 +161,8 @@ impl MessageAggregatorStream {
         // Default schema
         let role = Field::new("role", DataType::Utf8, false);
         let content = Field::new("content", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content]));
+        let timestamp = Field::new("timestamp", DataType::Utf8, false);
+        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
 
         Ok(Self {
             schema,

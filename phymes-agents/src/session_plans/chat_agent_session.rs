@@ -172,7 +172,8 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
 
         let role = Field::new("role", DataType::Utf8, false);
         let content = Field::new("content", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content]));
+        let timestamp = Field::new("timestamp", DataType::Utf8, false);
+        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         let messages = ArrowTableBuilder::new()
             .with_name(self.chat_subscription_name)
             .with_schema(schema)
@@ -281,7 +282,7 @@ mod tests {
                 .to_json_object()?;
             for row in &json_data {
                 if row["role"] != "system" {
-                    println!("{}: {}", row["role"], row["content"])
+                    println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
                 }
             }
 
@@ -346,7 +347,7 @@ mod tests {
                 .to_json_object()?;
             for row in &json_data {
                 if row["role"] != "system" {
-                    println!("{}: {}", row["role"], row["content"])
+                    println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
                 }
             }
 

@@ -8,11 +8,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::sync::Arc;
 
-use super::svg_icons::{arrow_add_icon_svg, arrow_down_icon_svg, search_icon_svg, table_icon_svg};
+use super::svg_icons::{
+    arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg, table_icon_svg,
+};
 
 use crate::ui::{
-    backend::{GetSessionState, ADDR_BACKEND},
-    messaging_interface::create_session_name,
+    backend::{create_session_name, GetSessionState, ADDR_BACKEND},
     settings_interface::get_non_duplicated_sorted_subjects,
     settings_state::ACTIVE_SESSION_NAME,
     sign_in_state::{EMAIL, JWT},
@@ -25,13 +26,21 @@ use crate::ui::{
 
 const SUBJECT_SCHEMA_HEADERS: [&str; 3] = ["Column", "Type", "Rows"];
 
-/// File upload
+/// Dioxus application put request
+/// same as phymes-server/src/handlers/session_state.rs
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct PutSessionState {
+    /// Session name to publish on
     pub session_name: String,
+    /// Subject name to publish on
     pub subject_name: String,
+    /// (Optional) document title
     pub document_name: String,
     pub text: String,
+    /// Publish method
+    /// Options are "Extend" or "Replace"
+    /// see phymes-core/src/table/arrow_table_publish.rs
+    pub publish: String,
 }
 
 /// File download
@@ -106,9 +115,10 @@ pub fn subjects_modal() -> Element {
     use_coroutine(clear_subject_info_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state = use_memo(move || GetSessionState {
+    let get_session_state: Memo<GetSessionState> = use_memo(move || GetSessionState {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
+        format: "".to_string(),
     });
 
     // Get the active session info for the subject view
@@ -231,7 +241,7 @@ pub fn subjects_modal() -> Element {
     #[allow(clippy::redundant_closure)]
     let mut content = use_signal(|| String::new());
 
-    let read_files = move |file_engine: Arc<dyn FileEngine>| async move {
+    let read_files = move |file_engine: Arc<dyn FileEngine>, publish: String| async move {
         let files = file_engine.files();
         for file_name in &files {
             if let Some(contents) = file_engine.read_file_to_string(file_name).await {
@@ -243,22 +253,21 @@ pub fn subjects_modal() -> Element {
                     subject_name: subject_shown.read().to_string(),
                     document_name: file_name.clone(),
                     text: contents,
+                    publish: publish.to_owned(),
                 });
-                // DM: for new we assume the documents are already chunked appropriately...
-                // let chunks = chunk_document(contents, 256);
-                // for chunk in chunks {
-                //     files_uploaded.write().push(UploadedFile {
-                //         name: file_name.clone(),
-                //         contents: chunk,
-                //     });
-                // }
             }
         }
     };
 
-    let upload_files = move |evt: FormEvent| async move {
+    let upload_files_extend = move |evt: FormEvent| async move {
         if let Some(file_engine) = evt.files() {
-            read_files(file_engine).await;
+            read_files(file_engine, "Extend".to_string()).await;
+        }
+    };
+
+    let upload_files_replace = move |evt: FormEvent| async move {
+        if let Some(file_engine) = evt.files() {
+            read_files(file_engine, "Replace".to_string()).await;
         }
     };
 
@@ -269,139 +278,217 @@ pub fn subjects_modal() -> Element {
         // Check for sign-in
         if JWT.read().is_empty() {
             div {
-                class: "sign-in-modal",
+                class: "messaging_list",
                 p { "Please sign-in before searching subjects." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "sign-in-modal",
+                class: "messaging_list",
                 p { "Please activate a session before searching subjects." },
             }
         } else if SUBJECT_SCHEMA_NAMES.read().is_empty() {
             div {
-                class: "sign-in-modal",
+                class: "messaging_list",
                 p { "Waiting to retrieve session plan subject schemas..." },
             }
         } else {
             // Search subjects
             div {
-                class: "dropdown_form",
-                form {
-                    class: "dropdown_form_input",
-                    input {
-                        r#type: "text",
-                        placeholder: "search subjects",
-                        value: "{subject_dropdown}",
-                        onclick: move |_| show_subject_dropdown.set(true),
-                        onfocusout: move |_| show_subject_dropdown.set(false),
-                        oninput: move |evt| subject_dropdown.set(evt.value()),
-                        onkeyup: move |_| {
-                            subjects_filtered.set(subjects_vec().iter()
-                                .filter(|s| !s.contains(subject_dropdown.read().as_str()))
-                                .cloned()
-                                .collect::<Vec<_>>());
-                        }
-                    },
-                },
-                button {
-                    class: "dropdown_form_button",
-                    onclick: move |_evt| async move {
-                        subject_shown.set(subject_dropdown.to_string());
-                        subject_dropdown.set(String::new());
-                    },
-                    svg { dangerous_inner_html: search_icon_svg() },
-                },
-            }
-
-            // Dynamic dropdown of subjects
-            if show_subject_dropdown() {
+                class: "messaging_list",
                 div {
-                    class: "dropdown_list",
-                    ul {
-                        id: "search_subjects_dropdown",
-                        {subjects_vec().iter().filter(|s| subject_shown.to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
-                            let sub = sub.clone();
-                            rsx! {
-                                li {
-                                    key: "{i}",
-                                    div {
-                                        onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
-                                        p { "{sub}" },
+                    class: "dropdown_form",
+                    form {
+                        class: "dropdown_form_input",
+                        input {
+                            r#type: "text",
+                            placeholder: "search subjects",
+                            value: "{subject_dropdown}",
+                            onclick: move |_| show_subject_dropdown.set(true),
+                            onfocusout: move |_| show_subject_dropdown.set(false),
+                            oninput: move |evt| subject_dropdown.set(evt.value()),
+                            onkeyup: move |_| {
+                                subjects_filtered.set(subjects_vec().iter()
+                                    .filter(|s| !s.contains(subject_dropdown.read().as_str()))
+                                    .cloned()
+                                    .collect::<Vec<_>>());
+                            }
+                        },
+                    },
+                    button {
+                        class: "dropdown_form_button",
+                        onclick: move |_evt| async move {
+                            subject_shown.set(subject_dropdown.to_string());
+                            subject_dropdown.set(String::new());
+                        },
+                        svg { dangerous_inner_html: search_icon_svg() },
+                    },
+                }
+
+                // Dynamic dropdown of subjects
+                if show_subject_dropdown() {
+                    div {
+                        class: "dropdown_list",
+                        ul {
+                            id: "search_subjects_dropdown",
+                            {subjects_vec().iter().filter(|s| subject_shown.to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
+                                let sub = sub.clone();
+                                rsx! {
+                                    li {
+                                        key: "{i}",
+                                        div {
+                                            onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
+                                            p { "{sub}" },
+                                        }
                                     }
+                                }
+                            })}
+                        }
+                    }
+                }
+
+                // Table of the subject schema
+                div {
+                    class: "output_table",
+                    table {
+                        caption { "Schema for subject {subject_shown.to_string()}."},
+                        tr {
+                            {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {
+                                rsx! {
+                                    th { "{header}" }
+                                }
+                            })}
+                        },
+                        {(0..schema_columns.len()).map(|i| {
+                            let subject_col = schema_columns.get(i).unwrap().to_string();
+                            let subject_type = schema_types.get(i).unwrap().to_string();
+                            let subject_rows = schema_rows.get(i).unwrap().to_string();
+                            rsx! {
+                                tr {
+                                    td { "{subject_col}" },
+                                    td { "{subject_type}" },
+                                    td { "{subject_rows}" },
                                 }
                             }
                         })}
                     }
                 }
-            }
 
-            // Table of the subject schema
-            div {
-                style: "overflow-x:auto;overflow-y:auto;",
-                class: "output_table",
-                table {
-                    caption { "Schema for subject {subject_shown.to_string()}."},
-                    tr {
-                        {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {
-                            rsx! {
-                                th { "{header}" }
-                            }
-                        })}
-                    },
-                    {(0..schema_columns.len()).map(|i| {
-                        let subject_col = schema_columns.get(i).unwrap().to_string();
-                        let subject_type = schema_types.get(i).unwrap().to_string();
-                        let subject_rows = schema_rows.get(i).unwrap().to_string();
-                        rsx! {
-                            tr {
-                                td { "{subject_col}" },
-                                td { "{subject_type}" },
-                                td { "{subject_rows}" },
+                // File upload and download
+                // DM: based on https://github.com/DioxusLabs/dioxus/blob/main/examples/file_upload.rs
+                if !subject_shown.read().is_empty() {
+                    div {
+                        class: "file_upload_form",
+                        div {
+                            id: "file_upload_extend_form",
+                            h2 { "Add data to subject {subject_shown}" },
+                            div {
+                                class: "drop_box",
+                                p { "CSV (comma delimiter with headers)" },
+                                label { r#for: "textread_extend", svg { dangerous_inner_html: arrow_add_icon_svg() } }
+                                input {
+                                    r#type: "file",
+                                    accept: ".csv,",
+                                    multiple: true,
+                                    id: "textread_extend",
+                                    directory: enable_directory_upload,
+                                    onchange: upload_files_extend,
+                                },
                             }
                         }
-                    })}
-                }
-            }
-
-            // File upload and download
-            // DM: based on https://github.com/DioxusLabs/dioxus/blob/main/examples/file_upload.rs
-            if !subject_shown.read().is_empty() {
-                div {
-                    class: "file_upload_form",
-                    div {
-                        id: "file_upload_form",
-                        h2 { "Add data to subject {subject_shown}" },
                         div {
-                            class: "drop_box",
-                            p { "CSV (comma delimiter with headers)" },
-                            label { r#for: "textreader", svg { dangerous_inner_html: arrow_add_icon_svg() } }
-                            input {
-                                r#type: "file",
-                                accept: ".csv,",
-                                multiple: true,
-                                id: "textreader",
-                                directory: enable_directory_upload,
-                                onchange: upload_files,
-                            },
+                            id: "file_upload_replace_form",
+                            h2 { "Replace data of subject {subject_shown}" },
+                            div {
+                                class: "drop_box",
+                                p { "CSV (comma delimiter with headers)" },
+                                label { r#for: "textread_replace", svg { dangerous_inner_html: arrow_up_icon_svg() } }
+                                input {
+                                    r#type: "file",
+                                    accept: ".csv,",
+                                    multiple: true,
+                                    id: "textread_replace",
+                                    directory: enable_directory_upload,
+                                    onchange: upload_files_replace,
+                                },
+                            }
+                        }
+                        div {
+                            id: "file_download_form",
+                            h2 { "Download data from subject {subject_shown}" },
+                            div {
+                                class: "drop_box",
+                                p { "CSV (comma delimiter with headers)" },
+                                button {
+                                    class: "dropdown_form_button",
+                                    onclick: move |_evt| async move {
+                                        // Get csv file from the server
+                                        files_downloaded.write().clear();
+                                        let data = GetSessionState {
+                                            session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
+                                            subject_name: subject_shown.read().to_string(),
+                                            format: "csv_str".to_string(),
+                                        };
+                                        let data_serialized = serde_json::to_string(&data).unwrap();
+                                        let addr = format!("{ADDR_BACKEND}/app/v1/get_state");
+                                        match reqwest::Client::new()
+                                            .post(addr)
+                                            .bearer_auth(JWT.read().to_string())
+                                            .header(CONTENT_TYPE, "application/json")
+                                            .body(data_serialized)
+                                            .send()
+                                            .await {
+                                            Ok(stream) => {
+                                                let mut stream = stream.bytes_stream();
+                                                let mut csv_chunks = Vec::new();
+                                                while let Some(Ok(bytes)) = stream.next().await {
+                                                    let csv_chunk = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+                                                    csv_chunks.push(csv_chunk);
+                                                }
+                                                let data = DownloadSubject {
+                                                    download: format!("{}.csv", subject_shown.read().as_str()),
+                                                    href: format!("data:text/plain,{}", csv_chunks.join("").as_str()),
+                                                };
+                                                files_downloaded.write().push(data);
+                                            },
+                                            Err(err) => content.write().push_str(format!("There was a error downloading subject {err}.").as_str()),
+                                        }
+                                    },
+                                    svg { dangerous_inner_html: arrow_down_icon_svg() },
+                                },
+                            }
                         }
                     }
+                }
+
+                if !files_uploaded.read().is_empty() {
+                    // Show uploaded files and their upload status
                     div {
-                        id: "file_download_form",
-                        h2 { "Download data from subject {subject_shown}" },
-                        div {
-                            class: "drop_box",
-                            p { "CSV (comma delimiter with headers)" },
-                            button {
-                                class: "dropdown_form_button",
-                                onclick: move |_evt| async move {
-                                    // Get csv file from the server
-                                    files_downloaded.write().clear();
-                                    let data = GetSessionState {
-                                        session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
-                                        subject_name: subject_shown.read().to_string(),
-                                    };
-                                    let data_serialized = serde_json::to_string(&data).unwrap();
-                                    let addr = format!("{ADDR_BACKEND}/app/v1/get_state");
+                        class: "files",
+                        p { "Files to upload" },
+                        ul {
+                            id: "uploaded_subject_files",
+                            class: "file_list",
+                            {file_names.iter().enumerate().map(|(i, f)| {
+                                rsx! {
+                                    li {
+                                        key: "{i}",
+                                        div {
+                                            class: "files",
+                                            svg { dangerous_inner_html: table_icon_svg() }, //color red if failure with error message
+                                            h3 { "{f}" },
+                                            // div { class: "loader" },
+                                        }
+                                    }
+                                }
+                            })}
+                        },
+                        button {
+                            id: "submit_files",
+                            onclick: move |_| async move {
+                                // Send files to the server
+                                for file in files_uploaded.read().iter() {
+                                    let data_serialized = serde_json::to_string(file).unwrap();
+                                    let addr = format!("{ADDR_BACKEND}/app/v1/put_state");
                                     match reqwest::Client::new()
                                         .post(addr)
                                         .bearer_auth(JWT.read().to_string())
@@ -409,125 +496,68 @@ pub fn subjects_modal() -> Element {
                                         .body(data_serialized)
                                         .send()
                                         .await {
-                                        Ok(stream) => {
-                                            let mut stream = stream.bytes_stream();
-                                            let mut csv_chunks = Vec::new();
-                                            while let Some(Ok(bytes)) = stream.next().await {
-                                                let csv_chunk = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                                                csv_chunks.push(csv_chunk);
-                                            }
-                                            let data = DownloadSubject {
-                                                download: format!("{}.csv", subject_shown.read().as_str()),
-                                                href: format!("data:text/plain,{}", csv_chunks.join("").as_str()),
-                                            };
-                                            files_downloaded.write().push(data);
+                                        Ok(response) => match response.text().await {
+                                            // DM: Find a better way to give feedback to the user on success and error
+                                            Ok(_text) => (),
+                                            Err(_err) => (),
                                         },
-                                        Err(err) => content.write().push_str(format!("There was a error downloading subject {err}.").as_str()),
+                                        Err(_err) => (),
                                     }
-                                },
-                                svg { dangerous_inner_html: arrow_down_icon_svg() },
+                                }
+
+                                // Clean up the files
+                                files_uploaded.write().clear()
                             },
-                        }
+                            "Submit files"
+                        },
+                        button {
+                            id: "clear_uploaded_files",
+                            onclick: move |_| files_uploaded.write().clear(),
+                            "Clear files"
+                        },
                     }
                 }
-            }
 
-            if !files_uploaded.read().is_empty() {
-                // Show uploaded files and their upload status
-                div {
-                    class: "files",
-                    p { "Files to upload" },
-                    ul {
-                        id: "uploaded_subject_files",
-                        class: "file_list",
-                        {file_names.iter().enumerate().map(|(i, f)| {
-                            rsx! {
-                                li {
-                                    key: "{i}",
-                                    div {
-                                        class: "files",
-                                        svg { dangerous_inner_html: table_icon_svg() }, //color red if failure with error message
-                                        h3 { "{f}" },
-                                        // div { class: "loader" },
+                if !files_downloaded.read().is_empty() {
+                    div {
+                        class: "files",
+                        p { "Files to download" },
+                        ul {
+                            id: "download_subject_files",
+                            class: "file_list",
+                            {files_downloaded.read().iter().enumerate().map(|(i, f)| {
+                                rsx! {
+                                    li {
+                                        key: "{i}",
+                                        div {
+                                            class: "files",
+                                            svg { dangerous_inner_html: table_icon_svg() }, //color red if failure with error message
+                                            a {
+                                                href: f.href.to_owned(),
+                                                download: f.download.to_owned(),
+                                                "{f.download.as_str()}"
+                                            },
+                                        }
                                     }
                                 }
-                            }
-                        })}
-                    },
-                    button {
-                        id: "submit_files",
-                        onclick: move |_| async move {
-                            // Send files to the server
-                            for file in files_uploaded.read().iter() {
-                                let data_serialized = serde_json::to_string(file).expect("Failed to serialize data!");
-                                let addr = format!("{ADDR_BACKEND}/app/v1/put_state");
-                                match reqwest::Client::new()
-                                    .post(addr)
-                                    .bearer_auth(JWT.read().to_string())
-                                    .header(CONTENT_TYPE, "application/json")
-                                    .body(data_serialized)
-                                    .send()
-                                    .await {
-                                    Ok(response) => match response.text().await {
-                                        // DM: Find a better way to give feedback to the user on success and error
-                                        Ok(_text) => (),
-                                        Err(_err) => (),
-                                    },
-                                    Err(_err) => (),
-                                }
-                            }
-
-                            // Clean up the files
-                            files_uploaded.write().clear()
+                            })}
                         },
-                        "Submit files"
-                    },
-                    button {
-                        id: "clear_uploaded_files",
-                        onclick: move |_| files_uploaded.write().clear(),
-                        "Clear files"
-                    },
+                        button {
+                            id: "clear_downloaded_files",
+                            onclick: move |_| files_downloaded.write().clear(),
+                            "Clear files"
+                        },
+                    }
                 }
+
+                // File icon and loader
+                // see https://www.w3schools.com/howto/howto_css_loader.asp
+
+                // Draggable processor to task
+                // see https://www.w3schools.com/howto/howto_js_draggable.asp
+                // see https://www.w3schools.com/HTML/html5_draganddrop.asp
+
             }
-
-            if !files_downloaded.read().is_empty() {
-                div {
-                    class: "files",
-                    p { "Files to download" },
-                    ul {
-                        id: "download_subject_files",
-                        class: "file_list",
-                        {files_downloaded.read().iter().enumerate().map(|(i, f)| {
-                            rsx! {
-                                li {
-                                    key: "{i}",
-                                    div {
-                                        class: "files",
-                                        svg { dangerous_inner_html: table_icon_svg() }, //color red if failure with error message
-                                        a {
-                                            href: f.href.to_owned(),
-                                            download: f.download.to_owned(),
-                                            "{f.download.as_str()}"
-                                        },
-                                    }
-                                }
-                            }
-                        })}
-                    },
-                    button {
-                        id: "clear_downloaded_files",
-                        onclick: move |_| files_downloaded.write().clear(),
-                        "Clear files"
-                    },
-                }
-            }
-
-            // File icon and loader
-            // see https://www.w3schools.com/howto/howto_css_loader.asp
-
-            // Draggable processor to task
-            // see https://www.w3schools.com/howto/howto_js_draggable.asp
-            // see https://www.w3schools.com/HTML/html5_draganddrop.asp
         }
     }
 }

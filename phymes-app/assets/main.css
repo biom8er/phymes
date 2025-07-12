@@ -15,7 +15,7 @@ body{
 	border-radius:5px;
 	overflow:hidden;
 }
-h2,h3,p,th,td,caption{
+h2,h3,p,th,td,caption,canvas{
 	margin: 2px;
 	font-size:14px;
     font-family: Arial, Helvetica, sans-serif;
@@ -93,15 +93,26 @@ main header .logo #logo2{
 	color:#fff;
 }
 
+/* Main display view styling that is shared across all views */
+main .messaging_list{
+	padding-left:0;
+	margin:0;
+	list-style-type:none;
+	overflow-y:scroll;
+	height:75%;
+	border-top:2px solid #fff;
+	border-bottom:2px solid #fff;
+}
+
 /* Sign-in interface styling */
-main .sign-in-modal form{
+main .messaging_list form{
     width:25%;
 	height:auto;
     float: middle;
 	vertical-align: top;
 	margin: auto;
 }
-main .sign-in-modal form input{
+main .messaging_list form input{
 	width:100%;
 	height:auto;
 	line-height:50px;
@@ -112,10 +123,10 @@ main .sign-in-modal form input{
 	font-family: Arial, Helvetica, sans-serif;
 	color:#fff;
 }
-main .sign-in-modal form input::placeholder{
+main .messaging_list form input::placeholder{
 	color:#fff;
 }
-main .sign-in-modal button, .sign-in-modal p{
+main .messaging_list button, .messaging_list p{
     float: middle;
 	margin: auto;
 	background-color:#333333ff;
@@ -124,10 +135,8 @@ main .sign-in-modal button, .sign-in-modal p{
 	text-align: center;
 }
 
-/* Settings interface styling */
-
-/* Subjects interface styling */
-main .dropdown_form{
+/* Settings, Subjects, and Tasks interface styling */
+main .messaging_list .dropdown_form{
     width: 50%;
 	height:auto;
     float: middle;
@@ -135,12 +144,12 @@ main .dropdown_form{
 	margin: auto;
 	display: flex;
 }
-main .dropdown_form form{
-    width:40%;
+main .messaging_list .dropdown_form form{
+    width:92%;
 	height:auto;
 	vertical-align: top;
 }
-main .dropdown_form form input{
+main .messaging_list .dropdown_form form input{
 	width:100%;
 	height:auto;
 	line-height:50px;
@@ -151,40 +160,42 @@ main .dropdown_form form input{
 	font-family: Arial, Helvetica, sans-serif;
 	color:#fff;
 }
-main .dropdown_form form input::placeholder{
+main .messaging_list .dropdown_form form input::placeholder{
 	color:#fff;
 }
-main .dropdown_form button{
+main .messaging_list .dropdown_form button{
+    width: 8%;
+	height: auto;
 	display: block;
 	background-color:#333333ff;
 	color:#fff;
 	text-align: center;
 }
-main .dropdown_form button svg {
+main .messaging_list .dropdown_form button svg {
     /* transform: scale(0.5); */
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;
 }
-main .dropdown_list{
-    width:25%;
+main .messaging_list .dropdown_list{
+    width:50%;
 	height:auto;
     float: middle;
 	vertical-align: top;
 	margin: auto;
 	display: flex;
 }
-main .dropdown_list ul{
+main .messaging_list .dropdown_list ul{
 	display: block;
 	background-color:#333333ff;
 }
-main .dropdown_list p{
+main .messaging_list .dropdown_list p{
 	color:#fff;
 	text-align: left;
 }
-main .output_table{
-	overflow-x:auto;
-	overflow-y:auto;
+main .messaging_list .output_table{
+	/* overflow-x:auto;
+	overflow-y:auto; */
     width:auto;
 	height:auto;
     float: middle;
@@ -192,7 +203,7 @@ main .output_table{
 	vertical-align: top;
 	display: flex;
 }
-main .output_table table, .output_table td, .output_table th{
+main .messaging_list .output_table table, .output_table td, .output_table th{
 	margin-left: auto;
 	margin-right: auto;
 	background-color:#333333ff;
@@ -201,7 +212,7 @@ main .output_table table, .output_table td, .output_table th{
 	border: 1px solid #fff;
   	border-collapse: collapse;
 }
-main .file_upload_form{
+main .messaging_list .file_upload_form{
     width: 50%;
 	height:auto;
     float: middle;
@@ -209,7 +220,7 @@ main .file_upload_form{
 	margin: auto;
 	display: flex;
 }
-main .file_upload_form button, main .files button{
+main .messaging_list .file_upload_form button, main .files button{
     display: inline-block;
     padding: 6px 12px;
     cursor: pointer;
@@ -218,7 +229,7 @@ main .file_upload_form button, main .files button{
 	color:#fff;
 	text-align: center;
 }
-main .file_upload_form label{
+main .messaging_list .file_upload_form label{
     display: inline-block;
     padding: 6px 12px;
     cursor: pointer;
@@ -227,29 +238,27 @@ main .file_upload_form label{
 	text-align: center;
 	margin: auto;
 }
-main .file_upload_form label svg, main .file_upload_form button svg {
+main .messaging_list .file_upload_form label svg, main .file_upload_form button svg {
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;
 }
-main .file_upload_form input{
+main .messaging_list .file_upload_form input{
 	display: none;
 }
-main .file_list{
+main .messaging_list .file_list{
 	list-style-type:none;
-	overflow-y:scroll;
-	height:120px;
 	border-top:2px solid #fff;
 	border-bottom:2px solid #fff;
 }
-main .file_list h3, main .file_list a{
+main .messaging_list .file_list h3, main .file_list a{
 	display:inline-block;
     font-family: Arial, Helvetica, sans-serif;
 	font-size:14px;
 	color:#bbb;
 	font-weight:normal;
 }
-main .file_list .loader {
+main .messaging_list .file_list .loader {
     vertical-align: middle;
 	display:inline-block;
 	border: 4px solid #f3f3f3; /* Light grey */
@@ -263,7 +272,7 @@ main .file_list .loader {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-main .file_list .files svg {
+main .messaging_list .file_list .files svg {
     display: inline-block;
     /* transform: scale(0.5); */
     max-width: 48px; /* based on viewBox attributes in svg */
@@ -271,18 +280,7 @@ main .file_list .files svg {
     vertical-align: middle;
 }
 
-/* Tasks interface styling */
-
 /* Messaging interface styling */
-main .messaging_list{
-	padding-left:0;
-	margin:0;
-	list-style-type:none;
-	overflow-y:scroll;
-	height:75%;
-	border-top:2px solid #fff;
-	border-bottom:2px solid #fff;
-}
 main .messaging_list h2,.messaging_list h3{
 	display:inline-block;
     font-family: Arial, Helvetica, sans-serif;

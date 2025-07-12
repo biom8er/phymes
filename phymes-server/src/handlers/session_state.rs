@@ -21,12 +21,20 @@ use crate::server::server_state::ServerState;
 use super::session_info::GetSessionState;
 
 /// Dioxus application put request
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+/// same as phymes-server/src/handlers/session_state.rs
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct PutSessionState {
+    /// Session name to publish on
     pub session_name: String,
+    /// Subject name to publish on
     pub subject_name: String,
+    /// (Optional) document title
     pub document_name: String,
     pub text: String,
+    /// Publish method
+    /// Options are "Extend" or "Replace"
+    /// see phymes-core/src/table/arrow_table_publish.rs
+    pub publish: String,
 }
 
 /// Chat inference endpoint
@@ -69,6 +77,16 @@ pub async fn session_put_state(
             {
                 Some(session_stream_state) => {
                     // Update the state and superstep_updates
+                    let update = if payload.publish.contains("Replace") {
+                        ArrowTablePublish::Replace {
+                            table_name: payload.subject_name.to_owned(),
+                        }
+                    } else {
+                        //else if payload.publish.contains("Extend")
+                        ArrowTablePublish::Extend {
+                            table_name: payload.subject_name.to_owned(),
+                        }
+                    };
                     let schema = session_stream_state
                         .try_read()
                         .unwrap()
@@ -85,9 +103,7 @@ pub async fn session_put_state(
                         .update_state_from_csv_str(
                             &schema,
                             payload.text.as_str(),
-                            &ArrowTablePublish::Extend {
-                                table_name: payload.subject_name.to_owned(),
-                            },
+                            &update,
                             b',',
                             true,
                             1024,
@@ -97,23 +113,21 @@ pub async fn session_put_state(
                         .try_write()
                         .unwrap()
                         .extend_superstep_updates(update);
-
-                    // Write the updates to disk
-                    if let Err(e) = state.write_state_by_email(
-                        &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                        &current_user.email,
-                    ) {
-                        return JsonError::new(format!(
-                            "Failed to write the session stream state {e:?}"
-                        ))
-                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-                    }
                 }
                 None => {
                     return JsonError::new("Failed to get the session stream state".to_string())
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                 }
             };
+
+            // Write the updates to disk
+            if let Err(e) = state.write_state_by_email(
+                &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
+                &current_user.email,
+            ) {
+                return JsonError::new(format!("Failed to write the session stream state {e:?}"))
+                    .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+            }
 
             // Send the response
             Body::from(serde_json::to_string("State updated").unwrap()).into_response()
@@ -187,20 +201,38 @@ pub async fn session_get_state(
                 .get(payload.session_name.as_str())
             {
                 Some(session_stream_state) => {
-                    // Get the subject table as a csv string
-                    let csv = session_stream_state
-                        .try_read()
-                        .unwrap()
-                        .get_session_context()
-                        .get_states()
-                        .get(payload.subject_name.as_str())
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .to_csv(b',', true)
-                        .unwrap();
-                    let buf = Bytes::from(csv);
-                    Body::from(buf).into_response()
+                    if payload.format == "json_obj" {
+                        // Get the subject table as a json object
+                        let object = session_stream_state
+                            .try_read()
+                            .unwrap()
+                            .get_session_context()
+                            .get_states()
+                            .get(payload.subject_name.as_str())
+                            .unwrap()
+                            .try_read()
+                            .unwrap()
+                            .to_json_object()
+                            .unwrap();
+                        let content = serde_json::to_string(&object).unwrap();
+                        let buf = Bytes::from(content);
+                        Body::from(buf).into_response()
+                    } else {
+                        // Get the subject table as a csv string
+                        let csv = session_stream_state
+                            .try_read()
+                            .unwrap()
+                            .get_session_context()
+                            .get_states()
+                            .get(payload.subject_name.as_str())
+                            .unwrap()
+                            .try_read()
+                            .unwrap()
+                            .to_csv(b',', true)
+                            .unwrap();
+                        let buf = Bytes::from(csv);
+                        Body::from(buf).into_response()
+                    }
                 }
                 None => JsonError::new("Failed to get the session stream state".to_string())
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR),

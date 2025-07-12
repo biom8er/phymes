@@ -7,23 +7,19 @@ use reqwest::{self, header::CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Map, Value};
 
-use crate::ui::settings_state::ACTIVE_SESSION_NAME;
+const MESSAGES_SUBJECT_NAME: &str = "messages";
 
 // mod imports
-use super::backend::ADDR_BACKEND;
-use super::message_state::{
-    sync_current_message_content_state, sync_current_message_state, SyncCurrentMessageContentState,
-    SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
-};
-use super::sign_in_state::{EMAIL, JWT};
-use super::svg_icons::{
-    assistant_icon_svg,
-    // document_icon_svg, media_icon_svg, table_icon_svg,
-    // script_icon_svg, logs_icon_svg, forecast_icon_svg,
-    // omics_icon_svg, graph_icon_svg, alert_icon_svg,
-    // logo_icon_svg,
-    send_icon_svg,
-    user_icon_svg,
+use super::{
+    backend::{create_session_name, GetSessionState, ADDR_BACKEND},
+    messaging_state::{
+        clear_current_message_state, create_timestamp, sync_current_message_content_state,
+        sync_current_message_state, ClearCurrentMessageState, SyncCurrentMessageContentState,
+        SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
+    },
+    settings_state::ACTIVE_SESSION_NAME,
+    sign_in_state::{EMAIL, JWT},
+    svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg},
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -33,30 +29,75 @@ struct DioxusMessage {
     subject_name: String,
 }
 
-/// Create the session name by combining the user ID
-/// with the session plan
-pub fn create_session_name(email: &str, session_plan: &str) -> String {
-    let session_name = format!("{email}{session_plan}");
-    session_name
-}
-
 /// View for messaging between the user and AI assistant
 #[component]
-pub fn chat_interface() -> Element {
+pub fn messaging_interface_view() -> Element {
     // intialize state and coroutines
     use_coroutine(sync_current_message_state);
     use_coroutine(sync_current_message_content_state);
+    use_coroutine(clear_current_message_state);
 
-    #[allow(clippy::redundant_closure)]
-    let mut prompt = use_signal(|| String::new());
+    // Get the last 25 messages for the messages view
+    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
+    let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
+    let _ = use_resource(move || async move {
+        clear_current_message_state.send(ClearCurrentMessageState {});
+        let data = GetSessionState {
+            session_name: create_session_name(
+                EMAIL.read().as_str(),
+                ACTIVE_SESSION_NAME.read().as_str(),
+            ),
+            subject_name: MESSAGES_SUBJECT_NAME.to_string(),
+            format: "json_obj".to_string(),
+        };
+        let data_serialized = serde_json::to_string(&data).unwrap();
+        let addr = format!("{ADDR_BACKEND}/app/v1/get_state");
+        match reqwest::Client::new()
+            .post(addr)
+            .bearer_auth(JWT().to_string())
+            .header(CONTENT_TYPE, "application/json")
+            .body(data_serialized)
+            .send()
+            .await
+        {
+            Ok(stream) => {
+                let mut stream = stream.bytes_stream();
+                while let Some(Ok(bytes)) = stream.next().await {
+                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+                    let json_rows: Vec<Map<String, Value>> =
+                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|_err| {
+                            // DM: find a better way to give feedback to the user
+                            // content.write().push_str(format!("There was a error parsing SyncCurrentSubjectInfoState {err}.").as_str());
+                            Vec::new()
+                        });
+                    for row in json_rows.iter() {
+                        if row.get("role").is_some() {
+                            sync_current_message_state.send(SyncCurrentMessageState {
+                                role: row.get("role").unwrap().as_str().unwrap().to_string(),
+                                content: row.get("content").unwrap().as_str().unwrap().to_string(),
+                                timestamp: row
+                                    .get("timestamp")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+            Err(_err) => (), //content.write().push_str(format!("There was a error getting subjects info {err}.").as_str()),
+        }
+    });
+
+    // initialize the first message (if the are no messages for the session)
     let num_messages = ROLE.len();
-
-    // initialize the first message
     if num_messages == 0 {
         let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
         sync_message.send(SyncCurrentMessageState {
             role: "assistant".to_string(), 
-            content: "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊".to_string()
+            content: "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊".to_string(),
+            timestamp: create_timestamp(),
         });
     }
 
@@ -65,12 +106,12 @@ pub fn chat_interface() -> Element {
         // Check for sign-in
         if JWT.read().is_empty() {
             div {
-                class: "sign-in-modal",
+                class: "messaging_list",
                 p { "Please sign-in before messaging." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "sign-in-modal",
+                class: "messaging_list",
                 p { "Please activate a session before messaging." },
             }
         } else {
@@ -94,9 +135,6 @@ pub fn chat_interface() -> Element {
                                     h3 { "{timestamp}" }
                                 }
                             } else {
-                                // TODO: change the color according to sign-in
-                                // not signed-in: Red
-                                // signed-in: White
                                 div {
                                     class: "entete",
                                     h3 { "{timestamp}" }
@@ -106,15 +144,31 @@ pub fn chat_interface() -> Element {
                             }
                             div {
                                 class: "message",
-                                dangerous_inner_html: "<p>{content}</p>"
+                                dangerous_inner_html: "{content}"
+                                // dangerous_inner_html: "<p>{content}</p>"
                             }
                         }
                     }
                 })}
             }
+        }
+    }
+}
 
-            // todo: thumbs up/down and feedback
+/// View for messaging between the user and AI assistant
+#[component]
+pub fn messaging_interface_footer() -> Element {
+    // intialize state and coroutines
+    use_coroutine(sync_current_message_state);
+    use_coroutine(sync_current_message_content_state);
 
+    #[allow(clippy::redundant_closure)]
+    let mut prompt = use_signal(|| String::new());
+
+    // render the chat messages
+    rsx! {
+        // Check for sign-in
+        if !JWT.read().is_empty() && !ACTIVE_SESSION_NAME.read().is_empty() {
             footer {
                 div {
                     class: "text_input",
@@ -136,19 +190,28 @@ pub fn chat_interface() -> Element {
                         onclick: move |_| async move {
                             let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
                             let sync_message_content = use_coroutine_handle::<SyncCurrentMessageContentState>();
+
                             // signed in and ready to chat
-                            sync_message.send(SyncCurrentMessageState {role: "user".to_string(), content: prompt.to_string()});
+                            sync_message.send(SyncCurrentMessageState {
+                                role: "user".to_string(),
+                                content: prompt.to_string(),
+                                timestamp: create_timestamp()
+                            });
 
                             // create the message
                             let data = DioxusMessage {
                                 content: prompt.to_string(),
                                 session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
-                                subject_name: "messages".to_string(),
+                                subject_name: MESSAGES_SUBJECT_NAME.to_string(),
                             };
                             prompt.write().clear();
                             let data_serialized = serde_json::to_string(&data).unwrap();
                             let addr = format!("{ADDR_BACKEND}/app/v1/chat");
-                            sync_message.send(SyncCurrentMessageState {role: "assistant".to_string(), content: "Preparing response...".to_string()});
+                            sync_message.send(SyncCurrentMessageState {
+                                role: "assistant".to_string(),
+                                content: "Preparing response...".to_string(),
+                                timestamp: create_timestamp()
+                            });
                             match reqwest::Client::new()
                                 .post(addr)
                                 .bearer_auth(JWT.to_string())

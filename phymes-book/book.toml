@@ -12,4 +12,4 @@ create-missing = false
 command = "mdbook-mermaid"
 
 [output.html]
-additional-js = ["mermaid.min.js", "mermaid-init.js"]
+additional-js = ["./src/assets/mermaid.min.js", "./src/assets/mermaid-init.js"]

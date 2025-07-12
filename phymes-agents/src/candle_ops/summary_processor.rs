@@ -34,6 +34,8 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event};
 
+use crate::candle_chat::message_history::create_timestamp;
+
 use super::summary_config::CandleOpsSummaryConfig;
 
 /// Processor that takes the results of an OpsProcessor
@@ -160,7 +162,7 @@ impl OpsSummaryStream {
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
         // Output schema
-        let field_names = ["role", "content"];
+        let field_names = ["role", "content", "timestamp"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -305,7 +307,12 @@ impl Stream for OpsSummaryStream {
             // let role: ArrayRef = Arc::new(StringArray::from(vec!["function"]));
             let role: ArrayRef = Arc::new(StringArray::from(vec!["tool"]));
             let content: ArrayRef = Arc::new(StringArray::from(vec![content]));
-            let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content)])?;
+            let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
+            let batch = RecordBatch::try_from_iter(vec![
+                ("role", role),
+                ("content", content),
+                ("timestamp", timestamp),
+            ])?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -368,13 +375,13 @@ mod tests {
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = ArrowTableBuilder::new()
-            .with_name("sumary_processor")
+            .with_name("summary_processor")
             .with_json(&config_json, 1)?
             .build()?;
         let _ = messages.insert(
-            "sumary_processor".to_string(),
+            "summary_processor".to_string(),
             ArrowOutgoingMessage::get_builder()
-                .with_name("sumary_processor")
+                .with_name("summary_processor")
                 .with_publisher("")
                 .with_subject("")
                 .with_update(&ArrowTablePublish::None)
@@ -394,7 +401,7 @@ mod tests {
 
         // Create the processor and run
         let processor = OpsSummaryProcessor::new_with_pub_sub_for(
-            "sumary_processor",
+            "summary_processor",
             &[ArrowTablePublish::Extend {
                 table_name: "messages".to_string(),
             }],

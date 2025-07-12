@@ -19,10 +19,16 @@ use crate::handlers::sign_in::CurrentUser;
 use crate::server::server_state::ServerState;
 
 /// Server session info get request
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// same as in phymes-app/src/ui/backend.rs
+#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct GetSessionState {
+    /// The name of the session
     pub session_name: String,
+    /// The subject name if known else blank
     pub subject_name: String,
+    /// The format of the response
+    /// Options are "csv_str" and "json_obj"
+    pub format: String,
 }
 
 /// Session information endpoint for subjects

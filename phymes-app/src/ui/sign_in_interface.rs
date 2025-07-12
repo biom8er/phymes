@@ -22,7 +22,7 @@ pub fn sign_in_modal() -> Element {
         // Sign-in modal
         if !EMAIL.read().is_empty() {
             div {
-                class: "sign-in-modal",
+                class: "messaging_list",
                 p { "Signed in as {EMAIL.read().to_string()}." },
             }
         } else {
@@ -35,7 +35,7 @@ pub fn sign_in_modal() -> Element {
             //  6. After clicking on reset password link, a password reset page is provided
             //  7. Send follow-up email notifying the user that their password was reset
             div {
-                class: "sign-in-modal",
+                class: "messaging_list",
                 form {
                     div {
                         class: "container",
