@@ -32,7 +32,7 @@ use serde_json::json;
 // Agent imports
 use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
 
-/// From https://github.com/seanmonstar/reqwest/blob/v0.12.22/src/util.rs#L4
+/// From <https://github.com/seanmonstar/reqwest/blob/v0.12.22/src/util.rs#L4>
 pub fn basic_auth<U, P>(username: U, password: Option<P>) -> HeaderValue
 where
     U: std::fmt::Display,

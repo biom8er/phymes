@@ -55,7 +55,7 @@ impl ServerState {
     ///
     /// # Returns
     ///
-    /// Vec<String> of missing session_names
+    /// `Vec<String>` of missing session_names
     pub fn find_session_names_not_in_state(&self, session_names: &[String]) -> Vec<String> {
         let mut missing = Vec::new();
         for session_name in session_names.iter() {
@@ -79,7 +79,7 @@ impl ServerState {
     ///
     /// # Returns
     ///
-    /// Option<(Vec<String>, Vec<String>)> of created (session_plans, session_names)
+    /// `Option<(Vec<String>, Vec<String>)>` of created (session_plans, session_names)
     pub fn get_session_names_by_email(&self, email: &str) -> Option<(Vec<String>, Vec<String>)> {
         match test_sign_in_handler::retrieve_session_plans_by_email(email) {
             Some(session_plans) => {
@@ -102,7 +102,7 @@ impl ServerState {
     ///
     /// # Returns
     ///
-    /// Option<(Vec<String>, Vec<String>)> of created (session_plans, session_names)
+    /// `Option<(Vec<String>, Vec<String>)>` of created (session_plans, session_names)
     pub fn create_session_names_by_email(
         &mut self,
         email: &str,
