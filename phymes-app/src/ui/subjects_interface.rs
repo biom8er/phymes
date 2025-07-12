@@ -8,10 +8,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::sync::Arc;
 
-use super::svg_icons::{arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg, table_icon_svg};
+use super::svg_icons::{
+    arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg, table_icon_svg,
+};
 
 use crate::ui::{
-    backend::{create_session_name, ADDR_BACKEND, GetSessionState},
+    backend::{create_session_name, GetSessionState, ADDR_BACKEND},
     settings_interface::get_non_duplicated_sorted_subjects,
     settings_state::ACTIVE_SESSION_NAME,
     sign_in_state::{EMAIL, JWT},
@@ -38,7 +40,7 @@ struct PutSessionState {
     /// Publish method
     /// Options are "Extend" or "Replace"
     /// see phymes-core/src/table/arrow_table_publish.rs
-    pub publish: String
+    pub publish: String,
 }
 
 /// File download
@@ -554,7 +556,7 @@ pub fn subjects_modal() -> Element {
                 // Draggable processor to task
                 // see https://www.w3schools.com/howto/howto_js_draggable.asp
                 // see https://www.w3schools.com/HTML/html5_draganddrop.asp
-            
+
             }
         }
     }

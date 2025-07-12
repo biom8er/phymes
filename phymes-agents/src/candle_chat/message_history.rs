@@ -5,12 +5,12 @@ use phymes_core::table::{
     stream_adapter::RecordBatchReceiverStream,
 };
 
+use anyhow::{Result, anyhow};
 use arrow::{
     array::{ArrayRef, StringArray},
     record_batch::RecordBatch,
 };
 use chrono::{DateTime, Utc};
-use anyhow::{Result, anyhow};
 use futures::StreamExt;
 use std::sync::Arc;
 use tracing::{Level, event};
@@ -152,7 +152,11 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
         let role: ArrayRef = Arc::new(StringArray::from(vec!["system"]));
         let content: ArrayRef = Arc::new(StringArray::from(vec![system_prompt]));
         let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-        let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content), ("timestamp", timestamp)])?;
+        let batch = RecordBatch::try_from_iter(vec![
+            ("role", role),
+            ("content", content),
+            ("timestamp", timestamp),
+        ])?;
         match self.record_batches {
             Some(ref mut batches) => {
                 batches.insert(0, batch);
@@ -170,7 +174,11 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
         let role: ArrayRef = Arc::new(StringArray::from(vec![role]));
         let content: ArrayRef = Arc::new(StringArray::from(vec![content]));
         let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-        let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content), ("timestamp", timestamp)])?;
+        let batch = RecordBatch::try_from_iter(vec![
+            ("role", role),
+            ("content", content),
+            ("timestamp", timestamp),
+        ])?;
         match self.record_batches {
             Some(ref mut batches) => {
                 batches.push(batch);
@@ -288,7 +296,11 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
         let role: ArrayRef = Arc::new(StringArray::from(vec![role]));
         let content: ArrayRef = Arc::new(StringArray::from(vec![content_string]));
         let timestamp: ArrayRef = Arc::new(StringArray::from(vec![timestamp]));
-        let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content), ("timestamp", timestamp)])?;
+        let batch = RecordBatch::try_from_iter(vec![
+            ("role", role),
+            ("content", content),
+            ("timestamp", timestamp),
+        ])?;
         match self.record_batches {
             Some(ref mut batches) => {
                 batches.push(batch);
@@ -484,7 +496,11 @@ mod test_message_history {
                 let role: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
                 let content: ArrayRef = Arc::new(StringArray::from(vec![prompt]));
                 let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-                let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content), ("timestamp", timestamp)])?;
+                let batch = RecordBatch::try_from_iter(vec![
+                    ("role", role),
+                    ("content", content),
+                    ("timestamp", timestamp),
+                ])?;
 
                 // record the poll
                 self.sample += 1;
@@ -498,7 +514,11 @@ mod test_message_history {
                 let content: ArrayRef = Arc::new(StringArray::from(vec![response]));
                 let role: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
                 let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-                let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content), ("timestamp", timestamp)])?;
+                let batch = RecordBatch::try_from_iter(vec![
+                    ("role", role),
+                    ("content", content),
+                    ("timestamp", timestamp),
+                ])?;
 
                 // record the poll
                 self.sample += 1;

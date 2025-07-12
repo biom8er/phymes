@@ -308,7 +308,11 @@ impl Stream for OpsSummaryStream {
             let role: ArrayRef = Arc::new(StringArray::from(vec!["tool"]));
             let content: ArrayRef = Arc::new(StringArray::from(vec![content]));
             let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-            let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content), ("timestamp", timestamp)])?;
+            let batch = RecordBatch::try_from_iter(vec![
+                ("role", role),
+                ("content", content),
+                ("timestamp", timestamp),
+            ])?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));

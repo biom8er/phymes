@@ -38,7 +38,10 @@ use reqwest::{Client, header::CONTENT_TYPE};
 use tracing::{Level, event};
 
 use crate::{
-    candle_chat::{chat_config::CandleChatConfig, message_history::{create_timestamp, MessageHistoryTraitExt}},
+    candle_chat::{
+        chat_config::CandleChatConfig,
+        message_history::{MessageHistoryTraitExt, create_timestamp},
+    },
     openai_asset::OpenAIRequestState,
 };
 
@@ -348,8 +351,13 @@ impl Stream for OpenAIChatStream {
                     let role_arr: ArrayRef =
                         Arc::new(StringArray::from(vec!["assistant".to_string()]));
                     let content_arr: ArrayRef = Arc::new(StringArray::from(vec![content]));
-                    let timestamp_arr: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-                    let batch = RecordBatch::try_from_iter(vec![("role", role_arr), ("content", content_arr), ("timestamp", timestamp_arr)])?;
+                    let timestamp_arr: ArrayRef =
+                        Arc::new(StringArray::from(vec![create_timestamp()]));
+                    let batch = RecordBatch::try_from_iter(vec![
+                        ("role", role_arr),
+                        ("content", content_arr),
+                        ("timestamp", timestamp_arr),
+                    ])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));

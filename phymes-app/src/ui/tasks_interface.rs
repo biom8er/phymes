@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 use std::collections::HashSet;
 
 use crate::ui::{
-    backend::{create_session_name, ADDR_BACKEND, GetSessionState},
+    backend::{create_session_name, GetSessionState, ADDR_BACKEND},
     settings_interface::get_non_duplicated_sorted_subjects,
     settings_state::ACTIVE_SESSION_NAME,
     sign_in_state::{EMAIL, JWT},

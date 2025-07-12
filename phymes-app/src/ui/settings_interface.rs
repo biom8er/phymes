@@ -3,12 +3,12 @@ use std::collections::HashSet;
 use dioxus::prelude::*;
 
 use super::{
+    messaging_state::{clear_current_message_state, ClearCurrentMessageState},
     settings_state::{
         sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME,
     },
     sign_in_state::{JWT, SESSION_NAMES},
     svg_icons::search_icon_svg,
-    messaging_state::{clear_current_message_state, ClearCurrentMessageState},
 };
 
 /// Get a non duplicated list of sorted subject names

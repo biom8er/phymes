@@ -11,14 +11,15 @@ const MESSAGES_SUBJECT_NAME: &str = "messages";
 
 // mod imports
 use super::{
-    backend::{create_session_name, ADDR_BACKEND, GetSessionState},
+    backend::{create_session_name, GetSessionState, ADDR_BACKEND},
     messaging_state::{
-        clear_current_message_state, create_timestamp, sync_current_message_content_state, sync_current_message_state, 
-        ClearCurrentMessageState, SyncCurrentMessageContentState, SyncCurrentMessageState,
-        CONTENT, INDEX, ROLE, TIMESTAMP},
+        clear_current_message_state, create_timestamp, sync_current_message_content_state,
+        sync_current_message_state, ClearCurrentMessageState, SyncCurrentMessageContentState,
+        SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
+    },
+    settings_state::ACTIVE_SESSION_NAME,
     sign_in_state::{EMAIL, JWT},
     svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg},
-    settings_state::ACTIVE_SESSION_NAME,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -40,9 +41,12 @@ pub fn messaging_interface_view() -> Element {
     let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
     let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
     let _ = use_resource(move || async move {
-        clear_current_message_state.send(ClearCurrentMessageState {});       
+        clear_current_message_state.send(ClearCurrentMessageState {});
         let data = GetSessionState {
-            session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
+            session_name: create_session_name(
+                EMAIL.read().as_str(),
+                ACTIVE_SESSION_NAME.read().as_str(),
+            ),
             subject_name: MESSAGES_SUBJECT_NAME.to_string(),
             format: "json_obj".to_string(),
         };
@@ -69,18 +73,8 @@ pub fn messaging_interface_view() -> Element {
                     for row in json_rows.iter() {
                         if row.get("role").is_some() {
                             sync_current_message_state.send(SyncCurrentMessageState {
-                                role: row
-                                    .get("role")
-                                    .unwrap()
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string(),
-                                content: row
-                                    .get("content")
-                                    .unwrap()
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string(),
+                                role: row.get("role").unwrap().as_str().unwrap().to_string(),
+                                content: row.get("content").unwrap().as_str().unwrap().to_string(),
                                 timestamp: row
                                     .get("timestamp")
                                     .unwrap()
@@ -199,7 +193,7 @@ pub fn messaging_interface_footer() -> Element {
 
                             // signed in and ready to chat
                             sync_message.send(SyncCurrentMessageState {
-                                role: "user".to_string(), 
+                                role: "user".to_string(),
                                 content: prompt.to_string(),
                                 timestamp: create_timestamp()
                             });
@@ -214,7 +208,7 @@ pub fn messaging_interface_footer() -> Element {
                             let data_serialized = serde_json::to_string(&data).unwrap();
                             let addr = format!("{ADDR_BACKEND}/app/v1/chat");
                             sync_message.send(SyncCurrentMessageState {
-                                role: "assistant".to_string(), 
+                                role: "assistant".to_string(),
                                 content: "Preparing response...".to_string(),
                                 timestamp: create_timestamp()
                             });

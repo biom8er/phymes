@@ -4,7 +4,7 @@ use reqwest::{self, header::CONTENT_TYPE};
 use serde_json::{Map, Value};
 
 use crate::ui::{
-    backend::{create_session_name, ADDR_BACKEND, GetSessionState},
+    backend::{create_session_name, GetSessionState, ADDR_BACKEND},
     metrics_state::{
         clear_metrics_info_state, sync_current_metrics_info_state, ClearMetricsInfoState,
         SyncCurrentMetricsInfoState, METRIC_NAMES, METRIC_TASK_NAMES, METRIC_VALUES,

@@ -4,11 +4,11 @@ use dioxus::prelude::*;
 // Plotting imports
 use plotly::{color::Rgb, image::ColorModel, Image, Plot};
 
-use super::settings_interface::settings_modal;
-use super::subjects_interface::subjects_modal;
-use super::messaging_interface::{messaging_interface_view, messaging_interface_footer};
+use super::messaging_interface::{messaging_interface_footer, messaging_interface_view};
 use super::metrics_interface::metrics_modal;
+use super::settings_interface::settings_modal;
 use super::sign_in_interface::sign_in_modal;
+use super::subjects_interface::subjects_modal;
 use super::svg_icons::{
     database_icon_svg, help_icon_svg, message_icon_svg, person_icon_svg, settings_icon_svg,
     tools_icon_svg, top_speed_icon_svg,
@@ -158,7 +158,7 @@ pub fn about_text_modal() -> Element {
             vec![b, b, b, b, r, r, r, r, r, b, b, b, b, b, b],
             vec![b, b, b, r, r, r, r, r, r, r, r, r, b, b, b],
             vec![b, b, b, db, db, db, lb, lb, b, lb, b, b, b, b, b],
-            vec![b, b, db, lb, db, lb, lb, lb, b, lb, lb, lb, b, b, b],
+            vec![b, b, db, lb, db, lb, lb, lb, w, lb, lb, lb, b, b, b],
             vec![b, b, db, lb, db, db, lb, lb, lb, db, lb, lb, lb, b, b],
             vec![b, b, db, db, lb, lb, lb, lb, db, db, db, db, b, b, b],
             vec![b, b, b, b, lb, lb, lb, lb, lb, lb, lb, b, b, b, b],
@@ -173,7 +173,8 @@ pub fn about_text_modal() -> Element {
             vec![b, s, s, s, s, b, b, b, b, b, s, s, s, s, b],
         ];
         let trace = Image::new(pixels).color_model(ColorModel::RGB);
-        let layout = plotly::Layout::new().paper_background_color(b)
+        let layout = plotly::Layout::new()
+            .paper_background_color(b)
             .x_axis(plotly::layout::Axis::new().show_tick_labels(false))
             .y_axis(plotly::layout::Axis::new().show_tick_labels(false));
 
@@ -181,6 +182,7 @@ pub fn about_text_modal() -> Element {
         plot.add_trace(trace);
         plot.set_layout(layout);
 
+        #[cfg(target_family = "wasm")]
         plotly::bindings::new_plot("plot-div", &plot).await;
     });
 

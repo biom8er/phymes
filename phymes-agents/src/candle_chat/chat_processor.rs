@@ -1,4 +1,7 @@
-use crate::{candle_assets::{device::device, token_output_stream::TokenOutputStream}, candle_chat::message_history::create_timestamp};
+use crate::{
+    candle_assets::{device::device, token_output_stream::TokenOutputStream},
+    candle_chat::message_history::create_timestamp,
+};
 
 use candle_core::DType;
 use candle_transformers::generation::{LogitsProcessor, Sampling};
@@ -475,7 +478,11 @@ impl Stream for CandleChatStream {
             let role_arr: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
             let content_arr: ArrayRef = Arc::new(StringArray::from(vec![content]));
             let timestamp_arr: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-            let batch = RecordBatch::try_from_iter(vec![("role", role_arr), ("content", content_arr), ("timestamp", timestamp_arr)])?;
+            let batch = RecordBatch::try_from_iter(vec![
+                ("role", role_arr),
+                ("content", content_arr),
+                ("timestamp", timestamp_arr),
+            ])?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -530,7 +537,11 @@ impl Stream for CandleChatStream {
             let role_arr: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
             let content_arr: ArrayRef = Arc::new(StringArray::from(vec![content]));
             let timestamp_arr: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-            let batch = RecordBatch::try_from_iter(vec![("role", role_arr), ("content", content_arr), ("timestamp", timestamp_arr)])?;
+            let batch = RecordBatch::try_from_iter(vec![
+                ("role", role_arr),
+                ("content", content_arr),
+                ("timestamp", timestamp_arr),
+            ])?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -551,7 +562,11 @@ impl Stream for CandleChatStream {
                 let role_arr: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
                 let content_arr: ArrayRef = Arc::new(StringArray::from(vec![rest]));
                 let timestamp_arr: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-                let batch = RecordBatch::try_from_iter(vec![("role", role_arr), ("content", content_arr), ("timestamp", timestamp_arr)])?;
+                let batch = RecordBatch::try_from_iter(vec![
+                    ("role", role_arr),
+                    ("content", content_arr),
+                    ("timestamp", timestamp_arr),
+                ])?;
 
                 // record the poll
                 Poll::Ready(Some(Ok(batch)))

@@ -807,7 +807,11 @@ pub mod test_table {
             "Fri Jul 11 09:16:21 2025".to_string(),
         ]));
 
-        let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content), ("timestamp", timestamap)])?;
+        let batch = RecordBatch::try_from_iter(vec![
+            ("role", role),
+            ("content", content),
+            ("timestamp", timestamap),
+        ])?;
 
         let schema = batch.schema();
         ArrowTableBuilder::new()

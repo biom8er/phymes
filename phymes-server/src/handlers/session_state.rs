@@ -34,7 +34,7 @@ pub struct PutSessionState {
     /// Publish method
     /// Options are "Extend" or "Replace"
     /// see phymes-core/src/table/arrow_table_publish.rs
-    pub publish: String
+    pub publish: String,
 }
 
 /// Chat inference endpoint
@@ -78,11 +78,14 @@ pub async fn session_put_state(
                 Some(session_stream_state) => {
                     // Update the state and superstep_updates
                     let update = if payload.publish.contains("Replace") {
-                        ArrowTablePublish::Replace { table_name: payload.subject_name.to_owned() }
-                    } else if payload.publish.contains("Extend") {
-                        ArrowTablePublish::Extend { table_name: payload.subject_name.to_owned() }
+                        ArrowTablePublish::Replace {
+                            table_name: payload.subject_name.to_owned(),
+                        }
                     } else {
-                        ArrowTablePublish::Extend { table_name: payload.subject_name.to_owned() }
+                        //else if payload.publish.contains("Extend")
+                        ArrowTablePublish::Extend {
+                            table_name: payload.subject_name.to_owned(),
+                        }
                     };
                     let schema = session_stream_state
                         .try_read()
@@ -122,10 +125,8 @@ pub async fn session_put_state(
                 &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
                 &current_user.email,
             ) {
-                return JsonError::new(format!(
-                    "Failed to write the session stream state {e:?}"
-                ))
-                .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                return JsonError::new(format!("Failed to write the session stream state {e:?}"))
+                    .to_response(StatusCode::INTERNAL_SERVER_ERROR);
             }
 
             // Send the response
@@ -216,7 +217,7 @@ pub async fn session_get_state(
                         let content = serde_json::to_string(&object).unwrap();
                         let buf = Bytes::from(content);
                         Body::from(buf).into_response()
-                    } else {                        
+                    } else {
                         // Get the subject table as a csv string
                         let csv = session_stream_state
                             .try_read()
