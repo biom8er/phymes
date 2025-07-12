@@ -1,6 +1,9 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
+// Plotting imports
+use plotly::{color::Rgb, image::ColorModel, Image, Plot};
+
 use super::settings_interface::settings_modal;
 use super::subjects_interface::subjects_modal;
 use super::messaging_interface::{messaging_interface_view, messaging_interface_footer};
@@ -141,10 +144,51 @@ pub fn main_window() -> Element {
 
 #[component]
 pub fn about_text_modal() -> Element {
+    use_future(move || async move {
+        let w = Rgb::new(255, 255, 255);
+        let b = Rgb::new(0, 0, 0);
+        let r = Rgb::new(240, 8, 5);
+        let db = Rgb::new(145, 67, 7);
+        let lb = Rgb::new(251, 200, 129);
+        let s = Rgb::new(153, 75, 10);
+        let bl = Rgb::new(3, 111, 191);
+        let y = Rgb::new(251, 250, 15);
+
+        let pixels = vec![
+            vec![b, b, b, b, r, r, r, r, r, b, b, b, b, b, b],
+            vec![b, b, b, r, r, r, r, r, r, r, r, r, b, b, b],
+            vec![b, b, b, db, db, db, lb, lb, b, lb, b, b, b, b, b],
+            vec![b, b, db, lb, db, lb, lb, lb, b, lb, lb, lb, b, b, b],
+            vec![b, b, db, lb, db, db, lb, lb, lb, db, lb, lb, lb, b, b],
+            vec![b, b, db, db, lb, lb, lb, lb, db, db, db, db, b, b, b],
+            vec![b, b, b, b, lb, lb, lb, lb, lb, lb, lb, b, b, b, b],
+            vec![b, b, b, r, r, bl, r, r, r, b, b, b, b, b, b],
+            vec![b, b, r, r, r, bl, r, r, bl, r, r, r, b, b, b],
+            vec![b, r, r, r, r, bl, bl, bl, bl, r, r, r, r, b, b],
+            vec![b, lb, lb, r, bl, y, bl, bl, y, bl, r, lb, lb, b, b],
+            vec![b, lb, lb, lb, bl, bl, bl, bl, bl, bl, lb, lb, lb, b, b],
+            vec![b, lb, lb, bl, bl, bl, bl, bl, bl, bl, bl, lb, lb, b, b],
+            vec![b, b, b, bl, bl, bl, b, b, bl, bl, bl, b, b, b, b],
+            vec![b, b, s, s, s, b, b, b, b, s, s, s, b, b, b],
+            vec![b, s, s, s, s, b, b, b, b, b, s, s, s, s, b],
+        ];
+        let trace = Image::new(pixels).color_model(ColorModel::RGB);
+        let layout = plotly::Layout::new().paper_background_color(b)
+            .x_axis(plotly::layout::Axis::new().show_tick_labels(false))
+            .y_axis(plotly::layout::Axis::new().show_tick_labels(false));
+
+        let mut plot = Plot::new();
+        plot.add_trace(trace);
+        plot.set_layout(layout);
+
+        plotly::bindings::new_plot("plot-div", &plot).await;
+    });
+
     rsx! {
         div {
             class: "messaging_list",
             p { "Welcome to Biom8er messaging application!" },
+            div { id: "plot-div" }
         }
     }
 }

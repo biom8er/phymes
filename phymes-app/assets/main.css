@@ -15,7 +15,7 @@ body{
 	border-radius:5px;
 	overflow:hidden;
 }
-h2,h3,p,th,td,caption{
+h2,h3,p,th,td,caption,canvas{
 	margin: 2px;
 	font-size:14px;
     font-family: Arial, Helvetica, sans-serif;

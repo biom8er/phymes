@@ -3,7 +3,7 @@
 # App (Project) Name
 name = "phymes-app"
 
-[web.phymes_app]
+[web.app]
 
 # HTML title tag content
 title = "phymes-app"
@@ -15,10 +15,18 @@ title = "phymes-app"
 style = []
 
 # Additional JavaScript files
-script = []
+script = ["/assets/mermaid.esm.min.mjs"]
 
 [web.resource.dev]
 
 # Javascript code file
 # serve: [dev-server] only
 script = []
+
+[web.watcher]
+
+# when watcher trigger, regenerate the `index.html`
+reload_html = true
+
+# which files or dirs will be watcher monitoring
+watch_path = ["src", "public"]
