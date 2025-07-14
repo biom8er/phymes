@@ -1,7 +1,13 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>{app_title}</title>
+    <title>{app_title}</title>    
+    <!-- <script> DM: required for PWA
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/{base_path}/assets/sw.js");
+      }
+    </script>
+    <link rel="manifest" href="/assets/manifest.json" /> -->
     <script src="https://cdn.plot.ly/plotly-2.14.0.min.js"></script>
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

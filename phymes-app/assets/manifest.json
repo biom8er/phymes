@@ -1,0 +1,15 @@
+{
+  "name": "Phymes",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["window-control-overlay", "standalone"],
+  "scope": "/",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "short_name": "Phymes",
+  "description": "PHYMES (Parallel HYpergraph MEssaging Streams) is a subject-based message passing algorithm based on directed hypergraphs which provide the expressivity needed to model the heterogeneity and complexity of the real world.",
+  "dir": "ltr",
+  "lang": "en",
+  "orientation": "landscape"
+}
