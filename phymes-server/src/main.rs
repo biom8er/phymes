@@ -1,8 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-
-pub mod handlers;
-pub mod server;
+use phymes_server::server;
 
 // DM: need to add CLI support
 #[cfg(feature = "wasip2")]

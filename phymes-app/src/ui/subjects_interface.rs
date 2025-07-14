@@ -13,7 +13,7 @@ use super::svg_icons::{
 };
 
 use crate::ui::{
-    backend::{create_session_name, GetSessionState, ADDR_BACKEND},
+    backend::ADDR_BACKEND,
     settings_interface::get_non_duplicated_sorted_subjects,
     settings_state::ACTIVE_SESSION_NAME,
     sign_in_state::{EMAIL, JWT},
@@ -24,24 +24,9 @@ use crate::ui::{
     },
 };
 
-const SUBJECT_SCHEMA_HEADERS: [&str; 3] = ["Column", "Type", "Rows"];
+use phymes_server::handlers::{session_info::GetSessionState, session_state::PutSessionState, sign_in::create_session_name};
 
-/// Dioxus application put request
-/// same as phymes-server/src/handlers/session_state.rs
-#[derive(Debug, Default, Serialize, Deserialize)]
-struct PutSessionState {
-    /// Session name to publish on
-    pub session_name: String,
-    /// Subject name to publish on
-    pub subject_name: String,
-    /// (Optional) document title
-    pub document_name: String,
-    pub text: String,
-    /// Publish method
-    /// Options are "Extend" or "Replace"
-    /// see phymes-core/src/table/arrow_table_publish.rs
-    pub publish: String,
-}
+const SUBJECT_SCHEMA_HEADERS: [&str; 3] = ["Column", "Type", "Rows"];
 
 /// File download
 #[derive(Debug, Default, Serialize, Deserialize)]

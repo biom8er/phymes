@@ -21,17 +21,17 @@ serde = { version = "1.0.219", features = ["derive"] }
 chrono = "0.4.41"
 bytes = "1.10.0"
 serde_json = "1.0.140"
-plotly = { version = "0.13.3" }
-
-# DM: Cannot import phymes-core nor phymes-agents due to library conflicts with Dioxus!
-#phymes-core = { path = "../phymes-core" }
-#phymes-agents = { path = "../phymes-agents" }
+plotly = { version = "0.13.3", default-features = false, optional = true}
+phymes-server = { path = "../phymes-server", default-features = false, features = ["wasip2"] }
 
 [features]
-default = ["web"]
+default = ["web", "plotly_cdn_js"]
+plotly_cdn_js = ["dep:plotly"]
+plotly_embed_js = ["plotly/plotly_embed_js"]
+phymes_serverless = ["phymes-server/candle"]
 web = ["dioxus/web"]
-desktop = ["dioxus/desktop", "dioxus/launch"]
-mobile = ["dioxus/mobile"]
+desktop = ["dioxus/desktop", "dioxus/launch", "plotly_embed_js"]
+mobile = ["dioxus/mobile", "plotly_embed_js"]
 
 [profile]
 

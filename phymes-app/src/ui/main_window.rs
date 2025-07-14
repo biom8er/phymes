@@ -143,7 +143,8 @@ pub fn main_window() -> Element {
 }
 
 #[component]
-pub fn about_text_modal() -> Element {
+pub fn about_text_modal() -> Element {    
+    #[cfg(any(feature = "plotly_embed_js", feature = "plotly_cdn_js"))]
     use_future(move || async move {
         let w = Rgb::new(255, 255, 255);
         let b = Rgb::new(0, 0, 0);
@@ -185,12 +186,21 @@ pub fn about_text_modal() -> Element {
         #[cfg(target_family = "wasm")]
         plotly::bindings::new_plot("plot-div", &plot).await;
     });
-
+    
+    #[cfg(any(feature = "plotly_embed_js", feature = "plotly_cdn_js"))]
     rsx! {
         div {
             class: "messaging_list",
             p { "Welcome to Biom8er messaging application!" },
             div { id: "plot-div" }
+        }
+    }
+    
+    #[cfg(not(any(feature = "plotly_embed_js", feature = "plotly_cdn_js")))]
+    rsx! {
+        div {
+            class: "messaging_list",
+            p { "Welcome to Biom8er messaging application!" },
         }
     }
 }

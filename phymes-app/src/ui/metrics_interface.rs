@@ -4,7 +4,7 @@ use reqwest::{self, header::CONTENT_TYPE};
 use serde_json::{Map, Value};
 
 use crate::ui::{
-    backend::{create_session_name, GetSessionState, ADDR_BACKEND},
+    backend::ADDR_BACKEND,
     metrics_state::{
         clear_metrics_info_state, sync_current_metrics_info_state, ClearMetricsInfoState,
         SyncCurrentMetricsInfoState, METRIC_NAMES, METRIC_TASK_NAMES, METRIC_VALUES,
@@ -14,6 +14,8 @@ use crate::ui::{
     sign_in_state::{EMAIL, JWT},
     svg_icons::search_icon_svg,
 };
+
+use phymes_server::handlers::{session_info::GetSessionState, sign_in::create_session_name};
 
 const SESSION_METRICS_HEADERS: [&str; 3] = ["Task", "Metric", "Value"];
 

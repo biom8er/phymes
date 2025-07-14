@@ -129,41 +129,41 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // DM: this takes a while to run on WASM...
-        // // Test session_stream
+        // Test session_stream
 
-        // // Create the session state JSON value
-        // let mut map = Map::new();
-        // map.insert("session_name".to_string(), Value::String(session_name));
-        // map.insert(
-        //     "content".to_string(),
-        //     Value::String("What is the world's tallest mountain?".to_string()),
-        // );
-        // map.insert(
-        //     "subject_name".to_string(),
-        //     Value::String("messages".to_string()),
-        // );
-        // let data = serde_json::to_string(&Value::Object(map)).unwrap();
+        // Create the session state JSON value
+        let mut map = Map::new();
+        map.insert("session_name".to_string(), Value::String(session_name));
+        map.insert(
+            "content".to_string(),
+            Value::String("What is the world's tallest mountain?".to_string()),
+        );
+        map.insert(
+            "subject_name".to_string(),
+            Value::String("messages".to_string()),
+        );
+        let data = serde_json::to_string(&Value::Object(map)).unwrap();
 
-        // // Make the request for the chat
-        // let request: Request<String> = Request::builder()
-        //     .method("POST")
-        //     .uri("http://127.0.0.1:8000/app/v1/chat")
-        //     .header("Content-type", "application/json")
-        //     .header("Authorization", bearer.as_str())
-        //     .body(data)
-        //     .unwrap();
-        // let response: Response = block_on(server.call(request));
-        // assert_eq!(200, response.status());
+        // Make the request for the chat
+        let request: Request<String> = Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:8000/app/v1/chat")
+            .header("Content-type", "application/json")
+            .header("Authorization", bearer.as_str())
+            .body(data)
+            .unwrap();
+        let response: Response = block_on(server.call(request));
+        assert_eq!(200, response.status());
 
-        // // Parse the response for the chat
-        // let bytes: Vec<Bytes> = response
-        //     .into_body()
-        //     .into_data_stream()
-        //     .try_collect()
-        //     .await
-        //     .unwrap();
-        // let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
-        // println!("{values:?}");
+        // Parse the response for the chat
+        let bytes: Vec<Bytes> = response
+            .into_body()
+            .into_data_stream()
+            .try_collect()
+            .await
+            .unwrap();
+        let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        println!("{values:?}");
     }
 
     #[tokio::test]

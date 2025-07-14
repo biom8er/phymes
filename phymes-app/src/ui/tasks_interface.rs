@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 use std::collections::HashSet;
 
 use crate::ui::{
-    backend::{create_session_name, GetSessionState, ADDR_BACKEND},
+    backend::ADDR_BACKEND,
     settings_interface::get_non_duplicated_sorted_subjects,
     settings_state::ACTIVE_SESSION_NAME,
     sign_in_state::{EMAIL, JWT},
@@ -16,6 +16,8 @@ use crate::ui::{
         TASK_TASK_NAMES,
     },
 };
+
+use phymes_server::handlers::{session_info::GetSessionState, sign_in::create_session_name};
 
 /// Get the distinct processors from the distinct tasks
 pub fn get_processors_shown(

@@ -7,11 +7,14 @@ use reqwest::{self, header::CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Map, Value};
 
+// Phymes imports
+use phymes_server::handlers::{session_info::GetSessionState, sign_in::create_session_name};
+
 const MESSAGES_SUBJECT_NAME: &str = "messages";
 
 // mod imports
 use super::{
-    backend::{create_session_name, GetSessionState, ADDR_BACKEND},
+    backend::ADDR_BACKEND,
     messaging_state::{
         clear_current_message_state, create_timestamp, sync_current_message_content_state,
         sync_current_message_state, ClearCurrentMessageState, SyncCurrentMessageContentState,

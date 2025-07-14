@@ -10,11 +10,12 @@ documentation = "https://docs.rs/phymes-server"
 
 [features]
 default = ["wsl", "candle"]
-wasip2 =  ["phymes-core/wasip2", "phymes-agents/wasip2",
+no_std = [
     # WASM compatible tokio features
     "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "tokio/time",
     # Axum serverless extras
     "dep:futures-executor", "dep:tower-service"]
+wasip2 =  ["no_std", "phymes-core/wasip2", "phymes-agents/wasip2"]    
 std = [
     "tokio/full", "dep:reqwest",
     # Axum defaults
