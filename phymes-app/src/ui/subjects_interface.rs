@@ -24,7 +24,7 @@ use crate::ui::{
     },
 };
 
-use phymes_server::handlers::{session_info::GetSessionState, session_state::PutSessionState, sign_in::create_session_name};
+use phymes_server::handlers::{session_info::SessionResponse, session_state::PutSessionState, sign_in::create_session_name};
 
 const SUBJECT_SCHEMA_HEADERS: [&str; 3] = ["Column", "Type", "Rows"];
 
@@ -100,7 +100,7 @@ pub fn subjects_modal() -> Element {
     use_coroutine(clear_subject_info_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<GetSessionState> = use_memo(move || GetSessionState {
+    let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
         format: "".to_string(),
@@ -408,7 +408,7 @@ pub fn subjects_modal() -> Element {
                                     onclick: move |_evt| async move {
                                         // Get csv file from the server
                                         files_downloaded.write().clear();
-                                        let data = GetSessionState {
+                                        let data = SessionResponse {
                                             session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
                                             subject_name: subject_shown.read().to_string(),
                                             format: "csv_str".to_string(),

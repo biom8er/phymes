@@ -6,7 +6,7 @@ use phymes_server::server;
 #[cfg(feature = "wasip2")]
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    use crate::handlers::sign_in::basic_auth;
+    use phymes_server::handlers::sign_in::basic_auth;
     use anyhow::anyhow;
     use bytes::Bytes;
     use futures::TryStreamExt;
@@ -15,7 +15,7 @@ async fn main() -> Result<()> {
     use server::{serverless_app::Serverless, serverless_config::ServerlessConfig};
 
     // initialize the server
-    let mut serverless = Serverless::new();
+    let serverless = Serverless::new();
 
     // parse the config
     let config = ServerlessConfig::parse();

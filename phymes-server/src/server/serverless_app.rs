@@ -9,7 +9,7 @@ use super::server_app::AppBuilder;
 
 /// Stateful implementation of the router to enable
 /// continuous calls to the router
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Serverless {
     router: Router,
 }
@@ -21,7 +21,7 @@ impl Serverless {
         }
     }
 
-    pub async fn call(&mut self, request: Request<String>) -> Response {
+    pub async fn call(mut self, request: Request<String>) -> Response {
         self.router.call(request).await.unwrap()
     }
 }
@@ -33,9 +33,11 @@ mod tests {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
+    use phymes_core::table::arrow_table_publish::ArrowTablePublish;
     use serde_json::{Map, Value};
+    use tokio::runtime::Handle;
 
-    use crate::handlers::sign_in::{basic_auth, create_session_name};
+    use crate::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::{basic_auth, create_session_name}};
 
     use super::*;
 
@@ -63,9 +65,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_serverless_stream_nostd() {
+    async fn test_serverless_cli_nostd() {
         // Check sign_in
-        let mut server = Serverless::new();
+        let server = Serverless::new();
 
         // Make the credentials with basic authorization
         let credentials = basic_auth("myemail@gmail.com", Some("myemail@gmail.com"));
@@ -91,6 +93,7 @@ mod tests {
         let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_info
+        let server = Serverless::new();
 
         // Extract out the JWT token
         let token = values.get("jwt").unwrap().as_str().unwrap();
@@ -99,14 +102,16 @@ mod tests {
         // Create the session state JSON value
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
-        let mut map = Map::new();
-        map.insert(
-            "session_name".to_string(),
-            Value::String(session_name.clone()),
-        );
-        map.insert("subject_name".to_string(), Value::String("".to_string()));
-        map.insert("format".to_string(), Value::String("".to_string()));
-        let data = serde_json::to_string(&Value::Object(map)).unwrap();
+        let session_response = SessionResponse {
+            session_name: session_name.clone(),
+            subject_name: "".to_string(),
+            format: SessionResponseFormat::Bytes,
+            publish: ArrowTablePublish::None,
+            content: "".to_string(),
+            metadata: "".to_string(),
+            stream: false
+        };
+        let data = serde_json::to_string(&session_response).unwrap();
 
         // Make the request for the subjects_info
         let request: Request<String> = Request::builder()
@@ -126,23 +131,23 @@ mod tests {
             .try_collect()
             .await
             .unwrap();
-        let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        println!("{values:?}");
 
-        // DM: this takes a while to run on WASM...
         // Test session_stream
+        let server = Serverless::new();
 
-        // Create the session state JSON value
-        let mut map = Map::new();
-        map.insert("session_name".to_string(), Value::String(session_name));
-        map.insert(
-            "content".to_string(),
-            Value::String("What is the world's tallest mountain?".to_string()),
-        );
-        map.insert(
-            "subject_name".to_string(),
-            Value::String("messages".to_string()),
-        );
-        let data = serde_json::to_string(&Value::Object(map)).unwrap();
+        // Create the session state JSON value        
+        let session_response = SessionResponse {
+            session_name: session_name.clone(),
+            subject_name: "messages".to_string(),
+            format: SessionResponseFormat::Bytes,
+            publish: ArrowTablePublish::None,
+            content: "What is the world's tallest mountain?".to_string(),
+            metadata: "".to_string(),
+            stream: false
+        };
+        let data = serde_json::to_string(&session_response).unwrap();
 
         // Make the request for the chat
         let request: Request<String> = Request::builder()
@@ -152,7 +157,14 @@ mod tests {
             .header("Authorization", bearer.as_str())
             .body(data)
             .unwrap();
-        let response: Response = block_on(server.call(request));
+        let handle = Handle::current();
+        let join_handle = tokio::task::spawn_blocking(move || {
+            // Using Handle::block_on to run async code in the new thread.
+            handle.block_on(async move {
+                server.call(request)
+            })
+        });
+        let response: Response = join_handle.await.unwrap().await;
         assert_eq!(200, response.status());
 
         // Parse the response for the chat
@@ -162,75 +174,7 @@ mod tests {
             .try_collect()
             .await
             .unwrap();
-        let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        let values: Vec<Map<String, Value>> = serde_json::from_slice(bytes.first().unwrap()).unwrap();
         println!("{values:?}");
-    }
-
-    #[tokio::test]
-    async fn test_serverless_cli_nostd() {
-        // Check sign_in
-        let mut server = Serverless::new();
-
-        // Make the credentials with basic authorization
-        let credentials = basic_auth("myemail@gmail.com", Some("myemail@gmail.com"));
-
-        // Make the sign_in request
-        let request: Request<String> = Request::builder()
-            .method("POST")
-            .uri("http://127.0.0.1:8000/app/v1/sign_in")
-            .header("Content-type", "text/plain; charset=utf-8")
-            .header("Authorization", credentials)
-            .body("".into())
-            .unwrap();
-        let response: Response = block_on(server.call(request));
-        assert_eq!(200, response.status());
-
-        // Parse the sign_in request results
-        let bytes: Vec<Bytes> = response
-            .into_body()
-            .into_data_stream()
-            .try_collect()
-            .await
-            .unwrap();
-        let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
-
-        // Test subjects_info
-        let mut server = Serverless::new();
-
-        // Extract out the JWT token
-        let token = values.get("jwt").unwrap().as_str().unwrap();
-        let bearer = format!("Bearer {token}");
-
-        // Create the session state JSON value
-        let session_name =
-            create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
-        let mut map = Map::new();
-        map.insert(
-            "session_name".to_string(),
-            Value::String(session_name.clone()),
-        );
-        map.insert("subject_name".to_string(), Value::String("".to_string()));
-        map.insert("format".to_string(), Value::String("".to_string()));
-        let data = serde_json::to_string(&Value::Object(map)).unwrap();
-
-        // Make the request for the subjects_info
-        let request: Request<String> = Request::builder()
-            .method("POST")
-            .uri("http://127.0.0.1:8000/app/v1/subjects_info")
-            .header("Content-type", "application/json")
-            .header("Authorization", bearer.as_str())
-            .body(data)
-            .unwrap();
-        let response: Response = block_on(server.call(request));
-        assert_eq!(200, response.status());
-
-        // Parse the response for the subjects_info
-        let bytes: Vec<Bytes> = response
-            .into_body()
-            .into_data_stream()
-            .try_collect()
-            .await
-            .unwrap();
-        let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
     }
 }

@@ -17,7 +17,7 @@ use crate::ui::{
     },
 };
 
-use phymes_server::handlers::{session_info::GetSessionState, sign_in::create_session_name};
+use phymes_server::handlers::{session_info::SessionResponse, sign_in::create_session_name};
 
 /// Get the distinct processors from the distinct tasks
 pub fn get_processors_shown(
@@ -54,7 +54,7 @@ pub fn tasks_modal() -> Element {
     use_coroutine(clear_task_info_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<GetSessionState> = use_memo(move || GetSessionState {
+    let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
         format: "".to_string(),

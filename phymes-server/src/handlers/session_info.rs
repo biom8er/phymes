@@ -10,7 +10,7 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_core::table::arrow_table::ArrowTableTrait;
+use phymes_core::table::{arrow_table::ArrowTableTrait, arrow_table_publish::ArrowTablePublish};
 use serde::{Deserialize, Serialize};
 
 // Library imports
@@ -18,17 +18,38 @@ use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_r
 use crate::handlers::sign_in::CurrentUser;
 use crate::server::server_state::ServerState;
 
-/// Server session info get request
-/// same as in phymes-app/src/ui/backend.rs
+/// Format of the request
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub enum SessionResponseFormat {
+    /// Comma Seperated Values string
+    /// Recommended defaults: b',', true, 1024,
+    CSV {delimiter: u8, header: bool, batch_size: usize },
+    /// JSON string
+    JSON {batch_size: usize },
+    /// JSON Object written to Bytes
+    Bytes,
+    /// Arrow IPC
+    IPC,
+    #[default]
+    None,
+}
+
+/// Server session request
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
-pub struct GetSessionState {
+pub struct SessionResponse {
     /// The name of the session
     pub session_name: String,
     /// The subject name if known else blank
     pub subject_name: String,
     /// The format of the response
-    /// Options are "csv_str" and "json_obj"
-    pub format: String,
+    pub format: SessionResponseFormat,
+    /// Publish method
+    pub publish: ArrowTablePublish,
+    /// The content to publish or subscribe
+    pub content: String,
+    pub metadata: String,
+    /// Stream the response
+    pub stream: bool
 }
 
 /// Session information endpoint for subjects
@@ -36,7 +57,7 @@ pub struct GetSessionState {
 pub async fn session_subjects_info(
     Extension(current_user): Extension<CurrentUser>,
     State(mut state): State<ServerState>,
-    payload: Result<Json<GetSessionState>, JsonRejection>,
+    payload: Result<Json<SessionResponse>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {
@@ -131,7 +152,7 @@ pub async fn session_subjects_info(
 pub async fn session_tasks_info(
     Extension(current_user): Extension<CurrentUser>,
     State(mut state): State<ServerState>,
-    payload: Result<Json<GetSessionState>, JsonRejection>,
+    payload: Result<Json<SessionResponse>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {
@@ -226,7 +247,7 @@ pub async fn session_tasks_info(
 pub async fn session_metrics_info(
     Extension(current_user): Extension<CurrentUser>,
     State(mut state): State<ServerState>,
-    payload: Result<Json<GetSessionState>, JsonRejection>,
+    payload: Result<Json<SessionResponse>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {

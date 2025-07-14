@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self, Map, Value};
 
 // Phymes imports
-use phymes_server::handlers::{session_info::GetSessionState, sign_in::create_session_name};
+use phymes_server::handlers::{session_info::SessionResponse, sign_in::create_session_name};
 
 const MESSAGES_SUBJECT_NAME: &str = "messages";
 
@@ -45,7 +45,7 @@ pub fn messaging_interface_view() -> Element {
     let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
     let _ = use_resource(move || async move {
         clear_current_message_state.send(ClearCurrentMessageState {});
-        let data = GetSessionState {
+        let data = SessionResponse {
             session_name: create_session_name(
                 EMAIL.read().as_str(),
                 ACTIVE_SESSION_NAME.read().as_str(),
