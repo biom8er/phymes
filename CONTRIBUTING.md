@@ -150,6 +150,57 @@ The front-end application is built using [dioxus](https://dioxuslabs.com) to ena
 cargo install dioxus-cli
 ```
 
+### Setting up Android Studio
+
+Installation of [Android Studio](https://developer.android.com/studio) is required to run virtual android phone emulations of the applicaiton or to test on a physical android device. Follow the below steps to install Android Studio on Linux.
+
+First, install Linux 64 bit dependencies required to build Android applications
+
+```bash
+# add 32 bit architecture target
+sudo dpkg --add-architecture i386
+
+# add non-standard package repos for libncurses5
+sudo tee -a /etc/apt/sources.list <<EOF
+deb http://archive.ubuntu.com/ubuntu/ focal main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ focal-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ focal-security main restricted universe multiverse
+EOF
+
+# install the dependencies
+sudo apt-get update
+sudo apt-get install libc6:i386 libncurses5:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386
+sudo apt install default-jre
+sudo apt install default-jdk
+```
+
+Second, install Android Studio. The simplest option is to [download](https://developer.android.com/studio) and untar in a directory of your choice. Then, move the files and folders to an accessible directory.
+
+```bash
+# cd to the directory for android-studio
+mv android-studio /opt/android-studio/
+sudo /opt/android-studio/bin/studio.sh
+```
+
+Third, use Android Studio to emulate a virtual android device by following the [walkthrough](https://github.com/DioxusLabs/dioxus/discussions/3234) under the section "Running the Emulator". Note that during the walkthrough, various packages are installed which require the configuration of permissions and environmental variables to work nicely with Dioxus.
+
+```bash
+# Set the environmental variable
+export JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+export ANDROID_HOME="$HOME/Android/Sdk"
+export NDK_HOME="$ANDROID_HOME/ndk/29.0.13599879"
+export PATH="$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools"
+
+# Fix the permission so that Dioxus can run Gradle
+sudo chmod -R 757 ~/Android/Sdk
+```
+
+Finally, you should be able to build the phymes-app for android. Note that the emulator must be running before starting the phymes-app server.
+
+```bash
+dx serve -p phymes-app --platform android
+```
+
 ### How to compile
 
 This is a standard cargo project with workspaces. To build the different workspaces, you need to have `rust` and `cargo` and you will need to specify workspaces using the using the `-p`, `--project` flag:
