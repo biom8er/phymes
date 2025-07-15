@@ -209,7 +209,7 @@ pub fn messaging_interface_footer() -> Element {
                                 publish: ArrowTablePublish::None,
                                 content: prompt.to_string(),
                                 metadata: "".to_string(),
-                                stream: true,
+                                stream: false,
                             };
                             prompt.write().clear();
                             let data_serialized = serde_json::to_string(&data).unwrap();

@@ -26,7 +26,6 @@ impl Serverless {
     }
 }
 
-/// Based on https://github.com/tokio-rs/axum/blob/main/examples/simple-router-wasm/Cargo.toml
 #[cfg(test)]
 mod tests {
     use axum::{response::Html, routing::get};
@@ -35,7 +34,6 @@ mod tests {
     use futures_executor::block_on;
     use phymes_core::table::arrow_table_publish::ArrowTablePublish;
     use serde_json::{Map, Value};
-    use tokio::runtime::Handle;
 
     use crate::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::{basic_auth, create_session_name}};
 
@@ -145,7 +143,7 @@ mod tests {
             publish: ArrowTablePublish::None,
             content: "What is the world's tallest mountain?".to_string(),
             metadata: "".to_string(),
-            stream: false
+            stream: true
         };
         let data = serde_json::to_string(&session_response).unwrap();
 
@@ -160,14 +158,14 @@ mod tests {
         let response: Response = server.call(request).await;
         assert_eq!(200, response.status());
 
-        // // Parse the response for the chat
-        // let bytes: Vec<Bytes> = response
-        //     .into_body()
-        //     .into_data_stream()
-        //     .try_collect()
-        //     .await
-        //     .unwrap();
-        // let values: Vec<Map<String, Value>> = serde_json::from_slice(bytes.first().unwrap()).unwrap();
-        // println!("{values:?}");
+        // Parse the response for the chat
+        let bytes: Vec<Bytes> = response
+            .into_body()
+            .into_data_stream()
+            .try_collect()
+            .await
+            .unwrap();
+        let values: Vec<Map<String, Value>> = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        println!("{values:?}");
     }
 }

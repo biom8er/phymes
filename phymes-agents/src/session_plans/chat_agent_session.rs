@@ -111,6 +111,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
 
     fn make_state_tables(&self) -> Result<Vec<ArrowTable>> {
         // Default chat config
+        #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
             max_tokens: 1000,
             temperature: 0.8,

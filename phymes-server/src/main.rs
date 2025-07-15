@@ -10,7 +10,6 @@ async fn main() -> Result<()> {
     use anyhow::anyhow;
     use bytes::Bytes;
     use futures::TryStreamExt;
-    use futures_executor::block_on;
     use http::Request;
     use server::{serverless_app::Serverless, serverless_config::ServerlessConfig};
 
@@ -42,7 +41,7 @@ async fn main() -> Result<()> {
             .header("Authorization", credentials)
             .body("".into())
             .unwrap();
-        block_on(serverless.call(request))
+        serverless.call(request).await
     } else if let (Some(bearer), Some(data)) = (config.bearer_auth, config.data) {
         // Make the credentials for bearer authorization
         let bearer = format!("Bearer {bearer}");
@@ -53,7 +52,7 @@ async fn main() -> Result<()> {
             .header("Authorization", bearer)
             .body(data)
             .unwrap();
-        block_on(serverless.call(request))
+        serverless.call(request).await
     } else {
         return Err(anyhow!(
             "Error: no basic_auth nor bearer_auth with data were provided."
