@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
+use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+use phymes_server::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::create_session_name};
 use reqwest::{self, header::CONTENT_TYPE};
 use serde_json::{Map, Value};
 
@@ -15,8 +17,6 @@ use crate::ui::{
     svg_icons::search_icon_svg,
 };
 
-use phymes_server::handlers::{session_info::SessionResponse, sign_in::create_session_name};
-
 const SESSION_METRICS_HEADERS: [&str; 3] = ["Task", "Metric", "Value"];
 
 /// View to display the subject tables for the session
@@ -31,7 +31,11 @@ pub fn metrics_modal() -> Element {
     let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
-        format: "".to_string(),
+        format: SessionResponseFormat::Bytes,
+        publish: ArrowTablePublish::None,
+        content: "".to_string(),
+        metadata: "".to_string(),
+        stream: false,
     });
 
     // Get the active session info for the metrics view

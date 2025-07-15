@@ -139,11 +139,6 @@ pub async fn session_stream(
                 .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
                 .map(|(_k, v)| v)
                 .collect::<Vec<_>>();
-            println!("updating the session");
-            state.session_contexts.try_write().unwrap().insert(
-                payload.session_name.as_str().to_string(),
-                session_stream_state,
-            );
 
             // Write the updates to disk
             println!("writing the session");
