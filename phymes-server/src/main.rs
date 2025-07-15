@@ -7,6 +7,7 @@ use phymes_server::server;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     use phymes_server::handlers::sign_in::basic_auth;
+    use futures_executor::block_on;
     use anyhow::anyhow;
     use bytes::Bytes;
     use futures::TryStreamExt;
@@ -41,7 +42,7 @@ async fn main() -> Result<()> {
             .header("Authorization", credentials)
             .body("".into())
             .unwrap();
-        serverless.call(request).await
+        block_on(serverless.call(request))
     } else if let (Some(bearer), Some(data)) = (config.bearer_auth, config.data) {
         // Make the credentials for bearer authorization
         let bearer = format!("Bearer {bearer}");
@@ -52,7 +53,7 @@ async fn main() -> Result<()> {
             .header("Authorization", bearer)
             .body(data)
             .unwrap();
-        serverless.call(request).await
+        block_on(serverless.call(request))
     } else {
         return Err(anyhow!(
             "Error: no basic_auth nor bearer_auth with data were provided."
