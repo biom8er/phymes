@@ -4,11 +4,11 @@ use dioxus::prelude::*;
 // General imports
 use futures::StreamExt;
 use reqwest::{self, header::CONTENT_TYPE};
-use serde::{Deserialize, Serialize};
 use serde_json::{self, Map, Value};
 
 // Phymes imports
-use phymes_server::handlers::{session_info::SessionResponse, sign_in::create_session_name};
+use phymes_server::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::create_session_name};
+use phymes_core::table::arrow_table_publish::ArrowTablePublish;
 
 const MESSAGES_SUBJECT_NAME: &str = "messages";
 
@@ -24,13 +24,6 @@ use super::{
     sign_in_state::{EMAIL, JWT},
     svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg},
 };
-
-#[derive(Serialize, Deserialize, Debug)]
-struct DioxusMessage {
-    content: String,
-    session_name: String,
-    subject_name: String,
-}
 
 /// View for messaging between the user and AI assistant
 #[component]
@@ -51,7 +44,11 @@ pub fn messaging_interface_view() -> Element {
                 ACTIVE_SESSION_NAME.read().as_str(),
             ),
             subject_name: MESSAGES_SUBJECT_NAME.to_string(),
-            format: "json_obj".to_string(),
+            format: SessionResponseFormat::None,
+            publish: ArrowTablePublish::None,
+            content: "".to_string(),
+            metadata: "".to_string(),
+            stream: false,
         };
         let data_serialized = serde_json::to_string(&data).unwrap();
         let addr = format!("{ADDR_BACKEND}/app/v1/get_state");
@@ -202,10 +199,17 @@ pub fn messaging_interface_footer() -> Element {
                             });
 
                             // create the message
-                            let data = DioxusMessage {
-                                content: prompt.to_string(),
-                                session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
+                            let data = SessionResponse {
+                                session_name: create_session_name(
+                                    EMAIL.read().as_str(),
+                                    ACTIVE_SESSION_NAME.read().as_str(),
+                                ),
                                 subject_name: MESSAGES_SUBJECT_NAME.to_string(),
+                                format: SessionResponseFormat::Bytes,
+                                publish: ArrowTablePublish::None,
+                                content: prompt.to_string(),
+                                metadata: "".to_string(),
+                                stream: true,
                             };
                             prompt.write().clear();
                             let data_serialized = serde_json::to_string(&data).unwrap();

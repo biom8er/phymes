@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
+use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+use phymes_server::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::create_session_name};
 use reqwest::{self, header::CONTENT_TYPE};
 
 // File upload imports
@@ -23,8 +25,6 @@ use crate::ui::{
         SUBJECT_SCHEMA_ROWS, SUBJECT_SCHEMA_TYPES,
     },
 };
-
-use phymes_server::handlers::{session_info::SessionResponse, session_state::PutSessionState, sign_in::create_session_name};
 
 const SUBJECT_SCHEMA_HEADERS: [&str; 3] = ["Column", "Type", "Rows"];
 
@@ -103,7 +103,11 @@ pub fn subjects_modal() -> Element {
     let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
-        format: "".to_string(),
+        format: SessionResponseFormat::Bytes,
+        publish: ArrowTablePublish::None,
+        content: "".to_string(),
+        metadata: "".to_string(),
+        stream: false,
     });
 
     // Get the active session info for the subject view
@@ -213,32 +217,34 @@ pub fn subjects_modal() -> Element {
     // File upload signals
     #[allow(unused_mut)]
     let mut enable_directory_upload = use_signal(|| false);
-    let mut files_uploaded = use_signal(|| Vec::new() as Vec<PutSessionState>);
+    let mut files_uploaded = use_signal(|| Vec::new() as Vec<SessionResponse>);
     let file_names = use_memo(move || {
         get_non_duplicated_sorted_subjects(
             &files_uploaded
                 .read()
                 .iter()
-                .map(|s| s.document_name.as_str())
+                .map(|s| s.metadata.as_str())
                 .collect::<Vec<_>>(),
         )
     });
     #[allow(clippy::redundant_closure)]
     let mut content = use_signal(|| String::new());
 
-    let read_files = move |file_engine: Arc<dyn FileEngine>, publish: String| async move {
+    let read_files = move |file_engine: Arc<dyn FileEngine>, publish: ArrowTablePublish| async move {
         let files = file_engine.files();
         for file_name in &files {
             if let Some(contents) = file_engine.read_file_to_string(file_name).await {
-                files_uploaded.write().push(PutSessionState {
+                files_uploaded.write().push(SessionResponse {
                     session_name: create_session_name(
                         EMAIL.read().as_str(),
                         ACTIVE_SESSION_NAME.read().as_str(),
                     ),
                     subject_name: subject_shown.read().to_string(),
-                    document_name: file_name.clone(),
-                    text: contents,
+                    metadata: file_name.clone(),
+                    content: contents,
                     publish: publish.to_owned(),
+                    format: SessionResponseFormat::CSV { delimiter: b',', header: true, batch_size: 1024 },
+                    stream: false,
                 });
             }
         }
@@ -246,13 +252,13 @@ pub fn subjects_modal() -> Element {
 
     let upload_files_extend = move |evt: FormEvent| async move {
         if let Some(file_engine) = evt.files() {
-            read_files(file_engine, "Extend".to_string()).await;
+            read_files(file_engine, ArrowTablePublish::Extend { table_name: subject_shown.read().to_string() }).await;
         }
     };
 
     let upload_files_replace = move |evt: FormEvent| async move {
         if let Some(file_engine) = evt.files() {
-            read_files(file_engine, "Replace".to_string()).await;
+            read_files(file_engine, ArrowTablePublish::Replace { table_name: subject_shown.read().to_string() }).await;
         }
     };
 
@@ -411,7 +417,11 @@ pub fn subjects_modal() -> Element {
                                         let data = SessionResponse {
                                             session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
                                             subject_name: subject_shown.read().to_string(),
-                                            format: "csv_str".to_string(),
+                                            format: SessionResponseFormat::CSV { delimiter: b',', header: true, batch_size: 1024 },
+                                            publish: ArrowTablePublish::None,
+                                            content: "".to_string(),
+                                            metadata: "".to_string(),
+                                            stream: false,
                                         };
                                         let data_serialized = serde_json::to_string(&data).unwrap();
                                         let addr = format!("{ADDR_BACKEND}/app/v1/get_state");

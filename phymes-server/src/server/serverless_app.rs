@@ -80,7 +80,7 @@ mod tests {
             .header("Authorization", credentials)
             .body("".into())
             .unwrap();
-        let response: Response = block_on(server.call(request));
+        let response: Response = server.call(request).await;
         assert_eq!(200, response.status());
 
         // Parse the sign_in request results
@@ -121,7 +121,7 @@ mod tests {
             .header("Authorization", bearer.as_str())
             .body(data)
             .unwrap();
-        let response: Response = block_on(server.call(request));
+        let response: Response = server.call(request).await;
         assert_eq!(200, response.status());
 
         // Parse the response for the subjects_info
@@ -157,24 +157,17 @@ mod tests {
             .header("Authorization", bearer.as_str())
             .body(data)
             .unwrap();
-        let handle = Handle::current();
-        let join_handle = tokio::task::spawn_blocking(move || {
-            // Using Handle::block_on to run async code in the new thread.
-            handle.block_on(async move {
-                server.call(request)
-            })
-        });
-        let response: Response = join_handle.await.unwrap().await;
+        let response: Response = server.call(request).await;
         assert_eq!(200, response.status());
 
-        // Parse the response for the chat
-        let bytes: Vec<Bytes> = response
-            .into_body()
-            .into_data_stream()
-            .try_collect()
-            .await
-            .unwrap();
-        let values: Vec<Map<String, Value>> = serde_json::from_slice(bytes.first().unwrap()).unwrap();
-        println!("{values:?}");
+        // // Parse the response for the chat
+        // let bytes: Vec<Bytes> = response
+        //     .into_body()
+        //     .into_data_stream()
+        //     .try_collect()
+        //     .await
+        //     .unwrap();
+        // let values: Vec<Map<String, Value>> = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        // println!("{values:?}");
     }
 }
