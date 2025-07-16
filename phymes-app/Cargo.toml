@@ -30,7 +30,7 @@ clap = {version = "4.5.40", optional = true}
 tokio = { version = "1.45.1", default-features = false, optional = true }
 
 [features]
-default = []
+default = ["web"]
 
 # Frontend options for plotting
 plotly_cdn_js = ["dep:plotly"]

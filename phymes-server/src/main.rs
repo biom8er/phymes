@@ -9,13 +9,14 @@ async fn main() -> Result<()> {
     use futures_executor::block_on;
     use bytes::Bytes;
     use futures::TryStreamExt;
-    use server::{serverless_app::serverless_app, serverless_config::ServerlessConfig};    
+    use server::{serverless_app::{serverless_app, Serverless}, serverless_config::ServerlessConfig};    
 
     // parse the config
     let config = ServerlessConfig::parse();
 
     // call the serverless application
-    let response = block_on(serverless_app(config)).unwrap();
+    let mut serverless = Serverless::new();
+    let response = serverless_app(config, &mut serverless).await.unwrap();
 
     // Parse the response
     let bytes: Vec<Bytes> = response

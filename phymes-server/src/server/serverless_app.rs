@@ -22,15 +22,15 @@ impl Serverless {
         }
     }
 
-    pub async fn call(mut self, request: Request<String>) -> Response {
+    pub async fn call(&mut self, request: Request<String>) -> Response {
         self.router.call(request).await.unwrap()
     }
 }
 
 /// Wrapper for calling the serverless application
-pub async fn serverless_app(config: ServerlessConfig) -> Result<Response> {
-    // initialize the server
-    let serverless = Serverless::new();
+pub async fn serverless_app(config: ServerlessConfig, serverless: &mut Serverless) -> Result<Response> {
+    // // initialize the server
+    // let mut serverless = Serverless::new();
 
     // start building the request
     let url = format!("https://serverless/{}", config.route);
@@ -114,7 +114,7 @@ mod tests {
     #[tokio::test]
     async fn test_serverless_call() {
         // Check sign_in
-        let server = Serverless::new();
+        let mut server = Serverless::new();
 
         // Make the credentials with basic authorization
         let credentials = basic_auth("myemail@gmail.com", Some("myemail@gmail.com"));
@@ -140,7 +140,7 @@ mod tests {
         let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_info
-        let server = Serverless::new();
+        let mut server = Serverless::new();
 
         // Extract out the JWT token
         let token = values.get("jwt").unwrap().as_str().unwrap();
@@ -178,11 +178,11 @@ mod tests {
             .try_collect()
             .await
             .unwrap();
-        let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // DM: omitted to reduce test time
         // // Test session_stream
-        // let server = Serverless::new();
+        // let mut server = Serverless::new();
 
         // // Create the session state JSON value        
         // let session_response = SessionResponse {
@@ -220,6 +220,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_serverless_app() {
+        let mut serverless = Serverless::new();
+
         // Sign in using serverless_app
         let config = ServerlessConfig {
             route: "app/v1/sign_in".to_string(),
@@ -227,7 +229,7 @@ mod tests {
             bearer_auth: None,
             data: None,
         };
-        let response = serverless_app(config).await.unwrap();
+        let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
 
         // Parse the sign_in request results
@@ -260,7 +262,7 @@ mod tests {
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
         };
-        let response = serverless_app(config).await.unwrap();
+        let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
 
         let bytes: Vec<Bytes> = response
@@ -269,7 +271,7 @@ mod tests {
             .try_collect()
             .await
             .unwrap();
-        let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test session_stream using serverless_app
         let session_response = SessionResponse {
@@ -289,7 +291,7 @@ mod tests {
             bearer_auth: Some(bearer),
             data: Some(data),
         };
-        let response = serverless_app(config).await.unwrap();
+        let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
 
         let bytes: Vec<Bytes> = response

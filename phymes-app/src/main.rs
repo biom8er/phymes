@@ -14,21 +14,21 @@ fn main() {
     dioxus::launch(app);
 
     #[cfg(feature = "server")]
-    {
-        use clap::Parser;
-        use phymes_server::server::{server_app::Server, server_config::ServerConfig};
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(async move {
-                let config = ServerConfig::parse();
-                // let config = ServerConfig {
-                //     assets_dir: "./public/".to_string(),
-                //     address: "127.0.0.1:4000".to_string(),
-                // };
-                Server::new(config).run().await.unwrap();
-            }
-        );
-    }
+    use clap::Parser;
+    #[cfg(feature = "server")]
+    use phymes_server::server::{server_app::Server, server_config::ServerConfig};
+    #[cfg(feature = "server")]
+    tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(async move {
+            let config = ServerConfig::parse();
+            // let config = ServerConfig {
+            //     assets_dir: "./public/".to_string(),
+            //     address: "127.0.0.1:4000".to_string(),
+            // };
+            Server::new(config).run().await.unwrap();
+        }
+    );
 }
 
 fn app() -> Element {
