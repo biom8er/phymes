@@ -27,8 +27,7 @@ fn main() {
             //     address: "127.0.0.1:4000".to_string(),
             // };
             Server::new(config).run().await.unwrap();
-        }
-    );
+        });
 }
 
 fn app() -> Element {

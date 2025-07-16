@@ -13,8 +13,11 @@ use bytes::Bytes;
 use phymes_core::table::arrow_table::ArrowTableTrait;
 
 // Library imports
-use crate::handlers::{json_error::{serde_json_error_response, ErrorToResponse, JsonError}, session_info::SessionResponseFormat};
 use crate::handlers::sign_in::CurrentUser;
+use crate::handlers::{
+    json_error::{ErrorToResponse, JsonError, serde_json_error_response},
+    session_info::SessionResponseFormat,
+};
 use crate::server::server_state::ServerState;
 
 use super::session_info::SessionResponse;
@@ -69,7 +72,11 @@ pub async fn session_put_state(
                         .unwrap()
                         .get_schema();
                     let update = match payload.format {
-                        SessionResponseFormat::CSV { delimiter, header, batch_size } => session_stream_state
+                        SessionResponseFormat::CSV {
+                            delimiter,
+                            header,
+                            batch_size,
+                        } => session_stream_state
                             .try_write()
                             .unwrap()
                             .update_state_from_csv_str(
@@ -81,7 +88,7 @@ pub async fn session_put_state(
                                 batch_size,
                             )
                             .unwrap(),
-                        _ => unimplemented!()
+                        _ => unimplemented!(),
                     };
                     session_stream_state
                         .try_write()
@@ -191,8 +198,12 @@ pub async fn session_get_state(
                         let content = serde_json::to_string(&object).unwrap();
                         let buf = Bytes::from(content);
                         Body::from(buf).into_response()
-                    },
-                    SessionResponseFormat::CSV { delimiter, header, batch_size: _ } => {
+                    }
+                    SessionResponseFormat::CSV {
+                        delimiter,
+                        header,
+                        batch_size: _,
+                    } => {
                         // Get the subject table as a csv string
                         let csv = session_stream_state
                             .try_read()
@@ -207,9 +218,9 @@ pub async fn session_get_state(
                             .unwrap();
                         let buf = Bytes::from(csv);
                         Body::from(buf).into_response()
-                    },
-                    _ => unimplemented!()
-                }
+                    }
+                    _ => unimplemented!(),
+                },
                 None => JsonError::new("Failed to get the session stream state".to_string())
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR),
             }

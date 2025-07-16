@@ -1,5 +1,5 @@
-use dioxus::prelude::*;
 use crate::state::sign_in::{sync_jwt_state, SyncJWTState, EMAIL};
+use dioxus::prelude::*;
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -8,11 +8,14 @@ use reqwest::{self, header::CONTENT_TYPE};
 use super::backend::ADDR_BACKEND;
 
 #[cfg(feature = "serverless")]
-use phymes_server::server::{serverless_app::{serverless_app, Serverless}, serverless_config::ServerlessConfig};
-#[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
+#[cfg(feature = "serverless")]
+use phymes_server::server::{
+    serverless_app::{serverless_app, Serverless},
+    serverless_config::ServerlessConfig,
+};
 
 /// View for the user to sign-in
 #[component]

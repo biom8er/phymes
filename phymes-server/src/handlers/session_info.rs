@@ -23,9 +23,13 @@ use crate::server::server_state::ServerState;
 pub enum SessionResponseFormat {
     /// Comma Seperated Values string
     /// Recommended defaults: b',', true, 1024,
-    CSV {delimiter: u8, header: bool, batch_size: usize },
+    CSV {
+        delimiter: u8,
+        header: bool,
+        batch_size: usize,
+    },
     /// JSON string
-    JSON {batch_size: usize },
+    JSON { batch_size: usize },
     /// JSON Object written to Bytes
     Bytes,
     /// Arrow IPC
@@ -49,7 +53,7 @@ pub struct SessionResponse {
     pub content: String,
     pub metadata: String,
     /// Stream the response
-    pub stream: bool
+    pub stream: bool,
 }
 
 /// Session information endpoint for subjects

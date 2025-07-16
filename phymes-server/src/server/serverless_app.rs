@@ -1,8 +1,8 @@
 // Server related imports
+use anyhow::{Result, anyhow};
 use axum::{Router, response::Response};
 use http::Request;
 use tower_service::Service;
-use anyhow::{anyhow, Result};
 
 // From lib
 use super::{server_app::AppBuilder, serverless_config::ServerlessConfig};
@@ -28,7 +28,10 @@ impl Serverless {
 }
 
 /// Wrapper for calling the serverless application
-pub async fn serverless_app(config: ServerlessConfig, serverless: &mut Serverless) -> Result<Response> {
+pub async fn serverless_app(
+    config: ServerlessConfig,
+    serverless: &mut Serverless,
+) -> Result<Response> {
     // // initialize the server
     // let mut serverless = Serverless::new();
 
@@ -84,7 +87,10 @@ mod tests {
     use phymes_core::table::arrow_table_publish::ArrowTablePublish;
     use serde_json::{Map, Value};
 
-    use crate::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::{basic_auth, create_session_name}};
+    use crate::handlers::{
+        session_info::{SessionResponse, SessionResponseFormat},
+        sign_in::{basic_auth, create_session_name},
+    };
 
     use super::*;
 
@@ -156,7 +162,7 @@ mod tests {
             publish: ArrowTablePublish::None,
             content: "".to_string(),
             metadata: "".to_string(),
-            stream: false
+            stream: false,
         };
         let data = serde_json::to_string(&session_response).unwrap();
 
@@ -184,7 +190,7 @@ mod tests {
         // // Test session_stream
         // let mut server = Serverless::new();
 
-        // // Create the session state JSON value        
+        // // Create the session state JSON value
         // let session_response = SessionResponse {
         //     session_name: session_name.clone(),
         //     subject_name: "messages".to_string(),
@@ -216,7 +222,7 @@ mod tests {
         //     .unwrap();
         // let values: Vec<Map<String, Value>> = serde_json::from_slice(bytes.first().unwrap()).unwrap();
         // println!("{values:?}");
-    }    
+    }
 
     #[tokio::test]
     async fn test_serverless_app() {
@@ -244,7 +250,8 @@ mod tests {
         // Test subjects_info using serverless_app
         let token = values.get("jwt").unwrap().as_str().unwrap();
         let bearer = token.to_string();
-        let session_name = create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
+        let session_name =
+            create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
         let session_response = SessionResponse {
             session_name: session_name.clone(),
             subject_name: "".to_string(),
@@ -300,7 +307,8 @@ mod tests {
             .try_collect()
             .await
             .unwrap();
-        let values: Vec<Map<String, Value>> = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        let values: Vec<Map<String, Value>> =
+            serde_json::from_slice(bytes.first().unwrap()).unwrap();
         println!("{values:?}");
     }
 }

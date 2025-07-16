@@ -9,8 +9,11 @@ use serde_json::{self, Map, Value};
 use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
-use phymes_server::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::create_session_name};
 use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+use phymes_server::handlers::{
+    session_info::{SessionResponse, SessionResponseFormat},
+    sign_in::create_session_name,
+};
 
 const MESSAGES_SUBJECT_NAME: &str = "messages";
 
@@ -18,11 +21,14 @@ const MESSAGES_SUBJECT_NAME: &str = "messages";
 use super::backend::ADDR_BACKEND;
 
 #[cfg(feature = "serverless")]
-use phymes_server::server::{serverless_app::{serverless_app, Serverless}, serverless_config::ServerlessConfig};
-#[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
+#[cfg(feature = "serverless")]
+use phymes_server::server::{
+    serverless_app::{serverless_app, Serverless},
+    serverless_config::ServerlessConfig,
+};
 
 // mod imports
 use crate::{
@@ -34,7 +40,8 @@ use crate::{
         },
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
-    }, ui::svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg},
+    },
+    ui::svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg},
 };
 
 /// View for messaging between the user and AI assistant
@@ -124,7 +131,8 @@ pub fn messaging_interface_view() -> Element {
                     .await
                     .unwrap();
                 for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
+                    let json_rows: Vec<Map<String, Value>> =
+                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
                         if row.get("role").is_some() {
                             sync_current_message_state.send(SyncCurrentMessageState {
@@ -252,7 +260,7 @@ pub fn messaging_interface_footer() -> Element {
                                 content: prompt.to_string(),
                                 timestamp: create_timestamp()
                             });
-                            
+
                             // let the user know that the response is being prepared
                             sync_message.send(SyncCurrentMessageState {
                                 role: "assistant".to_string(),

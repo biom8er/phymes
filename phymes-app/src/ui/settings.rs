@@ -9,9 +9,8 @@ use crate::{
             sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME,
         },
         sign_in::{JWT, SESSION_NAMES},
-    }, ui::{
-        svg_icons::search_icon_svg,
-    }
+    },
+    ui::svg_icons::search_icon_svg,
 };
 
 /// Get a non duplicated list of sorted subject names

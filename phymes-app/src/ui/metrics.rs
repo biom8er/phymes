@@ -1,7 +1,10 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::table::arrow_table_publish::ArrowTablePublish;
-use phymes_server::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::create_session_name};
+use phymes_server::handlers::{
+    session_info::{SessionResponse, SessionResponseFormat},
+    sign_in::create_session_name,
+};
 use serde_json::{Map, Value};
 
 #[cfg(not(feature = "serverless"))]
@@ -11,11 +14,14 @@ use reqwest::{self, header::CONTENT_TYPE};
 use super::backend::ADDR_BACKEND;
 
 #[cfg(feature = "serverless")]
-use phymes_server::server::{serverless_app::{serverless_app, Serverless}, serverless_config::ServerlessConfig};
-#[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
+#[cfg(feature = "serverless")]
+use phymes_server::server::{
+    serverless_app::{serverless_app, Serverless},
+    serverless_config::ServerlessConfig,
+};
 
 use crate::{
     state::{
@@ -25,10 +31,8 @@ use crate::{
         },
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
-    }, ui::{
-        settings::get_non_duplicated_sorted_subjects,
-        svg_icons::search_icon_svg,
-    }
+    },
+    ui::{settings::get_non_duplicated_sorted_subjects, svg_icons::search_icon_svg},
 };
 
 const SESSION_METRICS_HEADERS: [&str; 3] = ["Task", "Metric", "Value"];
@@ -128,7 +132,8 @@ pub fn metrics_modal() -> Element {
                     .await
                     .unwrap();
                 for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
+                    let json_rows: Vec<Map<String, Value>> =
+                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
                         let metric_value = if let Some(Value::Number(val)) = row.get("metric_value")
                         {

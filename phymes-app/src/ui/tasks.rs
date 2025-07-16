@@ -1,21 +1,27 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::table::arrow_table_publish::ArrowTablePublish;
-use phymes_server::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::create_session_name};
+use phymes_server::handlers::{
+    session_info::{SessionResponse, SessionResponseFormat},
+    sign_in::create_session_name,
+};
 use serde_json::{Map, Value};
 use std::collections::HashSet;
 
 #[cfg(not(feature = "serverless"))]
-use reqwest::{self, header::CONTENT_TYPE};
-#[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
+#[cfg(not(feature = "serverless"))]
+use reqwest::{self, header::CONTENT_TYPE};
 
-#[cfg(feature = "serverless")]
-use phymes_server::server::{serverless_app::{serverless_app, Serverless}, serverless_config::ServerlessConfig};
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
+#[cfg(feature = "serverless")]
+use phymes_server::server::{
+    serverless_app::{serverless_app, Serverless},
+    serverless_config::ServerlessConfig,
+};
 
 use crate::{
     state::{
@@ -27,10 +33,7 @@ use crate::{
             TASK_TASK_NAMES,
         },
     },
-    ui::{
-        settings::get_non_duplicated_sorted_subjects,
-        svg_icons::search_icon_svg,
-    }
+    ui::{settings::get_non_duplicated_sorted_subjects, svg_icons::search_icon_svg},
 };
 
 /// Get the distinct processors from the distinct tasks
@@ -158,7 +161,8 @@ pub fn tasks_modal() -> Element {
                     .await
                     .unwrap();
                 for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
+                    let json_rows: Vec<Map<String, Value>> =
+                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
                         sync_current_tasks_info_state.send(SyncCurrentTaskInfoState {
                             task_task_name: row

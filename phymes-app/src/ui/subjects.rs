@@ -1,7 +1,10 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::table::arrow_table_publish::ArrowTablePublish;
-use phymes_server::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::create_session_name};
+use phymes_server::handlers::{
+    session_info::{SessionResponse, SessionResponseFormat},
+    sign_in::create_session_name,
+};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -16,11 +19,14 @@ use std::sync::Arc;
 use super::backend::ADDR_BACKEND;
 
 #[cfg(feature = "serverless")]
-use phymes_server::server::{serverless_app::{serverless_app, Serverless}, serverless_config::ServerlessConfig};
-#[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
+#[cfg(feature = "serverless")]
+use phymes_server::server::{
+    serverless_app::{serverless_app, Serverless},
+    serverless_config::ServerlessConfig,
+};
 
 use crate::{
     state::{
@@ -35,9 +41,10 @@ use crate::{
     ui::{
         settings::get_non_duplicated_sorted_subjects,
         svg_icons::{
-            arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg, table_icon_svg,
-        }
-    }
+            arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg,
+            table_icon_svg,
+        },
+    },
 };
 
 const SUBJECT_SCHEMA_HEADERS: [&str; 3] = ["Column", "Type", "Rows"];
@@ -205,7 +212,8 @@ pub fn subjects_modal() -> Element {
                     .await
                     .unwrap();
                 for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
+                    let json_rows: Vec<Map<String, Value>> =
+                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
                         let num_rows = if let Some(Value::Number(val)) = row.get("num_rows") {
                             val.as_u64().unwrap().try_into().unwrap()
@@ -314,7 +322,11 @@ pub fn subjects_modal() -> Element {
                     metadata: file_name.clone(),
                     content: contents,
                     publish: publish.to_owned(),
-                    format: SessionResponseFormat::CSV { delimiter: b',', header: true, batch_size: 1024 },
+                    format: SessionResponseFormat::CSV {
+                        delimiter: b',',
+                        header: true,
+                        batch_size: 1024,
+                    },
                     stream: false,
                 });
             }
@@ -323,13 +335,25 @@ pub fn subjects_modal() -> Element {
 
     let upload_files_extend = move |evt: FormEvent| async move {
         if let Some(file_engine) = evt.files() {
-            read_files(file_engine, ArrowTablePublish::Extend { table_name: subject_shown.read().to_string() }).await;
+            read_files(
+                file_engine,
+                ArrowTablePublish::Extend {
+                    table_name: subject_shown.read().to_string(),
+                },
+            )
+            .await;
         }
     };
 
     let upload_files_replace = move |evt: FormEvent| async move {
         if let Some(file_engine) = evt.files() {
-            read_files(file_engine, ArrowTablePublish::Replace { table_name: subject_shown.read().to_string() }).await;
+            read_files(
+                file_engine,
+                ArrowTablePublish::Replace {
+                    table_name: subject_shown.read().to_string(),
+                },
+            )
+            .await;
         }
     };
 

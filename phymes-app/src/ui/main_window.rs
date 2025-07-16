@@ -187,7 +187,7 @@ pub fn about_text_modal() -> Element {
         #[cfg(target_family = "wasm")]
         plotly::bindings::new_plot("plot-div", &plot).await;
     });
-    
+
     #[cfg(any(feature = "plotly_embed_js", feature = "plotly_cdn_js"))]
     rsx! {
         div {
@@ -196,7 +196,7 @@ pub fn about_text_modal() -> Element {
             div { id: "plot-div" }
         }
     }
-    
+
     #[cfg(not(any(feature = "plotly_embed_js", feature = "plotly_cdn_js")))]
     rsx! {
         div {

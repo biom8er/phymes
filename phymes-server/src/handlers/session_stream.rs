@@ -33,8 +33,12 @@ use std::sync::Arc;
 
 // Library imports
 use crate::{
-    handlers::{json_error::{serde_json_error_response, ErrorToResponse, JsonError}, session_info::{SessionResponse, SessionResponseFormat}, sign_in::CurrentUser},
-    server::server_state::ServerState
+    handlers::{
+        json_error::{ErrorToResponse, JsonError, serde_json_error_response},
+        session_info::{SessionResponse, SessionResponseFormat},
+        sign_in::CurrentUser,
+    },
+    server::server_state::ServerState,
 };
 
 // Crate imports
@@ -131,23 +135,22 @@ pub async fn session_stream(
             match (&payload.format, payload.stream) {
                 (SessionResponseFormat::Bytes, true) => {
                     // Convert the output to bytes
-                    let response = session_stream
-                        .into_stream()
-                        .map_ok(move |f| {
-                            f.into_iter()
-                                .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
-                                .map(|(_k, v)| v.get_message_own().to_bytes().unwrap())
-                                .flatten()
-                                .collect::<Vec<_>>()
-                        });
+                    let response = session_stream.into_stream().map_ok(move |f| {
+                        f.into_iter()
+                            .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
+                            .flat_map(|(_k, v)| v.get_message_own().to_bytes().unwrap())
+                            .collect::<Vec<_>>()
+                    });
 
                     // Send the stream
                     Body::from_stream(response).into_response()
-                },
+                }
                 (SessionResponseFormat::Bytes, false) => {
-                    // Convert the output to bytes              
-                    let response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await.unwrap();
-                    let response = response.into_iter()
+                    // Convert the output to bytes
+                    let response: Vec<HashMap<String, ArrowIncomingMessage>> =
+                        session_stream.try_collect().await.unwrap();
+                    let response = response
+                        .into_iter()
                         .flatten()
                         .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
                         .map(|(_k, v)| v.get_message_own().to_json_object().unwrap())
@@ -159,36 +162,36 @@ pub async fn session_stream(
                         &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
                         &current_user.email,
                     ) {
-                        return JsonError::new(format!("Failed to write the session stream state {e:?}"))
-                            .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                        return JsonError::new(format!(
+                            "Failed to write the session stream state {e:?}"
+                        ))
+                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
 
                     // Send the stream
                     Body::from(response).into_response()
-                },
+                }
                 (SessionResponseFormat::IPC, true) => {
                     // Convert the output to IPC
-                    let response = session_stream
-                        .into_stream()
-                        .map_ok(move |f| {
-                            f.into_iter()
-                                .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
-                                .map(|(_k, v)| v.get_message_own().to_ipc_stream().unwrap())
-                                .flatten()
-                                .collect::<Vec<_>>()
-                        });
+                    let response = session_stream.into_stream().map_ok(move |f| {
+                        f.into_iter()
+                            .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
+                            .flat_map(|(_k, v)| v.get_message_own().to_ipc_stream().unwrap())
+                            .collect::<Vec<_>>()
+                    });
 
                     // Send the stream
                     Body::from_stream(response).into_response()
-                },
+                }
                 (SessionResponseFormat::IPC, false) => {
-                    // Convert the output to bytes              
-                    let response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await.unwrap();
-                    let response = response.into_iter()
+                    // Convert the output to bytes
+                    let response: Vec<HashMap<String, ArrowIncomingMessage>> =
+                        session_stream.try_collect().await.unwrap();
+                    let response = response
+                        .into_iter()
                         .flatten()
                         .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
-                        .map(|(_k, v)| v.get_message_own().to_ipc_stream().unwrap())
-                        .flatten()
+                        .flat_map(|(_k, v)| v.get_message_own().to_ipc_stream().unwrap())
                         .collect::<Vec<_>>();
 
                     // Write the updates to disk
@@ -196,14 +199,16 @@ pub async fn session_stream(
                         &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
                         &current_user.email,
                     ) {
-                        return JsonError::new(format!("Failed to write the session stream state {e:?}"))
-                            .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                        return JsonError::new(format!(
+                            "Failed to write the session stream state {e:?}"
+                        ))
+                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
 
                     // Send the stream
                     Body::from(response).into_response()
-                },
-                _ => unimplemented!()
+                }
+                _ => unimplemented!(),
             }
         }
         Err(JsonRejection::MissingJsonContentType(_err)) => {
