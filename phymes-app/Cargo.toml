@@ -10,8 +10,6 @@ license = "MIT AND Apache-2.0"
 repository = "https://github.com/biom8er/phymes"
 documentation = "https://docs.rs/phymes-app"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 anyhow = "1.0.95"
 dioxus = { version = "0.6.3" }
@@ -43,6 +41,7 @@ wasip2 = ["phymes-server/wasip2", "phymes-core/wasip2"]
 wsl = ["phymes-server/wsl", "phymes-core/wsl"]
 gpu = ["phymes-server/gpu"]
 candle = ["phymes-server/candle"]
+serverless = [] # Switch to use the serverless application
 
 # Dioxus platform options
 web = ["dioxus/web", "plotly_cdn_js", "wasip2"]

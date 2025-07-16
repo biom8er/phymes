@@ -3,7 +3,6 @@ use axum::{Router, response::Response};
 use http::Request;
 use tower_service::Service;
 use anyhow::{anyhow, Result};
-use clap::Parser;
 
 // From lib
 use super::{server_app::AppBuilder, serverless_config::ServerlessConfig};

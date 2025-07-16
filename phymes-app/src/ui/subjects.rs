@@ -2,6 +2,8 @@ use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::table::arrow_table_publish::ArrowTablePublish;
 use phymes_server::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::create_session_name};
+
+#[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
 // File upload imports
@@ -9,6 +11,16 @@ use dioxus::prelude::dioxus_elements::FileEngine;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::sync::Arc;
+
+#[cfg(not(feature = "serverless"))]
+use super::backend::ADDR_BACKEND;
+
+#[cfg(feature = "serverless")]
+use phymes_server::server::{serverless_app::serverless_app, serverless_config::ServerlessConfig};
+#[cfg(feature = "serverless")]
+use bytes::Bytes;
+#[cfg(feature = "serverless")]
+use futures::TryStreamExt;
 
 use crate::{
     state::{
@@ -21,7 +33,6 @@ use crate::{
         },
     },
     ui::{
-        backend::ADDR_BACKEND,
         settings::get_non_duplicated_sorted_subjects,
         svg_icons::{
             arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg, table_icon_svg,
@@ -119,7 +130,11 @@ pub fn subjects_modal() -> Element {
     let _ = use_resource(move || async move {
         let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
         clear_subjects_info_state.send(ClearSubjectInfoState {});
-        let addr = format!("{ADDR_BACKEND}/app/v1/subjects_info");
+        let route = "/app/v1/subjects_info";
+
+        #[cfg(not(feature = "serverless"))]
+        let addr = format!("{ADDR_BACKEND}/{route}");
+        #[cfg(not(feature = "serverless"))]
         match reqwest::Client::new()
             .post(addr)
             .bearer_auth(JWT().to_string())
@@ -169,6 +184,57 @@ pub fn subjects_modal() -> Element {
                 }
             }
             Err(_err) => (), //content.write().push_str(format!("There was a error getting subjects info {err}.").as_str()),
+        }
+
+        #[cfg(feature = "serverless")]
+        let config = ServerlessConfig {
+            route: route.to_string(),
+            basic_auth: None,
+            bearer_auth: Some(JWT().to_string()),
+            data: Some(data_serialized),
+        };
+        #[cfg(feature = "serverless")]
+        match serverless_app(config).await {
+            Ok(response) => {
+                let bytes: Vec<Bytes> = response
+                    .into_body()
+                    .into_data_stream()
+                    .try_collect()
+                    .await
+                    .unwrap();
+                for byte in bytes.iter() {
+                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
+                    for row in json_rows.iter() {
+                        let num_rows = if let Some(Value::Number(val)) = row.get("num_rows") {
+                            val.as_u64().unwrap().try_into().unwrap()
+                        } else {
+                            0
+                        };
+                        sync_current_subjects_info_state.send(SyncCurrentSubjectInfoState {
+                            subject_schema_name: row
+                                .get("subject_names")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            subject_schema_column: row
+                                .get("column_names")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            subject_schema_type: row
+                                .get("type_names")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            subject_schema_row: num_rows,
+                        });
+                    }
+                }
+            }
+            Err(_err) => (),
         }
     });
 
@@ -427,7 +493,11 @@ pub fn subjects_modal() -> Element {
                                             stream: false,
                                         };
                                         let data_serialized = serde_json::to_string(&data).unwrap();
-                                        let addr = format!("{ADDR_BACKEND}/app/v1/get_state");
+                                        let route = "/app/v1/get_state";
+
+                                        #[cfg(not(feature = "serverless"))]
+                                        let addr = format!("{ADDR_BACKEND}/{route}");
+                                        #[cfg(not(feature = "serverless"))]
                                         match reqwest::Client::new()
                                             .post(addr)
                                             .bearer_auth(JWT.read().to_string())
@@ -448,6 +518,35 @@ pub fn subjects_modal() -> Element {
                                                 };
                                                 files_downloaded.write().push(data);
                                             },
+                                            Err(err) => content.write().push_str(format!("There was a error downloading subject {err}.").as_str()),
+                                        }
+
+                                        #[cfg(feature = "serverless")]
+                                        let config = ServerlessConfig {
+                                            route: route.to_string(),
+                                            basic_auth: None,
+                                            bearer_auth: Some(JWT.read().to_string()),
+                                            data: Some(data_serialized),
+                                        };
+                                        #[cfg(feature = "serverless")]
+                                        match serverless_app(config).await {
+                                            Ok(response) => {
+                                                let bytes: Vec<Bytes> = response
+                                                    .into_body()
+                                                    .into_data_stream()
+                                                    .try_collect()
+                                                    .await
+                                                    .unwrap();
+                                                let csv_chunks: Vec<String> = bytes
+                                                    .iter()
+                                                    .map(|byte| String::from_utf8_lossy(byte).into_owned())
+                                                    .collect();
+                                                let data = DownloadSubject {
+                                                    download: format!("{}.csv", subject_shown.read().as_str()),
+                                                    href: format!("data:text/plain,{}", csv_chunks.join("").as_str()),
+                                                };
+                                                files_downloaded.write().push(data);
+                                            }
                                             Err(err) => content.write().push_str(format!("There was a error downloading subject {err}.").as_str()),
                                         }
                                     },
@@ -486,7 +585,11 @@ pub fn subjects_modal() -> Element {
                                 // Send files to the server
                                 for file in files_uploaded.read().iter() {
                                     let data_serialized = serde_json::to_string(file).unwrap();
-                                    let addr = format!("{ADDR_BACKEND}/app/v1/put_state");
+                                    let route = "/app/v1/put_state";
+
+                                    #[cfg(not(feature = "serverless"))]
+                                    let addr = format!("{ADDR_BACKEND}/{route}");
+                                    #[cfg(not(feature = "serverless"))]
                                     match reqwest::Client::new()
                                         .post(addr)
                                         .bearer_auth(JWT.read().to_string())
@@ -499,6 +602,27 @@ pub fn subjects_modal() -> Element {
                                             Ok(_text) => (),
                                             Err(_err) => (),
                                         },
+                                        Err(_err) => (),
+                                    }
+
+                                    #[cfg(feature = "serverless")]
+                                    let config = ServerlessConfig {
+                                        route: route.to_string(),
+                                        basic_auth: None,
+                                        bearer_auth: Some(JWT.read().to_string()),
+                                        data: Some(data_serialized),
+                                    };
+                                    #[cfg(feature = "serverless")]
+                                    match serverless_app(config).await {
+                                        Ok(response) => {
+                                            let bytes: Vec<Bytes> = response
+                                                .into_body()
+                                                .into_data_stream()
+                                                .try_collect()
+                                                .await
+                                                .unwrap();
+                                            let _text = String::from_utf8_lossy(bytes.first().unwrap()).into_owned();
+                                        }
                                         Err(_err) => (),
                                     }
                                 }

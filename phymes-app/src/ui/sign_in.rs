@@ -1,8 +1,15 @@
 use dioxus::prelude::*;
-
 use crate::state::sign_in::{sync_jwt_state, SyncJWTState, EMAIL};
 
+#[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
+
+#[cfg(feature = "serverless")]
+use phymes_server::server::{serverless_app::serverless_app, serverless_config::ServerlessConfig};
+#[cfg(feature = "serverless")]
+use bytes::Bytes;
+#[cfg(feature = "serverless")]
+use futures::TryStreamExt;
 
 /// View for the user to sign-in
 #[component]
@@ -61,7 +68,11 @@ pub fn sign_in_modal() -> Element {
                 button {
                     onclick: move |_| async move {
                         let sync_jwt = use_coroutine_handle::<SyncJWTState>();
-                        let addr = format!("{ADDR_BACKEND}/app/v1/sign_in");
+                        let route = "/app/v1/sign_in";
+
+                        #[cfg(not(feature = "serverless"))]
+                        let addr = format!("{ADDR_BACKEND}/{route}");
+                        #[cfg(not(feature = "serverless"))]
                         match reqwest::Client::new()
                             .post(addr)
                             .basic_auth(email, Some(password))
@@ -77,6 +88,31 @@ pub fn sign_in_modal() -> Element {
                                         content.write().push_str(msg.as_str());
                                     }
                                 },
+                            Err(err) =>  {
+                                let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
+                                content.write().push_str(msg.as_str());
+                            }
+                        }
+
+                        #[cfg(feature = "serverless")]
+                        let config = ServerlessConfig {
+                            route: route.to_string(),
+                            basic_auth: Some(format!("{email}:{password}")),
+                            bearer_auth: None,
+                            data: None,
+                        };
+                        #[cfg(feature = "serverless")]
+                        match serverless_app(config).await {
+                            Ok(response) => {
+                                let bytes: Vec<Bytes> = response
+                                    .into_body()
+                                    .into_data_stream()
+                                    .try_collect()
+                                    .await
+                                    .unwrap();
+                                let jwt_json: SyncJWTState = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+                                sync_jwt.send(jwt_json);
+                            }
                             Err(err) =>  {
                                 let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
                                 content.write().push_str(msg.as_str());
