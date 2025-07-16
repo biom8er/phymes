@@ -2,6 +2,7 @@
 use dioxus::prelude::*;
 
 // Plotting imports
+#[cfg(any(feature = "plotly_embed_js", feature = "plotly_cdn_js"))]
 use plotly::{color::Rgb, image::ColorModel, Image, Plot};
 
 use super::messaging_interface::{messaging_interface_footer, messaging_interface_view};
@@ -143,7 +144,7 @@ pub fn main_window() -> Element {
 }
 
 #[component]
-pub fn about_text_modal() -> Element {    
+pub fn about_text_modal() -> Element {
     #[cfg(any(feature = "plotly_embed_js", feature = "plotly_cdn_js"))]
     use_future(move || async move {
         let w = Rgb::new(255, 255, 255);

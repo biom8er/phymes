@@ -1750,7 +1750,6 @@ dependencies = [
  "dioxus-signals",
  "dioxus-web",
  "manganis",
- "serde",
  "warnings",
 ]
 
@@ -5194,6 +5193,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "chrono",
+ "clap",
  "dioxus",
  "futures",
  "phymes-core",
@@ -5202,6 +5202,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

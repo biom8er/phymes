@@ -20,7 +20,11 @@ fn main() {
             .unwrap()
             .block_on(async move {
                 let config = ServerConfig::parse();
-                Server::new(config).run().await?;
+                // let config = ServerConfig {
+                //     assets_dir: "./public/".to_string(),
+                //     address: "127.0.0.1:4000".to_string(),
+                // };
+                Server::new(config).run().await.unwrap();
             }
         );
     }
@@ -29,7 +33,7 @@ fn main() {
 fn app() -> Element {
     // render the UI
     rsx! {
-        document::Link { rel: "stylesheet", href: MAIN_CSS }
+        document::Link { rel: "stylesheet", href: MAIN_CSS },
         div {
             id: "container",
             main_window {}

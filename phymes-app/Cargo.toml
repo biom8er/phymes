@@ -14,7 +14,11 @@ documentation = "https://docs.rs/phymes-app"
 
 [dependencies]
 anyhow = "1.0.95"
-dioxus = { version = "0.6.2" }
+dioxus = { version = "0.6.3" }
+# DM: the "fullstack" feature MUST be specified here as the default and not activated as a feature
+#      or the server will not be built using `dx`
+# DM: the frontend no longer works with "fullstack" enabled...
+# dioxus = { version = "0.6.3", features = ["fullstack"] }
 futures = "0.3.31"
 reqwest = { version = "0.12.22", features = ["json", "stream"], default-features = false }
 serde = { version = "1.0.219", features = ["derive"] }
@@ -24,6 +28,8 @@ serde_json = "1.0.140"
 plotly = { version = "0.13.3", default-features = false, optional = true}
 phymes-core = { path = "../phymes-core", default-features = false }
 phymes-server = { path = "../phymes-server", default-features = false }
+clap = {version = "4.5.40", optional = true}
+tokio = { version = "1.45.1", default-features = false, optional = true }
 
 [features]
 default = []
@@ -42,8 +48,7 @@ candle = ["phymes-server/candle"]
 web = ["dioxus/web", "plotly_cdn_js", "wasip2"]
 desktop = ["dioxus/desktop", "dioxus/launch", "plotly_embed_js", "wasip2"]
 mobile = ["dioxus/mobile", "plotly_embed_js", "wasip2"]
-server = ["wsl"]
-fullstack = ["dioxus/fullstack"]
+server = ["wsl", "clap/derive", "tokio/full"]
 
 [profile]
 

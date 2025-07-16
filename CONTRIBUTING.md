@@ -147,7 +147,13 @@ curl https://wasmtime.dev/install.sh -sSf | bash
 The front-end application is built using [dioxus](https://dioxuslabs.com) to enable creating web, desktop, and mobile applications using Rust
 
 ```bash
+# Build from source (can sometimes fail)
 cargo install dioxus-cli
+
+# Install using binstall (usually does not fail)
+curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+cargo update
+cargo binstall dioxus-cli
 ```
 
 ### Setting up Android Studio
