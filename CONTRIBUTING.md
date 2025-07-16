@@ -523,7 +523,7 @@ The `phymes-core`, `phymes-agents`, `phymes-server`, `phymes-app` crates form a 
 First, build the frontend application using dioxus
 
 ```bash
-dx bundle -p phymes-app --release
+dx bundle -p phymes-app --platform web --release
 ```
 
 Second, build the server with the desired features.
@@ -553,7 +553,7 @@ cd target/dx/phymes-app/release/web/public
 
 First, build the frontend application
 ```bash
-cargo build -p phymes-app --features desktop --release
+cargo build -p phymes-app --platform desktop --release
 ```
 
 Second, build the phymes-server application with the desired features.
@@ -578,9 +578,34 @@ Fourth, launch the `phymes-server` executable
 ./target/release/phymes-server
 ```
 
-### Mobile
+### Mobile (Android)
 
-In progress...
+First, build the frontend application
+```bash
+# for Android
+cargo build -p phymes-app --platform android --release
+
+# for iOS
+cargo build -p phymes-app --platform ios --release
+```
+
+Second, build the phymes-server application with the desired features.
+
+```bash
+# GPU support and Candle token service
+cargo build --package phymes-server --features wsl,gpu,candle --release
+
+# Or OpenAI API
+cargo build --package phymes-server --features wsl --release
+```
+
+Third, launch the `phymes-app` executable on a device emulator or on the physical device.
+
+Fourth, launch the `phymes-server` executable
+
+```bash
+./target/release/phymes-server
+```
 
 ### WASM
 
@@ -619,20 +644,20 @@ We recommend debugging the application using two terminals: one for `phymes-app`
 In the first terminal:
 
 ```bash
-dx serve -p phymes-app
+dx serve -p phymes-app --platform web
 ```
 
 In the second terminal:
 
 ```bash
 # default log level
-cargo run -p phymes-server --features wsl,gpu
+cargo run -p phymes-server --features wsl,gpu,candle
 
 # only INFO level logs
-RUST_LOG=phymes_server=INFO cargo run -p phymes-server --features wsl,gpu
+RUST_LOG=phymes_server=INFO cargo run -p phymes-server --features wsl,gpu,candle
 
 # debug level logs for phymes-server, phymes-core, and phymes-agents
-RUST_LOG=phymes_server=DEBUG,phymes_core=DEBUG,phymes_agents=DEBUG cargo run -p phymes-server --features wsl,gpu
+RUST_LOG=phymes_server=DEBUG,phymes_core=DEBUG,phymes_agents=DEBUG cargo run -p phymes-server --features wsl,gpu,candle
 ```
 
 <!--- ANCHOR_END: deploying --->
