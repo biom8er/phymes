@@ -5,16 +5,19 @@ use phymes_server::handlers::{session_info::{SessionResponse, SessionResponseFor
 use reqwest::{self, header::CONTENT_TYPE};
 use serde_json::{Map, Value};
 
-use crate::ui::{
-    backend::ADDR_BACKEND,
-    metrics_state::{
-        clear_metrics_info_state, sync_current_metrics_info_state, ClearMetricsInfoState,
-        SyncCurrentMetricsInfoState, METRIC_NAMES, METRIC_TASK_NAMES, METRIC_VALUES,
-    },
-    settings_interface::get_non_duplicated_sorted_subjects,
-    settings_state::ACTIVE_SESSION_NAME,
-    sign_in_state::{EMAIL, JWT},
-    svg_icons::search_icon_svg,
+use crate::{
+    state::{
+        metrics::{
+            clear_metrics_info_state, sync_current_metrics_info_state, ClearMetricsInfoState,
+            SyncCurrentMetricsInfoState, METRIC_NAMES, METRIC_TASK_NAMES, METRIC_VALUES,
+        },
+        settings::ACTIVE_SESSION_NAME,
+        sign_in::{EMAIL, JWT},
+    }, ui::{
+        backend::ADDR_BACKEND,
+        settings::get_non_duplicated_sorted_subjects,
+        svg_icons::search_icon_svg,
+    }
 };
 
 const SESSION_METRICS_HEADERS: [&str; 3] = ["Task", "Metric", "Value"];

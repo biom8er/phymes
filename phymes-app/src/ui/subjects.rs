@@ -10,20 +10,23 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::sync::Arc;
 
-use super::svg_icons::{
-    arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg, table_icon_svg,
-};
-
-use crate::ui::{
-    backend::ADDR_BACKEND,
-    settings_interface::get_non_duplicated_sorted_subjects,
-    settings_state::ACTIVE_SESSION_NAME,
-    sign_in_state::{EMAIL, JWT},
-    subjects_state::{
-        clear_subject_info_state, sync_current_subject_info_state, ClearSubjectInfoState,
-        SyncCurrentSubjectInfoState, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_NAMES,
-        SUBJECT_SCHEMA_ROWS, SUBJECT_SCHEMA_TYPES,
+use crate::{
+    state::{
+        settings::ACTIVE_SESSION_NAME,
+        sign_in::{EMAIL, JWT},
+        subjects::{
+            clear_subject_info_state, sync_current_subject_info_state, ClearSubjectInfoState,
+            SyncCurrentSubjectInfoState, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_NAMES,
+            SUBJECT_SCHEMA_ROWS, SUBJECT_SCHEMA_TYPES,
+        },
     },
+    ui::{
+        backend::ADDR_BACKEND,
+        settings::get_non_duplicated_sorted_subjects,
+        svg_icons::{
+            arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg, table_icon_svg,
+        }
+    }
 };
 
 const SUBJECT_SCHEMA_HEADERS: [&str; 3] = ["Column", "Type", "Rows"];

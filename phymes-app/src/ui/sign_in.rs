@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::ui::sign_in_state::{sync_jwt_state, SyncJWTState, EMAIL};
+use crate::state::sign_in::{sync_jwt_state, SyncJWTState, EMAIL};
 
 use super::backend::ADDR_BACKEND;
 

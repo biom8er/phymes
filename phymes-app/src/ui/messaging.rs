@@ -13,16 +13,19 @@ use phymes_core::table::arrow_table_publish::ArrowTablePublish;
 const MESSAGES_SUBJECT_NAME: &str = "messages";
 
 // mod imports
-use super::{
-    backend::ADDR_BACKEND,
-    messaging_state::{
-        clear_current_message_state, create_timestamp, sync_current_message_content_state,
-        sync_current_message_state, ClearCurrentMessageState, SyncCurrentMessageContentState,
-        SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
-    },
-    settings_state::ACTIVE_SESSION_NAME,
-    sign_in_state::{EMAIL, JWT},
-    svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg},
+use crate::{
+    state::{
+        messaging::{
+            clear_current_message_state, create_timestamp, sync_current_message_content_state,
+            sync_current_message_state, ClearCurrentMessageState, SyncCurrentMessageContentState,
+            SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
+        },
+        settings::ACTIVE_SESSION_NAME,
+        sign_in::{EMAIL, JWT},
+    }, ui::{
+        backend::ADDR_BACKEND,
+        svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg},
+    }
 };
 
 /// View for messaging between the user and AI assistant

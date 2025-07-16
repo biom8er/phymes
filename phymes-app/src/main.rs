@@ -2,6 +2,7 @@
 use dioxus::prelude::*;
 
 // UI components
+mod state;
 mod ui;
 use ui::main_window::main_window;
 

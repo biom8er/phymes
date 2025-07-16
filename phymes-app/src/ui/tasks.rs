@@ -6,17 +6,21 @@ use reqwest::{self, header::CONTENT_TYPE};
 use serde_json::{Map, Value};
 use std::collections::HashSet;
 
-use crate::ui::{
-    backend::ADDR_BACKEND,
-    settings_interface::get_non_duplicated_sorted_subjects,
-    settings_state::ACTIVE_SESSION_NAME,
-    sign_in_state::{EMAIL, JWT},
-    svg_icons::search_icon_svg,
-    tasks_state::{
-        clear_task_info_state, sync_current_task_info_state, ClearTaskInfoState,
-        SyncCurrentTaskInfoState, TASK_PROCESSOR_NAMES, TASK_PUB_OR_SUB, TASK_SUBJECT_NAMES,
-        TASK_TASK_NAMES,
+use crate::{
+    state::{
+        settings::ACTIVE_SESSION_NAME,
+        sign_in::{EMAIL, JWT},
+        tasks::{
+            clear_task_info_state, sync_current_task_info_state, ClearTaskInfoState,
+            SyncCurrentTaskInfoState, TASK_PROCESSOR_NAMES, TASK_PUB_OR_SUB, TASK_SUBJECT_NAMES,
+            TASK_TASK_NAMES,
+        },
     },
+    ui::{
+        backend::ADDR_BACKEND,
+        settings::get_non_duplicated_sorted_subjects,
+        svg_icons::search_icon_svg,
+    }
 };
 
 /// Get the distinct processors from the distinct tasks

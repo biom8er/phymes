@@ -5,16 +5,16 @@ use dioxus::prelude::*;
 #[cfg(any(feature = "plotly_embed_js", feature = "plotly_cdn_js"))]
 use plotly::{color::Rgb, image::ColorModel, Image, Plot};
 
-use super::messaging_interface::{messaging_interface_footer, messaging_interface_view};
-use super::metrics_interface::metrics_modal;
-use super::settings_interface::settings_modal;
-use super::sign_in_interface::sign_in_modal;
-use super::subjects_interface::subjects_modal;
+use super::messaging::{messaging_interface_footer, messaging_interface_view};
+use super::metrics::metrics_modal;
+use super::settings::settings_modal;
+use super::sign_in::sign_in_modal;
+use super::subjects::subjects_modal;
 use super::svg_icons::{
     database_icon_svg, help_icon_svg, message_icon_svg, person_icon_svg, settings_icon_svg,
     tools_icon_svg, top_speed_icon_svg,
 };
-use super::tasks_interface::tasks_modal;
+use super::tasks::tasks_modal;
 
 #[component]
 pub fn title() -> Element {
