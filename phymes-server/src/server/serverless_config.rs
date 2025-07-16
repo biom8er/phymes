@@ -20,8 +20,4 @@ pub struct ServerlessConfig {
     /// The data to send in JSON format e.g., '{"content": "Write a python function to count prime numbers", "session_name": "EMAILChat", "subject_name": "messages"}'
     #[arg(long)]
     pub data: Option<String>,
-
-    /// Assets directory
-    #[arg(long, default_value = ".")]
-    pub assets_dir: String,
 }

@@ -6,59 +6,16 @@ use phymes_server::server;
 #[cfg(feature = "wasip2")]
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    use phymes_server::handlers::sign_in::basic_auth;
     use futures_executor::block_on;
-    use anyhow::anyhow;
     use bytes::Bytes;
     use futures::TryStreamExt;
-    use http::Request;
-    use server::{serverless_app::Serverless, serverless_config::ServerlessConfig};
-
-    // initialize the server
-    let serverless = Serverless::new();
+    use server::{serverless_app::serverless_app, serverless_config::ServerlessConfig};    
 
     // parse the config
     let config = ServerlessConfig::parse();
 
-    // start building the request
-    let url = format!("https://serverless/{}", config.route);
-    let request_builder = Request::builder().method("POST").uri(url);
-
-    let response = if let Some(credentials) = config.basic_auth {
-        // Parse the credentials
-        let mid = credentials.find(":");
-        if mid.is_none() {
-            return Err(anyhow!("Error: unable to parse the basic_auth."));
-        }
-        let (username, password) = credentials.split_at(mid.unwrap());
-        let password = &password[1..];
-
-        // Make the credentials with basic authorization
-        let credentials = basic_auth(username, Some(password));
-
-        // build the request
-        let request: Request<String> = request_builder
-            .header("Content-type", "text/plain; charset=utf-8")
-            .header("Authorization", credentials)
-            .body("".into())
-            .unwrap();
-        block_on(serverless.call(request))
-    } else if let (Some(bearer), Some(data)) = (config.bearer_auth, config.data) {
-        // Make the credentials for bearer authorization
-        let bearer = format!("Bearer {bearer}");
-
-        // build the request
-        let request: Request<String> = request_builder
-            .header("Content-type", "application/json")
-            .header("Authorization", bearer)
-            .body(data)
-            .unwrap();
-        block_on(serverless.call(request))
-    } else {
-        return Err(anyhow!(
-            "Error: no basic_auth nor bearer_auth with data were provided."
-        ));
-    };
+    // call the serverless application
+    let response = block_on(serverless_app(config)).unwrap();
 
     // Parse the response
     let bytes: Vec<Bytes> = response
