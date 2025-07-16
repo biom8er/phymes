@@ -87,7 +87,7 @@ pub fn tasks_modal() -> Element {
         let route = "/app/v1/tasks_info";
 
         #[cfg(not(feature = "serverless"))]
-        let addr = format!("{ADDR_BACKEND}/{route}");
+        let addr = format!("{ADDR_BACKEND}{route}");
         #[cfg(not(feature = "serverless"))]
         match reqwest::Client::new()
             .post(addr)

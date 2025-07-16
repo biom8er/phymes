@@ -66,7 +66,7 @@ pub fn messaging_interface_view() -> Element {
         let route = "/app/v1/get_state";
 
         #[cfg(not(feature = "serverless"))]
-        let addr = format!("{ADDR_BACKEND}/{route}");
+        let addr = format!("{ADDR_BACKEND}{route}");
         #[cfg(not(feature = "serverless"))]
         match reqwest::Client::new()
             .post(addr)
@@ -245,18 +245,18 @@ pub fn messaging_interface_footer() -> Element {
                         onclick: move |_| async move {
                             let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
                             let sync_message_content = use_coroutine_handle::<SyncCurrentMessageContentState>();
-                            
-                            // let the user know that the response is being prepared
-                            sync_message.send(SyncCurrentMessageState {
-                                role: "assistant".to_string(),
-                                content: "Preparing response...".to_string(),
-                                timestamp: create_timestamp()
-                            });
 
                             // signed in and ready to chat
                             sync_message.send(SyncCurrentMessageState {
                                 role: "user".to_string(),
                                 content: prompt.to_string(),
+                                timestamp: create_timestamp()
+                            });
+                            
+                            // let the user know that the response is being prepared
+                            sync_message.send(SyncCurrentMessageState {
+                                role: "assistant".to_string(),
+                                content: "Preparing response...".to_string(),
                                 timestamp: create_timestamp()
                             });
 
@@ -278,7 +278,7 @@ pub fn messaging_interface_footer() -> Element {
                             let route = "/app/v1/chat";
 
                             #[cfg(not(feature = "serverless"))]
-                            let addr = format!("{ADDR_BACKEND}/{route}");
+                            let addr = format!("{ADDR_BACKEND}{route}");
                             #[cfg(not(feature = "serverless"))]
                             match reqwest::Client::new()
                                 .post(addr)

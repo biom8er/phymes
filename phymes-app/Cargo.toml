@@ -41,12 +41,15 @@ wasip2 = ["phymes-server/wasip2", "phymes-core/wasip2"]
 wsl = ["phymes-server/wsl", "phymes-core/wsl"]
 gpu = ["phymes-server/gpu"]
 candle = ["phymes-server/candle"]
+# DM: this is a work in progress because we need to access
+#     resources on the device while in the browser context
 serverless = [] # Switch to use the serverless application
 
 # Dioxus platform options
 web = ["dioxus/web", "plotly_cdn_js", "wasip2"]
 desktop = ["dioxus/desktop", "dioxus/launch", "plotly_embed_js", "wasip2"]
 mobile = ["dioxus/mobile", "plotly_embed_js", "wasip2"]
+# DM: Dioxus builds the server for native and not for the "target" platform e.g., mobile, desktop, etc.
 server = ["wsl", "clap/derive", "tokio/full"]
 
 [profile]

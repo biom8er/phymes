@@ -2,6 +2,9 @@ use dioxus::prelude::*;
 use crate::state::sign_in::{sync_jwt_state, SyncJWTState, EMAIL};
 
 #[cfg(not(feature = "serverless"))]
+use reqwest::{self, header::CONTENT_TYPE};
+
+#[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
 
 #[cfg(feature = "serverless")]
@@ -71,11 +74,12 @@ pub fn sign_in_modal() -> Element {
                         let route = "/app/v1/sign_in";
 
                         #[cfg(not(feature = "serverless"))]
-                        let addr = format!("{ADDR_BACKEND}/{route}");
+                        let addr = format!("{ADDR_BACKEND}{route}");
                         #[cfg(not(feature = "serverless"))]
                         match reqwest::Client::new()
                             .post(addr)
                             .basic_auth(email, Some(password))
+                            .header(CONTENT_TYPE, "text/plain; charset=utf-8")
                             .send()
                             .await {
                             Ok(response) => match response.json::<SyncJWTState>()

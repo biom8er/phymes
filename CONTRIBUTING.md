@@ -553,7 +553,7 @@ cd target/dx/phymes-app/release/web/public
 
 First, build the frontend application
 ```bash
-cargo build -p phymes-app --platform desktop --release
+cargo build -p phymes-app --features desktop --release
 ```
 
 Second, build the phymes-server application with the desired features.
@@ -583,13 +583,13 @@ Fourth, launch the `phymes-server` executable
 First, build the frontend application
 ```bash
 # for Android
-cargo build -p phymes-app --platform android --release
+dx build -p phymes-app --platform android --release
 
 # for iOS
-cargo build -p phymes-app --platform ios --release
+dx build -p phymes-app --platform ios --release
 ```
 
-Second, build the phymes-server application with the desired features.
+Second, build the phymes-server application with the desired features. Note that Dioxus
 
 ```bash
 # GPU support and Candle token service

@@ -133,7 +133,7 @@ pub fn subjects_modal() -> Element {
         let route = "/app/v1/subjects_info";
 
         #[cfg(not(feature = "serverless"))]
-        let addr = format!("{ADDR_BACKEND}/{route}");
+        let addr = format!("{ADDR_BACKEND}{route}");
         #[cfg(not(feature = "serverless"))]
         match reqwest::Client::new()
             .post(addr)
@@ -498,7 +498,7 @@ pub fn subjects_modal() -> Element {
                                         let route = "/app/v1/get_state";
 
                                         #[cfg(not(feature = "serverless"))]
-                                        let addr = format!("{ADDR_BACKEND}/{route}");
+                                        let addr = format!("{ADDR_BACKEND}{route}");
                                         #[cfg(not(feature = "serverless"))]
                                         match reqwest::Client::new()
                                             .post(addr)
@@ -592,7 +592,7 @@ pub fn subjects_modal() -> Element {
                                     let route = "/app/v1/put_state";
 
                                     #[cfg(not(feature = "serverless"))]
-                                    let addr = format!("{ADDR_BACKEND}/{route}");
+                                    let addr = format!("{ADDR_BACKEND}{route}");
                                     #[cfg(not(feature = "serverless"))]
                                     match reqwest::Client::new()
                                         .post(addr)
