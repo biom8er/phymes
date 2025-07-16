@@ -5,7 +5,7 @@ use crate::state::sign_in::{sync_jwt_state, SyncJWTState, EMAIL};
 use super::backend::ADDR_BACKEND;
 
 #[cfg(feature = "serverless")]
-use phymes_server::server::{serverless_app::serverless_app, serverless_config::ServerlessConfig};
+use phymes_server::server::{serverless_app::{serverless_app, Serverless}, serverless_config::ServerlessConfig};
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
@@ -102,7 +102,9 @@ pub fn sign_in_modal() -> Element {
                             data: None,
                         };
                         #[cfg(feature = "serverless")]
-                        match serverless_app(config).await {
+                        let mut serverless = Serverless::new();
+                        #[cfg(feature = "serverless")]
+                        match serverless_app(config, &mut serverless).await {
                             Ok(response) => {
                                 let bytes: Vec<Bytes> = response
                                     .into_body()

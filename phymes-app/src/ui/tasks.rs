@@ -11,7 +11,7 @@ use reqwest::{self, header::CONTENT_TYPE};
 use super::backend::ADDR_BACKEND;
 
 #[cfg(feature = "serverless")]
-use phymes_server::server::{serverless_app::serverless_app, serverless_config::ServerlessConfig};
+use phymes_server::server::{serverless_app::{serverless_app, Serverless}, serverless_config::ServerlessConfig};
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
@@ -147,7 +147,9 @@ pub fn tasks_modal() -> Element {
             data: Some(data_serialized),
         };
         #[cfg(feature = "serverless")]
-        match serverless_app(config).await {
+        let mut serverless = Serverless::new();
+        #[cfg(feature = "serverless")]
+        match serverless_app(config, &mut serverless).await {
             Ok(response) => {
                 let bytes: Vec<Bytes> = response
                     .into_body()

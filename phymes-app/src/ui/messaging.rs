@@ -18,7 +18,7 @@ const MESSAGES_SUBJECT_NAME: &str = "messages";
 use super::backend::ADDR_BACKEND;
 
 #[cfg(feature = "serverless")]
-use phymes_server::server::{serverless_app::serverless_app, serverless_config::ServerlessConfig};
+use phymes_server::server::{serverless_app::{serverless_app, Serverless}, serverless_config::ServerlessConfig};
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
@@ -113,7 +113,9 @@ pub fn messaging_interface_view() -> Element {
             data: Some(data_serialized),
         };
         #[cfg(feature = "serverless")]
-        match serverless_app(config).await {
+        let mut serverless = Serverless::new();
+        #[cfg(feature = "serverless")]
+        match serverless_app(config, &mut serverless).await {
             Ok(response) => {
                 let bytes: Vec<Bytes> = response
                     .into_body()
@@ -317,7 +319,9 @@ pub fn messaging_interface_footer() -> Element {
                                 data: Some(data_serialized),
                             };
                             #[cfg(feature = "serverless")]
-                            match serverless_app(config).await {
+                            let mut serverless = Serverless::new();
+                            #[cfg(feature = "serverless")]
+                            match serverless_app(config, &mut serverless).await {
                                 Ok(response) => {
                                     sync_message_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
                                     let bytes: Vec<Bytes> = response
