@@ -10,6 +10,9 @@ use ui::main_window::main_window;
 static MAIN_CSS: Asset = asset!("/assets/main.css");
 
 fn main() {
+    // DM: Uncomment for full stack
+    // #[cfg(any(feature = "web", feature = "mobile", feature = "desktop"))]
+    // dioxus::fullstack::prelude::server_fn::client::set_server_url("http://127.0.0.1:4000");
     #[cfg(any(feature = "web", feature = "mobile", feature = "desktop"))]
     dioxus::launch(app);
 
@@ -21,11 +24,11 @@ fn main() {
     tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(async move {
-            let config = ServerConfig::parse();
-            // let config = ServerConfig {
-            //     assets_dir: "./public/".to_string(),
-            //     address: "127.0.0.1:4000".to_string(),
-            // };
+            // let config = ServerConfig::parse();
+            let config = ServerConfig {
+                assets_dir: "./public/".to_string(),
+                address: "127.0.0.1:4000".to_string(),
+            };
             Server::new(config).run().await.unwrap();
         });
 }

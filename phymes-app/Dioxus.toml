@@ -15,7 +15,7 @@ title = "phymes-app"
 style = []
 
 # Additional JavaScript files
-script = ["/assets/mermaid.esm.min.mjs"]
+script = []
 
 [web.resource.dev]
 
@@ -30,3 +30,10 @@ reload_html = true
 
 # which files or dirs will be watcher monitoring
 watch_path = ["src", "public"]
+
+[bundle]
+identifier = "com.biom8er.app"
+publisher = "biom8er"
+# DM: apparently, these are not the correct locations...
+#icon = ["assets/icon-256.png"]
+#resources = ["assets/**"]
