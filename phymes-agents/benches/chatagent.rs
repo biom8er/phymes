@@ -28,7 +28,11 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     ];
 
     // Get the target and GPU configuration
-    let tripple = std::env::var("TARGET").unwrap();
+    let wasm = if cfg!(target_arch = "wasm32") {
+        "wasm"
+    } else {
+        "native"
+    };
     let gpu = if cfg!(feature = "gpu") {
         "gpu"
     } else {
@@ -44,7 +48,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     for config in config_vec {
         for user_content in &user_content_vec {
             c.bench_function(
-                format!("chat-agent-session_{}_{}_{}_{}", user_content.0.len(), tripple.as_str(), gpu, candle).as_str(),
+                format!("chat-agent-session_{}_{}_{}_{}", user_content.0.len(), wasm, gpu, candle).as_str(),
                 |b| { b.iter(|| {
                     let metrics = ArrowTaskMetricsSet::new();
                     let session_ctx = config.make_session_context(metrics.clone()).unwrap();

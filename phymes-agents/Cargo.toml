@@ -62,8 +62,11 @@ chrono = "0.4.41"
 
 [dev-dependencies]
 criterion = "0.3"
-futures-executor = { version = "0.3.21" }
 
 [[bench]]
 name = "chat"
+harness = false
+
+[[bench]]
+name = "chatagent"
 harness = false

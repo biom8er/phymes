@@ -87,7 +87,11 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     ];
 
     // Get the target and GPU configuration
-    let tripple = std::env::var("TARGET").unwrap();
+    let wasm = if cfg!(target_arch = "wasm32") {
+        "wasm"
+    } else {
+        "native"
+    };
     let gpu = if cfg!(feature = "gpu") {
         "gpu"
     } else {
@@ -103,7 +107,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     for config in config_vec {
         for user_content in &user_content_vec {
             c.bench_function(
-                format!("chat-processor_{}_{}_{}_{}_{}", config.candle_asset.as_ref().map_or("unknown", |a| a.get_name()), user_content.len(), tripple.as_str(), gpu, candle).as_str(),
+                format!("chat-processor_{}_{}_{}_{}_{}", config.candle_asset.as_ref().map_or("unknown", |a| a.get_name()), user_content.len(), wasm, gpu, candle).as_str(),
                 |b| { b.iter(|| {
                     let metrics = ArrowTaskMetricsSet::new();
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
