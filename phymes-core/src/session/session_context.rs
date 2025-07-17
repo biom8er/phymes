@@ -37,6 +37,50 @@ use crate::task::{
     arrow_task::ArrowTaskTrait,
 };
 
+/// Get the metrics for the session
+pub fn get_metrics_as_table(metrics: ArrowTaskMetricsSet, table_name: &str) -> Result<ArrowTable> {
+    // extract out values from metrics
+    let mut task_names_vec = Vec::<String>::new();
+    let mut metric_names_vec = Vec::<String>::new();
+    let mut metric_values_vec = Vec::<u64>::new();
+    // let mut metrics_sorted = metrics.clone_inner().iter().map(|m| Arc::clone(m)).collect::<Vec<_>>();
+    // metrics_sorted.sort_by(|a, b| a.task().as_ref().unwrap().cmp(b.task().as_ref().unwrap()));
+    // metrics_sorted.sort_by(|a, b| a.value().name().to_string().cmp(&b.value().name().to_string()));
+    for metric in metrics.clone_inner().iter() {
+        task_names_vec.push(metric.task().as_ref().unwrap().to_string());
+        metric_names_vec.push(metric.value().name().to_string());
+        metric_values_vec.push(metric.value().as_usize() as u64);
+    }
+
+    if let Some(val) = metrics.clone_inner().elapsed_compute() {
+        task_names_vec.push("All".to_string());
+        metric_names_vec.push("elapsed_compute".to_string());
+        metric_values_vec.push(val as u64);
+    }
+
+    if let Some(val) = metrics.clone_inner().output_rows() {
+        task_names_vec.push("All".to_string());
+        metric_names_vec.push("output_rows".to_string());
+        metric_values_vec.push(val as u64);
+    }
+
+    // create the record batch
+    let task_names: ArrayRef = Arc::new(StringArray::from(task_names_vec));
+    let metric_names: ArrayRef = Arc::new(StringArray::from(metric_names_vec));
+    let metric_values: ArrayRef = Arc::new(UInt64Array::from(metric_values_vec));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("task_name", task_names),
+        ("metric_name", metric_names),
+        ("metric_value", metric_values),
+    ])?;
+
+    // create the table
+    ArrowTable::get_builder()
+        .with_name(table_name)
+        .with_record_batches(vec![batch])?
+        .build()
+}
+
 /// The `SessionContext` creates an execution graph based on a
 /// `SessionPlan` and manages the running of individual tasks
 /// and the messages passed between tasks.
@@ -70,46 +114,7 @@ impl SessionContext {
 
     /// Get the metrics for the session
     pub fn get_metrics_info_as_table(&self, table_name: &str) -> Result<ArrowTable> {
-        // extract out values from metrics
-        let mut task_names_vec = Vec::<String>::new();
-        let mut metric_names_vec = Vec::<String>::new();
-        let mut metric_values_vec = Vec::<u64>::new();
-        // let mut metrics_sorted = self.metrics.clone_inner().iter().map(|m| Arc::clone(m)).collect::<Vec<_>>();
-        // metrics_sorted.sort_by(|a, b| a.task().as_ref().unwrap().cmp(b.task().as_ref().unwrap()));
-        // metrics_sorted.sort_by(|a, b| a.value().name().to_string().cmp(&b.value().name().to_string()));
-        for metric in self.metrics.clone_inner().iter() {
-            task_names_vec.push(metric.task().as_ref().unwrap().to_string());
-            metric_names_vec.push(metric.value().name().to_string());
-            metric_values_vec.push(metric.value().as_usize() as u64);
-        }
-
-        if let Some(val) = self.metrics.clone_inner().elapsed_compute() {
-            task_names_vec.push("All".to_string());
-            metric_names_vec.push("elapsed_compute".to_string());
-            metric_values_vec.push(val as u64);
-        }
-
-        if let Some(val) = self.metrics.clone_inner().output_rows() {
-            task_names_vec.push("All".to_string());
-            metric_names_vec.push("output_rows".to_string());
-            metric_values_vec.push(val as u64);
-        }
-
-        // create the record batch
-        let task_names: ArrayRef = Arc::new(StringArray::from(task_names_vec));
-        let metric_names: ArrayRef = Arc::new(StringArray::from(metric_names_vec));
-        let metric_values: ArrayRef = Arc::new(UInt64Array::from(metric_values_vec));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("task_name", task_names),
-            ("metric_name", metric_names),
-            ("metric_value", metric_values),
-        ])?;
-
-        // create the table
-        ArrowTable::get_builder()
-            .with_name(table_name)
-            .with_record_batches(vec![batch])?
-            .build()
+        get_metrics_as_table(self.metrics.clone(), table_name)
     }
 
     /// Get the max iterations

@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use phymes_agents::{candle_assets::candle_which::WhichCandleAsset, candle_chat::chat_config::CandleChatConfig,          session_plans::chat_agent_session::test_chat_agent_session::bench_chat_processor};
-use phymes_core::metrics::ArrowTaskMetricsSet;
+use phymes_core::{metrics::ArrowTaskMetricsSet, session::session_context::get_metrics_as_table, table::arrow_table::ArrowTableTrait};
 
 fn benchmark_chat_processor(c: &mut Criterion) {
     // Cases for different input/output lengths
@@ -80,10 +80,10 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     );
     let config_vec = vec![
         config_smollm2_1,
-        // config_smollm2_2,
-        // config_smollm2_3,
+        config_smollm2_2,
+        config_smollm2_3,
         config_qwen2p5_1,
-        // config_qwen2p5_2,
+        config_qwen2p5_2,
     ];
 
     // Get the target and GPU configuration
@@ -106,15 +106,26 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     // Benchmark each configuration with each user content sequentially
     for config in config_vec {
         for user_content in &user_content_vec {
+            let id = format!("chat-processor_{}_{}_{}_{}_{}", config.candle_asset.as_ref().map_or("unknown", |a| a.get_name()), user_content.len(), wasm, gpu, candle);
             c.bench_function(
-                format!("chat-processor_{}_{}_{}_{}_{}", config.candle_asset.as_ref().map_or("unknown", |a| a.get_name()), user_content.len(), wasm, gpu, candle).as_str(),
+                id.as_str(),
                 |b| { b.iter(|| {
                     let metrics = ArrowTaskMetricsSet::new();
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
                     let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
                     let _messages = rt.block_on(async {
-                        bench_chat_processor(metrics, &config.clone(), &user_content.to_string()).await
+                        bench_chat_processor(metrics.clone(), &config.clone(), &user_content.to_string()).await
                     });
+
+                    // Export the metrics to CSV
+                    let metrics_table = get_metrics_as_table(metrics, "metrics").unwrap();
+                    let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                    let pathname = format!("{}/.cache/metrics/{}.csv", target_dir, id);
+                    let path = std::path::Path::new(pathname.as_str());
+                    let prefix = path.parent().unwrap();
+                    std::fs::create_dir_all(prefix).unwrap();
+                    let mut file = std::fs::File::create(pathname).unwrap();
+                    metrics_table.to_csv_file(&mut file, b',', true).unwrap();
                 });
             });
         }

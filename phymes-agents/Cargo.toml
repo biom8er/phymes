@@ -70,3 +70,7 @@ harness = false
 [[bench]]
 name = "chatagent"
 harness = false
+
+[[bench]]
+name = "docrag"
+harness = false

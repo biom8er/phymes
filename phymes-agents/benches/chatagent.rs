@@ -3,7 +3,7 @@ use std::sync::Arc;
 use criterion::{criterion_group, criterion_main, Criterion};
 use parking_lot::RwLock;
 use phymes_agents::session_plans::{agent_session_builder::AgentSessionBuilderTrait, chat_agent_session::{test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2}, ChatAgentSession}};
-use phymes_core::{metrics::ArrowTaskMetricsSet, session::session_context::SessionStreamState};
+use phymes_core::{metrics::ArrowTaskMetricsSet, session::session_context::{get_metrics_as_table, SessionStreamState}, table::arrow_table::ArrowTableTrait};
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {
     // Cases for different input/output lengths
@@ -47,8 +47,9 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     // Benchmark each configuration with each user content sequentially
     for config in config_vec {
         for user_content in &user_content_vec {
+            let id = format!("chat-agent-session_{}_{}_{}_{}", user_content.0.len(), wasm, gpu, candle);
             c.bench_function(
-                format!("chat-agent-session_{}_{}_{}_{}", user_content.0.len(), wasm, gpu, candle).as_str(),
+                id.as_str(),
                 |b| { b.iter(|| {
                     let metrics = ArrowTaskMetricsSet::new();
                     let session_ctx = config.make_session_context(metrics.clone()).unwrap();
@@ -61,6 +62,16 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     let _messages = rt.block_on(async {
                         bench_chat_agent_session_2(Arc::clone(&session_stream_state), &config, &user_content.0).await
                     });
+
+                    // Export the metrics to CSV
+                    let metrics_table = get_metrics_as_table(metrics, "metrics").unwrap();
+                    let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                    let pathname = format!("{}/.cache/metrics/{}.csv", target_dir, id);
+                    let path = std::path::Path::new(pathname.as_str());
+                    let prefix = path.parent().unwrap();
+                    std::fs::create_dir_all(prefix).unwrap();
+                    let mut file = std::fs::File::create(pathname).unwrap();
+                    metrics_table.to_csv_file(&mut file, b',', true).unwrap();
                 });
             });
         }
