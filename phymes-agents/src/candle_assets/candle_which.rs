@@ -226,7 +226,7 @@ impl WhichCandleAsset {
     /// The name of the weights file or weights catalog name
     pub fn get_filename(&self) -> &str {
         match self {
-            Self::QwenV2p5_0p5bChat => "qwen2.5-0.5b-instruct-q4_0.gguf",
+            Self::QwenV2p5_0p5bChat => "qwen2.5-0.5b-instruct-q4_k_m.gguf",
             Self::QwenV2p5_1p5bChat => "qwen2.5-1.5b-instruct-q4_0.gguf",
             Self::QwenV2p5_3bChat => "qwen2.5-3b-instruct-q4_0.gguf",
             Self::QwenV2p5_7bChat => "qwen2.5-7b-instruct-q4_0.gguf",

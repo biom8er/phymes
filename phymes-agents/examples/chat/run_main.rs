@@ -29,7 +29,7 @@ pub async fn run_main() -> Result<()> {
     let config = CandleChatConfig::parse();
 
     // Run the chat processor
-    let message_history = bench_chat_processor(metrics.clone(), &config).await?;
+    let message_history = bench_chat_processor(metrics.clone(), &config, "What are the four molecules that compose DNA?").await?;
     let json_data = message_history.to_json_object()?;
     for row in json_data {
         if row["role"] != "system" {

@@ -44,7 +44,7 @@ pub async fn run_main() -> Result<()> {
 
     // ----- Query #1 -----
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-        bench_chat_agent_session_1(Arc::clone(&session_stream_state), &chat_agent_session).await?;
+        bench_chat_agent_session_1(Arc::clone(&session_stream_state), &chat_agent_session, "Write a function to count prime numbers up to N.").await?;
 
     // Update the chat history with the response
     let json_data = response
@@ -65,7 +65,7 @@ pub async fn run_main() -> Result<()> {
 
     // ----- Query #2 -----
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-        bench_chat_agent_session_2(Arc::clone(&session_stream_state), &chat_agent_session).await?;
+        bench_chat_agent_session_2(Arc::clone(&session_stream_state), &chat_agent_session, "Please provide an example using the functions.").await?;
 
     // Update the chat history with the response
     let json_data = response

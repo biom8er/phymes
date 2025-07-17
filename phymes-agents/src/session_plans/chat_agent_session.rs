@@ -213,7 +213,7 @@ pub mod test_chat_agent_session {
     use crate::openai_asset::chat_processor::OpenAIChatProcessor;
 
     /// Run the chat processor with a given config and return the message history
-    pub async fn bench_chat_processor(metrics: ArrowTaskMetricsSet, config: &CandleChatConfig) -> Result<ArrowTable> {
+    pub async fn bench_chat_processor(metrics: ArrowTaskMetricsSet, config: &CandleChatConfig, user_content: &str) -> Result<ArrowTable> {
         // Named variables
         let name = "CandleChatProcessor";
         let messages = "messages";
@@ -229,7 +229,7 @@ pub mod test_chat_agent_session {
         let message_builder = ArrowTableBuilder::new()
             .with_name(messages)
             .insert_system_template_str("You are a helpful assistant.")?
-            .append_new_user_query_str("What are the four molecules that compose DNA?", "user")?;
+            .append_new_user_query_str(user_content, "user")?;
 
         // Build the current message state
         let mut message = HashMap::<String, ArrowOutgoingMessage>::new();
@@ -308,13 +308,13 @@ pub mod test_chat_agent_session {
     }
 
     /// Run the first query for the chat agent session and return the response
-    pub async fn bench_chat_agent_session_1<'a>(session_stream_state: Arc<RwLock<SessionStreamState>>, chat_agent_session: &ChatAgentSession<'a>) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
+    pub async fn bench_chat_agent_session_1<'a>(session_stream_state: Arc<RwLock<SessionStreamState>>, chat_agent_session: &ChatAgentSession<'a>, user_content: &str) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
         // Make the system prompt and add the user query
         let message_builder = ArrowTableBuilder::new()
             .with_name(chat_agent_session.chat_subscription_name)
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(
-                "Write a function to count prime numbers up to N.",
+                user_content,
                 "user",
             )?;
 
@@ -338,12 +338,12 @@ pub mod test_chat_agent_session {
     }
 
     /// Run the second query for the chat agent session and return the response
-    pub async fn bench_chat_agent_session_2<'a>(session_stream_state: Arc<RwLock<SessionStreamState>>, chat_agent_session: &ChatAgentSession<'a>) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
+    pub async fn bench_chat_agent_session_2<'a>(session_stream_state: Arc<RwLock<SessionStreamState>>, chat_agent_session: &ChatAgentSession<'a>, user_content: &str) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
         // Add a new query to the message history
         let message_builder = ArrowTableBuilder::new()
             .with_name(chat_agent_session.chat_subscription_name)
             .append_new_user_query_str(
-                "Please provide an example using the functions.",
+                user_content,
                 "user",
             )?;
 
@@ -406,7 +406,7 @@ mod tests {
         )) {
             // ----- Query #1 -----
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-                bench_chat_agent_session_1(Arc::clone(&session_stream_state), &chat_agent_session).await?;
+                bench_chat_agent_session_1(Arc::clone(&session_stream_state), &chat_agent_session, "Write a function to count prime numbers up to N.").await?;
 
             // Update the chat history with the response
             let json_data = response
@@ -444,7 +444,7 @@ mod tests {
 
             // ----- Query #2 -----
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-                bench_chat_agent_session_2(Arc::clone(&session_stream_state), &chat_agent_session).await?;
+                bench_chat_agent_session_2(Arc::clone(&session_stream_state), &chat_agent_session, "Please provide an example using the functions.").await?;
 
             // Update the chat history with the response
             let json_data = response

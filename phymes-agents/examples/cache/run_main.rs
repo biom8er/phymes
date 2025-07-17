@@ -22,7 +22,7 @@ pub async fn run_main() -> anyhow::Result<()> {
     // all model assets will be placed at $HOME/.cache/huggingface/hub
     // e.g., /home/dmccloskey/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775a/tokenizer.json
     // e.g., /home/dmccloskey/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775a/tokenizer_config.json
-    // e.g., /home/dmccloskey/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct-GGUF/snapshots/9217f5db79a29953eb74d5343926648285ec7e67/qwen2.5-0.5b-instruct-q4_0.gguf
+    // e.g., /home/dmccloskey/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct-GGUF/snapshots/9217f5db79a29953eb74d5343926648285ec7e67/qwen2.5-0.5b-instruct-q4_k_m.gguf
 
     Ok(())
 }

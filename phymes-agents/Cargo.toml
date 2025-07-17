@@ -59,4 +59,11 @@ bytes = "1.10.1"
 getrandom = { version = "0.3.1", features = ["wasm_js"] }
 getrandom_0_2 = { package = "getrandom", version = "0.2.15", features = ["js"] }
 chrono = "0.4.41"
-criterion = { version = "0.6", default-features = false }
+
+[dev-dependencies]
+criterion = "0.3"
+futures-executor = { version = "0.3.21" }
+
+[[bench]]
+name = "chat"
+harness = false

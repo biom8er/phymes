@@ -273,7 +273,7 @@ cp -a .cache/hf/. $HOME/.cache/hf/
 # download the model assets manually from HuggingFace
 curl -L -o $HOME/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/model.safetensors  https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/model.safetensors?download=true -sSf
 curl -L -o $HOME/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/pytorch_model.bin  https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/pytorch_model.bin?download=true -sSf
-curl -L -o $HOME/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-0.5b-instruct-q4_0.gguf  https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_0.gguf?download=true -sSf
+curl -L -o $HOME/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-0.5b-instruct-q4_k_m.gguf  https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true -sSf
 curl -L -o $HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf  https://huggingface.co/Segilmez06/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf?download=true -sSf
 curl -L -o $HOME/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf  https://huggingface.co/tensorblock/gte-Qwen2-1.5B-instruct-GGUF/resolve/main/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf?download=true -sSf
 ```
@@ -482,10 +482,10 @@ Running benchmarks are a good way to test the performance of a change. As benchm
 cargo bench
 
 # run phymes-core benchmarks
-cargo bench -p phymes-core
+cargo bench -p phymes-agents
 
 # run benchmark for the add_rows function within the phymes-core crate
-cargo bench -p phymes-core --bench add_rows
+cargo bench -p phymes-agents --bench benchmark_chat_processor
 ```
 
 To set the baseline for your benchmarks, use the --save-baseline flag:
@@ -493,11 +493,11 @@ To set the baseline for your benchmarks, use the --save-baseline flag:
 ```bash
 git checkout main
 
-cargo bench -p phymes-core --bench add_rows -- --save-baseline main
+cargo bench -p phymes-agents --bench benchmark_chat_processor -- --save-baseline main
 
 git checkout feature
 
-cargo bench -p phymes-core --bench add_rows -- --baseline main
+cargo bench -p phymes-agents --bench benchmark_chat_processor -- --baseline main
 ```
 
 ### Running the CI locally
