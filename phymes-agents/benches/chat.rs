@@ -74,7 +74,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     config_qwen2p5_2.weights_file = Some(format!(
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-3b-instruct-q5_k_m.gguf",
         std::env::var("HOME").unwrap_or("".to_string())
-    ));
+    ));    
     config_qwen2p5_2.candle_asset = Some(
         WhichCandleAsset::QwenV2p5_3bChat,
     );
@@ -104,9 +104,24 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     };
 
     // Benchmark each configuration with each user content sequentially
-    for config in config_vec {
-        for user_content in &user_content_vec {
-            let id = format!("chat-processor_{}_{}_{}_{}_{}", config.candle_asset.as_ref().map_or("unknown", |a| a.get_name()), user_content.len(), wasm, gpu, candle);
+    for config in config_vec.iter() {
+        for user_content in user_content_vec.iter() {
+            // Extract file name without path and extension
+            let weight_filename = if let Some(weights_file) = config.weights_file.as_ref() {
+                if let Some(file_name) = std::path::Path::new(weights_file)
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                {
+                    file_name
+                } else {
+                    config.candle_asset.as_ref().map_or("unknown", |a| a.get_name())
+                }
+            } else {
+                config.candle_asset.as_ref().map_or("unknown", |a| a.get_name())
+            };
+
+            // Create a unique identifier for the benchmark
+            let id = format!("chat-processor_{}_{}_{}_{}_{}", weight_filename, user_content.len(), wasm, gpu, candle);
             c.bench_function(
                 id.as_str(),
                 |b| { b.iter(|| {
@@ -114,7 +129,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
                     let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
                     let _messages = rt.block_on(async {
-                        bench_chat_processor(metrics.clone(), &config.clone(), &user_content.to_string()).await
+                        bench_chat_processor(metrics.clone(), config, &user_content.to_string()).await
                     });
 
                     // Export the metrics to CSV
