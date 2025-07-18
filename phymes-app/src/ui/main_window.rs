@@ -12,7 +12,7 @@ use super::sign_in::sign_in_modal;
 use super::subjects::subjects_modal;
 use super::svg_icons::{
     database_icon_svg, help_icon_svg, message_icon_svg, person_icon_svg, settings_icon_svg,
-    tools_icon_svg, top_speed_icon_svg, search_icon_svg, menu_icon_svg
+    tools_icon_svg, top_speed_icon_svg, menu_icon_svg, logo_icon_svg
 };
 use super::tasks::tasks_modal;
 
@@ -98,12 +98,11 @@ pub fn main_window() -> Element {
                     }
                 }
                 div {
-                    class: "logo",
-                    h1 { id: "logo1", "bio" }
-                    h1 { id: "logo2", "M🤖ER" }
-                }
-                div {
                     class: "search",
+                    div {
+                        class: "logo",
+                        svg { dangerous_inner_html: logo_icon_svg() }
+                    }                    
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Help);
@@ -234,7 +233,7 @@ pub fn about_text_modal() -> Element {
     rsx! {
         div {
             class: "messaging_list",
-            p { "Welcome to Biom8er messaging application!" },
+            p { "Welcome to PHYMES by Biom🤖er" },
             div { id: "plot-div" }
         }
     }
@@ -243,7 +242,7 @@ pub fn about_text_modal() -> Element {
     rsx! {
         div {
             class: "messaging_list",
-            p { "Welcome to Biom8er messaging application!" },
+            p { "Welcome to PHYMES by Biom🤖er" },
         }
     }
 }

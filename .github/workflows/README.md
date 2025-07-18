@@ -75,7 +75,7 @@ cargo doc --document-private-items --no-deps -p phymes-app
 The following runs all benchmarks with all CPU, GPU, and WASM features and targets
 
 ```bash
-mkdir ~./cache/metrics
+mkdir ~/.cache/metrics
 cargo bench --bench chat -p phymes-agents --no-default-features --features wasip2,gpu,candle -- --sample-size 10
 cargo bench --bench chat -p phymes-agents --no-default-features --features wasip2,candle -- --sample-size 10
 cargo bench --bench chat -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run

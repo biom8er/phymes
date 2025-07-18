@@ -39,7 +39,7 @@ main header{
 	vertical-align:middle;
 }
 main header .navbar{
-    width:40%;
+    width:25%;
 	height:auto;
     display:inline-flex;
     float:left;
@@ -48,8 +48,9 @@ main header .navbar #navbartoggle{
 	display: none;
 }
 main header .navbar .checkbtn {
+	padding-top:5px;
+	padding-left:5px;
 	display:block;
-	font-size:28px;
 	color: white;
 	cursor: pointer;
 }
@@ -59,30 +60,8 @@ main header .navbar svg {
     max-height: 48px;
     vertical-align: middle;
 }
-main header .logo{
-    width:35%;
-	height:auto;
-    display:inline-flex;
-    vertical-align: middle;
-}
-main header .logo h1{
-    text-align:left;
-	font-size:24px;
-    vertical-align: middle;
-}
-main header .logo #logo1{
-	font-style: normal;
-    font-family:"Freestyle Script";
-    color: #34acb6ff;
-	font-size:28px;
-}
-main header .logo #logo2{
-	font-weight: bold;
-    font-family: Arial, Helvetica, sans-serif;
-	color:#fff;
-}
 main header .search{
-    width:25%;
+    width:75%;
 	height:auto;
     float:right;
 }
@@ -105,11 +84,20 @@ main header .search #search_form input{
 main header .search input::placeholder{
 	color:#fff;
 }
+main header .search div{
+    float:right;
+}
+main header .search div svg {
+    /* transform: scale(0.5); */
+    max-width: 48px; /* based on viewBox attributes in svg */
+    max-height: 48px;
+    vertical-align: middle;
+}
 main header .search button{
     float:right;
 	background-color:#333333ff;
 }
-main header .search svg {
+main header .search button svg {
     /* transform: scale(0.5); */
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
