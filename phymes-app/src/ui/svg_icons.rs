@@ -232,14 +232,13 @@ pub fn top_speed_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn charts_icon_svg() -> String {
+pub fn menu_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-        <g id="MSTeamsCharts" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
-            <path d="M39.4293 23.4994C38.5452 24.4013 38 25.6367 38 26.9994V28.999C37.1643 28.3714 36.1256 27.9994 35 27.9994C32.2386 27.9994 30 30.238 30 32.9994V34.999C29.1643 34.3714 28.1256 33.9994 27 33.9994C24.2386 33.9994 22 36.238 22 38.9994V41.9735C11.9714 41.4535 4 33.1574 4 22.9994C4 12.6732 12.2377 4.27096 22.5 4.00586V19.9994C22.5 21.9324 24.067 23.4994 26 23.4994H39.4293ZM25.5 19.9994V4.16241C33.9938 5.27881 40.7206 12.0056 41.837 20.4994H26C25.7239 20.4994 25.5 20.2756 25.5 19.9994Z"/>
-            <path d="M43 24C41.3431 24 40 25.3431 40 27V43C40 44.6569 41.3431 46 43 46C44.6569 46 46 44.6569 46 43V27C46 25.3431 44.6569 24 43 24Z"/>
-            <path d="M32 33C32 31.3431 33.3431 30 35 30C36.6569 30 38 31.3431 38 33V43C38 44.6569 36.6569 46 35 46C33.3431 46 32 44.6569 32 43V33Z"/>
-            <path d="M27 36C25.3431 36 24 37.3431 24 39V43C24 44.6569 25.3431 46 27 46C28.6569 46 30 44.6569 30 43V39C30 37.3431 28.6569 36 27 36Z"/>
+        <g id="HamburgerMenue" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <line x1="5" y1="7" x2="19" y2="7" stroke-linecap="round"/>
+            <line x1="5" y1="17" x2="19" y2="17" id="Path" stroke-linecap="round"/>
+            <line x1="5" y1="12" x2="19" y2="12" id="Path" stroke-linecap="round"/>
         </g>
     </svg>"##;
     svg.to_string()
