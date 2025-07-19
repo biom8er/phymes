@@ -271,10 +271,6 @@ impl CandleChatStream {
     }
 
     /// Stream the text generation inference
-    ///
-    /// # Notes
-    ///
-    /// Only for `CandleAssets`
     fn stream_candle_tgi(&mut self, prompt_tokens: &Option<Vec<u32>>) -> Result<Option<String>> {
         let next_token =
             match prompt_tokens {
