@@ -830,6 +830,8 @@ pub fn fields_in_schemas(lhs_schema: SchemaRef, rhs_schema: SchemaRef) -> Vec<St
 }
 
 pub mod test_doc_rag_session {
+    use super::*;
+    use crate::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use futures::TryStreamExt;
     use parking_lot::RwLock;
@@ -844,10 +846,14 @@ pub mod test_doc_rag_session {
             ArrowMessageBuilderTrait,
         },
     };
-    use super::*;
-    use crate::candle_chat::message_history::MessageHistoryBuilderTraitExt;
 
-    pub async fn bench_doc_rag_session<'a>(session_stream_state: Arc<RwLock<SessionStreamState>>, doc_rag_session: &DocumentRAGSession<'a>, user_query: &str, document_texts: &[&str], document_ids: &[&str]) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
+    pub async fn bench_doc_rag_session<'a>(
+        session_stream_state: Arc<RwLock<SessionStreamState>>,
+        doc_rag_session: &DocumentRAGSession<'a>,
+        user_query: &str,
+        document_texts: &[&str],
+        document_ids: &[&str],
+    ) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
         // Create the document message
         let document_texts_arr: ArrayRef = Arc::new(StringArray::from(document_texts.to_vec()));
         let document_ids_arr: ArrayRef = Arc::new(StringArray::from(document_ids.to_vec()));
@@ -934,8 +940,7 @@ pub mod test_doc_rag_session {
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
         // Run the session
-        let session_stream =
-            SessionStream::new(incoming_message_map, session_stream_state);
+        let session_stream = SessionStream::new(incoming_message_map, session_stream_state);
         session_stream.try_collect().await
     }
 }
@@ -947,9 +952,7 @@ mod tests {
         metrics::HashMap,
         session::session_context::SessionStreamState,
         table::arrow_table::ArrowTableTrait,
-        task::arrow_message::{
-            ArrowIncomingMessage, ArrowIncomingMessageTrait,
-        },
+        task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
 
     use super::*;
@@ -1024,8 +1027,14 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-                bench_doc_rag_session(session_stream_state, &doc_rag_session, user_query, document_texts, document_ids).await?;
+            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = bench_doc_rag_session(
+                session_stream_state,
+                &doc_rag_session,
+                user_query,
+                document_texts,
+                document_ids,
+            )
+            .await?;
 
             // Update the chat history with the response
             let json_data = response

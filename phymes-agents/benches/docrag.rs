@@ -1,9 +1,16 @@
 use std::sync::Arc;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use parking_lot::RwLock;
-use phymes_agents::session_plans::{agent_session_builder::AgentSessionBuilderTrait, document_rag_session::{test_doc_rag_session::bench_doc_rag_session, DocumentRAGSession}};
-use phymes_core::{metrics::ArrowTaskMetricsSet, session::session_context::{get_metrics_as_table, SessionStreamState}, table::arrow_table::ArrowTableTrait};
+use phymes_agents::session_plans::{
+    agent_session_builder::AgentSessionBuilderTrait,
+    document_rag_session::{DocumentRAGSession, test_doc_rag_session::bench_doc_rag_session},
+};
+use phymes_core::{
+    metrics::ArrowTaskMetricsSet,
+    session::session_context::{SessionStreamState, get_metrics_as_table},
+    table::arrow_table::ArrowTableTrait,
+};
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {
     // Cases for different document lengths
@@ -19,11 +26,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
         "Lipids are a broad group of organic compounds which include fats, waxes, sterols, fat-soluble vitamins (such as vitamins A, D, E and K), monoglycerides, diglycerides, phospholipids, and others. The functions of lipids include storing energy, signaling, and acting as structural components of cell membranes.[3][4] Lipids have applications in the cosmetic and food industries, and in nanotechnology.[5]\n\nLipids may be broadly defined as hydrophobic or amphiphilic small molecules; the amphiphilic nature of some lipids allows them to form structures such as vesicles, multilamellar/unilamellar liposomes, or membranes in an aqueous environment. Biological lipids originate entirely or in part from two distinct types of biochemical subunits or building-blocks: ketoacyl and isoprene groups.[3] Using this approach, lipids may be divided into eight categories: fatty acyls, glycerolipids, glycerophospholipids, sphingolipids, saccharolipids, and polyketides (derived from condensation of ketoacyl subunits); and sterol lipids and prenol lipids (derived from condensation of isoprene subunits).[3]\n\nAlthough the term lipid is sometimes used as a synonym for fats, fats are a subgroup of lipids called triglycerides. Lipids also encompass molecules such as fatty acids and their derivatives (including tri-, di-, monoglycerides, and phospholipids), as well as other sterol-containing metabolites such as cholesterol.[6] Although humans and other mammals use various biosynthetic pathways both to break down and to synthesize lipids, some essential lipids cannot be made this way and must be obtained from the diet.\n\n",
         "The cell is the basic structural and functional unit of all forms of life. Every cell consists of cytoplasm enclosed within a membrane; many cells contain organelles, each with a specific function. The term comes from the Latin word cellula meaning 'small room'. Most cells are only visible under a microscope. Cells emerged on Earth about 4 billion years ago. All cells are capable of replication, protein synthesis, and motility.\n\nCells are broadly categorized into two types: eukaryotic cells, which possess a nucleus, and prokaryotic cells, which lack a nucleus but have a nucleoid region. Prokaryotes are single-celled organisms such as bacteria, whereas eukaryotes can be either single-celled, such as amoebae, or multicellular, such as some algae, plants, animals, and fungi. Eukaryotic cells contain organelles including mitochondria, which provide energy for cell functions, chloroplasts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.\n\nCells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells.",
     ];
-    
-    let document_texts_vec = vec![
-        document_texts_1,
-        document_texts_2
-    ];
+
+    let document_texts_vec = vec![document_texts_1, document_texts_2];
     let document_ids = &["Proteins", "DNA", "Lipids", "Cells"];
     let user_query = "What are the four molecules that compose DNA?";
 
@@ -71,9 +75,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
         doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
         doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
     }
-    let config_vec = vec![
-        doc_rag_session,
-    ];
+    let config_vec = vec![doc_rag_session];
 
     // Get the target and GPU configuration
     let wasm = if cfg!(target_arch = "wasm32") {
@@ -81,11 +83,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     } else {
         "native"
     };
-    let gpu = if cfg!(feature = "gpu") {
-        "gpu"
-    } else {
-        "cpu"
-    };
+    let gpu = if cfg!(feature = "gpu") { "gpu" } else { "cpu" };
     let candle = if cfg!(feature = "candle") {
         "candle"
     } else {
@@ -95,28 +93,47 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     // Benchmark each configuration with each user content sequentially
     for config in config_vec {
         for document_texts in &document_texts_vec {
-            let id = format!("doc-rag-session_{}_{}_{}_{}", document_texts.first().unwrap().len(), wasm, gpu, candle);
-            c.bench_function(
-                id.as_str(),
-                |b| { b.iter(|| {
+            let id = format!(
+                "doc-rag-session_{}_{}_{}_{}",
+                document_texts.first().unwrap().len(),
+                wasm,
+                gpu,
+                candle
+            );
+            let mut iter = 0;
+            c.bench_function(id.as_str(), |b| {
+                b.iter(|| {
                     let metrics = ArrowTaskMetricsSet::new();
                     let session_ctx = config.make_session_context(metrics.clone()).unwrap();
-                    let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+                    let session_stream_state =
+                        Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
-                    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .build()
+                        .unwrap();
                     let _messages = rt.block_on(async {
-                        bench_doc_rag_session(Arc::clone(&session_stream_state), &config, user_query, &document_texts.to_vec(), document_ids).await
+                        bench_doc_rag_session(
+                            Arc::clone(&session_stream_state),
+                            &config,
+                            user_query,
+                            document_texts.as_ref(),
+                            document_ids,
+                        )
+                        .await
                     });
 
                     // Export the metrics to CSV
                     let metrics_table = get_metrics_as_table(metrics, "metrics").unwrap();
                     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                    let pathname = format!("{}/.cache/metrics/{}.csv", target_dir, id);
+                    let pathname = format!("{target_dir}/.cache/metrics/{id}_{iter}.csv");
                     let path = std::path::Path::new(pathname.as_str());
                     let prefix = path.parent().unwrap();
                     std::fs::create_dir_all(prefix).unwrap();
                     let mut file = std::fs::File::create(pathname).unwrap();
                     metrics_table.to_csv_file(&mut file, b',', true).unwrap();
+
+                    // Increment the iteration counter
+                    iter += 1;
                 });
             });
         }

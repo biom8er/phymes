@@ -6,12 +6,12 @@ extern crate accelerate_src;
 
 use anyhow::Result;
 use clap::Parser;
-use phymes_core::{
-    metrics::ArrowTaskMetricsSet,
-    table::arrow_table::ArrowTableTrait,
-};
+use phymes_core::{metrics::ArrowTaskMetricsSet, table::arrow_table::ArrowTableTrait};
 
-use phymes_agents::{candle_chat::chat_config::CandleChatConfig, session_plans::chat_agent_session::test_chat_agent_session::bench_chat_processor};
+use phymes_agents::{
+    candle_chat::chat_config::CandleChatConfig,
+    session_plans::chat_agent_session::test_chat_agent_session::bench_chat_processor,
+};
 
 pub async fn run_main() -> Result<()> {
     println!(
@@ -29,7 +29,12 @@ pub async fn run_main() -> Result<()> {
     let config = CandleChatConfig::parse();
 
     // Run the chat processor
-    let message_history = bench_chat_processor(metrics.clone(), &config, "What are the four molecules that compose DNA?").await?;
+    let message_history = bench_chat_processor(
+        metrics.clone(),
+        &config,
+        "What are the four molecules that compose DNA?",
+    )
+    .await?;
     let json_data = message_history.to_json_object()?;
     for row in json_data {
         if row["role"] != "system" {

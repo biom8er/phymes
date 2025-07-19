@@ -199,10 +199,17 @@ pub mod test_chat_agent_session {
     use futures::TryStreamExt;
     use parking_lot::{Mutex, RwLock};
     use phymes_core::{
-        metrics::HashMap, 
-        session::{common_traits::{BuildableTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState}}, 
-        table::arrow_table::ArrowTableTrait, 
-        task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait}
+        metrics::HashMap,
+        session::{
+            common_traits::{BuildableTrait, MappableTrait},
+            session_context::{SessionStream, SessionStreamState},
+        },
+        table::arrow_table::ArrowTableTrait,
+        task::arrow_message::{
+            ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
+            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
+            ArrowOutgoingMessageTrait,
+        },
     };
 
     use super::*;
@@ -213,7 +220,11 @@ pub mod test_chat_agent_session {
     use crate::openai_asset::chat_processor::OpenAIChatProcessor;
 
     /// Run the chat processor with a given config and return the message history
-    pub async fn bench_chat_processor(metrics: ArrowTaskMetricsSet, config: &CandleChatConfig, user_content: &str) -> Result<ArrowTable> {
+    pub async fn bench_chat_processor(
+        metrics: ArrowTaskMetricsSet,
+        config: &CandleChatConfig,
+        user_content: &str,
+    ) -> Result<ArrowTable> {
         // Named variables
         let name = "CandleChatProcessor";
         let messages = "messages";
@@ -308,15 +319,16 @@ pub mod test_chat_agent_session {
     }
 
     /// Run the first query for the chat agent session and return the response
-    pub async fn bench_chat_agent_session_1<'a>(session_stream_state: Arc<RwLock<SessionStreamState>>, chat_agent_session: &ChatAgentSession<'a>, user_content: &str) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
+    pub async fn bench_chat_agent_session_1<'a>(
+        session_stream_state: Arc<RwLock<SessionStreamState>>,
+        chat_agent_session: &ChatAgentSession<'a>,
+        user_content: &str,
+    ) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
         // Make the system prompt and add the user query
         let message_builder = ArrowTableBuilder::new()
             .with_name(chat_agent_session.chat_subscription_name)
             .insert_system_template_str("You are a helpful assistant.")?
-            .append_new_user_query_str(
-                user_content,
-                "user",
-            )?;
+            .append_new_user_query_str(user_content, "user")?;
 
         // Build the current message state
         let incoming_message = ArrowIncomingMessageBuilder::new()
@@ -332,20 +344,20 @@ pub mod test_chat_agent_session {
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
         // Run the session
-        let session_stream =
-            SessionStream::new(incoming_message_map, session_stream_state);
+        let session_stream = SessionStream::new(incoming_message_map, session_stream_state);
         session_stream.try_collect().await
     }
 
     /// Run the second query for the chat agent session and return the response
-    pub async fn bench_chat_agent_session_2<'a>(session_stream_state: Arc<RwLock<SessionStreamState>>, chat_agent_session: &ChatAgentSession<'a>, user_content: &str) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
+    pub async fn bench_chat_agent_session_2<'a>(
+        session_stream_state: Arc<RwLock<SessionStreamState>>,
+        chat_agent_session: &ChatAgentSession<'a>,
+        user_content: &str,
+    ) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
         // Add a new query to the message history
         let message_builder = ArrowTableBuilder::new()
             .with_name(chat_agent_session.chat_subscription_name)
-            .append_new_user_query_str(
-                user_content,
-                "user",
-            )?;
+            .append_new_user_query_str(user_content, "user")?;
 
         // Build the incoming message state
         let incoming_message = ArrowIncomingMessageBuilder::new()
@@ -362,8 +374,7 @@ pub mod test_chat_agent_session {
 
         // Run the session
         session_stream_state.try_write().unwrap().set_iter(0);
-        let session_stream =
-            SessionStream::new(incoming_message_map, session_stream_state);
+        let session_stream = SessionStream::new(incoming_message_map, session_stream_state);
         session_stream.try_collect().await
     }
 }
@@ -375,7 +386,7 @@ mod tests {
         metrics::HashMap,
         session::session_context::SessionStreamState,
         table::arrow_table::ArrowTableTrait,
-        task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait}
+        task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
 
     use super::*;
@@ -406,7 +417,12 @@ mod tests {
         )) {
             // ----- Query #1 -----
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-                bench_chat_agent_session_1(Arc::clone(&session_stream_state), &chat_agent_session, "Write a function to count prime numbers up to N.").await?;
+                bench_chat_agent_session_1(
+                    Arc::clone(&session_stream_state),
+                    &chat_agent_session,
+                    "Write a function to count prime numbers up to N.",
+                )
+                .await?;
 
             // Update the chat history with the response
             let json_data = response
@@ -444,7 +460,12 @@ mod tests {
 
             // ----- Query #2 -----
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-                bench_chat_agent_session_2(Arc::clone(&session_stream_state), &chat_agent_session, "Please provide an example using the functions.").await?;
+                bench_chat_agent_session_2(
+                    Arc::clone(&session_stream_state),
+                    &chat_agent_session,
+                    "Please provide an example using the functions.",
+                )
+                .await?;
 
             // Update the chat history with the response
             let json_data = response

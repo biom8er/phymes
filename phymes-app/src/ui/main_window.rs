@@ -11,8 +11,8 @@ use super::settings::settings_modal;
 use super::sign_in::sign_in_modal;
 use super::subjects::subjects_modal;
 use super::svg_icons::{
-    database_icon_svg, help_icon_svg, message_icon_svg, person_icon_svg, settings_icon_svg,
-    tools_icon_svg, top_speed_icon_svg, menu_icon_svg, logo_icon_svg
+    database_icon_svg, help_icon_svg, logo_icon_svg, menu_icon_svg, message_icon_svg,
+    person_icon_svg, settings_icon_svg, tools_icon_svg, top_speed_icon_svg,
 };
 use super::tasks::tasks_modal;
 
@@ -54,9 +54,11 @@ pub fn main_window() -> Element {
 
     use_effect(move || {
         // Toggle the sidebar visibility
-        let _navbar_toggle = navbar_toggle.read();
-        document::eval(&format!(
-            r#"var elements = document.getElementsByClassName("sidebar");
+        let navbar_toggle = navbar_toggle.read();
+        document::eval(
+            format!(
+                r#" var nav_toggle = {navbar_toggle};
+            var elements = document.getElementsByClassName("sidebar");
             for (var i = 0; i < elements.length; i++) {{
                 var x = elements[i];
                 if (x.style.display === "none") {{
@@ -74,7 +76,9 @@ pub fn main_window() -> Element {
                     x.style.display = "0px";
                 }}
             }}"#
-        ));
+            )
+            .as_str(),
+        );
     });
 
     rsx! {
@@ -122,7 +126,7 @@ pub fn main_window() -> Element {
                     // button { svg { dangerous_inner_html: search_icon_svg() } }
                 }
             }
-            
+
             div {
                 class: "sidebar",
                 // DM: add tooltip for each of the icons

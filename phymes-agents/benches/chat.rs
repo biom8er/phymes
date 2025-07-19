@@ -1,10 +1,16 @@
-use criterion::{criterion_group, criterion_main, Criterion};
-use phymes_agents::{candle_assets::candle_which::WhichCandleAsset, candle_chat::chat_config::CandleChatConfig,          session_plans::chat_agent_session::test_chat_agent_session::bench_chat_processor};
-use phymes_core::{metrics::ArrowTaskMetricsSet, session::session_context::get_metrics_as_table, table::arrow_table::ArrowTableTrait};
+use criterion::{Criterion, criterion_group, criterion_main};
+use phymes_agents::{
+    candle_assets::candle_which::WhichCandleAsset, candle_chat::chat_config::CandleChatConfig,
+    session_plans::chat_agent_session::test_chat_agent_session::bench_chat_processor,
+};
+use phymes_core::{
+    metrics::ArrowTaskMetricsSet, session::session_context::get_metrics_as_table,
+    table::arrow_table::ArrowTableTrait,
+};
 
 fn benchmark_chat_processor(c: &mut Criterion) {
     // Cases for different input/output lengths
-    let user_content_vec = vec![
+    let user_content_vec = [
         // Case 1: Short input, Long output
         "Write a python function to count prime numbers up to N with complete docstrings. Please provide an example using the functions.",
         // Case 2: Long input, Short output
@@ -37,9 +43,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_smollm2_1.candle_asset = Some(
-        WhichCandleAsset::SmolLM2_135MChat,
-    );
+    config_smollm2_1.candle_asset = Some(WhichCandleAsset::SmolLM2_135MChat);
     let mut config_smollm2_2 = config_smollm2_1.clone();
     config_smollm2_2.weights_file = Some(format!(
         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q8_0.gguf",
@@ -67,17 +71,13 @@ fn benchmark_chat_processor(c: &mut Criterion) {
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_qwen2p5_1.candle_asset = Some(
-        WhichCandleAsset::QwenV2p5_0p5bChat,
-    );
+    config_qwen2p5_1.candle_asset = Some(WhichCandleAsset::QwenV2p5_0p5bChat);
     let mut config_qwen2p5_2 = config_qwen2p5_1.clone();
     config_qwen2p5_2.weights_file = Some(format!(
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-3b-instruct-q5_k_m.gguf",
         std::env::var("HOME").unwrap_or("".to_string())
-    ));    
-    config_qwen2p5_2.candle_asset = Some(
-        WhichCandleAsset::QwenV2p5_3bChat,
-    );
+    ));
+    config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
     let config_vec = vec![
         config_smollm2_1,
         // config_smollm2_2,
@@ -92,11 +92,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     } else {
         "native"
     };
-    let gpu = if cfg!(feature = "gpu") {
-        "gpu"
-    } else {
-        "cpu"
-    };
+    let gpu = if cfg!(feature = "gpu") { "gpu" } else { "cpu" };
     let candle = if cfg!(feature = "candle") {
         "candle"
     } else {
@@ -114,29 +110,43 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                 {
                     file_name
                 } else {
-                    config.candle_asset.as_ref().map_or("unknown", |a| a.get_name())
+                    config
+                        .candle_asset
+                        .as_ref()
+                        .map_or("unknown", |a| a.get_name())
                 }
             } else {
-                config.candle_asset.as_ref().map_or("unknown", |a| a.get_name())
+                config
+                    .candle_asset
+                    .as_ref()
+                    .map_or("unknown", |a| a.get_name())
             };
 
             // Create a unique identifier for the benchmark
-            let id = format!("chat-processor_{}_{}_{}_{}_{}", weight_filename, user_content.len(), wasm, gpu, candle);
+            let id = format!(
+                "chat-processor_{}_{}_{}_{}_{}",
+                weight_filename,
+                user_content.len(),
+                wasm,
+                gpu,
+                candle
+            );
             let mut iter = 0;
-            c.bench_function(
-                id.as_str(),
-                |b| { b.iter(|| {
+            c.bench_function(id.as_str(), |b| {
+                b.iter(|| {
                     let metrics = ArrowTaskMetricsSet::new();
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
-                    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .build()
+                        .unwrap();
                     let _messages = rt.block_on(async {
-                        bench_chat_processor(metrics.clone(), config, &user_content.to_string()).await
+                        bench_chat_processor(metrics.clone(), config, user_content).await
                     });
 
                     // Export the metrics to CSV
                     let metrics_table = get_metrics_as_table(metrics, "metrics").unwrap();
                     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                    let pathname = format!("{}/.cache/metrics/{}_{}.csv", target_dir, id, iter);
+                    let pathname = format!("{target_dir}/.cache/metrics/{id}_{iter}.csv");
                     let path = std::path::Path::new(pathname.as_str());
                     let prefix = path.parent().unwrap();
                     std::fs::create_dir_all(prefix).unwrap();
