@@ -109,6 +109,8 @@ WASM builds of `phymes-server` can be ran as stateless functions for embedded ap
   <source src="https://github.com/user-attachments/assets/81e93223-342d-4719-aded-f6f8bf4a3bc2" type="video/mp4">
 </video>
 
+[![Watch the video](https://raw.githubusercontent.com/biom8er/phymes/main/phymes-book/src/assets/2025-07-05_phymes-app_docchat_messaging.png)](https://raw.githubusercontent.com/biom8er/phymes/main/phymes-book/src/assets/2025-07-05_phymes-app_ui_1080p.mp4)
+
 <!--- ANCHOR: installation3 --->
 
 ```bash
