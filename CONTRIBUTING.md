@@ -207,6 +207,80 @@ Finally, you should be able to build the phymes-app for android. Note that the e
 dx serve -p phymes-app --platform android
 ```
 
+### Setting up Linux on Android
+
+It is possible to build and run PHYMES directly on Android using [Termux](https://github.com/termux/termux-app). Be sure enable [developer options](https://developer.android.com/studio/debug/dev-options) on Android and ensure to enable `Disable child process restrictions`.
+
+First, follow the [instructions](https://github.com/termux/termux-app?tab=readme-ov-file#installation) to install Termux on Android. Open Termux and install [proot-distro](https://github.com/termux/proot-distro) by following the instructions on the repo.
+
+Second, install Ubuntu using proot-distro:
+
+```bash
+# Install ubuntu (proot-distro reset ubuntu if something goes wrong)
+proot-distro install ubuntu
+proot-distro login ubuntu
+
+# Setup a new user account (in this case "dm")
+apt update && apt install sudo nano -y
+adduser dm # enter password and optional information
+nano /etc/sudoers # locate "root" and add entry for "dm"
+su dm # switch to new user
+
+# Setup for remote viewing
+sudo apt upgrade && sudo apt update && sudo apt install udisks2
+sudo rm /var/lib/dpkg/info/udisks2.postinst
+echo "" >> /var/lib/dpkg/info/udisks2.postinst
+sudo apt-mark hold udisks2
+sudo apt install xfce4 xfce4-goodies // previously xfce4 xfce4-terminal xfce4-whiskermenu-plugin
+# If errors occur with the obove command run `sudo apt install gvfs-common gvfs-libs gvfs-daemons`
+
+# Optional apps that can be useful Ubuntu
+sudo apt install firefox gedit vlc dbus-x11 -y
+```
+
+Third, setup VNC server
+
+```bash
+sudo apt install tigervnc-standalone-server
+echo "vncserver -geometry 1600x900 -xstartup /usr/bin/startxfce4 :1" >> /bin/vncstart
+echo "vncserver -kill :1" >> /bin/vncstop
+chmod +x /bin/vncstart
+chmod +x /bin/vncstop
+```
+
+After starting vncserver, switch to a your VNC viewer of choice on android and connect using the password provided on the command line. We recommend [bVNC](https://github.com/iiordanov/remote-desktop-clients).
+
+Fourth, install visual studio code
+
+```bash
+# Install VS code
+sudo apt-get install wget gpg -y
+wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+sudo sh -c 'echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list'
+rm -f packages.microsoft.gpg
+sudo apt install apt-transport-https
+sudo apt update
+sudo apt install code
+
+# Run VS code
+code --no-sandbox
+```
+
+Optionally, add a shortcut for starting Ubuntu under your user account.
+
+```bash
+# If you are already in Termux
+exit
+logout
+
+echo "proot-distro login --user dm ubuntu" >> $PREFIX/bin/ubuntu
+chmod +x $PREFIX/bin/ubuntu
+
+# Now you can start ubuntu with your user account using
+ubuntu
+```
+
 ### How to compile
 
 This is a standard cargo project with workspaces. To build the different workspaces, you need to have `rust` and `cargo` and you will need to specify workspaces using the using the `-p`, `--project` flag:
