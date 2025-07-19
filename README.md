@@ -68,6 +68,8 @@ To install the phymes application, download the precompiled bundle that matches 
 
 [![Watch the video](phymes-book/src/assets/2025-07-05_phymes-app_ui_gif.gif)](https://biom8er.github.io/phymes/assets/2025-07-05_phymes-app_ui_1080p.mp4)
 
+*Click to see the full video*
+
 <!--- ANCHOR: installation2 --->
 
 Alternatively, you can make REST API requests against the server using e.g., `curl`.
@@ -104,6 +106,8 @@ WASM builds of `phymes-server` can be ran as stateless functions for embedded ap
 <!--- ANCHOR_END: installation2 --->
 
 [![Watch the video](phymes-book/src/assets/2025-07-05_phymes-app_server_gif.gif)](https://biom8er.github.io/phymes/assets/2025-07-05_phymes-app_server_1080p.mp4)
+
+*Click to see the full video*
 
 <!--- ANCHOR: installation3 --->
 
