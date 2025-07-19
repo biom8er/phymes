@@ -106,7 +106,7 @@ WASM builds of `phymes-server` can be ran as stateless functions for embedded ap
 <!--- ANCHOR_END: installation2 --->
 
 <video controls>
-  <source src="./phymes-book/assets/2025-07-05_phymes-app_server_1080p.mp4" type="video/mp4">
+  <source src="https://github.com/user-attachments/assets/81e93223-342d-4719-aded-f6f8bf4a3bc2" type="video/mp4">
 </video>
 
 <!--- ANCHOR: installation3 --->
