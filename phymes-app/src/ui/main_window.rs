@@ -99,15 +99,17 @@ pub fn main_window() -> Element {
                 }
                 div {
                     class: "search",
-                    div {
-                        class: "logo",
-                        svg { dangerous_inner_html: logo_icon_svg() }
-                    }                    
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Help);
                         },
                         svg { dangerous_inner_html: help_icon_svg() }
+                    }
+                    a {
+                        href: "https://github.com/biom8er/phymes",
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        svg { dangerous_inner_html: logo_icon_svg() }
                     }
                     // form {
                     //     id: "search_form",

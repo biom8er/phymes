@@ -84,21 +84,18 @@ main header .search #search_form input{
 main header .search input::placeholder{
 	color:#fff;
 }
-main header .search div{
-    float:right;
-}
-main header .search div svg {
-    /* transform: scale(0.5); */
-    max-width: 48px; /* based on viewBox attributes in svg */
-    max-height: 48px;
-    vertical-align: middle;
-}
 main header .search button{
     float:right;
-	background-color:#333333ff;
+	border: none;
+	outline: none;
+	background: none;
+	cursor: pointer;
 }
-main header .search button svg {
-    /* transform: scale(0.5); */
+main header .search a{
+    float:right;
+	cursor: pointer;
+}
+main header .search svg{
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;
@@ -114,7 +111,10 @@ main .sidebar{
 	overflow: auto;
 }
 main .sidebar button{
+	border: none;
+	outline: none;
 	background-color:#333333ff;
+	cursor: pointer;
 }
 main .sidebar svg {
     /* transform: scale(0.5); */
@@ -163,7 +163,17 @@ main .messaging_list form input{
 main .messaging_list form input::placeholder{
 	color:#fff;
 }
-main .messaging_list button, .messaging_list p{
+main .messaging_list button{
+    float: middle;
+	margin: auto;
+	background-color:#333333ff;
+	color:#fff;
+	display: block;
+	border: none;
+	outline: none;
+	cursor: pointer;
+}
+main .messaging_list p{
     float: middle;
 	margin: auto;
 	background-color:#333333ff;
@@ -207,6 +217,9 @@ main .messaging_list .dropdown_form button{
 	background-color:#333333ff;
 	color:#fff;
 	text-align: center;
+	border: none;
+	outline: none;
+	cursor: pointer;
 }
 main .messaging_list .dropdown_form button svg {
     /* transform: scale(0.5); */
@@ -411,9 +424,10 @@ main footer .submit_button{
 main footer button{
     width: auto;
     height: auto;
-	border:none;
+	border: none;
 	color:#fff;
 	background-color:#34acb6ff;
+	cursor: pointer;
 }
 main footer svg {
     transform: scale(1.0);
