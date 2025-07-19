@@ -66,7 +66,9 @@ To install the phymes application, download the precompiled bundle that matches 
 
 <!--- ANCHOR_END: installation1 --->
 
-https://biom8er.github.io/phymes/assets/2025-07-05_phymes-app_server_1080p.mp4" type="video/mp4">
+<video controls>
+  <source src="https://biom8er.github.io/phymes/assets/2025-07-05_phymes-app_server_1080p.mp4" type="video/mp4">
+</video>
 
 <!--- ANCHOR: installation2 --->
 
