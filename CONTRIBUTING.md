@@ -220,18 +220,18 @@ Second, install Ubuntu using proot-distro:
 proot-distro install ubuntu
 proot-distro login ubuntu
 
-# Setup a new user account (in this case "dm")
+# Setup a new user account
 apt update && apt install sudo nano -y
-adduser dm # enter password and optional information
-nano /etc/sudoers # locate "root" and add entry for "dm"
-su dm # switch to new user
+adduser {USER} # enter password and optional information
+nano /etc/sudoers # locate "root" and add entry for "{USER}"
+su {USER} # switch to new user
 
 # Setup for remote viewing
 sudo apt upgrade && sudo apt update && sudo apt install udisks2
 sudo rm /var/lib/dpkg/info/udisks2.postinst
 echo "" >> /var/lib/dpkg/info/udisks2.postinst
 sudo apt-mark hold udisks2
-sudo apt install xfce4 xfce4-goodies // previously xfce4 xfce4-terminal xfce4-whiskermenu-plugin
+sudo apt install xfce4 xfce4-goodies
 # If errors occur with the obove command run `sudo apt install gvfs-common gvfs-libs gvfs-daemons`
 
 # Optional apps that can be useful Ubuntu
@@ -274,7 +274,7 @@ Optionally, add a shortcut for starting Ubuntu under your user account.
 exit
 logout
 
-echo "proot-distro login --user dm ubuntu" >> $PREFIX/bin/ubuntu
+echo "proot-distro login --user {USER} ubuntu" >> $PREFIX/bin/ubuntu
 chmod +x $PREFIX/bin/ubuntu
 
 # Now you can start ubuntu with your user account using

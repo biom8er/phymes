@@ -67,7 +67,7 @@ To install the phymes application, download the precompiled bundle that matches 
 <!--- ANCHOR_END: installation1 --->
 
 <video controls>
-  <source src="./phymes-book/assets/2025-07-05_phymes-app_ui_1080p.mp4" type="video/mp4">
+  <source src="https://github.com/user-attachments/assets/4e695cd4-0293-4f93-9904-8ae8451595b0" type="video/mp4">
 </video>
 
 <!--- ANCHOR: installation2 --->
