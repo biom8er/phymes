@@ -630,7 +630,7 @@ cargo build --package phymes-server --features wsl --release
 Third, move the server executable to the same directory as the web assets
 
 ```bash
-mv target/release/phymes-server target/dx/phymes-app/release/web/public/phymes-server
+mv target/release/phymes-server target/dx/phymes-app/release/web/public/
 ```
 
 Fourth, run the application and navigate to http://127.0.0.1:4000/

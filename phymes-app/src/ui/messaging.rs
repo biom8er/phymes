@@ -63,7 +63,7 @@ pub fn messaging_interface_view() -> Element {
                 ACTIVE_SESSION_NAME.read().as_str(),
             ),
             subject_name: MESSAGES_SUBJECT_NAME.to_string(),
-            format: SessionResponseFormat::None,
+            format: SessionResponseFormat::Bytes,
             publish: ArrowTablePublish::None,
             content: "".to_string(),
             metadata: "".to_string(),
