@@ -143,7 +143,7 @@ main .messaging_list{
 
 /* Sign-in interface styling */
 main .messaging_list form{
-    width:25%;
+    width:70%;
 	height:auto;
     float: middle;
 	vertical-align: top;
@@ -184,7 +184,7 @@ main .messaging_list p{
 
 /* Settings, Subjects, and Tasks interface styling */
 main .messaging_list .dropdown_form{
-    width: 50%;
+    width: 70%;
 	height:auto;
     float: middle;
 	vertical-align: top;
@@ -192,7 +192,7 @@ main .messaging_list .dropdown_form{
 	display: flex;
 }
 main .messaging_list .dropdown_form form{
-    width:92%;
+    width:100%;
 	height:auto;
 	vertical-align: top;
 }
@@ -211,13 +211,14 @@ main .messaging_list .dropdown_form form input::placeholder{
 	color:#fff;
 }
 main .messaging_list .dropdown_form button{
-    width: 8%;
-	height: auto;
+	width: 64px; /* needs to align with svg size */
+	height: 50px; /* needs to align with svg size */
 	display: block;
 	background-color:#333333ff;
 	color:#fff;
 	text-align: center;
-	border: none;
+	border: 1px solid black;
+	border-radius: 2px;
 	outline: none;
 	cursor: pointer;
 }
@@ -389,7 +390,7 @@ main footer{
     display: flex;
 }
 main footer .text_input{
-    width: 98%;
+    width: 100%;
 	height: 100%;
 	float: left;
 }
@@ -417,20 +418,21 @@ main footer .text_input #message_form textarea::placeholder{
 	color:#fff;
 }
 main footer .submit_button{
-    width: 2%;
-    height: 25%;
+    width: 64px;
+    height: 48px;
     float: right;
 }
-main footer button{
+main footer .submit_button button{
     width: auto;
     height: auto;
 	border: none;
 	color:#fff;
-	background-color:#34acb6ff;
+	background-color:black;
 	cursor: pointer;
 }
-main footer svg {
-    transform: scale(1.0);
+main footer .submit_button svg {
+    transform: scale(1.25);
+	translate: 2 2px;
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;

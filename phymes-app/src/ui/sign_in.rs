@@ -51,7 +51,6 @@ pub fn sign_in_modal() -> Element {
                 class: "messaging_list",
                 form {
                     div {
-                        class: "container",
                         label { "Email" }
                         input {
                             r#type: "email",
