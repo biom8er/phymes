@@ -17,10 +17,10 @@ cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 cudnn = ["candle-core/cudnn"]
 flash-attn = ["cuda", "candle-transformers/flash-attn"]
 nccl = ["cuda", "cudarc/nccl"]
-hf_hub = ["dep:candle-hf-hub", "tokio/full"]
+hf_hub = ["dep:candle-hf-hub"]
 openai_api = ["dep:reqwest"]
 wasip2 = ["tokenizers/unstable_wasm", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "phymes-core/wasip2"]
-wsl = ["phymes-core/wsl", "tokenizers/onig"]
+wsl = ["phymes-core/wsl", "tokenizers/onig", "tokio/full"]
 gpu = ["cuda", "cudnn", "nccl"]
 candle = [] # force use of candle models when openai_api is available
 
