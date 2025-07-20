@@ -5,6 +5,7 @@ use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
 use futures::{FutureExt, Stream, TryStreamExt};
 use parking_lot::{Mutex, RwLock};
+use core::task;
 use std::fs::File;
 use std::future::Future;
 use std::pin::Pin;
@@ -22,7 +23,7 @@ use super::{
     runtime_env::RuntimeEnv,
     session_context_builder::SessionContextBuilder,
 };
-use crate::metrics::{ArrowTaskMetricsSet, HashMap};
+use crate::metrics::{ArrowTaskMetricsSet, HashMap, HashSet};
 use crate::table::arrow_table_publish::ArrowTablePublish;
 use crate::table::{
     arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
@@ -37,7 +38,76 @@ use crate::task::{
     arrow_task::ArrowTaskTrait,
 };
 
-/// Get the metrics for the session
+/// Get the metrics for multiple sessions as a table
+pub fn get_metrics_as_pivot_table(metrics_vec: &[ArrowTaskMetricsSet], table_name: &str) -> Result<ArrowTable> {
+    // extract out values from metrics
+    let mut task_metrics_set = HashSet::new();
+    let mut task_names_vec = Vec::<String>::new();
+    let mut metric_names_vec = Vec::<String>::new();
+    let mut metric_values_vec = Vec::<u64>::new();
+    for metrics in metrics_vec.iter() {        
+        for metric in metrics.clone_inner().iter() {
+            let mut task_name = metric.task().as_ref().unwrap().to_string();
+            let mut task_metric_name = (
+                task_name.clone(),
+                metric.value().name().to_string());
+            if task_metrics_set.contains(&task_metric_name) {
+                continue; // skip if already exists
+            }
+            task_metrics_set.insert();
+            metric_names_vec.push(metric.value().name().to_string());
+            metric_values_vec.push(metric.value().as_usize() as u64);
+        }
+    }
+
+    // find the unique metric names
+    let unique_metric_names: Vec<String> = metric_names_vec
+        .iter()
+        .cloned()
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    let unique_task_names: Vec<String> = task_metrics_set
+        .iter()
+        .map(|(task_name, _)| task_name.to_owned())
+        .collect();
+
+    // create the pivot table columns
+    let mut pivot_columns = Vec::new();
+    println!("Unique task names: {unique_task_names:?}");
+    let task_values: ArrayRef = Arc::new(StringArray::from(unique_task_names.clone()));
+    pivot_columns.push(("task_name", task_values));
+    for metric_name in unique_metric_names.iter() {
+        let mut pivot_metric_values = Vec::<u64>::new();
+        for task_name in task_metrics_set.iter() {
+
+            // find the matching metric and task name
+            for i in 0..task_names_vec.len() {
+                if metric_names_vec.get(i).unwrap() == metric_name && task_names_vec.get(i).unwrap() == task_name {
+                    pivot_metric_values.push(metric_values_vec.get(i).unwrap().to_owned());
+                    break;
+                }
+            }
+            pivot_metric_values.push(0); // default value if not found
+        }
+
+        // create the named array for this metric
+        println!("{metric_name}: {pivot_metric_values:?}");
+        let metric_values: ArrayRef = Arc::new(UInt64Array::from(pivot_metric_values));
+        pivot_columns.push((metric_name, metric_values));
+    }
+
+    // create the record batch
+    let batch = RecordBatch::try_from_iter(pivot_columns)?;
+
+    // create the table
+    ArrowTable::get_builder()
+        .with_name(table_name)
+        .with_record_batches(vec![batch])?
+        .build()
+}
+
+/// Get the metrics for a single session as a table
 pub fn get_metrics_as_table(metrics: ArrowTaskMetricsSet, table_name: &str) -> Result<ArrowTable> {
     // extract out values from metrics
     let mut task_names_vec = Vec::<String>::new();
@@ -2717,6 +2787,8 @@ mod tests {
             .unwrap()
             .get_session_context()
             .get_metrics_info_as_table("")?;
+        let _pivot_table = get_metrics_as_pivot_table(&[metrics], "")?;
+        dbg!(_pivot_table);
 
         Ok(())
     }

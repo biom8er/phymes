@@ -224,9 +224,9 @@ pub mod test_chat_agent_session {
         metrics: ArrowTaskMetricsSet,
         config: &CandleChatConfig,
         user_content: &str,
+        name: &str,
     ) -> Result<ArrowTable> {
         // Named variables
-        let name = "CandleChatProcessor";
         let messages = "messages";
 
         // State for the chat processor config

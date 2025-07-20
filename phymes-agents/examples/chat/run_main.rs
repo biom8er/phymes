@@ -33,6 +33,7 @@ pub async fn run_main() -> Result<()> {
         metrics.clone(),
         &config,
         "What are the four molecules that compose DNA?",
+        "chat_processor"
     )
     .await?;
     let json_data = message_history.to_json_object()?;
