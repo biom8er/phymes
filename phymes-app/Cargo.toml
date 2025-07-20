@@ -40,6 +40,8 @@ wasip2 = ["phymes-server/wasip2", "phymes-core/wasip2"]
 wsl = ["phymes-server/wsl", "phymes-core/wsl"]
 gpu = ["phymes-server/gpu"]
 candle = ["phymes-server/candle"]
+hf_hub = ["phymes-server/hf_hub"]
+openai_api = ["phymes-server/openai_api"]
 # DM: this is a work in progress because we need to access
 #     resources on the device while in the browser context
 serverless = [] # Switch to use the serverless application

@@ -18,8 +18,10 @@ wasip2 = ["tokenizers/unstable_wasm",
 wsl = ["dep:tempfile",
     "tokenizers/onig",
     "tokio/full"]
+hf_hub = [] # for compatibility with agents
+openai_api = [] # for compatibility with agents
 gpu = [] # for compatibility with agents
-candle = [] # force use of candle models when openai_api is available
+candle = [] # for compatibility with agents
 
 [dependencies]
 arrow = { version = "54.3.1", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }

@@ -100,6 +100,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     };
 
     // Benchmark each configuration with each user content sequentially
+    let metrics_vec = Vec::new();
     for config in config_vec.iter() {
         for user_content in user_content_vec.iter() {
             // Extract file name without path and extension
@@ -143,8 +144,8 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                         bench_chat_processor(metrics.clone(), config, user_content).await
                     });
 
-                    // Export the metrics to CSV
-                    let metrics_table = get_metrics_as_table(metrics, "metrics").unwrap();
+                    // Collect the metrics
+                    let sample_id = format!("{id}_{iter}");
                     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
                     let pathname = format!("{target_dir}/.cache/metrics/{id}_{iter}.csv");
                     let path = std::path::Path::new(pathname.as_str());
@@ -158,7 +159,17 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                 });
             });
         }
-    }
+    }    
+
+    // Export the metrics to CSV
+    let metrics_table = get_metrics_as_table(metrics, "metrics").unwrap();
+    let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let pathname = format!("{target_dir}/.cache/metrics/{id}_{iter}.csv");
+    let path = std::path::Path::new(pathname.as_str());
+    let prefix = path.parent().unwrap();
+    std::fs::create_dir_all(prefix).unwrap();
+    let mut file = std::fs::File::create(pathname).unwrap();
+    metrics_table.to_csv_file(&mut file, b',', true).unwrap();
 }
 
 criterion_group!(benches, benchmark_chat_processor);

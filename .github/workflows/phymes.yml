@@ -115,10 +115,18 @@ jobs:
         run: cargo check -p phymes-core --all-targets --features wasip2
       - name: Check compilation -p phymes-agents --all-targets --features wsl
         run: cargo check -p phymes-agents --all-targets --features wsl
+      - name: Check compilation -p phymes-agents --all-targets --features wsl,hf_hub,candle
+        run: cargo check -p phymes-agents --all-targets --features wsl,hf_hub,candle
+      - name: Check compilation -p phymes-agents --all-targets --features wsl,openai_api
+        run: cargo check -p phymes-agents --all-targets --features wsl,openai_api
       - name: Check compilation -p phymes-agents --all-targets --features wasip2
         run: cargo check -p phymes-agents --all-targets --features wasip2
       - name: Check compilation -p phymes-server --all-targets --features wsl
         run: cargo check -p phymes-server --all-targets --features wsl
+      - name: Check compilation -p phymes-server --all-targets --features wsl,hf_hub,candle
+        run: cargo check -p phymes-server --all-targets --features wsl,hf_hub,candle
+      - name: Check compilation -p phymes-server --all-targets --features wsl,openai_api
+        run: cargo check -p phymes-server --all-targets --features wsl,openai_api
       - name: Check compilation -p phymes-server --all-targets --features wasip2
         run: cargo check -p phymes-server --all-targets --features wasip2
       - name: Clippy phymes

@@ -298,22 +298,28 @@ This is a standard cargo project with workspaces. To build the different workspa
 cargo build -p phymes-core
 ```
 
-CPU, GPU, and WASM-specific compilation features are gated behind feature flags `wsl`, `gpu`, and `wasip2` respectively. The use of embedded Candle or OpenAI API token services are gated behind the feature flag `candle`, which indicates to use embedded candle models.
+CPU, GPU, and WASM-specific compilation features are gated behind feature flags `wsl`, `gpu`, and `wasip2` respectively. The use of embedded Candle or OpenAI API token services are gated behind the feature flag `candle` and `openai_api`, which enables the use of Candle or OpenAI API token services. Enabling `candle` will force the application to use embedded Candle models even if `openai_api` is enabled. The use of HuggingFace models from the HuggingFace Hub API are gated behind the feature flag `hf_hub`.
 
 The following will build the `phymes-agents` workspace with different configurations of CPU and GPU acceleration for Tensor and Token services:
 
 ```bash
 # Native CPU for tensor operations and local/remote OpenAI API token services
-cargo build -p phymes-agents --features wsl --release
+cargo build -p phymes-agents --features wsl,openai_api --release
 
 # Native CPU for tensor operations and embedded Candle for token services
 cargo build -p phymes-agents --features wsl,candle --release
 
+# Native CPU for tensor operations and embedded Candle with models from HuggingFace for token services
+cargo build -p phymes-agents --features wsl,candle,hf_hub --release
+
 # GPU support for tensor operations and local/remote OpenAI API token services
-cargo build -p phymes-agents --features wsl,gpu --release
+cargo build -p phymes-agents --features wsl,gpu,openai_api --release
 
 # GPU support for tensor operations and embedded Candle for token services
 cargo build -p phymes-agents --features wsl,gpu,candle --release
+
+# GPU support for tensor operations and embedded Candle with models from HuggingFace for token services
+cargo build -p phymes-agents --features wsl,gpu,candle,hf_hub --release
 ```
 
 Please ensure that all CUDA related environmental variables are setup correctly for GPU acceleration. Most errors related to missing CUDA or CuDNN libraries are related to missing environmental variables particularly on WSL2.
@@ -413,7 +419,7 @@ cargo test test_session_update_state -p phymes-core --features wsl -- --no-captu
 cargo test --doc
 ```
 
-You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-agents crates have unit tests. Please note that many of the tests will in the phymes-agents crate do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-agents create, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,openai_api` or `--feature wsl,gpu,openai_api` feature flags depending upon GPU availability.
+You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-agents crates have unit tests. Please note that many of the tests in the phymes-agents crate do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-agents create, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,openai_api` or `--feature wsl,gpu,openai_api` feature flags depending upon GPU availability.
 
 ```bash
 # run tests for the phymes-core crate
@@ -421,8 +427,10 @@ cargo test --package phymes-core --features wsl --release
 
 # run tests for the phymes-agents crate with GPU acceleration with Candle assets
 cargo test --package phymes-agents --features wsl,gpu,candle --release
+# run tests for the phymes-agents crate with GPU acceleration with Candle assets from HuggingFace
+cargo test --package phymes-agents --features wsl,gpu,candle,hf_hub --release
 # or run tests for the phymes-agents crate on the CPU with OpenAI API token services
-cargo test --package phymes-agents --features wsl --release
+cargo test --package phymes-agents --features wsl,openai_api --release
 
 # run tests for the phymes-server crate
 cargo test --package phymes-server --features wsl --release
