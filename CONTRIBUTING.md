@@ -43,7 +43,9 @@ ideas with the community to get feedback on implementation.
 
 <!--- ANCHOR: developing --->
 
-### Setting Up Your Build Environment
+### Setting up your build environment (Linux)
+
+#### Setting up the Rust tool chain
 
 Install the Rust tool chain:
 
@@ -67,7 +69,7 @@ Also, make sure your Rust tool chain is up-to-date, because we always use the la
 rustup update stable
 ```
 
-### Setting up GPU acceleration with CUDA
+#### Setting up GPU acceleration with CUDA
 
 Install CUDA for linux:
 
@@ -108,7 +110,7 @@ sudo apt -y install cudnn
 
 Please replace the repo and cuda versions accordingly.
 
-### Setting up NVIDIA NIMs for local deployment
+#### Setting up NVIDIA NIMs for local deployment
 
 Obtain an NGC API key following the [instructions](https://github.com/NVIDIA-AI-Blueprints/rag/blob/main/docs/quickstart.md#obtain-an-api-key).
 
@@ -124,7 +126,7 @@ The NGC catalogue can be viewed using `NGC CLI`. Install `NGC` following the [in
 
 Alternatively, the NGC catalogue can be viewed [online](https://build.nvidia.com/). For example, the open-source Llama3.2 model can be deployed locally following the [instructions](https://build.nvidia.com/meta/llama-3.2-1b-instruct/deploy), and alternatively accessed via the NVIDIA NIMs API if available (see the NIMs LLM [API](NIMs LLM API https://docs.nvidia.com/nim/large-language-models/latest/api-reference.html) for OpenAPI schema). 
 
-### Setting up WASM build environment
+#### Setting up WASM build environment
 
 Add the following wasm32 compilation targets from the nightly Rust toolchain:
 
@@ -142,7 +144,7 @@ curl https://wasmtime.dev/install.sh -sSf | bash
 
 [wasmtime]: https://github.com/bytecodealliance/wasmtime
 
-### Setting up Dioxus
+#### Setting up Dioxus
 
 The front-end application is built using [dioxus](https://dioxuslabs.com) to enable creating web, desktop, and mobile applications using Rust
 
@@ -156,7 +158,7 @@ cargo update
 cargo binstall dioxus-cli
 ```
 
-### Setting up Android Studio
+#### Setting up Android Studio
 
 Installation of [Android Studio](https://developer.android.com/studio) is required to run virtual android phone emulations of the applicaiton or to test on a physical android device. Follow the below steps to install Android Studio on Linux.
 
@@ -207,9 +209,11 @@ Finally, you should be able to build the phymes-app for android. Note that the e
 dx serve -p phymes-app --platform android
 ```
 
-### Setting up Linux on Android
+### Setting up your build environment (Android)
 
 It is possible to build and run PHYMES directly on Android using [Termux](https://github.com/termux/termux-app). Be sure enable [developer options](https://developer.android.com/studio/debug/dev-options) on Android and ensure to enable `Disable child process restrictions`.
+
+#### Setting up Termux and Ubuntu
 
 First, follow the [instructions](https://github.com/termux/termux-app?tab=readme-ov-file#installation) to install Termux on Android. Open Termux and install [proot-distro](https://github.com/termux/proot-distro) by following the instructions on the repo.
 
@@ -281,7 +285,12 @@ chmod +x $PREFIX/bin/ubuntu
 ubuntu
 ```
 
-### How to compile
+### Setting up your build environment (Windows, MacOS)
+
+PHYMES can be also be built on Windows and MacOS. However, we have omitted the steps for now. Contributions to add the detailed steps are welcome 😊.
+
+### How to compile and run PHYMES
+#### How to compile
 
 This is a standard cargo project with workspaces. To build the different workspaces, you need to have `rust` and `cargo` and you will need to specify workspaces using the using the `-p`, `--project` flag:
 
@@ -330,7 +339,7 @@ docker run --rm -v $(pwd):/phymes -it rust /bin/bash -c "cd /phymes && rustup co
 
 From here on, this is a pure Rust project and `cargo` can be used to run tests, benchmarks, docs and examples as usual.
 
-### Setting up the cache for running tests and examples
+#### Setting up the cache for running tests and examples
 
 Many of the tests (and examples if running without the GPU or on WASM) depend upon a local cache of model assets to run. The following bash script can be used to prepare the local assets:
 
@@ -352,7 +361,7 @@ curl -L -o $HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-
 curl -L -o $HOME/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf  https://huggingface.co/tensorblock/gte-Qwen2-1.5B-instruct-GGUF/resolve/main/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf?download=true -sSf
 ```
 
-### Setting up local OpenAI API endpoints
+#### Setting up local OpenAI API endpoints
 
 Instead of using token credits with remote OpenAI API endpoints, it is possible to run the tests and examples locally using self-hosted open-source NVIDIA NIMs. Modify the following code depending upon the model(s) to be locally deployed:
 
@@ -385,7 +394,7 @@ Also, be sure to add your `NGC_API_KEY` to the environmental variables before ru
 export NGC_API_KEY=nvapi-...
 ```
 
-### Running the tests
+#### Running the tests
 
 Run tests using the Rust standard `cargo test` command:
 
@@ -444,7 +453,7 @@ cargo test -p phymes-server --features wasip2-candle --no-default-features --tar
 wasmtime --dir=$HOME/.cache --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes_server-48a453bb50fd01da.wasm
 ```
 
-### Running the examples
+#### Running the examples
 
 Run examples using the Rust standard `cargo run` command. A few simple examples are provided for the phymes-core and phymes-agents crates to provide new users a starting point for building application using the crates
 
@@ -483,7 +492,7 @@ cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features
 wasmtime --dir="$HOME/.cache/hf" --env=HOME=$HOME target/wasm32-wasip2/release/examples/chatagent.wasm
 ```
 
-### Clippy lints
+#### Clippy lints
 
 We use `clippy` for checking lints during development, and CI runs `clippy` checks.
 
@@ -507,7 +516,7 @@ Search for `allow(clippy::` in the codebase to identify lints that are ignored/a
 - If you have several lints on a function or module, you may disable the lint on the function or module.
 - If a lint is pervasive across multiple modules, you may disable it at the crate level.
 
-### Rustfmt Formatting
+#### Rustfmt Formatting
 
 We use `rustfmt` for formatting during development, and CI runs `rustfmt` checks.
 
@@ -526,7 +535,7 @@ cargo fmt -p phymes-server --all
 cargo fmt -p phymes-app --all
 ```
 
-### Rustdocs and mdBook for documentation
+#### Rustdocs and mdBook for documentation
 
 We use `doc` for API documentation hosted on crates.io and [mdBook](https://github.com/rust-lang/mdBook) for the guide and tutorial static website with a mermaid preprocessor [mdbook-mermaid](https://lib.rs/crates/mdbook-mermaid) is used for generating mermaid diagrams hosted on GitHub Pages.
 
@@ -545,9 +554,7 @@ Please visit the mdBook [guide](https://rust-lang.github.io/mdBook/guide/install
 mdbook build phymes-book
 ```
 
-### Running Benchmarks
-
-In progress...
+#### Running Benchmarks
 
 Running benchmarks are a good way to test the performance of a change. As benchmarks usually take a long time to run, we recommend running targeted tests instead of the full suite.
 
@@ -574,9 +581,9 @@ git checkout feature
 cargo bench -p phymes-agents --bench benchmark_chat_processor -- --baseline main
 ```
 
-### Running the CI locally
+#### Running the CI locally
 
-Continuous integration and deployment are orchestrated using GitHub [actions](https://docs.github.com/en/actions) on each pull request (PR) to the `main` branch. Unfortunately, debugging the CI/CD can be quite difficult and time consuming, so we recommend testing locally using a self-hosted [runner](https://github.com/biom8er/phymes/settings/actions/runners/new?). Since caching is not supported with `act`, alternative GitHub Action files for downloading resources is provided in the `.github.act` folder.
+Continuous integration and deployment are orchestrated using GitHub [actions](https://docs.github.com/en/actions) on each pull request (PR) to the `main` branch. Unfortunately, debugging the CI/CD can be quite difficult and time consuming, so we recommend testing locally using a self-hosted [runner](https://github.com/biom8er/phymes/settings/actions/runners/new?).
 
 First, follow the instructions for downloading, configuring, and using the self-hosted runner.
 
@@ -590,9 +597,11 @@ Third, Run the actions-runner. Now, when you open a PR, the CI will run locally 
 
 <!--- ANCHOR: deploying --->
 
+### Deployment on Web, Desktop, and Mobile
+
 The `phymes-core`, `phymes-agents`, `phymes-server`, `phymes-app` crates form a full-stack application that can run Agentic AI workflows, Graph algorithms, or Simulate networks at scale using a web, desktop, or mobile interface. Both the frontend and server need to be built in `--release` mode for improved performance and security.
 
-### Web
+#### Web
 
 First, build the frontend application using dioxus
 
@@ -623,7 +632,7 @@ cd target/dx/phymes-app/release/web/public
 ./phymes-server
 ```
 
-### Desktop
+#### Desktop
 
 First, build the frontend application
 ```bash
@@ -652,7 +661,7 @@ Fourth, launch the `phymes-server` executable
 ./target/release/phymes-server
 ```
 
-### Mobile (Android)
+#### Mobile (Android)
 
 First, build the frontend application
 ```bash
@@ -681,7 +690,7 @@ Fourth, launch the `phymes-server` executable
 ./target/release/phymes-server
 ```
 
-### WASM
+#### WASM
 
 First, build the phymes-server application with Candle token services.
 
@@ -705,13 +714,17 @@ wastime --dir=$HOME/.cache phymes-server.wasm curl --route app/v1/subjects_info 
 wastime --dir=$HOME/.cache phymes-server.wasm curl --route app/v1/chat --bearer_auth JWTTOKEN --data '{"content":"Write a python function to count prime numbers","session_name":"EMAILChat","subject_name":"messages","format":"Bytes","publish":"None","metadata":"","stream":true}'
 ```
 
-## Deploying with local or remote OpenAI API compatible token service endpoints
+#### no_std
+
+All PHYMES crates can be compiled for the wasm32-unknown-unknown target with `no_std` for integration with embedded and serverless applications
+
+### Deploying with local or remote OpenAI API compatible token service endpoints
 
 OpenAI API compatible token service endpoints are supported for local (e.g., NVIDIA NIMs) or remote (e.g., OpenAI or NVIDIA NIMs). Please see the [guide](CONTRIBUTING.md#developers-guide-to-phymes) for local NVIDIA NIMs token service deployment.
 
 Before running the `phymes-server`, setup the environmental variables as needed to access the local or remote token service endpoint as described in the [guide](CONTRIBUTING.md#developers-guide-to-phymes), or specify the endpoint urls in the `CandleEmbedConfig` and `CandleChatConfig`, respectively.
 
-## Developing and debugging the phymes application
+### Debugging the PHYMES deployment
 
 We recommend debugging the application using two terminals: one for `phymes-app` and another for `phymes-server`. Dioxus provides a great development loop for front-end application development with nifty hot-reloading features, but requires it's own dedicated terminal to run. Tokio provides an industry grade server along with nifty security features. During development (specifically, debug mode), the server permissions are relaxed to enable iterative debugging of the application. The `phymes-core`, `phymes-agents`, and `phymes-server` all use the Tracing crates for tracing and logging functionality. The packages and verbosity of console logging can be specified on the command line using the `RUST_LOG` environmental variable.
 
