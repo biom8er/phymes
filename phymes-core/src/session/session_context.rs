@@ -41,7 +41,7 @@ use crate::task::{
 /// Get the metrics for multiple sessions as a table
 pub fn get_metrics_as_pivot_table(metrics_vec: &[ArrowTaskMetricsSet], table_name: &str) -> Result<ArrowTable> {
     // extract out values from metrics
-    let mut task_metrics_set = HashSet::new();
+    let mut task_metrics_count: HashMap<(String, String), usize> = HashMap::new();
     let mut task_names_vec = Vec::<String>::new();
     let mut metric_names_vec = Vec::<String>::new();
     let mut metric_values_vec = Vec::<u64>::new();
