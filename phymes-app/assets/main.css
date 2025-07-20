@@ -125,7 +125,7 @@ main .sidebar svg {
 /* Main display view styling that is shared across all views */
 main .messaging_list{
 	margin-left: 64px;
-	padding-left:0;
+	padding: 2px 2px 2px 2px;
 	list-style-type:none;
 	overflow-y:scroll;
 	height:77%;

@@ -4,7 +4,7 @@ use phymes_agents::{
     session_plans::chat_agent_session::test_chat_agent_session::bench_chat_processor,
 };
 use phymes_core::{
-    metrics::ArrowTaskMetricsSet, session::session_context::get_metrics_as_table,
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics}, session::session_context::get_metrics_as_table,
     table::arrow_table::ArrowTableTrait,
 };
 
@@ -136,23 +136,21 @@ fn benchmark_chat_processor(c: &mut Criterion) {
             c.bench_function(id.as_str(), |b| {
                 b.iter(|| {
                     let metrics = ArrowTaskMetricsSet::new();
+                    let sample_id = format!("{id}_{iter}");
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
                     let rt = tokio::runtime::Builder::new_current_thread()
                         .build()
                         .unwrap();
+                    let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
+                    let timer = baseline_metrics.elapsed_compute().timer();
                     let _messages = rt.block_on(async {
                         bench_chat_processor(metrics.clone(), config, user_content).await
                     });
+                    timer.done();
+                    baseline_metrics.done();
 
                     // Collect the metrics
-                    let sample_id = format!("{id}_{iter}");
-                    let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                    let pathname = format!("{target_dir}/.cache/metrics/{id}_{iter}.csv");
-                    let path = std::path::Path::new(pathname.as_str());
-                    let prefix = path.parent().unwrap();
-                    std::fs::create_dir_all(prefix).unwrap();
-                    let mut file = std::fs::File::create(pathname).unwrap();
-                    metrics_table.to_csv_file(&mut file, b',', true).unwrap();
+                    metrics_vec.push(metrics);
 
                     // Increment the iteration counter
                     iter += 1;
