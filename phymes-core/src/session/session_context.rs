@@ -909,12 +909,6 @@ impl SessionStreamStep {
 
         // Break if there is nothing to update
         if session_streams.is_empty() && response_streams.is_empty() {
-            let init = state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .init_superstep_updates();
-            state.try_write().unwrap().set_superstep_updates(init);
             return Ok(None);
         }
 
@@ -2802,7 +2796,7 @@ mod tests {
             .unwrap()
             .get_session_context()
             .get_metrics_info_as_table("")?;
-        
+
         // DM: seperate test
         let _pivot_table = get_metrics_as_pivot_table(&[metrics], "")?;
 

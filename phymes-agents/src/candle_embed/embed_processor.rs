@@ -193,7 +193,8 @@ impl CandleEmbedStream {
                 //  which is model family dependent and captured currently
                 //  when loading the model assets
                 if asset.tokenizer_config.eos_token_id.is_none() {
-                    asset.tokenizer_config.eos_token_id = Some(151643);
+                    // asset.tokenizer_config.eos_token_id = Some(151643);
+                    asset.tokenizer_config.eos_token_id = Some(0);
                 }
 
                 // Concurrent embeddings can hold onto the lock simultaneous
@@ -707,7 +708,7 @@ mod tests {
             DType::F32,
             device(config.cpu)?,
         )?;
-        asset.tokenizer_config.eos_token_id = Some(151643);
+        // asset.tokenizer_config.eos_token_id = Some(151643);
         let runtime_env = RuntimeEnv {
             token_service: Some(Arc::new(RwLock::new(asset))),
             tensor_service: None,
@@ -870,7 +871,7 @@ mod tests {
         Ok(())
     }
 
-    #[ignore = "QuantBERT embedding model is not yet supported for WASM."]
+    // #[ignore = "QuantBERT embedding model is not yet supported for WASM."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_candle_embed_stream_wasm() -> Result<()> {
         // Case 1: streaming query
@@ -895,7 +896,8 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             weights_file: Some(format!(
-                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-MiniLM-L6-v2.Q4_K_M.gguf",
+                // "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/pytorch_model.bin",
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             tokenizer_file: Some(format!(
@@ -907,6 +909,7 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
+                // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
                 crate::candle_assets::candle_which::WhichCandleAsset::QuantizedBertEmbed,
             ),
             ..Default::default()
@@ -929,7 +932,6 @@ mod tests {
             DType::F32,
             device(config.cpu)?,
         )?;
-        asset.tokenizer_config.eos_token_id = Some(151643);
         let runtime_env = RuntimeEnv {
             token_service: Some(Arc::new(RwLock::new(asset))),
             tensor_service: None,

@@ -4,11 +4,11 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use parking_lot::RwLock;
 use phymes_agents::session_plans::{
     agent_session_builder::AgentSessionBuilderTrait,
-    document_rag_session::{DocumentRAGSession, test_doc_rag_session::bench_doc_rag_session},
+    document_rag_session::{DocumentRAGSession, test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query}},
 };
 use phymes_core::{
-    metrics::ArrowTaskMetricsSet,
-    session::session_context::{SessionStreamState, get_metrics_as_table},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
+    session::session_context::{get_metrics_as_pivot_table, SessionStreamState},
     table::arrow_table::ArrowTableTrait,
 };
 
@@ -27,55 +27,12 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
         "The cell is the basic structural and functional unit of all forms of life. Every cell consists of cytoplasm enclosed within a membrane; many cells contain organelles, each with a specific function. The term comes from the Latin word cellula meaning 'small room'. Most cells are only visible under a microscope. Cells emerged on Earth about 4 billion years ago. All cells are capable of replication, protein synthesis, and motility.\n\nCells are broadly categorized into two types: eukaryotic cells, which possess a nucleus, and prokaryotic cells, which lack a nucleus but have a nucleoid region. Prokaryotes are single-celled organisms such as bacteria, whereas eukaryotes can be either single-celled, such as amoebae, or multicellular, such as some algae, plants, animals, and fungi. Eukaryotic cells contain organelles including mitochondria, which provide energy for cell functions, chloroplasts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.\n\nCells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells.",
     ];
 
-    let document_texts_vec = vec![document_texts_1, document_texts_2];
+    let document_texts_vec = vec![
+        document_texts_1, 
+        // document_texts_2
+    ];
     let document_ids = &["Proteins", "DNA", "Lipids", "Cells"];
     let user_query = "What are the four molecules that compose DNA?";
-
-    // Cases for different configurations
-    let mut doc_rag_session = DocumentRAGSession {
-        // Chat tasks
-        chat_task_name: "chat_task_1",
-        message_aggregator_task_name: "message_aggregator_task_1",
-        message_aggregator_processor_name: "message_aggregator_processor_1",
-        chat_processor_name: "chat_processor_1",
-        chat_runtime_env_name: "chat_rt_1",
-        // Embed tasks
-        embed_query_task_name: "embed_query_task_1",
-        embed_documents_task_name: "embed_documents_task_1",
-        embed_query_processor_name: "embed_query_processor_1",
-        embed_documents_processor_name: "embed_documents_processor_1",
-        document_chunk_task_name: "chunk_documents_task_1",
-        document_chunk_processor_1_name: "chunk_documents_processor_1",
-        embed_documents_runtime_env_name: "embed_documents_rt_1",
-        embed_query_runtime_env_name: "embed_query_rt_1", // "embed_documents_rt_1",
-        // Vector search tasks
-        vector_search_task_name: "vs_task_1",
-        relative_similarity_processor_name: "rel_sim_processor_1",
-        sort_scores_processor_name: "sort_scores_processor_1",
-        document_chunk_processor_2_name: "chunk_documents_processor_2", //"chunk_documents_processor_1",
-        join_chunks_processor_name: "join_scores_chunks_processor_1",
-        top_k_processor_name: "top_k_processor_1",
-        vector_search_runtime_env_name: "vs_rt_1",
-        // Session and state
-        session_context_name: "session_1",
-        state_messages_table_name: "messages",
-        state_documents_table_name: "documents",
-        state_doc_embed_table_name: "doc_embeddings",
-        state_queries_table_name: "queries",
-        state_q_embed_table_name: "q_embeddings",
-        state_top_k_docs_table_name: "top_k",
-        state_scores_table_name: "tmp_scores",
-        state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
-        embed_length: 1536, // Hidden size for GTE Qwen2 1.5B
-        chat_api_url: None,
-        embed_api_url: None,
-    };
-    if cfg!(not(feature = "candle")) {
-        doc_rag_session.embed_length = 384; // Smallest dimension for Llama
-        doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
-        doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
-    }
-    let config_vec = vec![doc_rag_session];
 
     // Get the target and GPU configuration
     let wasm = if cfg!(target_arch = "wasm32") {
@@ -90,54 +47,128 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
         "openai_api"
     };
 
-    // Benchmark each configuration with each user content sequentially
-    for config in config_vec {
-        for document_texts in &document_texts_vec {
-            let id = format!(
-                "doc-rag-session_{}_{}_{}_{}",
-                document_texts.first().unwrap().len(),
-                wasm,
-                gpu,
-                candle
-            );
-            let mut iter = 0;
-            c.bench_function(id.as_str(), |b| {
-                b.iter(|| {
-                    let metrics = ArrowTaskMetricsSet::new();
-                    let session_ctx = config.make_session_context(metrics.clone()).unwrap();
-                    let session_stream_state =
-                        Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
-                    // DM: Cannot use tokio::runtime::Runtime in WASM context
-                    let rt = tokio::runtime::Builder::new_current_thread()
-                        .build()
-                        .unwrap();
-                    let _messages = rt.block_on(async {
-                        bench_doc_rag_session(
-                            Arc::clone(&session_stream_state),
-                            &config,
-                            user_query,
-                            document_texts.as_ref(),
-                            document_ids,
-                        )
-                        .await
-                    });
+    // Benchmark each user content and configuration sequentially
+    let mut metrics_vec = Vec::new();
+    for document_texts in &document_texts_vec {
+        // Create a unique tag and id for each benchmark
+        let tag = format!("{}_{wasm}_{gpu}_{candle}", document_texts.first().unwrap().len());
+        let id = format!("doc-rag-session_{tag}");
+        let mut iter = 0; // DM: not so useful as there is only one configuration we test at this point in time
 
-                    // Export the metrics to CSV
-                    let metrics_table = get_metrics_as_table(metrics, "metrics").unwrap();
-                    let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                    let pathname = format!("{target_dir}/.cache/metrics/{id}_{iter}.csv");
-                    let path = std::path::Path::new(pathname.as_str());
-                    let prefix = path.parent().unwrap();
-                    std::fs::create_dir_all(prefix).unwrap();
-                    let mut file = std::fs::File::create(pathname).unwrap();
-                    metrics_table.to_csv_file(&mut file, b',', true).unwrap();
+        // The actual benchmark function
+        c.bench_function(id.as_str(), |b| {
+            b.iter(|| {
+                // Create the session configuration
+                let chat_task_name = format!("chat_task_1_{tag}_{iter}");
+                let message_aggregator_task_name = format!("message_aggregator_task_1_{tag}_{iter}");
+                let message_aggregator_processor_name = format!("message_aggregator_processor_1_{tag}_{iter}");
+                let chat_processor_name = format!("chat_processor_1_{tag}_{iter}");
+                let embed_query_task_name = format!("embed_query_task_1_{tag}_{iter}");
+                let embed_documents_task_name = format!("embed_documents_task_1_{tag}_{iter}");
+                let embed_query_processor_name = format!("embed_query_processor_1_{tag}_{iter}");
+                let embed_documents_processor_name = format!("embed_documents_processor_1_{tag}_{iter}");
+                let document_chunk_task_name = format!("chunk_documents_task_1_{tag}_{iter}");
+                let document_chunk_processor_1_name = format!("chunk_documents_processor_1_{tag}_{iter}");
+                let vector_search_task_name = format!("vs_task_1_{tag}_{iter}");
+                let relative_similarity_processor_name = format!("rel_sim_processor_1_{tag}_{iter}");
+                let sort_scores_processor_name = format!("sort_scores_processor_1_{tag}_{iter}");
+                let document_chunk_processor_2_name = format!("chunk_documents_processor_2_{tag}_{iter}");
+                let join_chunks_processor_name = format!("join_scores_chunks_processor_1_{tag}_{iter}");
+                let top_k_processor_name = format!("top_k_processor_1_{tag}_{iter}");
+                let session_context_name = format!("session_1_{tag}_{iter}");
 
-                    // Increment the iteration counter
-                    iter += 1;
+                let mut config = DocumentRAGSession {
+                    chat_task_name: &chat_task_name,
+                    message_aggregator_task_name: &message_aggregator_task_name,
+                    message_aggregator_processor_name: &message_aggregator_processor_name,
+                    chat_processor_name: &chat_processor_name,
+                    chat_runtime_env_name: "chat_rt_1",
+                    embed_query_task_name: &embed_query_task_name,
+                    embed_documents_task_name: &embed_documents_task_name,
+                    embed_query_processor_name: &embed_query_processor_name,
+                    embed_documents_processor_name: &embed_documents_processor_name,
+                    document_chunk_task_name: &document_chunk_task_name,
+                    document_chunk_processor_1_name: &document_chunk_processor_1_name,
+                    embed_documents_runtime_env_name: "embed_documents_rt_1",
+                    embed_query_runtime_env_name: "embed_documents_rt_1", //"embed_query_rt_1",
+                    vector_search_task_name: &vector_search_task_name,
+                    relative_similarity_processor_name: &relative_similarity_processor_name,
+                    sort_scores_processor_name: &sort_scores_processor_name,
+                    document_chunk_processor_2_name: &document_chunk_processor_2_name,
+                    join_chunks_processor_name: &join_chunks_processor_name,
+                    top_k_processor_name: &top_k_processor_name,
+                    vector_search_runtime_env_name: "vs_rt_1",
+                    session_context_name: &session_context_name,
+                    state_messages_table_name: "messages",
+                    state_documents_table_name: "documents",
+                    state_doc_embed_table_name: "doc_embeddings",
+                    state_queries_table_name: "queries",
+                    state_q_embed_table_name: "q_embeddings",
+                    state_top_k_docs_table_name: "top_k",
+                    state_scores_table_name: "tmp_scores",
+                    state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
+                    embed_length: 1536, // Hidden size for GTE Qwen2 1.5B
+                    chat_api_url: None,
+                    embed_api_url: None,
+                };
+                if cfg!(not(feature = "candle")) {
+                    config.embed_length = 384; // Smallest dimension for Llama
+                    config.chat_api_url = Some("http://0.0.0.0:8000/v1");
+                    config.embed_api_url = Some("http://0.0.0.0:8001/v1");
+                }
+
+                // Create the session stream state
+                let metrics = ArrowTaskMetricsSet::new();
+                let session_ctx = config.make_session_context(metrics.clone()).unwrap();
+                let session_stream_state =
+                    Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+                let sample_id = format!("{id}_{iter}");
+
+                // Run the benchmark for the chat agent session with metrics
+                // DM: Cannot use tokio::runtime::Runtime in WASM context
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .build()
+                    .unwrap();
+                let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
+                let timer = baseline_metrics.elapsed_compute().timer();
+                let _messages = rt.block_on(async {
+                    bench_doc_rag_session_docs(
+                        Arc::clone(&session_stream_state),
+                        &config,
+                        document_texts.as_ref(),
+                        document_ids,
+                    )
+                    .await
                 });
+                let _messages = rt.block_on(async {
+                    bench_doc_rag_session_query(
+                        Arc::clone(&session_stream_state),
+                        &config,
+                        user_query,
+                    )
+                    .await
+                });
+                timer.done();
+                baseline_metrics.done();
+
+                // Collect the metrics
+                metrics_vec.push(metrics);
+
+                // Increment the iteration counter
+                iter += 1;
             });
-        }
+        });
     }
+
+    // Export the metrics to CSV
+    let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();
+    let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let pathname = format!("{target_dir}/.cache/metrics/benchmark_docrag_{wasm}_{gpu}_{candle}.csv");
+    let path = std::path::Path::new(pathname.as_str());
+    let prefix = path.parent().unwrap();
+    std::fs::create_dir_all(prefix).unwrap();
+    let mut file = std::fs::File::create(pathname).unwrap();
+    metrics_table.to_csv_file(&mut file, b',', true).unwrap();
 }
 
 criterion_group!(benches, benchmark_chat_agent_session);

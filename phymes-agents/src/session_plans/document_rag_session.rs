@@ -585,23 +585,23 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             repeat_last_n: 64,
             // All files need to be local for WASM testing
             weights_config_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             weights_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             tokenizer_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             tokenizer_config_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::SmolLM2_135MChat,
+                crate::candle_assets::candle_which::WhichCandleAsset::QwenV2p5_1p5bChat,
             ),
             ..Default::default()
         };
@@ -610,7 +610,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         #[cfg(feature = "hf_hub")]
         {
             candle_chat_config.candle_asset =
-                Some(crate::candle_assets::candle_which::WhichCandleAsset::QwenV2p5_1p5bChat);
+                Some(crate::candle_assets::candle_which::WhichCandleAsset::QwenV2p5_3bChat);
             candle_chat_config.openai_asset = None;
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
@@ -643,24 +643,45 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             dimensions: Some(self.embed_length as i32),
             // All files need to be local for WASM testing
             weights_config_file: Some(format!(
-                "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/config.json",
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             weights_file: Some(format!(
-                "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf",
+                // "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/pytorch_model.bin",
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             tokenizer_file: Some(format!(
-                "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer.json",
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             tokenizer_config_file: Some(format!(
-                "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer_config.json",
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::QwenV2_1p5bEmbed,
+                // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
+                crate::candle_assets::candle_which::WhichCandleAsset::QuantizedBertEmbed,
             ),
+            // weights_config_file: Some(format!(
+            //     "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/config.json",
+            //     std::env::var("HOME").unwrap_or("".to_string())
+            // )),
+            // weights_file: Some(format!(
+            //     "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf",
+            //     std::env::var("HOME").unwrap_or("".to_string())
+            // )),
+            // tokenizer_file: Some(format!(
+            //     "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer.json",
+            //     std::env::var("HOME").unwrap_or("".to_string())
+            // )),
+            // tokenizer_config_file: Some(format!(
+            //     "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer_config.json",
+            //     std::env::var("HOME").unwrap_or("".to_string())
+            // )),
+            // candle_asset: Some(
+            //     crate::candle_assets::candle_which::WhichCandleAsset::QwenV2_1p5bEmbed,
+            // ),
             ..Default::default()
         };
 
@@ -671,6 +692,9 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             candle_embed_config.weights_file = None;
             candle_embed_config.tokenizer_file = None;
             candle_embed_config.tokenizer_config_file = None;
+            candle_embed_config.candle_asset = Some(
+                crate::candle_assets::candle_which::WhichCandleAsset::QwenV2_1p5bEmbed,
+            );
         }
 
         // Add openAI_api if available
@@ -847,10 +871,9 @@ pub mod test_doc_rag_session {
         },
     };
 
-    pub async fn bench_doc_rag_session<'a>(
+    pub async fn bench_doc_rag_session_docs<'a>(
         session_stream_state: Arc<RwLock<SessionStreamState>>,
         doc_rag_session: &DocumentRAGSession<'a>,
-        user_query: &str,
         document_texts: &[&str],
         document_ids: &[&str],
     ) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
@@ -886,6 +909,16 @@ pub mod test_doc_rag_session {
         let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
+        // Run the session
+        let session_stream = SessionStream::new(incoming_message_map, session_stream_state);
+        session_stream.try_collect().await
+    }
+
+    pub async fn bench_doc_rag_session_query<'a>(
+        session_stream_state: Arc<RwLock<SessionStreamState>>,
+        doc_rag_session: &DocumentRAGSession<'a>,
+        user_query: &str,
+    ) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
         // Create the query message
         let mut query_vec = Vec::new();
         if cfg!(feature = "candle") {
@@ -919,6 +952,7 @@ pub mod test_doc_rag_session {
                 table_name: doc_rag_session.state_queries_table_name.to_string(),
             })
             .build()?;
+        let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
         // Make the system prompt and add the user query
@@ -940,6 +974,7 @@ pub mod test_doc_rag_session {
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
         // Run the session
+        session_stream_state.try_write().unwrap().set_iter(0);
         let session_stream = SessionStream::new(incoming_message_map, session_stream_state);
         session_stream.try_collect().await
     }
@@ -956,7 +991,7 @@ mod tests {
     };
 
     use super::*;
-    use test_doc_rag_session::bench_doc_rag_session;
+    use test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query};
 
     #[tokio::test]
     async fn test_doc_rag_session() -> Result<()> {
@@ -979,7 +1014,7 @@ mod tests {
             document_chunk_task_name: "chunk_documents_task_1",
             document_chunk_processor_1_name: "chunk_documents_processor_1",
             embed_documents_runtime_env_name: "embed_documents_rt_1",
-            embed_query_runtime_env_name: "embed_query_rt_1", // "embed_documents_rt_1",
+            embed_query_runtime_env_name: "embed_documents_rt_1", //"embed_query_rt_1",
             // Vector search tasks
             vector_search_task_name: "vs_task_1",
             relative_similarity_processor_name: "rel_sim_processor_1",
@@ -998,7 +1033,8 @@ mod tests {
             state_top_k_docs_table_name: "top_k",
             state_scores_table_name: "tmp_scores",
             state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
-            embed_length: 1536, // Hidden size for GTE Qwen2 1.5B
+            // embed_length: 1536, // Hidden size for GTE Qwen2 1.5B
+            embed_length: 384, // Hidden size for BERT
             chat_api_url: None,
             embed_api_url: None,
         };
@@ -1027,14 +1063,16 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = bench_doc_rag_session(
+            let _response: Vec<HashMap<String, ArrowIncomingMessage>> = bench_doc_rag_session_docs(
+                Arc::clone(&session_stream_state),
+                &doc_rag_session,
+                document_texts,
+                document_ids).await?;
+
+            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = bench_doc_rag_session_query(
                 session_stream_state,
                 &doc_rag_session,
-                user_query,
-                document_texts,
-                document_ids,
-            )
-            .await?;
+                user_query).await?;
 
             // Update the chat history with the response
             let json_data = response

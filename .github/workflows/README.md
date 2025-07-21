@@ -17,11 +17,13 @@ cargo install --git https://github.com/rust-lang/mdBook.git mdbook
 curl https://wasmtime.dev/install.sh -sSf | bash
 mkdir -p ~/.cache/hf
 cp -a $GITHUB_WORKSPACE/.cache/hf/. ~/.cache/hf/
-curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/model.safetensors  https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/model.safetensors?download=true -sSf
-curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/pytorch_model.bin  https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/pytorch_model.bin?download=true -sSf
-curl -L -o ~/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-0.5b-instruct-q4_k_m.gguf  https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true -sSf
-curl -L -o ~/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf  https://huggingface.co/Segilmez06/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf?download=true -sSf
-curl -L -o ~/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf  https://huggingface.co/tensorblock/gte-Qwen2-1.5B-instruct-GGUF/resolve/main/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf?download=true -sSf
+curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/model.safetensors https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/model.safetensors?download=true -sSf
+curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/pytorch_model.bin https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/pytorch_model.bin?download=true -sSf
+curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q4_k_m.gguf https://huggingface.co/Jarbas/all-MiniLM-L6-v2-Q4_K_M-GGUF/resolve/main/all-minilm-l6-v2-q4_k_m.gguf?download=true -sSf
+curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf https://huggingface.co/sudomoniker/all-MiniLM-L6-v2-Q8_0-GGUF/resolve/main/all-minilm-l6-v2-q8_0.gguf?download=true -sSf
+curl -L -o ~/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-0.5b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true -sSf
+curl -L -o ~/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf https://huggingface.co/Segilmez06/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf?download=true -sSf
+curl -L -o ~/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf https://huggingface.co/tensorblock/gte-Qwen2-1.5B-instruct-GGUF/resolve/main/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf?download=true -sSf
 ```
 ## Tests
 
@@ -74,12 +76,23 @@ cargo doc --document-private-items --no-deps -p phymes-server
 cargo doc --document-private-items --no-deps -p phymes-app
 ```
 
+## Additional cache resources for benchmarking
+
+The following will setup additional cache resources
+
+```bash
+curl -L -o ~/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q8_0.gguf https://huggingface.co/Segilmez06/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q8_0.gguf?download=true -sSf
+curl -L -o ~/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-f16.gguf https://huggingface.co/MaziyarPanahi/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct.fp16.gguf?download=true -sSf
+curl -L -o ~/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-3b-instruct-q5_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q5_k_m.gguf?download=true
+curl -L -o ~/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true
+mkdir ~/.cache/metrics
+```
+
 ## Benchmarks
 
 The following runs all benchmarks with all CPU, GPU, and WASM features and targets
 
 ```bash
-mkdir ~/.cache/metrics
 cargo bench --bench chat -p phymes-agents --no-default-features --features wasip2,gpu,candle -- --sample-size 10
 cargo bench --bench chat -p phymes-agents --no-default-features --features wasip2,candle -- --sample-size 10
 cargo bench --bench chat -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run

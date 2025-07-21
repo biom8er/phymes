@@ -218,7 +218,7 @@ impl WhichCandleAsset {
             Self::SmolLM2_360MChat => todo!(),
             Self::SmolLM2_1p7BChat => todo!(),
             Self::BertEmbed => "sentence-transformers/all-MiniLM-L6-v2",
-            Self::QuantizedBertEmbed => "Jarbas/all-MiniLM-L6-v2-Q4_K_M-GGUF",
+            Self::QuantizedBertEmbed => "sudomoniker/all-MiniLM-L6-v2-Q8_0-GGUF",
             Self::NomicEmbed => todo!(),
         }
     }
