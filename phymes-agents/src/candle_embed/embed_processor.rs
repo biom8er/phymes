@@ -700,7 +700,7 @@ mod tests {
             .build()?;
 
         // Make the runtime
-        let mut asset = config.candle_asset.unwrap().build(
+        let asset = config.candle_asset.unwrap().build(
             config.weights_config_file.clone(),
             config.tokenizer_file.clone(),
             config.weights_file.clone(),
@@ -708,7 +708,6 @@ mod tests {
             DType::F32,
             device(config.cpu)?,
         )?;
-        // asset.tokenizer_config.eos_token_id = Some(151643);
         let runtime_env = RuntimeEnv {
             token_service: Some(Arc::new(RwLock::new(asset))),
             tensor_service: None,
@@ -924,7 +923,7 @@ mod tests {
         let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
 
         // Make the runtime
-        let mut asset = config.candle_asset.unwrap().build(
+        let asset = config.candle_asset.unwrap().build(
             config.weights_config_file.clone(),
             config.tokenizer_file.clone(),
             config.weights_file.clone(),

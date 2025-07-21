@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use parking_lot::RwLock;
-use phymes_core::{metrics::ArrowTaskMetricsSet, session::session_context::SessionStreamState};
+use phymes_core::{metrics::ArrowTaskMetricsSet, session::session_context::{SessionStream, SessionStreamState}};
 use serde::{Deserialize, Serialize};
 
 use crate::candle_ops::ops_which::WhichCandleOps;
@@ -98,7 +98,8 @@ impl AvailableSessionPlans {
                     state_top_k_docs_table_name: "top_k",
                     state_scores_table_name: "tmp_scores",
                     state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
-                    embed_length: 1536, // Hidden size for GTE Qwen2 1.5B
+                    // embed_length: 1536, // Hidden size for GTE Qwen2 1.5B
+                    embed_length: 384, // Hidden size for BERT
                     chat_api_url: None,
                     embed_api_url: None,
                 };
@@ -151,9 +152,27 @@ impl AvailableSessionPlans {
             Ok(Self::ToolChat.get_session_stream_state(session_name))
         } else {
             Err(anyhow!(
-                "Plan name {} was not found in the available session plans.",
-                session_plan_name
+                "Plan name {session_plan_name} was not found in the available session plans."
             ))
+        }
+    }
+
+    /// Get the session stream by name
+    pub fn get_session_stream_by_name(
+        session_plan_name: &str,
+        session_name: &str, 
+        session_stream_state: Arc<RwLock<SessionStreamState>>, 
+        user_query: &str
+    ) -> SessionStream {
+        let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
+        if session_plan_name == Self::Chat.get_session_plan_name() {
+            SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state))
+        } else if session_plan_name == Self::DocChat.get_session_plan_name() {
+            SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state))
+        } else if session_plan_name == Self::ToolChat.get_session_plan_name() {
+            SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state))
+        } else {
+            panic!("Plan name {session_plan_name} was not found in the available session plans.")
         }
     }
 }

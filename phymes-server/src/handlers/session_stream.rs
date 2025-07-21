@@ -121,15 +121,7 @@ pub async fn session_stream(
             let session_stream =
                 SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
 
-            // Run and update the session
-            // DM: we cannot just forward the stream because we want to
-            //  update the session which requires executing the stream first
-            //  i.e., we cannot do something like the following
-
-            //  and then send the response after optionally converting to a
-            //  a byte stream
-
-            // Convert the output to the user specified format
+            // Run and update the session and convert the output to the user specified format 
             // Note: that we cannot write state updates to disk for
             //   streaming responses since we need to execute the stream first
             match (&payload.format, payload.stream) {

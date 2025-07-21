@@ -921,7 +921,7 @@ pub mod test_doc_rag_session {
     ) -> Result<Vec<HashMap<String, ArrowIncomingMessage>>> {
         // Create the query message
         let mut query_vec = Vec::new();
-        if cfg!(feature = "candle") {
+        if cfg!(feature = "hf_hub") {
             // DM: note that the prompt for the query is specific to Qwen!
             let query_embed_str = format!(
                 "{}{}",
