@@ -137,7 +137,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                 b.iter(|| {
                     let metrics = ArrowTaskMetricsSet::new();
                     let sample_id = format!("{id}_{iter}");
-                    let name = format!("{id}_{iter}_processor");
+                    let name = format!("chat_processor_{id}_{iter}");
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
                     let rt = tokio::runtime::Builder::new_current_thread()
                         .build()
@@ -158,7 +158,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                 });
             });
         }
-    }    
+    }
 
     // Export the metrics to CSV
     let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();

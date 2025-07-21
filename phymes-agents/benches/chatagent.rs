@@ -10,8 +10,8 @@ use phymes_agents::session_plans::{
     },
 };
 use phymes_core::{
-    metrics::ArrowTaskMetricsSet,
-    session::session_context::{SessionStreamState, get_metrics_as_table},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
+    session::session_context::{get_metrics_as_pivot_table, SessionStreamState},
     table::arrow_table::ArrowTableTrait,
 };
 
@@ -30,17 +30,6 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
         ),
     ];
 
-    // Cases for different configurations
-    let chat_agent_session_1 = ChatAgentSession {
-        session_context_name: "session_1",
-        chat_processor_name: "chat_processor_1",
-        chat_task_name: "chat_task_1",
-        runtime_env_name: "rt_1",
-        chat_subscription_name: "messages",
-        chat_api_url: Some("http://0.0.0.0:8000/v1"),
-    };
-    let config_vec = vec![chat_agent_session_1];
-
     // Get the target and GPU configuration
     let wasm = if cfg!(target_arch = "wasm32") {
         "wasm"
@@ -55,59 +44,80 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     };
 
     // Benchmark each configuration with each user content sequentially
-    for config in config_vec {
-        for user_content in &user_content_vec {
-            let id = format!(
-                "chat-agent-session_{}_{}_{}_{}",
-                user_content.0.len(),
-                wasm,
-                gpu,
-                candle
-            );
-            let mut iter = 0;
-            c.bench_function(id.as_str(), |b| {
-                b.iter(|| {
-                    let metrics = ArrowTaskMetricsSet::new();
-                    let session_ctx = config.make_session_context(metrics.clone()).unwrap();
-                    let session_stream_state =
-                        Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
-                    // DM: Cannot use tokio::runtime::Runtime in WASM context
-                    let rt = tokio::runtime::Builder::new_current_thread()
-                        .build()
-                        .unwrap();
-                    let _messages = rt.block_on(async {
-                        bench_chat_agent_session_1(
-                            Arc::clone(&session_stream_state),
-                            &config,
-                            user_content.0,
-                        )
-                        .await
-                    });
-                    let _messages = rt.block_on(async {
-                        bench_chat_agent_session_2(
-                            Arc::clone(&session_stream_state),
-                            &config,
-                            user_content.0,
-                        )
-                        .await
-                    });
+    let mut metrics_vec = Vec::new();
+    for user_content in &user_content_vec {
+        // Create a unique tag and id for each benchmark
+        let tag = format!("{}_{wasm}_{gpu}_{candle}", user_content.0.len());
+        let id = format!("chat-agent-session_{tag}");
+        let mut iter = 0; // DM: not so useful as there is only one configuration we test at this point in time
 
-                    // Export the metrics to CSV
-                    let metrics_table = get_metrics_as_table(metrics, "metrics").unwrap();
-                    let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                    let pathname = format!("{target_dir}/.cache/metrics/{id}_{iter}.csv");
-                    let path = std::path::Path::new(pathname.as_str());
-                    let prefix = path.parent().unwrap();
-                    std::fs::create_dir_all(prefix).unwrap();
-                    let mut file = std::fs::File::create(pathname).unwrap();
-                    metrics_table.to_csv_file(&mut file, b',', true).unwrap();
+        // The actual benchmark function
+        c.bench_function(id.as_str(), |b| {
+            b.iter(|| {            
+                // Create the session configuration
+                let session_context_name = format!("session_1_{tag}_{iter}");
+                let chat_processor_name = format!("chat_processor_1_{tag}_{iter}");
+                let chat_task_name = format!("chat_task_1_{tag}_{iter}");
+                let config = ChatAgentSession {
+                    session_context_name: session_context_name.as_str(),
+                    chat_processor_name: chat_processor_name.as_str(),
+                    chat_task_name: chat_task_name.as_str(),
+                    runtime_env_name: "rt_1",
+                    chat_subscription_name: "messages",
+                    chat_api_url: Some("http://0.0.0.0:8000/v1"),
+                };
 
-                    // Increment the iteration counter
-                    iter += 1;
+                // Create the session stream state
+                let metrics = ArrowTaskMetricsSet::new();
+                let session_ctx = config.make_session_context(metrics.clone()).unwrap();
+                let session_stream_state =
+                    Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+                let sample_id = format!("{id}_{iter}");
+
+                // Run the benchmark for the chat agent session with metrics
+                // DM: Cannot use tokio::runtime::Runtime in WASM context
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .build()
+                    .unwrap();
+                let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
+                let timer = baseline_metrics.elapsed_compute().timer();
+                let _messages = rt.block_on(async {
+                    bench_chat_agent_session_1(
+                        Arc::clone(&session_stream_state),
+                        &config,
+                        user_content.0,
+                    )
+                    .await
                 });
+                let _messages = rt.block_on(async {
+                    bench_chat_agent_session_2(
+                        Arc::clone(&session_stream_state),
+                        &config,
+                        user_content.0,
+                    )
+                    .await
+                });
+                timer.done();
+                baseline_metrics.done();
+
+                // Collect the metrics
+                metrics_vec.push(metrics);
+
+                // Increment the iteration counter
+                iter += 1;
             });
-        }
+        });
     }
+
+    // Export the metrics to CSV
+    let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();
+    let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let pathname = format!("{target_dir}/.cache/metrics/benchmark_chatagent_{wasm}_{gpu}_{candle}.csv");
+    let path = std::path::Path::new(pathname.as_str());
+    let prefix = path.parent().unwrap();
+    std::fs::create_dir_all(prefix).unwrap();
+    let mut file = std::fs::File::create(pathname).unwrap();
+    metrics_table.to_csv_file(&mut file, b',', true).unwrap();
 }
 
 criterion_group!(benches, benchmark_chat_agent_session);

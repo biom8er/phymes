@@ -5,7 +5,6 @@ use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
 use futures::{FutureExt, Stream, TryStreamExt};
 use parking_lot::{Mutex, RwLock};
-use core::task;
 use std::fs::File;
 use std::future::Future;
 use std::pin::Pin;
@@ -23,7 +22,7 @@ use super::{
     runtime_env::RuntimeEnv,
     session_context_builder::SessionContextBuilder,
 };
-use crate::metrics::{ArrowTaskMetricsSet, HashMap, HashSet};
+use crate::metrics::{ArrowTaskMetricsSet, HashMap};
 use crate::table::arrow_table_publish::ArrowTablePublish;
 use crate::table::{
     arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
@@ -42,57 +41,71 @@ use crate::task::{
 pub fn get_metrics_as_pivot_table(metrics_vec: &[ArrowTaskMetricsSet], table_name: &str) -> Result<ArrowTable> {
     // extract out values from metrics
     let mut task_metrics_count: HashMap<(String, String), usize> = HashMap::new();
-    let mut task_names_vec = Vec::<String>::new();
+    let mut task_names_vec = Vec::<(String,usize)>::new();
     let mut metric_names_vec = Vec::<String>::new();
     let mut metric_values_vec = Vec::<u64>::new();
     for metrics in metrics_vec.iter() {        
         for metric in metrics.clone_inner().iter() {
-            let mut task_name = metric.task().as_ref().unwrap().to_string();
-            let mut task_metric_name = (
-                task_name.clone(),
-                metric.value().name().to_string());
-            if task_metrics_set.contains(&task_metric_name) {
-                continue; // skip if already exists
+            // Count the number of unique task and metric combinations
+            let task_name = metric.task().as_ref().unwrap().to_string();
+            let metric_name = metric.value().name().to_string();
+            if let Some(count) = task_metrics_count.get_mut(&(task_name.clone(), metric_name.clone())) {
+                *count += 1;
+            } else {
+                task_metrics_count.insert((task_name.clone(), metric_name.clone()), 1);
             }
-            task_metrics_set.insert();
-            metric_names_vec.push(metric.value().name().to_string());
+
+            // Record the task name, metric name, and value
+            task_names_vec.push((task_name.clone(), *task_metrics_count.get(&(task_name.clone(), metric_name.clone())).unwrap()));
+            metric_names_vec.push(metric_name);
             metric_values_vec.push(metric.value().as_usize() as u64);
         }
     }
 
-    // find the unique metric names
-    let unique_metric_names: Vec<String> = metric_names_vec
+    // find the unique metric names and task names
+    let mut unique_metric_names: Vec<String> = metric_names_vec
         .iter()
         .cloned()
         .collect::<std::collections::HashSet<_>>()
         .into_iter()
         .collect();
-    let unique_task_names: Vec<String> = task_metrics_set
+    unique_metric_names.sort();
+    let mut unique_task_names: Vec::<(String,usize)> = task_names_vec
         .iter()
-        .map(|(task_name, _)| task_name.to_owned())
+        .cloned()
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
         .collect();
+    unique_task_names.sort_by(|a, b| a.1.cmp(&b.1));
+    unique_task_names.sort_by(|a, b| a.0.cmp(&b.0));
 
-    // create the pivot table columns
+    // create the pivot table columns and initialize with task names and replicate counts
     let mut pivot_columns = Vec::new();
-    println!("Unique task names: {unique_task_names:?}");
-    let task_values: ArrayRef = Arc::new(StringArray::from(unique_task_names.clone()));
-    pivot_columns.push(("task_name", task_values));
+    let task_names: ArrayRef = Arc::new(StringArray::from(unique_task_names.iter().map(|(name, _)| name.clone()).collect::<Vec<_>>()));
+    pivot_columns.push(("task_name", task_names));
+    let replicate_couns: ArrayRef = Arc::new(UInt64Array::from(unique_task_names.iter().map(|(_, count)| *count as u64).collect::<Vec<_>>()));
+    pivot_columns.push(("replicate_count", replicate_couns));
+
+    // Extract the metric values for each unique metric name and task name
     for metric_name in unique_metric_names.iter() {
         let mut pivot_metric_values = Vec::<u64>::new();
-        for task_name in task_metrics_set.iter() {
+        for (task_name, replicate_count) in unique_task_names.iter() {
 
             // find the matching metric and task name
+            let mut found = false;
             for i in 0..task_names_vec.len() {
-                if metric_names_vec.get(i).unwrap() == metric_name && task_names_vec.get(i).unwrap() == task_name {
+                if metric_names_vec.get(i).unwrap() == metric_name && task_names_vec.get(i).unwrap().0 == *task_name && task_names_vec.get(i).unwrap().1 == *replicate_count{
                     pivot_metric_values.push(metric_values_vec.get(i).unwrap().to_owned());
+                    found = true;
                     break;
                 }
             }
-            pivot_metric_values.push(0); // default value if not found
+            if !found {
+                pivot_metric_values.push(0); // default value if not found
+            }            
         }
 
         // create the named array for this metric
-        println!("{metric_name}: {pivot_metric_values:?}");
         let metric_values: ArrayRef = Arc::new(UInt64Array::from(pivot_metric_values));
         pivot_columns.push((metric_name, metric_values));
     }
@@ -2782,13 +2795,16 @@ mod tests {
         assert_eq!(n_rows, 6);
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 5385);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
+
+        // DM: seperate test
         let _info = session_stream_state
             .try_read()
             .unwrap()
             .get_session_context()
             .get_metrics_info_as_table("")?;
+        
+        // DM: seperate test
         let _pivot_table = get_metrics_as_pivot_table(&[metrics], "")?;
-        dbg!(_pivot_table);
 
         Ok(())
     }

@@ -92,5 +92,5 @@ cargo bench --bench docrag -p phymes-agents --no-default-features --features was
 cargo bench --bench docrag -p phymes-agents --no-default-features --features wasip2,candle -- --sample-size 10
 cargo bench --bench docrag -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
 for file in target/wasm32-wasip2/release/deps/docrag-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
-mv ~/.cache/metrics ./target/criterion/
+mv ~/.cache/metrics/* ./target/criterion/metrics/
 ```
