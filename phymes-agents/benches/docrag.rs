@@ -107,7 +107,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     state_top_k_docs_table_name: "top_k",
                     state_scores_table_name: "tmp_scores",
                     state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
-                    embed_length: 1536, // Hidden size for GTE Qwen2 1.5B
+                    embed_length: 384, // Hidden size for GTE Qwen2 1.5B
                     chat_api_url: None,
                     embed_api_url: None,
                 };

@@ -1,7 +1,6 @@
 /// General dependencies
 use anyhow::Result;
 use candle_core::{DType, Device, Tensor};
-use core::panic;
 use tokenizers::tokenizer::Tokenizer;
 
 /// phymes-core dependencies
@@ -59,7 +58,6 @@ impl TokenProcessorTrait for CandleAsset {
 
         // Run forward inference
         let result: Tensor = match &mut self.model_weights {
-            CandleModelWeights::Nomic(_) => panic!("Nomic is not yet implemented!"),
             CandleModelWeights::Bert(mw) => {
                 let token_type_ids = input.zeros_like()?;
                 mw.forward(

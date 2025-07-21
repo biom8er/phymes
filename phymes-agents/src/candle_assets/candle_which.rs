@@ -15,11 +15,6 @@ use tokenizers::Tokenizer;
 
 /// All supported models
 use crate::candle_models::{
-    //quantized_nomic::NomicBertModel as QuantizedNomic,
-    nomic::{
-        NomicBertModel as Nomic, NomicConfig,
-        tei_backend_core::{ModelType, Pool},
-    },
     quantized_bert::{BertModel as QuantizedBert, Config as QuantizerdBertConfig},
     quantized_qwen2::ModelWeights as QuantizedQwen2,
 };
@@ -32,10 +27,8 @@ use super::candle_asset::CandleAsset;
 pub enum CandleModelWeights {
     QuantizedQwen2(QuantizedQwen2),
     QuantizedLlama(QuantizedLlama),
-    //QuantizedNomic(QuantizedNomic),
     QuantizedBert(QuantizedBert),
     Bert(Bert),
-    Nomic(Nomic),
 }
 
 impl std::fmt::Debug for CandleModelWeights {
@@ -45,7 +38,6 @@ impl std::fmt::Debug for CandleModelWeights {
             Self::QuantizedLlama(_) => write!(f, "Quantized-Llama"),
             Self::QuantizedBert(_) => write!(f, "Quantized-Bert"),
             Self::Bert(_) => write!(f, "Bert"),
-            Self::Nomic(_) => write!(f, "Nomic"),
         }
     }
 }
@@ -96,8 +88,6 @@ pub enum WhichCandleAsset {
     BertEmbed,
     #[value(name = "Quantized-BERT-embed")]
     QuantizedBertEmbed,
-    #[value(name = "Nomic-embed")]
-    NomicEmbed,
 }
 
 impl Default for WhichCandleAsset {
@@ -132,7 +122,6 @@ impl WhichCandleAsset {
             Self::SmolLM2_1p7BChat => todo!(),
             Self::BertEmbed => "all-MiniLM-L6-v2",
             Self::QuantizedBertEmbed => "all-MiniLM-L6-v2",
-            Self::NomicEmbed => todo!(),
         }
     }
 
@@ -160,8 +149,7 @@ impl WhichCandleAsset {
             | Self::QwenV2_1p5bEmbed
             | Self::QwenV2_7bEmbed
             | Self::BertEmbed
-            | Self::QuantizedBertEmbed
-            | Self::NomicEmbed => "https://huggingface.co/",
+            | Self::QuantizedBertEmbed => "https://huggingface.co/",
         }
     }
 
@@ -190,7 +178,6 @@ impl WhichCandleAsset {
             Self::SmolLM2_1p7BChat => todo!(), //https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct
             Self::BertEmbed => "sentence-transformers/all-MiniLM-L6-v2",
             Self::QuantizedBertEmbed => "sentence-transformers/all-MiniLM-L6-v2",
-            Self::NomicEmbed => todo!(),
         }
     }
 
@@ -219,7 +206,6 @@ impl WhichCandleAsset {
             Self::SmolLM2_1p7BChat => todo!(),
             Self::BertEmbed => "sentence-transformers/all-MiniLM-L6-v2",
             Self::QuantizedBertEmbed => "sudomoniker/all-MiniLM-L6-v2-Q8_0-GGUF",
-            Self::NomicEmbed => todo!(),
         }
     }
 
@@ -247,8 +233,7 @@ impl WhichCandleAsset {
             Self::SmolLM2_360MChat => todo!(),
             Self::SmolLM2_1p7BChat => todo!(),
             Self::BertEmbed => "model.safetensors",
-            Self::QuantizedBertEmbed => "all-minilm-l6-v2-q4_k_m.gguf",
-            Self::NomicEmbed => todo!(),
+            Self::QuantizedBertEmbed => "all-minilm-l6-v2-q8_0.gguf",
         }
     }
 
@@ -277,7 +262,6 @@ impl WhichCandleAsset {
             Self::SmolLM2_1p7BChat => todo!(),
             Self::BertEmbed => "main",
             Self::QuantizedBertEmbed => "main",
-            Self::NomicEmbed => todo!(),
         }
     }
 
@@ -322,8 +306,7 @@ impl WhichCandleAsset {
             Self::QwenV2_1p5bEmbed
             | Self::QwenV2_7bEmbed
             | Self::BertEmbed
-            | Self::QuantizedBertEmbed
-            | Self::NomicEmbed => false,
+            | Self::QuantizedBertEmbed => false,
         }
     }
 
@@ -392,27 +375,6 @@ impl WhichCandleAsset {
                 ))?;
                 let model_weights = Bert::load(vb, &model_config)?;
                 Ok(CandleModelWeights::Bert(model_weights))
-            }
-            Self::NomicEmbed => {
-                let vb = load_model_varbuilder(
-                    load_model_asset_path(
-                        &model_weights_file,
-                        self.get_repo_gguf(),
-                        self.get_filename(),
-                        self.get_revision(),
-                    ),
-                    dtype,
-                    device,
-                )?;
-                let model_config: NomicConfig = load_config(load_model_asset_path(
-                    &model_weights_config_file,
-                    self.get_repo_tokenizer(),
-                    "config.json",
-                    self.get_revision(),
-                ))?;
-                let model_weights =
-                    Nomic::load(vb, &model_config, ModelType::Embedding(Pool::Mean))?;
-                Ok(CandleModelWeights::Nomic(model_weights))
             }
             Self::QuantizedBertEmbed => {
                 let vb = QuantVarBuilder::from_gguf(
