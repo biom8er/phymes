@@ -36,17 +36,18 @@ use super::agent_session_builder::AgentSessionBuilderTrait;
 
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 
-/// Document RAG
+/// Document Retrieval Augmented Generation (RAG) session plan.
 ///
 /// # Supersteps
+/// 
 /// 1. Embed documents: session -> embed_task (chunk_processor, embed_processor)
-///    ... and Embed queries: session -> embed_task (embed_processor)
-///
-/// 2. Vector search: -> vs_task (rel_sim_score_processor, sort_score_processor, summary_processor)
-/// 3. Chat: session -> chat_task (chat_processor)
-/// 4. End
+/// 2. Embed queries: session -> embed_task (embed_processor)
+/// 3. Vector search: -> vs_task (rel_sim_score_processor, sort_score_processor, summary_processor)
+/// 4. Chat: session -> chat_task (chat_processor)
+/// 5. End
 ///
 /// # Notes
+/// 
 /// * The embedding size must be specified before which is determined by the size of
 ///   the hidden layer of the embedding model
 pub struct DocumentRAGSession<'a> {
@@ -97,7 +98,51 @@ pub struct DocumentRAGSession<'a> {
     pub embed_api_url: Option<&'a str>,
 }
 
-impl DocumentRAGSession<'_> {
+impl Default for DocumentRAGSession<'_> {
+    fn default() -> Self {
+        Self {
+            chat_task_name: "chat_task_1",
+            message_aggregator_task_name: "message_aggregator_task_1",
+            message_aggregator_processor_name: "message_aggregator_1",
+            chat_processor_name: "chat_processor_1",
+            chat_runtime_env_name: "chat_rt_1",
+            embed_query_task_name: "embed_query_task_1",
+            embed_documents_task_name: "embed_documents_task_1",
+            embed_query_processor_name: "embed_query_processor_1",
+            embed_documents_processor_name: "embed_documents_processor_1",
+            document_chunk_task_name: "chunk_documents_task_1",
+            document_chunk_processor_1_name: "chunk_documents_processor_1",
+            embed_documents_runtime_env_name: "embed_documents_rt_1",
+            embed_query_runtime_env_name: "embed_query_rt_1", // "embed_documents_rt_1",
+            vector_search_task_name: "vs_task_1",
+            relative_similarity_processor_name: "rel_sim_processor_1",
+            sort_scores_processor_name: "sort_scores_processor_1",
+            document_chunk_processor_2_name: "chunk_documents_processor_2", //"chunk_documents_processor_1",
+            join_chunks_processor_name: "join_scores_chunks_processor_1",
+            top_k_processor_name: "top_k_processor_1",
+            vector_search_runtime_env_name: "vs_rt_1",
+            session_context_name: "session_context_1",
+            state_messages_table_name: "messages",
+            state_documents_table_name: "documents",
+            state_doc_embed_table_name: "doc_embeddings",
+            state_queries_table_name: "queries",
+            state_q_embed_table_name: "q_embeddings",
+            state_top_k_docs_table_name: "top_k",
+            state_scores_table_name: "tmp_scores",
+            state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
+            embed_length: 384, // Hidden size for BERT
+            chat_api_url: None,
+            embed_api_url: None,
+        }
+    }
+}
+
+impl<'a> DocumentRAGSession<'a> {
+    pub fn new_with_session_name(session_name: &'a str) -> Self {
+        let mut doc_rag_session = DocumentRAGSession::default();
+        doc_rag_session.session_context_name = session_name;
+        doc_rag_session
+    }
     pub fn make_messages_table(&self) -> Result<ArrowTable> {
         let role = Field::new("role", DataType::Utf8, false);
         let content = Field::new("content", DataType::Utf8, false);

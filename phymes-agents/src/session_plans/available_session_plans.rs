@@ -64,45 +64,7 @@ impl AvailableSessionPlans {
             }
             Self::DocChat => {
                 // initialize the session
-                let doc_rag_session = DocumentRAGSession {
-                    // Chat tasks
-                    chat_task_name: "chat_task_1",
-                    message_aggregator_task_name: "message_aggregator_task_1",
-                    message_aggregator_processor_name: "message_aggregator_1",
-                    chat_processor_name: "chat_processor_1",
-                    chat_runtime_env_name: "chat_rt_1",
-                    // Embed tasks
-                    embed_query_task_name: "embed_query_task_1",
-                    embed_documents_task_name: "embed_documents_task_1",
-                    embed_query_processor_name: "embed_query_processor_1",
-                    embed_documents_processor_name: "embed_documents_processor_1",
-                    document_chunk_task_name: "chunk_documents_task_1",
-                    document_chunk_processor_1_name: "chunk_documents_processor_1",
-                    embed_documents_runtime_env_name: "embed_documents_rt_1",
-                    embed_query_runtime_env_name: "embed_query_rt_1", // "embed_documents_rt_1",
-                    // Vector search tasks
-                    vector_search_task_name: "vs_task_1",
-                    relative_similarity_processor_name: "rel_sim_processor_1",
-                    sort_scores_processor_name: "sort_scores_processor_1",
-                    document_chunk_processor_2_name: "chunk_documents_processor_2", //"chunk_documents_processor_1",
-                    join_chunks_processor_name: "join_scores_chunks_processor_1",
-                    top_k_processor_name: "top_k_processor_1",
-                    vector_search_runtime_env_name: "vs_rt_1",
-                    // Session and state
-                    session_context_name: session_name,
-                    state_messages_table_name: "messages",
-                    state_documents_table_name: "documents",
-                    state_doc_embed_table_name: "doc_embeddings",
-                    state_queries_table_name: "queries",
-                    state_q_embed_table_name: "q_embeddings",
-                    state_top_k_docs_table_name: "top_k",
-                    state_scores_table_name: "tmp_scores",
-                    state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
-                    // embed_length: 1536, // Hidden size for GTE Qwen2 1.5B
-                    embed_length: 384, // Hidden size for BERT
-                    chat_api_url: None,
-                    embed_api_url: None,
-                };
+                let doc_rag_session = DocumentRAGSession::new_with_session_name(session_name);
                 let session_ctx = doc_rag_session
                     .make_session_context(metrics.clone())
                     .unwrap();
