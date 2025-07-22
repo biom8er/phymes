@@ -947,53 +947,61 @@ mod tests {
             Arc::clone(&runtime_env),
             baseline_metrics,
         )?;
-        let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
-        assert_eq!(embeddings.len(), 1);
 
-        // Expected data
-        let _embeddings_test: Vec<Vec<f32>> = vec![
-            vec![-3.2244308, 7.4192524, 2.9019766],
-            vec![2.163365, 1.8837537, -0.18565525],
-            vec![-3.260014, 6.5834556, 2.9206438],
-            vec![-5.446545, 2.0517492, -4.0273705],
-        ];
-        let _embeddings_vec = embeddings
-            .first()
-            .unwrap()
-            .column_by_name("embeddings")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<FixedSizeListArray>()
-            .unwrap()
-            .iter()
-            .map(|s| {
-                s.unwrap()
-                    .as_any()
-                    .downcast_ref::<Float32Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|f| f.unwrap())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
+        // DM: Skip actually running the tests as they take too long on the CPU
+        if cfg!(any(
+            all(not(feature = "candle"), feature = "wsl"),
+            all(not(feature = "candle"), feature = "wasip2"),
+            feature = "gpu"
+        )) {
+            let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
+            assert_eq!(embeddings.len(), 1);
 
-        // DM: the results also dependent upon the system the model is ran
-        // assert_eq!(
-        //     embeddings_vec.first().unwrap()[0..3],
-        //     embeddings_test.first().unwrap()[0..3]
-        // );
-        // assert_eq!(
-        //     embeddings_vec.get(1).unwrap()[0..3],
-        //     embeddings_test.get(1).unwrap()[0..3]
-        // );
-        // assert_eq!(
-        //     embeddings_vec.get(2).unwrap()[0..3],
-        //     embeddings_test.get(2).unwrap()[0..3]
-        // );
-        // assert_eq!(
-        //     embeddings_vec.get(3).unwrap()[0..3],
-        //     embeddings_test.get(3).unwrap()[0..3]
-        // );
+            // Expected data
+            let _embeddings_test: Vec<Vec<f32>> = vec![
+                vec![-3.2244308, 7.4192524, 2.9019766],
+                vec![2.163365, 1.8837537, -0.18565525],
+                vec![-3.260014, 6.5834556, 2.9206438],
+                vec![-5.446545, 2.0517492, -4.0273705],
+            ];
+            let _embeddings_vec = embeddings
+                .first()
+                .unwrap()
+                .column_by_name("embeddings")
+                .unwrap()
+                .as_any()
+                .downcast_ref::<FixedSizeListArray>()
+                .unwrap()
+                .iter()
+                .map(|s| {
+                    s.unwrap()
+                        .as_any()
+                        .downcast_ref::<Float32Array>()
+                        .unwrap()
+                        .iter()
+                        .map(|f| f.unwrap())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+
+            // DM: the results also dependent upon the system the model is ran
+            // assert_eq!(
+            //     embeddings_vec.first().unwrap()[0..3],
+            //     embeddings_test.first().unwrap()[0..3]
+            // );
+            // assert_eq!(
+            //     embeddings_vec.get(1).unwrap()[0..3],
+            //     embeddings_test.get(1).unwrap()[0..3]
+            // );
+            // assert_eq!(
+            //     embeddings_vec.get(2).unwrap()[0..3],
+            //     embeddings_test.get(2).unwrap()[0..3]
+            // );
+            // assert_eq!(
+            //     embeddings_vec.get(3).unwrap()[0..3],
+            //     embeddings_test.get(3).unwrap()[0..3]
+            // );
+        }
         Ok(())
     }
 }

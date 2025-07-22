@@ -12,8 +12,9 @@ use phymes_agents::session_plans::{
 };
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::session_context::{get_metrics_as_pivot_table, SessionStreamState},
-    table::arrow_table::ArrowTableTrait, task::arrow_message::ArrowIncomingMessage,
+    session::session_context::{SessionStreamState, get_metrics_as_pivot_table},
+    table::arrow_table::ArrowTableTrait,
+    task::arrow_message::ArrowIncomingMessage,
 };
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {
@@ -54,7 +55,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
 
         // The actual benchmark function
         c.bench_function(id.as_str(), |b| {
-            b.iter(|| {            
+            b.iter(|| {
                 // Create the session configuration
                 let session_context_name = format!("session_1_{tag}_{iter}");
                 let chat_processor_name = format!("chat_processor_1_{tag}_{iter}");
@@ -83,12 +84,24 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                 let timer = baseline_metrics.elapsed_compute().timer();
                 let _messages = rt.block_on(async {
-                    let session_stream = bench_chat_agent_session_1(Arc::clone(&session_stream_state), &config, user_content.0);
-                    session_stream.try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>().await
+                    let session_stream = bench_chat_agent_session_1(
+                        Arc::clone(&session_stream_state),
+                        &config,
+                        user_content.0,
+                    );
+                    session_stream
+                        .try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>()
+                        .await
                 });
                 let _messages = rt.block_on(async {
-                    let session_stream = bench_chat_agent_session_2(Arc::clone(&session_stream_state), &config, user_content.1);
-                    session_stream.try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>().await
+                    let session_stream = bench_chat_agent_session_2(
+                        Arc::clone(&session_stream_state),
+                        &config,
+                        user_content.1,
+                    );
+                    session_stream
+                        .try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>()
+                        .await
                 });
                 timer.done();
                 baseline_metrics.done();
@@ -105,7 +118,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     // Export the metrics to CSV
     let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();
     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let pathname = format!("{target_dir}/.cache/metrics/benchmark_chatagent_{wasm}_{gpu}_{candle}.csv");
+    let pathname =
+        format!("{target_dir}/.cache/metrics/benchmark_chatagent_{wasm}_{gpu}_{candle}.csv");
     let path = std::path::Path::new(pathname.as_str());
     let prefix = path.parent().unwrap();
     std::fs::create_dir_all(prefix).unwrap();

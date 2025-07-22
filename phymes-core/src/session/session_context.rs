@@ -38,25 +38,35 @@ use crate::task::{
 };
 
 /// Get the metrics for multiple sessions as a table
-pub fn get_metrics_as_pivot_table(metrics_vec: &[ArrowTaskMetricsSet], table_name: &str) -> Result<ArrowTable> {
+pub fn get_metrics_as_pivot_table(
+    metrics_vec: &[ArrowTaskMetricsSet],
+    table_name: &str,
+) -> Result<ArrowTable> {
     // extract out values from metrics
     let mut task_metrics_count: HashMap<(String, String), usize> = HashMap::new();
-    let mut task_names_vec = Vec::<(String,usize)>::new();
+    let mut task_names_vec = Vec::<(String, usize)>::new();
     let mut metric_names_vec = Vec::<String>::new();
     let mut metric_values_vec = Vec::<u64>::new();
-    for metrics in metrics_vec.iter() {        
+    for metrics in metrics_vec.iter() {
         for metric in metrics.clone_inner().iter() {
             // Count the number of unique task and metric combinations
             let task_name = metric.task().as_ref().unwrap().to_string();
             let metric_name = metric.value().name().to_string();
-            if let Some(count) = task_metrics_count.get_mut(&(task_name.clone(), metric_name.clone())) {
+            if let Some(count) =
+                task_metrics_count.get_mut(&(task_name.clone(), metric_name.clone()))
+            {
                 *count += 1;
             } else {
                 task_metrics_count.insert((task_name.clone(), metric_name.clone()), 1);
             }
 
             // Record the task name, metric name, and value
-            task_names_vec.push((task_name.clone(), *task_metrics_count.get(&(task_name.clone(), metric_name.clone())).unwrap()));
+            task_names_vec.push((
+                task_name.clone(),
+                *task_metrics_count
+                    .get(&(task_name.clone(), metric_name.clone()))
+                    .unwrap(),
+            ));
             metric_names_vec.push(metric_name);
             metric_values_vec.push(metric.value().as_usize() as u64);
         }
@@ -70,7 +80,7 @@ pub fn get_metrics_as_pivot_table(metrics_vec: &[ArrowTaskMetricsSet], table_nam
         .into_iter()
         .collect();
     unique_metric_names.sort();
-    let mut unique_task_names: Vec::<(String,usize)> = task_names_vec
+    let mut unique_task_names: Vec<(String, usize)> = task_names_vec
         .iter()
         .cloned()
         .collect::<std::collections::HashSet<_>>()
@@ -81,20 +91,32 @@ pub fn get_metrics_as_pivot_table(metrics_vec: &[ArrowTaskMetricsSet], table_nam
 
     // create the pivot table columns and initialize with task names and replicate counts
     let mut pivot_columns = Vec::new();
-    let task_names: ArrayRef = Arc::new(StringArray::from(unique_task_names.iter().map(|(name, _)| name.clone()).collect::<Vec<_>>()));
+    let task_names: ArrayRef = Arc::new(StringArray::from(
+        unique_task_names
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect::<Vec<_>>(),
+    ));
     pivot_columns.push(("task_name", task_names));
-    let replicate_couns: ArrayRef = Arc::new(UInt64Array::from(unique_task_names.iter().map(|(_, count)| *count as u64).collect::<Vec<_>>()));
+    let replicate_couns: ArrayRef = Arc::new(UInt64Array::from(
+        unique_task_names
+            .iter()
+            .map(|(_, count)| *count as u64)
+            .collect::<Vec<_>>(),
+    ));
     pivot_columns.push(("replicate_count", replicate_couns));
 
     // Extract the metric values for each unique metric name and task name
     for metric_name in unique_metric_names.iter() {
         let mut pivot_metric_values = Vec::<u64>::new();
         for (task_name, replicate_count) in unique_task_names.iter() {
-
             // find the matching metric and task name
             let mut found = false;
             for i in 0..task_names_vec.len() {
-                if metric_names_vec.get(i).unwrap() == metric_name && task_names_vec.get(i).unwrap().0 == *task_name && task_names_vec.get(i).unwrap().1 == *replicate_count{
+                if metric_names_vec.get(i).unwrap() == metric_name
+                    && task_names_vec.get(i).unwrap().0 == *task_name
+                    && task_names_vec.get(i).unwrap().1 == *replicate_count
+                {
                     pivot_metric_values.push(metric_values_vec.get(i).unwrap().to_owned());
                     found = true;
                     break;
@@ -102,7 +124,7 @@ pub fn get_metrics_as_pivot_table(metrics_vec: &[ArrowTaskMetricsSet], table_nam
             }
             if !found {
                 pivot_metric_values.push(0); // default value if not found
-            }            
+            }
         }
 
         // create the named array for this metric

@@ -60,19 +60,11 @@ impl TokenProcessorTrait for CandleAsset {
         let result: Tensor = match &mut self.model_weights {
             CandleModelWeights::Bert(mw) => {
                 let token_type_ids = input.zeros_like()?;
-                mw.forward(
-                    &input,
-                    &token_type_ids,
-                    attention_mask.as_ref()
-                )?
+                mw.forward(&input, &token_type_ids, attention_mask.as_ref())?
             }
             CandleModelWeights::QuantizedBert(mw) => {
                 let token_type_ids = input.zeros_like()?;
-                mw.forward(
-                    &input,
-                    &token_type_ids,
-                    attention_mask.as_ref()
-                )?
+                mw.forward(&input, &token_type_ids, attention_mask.as_ref())?
             }
             CandleModelWeights::QuantizedQwen2(mw) => {
                 mw.forward(

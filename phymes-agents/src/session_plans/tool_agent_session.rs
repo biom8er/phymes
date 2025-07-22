@@ -40,7 +40,7 @@ use arrow::{
 /// Tool agent node with human-in-the-loop
 ///
 /// # Supersteps
-/// 
+///
 /// 1. Tool call: session -> chat_task (message_aggregator, chat_processor, message_parser)
 /// 2. Tool invoke: -> tool_task (config_processor, ops_processor, summary_processor)
 ///    or human-in-the-loop_task (config_processor, ops_processor)
@@ -49,7 +49,7 @@ use arrow::{
 /// 4. End
 ///
 /// ## Chat Task
-/// 
+///
 /// chat_task is composed of chained processors:
 /// message_aggregator -> chat_processor -> message_parser
 /// where message_aggregator combines multiple messages
@@ -60,7 +60,7 @@ use arrow::{
 ///   2) split the messages into seperate tool calls
 ///
 /// ## Tool Task
-/// 
+///
 /// tool_task is composed of a chained processor:
 /// config_processor -> ops_processor -> summary_processor
 /// where config_processor parses the tool call and
@@ -122,10 +122,11 @@ impl Default for ToolAgentSession<'_> {
 }
 
 impl<'a> ToolAgentSession<'a> {
-    pub fn new_with_session_name(session_name: &'a str) -> Self {
-        let mut session = ToolAgentSession::default();
-        session.session_context_name = session_name;
-        session
+    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+        ToolAgentSession {
+            session_context_name,
+            ..Default::default()
+        }
     }
     pub fn make_tools_table(&self) -> Result<ArrowTable> {
         let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
@@ -606,7 +607,8 @@ mod tests {
         metrics::HashMap,
         session::session_context::SessionStreamState,
         table::arrow_table::ArrowTableTrait,
-        task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait}};
+        task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
+    };
 
     use super::*;
     use test_tool_agent_session::bench_tool_agent_session;
@@ -630,8 +632,13 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            let session_stream = bench_tool_agent_session(Arc::clone(&session_stream_state), &tool_agent_session, user_query);
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await?;
+            let session_stream = bench_tool_agent_session(
+                Arc::clone(&session_stream_state),
+                &tool_agent_session,
+                user_query,
+            );
+            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+                session_stream.try_collect().await?;
 
             println!(
                 "Iters: {}",

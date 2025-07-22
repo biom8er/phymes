@@ -3,14 +3,17 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use parking_lot::RwLock;
-use phymes_core::{metrics::ArrowTaskMetricsSet, session::session_context::{SessionStream, SessionStreamState}};
+use phymes_core::{
+    metrics::ArrowTaskMetricsSet,
+    session::session_context::{SessionStream, SessionStreamState},
+};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    agent_session_builder::AgentSessionBuilderTrait, 
+    agent_session_builder::AgentSessionBuilderTrait,
     chat_agent_session::{ChatAgentSession, test_chat_agent_session::bench_chat_agent_session_2},
     document_rag_session::{DocumentRAGSession, test_doc_rag_session::bench_doc_rag_session_query},
-    tool_agent_session::{ToolAgentSession, test_tool_agent_session::bench_tool_agent_session}
+    tool_agent_session::{ToolAgentSession, test_tool_agent_session::bench_tool_agent_session},
 };
 
 /// The available session plans
@@ -89,19 +92,31 @@ impl AvailableSessionPlans {
     /// Get the session stream by name
     pub fn get_session_stream_by_name(
         session_plan_name: &str,
-        session_name: &str, 
-        session_stream_state: Arc<RwLock<SessionStreamState>>, 
-        user_query: &str
+        session_name: &str,
+        session_stream_state: Arc<RwLock<SessionStreamState>>,
+        user_query: &str,
     ) -> Result<SessionStream> {
         if session_plan_name == Self::Chat.get_session_plan_name() {
             let session = ChatAgentSession::new_with_session_name(session_name);
-            Ok(bench_chat_agent_session_2(Arc::clone(&session_stream_state), &session, user_query))
+            Ok(bench_chat_agent_session_2(
+                Arc::clone(&session_stream_state),
+                &session,
+                user_query,
+            ))
         } else if session_plan_name == Self::DocChat.get_session_plan_name() {
             let session = DocumentRAGSession::new_with_session_name(session_name);
-            Ok(bench_doc_rag_session_query(Arc::clone(&session_stream_state), &session, user_query))
+            Ok(bench_doc_rag_session_query(
+                Arc::clone(&session_stream_state),
+                &session,
+                user_query,
+            ))
         } else if session_plan_name == Self::ToolChat.get_session_plan_name() {
             let session = ToolAgentSession::new_with_session_name(session_name);
-            Ok(bench_tool_agent_session(Arc::clone(&session_stream_state), &session, user_query))
+            Ok(bench_tool_agent_session(
+                Arc::clone(&session_stream_state),
+                &session,
+                user_query,
+            ))
         } else {
             Err(anyhow!(
                 "Plan name {session_plan_name} was not found in the available session plans."

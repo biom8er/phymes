@@ -5,12 +5,16 @@ use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::session_plans::{
     agent_session_builder::AgentSessionBuilderTrait,
-    document_rag_session::{DocumentRAGSession, test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query}},
+    document_rag_session::{
+        DocumentRAGSession,
+        test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query},
+    },
 };
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::session_context::{get_metrics_as_pivot_table, SessionStreamState},
-    table::arrow_table::ArrowTableTrait, task::arrow_message::ArrowIncomingMessage,
+    session::session_context::{SessionStreamState, get_metrics_as_pivot_table},
+    table::arrow_table::ArrowTableTrait,
+    task::arrow_message::ArrowIncomingMessage,
 };
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {
@@ -28,10 +32,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
         "The cell is the basic structural and functional unit of all forms of life. Every cell consists of cytoplasm enclosed within a membrane; many cells contain organelles, each with a specific function. The term comes from the Latin word cellula meaning 'small room'. Most cells are only visible under a microscope. Cells emerged on Earth about 4 billion years ago. All cells are capable of replication, protein synthesis, and motility.\n\nCells are broadly categorized into two types: eukaryotic cells, which possess a nucleus, and prokaryotic cells, which lack a nucleus but have a nucleoid region. Prokaryotes are single-celled organisms such as bacteria, whereas eukaryotes can be either single-celled, such as amoebae, or multicellular, such as some algae, plants, animals, and fungi. Eukaryotic cells contain organelles including mitochondria, which provide energy for cell functions, chloroplasts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.\n\nCells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells.",
     ];
 
-    let document_texts_vec = vec![
-        document_texts_1, 
-        // document_texts_2
-    ];
+    let document_texts_vec = vec![document_texts_1, document_texts_2];
     let document_ids = &["Proteins", "DNA", "Lipids", "Cells"];
     let user_query = "What are the four molecules that compose DNA?";
 
@@ -52,7 +53,10 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     let mut metrics_vec = Vec::new();
     for document_texts in &document_texts_vec {
         // Create a unique tag and id for each benchmark
-        let tag = format!("{}_{wasm}_{gpu}_{candle}", document_texts.first().unwrap().len());
+        let tag = format!(
+            "{}_{wasm}_{gpu}_{candle}",
+            document_texts.first().unwrap().len()
+        );
         let id = format!("doc-rag-session_{tag}");
         let mut iter = 0; // DM: not so useful as there is only one configuration we test at this point in time
 
@@ -61,20 +65,27 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
             b.iter(|| {
                 // Create the session configuration
                 let chat_task_name = format!("chat_task_1_{tag}_{iter}");
-                let message_aggregator_task_name = format!("message_aggregator_task_1_{tag}_{iter}");
-                let message_aggregator_processor_name = format!("message_aggregator_processor_1_{tag}_{iter}");
+                let message_aggregator_task_name =
+                    format!("message_aggregator_task_1_{tag}_{iter}");
+                let message_aggregator_processor_name =
+                    format!("message_aggregator_processor_1_{tag}_{iter}");
                 let chat_processor_name = format!("chat_processor_1_{tag}_{iter}");
                 let embed_query_task_name = format!("embed_query_task_1_{tag}_{iter}");
                 let embed_documents_task_name = format!("embed_documents_task_1_{tag}_{iter}");
                 let embed_query_processor_name = format!("embed_query_processor_1_{tag}_{iter}");
-                let embed_documents_processor_name = format!("embed_documents_processor_1_{tag}_{iter}");
+                let embed_documents_processor_name =
+                    format!("embed_documents_processor_1_{tag}_{iter}");
                 let document_chunk_task_name = format!("chunk_documents_task_1_{tag}_{iter}");
-                let document_chunk_processor_1_name = format!("chunk_documents_processor_1_{tag}_{iter}");
+                let document_chunk_processor_1_name =
+                    format!("chunk_documents_processor_1_{tag}_{iter}");
                 let vector_search_task_name = format!("vs_task_1_{tag}_{iter}");
-                let relative_similarity_processor_name = format!("rel_sim_processor_1_{tag}_{iter}");
+                let relative_similarity_processor_name =
+                    format!("rel_sim_processor_1_{tag}_{iter}");
                 let sort_scores_processor_name = format!("sort_scores_processor_1_{tag}_{iter}");
-                let document_chunk_processor_2_name = format!("chunk_documents_processor_2_{tag}_{iter}");
-                let join_chunks_processor_name = format!("join_scores_chunks_processor_1_{tag}_{iter}");
+                let document_chunk_processor_2_name =
+                    format!("chunk_documents_processor_2_{tag}_{iter}");
+                let join_chunks_processor_name =
+                    format!("join_scores_chunks_processor_1_{tag}_{iter}");
                 let top_k_processor_name = format!("top_k_processor_1_{tag}_{iter}");
                 let session_context_name = format!("session_1_{tag}_{iter}");
 
@@ -132,13 +143,26 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .unwrap();
                 let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                 let timer = baseline_metrics.elapsed_compute().timer();
-                let _messages = rt.block_on(async {                    
-                    let session_stream = bench_doc_rag_session_docs(Arc::clone(&session_stream_state), &config, document_texts.as_ref(), document_ids);
-                    session_stream.try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>().await
+                let _messages = rt.block_on(async {
+                    let session_stream = bench_doc_rag_session_docs(
+                        Arc::clone(&session_stream_state),
+                        &config,
+                        document_texts.as_ref(),
+                        document_ids,
+                    );
+                    session_stream
+                        .try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>()
+                        .await
                 });
                 let _messages = rt.block_on(async {
-                    let session_stream = bench_doc_rag_session_query(Arc::clone(&session_stream_state), &config, user_query);
-                    session_stream.try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>().await
+                    let session_stream = bench_doc_rag_session_query(
+                        Arc::clone(&session_stream_state),
+                        &config,
+                        user_query,
+                    );
+                    session_stream
+                        .try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>()
+                        .await
                 });
                 timer.done();
                 baseline_metrics.done();
@@ -155,7 +179,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     // Export the metrics to CSV
     let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();
     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let pathname = format!("{target_dir}/.cache/metrics/benchmark_docrag_{wasm}_{gpu}_{candle}.csv");
+    let pathname =
+        format!("{target_dir}/.cache/metrics/benchmark_docrag_{wasm}_{gpu}_{candle}.csv");
     let path = std::path::Path::new(pathname.as_str());
     let prefix = path.parent().unwrap();
     std::fs::create_dir_all(prefix).unwrap();

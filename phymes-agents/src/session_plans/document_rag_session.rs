@@ -39,7 +39,7 @@ use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///
 /// # Supersteps
-/// 
+///
 /// 1. Embed documents: session -> embed_task (chunk_processor, embed_processor)
 /// 2. Embed queries: session -> embed_task (embed_processor)
 /// 3. Vector search: -> vs_task (rel_sim_score_processor, sort_score_processor, summary_processor)
@@ -47,7 +47,7 @@ use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 /// 5. End
 ///
 /// # Notes
-/// 
+///
 /// * The embedding size must be specified before which is determined by the size of
 ///   the hidden layer of the embedding model
 pub struct DocumentRAGSession<'a> {
@@ -138,10 +138,11 @@ impl Default for DocumentRAGSession<'_> {
 }
 
 impl<'a> DocumentRAGSession<'a> {
-    pub fn new_with_session_name(session_name: &'a str) -> Self {
-        let mut session = DocumentRAGSession::default();
-        session.session_context_name = session_name;
-        session
+    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+        DocumentRAGSession {
+            session_context_name,
+            ..Default::default()
+        }
     }
     pub fn make_messages_table(&self) -> Result<ArrowTable> {
         let role = Field::new("role", DataType::Utf8, false);
@@ -737,9 +738,8 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             candle_embed_config.weights_file = None;
             candle_embed_config.tokenizer_file = None;
             candle_embed_config.tokenizer_config_file = None;
-            candle_embed_config.candle_asset = Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::QwenV2_1p5bEmbed,
-            );
+            candle_embed_config.candle_asset =
+                Some(crate::candle_assets::candle_which::WhichCandleAsset::QwenV2_1p5bEmbed);
         }
 
         // Add openAI_api if available
@@ -935,11 +935,14 @@ pub mod test_doc_rag_session {
             ("chunk_id", chunk_ids_arr),
             ("document_id", document_ids_arr),
             ("text", document_texts_arr),
-        ]).unwrap();
+        ])
+        .unwrap();
         let table = ArrowTableBuilder::new()
             .with_name(doc_rag_session.state_documents_table_name)
-            .with_record_batches(vec![batch]).unwrap()
-            .build().unwrap();
+            .with_record_batches(vec![batch])
+            .unwrap()
+            .build()
+            .unwrap();
 
         let incoming_message = ArrowIncomingMessageBuilder::new()
             .with_name(doc_rag_session.state_documents_table_name)
@@ -949,7 +952,8 @@ pub mod test_doc_rag_session {
             .with_update(&ArrowTablePublish::Extend {
                 table_name: doc_rag_session.state_documents_table_name.to_string(),
             })
-            .build().unwrap();
+            .build()
+            .unwrap();
         let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
@@ -980,11 +984,14 @@ pub mod test_doc_rag_session {
         let query_id_arr: ArrayRef = Arc::new(StringArray::from(query_ids_vec));
 
         let batch =
-            RecordBatch::try_from_iter(vec![("query_id", query_id_arr), ("text", query_arr)]).unwrap();
+            RecordBatch::try_from_iter(vec![("query_id", query_id_arr), ("text", query_arr)])
+                .unwrap();
         let table = ArrowTableBuilder::new()
             .with_name(doc_rag_session.state_queries_table_name)
-            .with_record_batches(vec![batch]).unwrap()
-            .build().unwrap();
+            .with_record_batches(vec![batch])
+            .unwrap()
+            .build()
+            .unwrap();
 
         let incoming_message = ArrowIncomingMessageBuilder::new()
             .with_name(doc_rag_session.state_queries_table_name)
@@ -994,7 +1001,8 @@ pub mod test_doc_rag_session {
             .with_update(&ArrowTablePublish::Replace {
                 table_name: doc_rag_session.state_queries_table_name.to_string(),
             })
-            .build().unwrap();
+            .build()
+            .unwrap();
         let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
@@ -1002,7 +1010,8 @@ pub mod test_doc_rag_session {
         let message_builder = ArrowTableBuilder::new()
             .with_name(doc_rag_session.state_messages_table_name)
             // .insert_system_template_str("You are a helpful assistant.").unwrap()
-            .append_new_user_query_str(user_query, "user").unwrap();
+            .append_new_user_query_str(user_query, "user")
+            .unwrap();
 
         // Build the current message state
         let incoming_message = ArrowIncomingMessageBuilder::new()
@@ -1013,7 +1022,8 @@ pub mod test_doc_rag_session {
             .with_update(&ArrowTablePublish::Extend {
                 table_name: doc_rag_session.message_aggregator_task_name.to_string(),
             })
-            .build().unwrap();
+            .build()
+            .unwrap();
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
         // Run the session
@@ -1073,12 +1083,20 @@ mod tests {
         )) {
             // ----- Query #1 -----
             // Embed the documents
-            let session_stream = bench_doc_rag_session_docs(Arc::clone(&session_stream_state), &doc_rag_session, document_texts, document_ids);
-            let _response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await?;
+            let session_stream = bench_doc_rag_session_docs(
+                Arc::clone(&session_stream_state),
+                &doc_rag_session,
+                document_texts,
+                document_ids,
+            );
+            let _response: Vec<HashMap<String, ArrowIncomingMessage>> =
+                session_stream.try_collect().await?;
 
             // Embed the query and invoke a response
-            let session_stream = bench_doc_rag_session_query(session_stream_state, &doc_rag_session, user_query);
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await?;
+            let session_stream =
+                bench_doc_rag_session_query(session_stream_state, &doc_rag_session, user_query);
+            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+                session_stream.try_collect().await?;
 
             // Update the chat history with the response
             let json_data = response
@@ -1140,7 +1158,7 @@ mod tests {
 
             assert_eq!(json_data.first().unwrap().get("role").unwrap(), "assistant");
             assert!(json_data.first().unwrap().get("content").is_some());
-            
+
             // ----- Query #2 -----
             // Embed the next query and invoke another response
         }

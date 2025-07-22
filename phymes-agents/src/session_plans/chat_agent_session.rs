@@ -46,10 +46,11 @@ impl Default for ChatAgentSession<'_> {
 }
 
 impl<'a> ChatAgentSession<'a> {
-    pub fn new_with_session_name(session_name: &'a str) -> Self {
-        let mut session = ChatAgentSession::default();
-        session.session_context_name = session_name;
-        session
+    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+        ChatAgentSession {
+            session_context_name,
+            ..Default::default()
+        }
     }
 }
 
@@ -347,8 +348,10 @@ pub mod test_chat_agent_session {
         // Make the system prompt and add the user query
         let message_builder = ArrowTableBuilder::new()
             .with_name(chat_agent_session.chat_subscription_name)
-            .insert_system_template_str("You are a helpful assistant.").unwrap()
-            .append_new_user_query_str(user_content, "user").unwrap();
+            .insert_system_template_str("You are a helpful assistant.")
+            .unwrap()
+            .append_new_user_query_str(user_content, "user")
+            .unwrap();
 
         // Build the current message state
         let incoming_message = ArrowIncomingMessageBuilder::new()
@@ -359,7 +362,8 @@ pub mod test_chat_agent_session {
             .with_update(&ArrowTablePublish::Extend {
                 table_name: chat_agent_session.chat_subscription_name.to_string(),
             })
-            .build().unwrap();
+            .build()
+            .unwrap();
         let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
@@ -376,7 +380,8 @@ pub mod test_chat_agent_session {
         // Add a new query to the message history
         let message_builder = ArrowTableBuilder::new()
             .with_name(chat_agent_session.chat_subscription_name)
-            .append_new_user_query_str(user_content, "user").unwrap();
+            .append_new_user_query_str(user_content, "user")
+            .unwrap();
 
         // Build the incoming message state
         let incoming_message = ArrowIncomingMessageBuilder::new()
@@ -387,7 +392,8 @@ pub mod test_chat_agent_session {
             .with_update(&ArrowTablePublish::Extend {
                 table_name: chat_agent_session.chat_subscription_name.to_string(),
             })
-            .build().unwrap();
+            .build()
+            .unwrap();
         let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
@@ -428,8 +434,13 @@ mod tests {
             feature = "gpu"
         )) {
             // ----- Query #1 -----
-            let session_stream = bench_chat_agent_session_1(Arc::clone(&session_stream_state), &chat_agent_session, "Write a function to count prime numbers up to N.");
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await?;
+            let session_stream = bench_chat_agent_session_1(
+                Arc::clone(&session_stream_state),
+                &chat_agent_session,
+                "Write a function to count prime numbers up to N.",
+            );
+            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+                session_stream.try_collect().await?;
 
             // Update the chat history with the response
             let json_data = response
@@ -466,8 +477,13 @@ mod tests {
             assert!(json_data.first().unwrap().get("content").is_some());
 
             // ----- Query #2 -----
-            let session_stream = bench_chat_agent_session_2(Arc::clone(&session_stream_state), &chat_agent_session, "Please provide an example using the functions.");
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await?;
+            let session_stream = bench_chat_agent_session_2(
+                Arc::clone(&session_stream_state),
+                &chat_agent_session,
+                "Please provide an example using the functions.",
+            );
+            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+                session_stream.try_collect().await?;
 
             // Update the chat history with the response
             let json_data = response

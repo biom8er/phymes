@@ -4,7 +4,8 @@ use phymes_agents::{
     session_plans::chat_agent_session::test_chat_agent_session::bench_chat_processor,
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics}, session::session_context::get_metrics_as_pivot_table,
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
+    session::session_context::get_metrics_as_pivot_table,
     table::arrow_table::ArrowTableTrait,
 };
 
@@ -145,7 +146,8 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                     let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                     let timer = baseline_metrics.elapsed_compute().timer();
                     let _messages = rt.block_on(async {
-                        bench_chat_processor(metrics.clone(), config, user_content, name.as_str()).await
+                        bench_chat_processor(metrics.clone(), config, user_content, name.as_str())
+                            .await
                     });
                     timer.done();
                     baseline_metrics.done();
@@ -163,7 +165,8 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     // Export the metrics to CSV
     let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();
     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let pathname = format!("{target_dir}/.cache/metrics/benchmark_chat_processor_{wasm}_{gpu}_{candle}.csv");
+    let pathname =
+        format!("{target_dir}/.cache/metrics/benchmark_chat_processor_{wasm}_{gpu}_{candle}.csv");
     let path = std::path::Path::new(pathname.as_str());
     let prefix = path.parent().unwrap();
     std::fs::create_dir_all(prefix).unwrap();

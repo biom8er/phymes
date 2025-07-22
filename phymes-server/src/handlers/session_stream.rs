@@ -13,7 +13,8 @@ use futures::prelude::*;
 use phymes_core::{
     metrics::HashMap,
     session::common_traits::MappableTrait,
-    table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
+    table::arrow_table::ArrowTableTrait,
+    task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
 };
 
 // General imports
@@ -88,9 +89,15 @@ pub async fn session_stream(
             };
 
             // Make the session stream
-            let session_stream = AvailableSessionPlans::get_session_stream_by_name(payload.session_plan.as_str(), payload.session_name.as_str(), Arc::clone(&session_stream_state), payload.content.as_str()).unwrap();
+            let session_stream = AvailableSessionPlans::get_session_stream_by_name(
+                payload.session_plan.as_str(),
+                payload.session_name.as_str(),
+                Arc::clone(&session_stream_state),
+                payload.content.as_str(),
+            )
+            .unwrap();
 
-            // Run and update the session and convert the output to the user specified format 
+            // Run and update the session and convert the output to the user specified format
             // Note: that we cannot write state updates to disk for
             //   streaming responses since we need to execute the stream first
             match (&payload.format, payload.stream) {
