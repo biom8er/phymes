@@ -25,51 +25,47 @@ Under the hood, the states of the application are determined by the subjects tha
 ```mermaid
 sequenceDiagram
     user->>documents: 1
-    user->>query: 2
-    user->>messages: 3
-    documents --> embed_doc_task: 4
-    doc_embed_config --> embed_doc_task: 5
-    embed_doc_task --> embedded_documents: 6
-    query --> embed_query_task: 7
-    query_embed_config --> embed_query_task: 8
-    embed_query_task --> embedded_queries: 9
-    embedded_documents --> vs_task: 10a
-    embedded_queries --> vs_task: 10b
-    vs_config --> vs_task: 11
-    vs_task -> top_k_docs: 12
-    messages-->>chat_agent: 13a
-    top_k_docs-->>chat_agent: 13b
-    config->>chat_agent: 14
-    chat_agent->>messages: 15
-    messages->>user: 16
+    user->>query: 2a
+    user->>messages: 2b
+    documents --> embed_doc_task: 3
+    doc_embed_config --> embed_doc_task: 4
+    embed_doc_task --> embedded_documents: 5
+    query --> embed_query_task: 6
+    query_embed_config --> embed_query_task: 7
+    embed_query_task --> embedded_queries: 8
+    embedded_documents --> vs_task: 9a
+    embedded_queries --> vs_task: 9b
+    vs_config --> vs_task: 10
+    vs_task -> top_k_docs: 11
+    messages-->>chat_agent: 12a
+    top_k_docs-->>chat_agent: 12b
+    config->>chat_agent: 13
+    chat_agent->>messages: 14
+    messages->>user: 15
 ```
 
 The sequence of actions are the following:
 
 1. The user publishes to documents subject
 
-![sign-in](../assets/2025-07-05_phymes-app_docchat-documents_subjects.png)
+![documents](../assets/2025-07-05_phymes-app_docchat-documents_subjects.png)
 
-2. The user publishes to query subject
+2. The user publishes to query subject and messages subject
+3. The embed_doc_task subscribes to the documents subject when there is a change to the documents subject table
+4. The embed_doc_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
+5. The embed_doc_task chunks the documents, embeds the chunks, and publishes the results to the embedded_documents subject.
+6. The embed_query_task subscribes to the documents subject when there is a change to the documents subject table
+7. The embed_query_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
+8. The embed_query_task embeds the query and publishes the results to the embedded_queries subject.
+9. The vs_task subscribes to the embedded_documents and embedded_queries subjects when there is a change to the embedded_documents and embedded_queries subject tables
+10. The vs_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
+11. The vs_task computes the relative similarity between the query and document embeddings, sorts the scores in descending order, retrieves the chunk text, formats the results for RAG, and publishes the results to the top_k_docs subject.
+12. The chat_agent subscribes to messages and top_k_docs subjects when there is a change to the messages and top_k_docs subject tables.
+13. The chat_agent subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chat_agent.
+14. The chat_agent performs text generation inference based on the messages subject content and retrieved Top K document chunks, and publishes the results to the messages subject.
+15. The user subscribes to messages subject where there is a change to the messages subject table.
 
-![sign-in](../assets/2025-07-05_phymes-app_docchat-query_subjects.png)
-
-3. The user publishes to messages subject
-4. The embed_doc_task subscribes to the documents subject when there is a change to the documents subject table
-5. The embed_doc_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
-6. The embed_doc_task chunks the documents, embeds the chunks, and publishes the results to the embedded_documents subject.
-7. The embed_query_task subscribes to the documents subject when there is a change to the documents subject table
-8. The embed_query_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
-9. The embed_query_task embeds the query and publishes the results to the embedded_queries subject.
-10. The vs_task subscribes to the embedded_documents and embedded_queries subjects when there is a change to the embedded_documents and embedded_queries subject tables
-11. The vs_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
-12. The vs_task computes the relative similarity between the query and document embeddings, sorts the scores in descending order, retrieves the chunk text, formats the results for RAG, and publishes the results to the top_k_docs subject.
-13. The chat_agent subscribes to messages and top_k_docs subjects when there is a change to the messages and top_k_docs subject tables.
-14. The chat_agent subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chat_agent.
-15. The chat_agent performs text generation inference based on the messages subject content and retrieved Top K document chunks, and publishes the results to the messages subject.
-16. The user subscribes to messages subject where there is a change to the messages subject table.
-
-![sign-in](../assets/2025-07-05_phymes-app_docchat_messaging.png)
+![doc-rag-response](../assets/2025-07-05_phymes-app_docchat_messaging.png)
 
 The session ends because there are no further updates to the subjects. If the user publishes a follow-up message or uploads new documents, the session will pick-up where it left off with the chat_agent responding to the updated message and top k document chunk content.
 
