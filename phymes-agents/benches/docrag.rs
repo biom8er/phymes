@@ -1,15 +1,16 @@
 use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
+use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::session_plans::{
     agent_session_builder::AgentSessionBuilderTrait,
     document_rag_session::{DocumentRAGSession, test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query}},
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::session_context::{get_metrics_as_pivot_table, SessionStreamState},
-    table::arrow_table::ArrowTableTrait,
+    table::arrow_table::ArrowTableTrait, task::arrow_message::ArrowIncomingMessage,
 };
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {
@@ -131,22 +132,13 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .unwrap();
                 let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                 let timer = baseline_metrics.elapsed_compute().timer();
-                let _messages = rt.block_on(async {
-                    bench_doc_rag_session_docs(
-                        Arc::clone(&session_stream_state),
-                        &config,
-                        document_texts.as_ref(),
-                        document_ids,
-                    )
-                    .await
+                let _messages = rt.block_on(async {                    
+                    let session_stream = bench_doc_rag_session_docs(Arc::clone(&session_stream_state), &config, document_texts.as_ref(), document_ids);
+                    session_stream.try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>().await
                 });
                 let _messages = rt.block_on(async {
-                    bench_doc_rag_session_query(
-                        Arc::clone(&session_stream_state),
-                        &config,
-                        user_query,
-                    )
-                    .await
+                    let session_stream = bench_doc_rag_session_query(Arc::clone(&session_stream_state), &config, user_query);
+                    session_stream.try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>().await
                 });
                 timer.done();
                 baseline_metrics.done();

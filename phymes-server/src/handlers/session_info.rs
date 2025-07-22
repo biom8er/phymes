@@ -41,6 +41,8 @@ pub enum SessionResponseFormat {
 /// Server session request
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct SessionResponse {
+    /// The name of the session plan
+    pub session_plan: String,
     /// The name of the session
     pub session_name: String,
     /// The subject name if known else blank

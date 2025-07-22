@@ -156,6 +156,7 @@ mod tests {
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
         let session_response = SessionResponse {
+            session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "".to_string(),
             format: SessionResponseFormat::Bytes,
@@ -253,6 +254,7 @@ mod tests {
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
         let session_response = SessionResponse {
+            session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "".to_string(),
             format: SessionResponseFormat::Bytes,
@@ -282,6 +284,7 @@ mod tests {
 
         // Test session_stream using serverless_app
         let session_response = SessionResponse {
+            session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "messages".to_string(),
             format: SessionResponseFormat::Bytes,

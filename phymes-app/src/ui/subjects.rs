@@ -122,6 +122,7 @@ pub fn subjects_modal() -> Element {
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
+        session_plan: ACTIVE_SESSION_NAME.read().to_string(),
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
         format: SessionResponseFormat::Bytes,
@@ -314,6 +315,7 @@ pub fn subjects_modal() -> Element {
         for file_name in &files {
             if let Some(contents) = file_engine.read_file_to_string(file_name).await {
                 files_uploaded.write().push(SessionResponse {
+                    session_plan: ACTIVE_SESSION_NAME.read().to_string(),
                     session_name: create_session_name(
                         EMAIL.read().as_str(),
                         ACTIVE_SESSION_NAME.read().as_str(),
@@ -510,6 +512,7 @@ pub fn subjects_modal() -> Element {
                                         // Get csv file from the server
                                         files_downloaded.write().clear();
                                         let data = SessionResponse {
+                                            session_plan: ACTIVE_SESSION_NAME.read().to_string(),
                                             session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
                                             subject_name: subject_shown.read().to_string(),
                                             format: SessionResponseFormat::CSV { delimiter: b',', header: true, batch_size: 1024 },

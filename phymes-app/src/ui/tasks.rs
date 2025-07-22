@@ -72,6 +72,7 @@ pub fn tasks_modal() -> Element {
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
+        session_plan: ACTIVE_SESSION_NAME.read().to_string(),
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
         format: SessionResponseFormat::Bytes,

@@ -12,18 +12,8 @@ use bytes::Bytes;
 use futures::prelude::*;
 use phymes_core::{
     metrics::HashMap,
-    session::{
-        common_traits::{BuilderTrait, MappableTrait},
-        session_context::SessionStream,
-    },
-    table::{
-        arrow_table::{ArrowTableBuilder, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-    },
-    task::arrow_message::{
-        ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
-        ArrowIncomingMessageTrait, ArrowMessageBuilderTrait,
-    },
+    session::common_traits::MappableTrait,
+    table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
 };
 
 // General imports
@@ -42,7 +32,7 @@ use crate::{
 };
 
 // Crate imports
-use phymes_agents::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
 
 /// Chat inference endpoint
 #[axum::debug_handler]
@@ -97,29 +87,8 @@ pub async fn session_stream(
                 }
             };
 
-            // Make the system prompt and add the user query
-            let message_builder = ArrowTableBuilder::new()
-                .with_name(payload.subject_name.as_str())
-                .append_new_user_query_str(payload.content.as_str(), "user")
-                .unwrap();
-
-            // Build the incoming message
-            let incoming_message = ArrowIncomingMessageBuilder::new()
-                .with_name("Chat")
-                .with_subject(payload.subject_name.as_str())
-                .with_publisher(payload.session_name.as_str())
-                .with_message(message_builder.build().unwrap())
-                .with_update(&ArrowTablePublish::Extend {
-                    table_name: payload.subject_name.to_owned(),
-                })
-                .build()
-                .unwrap();
-            let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
-            incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
-
             // Make the session stream
-            let session_stream =
-                SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+            let session_stream = AvailableSessionPlans::get_session_stream_by_name(payload.session_plan.as_str(), payload.session_name.as_str(), Arc::clone(&session_stream_state), payload.content.as_str()).unwrap();
 
             // Run and update the session and convert the output to the user specified format 
             // Note: that we cannot write state updates to disk for

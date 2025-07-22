@@ -5,6 +5,7 @@ extern crate intel_mkl_src;
 extern crate accelerate_src;
 
 use anyhow::Result;
+use futures::TryStreamExt;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
@@ -47,12 +48,8 @@ pub async fn run_main() -> Result<()> {
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // ----- Query #1 -----
-    let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = bench_chat_agent_session_1(
-        Arc::clone(&session_stream_state),
-        &chat_agent_session,
-        "Write a function to count prime numbers up to N.",
-    )
-    .await?;
+    let session_stream = bench_chat_agent_session_1(Arc::clone(&session_stream_state), &chat_agent_session, "Write a function to count prime numbers up to N.");
+    let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response
     let json_data = response
@@ -72,12 +69,8 @@ pub async fn run_main() -> Result<()> {
     }
 
     // ----- Query #2 -----
-    let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = bench_chat_agent_session_2(
-        Arc::clone(&session_stream_state),
-        &chat_agent_session,
-        "Please provide an example using the functions.",
-    )
-    .await?;
+    let session_stream = bench_chat_agent_session_2(Arc::clone(&session_stream_state), &chat_agent_session, "Please provide an example using the functions.");
+    let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response
     let json_data = response

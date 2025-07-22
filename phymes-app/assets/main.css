@@ -142,14 +142,15 @@ main .messaging_list{
 }
 
 /* Sign-in interface styling */
-main .messaging_list form{
+main .messaging_list .sign_in_form{
     width:70%;
+	max-width: 600px;
 	height:auto;
     float: middle;
 	vertical-align: top;
 	margin: auto;
 }
-main .messaging_list form input{
+main .messaging_list .sign_in_form input{
 	width:100%;
 	height:auto;
 	line-height:50px;
@@ -160,7 +161,7 @@ main .messaging_list form input{
 	font-family: Arial, Helvetica, sans-serif;
 	color:#fff;
 }
-main .messaging_list form input::placeholder{
+main .messaging_list .sign_in_form input::placeholder{
 	color:#fff;
 }
 main .messaging_list button{

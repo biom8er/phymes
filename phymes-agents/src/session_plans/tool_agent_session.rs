@@ -40,6 +40,7 @@ use arrow::{
 /// Tool agent node with human-in-the-loop
 ///
 /// # Supersteps
+/// 
 /// 1. Tool call: session -> chat_task (message_aggregator, chat_processor, message_parser)
 /// 2. Tool invoke: -> tool_task (config_processor, ops_processor, summary_processor)
 ///    or human-in-the-loop_task (config_processor, ops_processor)
@@ -48,6 +49,7 @@ use arrow::{
 /// 4. End
 ///
 /// ## Chat Task
+/// 
 /// chat_task is composed of chained processors:
 /// message_aggregator -> chat_processor -> message_parser
 /// where message_aggregator combines multiple messages
@@ -58,6 +60,7 @@ use arrow::{
 ///   2) split the messages into seperate tool calls
 ///
 /// ## Tool Task
+/// 
 /// tool_task is composed of a chained processor:
 /// config_processor -> ops_processor -> summary_processor
 /// where config_processor parses the tool call and
@@ -92,7 +95,38 @@ pub struct ToolAgentSession<'a> {
     pub chat_api_url: Option<&'a str>,
 }
 
-impl ToolAgentSession<'_> {
+impl Default for ToolAgentSession<'_> {
+    fn default() -> Self {
+        ToolAgentSession {
+            session_context_name: "session_context_1",
+            chat_processor_name: "chat_processor_1",
+            chat_task_name: "chat_task_1",
+            chat_runtime_env_name: "chat_rt_1",
+            tool_task_name: WhichCandleOps::SortScoresAndIndices.get_name(),
+            tool_processor_name: WhichCandleOps::SortScoresAndIndices.get_name(),
+            tool_runtime_env_name: "tool_rt_1",
+            summary_processor_name: "summary_processor_1",
+            hitl_task_name: WhichCandleOps::HumanInTheLoops.get_name(),
+            hitl_processor_name: WhichCandleOps::HumanInTheLoops.get_name(),
+            message_parser_task_name: "message_parser_task_1",
+            message_parser_processor_name: "message_parser_processor_1",
+            message_aggregator_task_name: "message_aggregator_task_1",
+            message_aggregator_processor_name: "message_aggregator_processor_1",
+            message_runtime_env_name: "message_rt_1",
+            state_messages_table_name: "messages",
+            state_scores_table_name: "available_data_1",
+            state_tools_table_name: "tools",
+            chat_api_url: Some("http://0.0.0.0:8000/v1"),
+        }
+    }
+}
+
+impl<'a> ToolAgentSession<'a> {
+    pub fn new_with_session_name(session_name: &'a str) -> Self {
+        let mut session = ToolAgentSession::default();
+        session.session_context_name = session_name;
+        session
+    }
     pub fn make_tools_table(&self) -> Result<ArrowTable> {
         let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
             WhichCandleOps::SortScoresAndIndices.get_name(),
@@ -518,9 +552,9 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use futures::TryStreamExt;
+pub mod test_tool_agent_session {
+    use super::*;
+    use crate::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     use parking_lot::RwLock;
     use phymes_core::{
         metrics::HashMap,
@@ -528,15 +562,54 @@ mod tests {
             common_traits::MappableTrait,
             session_context::{SessionStream, SessionStreamState},
         },
-        table::{arrow_table::ArrowTableTrait, arrow_table_publish::ArrowTablePublish},
         task::arrow_message::{
             ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
-            ArrowIncomingMessageTrait, ArrowMessageBuilderTrait,
+            ArrowMessageBuilderTrait,
         },
     };
 
+    pub fn bench_tool_agent_session<'a>(
+        session_stream_state: Arc<RwLock<SessionStreamState>>,
+        session: &ToolAgentSession<'a>,
+        user_query: &str,
+    ) -> SessionStream {
+        // Make the system prompt and add the user query
+        let message_builder = ArrowTableBuilder::new()
+            .with_name(session.message_aggregator_task_name)
+            .append_new_user_query_str(user_query, "user")
+            .unwrap();
+
+        // Build the current message state
+        let incoming_message = ArrowIncomingMessageBuilder::new()
+            .with_name(session.message_aggregator_task_name)
+            .with_subject(session.message_aggregator_task_name)
+            .with_publisher(session.session_context_name)
+            .with_message(message_builder.build().unwrap())
+            .with_update(&ArrowTablePublish::Extend {
+                table_name: session.message_aggregator_task_name.to_string(),
+            })
+            .build()
+            .unwrap();
+        let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
+        incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
+
+        // Run the session
+        SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use futures::TryStreamExt;
+    use parking_lot::RwLock;
+    use phymes_core::{
+        metrics::HashMap,
+        session::session_context::SessionStreamState,
+        table::arrow_table::ArrowTableTrait,
+        task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait}};
+
     use super::*;
-    use crate::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+    use test_tool_agent_session::bench_tool_agent_session;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_tool_agent_session() -> Result<()> {
@@ -544,57 +617,12 @@ mod tests {
         let metrics = ArrowTaskMetricsSet::new();
 
         // initialize the session
-        let tool_agent_session = ToolAgentSession {
-            session_context_name: "session_1",
-            chat_processor_name: "chat_processor_1",
-            chat_task_name: "chat_task_1",
-            chat_runtime_env_name: "chat_rt_1",
-            tool_task_name: WhichCandleOps::SortScoresAndIndices.get_name(),
-            tool_processor_name: WhichCandleOps::SortScoresAndIndices.get_name(),
-            tool_runtime_env_name: "tool_rt_1",
-            summary_processor_name: "summary_processor_1",
-            hitl_task_name: WhichCandleOps::HumanInTheLoops.get_name(),
-            hitl_processor_name: WhichCandleOps::HumanInTheLoops.get_name(),
-            message_parser_task_name: "message_parser_task_1",
-            message_parser_processor_name: "message_parser_processor_1",
-            message_aggregator_task_name: "message_aggregator_task_1",
-            message_aggregator_processor_name: "message_aggregator_processor_1",
-            message_runtime_env_name: "message_rt_1",
-            state_messages_table_name: "messages",
-            state_scores_table_name: "available_data_1",
-            state_tools_table_name: "tools",
-            chat_api_url: Some("http://0.0.0.0:8000/v1"),
-        };
+        let tool_agent_session = ToolAgentSession::default();
         let session_ctx = tool_agent_session.make_session_context(metrics.clone())?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
-        // ----- Query #1 -----
-
-        // Make the system prompt and add the user query
-        let message_builder = ArrowTableBuilder::new()
-            .with_name(tool_agent_session.message_aggregator_task_name)
-            // .insert_system_template_str("You are a helpful assistant.")?
-            .append_new_user_query_str(
-                "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`. Do not call a function if you are able to answer the questions with information from previous tool_response",
-                "user"
-            )?;
-
-        // Build the current message state
-        let incoming_message = ArrowIncomingMessageBuilder::new()
-            .with_name(tool_agent_session.message_aggregator_task_name)
-            .with_subject(tool_agent_session.message_aggregator_task_name)
-            .with_publisher(tool_agent_session.session_context_name)
-            .with_message(message_builder.clone().build()?)
-            .with_update(&ArrowTablePublish::Extend {
-                table_name: tool_agent_session.message_aggregator_task_name.to_string(),
-            })
-            .build()?;
-        let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
-        incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
-
-        // Run the session
-        let session_stream =
-            SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+        // Make the user query
+        let user_query = "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`. Do not call a function if you are able to answer the questions with information from previous tool_response";
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -602,8 +630,8 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-                session_stream.try_collect().await?;
+            let session_stream = bench_tool_agent_session(Arc::clone(&session_stream_state), &tool_agent_session, user_query);
+            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await?;
 
             println!(
                 "Iters: {}",

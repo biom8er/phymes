@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
+use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::session_plans::{
     agent_session_builder::AgentSessionBuilderTrait,
@@ -10,9 +11,9 @@ use phymes_agents::session_plans::{
     },
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::session_context::{get_metrics_as_pivot_table, SessionStreamState},
-    table::arrow_table::ArrowTableTrait,
+    table::arrow_table::ArrowTableTrait, task::arrow_message::ArrowIncomingMessage,
 };
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {
@@ -82,20 +83,12 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                 let timer = baseline_metrics.elapsed_compute().timer();
                 let _messages = rt.block_on(async {
-                    bench_chat_agent_session_1(
-                        Arc::clone(&session_stream_state),
-                        &config,
-                        user_content.0,
-                    )
-                    .await
+                    let session_stream = bench_chat_agent_session_1(Arc::clone(&session_stream_state), &config, user_content.0);
+                    session_stream.try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>().await
                 });
                 let _messages = rt.block_on(async {
-                    bench_chat_agent_session_2(
-                        Arc::clone(&session_stream_state),
-                        &config,
-                        user_content.0,
-                    )
-                    .await
+                    let session_stream = bench_chat_agent_session_2(Arc::clone(&session_stream_state), &config, user_content.1);
+                    session_stream.try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>().await
                 });
                 timer.done();
                 baseline_metrics.done();
