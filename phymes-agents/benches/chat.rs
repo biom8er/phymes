@@ -80,11 +80,11 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     ));
     config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
     let config_vec = vec![
-        config_smollm2_1,
+        // config_smollm2_1,
         // config_smollm2_2,
-        // config_smollm2_3,
-        // config_qwen2p5_1,
-        // config_qwen2p5_2,
+        config_smollm2_3,
+        config_qwen2p5_1,
+        config_qwen2p5_2,
     ];
 
     // Get the target and GPU configuration
@@ -140,9 +140,10 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                     let sample_id = format!("{id}_{iter}");
                     let name = format!("chat_processor_{id}_{iter}");
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
-                    let rt = tokio::runtime::Builder::new_current_thread()
-                        .build()
-                        .unwrap();
+                    #[cfg(feature = "wasip2")]
+                    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+                    #[cfg(not(feature = "wasip2"))]
+                    let rt = tokio::runtime::Runtime::new().unwrap();
                     let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                     let timer = baseline_metrics.elapsed_compute().timer();
                     let _messages = rt.block_on(async {

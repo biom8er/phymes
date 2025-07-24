@@ -723,6 +723,55 @@ mod tests {
         assert!(error.is_err());
     }
 
+    #[test]
+    fn test_build_candle_chat_asset() {
+        // Setup the candle chat config
+        let config = CandleChatConfig {
+            max_tokens: 1000,
+            temperature: 0.8,
+            seed: 299792458,
+            repeat_penalty: 1.1,
+            repeat_last_n: 64,
+            weights_config_file: Some(format!(
+                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            weights_file: Some(format!(
+                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            tokenizer_file: Some(format!(
+                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            tokenizer_config_file: Some(format!(
+                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            candle_asset: Some(
+                crate::candle_assets::candle_which::WhichCandleAsset::SmolLM2_135MChat,
+            ),
+            ..Default::default()
+        };
+
+        // Build the asset
+        let device = device(config.cpu).unwrap();
+        let asset = config.candle_asset.unwrap().build(
+            config.weights_config_file.clone(),
+            config.tokenizer_file.clone(),
+            config.weights_file.clone(),
+            config.tokenizer_config_file.clone(),
+            DType::F32,
+            device,
+        ).unwrap();
+
+        // Check the asset
+        assert!(asset.device.is_cpu());
+        assert_eq!(asset.tokenizer_config.eos_token_id.unwrap(), 2);
+        assert!(asset.tokenizer.to_string(false).is_ok());
+        assert_eq!(asset.dtype.as_str(), "f32");
+    }
+
     #[tokio::test]
     async fn test_candle_chat_processor() -> Result<(), Box<dyn std::error::Error>> {
         let name = "CandleChatProcessor";

@@ -619,6 +619,52 @@ mod tests {
     }
 
     #[test]
+    fn test_build_candle_embed_asset() {
+        // Setup the candle embed config
+        let config = CandleEmbedConfig {
+            weights_config_file: Some(format!(
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            weights_file: Some(format!(
+                // "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/pytorch_model.bin",
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            tokenizer_file: Some(format!(
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            tokenizer_config_file: Some(format!(
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            candle_asset: Some(
+                // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
+                crate::candle_assets::candle_which::WhichCandleAsset::QuantizedBertEmbed,
+            ),
+            ..Default::default()
+        };
+
+        // Build the asset
+        let device = device(config.cpu).unwrap();
+        let asset = config.candle_asset.unwrap().build(
+            config.weights_config_file.clone(),
+            config.tokenizer_file.clone(),
+            config.weights_file.clone(),
+            config.tokenizer_config_file.clone(),
+            DType::F32,
+            device,
+        ).unwrap();
+
+        // Check the asset
+        assert!(asset.device.is_cpu());
+        assert_eq!(asset.tokenizer_config.eos_token_id.unwrap(), 0);
+        assert!(asset.tokenizer.to_string(false).is_ok());
+        assert_eq!(asset.dtype.as_str(), "f32");
+    }
+
+    #[test]
     fn test_convert_embedding_tensor_to_record_batch() -> Result<()> {
         // Create the embeddings tensor
         let embeddings_vec: Vec<Vec<f32>> = vec![
