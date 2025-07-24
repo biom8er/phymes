@@ -1,6 +1,4 @@
-use parking_lot::RwLock;
 use std::fmt::Debug;
-use std::sync::Arc;
 
 use crate::session::common_traits::{MappableTrait, TensorProcessorTrait, TokenProcessorTrait};
 
@@ -10,12 +8,12 @@ pub trait RuntimeEnvTrait: MappableTrait + Send + Sync {
     fn with_name(self, name: &str) -> Self;
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Debug)]
 pub struct RuntimeEnv {
     /// the service for generating and consuming tokens
-    pub token_service: Option<Arc<RwLock<dyn TokenProcessorTrait>>>,
+    pub token_service: Option<Box<dyn TokenProcessorTrait>>,
     /// the service for operating over tensors
-    pub tensor_service: Option<Arc<RwLock<dyn TensorProcessorTrait>>>,
+    pub tensor_service: Option<Box<dyn TensorProcessorTrait>>,
     /// name for the runtime environment config
     pub name: String,
     /// the max allowable memory

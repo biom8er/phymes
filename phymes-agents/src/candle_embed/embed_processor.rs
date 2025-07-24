@@ -35,7 +35,7 @@ use arrow::{
 
 use anyhow::{Error, Result, anyhow};
 use futures::{Stream, StreamExt};
-use parking_lot::{Mutex, lock_api::RwLock};
+use parking_lot::Mutex;
 use std::{
     pin::Pin,
     sync::Arc,
@@ -203,7 +203,7 @@ impl CandleEmbedStream {
                     .try_lock()
                     .unwrap()
                     .token_service
-                    .replace(Arc::new(RwLock::new(asset)));
+                    .replace(Box::new(asset));
             }
         } else {
             return Err(anyhow!(
@@ -230,8 +230,6 @@ impl CandleEmbedStream {
             .unwrap()
             .token_service
             .as_mut()
-            .unwrap()
-            .try_write()
             .unwrap()
             .forward(
                 &TokenWrapper::D2(tokens.to_vec()),
@@ -298,8 +296,6 @@ impl Stream for CandleEmbedStream {
                 .token_service
                 .as_ref()
                 .unwrap()
-                .try_read()
-                .unwrap()
                 .get_tokenizer()
                 .clone();
             let tokenizer_config = self
@@ -308,8 +304,6 @@ impl Stream for CandleEmbedStream {
                 .unwrap()
                 .token_service
                 .as_ref()
-                .unwrap()
-                .try_read()
                 .unwrap()
                 .get_tokenizer_config()
                 .clone();
@@ -368,8 +362,6 @@ impl Stream for CandleEmbedStream {
                 .token_service
                 .as_ref()
                 .unwrap()
-                .try_read()
-                .unwrap()
                 .get_tokenizer()
                 .clone();
             let tokenizer_config = self
@@ -378,8 +370,6 @@ impl Stream for CandleEmbedStream {
                 .unwrap()
                 .token_service
                 .as_ref()
-                .unwrap()
-                .try_read()
                 .unwrap()
                 .get_tokenizer_config()
                 .clone();
@@ -658,7 +648,6 @@ mod tests {
         ).unwrap();
 
         // Check the asset
-        assert!(asset.device.is_cpu());
         assert_eq!(asset.tokenizer_config.eos_token_id.unwrap(), 0);
         assert!(asset.tokenizer.to_string(false).is_ok());
         assert_eq!(asset.dtype.as_str(), "f32");
@@ -755,7 +744,7 @@ mod tests {
             device(config.cpu)?,
         )?;
         let runtime_env = RuntimeEnv {
-            token_service: Some(Arc::new(RwLock::new(asset))),
+            token_service: Some(Box::new(asset)),
             tensor_service: None,
             name: "asset".to_string(),
             memory_limit: None,
@@ -977,7 +966,7 @@ mod tests {
             device(config.cpu)?,
         )?;
         let runtime_env = RuntimeEnv {
-            token_service: Some(Arc::new(RwLock::new(asset))),
+            token_service: Some(Box::new(asset)),
             tensor_service: None,
             name: "asset".to_string(),
             memory_limit: None,

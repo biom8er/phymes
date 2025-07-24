@@ -36,7 +36,7 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use std::{
     pin::Pin,
     sync::Arc,
@@ -199,7 +199,7 @@ impl CandleOpStream {
                     .try_lock()
                     .unwrap()
                     .tensor_service
-                    .replace(Arc::new(RwLock::new(service)));
+                    .replace(Box::new(service));
             }
         } else {
             return Err(anyhow!(
@@ -395,8 +395,6 @@ impl Stream for CandleOpStream {
                     .tensor_service
                     .as_ref()
                     .unwrap()
-                    .try_read()
-                    .unwrap()
                     .get_device(),
             )?,
             WhichCandleOps::SortScoresAndIndices => sort_scores_and_indices(
@@ -407,8 +405,6 @@ impl Stream for CandleOpStream {
                     .unwrap()
                     .tensor_service
                     .as_ref()
-                    .unwrap()
-                    .try_read()
                     .unwrap()
                     .get_device(),
             )?,
@@ -424,8 +420,6 @@ impl Stream for CandleOpStream {
                     .unwrap()
                     .tensor_service
                     .as_ref()
-                    .unwrap()
-                    .try_read()
                     .unwrap()
                     .get_device(),
             )?,
@@ -445,8 +439,6 @@ impl Stream for CandleOpStream {
                     .unwrap()
                     .tensor_service
                     .as_ref()
-                    .unwrap()
-                    .try_read()
                     .unwrap()
                     .get_device(),
             )?,
@@ -631,7 +623,7 @@ mod tests {
         let service = CandleOpsService::new(device);
         let runtime_env = RuntimeEnv {
             token_service: None,
-            tensor_service: Some(Arc::new(RwLock::new(service))),
+            tensor_service: Some(Box::new(service)),
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
@@ -977,7 +969,7 @@ mod tests {
         let service = CandleOpsService::new(device);
         let runtime_env = RuntimeEnv {
             token_service: None,
-            tensor_service: Some(Arc::new(RwLock::new(service))),
+            tensor_service: Some(Box::new(service)),
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
