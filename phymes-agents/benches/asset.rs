@@ -103,7 +103,7 @@ fn benchmark_build_candle_chat_asset(c: &mut Criterion) {
 
         // Create a unique identifier for the benchmark
         let id = format!(
-            "build-candle-chat-asset_{}_{}_{}_{}",
+            "build-chat_{}_{}_{}_{}",
             weight_filename,
             wasm,
             gpu,
@@ -217,7 +217,7 @@ fn benchmark_build_candle_embed_asset(c: &mut Criterion) {
 
         // Create a unique identifier for the benchmark
         let id = format!(
-            "build-candle-embed-asset_{}_{}_{}_{}",
+            "build-embed_{}_{}_{}_{}",
             weight_filename,
             wasm,
             gpu,
@@ -290,7 +290,7 @@ fn benchmark_process_prompt_chat(c: &mut Criterion) {
 
             // Create a unique identifier for the benchmark
             let id = format!(
-                "process-prompt-chat_{}_{}_{}_{}_{}",
+                "prompt-chat_{}_{}_{}_{}_{}",
                 prompt_name,
                 path_name,
                 wasm,
@@ -311,7 +311,7 @@ fn benchmark_process_prompt_chat(c: &mut Criterion) {
 fn benchmark_candle_chat_forward(c: &mut Criterion) {
     // Cases for different chat configurations
     let config_template = CandleChatConfig {
-        max_tokens: 200,
+        max_tokens: 100,
         temperature: 0.8,
         seed: 299792458,
         repeat_penalty: 1.1,
@@ -435,7 +435,7 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
 
         // Create a unique identifier for the benchmark
         let id = format!(
-            "candle-chat-forward-prompt_{}_{}_{}_{}",
+            "chat-f-prompt_{}_{}_{}_{}",
             weight_filename,
             wasm,
             gpu,
@@ -460,7 +460,7 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
 
         // Create a unique identifier for the benchmark
         let id = format!(
-            "candle-chat-forward-samples_{}_{}_{}_{}",
+            "chat-f-samples_{}_{}_{}_{}",
             weight_filename,
             wasm,
             gpu,
@@ -494,8 +494,8 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
 }
 
 criterion_group!(benches, 
-    // benchmark_build_candle_chat_asset, 
-    // benchmark_build_candle_embed_asset, 
-    // benchmark_process_prompt_chat, 
+    benchmark_build_candle_chat_asset, 
+    benchmark_build_candle_embed_asset, 
+    benchmark_process_prompt_chat, 
     benchmark_candle_chat_forward);
 criterion_main!(benches);
