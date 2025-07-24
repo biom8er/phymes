@@ -80,11 +80,11 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     ));
     config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
     let config_vec = vec![
-        // config_smollm2_1,
+        config_smollm2_1,
         // config_smollm2_2,
-        config_smollm2_3,
-        config_qwen2p5_1,
-        config_qwen2p5_2,
+        // config_smollm2_3,
+        // config_qwen2p5_1,
+        // config_qwen2p5_2,
     ];
 
     // Get the target and GPU configuration

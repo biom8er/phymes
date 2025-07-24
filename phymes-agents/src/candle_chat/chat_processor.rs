@@ -11,7 +11,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenProcessorTrait, TokenWrapper
         },
         runtime_env::RuntimeEnv,
     },
@@ -153,6 +153,8 @@ pub struct CandleChatStream {
     config_stream: SendableRecordBatchStream,
     /// The candle asset needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
+    /// An owned copy of the candle asset for inference
+    asset: Option<Box<dyn TokenProcessorTrait>>,
     /// Runtime metrics recording
     baseline_metrics: BaselineMetrics,
     /// Parameters for chat inference
@@ -194,6 +196,7 @@ impl CandleChatStream {
             baseline_metrics,
             config_stream,
             runtime_env,
+            asset: None,
             tos: None,
             logits_processor: None,
             config: None,
@@ -242,6 +245,17 @@ impl CandleChatStream {
                     .unwrap()
                     .token_service
                     .replace(Box::new(asset));
+            }
+
+            // Create a copy of the asset
+            if self.asset.is_none() {
+                let asset = self.runtime_env
+                    .try_lock()
+                    .unwrap()
+                    .token_service
+                    .take()
+                    .unwrap();
+                self.asset.replace(asset);
             }
         } else {
             return Err(anyhow!(
