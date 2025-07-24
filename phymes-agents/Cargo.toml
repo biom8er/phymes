@@ -74,3 +74,7 @@ harness = false
 [[bench]]
 name = "docrag"
 harness = false
+
+[[bench]]
+name = "asset"
+harness = false

@@ -621,7 +621,7 @@ Return the prompt tokens optionally shortening to the maximum input length
 * `tos` - `TokenOutputStream` for use in `stream_chat`
 
 */
-fn process_prompt_chat(
+pub fn process_prompt_chat(
     prompt: String,
     tokenizer: &Tokenizer,
     sample_len: usize,

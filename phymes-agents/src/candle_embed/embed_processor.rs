@@ -916,7 +916,6 @@ mod tests {
         Ok(())
     }
 
-    // #[ignore = "QuantBERT embedding model is not yet supported for WASM."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_candle_embed_stream_wasm() -> Result<()> {
         // Case 1: streaming query
