@@ -35,7 +35,7 @@ cargo check -p phymes-server --features wsl,gpu,candle --all-targets
 cargo test -p phymes-server --features wsl,gpu,candle
 cargo test -p phymes-agents --features wsl,gpu,candle
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
-cargo run --package phymes-agents --features wsl,gpu,candle --release --example chatagent
+cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
 cargo check --all-targets
 cargo check -p phymes-core --all-targets --features wsl
 cargo check -p phymes-core --all-targets --features wasip2
@@ -60,8 +60,8 @@ cargo check -p phymes-agents --no-default-features --features wasip2,candle --ta
 cargo test -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_agents-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
 cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
-cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chatagent
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chatagent.wasm
+cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat_agent_session
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat_agent_session.wasm
 wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 cargo check -p phymes-server --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
 cargo test -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
@@ -92,21 +92,21 @@ mkdir ~/.cache/metrics
 The following runs all benchmarks with all CPU, GPU, and WASM features and targets
 
 ```bash
-cargo bench --bench asset -p phymes-agents --no-default-features --features wsl,gpu,candle -- --sample-size 10
-cargo bench --bench asset -p phymes-agents --no-default-features --features wsl,candle -- --sample-size 10
-cargo bench --bench asset -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
-for file in target/wasm32-wasip2/release/deps/asset-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
+cargo bench --bench candle_asset -p phymes-agents --no-default-features --features wsl,gpu,candle -- --sample-size 10
+cargo bench --bench candle_asset -p phymes-agents --no-default-features --features wsl,candle -- --sample-size 10
+cargo bench --bench candle_asset -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
+for file in target/wasm32-wasip2/release/deps/candle_asset-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
 cargo bench --bench chat -p phymes-agents --no-default-features --features wsl,gpu,candle -- --sample-size 10
 cargo bench --bench chat -p phymes-agents --no-default-features --features wsl,candle -- --sample-size 10
 cargo bench --bench chat -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
 for file in target/wasm32-wasip2/release/deps/chat-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
-cargo bench --bench chatagent -p phymes-agents --no-default-features --features wasip2,gpu,candle -- --sample-size 10
-cargo bench --bench chatagent -p phymes-agents --no-default-features --features wasip2,candle -- --sample-size 10
-cargo bench --bench chatagent -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
-for file in target/wasm32-wasip2/release/deps/chatagent-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
-cargo bench --bench docrag -p phymes-agents --no-default-features --features wasip2,gpu,candle -- --sample-size 10
-cargo bench --bench docrag -p phymes-agents --no-default-features --features wasip2,candle -- --sample-size 10
-cargo bench --bench docrag -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
-for file in target/wasm32-wasip2/release/deps/docrag-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
+cargo bench --bench chat_agent_session -p phymes-agents --no-default-features --features wasip2,gpu,candle -- --sample-size 10
+cargo bench --bench chat_agent_session -p phymes-agents --no-default-features --features wasip2,candle -- --sample-size 10
+cargo bench --bench chat_agent_session -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
+for file in target/wasm32-wasip2/release/deps/chat_agent_session-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
+cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --features wasip2,gpu,candle -- --sample-size 10
+cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --features wasip2,candle -- --sample-size 10
+cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
+for file in target/wasm32-wasip2/release/deps/doc_rag_session-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
 mv ~/.cache/metrics/* ./target/criterion/metrics/
 ```

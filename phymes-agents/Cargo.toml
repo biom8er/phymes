@@ -68,13 +68,13 @@ name = "chat"
 harness = false
 
 [[bench]]
-name = "chatagent"
+name = "chat_agent_session"
 harness = false
 
 [[bench]]
-name = "docrag"
+name = "doc_rag_session"
 harness = false
 
 [[bench]]
-name = "asset"
+name = "candle_asset"
 harness = false

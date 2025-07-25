@@ -23,6 +23,17 @@ pub enum CandleOpsStreamManager {
     StreamLHSAccumulateRHS,
 }
 
+impl CandleOpsStreamManager {
+    pub fn get_name(&self) -> &str {
+        match self {
+            Self::AccumulateLHSStreamRHS => "accumulate-lhs-stream-rhs",
+            Self::AccumulateLHSAccumulateRHS => "accumulate-lhs-accumulate-rhs",
+            Self::StreamLHSStreamRHS => "stream-lhs-stream-rhs",
+            Self::StreamLHSAccumulateRHS => "stream-lhs-accumulate-rhs",
+        }
+    }
+}
+
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(author, version, about, long_about = None)]
 #[serde(default)]

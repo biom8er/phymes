@@ -66,7 +66,7 @@ fn benchmark_build_candle_chat_asset(c: &mut Criterion) {
     ));
     config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
 
-    let config_vec = vec![config_smollm2_1, config_qwen2p5_1, config_qwen2p5_2];
+    let config_vec = [config_smollm2_1, config_qwen2p5_1, config_qwen2p5_2];
 
     // Get the target and GPU configuration
     let wasm = if cfg!(target_arch = "wasm32") {
@@ -173,7 +173,7 @@ fn benchmark_build_candle_embed_asset(c: &mut Criterion) {
         ..Default::default()
     };
 
-    let config_vec = vec![config_minilmv2_1, config_qwen2_1];
+    let config_vec = [config_minilmv2_1, config_qwen2_1];
 
     // Get the target and GPU configuration
     let wasm = if cfg!(target_arch = "wasm32") {
@@ -345,9 +345,9 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
         std::env::var("HOME").unwrap_or("".to_string())
     ));
     config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
-    let config_vec = vec![
-        // config_smollm2_1,
-        // config_qwen2p5_1,
+    let config_vec = [
+        config_smollm2_1,
+        config_qwen2p5_1,
         config_qwen2p5_2,
     ];
 
@@ -479,9 +479,9 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    // benchmark_build_candle_chat_asset,
-    // benchmark_build_candle_embed_asset,
-    // benchmark_process_prompt_chat,
+    benchmark_build_candle_chat_asset,
+    benchmark_build_candle_embed_asset,
+    benchmark_process_prompt_chat,
     benchmark_candle_chat_forward
 );
 criterion_main!(benches);

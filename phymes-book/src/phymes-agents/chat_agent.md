@@ -2,7 +2,7 @@
 
 ## Synopsis
 
-This tutorial describes how the [Chat Agent Session Plan](../../../phymes-agents/src/session_plans/chat_agent_session.rs) uses the [phymes-agent](../../../phymes-agents/README.md) and [phymes-core](../../../phymes-core/README.md) crates to build a simple chat agent. The `chat agent` is provided in the [examples](../../../phymes-agents/examples/chatagent/main.rs).
+This tutorial describes how the [Chat Agent Session Plan](../../../phymes-agents/src/session_plans/chat_agent_session.rs) uses the [phymes-agent](../../../phymes-agents/README.md) and [phymes-core](../../../phymes-core/README.md) crates to build a simple chat agent. The `chat agent` is provided in the [examples](../../../phymes-agents/examples/chat_agent_session/main.rs).
 
 ## Tutorial
 
