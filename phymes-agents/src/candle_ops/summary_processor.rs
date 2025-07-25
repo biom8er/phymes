@@ -32,7 +32,7 @@ use arrow::{
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use tracing::{Level, event};
+use tracing::{event, instrument, Level};
 
 use crate::candle_chat::message_history::create_timestamp;
 
@@ -96,6 +96,7 @@ impl ArrowProcessorTrait for OpsSummaryProcessor {
         self.forward.as_slice()
     }
 
+    #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
         mut message: OutgoingMessageMap,

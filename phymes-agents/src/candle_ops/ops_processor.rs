@@ -42,7 +42,7 @@ use std::{
     sync::Arc,
     task::{Context, Poll, ready},
 };
-use tracing::{Level, event};
+use tracing::{event, instrument, Level};
 
 /// Tensor processor made possible by Candle
 ///
@@ -101,6 +101,7 @@ impl ArrowProcessorTrait for CandleOpProcessor {
         self.forward.as_slice()
     }
 
+    #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
         mut message: OutgoingMessageMap,
@@ -183,6 +184,7 @@ impl CandleOpStream {
         })
     }
 
+    #[instrument(skip(self))]
     fn init_tensor_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
             if self

@@ -33,7 +33,7 @@ use arrow::{
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use serde_json::json;
-use tracing::{Level, event};
+use tracing::{event, instrument, Level};
 
 use crate::{
     candle_chat::{chat_config::CandleChatConfig, tool_parser::format_tool_calls_str},
@@ -109,6 +109,7 @@ impl ArrowProcessorTrait for MessageParserProcessor {
         self.forward.as_slice()
     }
 
+    #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
         mut message: OutgoingMessageMap,
