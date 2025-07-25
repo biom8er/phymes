@@ -448,7 +448,9 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
                 for (pos, token) in prompt_tokens.iter().enumerate() {
                     let logits = asset.forward(&TokenWrapper::D1(vec![*token]), pos, None, true).unwrap();
                     let logits = logits.squeeze(0).unwrap();
-                    next_token = logits_processor.sample(&logits).unwrap();
+                    if pos == prompt_tokens.len() -1 {
+                        next_token = logits_processor.sample(&logits).unwrap();
+                    }
                 }
                 let _text = tos.next_token(next_token).unwrap();
             });
@@ -494,8 +496,8 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
 }
 
 criterion_group!(benches, 
-    benchmark_build_candle_chat_asset, 
-    benchmark_build_candle_embed_asset, 
-    benchmark_process_prompt_chat, 
+    // benchmark_build_candle_chat_asset, 
+    // benchmark_build_candle_embed_asset, 
+    // benchmark_process_prompt_chat, 
     benchmark_candle_chat_forward);
 criterion_main!(benches);

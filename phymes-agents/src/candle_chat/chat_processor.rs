@@ -44,7 +44,7 @@ use std::{
     sync::Arc,
     task::{Context, Poll, ready},
 };
-use tracing::{Level, event};
+use tracing::{event, instrument, Level};
 
 use super::{chat_config::CandleChatConfig, message_history::MessageHistoryTraitExt};
 use crate::openai_asset::chat_completion::Tool;
@@ -154,7 +154,8 @@ pub struct CandleChatStream {
     /// The candle asset needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// An owned copy of the candle asset for inference
-    asset: Option<Box<dyn TokenProcessorTrait>>,
+    /// DM: performance testing with and without mutex
+    // asset: Option<Box<dyn TokenProcessorTrait>>,
     /// Runtime metrics recording
     baseline_metrics: BaselineMetrics,
     /// Parameters for chat inference
@@ -196,7 +197,7 @@ impl CandleChatStream {
             baseline_metrics,
             config_stream,
             runtime_env,
-            asset: None,
+            // asset: None,
             tos: None,
             logits_processor: None,
             config: None,
@@ -207,6 +208,7 @@ impl CandleChatStream {
     }
 
     /// Initialize the config for text generation inference
+    #[instrument(skip(self))]
     fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
         if self.config.is_none() {
             let config: CandleChatConfig = serde_json::from_value(serde_json::Value::Object(
@@ -218,6 +220,7 @@ impl CandleChatStream {
     }
 
     /// Initialize the token service for text generation inference
+    #[instrument(skip(self))]
     fn init_token_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
             // Update the runtime if needed
@@ -247,16 +250,16 @@ impl CandleChatStream {
                     .replace(Box::new(asset));
             }
 
-            // Create a copy of the asset
-            if self.asset.is_none() {
-                let asset = self.runtime_env
-                    .try_lock()
-                    .unwrap()
-                    .token_service
-                    .take()
-                    .unwrap();
-                self.asset.replace(asset);
-            }
+            // // Create a copy of the asset
+            // if self.asset.is_none() {
+            //     let asset = self.runtime_env
+            //         .try_lock()
+            //         .unwrap()
+            //         .token_service
+            //         .take()
+            //         .unwrap();
+            //     self.asset.replace(asset);
+            // }
         } else {
             return Err(anyhow!(
                 "The config for chat processor needs to be initialized before trying to initialize the token service."
@@ -266,6 +269,7 @@ impl CandleChatStream {
     }
 
     /// Initialize the logits processor for text generation inference
+    #[instrument(skip(self))]
     fn init_logits_processor(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
             if self.logits_processor.is_none() {
@@ -286,6 +290,7 @@ impl CandleChatStream {
     }
 
     /// Stream the text generation inference
+    #[instrument(skip(self))]
     fn stream_candle_tgi(&mut self, prompt_tokens: &Option<Vec<u32>>) -> Result<Option<String>> {
         let next_token =
             match prompt_tokens {
@@ -299,6 +304,11 @@ impl CandleChatStream {
                             .as_mut()
                             .unwrap()
                             .forward(&TokenWrapper::D1(vec![*t]), self.index, None, true)?;
+                        // let logits = self
+                        //     .asset
+                        //     .as_mut()
+                        //     .unwrap()
+                        //     .forward(&TokenWrapper::D1(vec![*t]), self.index, None, true)?;
                         let logits = logits.squeeze(0)?;
                         let logits =
                             if self.config.as_ref().unwrap().repeat_penalty == 1. {
@@ -328,6 +338,11 @@ impl CandleChatStream {
                             .as_mut()
                             .unwrap()
                             .forward(&TokenWrapper::D1(p.to_vec()), 0, None, true)?;
+                        // let logits = self
+                        //     .asset
+                        //     .as_mut()
+                        //     .unwrap()
+                        //     .forward(&TokenWrapper::D1(p.to_vec()), 0, None, true)?;
                         let logits = logits.squeeze(0)?;
                         self.logits_processor.as_mut().unwrap().sample(&logits)?
                     } else {
@@ -341,6 +356,11 @@ impl CandleChatStream {
                                 .as_mut()
                                 .unwrap()
                                 .forward(&TokenWrapper::D1(vec![*token]), pos, None, true)?;
+                            // let logits = self
+                            //     .asset
+                            //     .as_mut()
+                            //     .unwrap()
+                            //     .forward(&TokenWrapper::D1(vec![*token]), pos, None, true)?;
                             let logits = logits.squeeze(0)?;
                             next_token = self.logits_processor.as_mut().unwrap().sample(&logits)?
                         }
@@ -411,6 +431,7 @@ impl Stream for CandleChatStream {
             // initialize the logits processor and candle token service
             self.init_logits_processor()?;
             self.init_token_service()?;
+            event!(Level::INFO, "Initialized the chat token service.");
 
             // Convert to a prompt
             let tokenizer_config = self
@@ -422,6 +443,12 @@ impl Stream for CandleChatStream {
                 .unwrap()
                 .get_tokenizer_config()
                 .clone();
+            // let tokenizer_config = self
+            //     .asset
+            //     .as_ref()
+            //     .unwrap()
+            //     .get_tokenizer_config()
+            //     .clone();
             let prompt = messages.to_chat_prompt(
                 tokenizer_config.chat_template.or_else(||
                     Some(r#"""{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0]['role'] == 'system' %}\n{{- messages[0]['content'] }}\n    {%- else %}\n{{- 'You are a helpful assistant.' }}\n    {%- endif %}\n    {{- '\\n\\n# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>' }}\n    {%- for tool in tools %}\n{{- '\\n' }}\n{{- tool | tojson }}\n    {%- endfor %}\n    {{- '\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\\n</tool_call><|im_end|>\\n' }}\n{%- else %}\n    {%- if messages[0]['role'] == 'system' %}\n{{- '<|im_start|>system\\n' + messages[0]['content'] + '<|im_end|>\\n' }}\n    {%- else %}\n{{- '<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- for message in messages %}\n    {%- if (message.role == 'user') or (message.role == 'system' and not loop.first) or (message.role == 'assistant' and not message.tool_calls) %}\n{{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == 'assistant' %}\n{{- '<|im_start|>' + message.role }}\n{%- if message.content %}\n    {{- '\\n' + message.content }}\n{%- endif %}\n{%- for tool_call in message.tool_calls %}\n    {%- if tool_call.function is defined %}\n{%- set tool_call = tool_call.function %}\n    {%- endif %}\n    {{- '\\n<tool_call>\\n{\"name\": \"' }}\n    {{- tool_call.name }}\n    {{- '\", \"arguments\": ' }}\n    {{- tool_call.arguments | tojson }}\n    {{- '}\\n</tool_call>' }}\n{%- endfor %}\n{{- '<|im_end|>\\n' }}\n    {%- elif message.role == 'tool' %}\n{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != 'tool') %}\n    {{- '<|im_start|>user' }}\n{%- endif %}\n{{- '\\n<tool_response>\\n' }}\n{{- message.content }}\n{{- '\\n</tool_response>' }}\n{%- if loop.last or (messages[loop.index0 + 1].role != 'tool') %}\n    {{- '<|im_end|>\\n' }}\n{%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n{%- endif %}\n"""#.to_string())
@@ -431,7 +458,7 @@ impl Stream for CandleChatStream {
                 true,
                 tools,
             )?;
-            event!(Level::DEBUG, "Chat Processor Prompt: {}.", prompt.as_str());
+            event!(Level::INFO, "Chat Processor Prompt: {}.", prompt.as_str());
 
             // Create the prompt tokens
             let model_max_length = tokenizer_config.model_max_length;
@@ -444,11 +471,16 @@ impl Stream for CandleChatStream {
                     .as_ref()
                     .unwrap()
                     .get_tokenizer(),
+                // self.asset
+                //     .as_ref()
+                //     .unwrap()
+                //     .get_tokenizer(),
                 self.config.as_ref().unwrap().max_tokens,
                 model_max_length,
             )?;
             self.to_sample = to_sample;
             self.tos = Some(tos);
+            event!(Level::INFO, "Processed the chat prompt.");
 
             // Inference to generate the next token
             // This can be handled directly as a null in RecordBatch
@@ -463,7 +495,7 @@ impl Stream for CandleChatStream {
                 Ok(Some(s)) => s,
                 _ => "".to_string(),
             };
-            // println!("Chat Processor content: {}", content.as_str());
+            event!(Level::INFO, "Generated the first token {}.", content.as_str());
 
             // Wrap into a record batch
             let role_arr: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
@@ -489,7 +521,7 @@ impl Stream for CandleChatStream {
                 Ok(Some(s)) => s,
                 _ => "".to_string(),
             };
-            // println!("Chat Processor Next string: {}", content.as_str());
+            event!(Level::INFO, "Generated the next token {}.", content.as_str());
 
             // Increment the sample count after the prompt inference
             self.sample += 1;
@@ -514,6 +546,14 @@ impl Stream for CandleChatStream {
                         .as_ref()
                         .unwrap()
                         .as_str(),
+                    // self.asset
+                    //     .as_ref()
+                    //     .unwrap()
+                    //     .get_tokenizer_config()
+                    //     .eos_token
+                    //     .as_ref()
+                    //     .unwrap()
+                    //     .as_str(),
                 )
                 .unwrap();
             if let Some(token) = self.tos.as_mut().unwrap().tokens().last()
