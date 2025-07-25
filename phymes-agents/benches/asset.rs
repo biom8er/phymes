@@ -1,11 +1,17 @@
 use candle_core::DType;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use phymes_agents::{
-    candle_assets::{candle_which::{load_model_asset_path, load_tokenizer, WhichCandleAsset}, device::device}, 
-    candle_chat::{chat_config::CandleChatConfig, chat_processor::{process_logits_sampler, process_prompt_chat}},
+    candle_assets::{
+        candle_which::{WhichCandleAsset, load_model_asset_path, load_tokenizer},
+        device::device,
+    },
+    candle_chat::{
+        chat_config::CandleChatConfig,
+        chat_processor::{process_logits_sampler, process_prompt_chat},
+    },
     candle_embed::embed_config::CandleEmbedConfig,
 };
-use phymes_core::session::common_traits::{TokenWrapper, TokenProcessorTrait};
+use phymes_core::session::common_traits::{TokenProcessorTrait, TokenWrapper};
 
 fn benchmark_build_candle_chat_asset(c: &mut Criterion) {
     // Cases for different chat configurations
@@ -60,11 +66,7 @@ fn benchmark_build_candle_chat_asset(c: &mut Criterion) {
     ));
     config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
 
-    let config_vec = vec![
-        config_smollm2_1,
-        config_qwen2p5_1,
-        config_qwen2p5_2,
-    ];
+    let config_vec = vec![config_smollm2_1, config_qwen2p5_1, config_qwen2p5_2];
 
     // Get the target and GPU configuration
     let wasm = if cfg!(target_arch = "wasm32") {
@@ -102,32 +104,30 @@ fn benchmark_build_candle_chat_asset(c: &mut Criterion) {
         };
 
         // Create a unique identifier for the benchmark
-        let id = format!(
-            "build-chat_{}_{}_{}_{}",
-            weight_filename,
-            wasm,
-            gpu,
-            candle
-        );
+        let id = format!("build-chat_{weight_filename}_{wasm}_{gpu}_{candle}");
         c.bench_function(id.as_str(), |b| {
             b.iter(|| {
                 // Build the asset
                 let device = device(config.cpu).unwrap();
-                let _asset = config.candle_asset.unwrap().build(
-                    config.weights_config_file.clone(),
-                    config.tokenizer_file.clone(),
-                    config.weights_file.clone(),
-                    config.tokenizer_config_file.clone(),
-                    DType::F32,
-                    device,
-                ).unwrap();
+                let _asset = config
+                    .candle_asset
+                    .unwrap()
+                    .build(
+                        config.weights_config_file.clone(),
+                        config.tokenizer_file.clone(),
+                        config.weights_file.clone(),
+                        config.tokenizer_config_file.clone(),
+                        DType::F32,
+                        device,
+                    )
+                    .unwrap();
             });
         });
     }
 }
 
 fn benchmark_build_candle_embed_asset(c: &mut Criterion) {
-    // Cases for different embed configurations    
+    // Cases for different embed configurations
     let config_minilmv2_1 = CandleEmbedConfig {
         weights_config_file: Some(format!(
             "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
@@ -169,16 +169,11 @@ fn benchmark_build_candle_embed_asset(c: &mut Criterion) {
             "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer_config.json",
             std::env::var("HOME").unwrap_or("".to_string())
         )),
-        candle_asset: Some(
-            WhichCandleAsset::QwenV2_1p5bEmbed,
-        ),
+        candle_asset: Some(WhichCandleAsset::QwenV2_1p5bEmbed),
         ..Default::default()
     };
 
-    let config_vec = vec![
-        config_minilmv2_1,
-        config_qwen2_1
-    ];
+    let config_vec = vec![config_minilmv2_1, config_qwen2_1];
 
     // Get the target and GPU configuration
     let wasm = if cfg!(target_arch = "wasm32") {
@@ -216,25 +211,23 @@ fn benchmark_build_candle_embed_asset(c: &mut Criterion) {
         };
 
         // Create a unique identifier for the benchmark
-        let id = format!(
-            "build-embed_{}_{}_{}_{}",
-            weight_filename,
-            wasm,
-            gpu,
-            candle
-        );
+        let id = format!("build-embed_{weight_filename}_{wasm}_{gpu}_{candle}");
         c.bench_function(id.as_str(), |b| {
             b.iter(|| {
                 // Build the asset
                 let device = device(config.cpu).unwrap();
-                let _asset = config.candle_asset.unwrap().build(
-                    config.weights_config_file.clone(),
-                    config.tokenizer_file.clone(),
-                    config.weights_file.clone(),
-                    config.tokenizer_config_file.clone(),
-                    DType::F32,
-                    device,
-                ).unwrap();
+                let _asset = config
+                    .candle_asset
+                    .unwrap()
+                    .build(
+                        config.weights_config_file.clone(),
+                        config.tokenizer_file.clone(),
+                        config.weights_file.clone(),
+                        config.tokenizer_config_file.clone(),
+                        DType::F32,
+                        device,
+                    )
+                    .unwrap();
             });
         });
     }
@@ -244,10 +237,7 @@ fn benchmark_process_prompt_chat(c: &mut Criterion) {
     // Prompts for tool or no tool calls
     let prompt_no_tool = "\"\"\\n\\n<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n\\n\\n\\n\\n\\n<|im_start|>user\\nHi!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nHello how can I help?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>user\\nWhat is Deep Learning?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nmagic!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\n\\n\\n\"\"".to_string();
     let prompt_tool = "\"\"\\n<|im_start|>system\\n\\n\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.\\n\\n\\n\\n# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>\\n\\n\\n\\n{\"function\":{\"description\":\"Get the current weather\",\"name\":\"get_current_weather\",\"parameters\":{\"properties\":{\"format\":{\"description\":\"The temperature unit to use. Infer this from the users location.\",\"enum_values\":[\"celsius\",\"fahrenheit\"],\"type\":\"string\"},\"location\":{\"description\":\"The city and state, e.g. San Francisco, CA\",\"type\":\"string\"}},\"required\":[\"location\",\"format\"],\"type\":\"object\"}},\"type\":\"function\"}\\n\\n\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\\n</tool_call><|im_end|>\\n\\n\\n\\n\\n<|im_start|>user\\nHi!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nHello how can I help?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>user\\nWhat is Deep Learning?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nmagic!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\n\\n\\n\"\"".to_string();
-    let prompts = vec![
-        ("no-tool", prompt_no_tool),
-        ("tool", prompt_tool),        
-    ];
+    let prompts = [("no-tool", prompt_no_tool), ("tool", prompt_tool)];
 
     // Different tokenizers (includes embedding tokenizers!)
     let path_minilmv2: Option<String> = Some(format!(
@@ -262,10 +252,10 @@ fn benchmark_process_prompt_chat(c: &mut Criterion) {
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    let paths = vec![
+    let paths = [
         ("all-MiniLM-L6-v2", path_minilmv2),
         ("SmolLM2-135M", path_smollm2),
-        ("Qwen2-0.5B", path_qwen2p5)
+        ("Qwen2-0.5B", path_qwen2p5),
     ];
     let repo = "".to_string();
     let filename = "tokenizer.json".to_string();
@@ -287,23 +277,18 @@ fn benchmark_process_prompt_chat(c: &mut Criterion) {
 
     for (prompt_name, prompt) in prompts.iter() {
         for (path_name, path) in paths.iter() {
-
             // Create a unique identifier for the benchmark
-            let id = format!(
-                "prompt-chat_{}_{}_{}_{}_{}",
-                prompt_name,
-                path_name,
-                wasm,
-                gpu,
-                candle
-            );
+            let id = format!("prompt-chat_{prompt_name}_{path_name}_{wasm}_{gpu}_{candle}");
             c.bench_function(id.as_str(), |b| {
                 b.iter(|| {
-                    let tokenizer = load_tokenizer(load_model_asset_path(path, &repo, &filename, &revision)).unwrap();
-                    let (_, _, _) = process_prompt_chat(prompt.clone(), &tokenizer, 1000, max_seq_length).unwrap();
+                    let tokenizer =
+                        load_tokenizer(load_model_asset_path(path, &repo, &filename, &revision))
+                            .unwrap();
+                    let (_, _, _) =
+                        process_prompt_chat(prompt.clone(), &tokenizer, 1000, max_seq_length)
+                            .unwrap();
                 });
             });
-
         }
     }
 }
@@ -361,9 +346,9 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
     ));
     config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
     let config_vec = vec![
-        config_smollm2_1,
+        // config_smollm2_1,
         // config_qwen2p5_1,
-        // config_qwen2p5_2,
+        config_qwen2p5_2,
     ];
 
     // Code generation prompt
@@ -403,74 +388,72 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
                 .as_ref()
                 .map_or("unknown", |a| a.get_name())
         };
-        
+
         // Build the asset
         let device = device(config.cpu).unwrap();
-        let mut asset = config.candle_asset.unwrap().build(
-            config.weights_config_file.clone(),
-            config.tokenizer_file.clone(),
-            config.weights_file.clone(),
-            config.tokenizer_config_file.clone(),
-            DType::F32,
-            device,
-        ).unwrap();
+        let mut asset = config
+            .candle_asset
+            .unwrap()
+            .build(
+                config.weights_config_file.clone(),
+                config.tokenizer_file.clone(),
+                config.weights_file.clone(),
+                config.tokenizer_config_file.clone(),
+                DType::F32,
+                device,
+            )
+            .unwrap();
 
         // Build the logits processor
-        let mut logits_processor = process_logits_sampler(
-            config.temperature,
-            config.seed,
-            config.top_k,
-            config.top_p,
-        );
-        
+        let mut logits_processor =
+            process_logits_sampler(config.temperature, config.seed, config.top_k, config.top_p);
+
         // Create the prompt tokens
         let (prompt_tokens, to_sample, mut tos) = process_prompt_chat(
-            prompt.to_string(), 
+            prompt.to_string(),
             &asset.tokenizer,
             config.max_tokens,
             asset.tokenizer_config.model_max_length,
-        ).unwrap();
+        )
+        .unwrap();
         println!("prompt length: {}", prompt_tokens.len());
         assert_eq!(to_sample, config.max_tokens - 1);
 
         // Create a unique identifier for the benchmark
-        let id = format!(
-            "chat-f-prompt_{}_{}_{}_{}",
-            weight_filename,
-            wasm,
-            gpu,
-            candle
-        );
+        let id = format!("chat-f-prompt_{weight_filename}_{wasm}_{gpu}_{candle}");
         c.bench_function(id.as_str(), |b| {
             b.iter(|| {
-                // Process the prompt                
+                // Process the prompt
                 let mut next_token = 0;
                 for (pos, token) in prompt_tokens.iter().enumerate() {
-                    let logits = asset.forward(&TokenWrapper::D1(vec![*token]), pos, None, true).unwrap();
+                    let logits = asset
+                        .forward(&TokenWrapper::D1(vec![*token]), pos, None, true)
+                        .unwrap();
                     let logits = logits.squeeze(0).unwrap();
-                    if pos == prompt_tokens.len() -1 {
+                    if pos == prompt_tokens.len() - 1 {
                         next_token = logits_processor.sample(&logits).unwrap();
                     }
                 }
                 let _text = tos.next_token(next_token).unwrap();
             });
         });
-        
+
         // Initialize the index
         let mut index = prompt_tokens.len();
 
         // Create a unique identifier for the benchmark
-        let id = format!(
-            "chat-f-samples_{}_{}_{}_{}",
-            weight_filename,
-            wasm,
-            gpu,
-            candle
-        );
+        let id = format!("chat-f-samples_{weight_filename}_{wasm}_{gpu}_{candle}");
         c.bench_function(id.as_str(), |b| {
             b.iter(|| {
                 for _iter in 0..to_sample {
-                    let logits = asset.forward(&TokenWrapper::D1(vec![*tos.tokens().last().unwrap()]), index, None, true).unwrap();
+                    let logits = asset
+                        .forward(
+                            &TokenWrapper::D1(vec![*tos.tokens().last().unwrap()]),
+                            index,
+                            None,
+                            true,
+                        )
+                        .unwrap();
                     let logits = logits.squeeze(0).unwrap();
                     let logits = if config.repeat_penalty == 1. {
                         logits
@@ -480,7 +463,8 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
                             &logits,
                             config.repeat_penalty,
                             &tos.tokens()[start_at..],
-                        ).unwrap()
+                        )
+                        .unwrap()
                     };
                     let next_token = logits_processor.sample(&logits).unwrap();
                     let _text = tos.next_token(next_token).unwrap();
@@ -493,9 +477,11 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, 
-    // benchmark_build_candle_chat_asset, 
-    // benchmark_build_candle_embed_asset, 
-    // benchmark_process_prompt_chat, 
-    benchmark_candle_chat_forward);
+criterion_group!(
+    benches,
+    // benchmark_build_candle_chat_asset,
+    // benchmark_build_candle_embed_asset,
+    // benchmark_process_prompt_chat,
+    benchmark_candle_chat_forward
+);
 criterion_main!(benches);

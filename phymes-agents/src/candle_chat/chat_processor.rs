@@ -11,7 +11,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper,
         },
         runtime_env::RuntimeEnv,
     },
@@ -44,7 +44,7 @@ use std::{
     sync::Arc,
     task::{Context, Poll, ready},
 };
-use tracing::{event, instrument, Level};
+use tracing::{Level, event, instrument};
 
 use super::{chat_config::CandleChatConfig, message_history::MessageHistoryTraitExt};
 use crate::openai_asset::chat_completion::Tool;
@@ -458,7 +458,11 @@ impl Stream for CandleChatStream {
                 Ok(Some(s)) => s,
                 _ => "".to_string(),
             };
-            event!(Level::INFO, "Generated the first token {}.", content.as_str());
+            event!(
+                Level::INFO,
+                "Generated the first token {}.",
+                content.as_str()
+            );
 
             // Wrap into a record batch
             let role_arr: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
@@ -484,7 +488,11 @@ impl Stream for CandleChatStream {
                 Ok(Some(s)) => s,
                 _ => "".to_string(),
             };
-            event!(Level::INFO, "Generated the next token {}.", content.as_str());
+            event!(
+                Level::INFO,
+                "Generated the next token {}.",
+                content.as_str()
+            );
 
             // Increment the sample count after the prompt inference
             self.sample += 1;
@@ -744,14 +752,18 @@ mod tests {
 
         // Build the asset
         let device = device(config.cpu).unwrap();
-        let asset = config.candle_asset.unwrap().build(
-            config.weights_config_file.clone(),
-            config.tokenizer_file.clone(),
-            config.weights_file.clone(),
-            config.tokenizer_config_file.clone(),
-            DType::F32,
-            device,
-        ).unwrap();
+        let asset = config
+            .candle_asset
+            .unwrap()
+            .build(
+                config.weights_config_file.clone(),
+                config.tokenizer_file.clone(),
+                config.weights_file.clone(),
+                config.tokenizer_config_file.clone(),
+                DType::F32,
+                device,
+            )
+            .unwrap();
 
         // Check the asset
         assert_eq!(asset.tokenizer_config.eos_token_id.unwrap(), 2);

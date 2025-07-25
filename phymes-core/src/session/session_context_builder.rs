@@ -286,12 +286,7 @@ impl BuilderTrait for SessionContextBuilder {
             .take()
             .unwrap()
             .into_iter()
-            .map(|r| {
-                (
-                    r.get_name().to_string(),
-                    Arc::new(RwLock::new(r)),
-                )
-            })
+            .map(|r| (r.get_name().to_string(), Arc::new(RwLock::new(r))))
             .collect::<HashMap<String, Arc<RwLock<ArrowTable>>>>();
 
         // Check for metrics; if none, initialize with defaults
