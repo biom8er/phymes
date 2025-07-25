@@ -41,7 +41,7 @@ use std::{
     sync::Arc,
     task::{Context, Poll, ready},
 };
-use tracing::{Level, event};
+use tracing::{event, instrument, Level};
 
 use super::embed_config::CandleEmbedConfig;
 
@@ -97,6 +97,7 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
         self.forward.as_slice()
     }
 
+    #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
         mut message: OutgoingMessageMap,
@@ -176,6 +177,7 @@ impl CandleEmbedStream {
         })
     }
 
+    #[instrument(skip(self))]
     fn init_token_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
             if self.runtime_env.try_lock().unwrap().token_service.is_none() {
@@ -223,6 +225,7 @@ impl CandleEmbedStream {
         Ok(())
     }
 
+    #[instrument(skip(self, tokens, masks))]
     fn batch_embed(&mut self, tokens: &[Vec<u32>], masks: &[Vec<u32>]) -> Result<Tensor> {
         let logits = self
             .runtime_env
@@ -485,6 +488,7 @@ pub fn convert_embedding_vector_to_record_batch(
     Ok(batch)
 }
 
+#[instrument(skip(embedding, other))]
 pub fn convert_embedding_tensor_to_record_batch(
     embedding: Tensor,
     other: Vec<RecordBatch>,

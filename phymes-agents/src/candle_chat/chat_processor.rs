@@ -11,7 +11,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenProcessorTrait, TokenWrapper
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper
         },
         runtime_env::RuntimeEnv,
     },
@@ -101,6 +101,7 @@ impl ArrowProcessorTrait for CandleChatProcessor {
         self.forward.as_slice()
     }
 
+    #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
         mut message: OutgoingMessageMap,
@@ -152,10 +153,9 @@ pub struct CandleChatStream {
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The candle asset needed for inference
+    // DM: In a single thread environment, there is minimal to no penalty of using a mutex here
+    // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
     runtime_env: Arc<Mutex<RuntimeEnv>>,
-    /// An owned copy of the candle asset for inference
-    /// DM: performance testing with and without mutex
-    // asset: Option<Box<dyn TokenProcessorTrait>>,
     /// Runtime metrics recording
     baseline_metrics: BaselineMetrics,
     /// Parameters for chat inference
@@ -197,7 +197,6 @@ impl CandleChatStream {
             baseline_metrics,
             config_stream,
             runtime_env,
-            // asset: None,
             tos: None,
             logits_processor: None,
             config: None,
@@ -249,17 +248,6 @@ impl CandleChatStream {
                     .token_service
                     .replace(Box::new(asset));
             }
-
-            // // Create a copy of the asset
-            // if self.asset.is_none() {
-            //     let asset = self.runtime_env
-            //         .try_lock()
-            //         .unwrap()
-            //         .token_service
-            //         .take()
-            //         .unwrap();
-            //     self.asset.replace(asset);
-            // }
         } else {
             return Err(anyhow!(
                 "The config for chat processor needs to be initialized before trying to initialize the token service."
@@ -290,7 +278,7 @@ impl CandleChatStream {
     }
 
     /// Stream the text generation inference
-    #[instrument(skip(self))]
+    #[instrument(skip(self, prompt_tokens))]
     fn stream_candle_tgi(&mut self, prompt_tokens: &Option<Vec<u32>>) -> Result<Option<String>> {
         let next_token =
             match prompt_tokens {
@@ -304,11 +292,6 @@ impl CandleChatStream {
                             .as_mut()
                             .unwrap()
                             .forward(&TokenWrapper::D1(vec![*t]), self.index, None, true)?;
-                        // let logits = self
-                        //     .asset
-                        //     .as_mut()
-                        //     .unwrap()
-                        //     .forward(&TokenWrapper::D1(vec![*t]), self.index, None, true)?;
                         let logits = logits.squeeze(0)?;
                         let logits =
                             if self.config.as_ref().unwrap().repeat_penalty == 1. {
@@ -338,11 +321,6 @@ impl CandleChatStream {
                             .as_mut()
                             .unwrap()
                             .forward(&TokenWrapper::D1(p.to_vec()), 0, None, true)?;
-                        // let logits = self
-                        //     .asset
-                        //     .as_mut()
-                        //     .unwrap()
-                        //     .forward(&TokenWrapper::D1(p.to_vec()), 0, None, true)?;
                         let logits = logits.squeeze(0)?;
                         self.logits_processor.as_mut().unwrap().sample(&logits)?
                     } else {
@@ -356,11 +334,6 @@ impl CandleChatStream {
                                 .as_mut()
                                 .unwrap()
                                 .forward(&TokenWrapper::D1(vec![*token]), pos, None, true)?;
-                            // let logits = self
-                            //     .asset
-                            //     .as_mut()
-                            //     .unwrap()
-                            //     .forward(&TokenWrapper::D1(vec![*token]), pos, None, true)?;
                             let logits = logits.squeeze(0)?;
                             next_token = self.logits_processor.as_mut().unwrap().sample(&logits)?
                         }
@@ -443,12 +416,6 @@ impl Stream for CandleChatStream {
                 .unwrap()
                 .get_tokenizer_config()
                 .clone();
-            // let tokenizer_config = self
-            //     .asset
-            //     .as_ref()
-            //     .unwrap()
-            //     .get_tokenizer_config()
-            //     .clone();
             let prompt = messages.to_chat_prompt(
                 tokenizer_config.chat_template.or_else(||
                     Some(r#"""{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0]['role'] == 'system' %}\n{{- messages[0]['content'] }}\n    {%- else %}\n{{- 'You are a helpful assistant.' }}\n    {%- endif %}\n    {{- '\\n\\n# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>' }}\n    {%- for tool in tools %}\n{{- '\\n' }}\n{{- tool | tojson }}\n    {%- endfor %}\n    {{- '\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\\n</tool_call><|im_end|>\\n' }}\n{%- else %}\n    {%- if messages[0]['role'] == 'system' %}\n{{- '<|im_start|>system\\n' + messages[0]['content'] + '<|im_end|>\\n' }}\n    {%- else %}\n{{- '<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- for message in messages %}\n    {%- if (message.role == 'user') or (message.role == 'system' and not loop.first) or (message.role == 'assistant' and not message.tool_calls) %}\n{{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == 'assistant' %}\n{{- '<|im_start|>' + message.role }}\n{%- if message.content %}\n    {{- '\\n' + message.content }}\n{%- endif %}\n{%- for tool_call in message.tool_calls %}\n    {%- if tool_call.function is defined %}\n{%- set tool_call = tool_call.function %}\n    {%- endif %}\n    {{- '\\n<tool_call>\\n{\"name\": \"' }}\n    {{- tool_call.name }}\n    {{- '\", \"arguments\": ' }}\n    {{- tool_call.arguments | tojson }}\n    {{- '}\\n</tool_call>' }}\n{%- endfor %}\n{{- '<|im_end|>\\n' }}\n    {%- elif message.role == 'tool' %}\n{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != 'tool') %}\n    {{- '<|im_start|>user' }}\n{%- endif %}\n{{- '\\n<tool_response>\\n' }}\n{{- message.content }}\n{{- '\\n</tool_response>' }}\n{%- if loop.last or (messages[loop.index0 + 1].role != 'tool') %}\n    {{- '<|im_end|>\\n' }}\n{%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n{%- endif %}\n"""#.to_string())
@@ -471,10 +438,6 @@ impl Stream for CandleChatStream {
                     .as_ref()
                     .unwrap()
                     .get_tokenizer(),
-                // self.asset
-                //     .as_ref()
-                //     .unwrap()
-                //     .get_tokenizer(),
                 self.config.as_ref().unwrap().max_tokens,
                 model_max_length,
             )?;
@@ -546,14 +509,6 @@ impl Stream for CandleChatStream {
                         .as_ref()
                         .unwrap()
                         .as_str(),
-                    // self.asset
-                    //     .as_ref()
-                    //     .unwrap()
-                    //     .get_tokenizer_config()
-                    //     .eos_token
-                    //     .as_ref()
-                    //     .unwrap()
-                    //     .as_str(),
                 )
                 .unwrap();
             if let Some(token) = self.tos.as_mut().unwrap().tokens().last()

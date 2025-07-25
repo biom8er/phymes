@@ -362,8 +362,8 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
     config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
     let config_vec = vec![
         config_smollm2_1,
-        config_qwen2p5_1,
-        config_qwen2p5_2,
+        // config_qwen2p5_1,
+        // config_qwen2p5_2,
     ];
 
     // Code generation prompt
@@ -458,7 +458,6 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
         
         // Initialize the index
         let mut index = prompt_tokens.len();
-        let mut sample = 0;
 
         // Create a unique identifier for the benchmark
         let id = format!(
@@ -470,7 +469,7 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
         );
         c.bench_function(id.as_str(), |b| {
             b.iter(|| {
-                while sample < to_sample {
+                for _iter in 0..to_sample {
                     let logits = asset.forward(&TokenWrapper::D1(vec![*tos.tokens().last().unwrap()]), index, None, true).unwrap();
                     let logits = logits.squeeze(0).unwrap();
                     let logits = if config.repeat_penalty == 1. {
@@ -488,7 +487,6 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
 
                     // Update the index
                     index += 1;
-                    sample += 1;
                 }
             });
         });
