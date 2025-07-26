@@ -140,9 +140,12 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                     let sample_id = format!("{id}_{iter}");
                     let name = format!("chat_processor_{id}_{iter}");
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
+                    #[cfg(feature = "wasip2")]
                     let rt = tokio::runtime::Builder::new_current_thread()
                         .build()
                         .unwrap();
+                    #[cfg(not(feature = "wasip2"))]
+                    let rt = tokio::runtime::Runtime::new().unwrap();
                     let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                     let timer = baseline_metrics.elapsed_compute().timer();
                     let _messages = rt.block_on(async {

@@ -38,13 +38,13 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, ready},
 };
-use tracing::{Level, event};
+use tracing::{Level, event, instrument};
 
 use super::{chat_config::CandleChatConfig, message_history::MessageHistoryTraitExt};
 use crate::openai_asset::chat_completion::Tool;
@@ -101,6 +101,7 @@ impl ArrowProcessorTrait for CandleChatProcessor {
         self.forward.as_slice()
     }
 
+    #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
         mut message: OutgoingMessageMap,
@@ -151,7 +152,9 @@ pub struct CandleChatStream {
     tools_stream: Option<SendableRecordBatchStream>,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
-    /// The candle assets needed for inference
+    /// The candle asset needed for inference
+    // DM: In a single thread environment, there is minimal to no penalty of using a mutex here
+    // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
     baseline_metrics: BaselineMetrics,
@@ -204,6 +207,7 @@ impl CandleChatStream {
     }
 
     /// Initialize the config for text generation inference
+    #[instrument(skip(self))]
     fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
         if self.config.is_none() {
             let config: CandleChatConfig = serde_json::from_value(serde_json::Value::Object(
@@ -215,8 +219,10 @@ impl CandleChatStream {
     }
 
     /// Initialize the token service for text generation inference
+    #[instrument(skip(self))]
     fn init_token_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
+            // Update the runtime if needed
             if self.runtime_env.try_lock().unwrap().token_service.is_none() {
                 let device = device(config.cpu)?;
                 let mut asset = config.candle_asset.unwrap().build(
@@ -240,7 +246,7 @@ impl CandleChatStream {
                     .try_lock()
                     .unwrap()
                     .token_service
-                    .replace(Arc::new(RwLock::new(asset)));
+                    .replace(Box::new(asset));
             }
         } else {
             return Err(anyhow!(
@@ -251,6 +257,7 @@ impl CandleChatStream {
     }
 
     /// Initialize the logits processor for text generation inference
+    #[instrument(skip(self))]
     fn init_logits_processor(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
             if self.logits_processor.is_none() {
@@ -271,6 +278,7 @@ impl CandleChatStream {
     }
 
     /// Stream the text generation inference
+    #[instrument(skip(self, prompt_tokens))]
     fn stream_candle_tgi(&mut self, prompt_tokens: &Option<Vec<u32>>) -> Result<Option<String>> {
         let next_token =
             match prompt_tokens {
@@ -282,8 +290,6 @@ impl CandleChatStream {
                             .unwrap()
                             .token_service
                             .as_mut()
-                            .unwrap()
-                            .try_write()
                             .unwrap()
                             .forward(&TokenWrapper::D1(vec![*t]), self.index, None, true)?;
                         let logits = logits.squeeze(0)?;
@@ -314,8 +320,6 @@ impl CandleChatStream {
                             .token_service
                             .as_mut()
                             .unwrap()
-                            .try_write()
-                            .unwrap()
                             .forward(&TokenWrapper::D1(p.to_vec()), 0, None, true)?;
                         let logits = logits.squeeze(0)?;
                         self.logits_processor.as_mut().unwrap().sample(&logits)?
@@ -328,8 +332,6 @@ impl CandleChatStream {
                                 .unwrap()
                                 .token_service
                                 .as_mut()
-                                .unwrap()
-                                .try_write()
                                 .unwrap()
                                 .forward(&TokenWrapper::D1(vec![*token]), pos, None, true)?;
                             let logits = logits.squeeze(0)?;
@@ -402,6 +404,7 @@ impl Stream for CandleChatStream {
             // initialize the logits processor and candle token service
             self.init_logits_processor()?;
             self.init_token_service()?;
+            event!(Level::INFO, "Initialized the chat token service.");
 
             // Convert to a prompt
             let tokenizer_config = self
@@ -410,8 +413,6 @@ impl Stream for CandleChatStream {
                 .unwrap()
                 .token_service
                 .as_ref()
-                .unwrap()
-                .try_read()
                 .unwrap()
                 .get_tokenizer_config()
                 .clone();
@@ -424,20 +425,10 @@ impl Stream for CandleChatStream {
                 true,
                 tools,
             )?;
-            event!(Level::DEBUG, "Chat Processor Prompt: {}.", prompt.as_str());
+            event!(Level::INFO, "Chat Processor Prompt: {}.", prompt.as_str());
 
             // Create the prompt tokens
-            let model_max_length = self
-                .runtime_env
-                .try_lock()
-                .unwrap()
-                .token_service
-                .as_ref()
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_tokenizer_config()
-                .model_max_length;
+            let model_max_length = tokenizer_config.model_max_length;
             let (prompt_tokens, to_sample, tos) = process_prompt_chat(
                 prompt,
                 self.runtime_env
@@ -446,14 +437,13 @@ impl Stream for CandleChatStream {
                     .token_service
                     .as_ref()
                     .unwrap()
-                    .try_read()
-                    .unwrap()
                     .get_tokenizer(),
                 self.config.as_ref().unwrap().max_tokens,
                 model_max_length,
             )?;
             self.to_sample = to_sample;
             self.tos = Some(tos);
+            event!(Level::INFO, "Processed the chat prompt.");
 
             // Inference to generate the next token
             // This can be handled directly as a null in RecordBatch
@@ -468,7 +458,11 @@ impl Stream for CandleChatStream {
                 Ok(Some(s)) => s,
                 _ => "".to_string(),
             };
-            // println!("Chat Processor content: {}", content.as_str());
+            event!(
+                Level::INFO,
+                "Generated the first token {}.",
+                content.as_str()
+            );
 
             // Wrap into a record batch
             let role_arr: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
@@ -494,7 +488,11 @@ impl Stream for CandleChatStream {
                 Ok(Some(s)) => s,
                 _ => "".to_string(),
             };
-            // println!("Chat Processor Next string: {}", content.as_str());
+            event!(
+                Level::INFO,
+                "Generated the next token {}.",
+                content.as_str()
+            );
 
             // Increment the sample count after the prompt inference
             self.sample += 1;
@@ -513,8 +511,6 @@ impl Stream for CandleChatStream {
                         .unwrap()
                         .token_service
                         .as_ref()
-                        .unwrap()
-                        .try_read()
                         .unwrap()
                         .get_tokenizer_config()
                         .eos_token
@@ -621,7 +617,7 @@ Return the prompt tokens optionally shortening to the maximum input length
 * `tos` - `TokenOutputStream` for use in `stream_chat`
 
 */
-fn process_prompt_chat(
+pub fn process_prompt_chat(
     prompt: String,
     tokenizer: &Tokenizer,
     sample_len: usize,
@@ -721,6 +717,58 @@ mod tests {
             .expect("Tokenizer failed to load!");
         let error = process_prompt_chat(prompt.clone(), &tokenizer, 1000, max_seq_length);
         assert!(error.is_err());
+    }
+
+    #[test]
+    fn test_build_candle_chat_asset() {
+        // Setup the candle chat config
+        let config = CandleChatConfig {
+            max_tokens: 1000,
+            temperature: 0.8,
+            seed: 299792458,
+            repeat_penalty: 1.1,
+            repeat_last_n: 64,
+            weights_config_file: Some(format!(
+                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            weights_file: Some(format!(
+                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            tokenizer_file: Some(format!(
+                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            tokenizer_config_file: Some(format!(
+                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            candle_asset: Some(
+                crate::candle_assets::candle_which::WhichCandleAsset::SmolLM2_135MChat,
+            ),
+            ..Default::default()
+        };
+
+        // Build the asset
+        let device = device(config.cpu).unwrap();
+        let asset = config
+            .candle_asset
+            .unwrap()
+            .build(
+                config.weights_config_file.clone(),
+                config.tokenizer_file.clone(),
+                config.weights_file.clone(),
+                config.tokenizer_config_file.clone(),
+                DType::F32,
+                device,
+            )
+            .unwrap();
+
+        // Check the asset
+        assert_eq!(asset.tokenizer_config.eos_token_id.unwrap(), 2);
+        assert!(asset.tokenizer.to_string(false).is_ok());
+        assert_eq!(asset.dtype.as_str(), "f32");
     }
 
     #[tokio::test]

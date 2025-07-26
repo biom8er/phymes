@@ -195,8 +195,8 @@ impl<'a> DocumentRAGSession<'a> {
             Arc::new(Field::new_list_field(DataType::Float32, false)),
             self.embed_length.try_into().unwrap(),
         );
-        let embeddings = Field::new("embeddings", list_data_type, false);
-        let schema = Arc::new(Schema::new(vec![chunk_id, document_id, embeddings]));
+        let embedding = Field::new("embedding", list_data_type, false);
+        let schema = Arc::new(Schema::new(vec![chunk_id, document_id, embedding]));
         ArrowTableBuilder::new()
             .with_name(self.state_doc_embed_table_name)
             .with_schema(schema)
@@ -219,8 +219,8 @@ impl<'a> DocumentRAGSession<'a> {
             Arc::new(Field::new_list_field(DataType::Float32, false)),
             self.embed_length.try_into().unwrap(),
         );
-        let embeddings = Field::new("embeddings", list_data_type, false);
-        let schema = Arc::new(Schema::new(vec![query_id, embeddings]));
+        let embedding = Field::new("embedding", list_data_type, false);
+        let schema = Arc::new(Schema::new(vec![query_id, embedding]));
         ArrowTableBuilder::new()
             .with_name(self.state_q_embed_table_name)
             .with_schema(schema)
@@ -790,11 +790,11 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: self.state_q_embed_table_name.to_string(),
             lhs_pk: "query_id".to_string(),
             lhs_fk: "query_id".to_string(),
-            lhs_values: "embeddings".to_string(),
+            lhs_values: "embedding".to_string(),
             rhs_name: Some(self.state_doc_embed_table_name.to_string()),
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
-            rhs_values: Some("embeddings".to_string()),
+            rhs_values: Some("embedding".to_string()),
             which: WhichCandleOps::RelativeSimilarityScore,
             ..Default::default()
         };

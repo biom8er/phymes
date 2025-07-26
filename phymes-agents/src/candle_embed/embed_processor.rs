@@ -35,13 +35,13 @@ use arrow::{
 
 use anyhow::{Error, Result, anyhow};
 use futures::{Stream, StreamExt};
-use parking_lot::{Mutex, lock_api::RwLock};
+use parking_lot::Mutex;
 use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, ready},
 };
-use tracing::{Level, event};
+use tracing::{Level, event, instrument};
 
 use super::embed_config::CandleEmbedConfig;
 
@@ -97,6 +97,7 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
         self.forward.as_slice()
     }
 
+    #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
         mut message: OutgoingMessageMap,
@@ -176,6 +177,7 @@ impl CandleEmbedStream {
         })
     }
 
+    #[instrument(skip(self))]
     fn init_token_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
             if self.runtime_env.try_lock().unwrap().token_service.is_none() {
@@ -203,7 +205,7 @@ impl CandleEmbedStream {
                     .try_lock()
                     .unwrap()
                     .token_service
-                    .replace(Arc::new(RwLock::new(asset)));
+                    .replace(Box::new(asset));
             }
         } else {
             return Err(anyhow!(
@@ -223,6 +225,7 @@ impl CandleEmbedStream {
         Ok(())
     }
 
+    #[instrument(skip(self, tokens, masks))]
     fn batch_embed(&mut self, tokens: &[Vec<u32>], masks: &[Vec<u32>]) -> Result<Tensor> {
         let logits = self
             .runtime_env
@@ -230,8 +233,6 @@ impl CandleEmbedStream {
             .unwrap()
             .token_service
             .as_mut()
-            .unwrap()
-            .try_write()
             .unwrap()
             .forward(
                 &TokenWrapper::D2(tokens.to_vec()),
@@ -298,8 +299,6 @@ impl Stream for CandleEmbedStream {
                 .token_service
                 .as_ref()
                 .unwrap()
-                .try_read()
-                .unwrap()
                 .get_tokenizer()
                 .clone();
             let tokenizer_config = self
@@ -308,8 +307,6 @@ impl Stream for CandleEmbedStream {
                 .unwrap()
                 .token_service
                 .as_ref()
-                .unwrap()
-                .try_read()
                 .unwrap()
                 .get_tokenizer_config()
                 .clone();
@@ -368,8 +365,6 @@ impl Stream for CandleEmbedStream {
                 .token_service
                 .as_ref()
                 .unwrap()
-                .try_read()
-                .unwrap()
                 .get_tokenizer()
                 .clone();
             let tokenizer_config = self
@@ -378,8 +373,6 @@ impl Stream for CandleEmbedStream {
                 .unwrap()
                 .token_service
                 .as_ref()
-                .unwrap()
-                .try_read()
                 .unwrap()
                 .get_tokenizer_config()
                 .clone();
@@ -489,12 +482,13 @@ pub fn convert_embedding_vector_to_record_batch(
         batch_vec.push((column, array_ref));
     }
 
-    let embeddings_name = "embeddings".to_string();
+    let embeddings_name = "embedding".to_string();
     batch_vec.push((&embeddings_name, embeddings));
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
 }
 
+#[instrument(skip(embedding, other))]
 pub fn convert_embedding_tensor_to_record_batch(
     embedding: Tensor,
     other: Vec<RecordBatch>,
@@ -619,6 +613,55 @@ mod tests {
     }
 
     #[test]
+    fn test_build_candle_embed_asset() {
+        // Setup the candle embed config
+        let config = CandleEmbedConfig {
+            weights_config_file: Some(format!(
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            weights_file: Some(format!(
+                // "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/pytorch_model.bin",
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            tokenizer_file: Some(format!(
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            tokenizer_config_file: Some(format!(
+                "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            candle_asset: Some(
+                // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
+                crate::candle_assets::candle_which::WhichCandleAsset::QuantizedBertEmbed,
+            ),
+            ..Default::default()
+        };
+
+        // Build the asset
+        let device = device(config.cpu).unwrap();
+        let asset = config
+            .candle_asset
+            .unwrap()
+            .build(
+                config.weights_config_file.clone(),
+                config.tokenizer_file.clone(),
+                config.weights_file.clone(),
+                config.tokenizer_config_file.clone(),
+                DType::F32,
+                device,
+            )
+            .unwrap();
+
+        // Check the asset
+        assert_eq!(asset.tokenizer_config.eos_token_id.unwrap(), 0);
+        assert!(asset.tokenizer.to_string(false).is_ok());
+        assert_eq!(asset.dtype.as_str(), "f32");
+    }
+
+    #[test]
     fn test_convert_embedding_tensor_to_record_batch() -> Result<()> {
         // Create the embeddings tensor
         let embeddings_vec: Vec<Vec<f32>> = vec![
@@ -646,7 +689,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(indices, indices_vec);
         let embeddings = batch
-            .column_by_name("embeddings")
+            .column_by_name("embedding")
             .unwrap()
             .as_any()
             .downcast_ref::<FixedSizeListArray>()
@@ -709,7 +752,7 @@ mod tests {
             device(config.cpu)?,
         )?;
         let runtime_env = RuntimeEnv {
-            token_service: Some(Arc::new(RwLock::new(asset))),
+            token_service: Some(Box::new(asset)),
             tensor_service: None,
             name: "asset".to_string(),
             memory_limit: None,
@@ -763,7 +806,7 @@ mod tests {
             let _embeddings_vec = embeddings
                 .first()
                 .unwrap()
-                .column_by_name("embeddings")
+                .column_by_name("embedding")
                 .unwrap()
                 .as_any()
                 .downcast_ref::<FixedSizeListArray>()
@@ -833,7 +876,7 @@ mod tests {
             let embeddings_vec = embeddings
                 .first()
                 .unwrap()
-                .column_by_name("embeddings")
+                .column_by_name("embedding")
                 .unwrap()
                 .as_any()
                 .downcast_ref::<FixedSizeListArray>()
@@ -870,7 +913,6 @@ mod tests {
         Ok(())
     }
 
-    // #[ignore = "QuantBERT embedding model is not yet supported for WASM."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_candle_embed_stream_wasm() -> Result<()> {
         // Case 1: streaming query
@@ -932,7 +974,7 @@ mod tests {
             device(config.cpu)?,
         )?;
         let runtime_env = RuntimeEnv {
-            token_service: Some(Arc::new(RwLock::new(asset))),
+            token_service: Some(Box::new(asset)),
             tensor_service: None,
             name: "asset".to_string(),
             memory_limit: None,
@@ -967,7 +1009,7 @@ mod tests {
             let _embeddings_vec = embeddings
                 .first()
                 .unwrap()
-                .column_by_name("embeddings")
+                .column_by_name("embedding")
                 .unwrap()
                 .as_any()
                 .downcast_ref::<FixedSizeListArray>()

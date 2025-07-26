@@ -435,7 +435,7 @@ Returns a path to the model asset including tokenizer, config, and model files
 
 */
 #[allow(unused_variables)]
-pub(crate) fn load_model_asset_path(
+pub fn load_model_asset_path(
     path: &Option<String>,
     repo: &str,
     filename: &str,
@@ -459,7 +459,7 @@ pub(crate) fn load_model_asset_path(
     Ok(asset_path)
 }
 
-pub(crate) fn load_tokenizer(path: Result<std::path::PathBuf>) -> Result<Tokenizer> {
+pub fn load_tokenizer(path: Result<std::path::PathBuf>) -> Result<Tokenizer> {
     match path {
         Ok(asset_path) => Tokenizer::from_file(asset_path).map_err(anyhow::Error::msg),
         Err(err) => panic!("Asset path needs to be provided! {err:?}"),

@@ -33,7 +33,7 @@ use arrow::{
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use tracing::{Level, event};
+use tracing::{Level, event, instrument};
 
 /// Processor that aggregates messages
 ///
@@ -96,6 +96,7 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
         self.forward.as_slice()
     }
 
+    #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
         mut message: OutgoingMessageMap,

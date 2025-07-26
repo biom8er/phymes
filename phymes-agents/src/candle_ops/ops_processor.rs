@@ -36,18 +36,17 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, ready},
 };
-use tracing::{Level, event};
+use tracing::{Level, event, instrument};
 
 /// Tensor processor made possible by Candle
 ///
-/// Each operator has a defined input and output schema
-/// that calling processors or consuming processors
+/// Each operator has a defined input and output schema that calling processors or consuming processors
 /// need to adhere to
 #[derive(Default, Debug)]
 pub struct CandleOpProcessor {
@@ -101,6 +100,7 @@ impl ArrowProcessorTrait for CandleOpProcessor {
         self.forward.as_slice()
     }
 
+    #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
         mut message: OutgoingMessageMap,
@@ -183,6 +183,7 @@ impl CandleOpStream {
         })
     }
 
+    #[instrument(skip(self))]
     fn init_tensor_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
             if self
@@ -199,7 +200,7 @@ impl CandleOpStream {
                     .try_lock()
                     .unwrap()
                     .tensor_service
-                    .replace(Arc::new(RwLock::new(service)));
+                    .replace(Box::new(service));
             }
         } else {
             return Err(anyhow!(
@@ -214,10 +215,6 @@ impl Stream for CandleOpStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // 1. Accumulate all of the LHS queries which we assume to be less than the document chunks
-        // 2. Poll each document chunk one by one which we assume to already be sized to fit in memory
-        // 3. Compute the similarity score and send the stream
-
         // Initialize the metrics
         let metrics = self.baseline_metrics.clone();
         let _timer = metrics.elapsed_compute().timer();
@@ -362,7 +359,21 @@ impl Stream for CandleOpStream {
             self.rhs_inbox = rhs;
         }
 
-        // Compute the relative similary scores
+        // Attempt to parse the op_kwargs
+        let ops_kwargs_default =
+            "{\"chunk_size\": 512, \"chunk_overlap\": 64, \"asc\": false}".to_string();
+        let ops_kwargs_str = self
+            .config
+            .as_ref()
+            .unwrap()
+            .op_kwargs
+            .as_ref()
+            .unwrap_or(&ops_kwargs_default)
+            .to_owned();
+        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str.as_str())
+            .unwrap_or(serde_json::from_str(ops_kwargs_default.as_str()).unwrap());
+
+        // Compute the ops function
         event!(
             Level::DEBUG,
             "Executing Ops {}.",
@@ -395,20 +406,16 @@ impl Stream for CandleOpStream {
                     .tensor_service
                     .as_ref()
                     .unwrap()
-                    .try_read()
-                    .unwrap()
                     .get_device(),
             )?,
             WhichCandleOps::SortScoresAndIndices => sort_scores_and_indices(
                 &self.lhs_inbox,
-                false,
+                ops_kwargs.get("asc").unwrap().as_bool().unwrap(),
                 self.runtime_env
                     .try_lock()
                     .unwrap()
                     .tensor_service
                     .as_ref()
-                    .unwrap()
-                    .try_read()
                     .unwrap()
                     .get_device(),
             )?,
@@ -417,15 +424,13 @@ impl Stream for CandleOpStream {
                 &self.lhs_inbox,
                 &self.config.as_ref().unwrap().lhs_pk,
                 &self.config.as_ref().unwrap().lhs_values,
-                512, //DM: need to add to op_kwargs
-                64,  //DM: need to add to op_kwargs
+                ops_kwargs.get("chunk_size").unwrap().as_u64().unwrap() as usize,
+                ops_kwargs.get("chunk_overlap").unwrap().as_u64().unwrap() as usize,
                 self.runtime_env
                     .try_lock()
                     .unwrap()
                     .tensor_service
                     .as_ref()
-                    .unwrap()
-                    .try_read()
                     .unwrap()
                     .get_device(),
             )?,
@@ -446,8 +451,6 @@ impl Stream for CandleOpStream {
                     .tensor_service
                     .as_ref()
                     .unwrap()
-                    .try_read()
-                    .unwrap()
                     .get_device(),
             )?,
         };
@@ -462,7 +465,6 @@ impl Stream for CandleOpStream {
         }
 
         // record the poll
-        // println!("Record the poll...");
         let poll = Poll::Ready(Some(Ok(batch)));
         metrics.record_poll(poll)
     }
@@ -532,7 +534,7 @@ pub mod test_candle_ops_processor {
 
         // Make the batch
         let ids_ar: ArrayRef = Arc::new(StringArray::from(ids));
-        let batch = RecordBatch::try_from_iter(vec![(id_str, ids_ar), ("embeddings", embedding)])?;
+        let batch = RecordBatch::try_from_iter(vec![(id_str, ids_ar), ("embedding", embedding)])?;
         Ok(batch)
     }
 }
@@ -610,10 +612,10 @@ mod tests {
             rhs_name: Some("rhs_name".to_string()),
             lhs_pk: "lhs_pk".to_string(),
             lhs_fk: "lhs_fk".to_string(),
-            lhs_values: "embeddings".to_string(),
+            lhs_values: "embedding".to_string(),
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
-            rhs_values: Some("embeddings".to_string()),
+            rhs_values: Some("embedding".to_string()),
             which: WhichCandleOps::RelativeSimilarityScore,
             ..Default::default()
         };
@@ -631,7 +633,7 @@ mod tests {
         let service = CandleOpsService::new(device);
         let runtime_env = RuntimeEnv {
             token_service: None,
-            tensor_service: Some(Arc::new(RwLock::new(service))),
+            tensor_service: Some(Box::new(service)),
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
@@ -947,10 +949,10 @@ mod tests {
             rhs_name: Some("rhs_name".to_string()),
             lhs_pk: "lhs_pk".to_string(),
             lhs_fk: "lhs_fk".to_string(),
-            lhs_values: "embeddings".to_string(),
+            lhs_values: "embedding".to_string(),
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
-            rhs_values: Some("embeddings".to_string()),
+            rhs_values: Some("embedding".to_string()),
             which: WhichCandleOps::RelativeSimilarityScore,
             ..Default::default()
         };
@@ -977,7 +979,7 @@ mod tests {
         let service = CandleOpsService::new(device);
         let runtime_env = RuntimeEnv {
             token_service: None,
-            tensor_service: Some(Arc::new(RwLock::new(service))),
+            tensor_service: Some(Box::new(service)),
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,

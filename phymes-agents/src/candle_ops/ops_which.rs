@@ -61,7 +61,7 @@ impl WhichCandleOps {
                     Arc::new(Field::new_list_field(DataType::Float32, false)),
                     embed_size.try_into().unwrap(),
                 );
-                assert_eq!(lhs_value, "embeddings");
+                assert_eq!(lhs_value, "embedding");
                 let lhs_value = Field::new(lhs_value, list_data_type, false);
                 let mut fields = vec![lhs_pk, lhs_fk, lhs_value];
                 if let Some(other) = other {
@@ -127,7 +127,7 @@ impl WhichCandleOps {
                     Arc::new(Field::new_list_field(DataType::Float32, false)),
                     embed_size.try_into().unwrap(),
                 );
-                assert_eq!(rhs_values, "embeddings");
+                assert_eq!(rhs_values, "embedding");
                 let rhs_values = Field::new(rhs_values, list_data_type, false);
                 let mut fields = vec![rhs_pk, rhs_fk, rhs_values];
                 if let Some(other) = other {
@@ -223,8 +223,8 @@ impl WhichCandleOps {
                         lhs_pk
                     ));
                 }
-                if other.column_with_name("embeddings").is_none() {
-                    return Err(anyhow!("LHS input is missing column for embeddings."));
+                if other.column_with_name("embedding").is_none() {
+                    return Err(anyhow!("LHS input is missing column for embedding."));
                 }
                 Ok(Some(true))
             }
@@ -284,8 +284,8 @@ impl WhichCandleOps {
                         rhs_pk
                     ));
                 }
-                if other.column_with_name("embeddings").is_none() {
-                    return Err(anyhow!("RHS input is missing column for embeddings."));
+                if other.column_with_name("embedding").is_none() {
+                    return Err(anyhow!("RHS input is missing column for embedding."));
                 }
                 Ok(Some(true))
             }
@@ -324,8 +324,8 @@ impl WhichCandleOps {
                 if other.column_with_name(rhs_pk).is_none() {
                     return Err(anyhow!("RHS output is missing column for rhs_pk."));
                 }
-                if other.column_with_name("embeddings").is_none() {
-                    return Err(anyhow!("Output is missing column for embeddings."));
+                if other.column_with_name("embedding").is_none() {
+                    return Err(anyhow!("Output is missing column for embedding."));
                 }
                 Ok(Some(true))
             }

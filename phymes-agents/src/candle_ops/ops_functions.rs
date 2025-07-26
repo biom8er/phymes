@@ -7,6 +7,7 @@ use arrow::{
 use anyhow::Result;
 use candle_core::{Device, Tensor};
 use std::sync::Arc;
+use tracing::instrument;
 
 /**
 Compute the relative similarity between two [RecordBatch]es
@@ -19,6 +20,7 @@ Compute the relative similarity between two [RecordBatch]es
 * `device` - The compute device
 
 */
+#[instrument(skip(lhs, rhs, lhs_pk, lhs_values, rhs_pk, rhs_values, device))]
 pub fn relative_similarity_scores(
     lhs: &[RecordBatch],
     rhs: &[RecordBatch],
@@ -151,6 +153,7 @@ Compute the relative similarity between two Tensors
 * `device` - The compute device
 
 */
+#[instrument(skip(lhs, rhs))]
 pub fn relative_similarity_scores_tensor(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
     let embd = Tensor::cat(&[&lhs, &rhs], 0)?;
     let norm = embd
@@ -173,6 +176,7 @@ Sort the [RecordBatch] according to the `score` column
 * `device` - The compute device
 
 */
+#[instrument(skip(lhs, asc, device))]
 pub fn sort_scores_and_indices(
     lhs: &[RecordBatch],
     asc: bool,
@@ -296,7 +300,7 @@ Chunk documents by splitting a StringArray column in a [RecordBatch]
 
 # Arguments
 
-* `lhs` - `RecordBatch` with a column for 'score'
+* `lhs` - `RecordBatch`
 * `lhs_pk` - Left hand side primary key
 * `lhs_value` - Left hand value key
 * `chunk_size` - the length of the document chunks
@@ -304,6 +308,7 @@ Chunk documents by splitting a StringArray column in a [RecordBatch]
 * `device` - The compute device
 
 */
+#[instrument(skip(lhs, lhs_pk, lhs_values, chunk_size, chunk_overlap, _device))]
 pub fn chunk_documents(
     lhs: &[RecordBatch],
     lhs_pk: &str,
@@ -520,6 +525,7 @@ Inner join along the LHS foreign key and RHS PK of two [RecordBatch]
 * `device` - The compute device
 
 */
+#[instrument(skip(lhs, rhs, lhs_fk, rhs_fk, _device))]
 pub fn join_inner(
     lhs: &[RecordBatch],
     lhs_fk: &str,
@@ -871,9 +877,9 @@ mod tests {
             &[lhs],
             &[rhs],
             "lhs_pk",
-            "embeddings",
+            "embedding",
             "rhs_pk",
-            "embeddings",
+            "embedding",
             &Device::Cpu,
         )?;
 

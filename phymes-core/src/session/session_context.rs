@@ -1537,8 +1537,9 @@ mod tests {
             [
                 "config_1", "config_1", "config_1", "config_2", "config_2", "config_2", "config_3",
                 "config_3", "config_3", "state_1", "state_1", "state_1", "state_1", "state_1",
-                "state_1", "state_2", "state_2", "state_2", "state_2", "state_2", "state_2",
-                "state_3", "state_3", "state_3", "state_3", "state_3", "state_3"
+                "state_1", "state_1", "state_2", "state_2", "state_2", "state_2", "state_2",
+                "state_2", "state_2", "state_3", "state_3", "state_3", "state_3", "state_3",
+                "state_3", "state_3",
             ]
         );
         assert_eq!(
@@ -1553,23 +1554,26 @@ mod tests {
                 "a",
                 "b",
                 "c",
-                "ids",
+                "id",
                 "collection",
                 "title",
                 "text",
                 "metadata",
+                "score",
                 "embedding",
-                "ids",
+                "id",
                 "collection",
                 "title",
                 "text",
                 "metadata",
+                "score",
                 "embedding",
-                "ids",
+                "id",
                 "collection",
                 "title",
                 "text",
                 "metadata",
+                "score",
                 "embedding"
             ]
         );
@@ -1590,19 +1594,22 @@ mod tests {
                 "Utf8",
                 "Utf8",
                 "Utf8",
-                "FixedSizeList(Field { name: \"item\", data_type: UInt32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)",
+                "Float32",
+                "FixedSizeList(Field { name: \"item\", data_type: Float32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)",
                 "UInt32",
                 "Utf8",
                 "Utf8",
                 "Utf8",
                 "Utf8",
-                "FixedSizeList(Field { name: \"item\", data_type: UInt32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)",
+                "Float32",
+                "FixedSizeList(Field { name: \"item\", data_type: Float32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)",
                 "UInt32",
                 "Utf8",
                 "Utf8",
                 "Utf8",
                 "Utf8",
-                "FixedSizeList(Field { name: \"item\", data_type: UInt32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)"
+                "Float32",
+                "FixedSizeList(Field { name: \"item\", data_type: Float32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)"
             ]
         );
         let num_rows = info
@@ -1624,7 +1631,7 @@ mod tests {
             num_rows,
             [
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
-                12, 12, 12, 12
+                12, 12, 12, 12, 12, 12, 12
             ]
         );
 

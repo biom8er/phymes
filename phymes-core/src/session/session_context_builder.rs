@@ -185,7 +185,7 @@ impl BuilderTrait for SessionContextBuilder {
         self.name = Some(name.to_string());
         self
     }
-    fn build(self) -> Result<Self::T> {
+    fn build(mut self) -> Result<Self::T> {
         if self.tasks.is_none() {
             return Err(anyhow!(
                 "Please add a plan before attempting to build the session."
@@ -248,10 +248,10 @@ impl BuilderTrait for SessionContextBuilder {
         // DM: Refactor remove the need for the copy
         let runtime_env_map = self
             .runtime_envs
-            .as_ref()
+            .take()
             .unwrap()
-            .iter()
-            .map(|r| (r.get_name().to_string(), Arc::new(Mutex::new(r.to_owned()))))
+            .into_iter()
+            .map(|r| (r.get_name().to_string(), Arc::new(Mutex::new(r))))
             .collect::<HashMap<String, Arc<Mutex<RuntimeEnv>>>>();
 
         // Check that the state names are accounted for...
@@ -283,15 +283,10 @@ impl BuilderTrait for SessionContextBuilder {
         // DM: Refactor remove the need for the copy
         let state_map = self
             .state
-            .as_ref()
+            .take()
             .unwrap()
-            .iter()
-            .map(|r| {
-                (
-                    r.get_name().to_string(),
-                    Arc::new(RwLock::new(r.to_owned())),
-                )
-            })
+            .into_iter()
+            .map(|r| (r.get_name().to_string(), Arc::new(RwLock::new(r))))
             .collect::<HashMap<String, Arc<RwLock<ArrowTable>>>>();
 
         // Check for metrics; if none, initialize with defaults

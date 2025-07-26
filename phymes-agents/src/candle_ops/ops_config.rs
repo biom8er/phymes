@@ -23,6 +23,17 @@ pub enum CandleOpsStreamManager {
     StreamLHSAccumulateRHS,
 }
 
+impl CandleOpsStreamManager {
+    pub fn get_name(&self) -> &str {
+        match self {
+            Self::AccumulateLHSStreamRHS => "accumulate-lhs-stream-rhs",
+            Self::AccumulateLHSAccumulateRHS => "accumulate-lhs-accumulate-rhs",
+            Self::StreamLHSStreamRHS => "stream-lhs-stream-rhs",
+            Self::StreamLHSAccumulateRHS => "stream-lhs-accumulate-rhs",
+        }
+    }
+}
+
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(author, version, about, long_about = None)]
 #[serde(default)]
@@ -79,7 +90,7 @@ pub struct CandleOpsConfig {
     pub op_kwargs: Option<String>,
 
     /// The streaming strategy to use
-    #[arg(long, default_value = "stream-lhs-stream-rhs")]
+    #[arg(long, default_value = "accumulate-lhs-accumulate-rhs")]
     pub stream: CandleOpsStreamManager,
 
     /// The operator to invoke
@@ -102,7 +113,7 @@ impl Default for CandleOpsConfig {
             lhs_args: None,
             rhs_args: None,
             op_kwargs: None,
-            stream: CandleOpsStreamManager::StreamLHSStreamRHS,
+            stream: CandleOpsStreamManager::AccumulateLHSAccumulateRHS,
             which: WhichCandleOps::RelativeSimilarityScore,
         }
     }
