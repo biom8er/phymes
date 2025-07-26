@@ -42,7 +42,7 @@ use std::{
     sync::Arc,
     task::{Context, Poll, ready},
 };
-use tracing::{event, instrument, Level};
+use tracing::{Level, event, instrument};
 
 /// Tensor processor made possible by Candle
 ///
@@ -215,7 +215,6 @@ impl Stream for CandleOpStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-
         // Initialize the metrics
         let metrics = self.baseline_metrics.clone();
         let _timer = metrics.elapsed_compute().timer();
@@ -361,11 +360,18 @@ impl Stream for CandleOpStream {
         }
 
         // Attempt to parse the op_kwargs
-        let ops_kwargs_default = "{\"chunk_size\": 512, \"chunk_overlap\": 64, \"asc\": false}".to_string();
-        let ops_kwargs_str = self.config.as_ref().unwrap().op_kwargs.as_ref().unwrap_or(&ops_kwargs_default).to_owned();
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str.as_str()).unwrap_or(
-            serde_json::from_str(ops_kwargs_default.as_str()).unwrap()
-        );
+        let ops_kwargs_default =
+            "{\"chunk_size\": 512, \"chunk_overlap\": 64, \"asc\": false}".to_string();
+        let ops_kwargs_str = self
+            .config
+            .as_ref()
+            .unwrap()
+            .op_kwargs
+            .as_ref()
+            .unwrap_or(&ops_kwargs_default)
+            .to_owned();
+        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str.as_str())
+            .unwrap_or(serde_json::from_str(ops_kwargs_default.as_str()).unwrap());
 
         // Compute the ops function
         event!(

@@ -3,8 +3,33 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
-use phymes_agents::{candle_assets::device::device, candle_ops::{ops_config::{CandleOpsConfig, CandleOpsStreamManager}, ops_processor::CandleOpProcessor, ops_service::CandleOpsService, ops_which::WhichCandleOps}};
-use phymes_core::{metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, session::{common_traits::{BuildableTrait, BuilderTrait}, runtime_env::RuntimeEnv, session_context::get_metrics_as_pivot_table}, table::{arrow_table::{test_table::TestTableSizes, ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait}};
+use phymes_agents::{
+    candle_assets::device::device,
+    candle_ops::{
+        ops_config::{CandleOpsConfig, CandleOpsStreamManager},
+        ops_processor::CandleOpProcessor,
+        ops_service::CandleOpsService,
+        ops_which::WhichCandleOps,
+    },
+};
+use phymes_core::{
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    session::{
+        common_traits::{BuildableTrait, BuilderTrait},
+        runtime_env::RuntimeEnv,
+        session_context::get_metrics_as_pivot_table,
+    },
+    table::{
+        arrow_table::{
+            ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait, test_table::TestTableSizes,
+        },
+        arrow_table_publish::ArrowTablePublish,
+    },
+    task::arrow_message::{
+        ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
+        ArrowOutgoingMessageTrait,
+    },
+};
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for dataset sizes
@@ -70,7 +95,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             lhs_fk: "title".to_string(), // DM: join_inner assumes fk column is a string!
             lhs_values: "embedding".to_string(),
             rhs_pk: Some("id".to_string()),
-            rhs_fk: Some("title".to_string()),  // DM: join_inner assumes fk column is a string!
+            rhs_fk: Some("title".to_string()), // DM: join_inner assumes fk column is a string!
             rhs_values: Some("embedding".to_string()),
             ..Default::default()
         },
@@ -96,7 +121,6 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         let rhs_name = format!("{rhs_size}-rhs");
         for stream in stream_vec.iter() {
             for config in ops_configs_vec.iter() {
-
                 // Build the runtime environment
                 let device = device(false).unwrap();
                 let service = CandleOpsService::new(device);
@@ -116,9 +140,13 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                 config.rhs_name = Some(rhs_name.to_owned());
 
                 // Create a unique identifier for the benchmark
-                let id = format!("{}_{lhs_size}-{rhs_size}_{}_{wasm}_{gpu}_{candle}", config.which.get_name(), stream.get_name());
+                let id = format!(
+                    "{}_{lhs_size}-{rhs_size}_{}_{wasm}_{gpu}_{candle}",
+                    config.which.get_name(),
+                    stream.get_name()
+                );
                 let mut iter = 0;
-                c.bench_function(id.as_str(), |b| { 
+                c.bench_function(id.as_str(), |b| {
                     b.iter(|| {
                         // Build the metrics
                         let metrics = ArrowTaskMetricsSet::new();
@@ -134,12 +162,15 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 .with_publisher("s1")
                                 .with_subject("d1")
                                 .with_update(&ArrowTablePublish::None)
-                                .with_message(TestTableSizes::new_from_name(lhs_size)
-                                    .unwrap()
-                                    .get_test_table(lhs_name.as_str())
-                                    .unwrap()
-                                    .to_record_batch_stream())
-                                .build().unwrap(),
+                                .with_message(
+                                    TestTableSizes::new_from_name(lhs_size)
+                                        .unwrap()
+                                        .get_test_table(lhs_name.as_str())
+                                        .unwrap()
+                                        .to_record_batch_stream(),
+                                )
+                                .build()
+                                .unwrap(),
                         );
                         let _ = messages.insert(
                             rhs_name.to_owned(),
@@ -148,19 +179,24 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 .with_publisher("s1")
                                 .with_subject("d1")
                                 .with_update(&ArrowTablePublish::None)
-                                .with_message(TestTableSizes::new_from_name(rhs_size)
-                                    .unwrap()
-                                    .get_test_table(rhs_name.as_str())
-                                    .unwrap()
-                                    .to_record_batch_stream())
-                                .build().unwrap(),
+                                .with_message(
+                                    TestTableSizes::new_from_name(rhs_size)
+                                        .unwrap()
+                                        .get_test_table(rhs_name.as_str())
+                                        .unwrap()
+                                        .to_record_batch_stream(),
+                                )
+                                .build()
+                                .unwrap(),
                         );
 
                         // Build the ops config
                         let config_table = ArrowTable::get_builder()
                             .with_name(name.as_str())
-                            .with_json(&serde_json::to_vec(&config).unwrap(), 1).unwrap()
-                            .build().unwrap();
+                            .with_json(&serde_json::to_vec(&config).unwrap(), 1)
+                            .unwrap()
+                            .build()
+                            .unwrap();
                         let _ = messages.insert(
                             name.to_owned(),
                             ArrowOutgoingMessage::get_builder()
@@ -169,7 +205,8 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 .with_subject("")
                                 .with_update(&ArrowTablePublish::None)
                                 .with_message(config_table.to_record_batch_stream())
-                                .build().unwrap(),
+                                .build()
+                                .unwrap(),
                         );
 
                         // Handle the runtime
@@ -194,7 +231,9 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 &[],
                                 &[],
                             );
-                            let mut ops_stream = ops_processor.process(messages, metrics.clone(), runtime_env.clone()).unwrap();
+                            let mut ops_stream = ops_processor
+                                .process(messages, metrics.clone(), runtime_env.clone())
+                                .unwrap();
                             ops_stream
                                 .remove("results")
                                 .unwrap()
@@ -215,7 +254,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         iter += 1;
                         println!("iteration {iter}");
                     });
-                });                
+                });
             }
         }
     }
@@ -233,8 +272,5 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     metrics_table.to_csv_file(&mut file, b',', true).unwrap();
 }
 
-criterion_group!(
-    benches,
-    benchmark_candle_ops_processor,
-);
+criterion_group!(benches, benchmark_candle_ops_processor,);
 criterion_main!(benches);

@@ -31,9 +31,8 @@ The following runs all tests with all CPU, GPU, and WASM features and targets
 ```bash
 cargo test
 dx build -p phymes-app
-cargo check -p phymes-server --features wsl,gpu,candle --all-targets
-cargo test -p phymes-server --features wsl,gpu,candle
-cargo test -p phymes-agents --features wsl,gpu,candle
+cargo check --features wsl,gpu,candle --all-targets
+cargo test --features wsl,gpu,candle
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
 cargo check --all-targets

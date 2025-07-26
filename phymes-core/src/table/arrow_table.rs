@@ -696,7 +696,9 @@ pub mod test_table {
             );
             let embedding = Field::new("embedding", list_data_type, false);
 
-            Schema::new(vec![id, collection, title, text, metadata, score, embedding])
+            Schema::new(vec![
+                id, collection, title, text, metadata, score, embedding,
+            ])
         } else {
             Schema::new(vec![id, collection, title, text, score, metadata])
         };
@@ -734,9 +736,7 @@ pub mod test_table {
                 .collect::<Vec<_>>(),
         ));
         let score: ArrayRef = Arc::new(Float32Array::from(
-            (seq_start..seq_end)
-                .map(|i| i as f32)
-                .collect::<Vec<_>>(),
+            (seq_start..seq_end).map(|i| i as f32).collect::<Vec<_>>(),
         ));
 
         // Construct a value array
@@ -1188,7 +1188,7 @@ mod tests {
         assert_eq!(
             serde_json::Value::Object(json_rows[0].clone()),
             serde_json::json!({"collection": "collection0".to_string(),
-                "id": 0, "metadata": "metadata0".to_string(), "text": "text0".to_string(), "title": "title0".to_string()
+                "id": 0, "metadata": "metadata0".to_string(), "score": 0.0, "text": "text0".to_string(), "title": "title0".to_string()
             }),
         );
 
@@ -1243,7 +1243,7 @@ mod tests {
         assert_eq!(
             serde_json::Value::Object(json_rows[0].clone()),
             serde_json::json!({"collection": "collection0".to_string(),
-                "id": 0, "metadata": "metadata0".to_string(), "text": "text0".to_string(), "title": "title0".to_string()
+                "id": 0, "metadata": "metadata0".to_string(), "score": 0.0, "text": "text0".to_string(), "title": "title0".to_string()
             }),
         );
 

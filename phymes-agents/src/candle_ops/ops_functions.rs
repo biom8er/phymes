@@ -6,8 +6,8 @@ use arrow::{
 
 use anyhow::Result;
 use candle_core::{Device, Tensor};
-use tracing::instrument;
 use std::sync::Arc;
+use tracing::instrument;
 
 /**
 Compute the relative similarity between two [RecordBatch]es

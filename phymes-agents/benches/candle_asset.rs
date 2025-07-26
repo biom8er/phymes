@@ -345,11 +345,7 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
         std::env::var("HOME").unwrap_or("".to_string())
     ));
     config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
-    let config_vec = [
-        config_smollm2_1,
-        config_qwen2p5_1,
-        config_qwen2p5_2,
-    ];
+    let config_vec = [config_smollm2_1, config_qwen2p5_1, config_qwen2p5_2];
 
     // Code generation prompt
     let prompt = "\"\"\\n\\n<|im_start|>system\\nYou are a helpful assistant.<|im_end|>\\n\\n\\n\\n\\n\\n<|im_start|>user\\Write a python function to count prime numbers up to N. Please include complete docstrings as well as comments when needed. Please provide an example using the functions in the docstrings.<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\n\\n\\n\"\"";

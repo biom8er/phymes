@@ -33,7 +33,7 @@ use arrow::{
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use serde_json::json;
-use tracing::{event, instrument, Level};
+use tracing::{Level, event, instrument};
 
 use crate::{
     candle_chat::{chat_config::CandleChatConfig, tool_parser::format_tool_calls_str},

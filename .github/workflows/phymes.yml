@@ -79,14 +79,13 @@ jobs:
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo build -p phymes-server --features wsl,gpu,candle
+          cargo check --features wsl,gpu,candle --all-targets
       - name: Run tests
         run: |
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo test -p phymes-server --features wsl,gpu,candle
-          cargo test -p phymes-agents --features wsl,gpu,candle
+          cargo test --features wsl,gpu,candle
       - name: Run examples
         run: |
           export PATH="$PATH:$HOME/.cargo/bin"

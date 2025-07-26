@@ -118,8 +118,9 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     // Export the metrics to CSV
     let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();
     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let pathname =
-        format!("{target_dir}/.cache/metrics/benchmark_chat_agent_session_{wasm}_{gpu}_{candle}.csv");
+    let pathname = format!(
+        "{target_dir}/.cache/metrics/benchmark_chat_agent_session_{wasm}_{gpu}_{candle}.csv"
+    );
     let path = std::path::Path::new(pathname.as_str());
     let prefix = path.parent().unwrap();
     std::fs::create_dir_all(prefix).unwrap();
