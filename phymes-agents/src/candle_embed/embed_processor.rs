@@ -482,7 +482,7 @@ pub fn convert_embedding_vector_to_record_batch(
         batch_vec.push((column, array_ref));
     }
 
-    let embeddings_name = "embeddings".to_string();
+    let embeddings_name = "embedding".to_string();
     batch_vec.push((&embeddings_name, embeddings));
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
@@ -689,7 +689,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(indices, indices_vec);
         let embeddings = batch
-            .column_by_name("embeddings")
+            .column_by_name("embedding")
             .unwrap()
             .as_any()
             .downcast_ref::<FixedSizeListArray>()

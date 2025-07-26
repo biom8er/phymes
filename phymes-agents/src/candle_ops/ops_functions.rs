@@ -877,9 +877,9 @@ mod tests {
             &[lhs],
             &[rhs],
             "lhs_pk",
-            "embeddings",
+            "embedding",
             "rhs_pk",
-            "embeddings",
+            "embedding",
             &Device::Cpu,
         )?;
 
