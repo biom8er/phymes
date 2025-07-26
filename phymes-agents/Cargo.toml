@@ -78,3 +78,7 @@ harness = false
 [[bench]]
 name = "candle_asset"
 harness = false
+
+[[bench]]
+name = "candle_ops"
+harness = false

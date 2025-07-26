@@ -46,8 +46,7 @@ use tracing::{event, instrument, Level};
 
 /// Tensor processor made possible by Candle
 ///
-/// Each operator has a defined input and output schema
-/// that calling processors or consuming processors
+/// Each operator has a defined input and output schema that calling processors or consuming processors
 /// need to adhere to
 #[derive(Default, Debug)]
 pub struct CandleOpProcessor {
@@ -216,9 +215,6 @@ impl Stream for CandleOpStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // 1. Accumulate all of the LHS queries which we assume to be less than the document chunks
-        // 2. Poll each document chunk one by one which we assume to already be sized to fit in memory
-        // 3. Compute the similarity score and send the stream
 
         // Initialize the metrics
         let metrics = self.baseline_metrics.clone();
@@ -364,7 +360,7 @@ impl Stream for CandleOpStream {
             self.rhs_inbox = rhs;
         }
 
-        // Compute the relative similary scores
+        // Compute the ops function
         event!(
             Level::DEBUG,
             "Executing Ops {}.",
@@ -456,7 +452,6 @@ impl Stream for CandleOpStream {
         }
 
         // record the poll
-        // println!("Record the poll...");
         let poll = Poll::Ready(Some(Ok(batch)));
         metrics.record_poll(poll)
     }

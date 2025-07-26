@@ -1,43 +1,37 @@
+use std::sync::Arc;
+
 use criterion::{Criterion, criterion_group, criterion_main};
-use phymes_agents::{candle_assets::device::device, candle_ops::{ops_config::{CandleOpsConfig, CandleOpsStreamManager}, ops_which::WhichCandleOps}};
+use futures::TryStreamExt;
+use parking_lot::Mutex;
+use phymes_agents::{candle_assets::device::device, candle_ops::{ops_config::{CandleOpsConfig, CandleOpsStreamManager}, ops_processor::CandleOpProcessor, ops_service::CandleOpsService, ops_which::WhichCandleOps}};
+use phymes_core::{metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, session::{common_traits::{BuildableTrait, BuilderTrait}, runtime_env::RuntimeEnv, session_context::get_metrics_as_pivot_table}, table::{arrow_table::{test_table::TestTableSizes, ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait}};
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for dataset sizes
     // xs = 1, s = 100, m = 1e3, l = 1e6, xl = 1e12
-    let data_vec = [
-        ("xs-lhs-xs-rhs", ""),
-        ("xs-lhs-s-rhs", ""),
-        ("xs-lhs-m-rhs", ""),
-        ("xs-lhs-l-rhs", ""),
-        ("xs-lhs-xl-rhs", ""),
-        ("s-lhs-xs-rhs", ""),
-        ("s-lhs-s-rhs", ""),
-        ("s-lhs-m-rhs", ""),
-        ("s-lhs-l-rhs", ""),
-        ("s-lhs-xl-rhs", ""),
-        ("m-lhs-xs-rhs", ""),
-        ("m-lhs-s-rhs", ""),
-        ("m-lhs-m-rhs", ""),
-        ("m-lhs-l-rhs", ""),
-        ("m-lhs-xl-rhs", ""),
-        ("l-lhs-xs-rhs", ""),
-        ("l-lhs-s-rhs", ""),
-        ("l-lhs-m-rhs", ""),
-        ("l-lhs-l-rhs", ""),
-        ("l-lhs-xl-rhs", ""),
-        ("xl-lhs-xs-rhs", ""),
-        ("xl-lhs-s-rhs", ""),
-        ("xl-lhs-m-rhs", ""),
-        ("xl-lhs-l-rhs", ""),
-        ("xl-lhs-xl-rhs", ""),
+    let data_size_vec = [
+        ("xs", "xs"),
+        // ("xs", "s"),
+        // ("xs", "m"),
+        // ("s", "xs"),
+        ("s", "s"),
+        // ("s", "m"),
     ];
 
     // Cases for stream and accumulation options
     let stream_vec = [
-        CandleOpsStreamManager::AccumulateLHSStreamRHS,
+        // CandleOpsStreamManager::AccumulateLHSStreamRHS,
         CandleOpsStreamManager::AccumulateLHSAccumulateRHS,
-        CandleOpsStreamManager::StreamLHSStreamRHS,
-        CandleOpsStreamManager::StreamLHSAccumulateRHS,
+        // CandleOpsStreamManager::StreamLHSStreamRHS,
+        // CandleOpsStreamManager::StreamLHSAccumulateRHS,
+    ];
+
+    // Cases for the ops functions
+    let ops_functions_vec = [
+        "relative-similarity-score",
+        // "sort-scores-and-indices",
+        // "chunk-documents",
+        // "join-inner"
     ];
 
     // Get the target and GPU configuration
@@ -54,48 +48,146 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     };
 
     // Benchmark each case sequentially
-    for (data_size, data) in data_vec.iter() {
+    let mut metrics_vec = Vec::new();
+    for (lhs_size, rhs_size) in data_size_vec.iter() {
         for stream in stream_vec.iter() {
-            // Create a unique identifier for the benchmark
-            let id = format!("rel-sim-score_{data_size}_{}_{gpu}_{candle}", stream.get_name());
+            for ops_func in ops_functions_vec.iter() {
 
-            // Build the input messages
+                // Build the runtime environment
+                let device = device(false).unwrap();
+                let service = CandleOpsService::new(device);
+                let runtime_env = RuntimeEnv {
+                    token_service: None,
+                    tensor_service: Some(Box::new(service)),
+                    name: "service".to_string(),
+                    memory_limit: None,
+                    time_limit: None,
+                };
+                let runtime_env = Arc::new(Mutex::new(runtime_env));
 
-            // Build the ops config
-            let config = CandleOpsConfig {
-                stream: stream.to_owned(),
-                which: WhichCandleOps::RelativeSimilarityScore,
-                ..Default::default()
-            };
-            // ...
+                // Create a unique identifier for the benchmark
+                let id = format!("{ops_func}_{lhs_size}-{rhs_size}_{}_{wasm}_{gpu}_{candle}", stream.get_name());
+                let mut iter = 0;
+                c.bench_function(id.as_str(), |b| { 
+                    b.iter(|| {
+                        // Build the metrics
+                        let metrics = ArrowTaskMetricsSet::new();
+                        let sample_id = format!("{id}_{iter}");
+                        let name = format!("ops-processor_{id}_{iter}");
 
-            // Build the metrics
+                        // Build the input messages
+                        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+                        let _ = messages.insert(
+                            lhs_size.to_string(),
+                            ArrowOutgoingMessage::get_builder()
+                                .with_name(lhs_size)
+                                .with_publisher("s1")
+                                .with_subject("d1")
+                                .with_update(&ArrowTablePublish::None)
+                                .with_message(TestTableSizes::new_from_name(lhs_size)
+                                    .unwrap()
+                                    .get_test_table(lhs_size)
+                                    .unwrap()
+                                    .to_record_batch_stream())
+                                .build().unwrap(),
+                        );
+                        let _ = messages.insert(
+                            rhs_size.to_string(),
+                            ArrowOutgoingMessage::get_builder()
+                                .with_name(rhs_size)
+                                .with_publisher("s1")
+                                .with_subject("d1")
+                                .with_update(&ArrowTablePublish::None)
+                                .with_message(TestTableSizes::new_from_name(rhs_size)
+                                    .unwrap()
+                                    .get_test_table(rhs_size)
+                                    .unwrap()
+                                    .to_record_batch_stream())
+                                .build().unwrap(),
+                        );
 
-            // Build the runtime environment
+                        // Build the ops config
+                        let config = CandleOpsConfig {
+                            stream: stream.to_owned(),
+                            which: WhichCandleOps::new_from_name(&ops_func).unwrap(),
+                            // keyvalue args for ops_functions
+                            //...
+                            ..Default::default()
+                        };
+                        let config_table = ArrowTable::get_builder()
+                            .with_name(name.as_str())
+                            .with_json(&serde_json::to_vec(&config).unwrap(), 1).unwrap()
+                            .build().unwrap();
+                        let _ = messages.insert(
+                            name.to_owned(),
+                            ArrowOutgoingMessage::get_builder()
+                                .with_name(name.as_str())
+                                .with_publisher("")
+                                .with_subject("")
+                                .with_update(&ArrowTablePublish::None)
+                                .with_message(config_table.to_record_batch_stream())
+                                .build().unwrap(),
+                        );
 
-            c.bench_function(id.as_str(), |b| {
-                b.iter(|| {
-                    #[cfg(feature = "wasip2")]
-                    let rt = tokio::runtime::Builder::new_current_thread()
-                        .build()
-                        .unwrap();
-                    #[cfg(not(feature = "wasip2"))]
-                    let rt = tokio::runtime::Runtime::new().unwrap();
+                        // Handle the runtime
+                        #[cfg(feature = "wasip2")]
+                        let rt = tokio::runtime::Builder::new_current_thread()
+                            .build()
+                            .unwrap();
+                        #[cfg(not(feature = "wasip2"))]
+                        let rt = tokio::runtime::Runtime::new().unwrap();
 
-                    // Make the stream and run
-                    let ops_stream = CandleOpStream::new(
-                        messages,
-                        config_table.clone().to_record_batch_stream(),
-                        Arc::clone(&runtime_env),
-                        baseline_metrics,
-                    ).unwrap();
-                    let _result = rt.block_on(async {
-                        ops_stream.try_collect::<Vec<_>>().await
+                        // Start the timer
+                        let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
+                        let timer = baseline_metrics.elapsed_compute().timer();
+
+                        // Make the stream and run
+                        let _result = rt.block_on(async {
+                            let ops_processor = CandleOpProcessor::new_with_pub_sub_for(
+                                name.as_str(),
+                                &[ArrowTablePublish::Replace {
+                                    table_name: "results".to_string(),
+                                }],
+                                &[],
+                                &[],
+                            );
+                            let mut ops_stream = ops_processor.process(messages, metrics.clone(), runtime_env.clone()).unwrap();
+                            ops_stream
+                                .remove("results")
+                                .unwrap()
+                                .get_message_own()
+                                .try_collect::<Vec<_>>()
+                                .await
+                                .unwrap()
+                        });
+
+                        // Stop the timer
+                        timer.done();
+                        baseline_metrics.done();
+
+                        // Collect the metrics
+                        metrics_vec.push(metrics);
+
+                        // Increment the iteration counter
+                        iter += 1;
+                        println!("iteration {iter}");
                     });
-                });
-            });
+                });                
+            }
         }
     }
+
+    // Export the metrics to CSV
+    println!("exporting metrics");
+    let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();
+    let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let pathname =
+        format!("{target_dir}/.cache/metrics/benchmark_ops_processor_{wasm}_{gpu}_{candle}.csv");
+    let path = std::path::Path::new(pathname.as_str());
+    let prefix = path.parent().unwrap();
+    std::fs::create_dir_all(prefix).unwrap();
+    let mut file = std::fs::File::create(pathname).unwrap();
+    metrics_table.to_csv_file(&mut file, b',', true).unwrap();
 }
 
 criterion_group!(

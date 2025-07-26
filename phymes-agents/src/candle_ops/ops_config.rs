@@ -90,7 +90,7 @@ pub struct CandleOpsConfig {
     pub op_kwargs: Option<String>,
 
     /// The streaming strategy to use
-    #[arg(long, default_value = "stream-lhs-stream-rhs")]
+    #[arg(long, default_value = "accumulate-lhs-accumulate-rhs")]
     pub stream: CandleOpsStreamManager,
 
     /// The operator to invoke
@@ -113,7 +113,7 @@ impl Default for CandleOpsConfig {
             lhs_args: None,
             rhs_args: None,
             op_kwargs: None,
-            stream: CandleOpsStreamManager::StreamLHSStreamRHS,
+            stream: CandleOpsStreamManager::AccumulateLHSAccumulateRHS,
             which: WhichCandleOps::RelativeSimilarityScore,
         }
     }

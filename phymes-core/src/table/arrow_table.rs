@@ -679,12 +679,14 @@ pub mod test_table {
         record_batch::RecordBatch,
     };
 
+    /// Make a test record batch schema with fields for ids, title, text, metadata, score, and embeddings
     pub fn make_test_table_schema(embed_end: u32) -> Result<SchemaRef> {
         let ids = Field::new("ids", DataType::UInt32, false);
         let collection = Field::new("collection", DataType::Utf8, false);
         let title = Field::new("title", DataType::Utf8, false);
         let text = Field::new("text", DataType::Utf8, false);
         let metadata = Field::new("metadata", DataType::Utf8, false);
+        let score = Field::new("score", DataType::Float32, false);
 
         // Construct a value array
         let schema = if embed_end > 0 {
@@ -694,14 +696,15 @@ pub mod test_table {
             );
             let embedding = Field::new("embedding", list_data_type, false);
 
-            Schema::new(vec![ids, collection, title, text, metadata, embedding])
+            Schema::new(vec![ids, collection, title, text, metadata, score, embedding])
         } else {
-            Schema::new(vec![ids, collection, title, text, metadata])
+            Schema::new(vec![ids, collection, title, text, score, metadata])
         };
 
         Ok(Arc::new(schema))
     }
 
+    /// Make a test record batch with fields for ids, title, text, metadata, score, and embeddings
     pub fn make_test_record_batch(seq_end: u32, embed_end: u32) -> Result<RecordBatch> {
         let seq_start: u32 = 0;
         let embed_start: u32 = 0;
@@ -728,6 +731,11 @@ pub mod test_table {
         let metadata: ArrayRef = Arc::new(StringArray::from(
             (seq_start..seq_end)
                 .map(|i| format!("metadata{i}"))
+                .collect::<Vec<_>>(),
+        ));
+        let score: ArrayRef = Arc::new(Float32Array::from(
+            (seq_start..seq_end)
+                .map(|i| i as f32)
                 .collect::<Vec<_>>(),
         ));
 
@@ -757,6 +765,7 @@ pub mod test_table {
                 ("title", title),
                 ("text", text),
                 ("metadata", metadata),
+                ("score", score),
                 ("embedding", embedding),
             ])?
         } else {
@@ -766,11 +775,14 @@ pub mod test_table {
                 ("title", title),
                 ("text", text),
                 ("metadata", metadata),
+                ("score", score),
             ])?
         };
         Ok(batch)
     }
 
+    /// Make a test table with fields for ids, title, text, metadata, score, and embeddings
+    /// and with each record batch replicated per batch
     pub fn make_test_table(
         name: &str,
         seq_end: u32,
@@ -785,6 +797,72 @@ pub mod test_table {
             .with_schema(schema.clone())
             .with_record_batches(batches)?
             .build()
+    }
+
+    pub enum TestTableSizes {
+        XS,
+        S,
+        M,
+        L,
+        XL,
+    }
+
+    impl TestTableSizes {
+        /// Return the operation based on the name
+        pub fn new_from_name(name: &str) -> Option<Self> {
+            if name == "xs" {
+                Some(Self::XS)
+            } else if name == "s" {
+                Some(Self::S)
+            } else if name == "m" {
+                Some(Self::M)
+            } else if name == "l" {
+                Some(Self::L)
+            } else if name == "xl" {
+                Some(Self::XL)
+            } else {
+                None
+            }
+        }
+
+        /// Get the test table by the test table size
+        pub fn get_test_table(&self, name: &str) -> Result<ArrowTable> {
+            match self {
+                Self::XS => make_test_table(name, 1, 1512, 1),
+                Self::S => make_test_table(name, 100, 1512, 1),
+                Self::M => make_test_table(name, 1000, 1512, 1),
+                Self::L => make_test_table(name, 1000, 1512, 1000),
+                Self::XL => make_test_table(name, 1000000, 1512, 1000000),
+            }
+        }
+
+        /// Get the name of the test table
+        pub fn get_name(&self) -> &str {
+            match self {
+                Self::XS => "xs",
+                Self::S => "s",
+                Self::M => "m",
+                Self::L => "l",
+                Self::XL => "xl",
+            }
+        }
+
+        /// Get the test table by the name of the test table size
+        pub fn get_test_table_by_name(&self, name: &str) -> Result<ArrowTable> {
+            if name == Self::XS.get_name() {
+                Self::XS.get_test_table(name)
+            } else if name == Self::S.get_name() {
+                Self::S.get_test_table(name)
+            } else if name == Self::M.get_name() {
+                Self::M.get_test_table(name)
+            } else if name == Self::L.get_name() {
+                Self::L.get_test_table(name)
+            } else if name == Self::XL.get_name() {
+                Self::XL.get_test_table(name)
+            } else {
+                Err(anyhow!("Test table size name {name} is not supported."))
+            }
+        }
     }
 
     pub fn make_test_table_chat(name: &str) -> Result<ArrowTable> {

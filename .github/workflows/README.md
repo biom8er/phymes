@@ -77,9 +77,10 @@ cargo doc --document-private-items --no-deps -p phymes-app
 
 ## Additional cache resources for benchmarking
 
-The following will setup additional cache resources
+The following will setup additional dependencies and cache resources
 
 ```bash
+# cargo install cargo-criterion
 curl -L -o ~/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q8_0.gguf https://huggingface.co/Segilmez06/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q8_0.gguf?download=true -sSf
 curl -L -o ~/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-f16.gguf https://huggingface.co/MaziyarPanahi/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct.fp16.gguf?download=true -sSf
 curl -L -o ~/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-3b-instruct-q5_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q5_k_m.gguf?download=true -sSf
@@ -100,13 +101,17 @@ cargo bench --bench chat -p phymes-agents --no-default-features --features wsl,g
 cargo bench --bench chat -p phymes-agents --no-default-features --features wsl,candle -- --sample-size 10
 cargo bench --bench chat -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
 for file in target/wasm32-wasip2/release/deps/chat-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
-cargo bench --bench chat_agent_session -p phymes-agents --no-default-features --features wasip2,gpu,candle -- --sample-size 10
-cargo bench --bench chat_agent_session -p phymes-agents --no-default-features --features wasip2,candle -- --sample-size 10
+cargo bench --bench chat_agent_session -p phymes-agents --no-default-features --features wsl,gpu,candle -- --sample-size 10
+cargo bench --bench chat_agent_session -p phymes-agents --no-default-features --features wsl,candle -- --sample-size 10
 cargo bench --bench chat_agent_session -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
 for file in target/wasm32-wasip2/release/deps/chat_agent_session-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
-cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --features wasip2,gpu,candle -- --sample-size 10
-cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --features wasip2,candle -- --sample-size 10
+cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --features wsl,gpu,candle -- --sample-size 10
+cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --features wsl,candle -- --sample-size 10
 cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
 for file in target/wasm32-wasip2/release/deps/doc_rag_session-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
+cargo bench --bench candle_ops -p phymes-agents --no-default-features --features wsl,gpu,candle -- --sample-size 10 --measurement-time 1
+cargo bench --bench candle_ops -p phymes-agents --no-default-features --features wsl,candle -- --sample-size 10 --measurement-time 1
+cargo bench --bench candle_ops -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
+for file in target/wasm32-wasip2/release/deps/candle_ops-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
 mv ~/.cache/metrics/* ./target/criterion/metrics/
 ```
