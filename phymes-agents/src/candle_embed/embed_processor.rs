@@ -806,7 +806,7 @@ mod tests {
             let _embeddings_vec = embeddings
                 .first()
                 .unwrap()
-                .column_by_name("embeddings")
+                .column_by_name("embedding")
                 .unwrap()
                 .as_any()
                 .downcast_ref::<FixedSizeListArray>()
@@ -876,7 +876,7 @@ mod tests {
             let embeddings_vec = embeddings
                 .first()
                 .unwrap()
-                .column_by_name("embeddings")
+                .column_by_name("embedding")
                 .unwrap()
                 .as_any()
                 .downcast_ref::<FixedSizeListArray>()
@@ -1009,7 +1009,7 @@ mod tests {
             let _embeddings_vec = embeddings
                 .first()
                 .unwrap()
-                .column_by_name("embeddings")
+                .column_by_name("embedding")
                 .unwrap()
                 .as_any()
                 .downcast_ref::<FixedSizeListArray>()

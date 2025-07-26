@@ -10,7 +10,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for dataset sizes
     // xs = 1, s = 100, m = 1e3, l = 1e6, xl = 1e12
     let data_size_vec = [
-        ("xs", "xs"),
+        // ("xs", "xs"),
         // ("xs", "s"),
         // ("xs", "m"),
         // ("s", "xs"),
@@ -27,11 +27,53 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     ];
 
     // Cases for the ops functions
-    let ops_functions_vec = [
-        "relative-similarity-score",
-        // "sort-scores-and-indices",
-        // "chunk-documents",
-        // "join-inner"
+    let ops_configs_vec = [
+        CandleOpsConfig {
+            which: WhichCandleOps::RelativeSimilarityScore,
+            // lhs_pk: "id".to_string(), // DM: relative similarity score assumes ID column is a string!
+            lhs_pk: "title".to_string(),
+            lhs_fk: "title".to_string(),
+            lhs_values: "embedding".to_string(),
+            // rhs_pk: Some("id".to_string()), // DM: relative similarity score assumes ID column is a string!
+            rhs_pk: Some("title".to_string()),
+            rhs_fk: Some("title".to_string()),
+            rhs_values: Some("embedding".to_string()),
+            ..Default::default()
+        },
+        CandleOpsConfig {
+            which: WhichCandleOps::SortScoresAndIndices,
+            lhs_pk: "id".to_string(),
+            lhs_fk: "title".to_string(),
+            lhs_values: "score".to_string(),
+            rhs_pk: Some("id".to_string()),
+            rhs_fk: Some("title".to_string()),
+            rhs_values: Some("score".to_string()),
+            op_kwargs: Some("{\"asc\": false}".to_string()),
+            ..Default::default()
+        },
+        CandleOpsConfig {
+            which: WhichCandleOps::ChunkDocuments,
+            // lhs_pk: "id".to_string(), // DM: check_schema_rhs_input assumes ID column is a string!
+            lhs_pk: "title".to_string(),
+            lhs_fk: "title".to_string(),
+            lhs_values: "text".to_string(),
+            // rhs_pk: Some("id".to_string()), // DM: check_schema_rhs_input assumes ID column is a string!
+            rhs_pk: Some("title".to_string()),
+            rhs_fk: Some("title".to_string()),
+            rhs_values: Some("text".to_string()),
+            op_kwargs: Some("{\"chunk_size\": 512, \"chunk_overlap\": 64}".to_string()),
+            ..Default::default()
+        },
+        CandleOpsConfig {
+            which: WhichCandleOps::JoinInner,
+            lhs_pk: "id".to_string(),
+            lhs_fk: "title".to_string(), // DM: join_inner assumes fk column is a string!
+            lhs_values: "embedding".to_string(),
+            rhs_pk: Some("id".to_string()),
+            rhs_fk: Some("title".to_string()),  // DM: join_inner assumes fk column is a string!
+            rhs_values: Some("embedding".to_string()),
+            ..Default::default()
+        },
     ];
 
     // Get the target and GPU configuration
@@ -50,8 +92,10 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Benchmark each case sequentially
     let mut metrics_vec = Vec::new();
     for (lhs_size, rhs_size) in data_size_vec.iter() {
+        let lhs_name = format!("{lhs_size}-lhs");
+        let rhs_name = format!("{rhs_size}-rhs");
         for stream in stream_vec.iter() {
-            for ops_func in ops_functions_vec.iter() {
+            for config in ops_configs_vec.iter() {
 
                 // Build the runtime environment
                 let device = device(false).unwrap();
@@ -65,8 +109,14 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                 };
                 let runtime_env = Arc::new(Mutex::new(runtime_env));
 
+                // Update the config
+                let mut config = config.clone();
+                config.stream = stream.to_owned();
+                config.lhs_name = lhs_name.to_owned();
+                config.rhs_name = Some(rhs_name.to_owned());
+
                 // Create a unique identifier for the benchmark
-                let id = format!("{ops_func}_{lhs_size}-{rhs_size}_{}_{wasm}_{gpu}_{candle}", stream.get_name());
+                let id = format!("{}_{lhs_size}-{rhs_size}_{}_{wasm}_{gpu}_{candle}", config.which.get_name(), stream.get_name());
                 let mut iter = 0;
                 c.bench_function(id.as_str(), |b| { 
                     b.iter(|| {
@@ -78,42 +128,35 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         // Build the input messages
                         let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
                         let _ = messages.insert(
-                            lhs_size.to_string(),
+                            lhs_name.to_owned(),
                             ArrowOutgoingMessage::get_builder()
-                                .with_name(lhs_size)
+                                .with_name(lhs_name.as_str())
                                 .with_publisher("s1")
                                 .with_subject("d1")
                                 .with_update(&ArrowTablePublish::None)
                                 .with_message(TestTableSizes::new_from_name(lhs_size)
                                     .unwrap()
-                                    .get_test_table(lhs_size)
+                                    .get_test_table(lhs_name.as_str())
                                     .unwrap()
                                     .to_record_batch_stream())
                                 .build().unwrap(),
                         );
                         let _ = messages.insert(
-                            rhs_size.to_string(),
+                            rhs_name.to_owned(),
                             ArrowOutgoingMessage::get_builder()
-                                .with_name(rhs_size)
+                                .with_name(rhs_name.as_str())
                                 .with_publisher("s1")
                                 .with_subject("d1")
                                 .with_update(&ArrowTablePublish::None)
                                 .with_message(TestTableSizes::new_from_name(rhs_size)
                                     .unwrap()
-                                    .get_test_table(rhs_size)
+                                    .get_test_table(rhs_name.as_str())
                                     .unwrap()
                                     .to_record_batch_stream())
                                 .build().unwrap(),
                         );
 
                         // Build the ops config
-                        let config = CandleOpsConfig {
-                            stream: stream.to_owned(),
-                            which: WhichCandleOps::new_from_name(&ops_func).unwrap(),
-                            // keyvalue args for ops_functions
-                            //...
-                            ..Default::default()
-                        };
                         let config_table = ArrowTable::get_builder()
                             .with_name(name.as_str())
                             .with_json(&serde_json::to_vec(&config).unwrap(), 1).unwrap()

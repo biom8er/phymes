@@ -679,9 +679,9 @@ pub mod test_table {
         record_batch::RecordBatch,
     };
 
-    /// Make a test record batch schema with fields for ids, title, text, metadata, score, and embeddings
+    /// Make a test record batch schema with fields for id, title, text, metadata, score, and embeddings
     pub fn make_test_table_schema(embed_end: u32) -> Result<SchemaRef> {
-        let ids = Field::new("ids", DataType::UInt32, false);
+        let id = Field::new("id", DataType::UInt32, false);
         let collection = Field::new("collection", DataType::Utf8, false);
         let title = Field::new("title", DataType::Utf8, false);
         let text = Field::new("text", DataType::Utf8, false);
@@ -691,20 +691,20 @@ pub mod test_table {
         // Construct a value array
         let schema = if embed_end > 0 {
             let list_data_type = DataType::FixedSizeList(
-                Arc::new(Field::new_list_field(DataType::UInt32, false)),
+                Arc::new(Field::new_list_field(DataType::Float32, false)),
                 embed_end.try_into().unwrap(),
             );
             let embedding = Field::new("embedding", list_data_type, false);
 
-            Schema::new(vec![ids, collection, title, text, metadata, score, embedding])
+            Schema::new(vec![id, collection, title, text, metadata, score, embedding])
         } else {
-            Schema::new(vec![ids, collection, title, text, score, metadata])
+            Schema::new(vec![id, collection, title, text, score, metadata])
         };
 
         Ok(Arc::new(schema))
     }
 
-    /// Make a test record batch with fields for ids, title, text, metadata, score, and embeddings
+    /// Make a test record batch with fields for id, title, text, metadata, score, and embeddings
     pub fn make_test_record_batch(seq_end: u32, embed_end: u32) -> Result<RecordBatch> {
         let seq_start: u32 = 0;
         let embed_start: u32 = 0;
@@ -712,7 +712,7 @@ pub mod test_table {
         let seq_length = seq_end - seq_start;
         let total_length = embed_length * seq_length;
 
-        let ids: ArrayRef = Arc::new(UInt32Array::from((seq_start..seq_end).collect::<Vec<_>>()));
+        let id: ArrayRef = Arc::new(UInt32Array::from((seq_start..seq_end).collect::<Vec<_>>()));
         let collection: ArrayRef = Arc::new(StringArray::from(
             (seq_start..seq_end)
                 .map(|i| format!("collection{i}"))
@@ -741,7 +741,7 @@ pub mod test_table {
 
         // Construct a value array
         let batch = if embed_end > 0 {
-            let value_data = ArrayData::builder(DataType::UInt32)
+            let value_data = ArrayData::builder(DataType::Float32)
                 .len(total_length.try_into().unwrap())
                 .add_buffer(Buffer::from_slice_ref(
                     (0..total_length).collect::<Vec<_>>(),
@@ -749,7 +749,7 @@ pub mod test_table {
                 .build()
                 .unwrap();
             let list_data_type = DataType::FixedSizeList(
-                Arc::new(Field::new_list_field(DataType::UInt32, false)),
+                Arc::new(Field::new_list_field(DataType::Float32, false)),
                 embed_length.try_into().unwrap(),
             );
             let list_data = ArrayData::builder(list_data_type.clone())
@@ -760,7 +760,7 @@ pub mod test_table {
             let embedding: ArrayRef = Arc::new(FixedSizeListArray::from(list_data));
 
             RecordBatch::try_from_iter(vec![
-                ("ids", ids),
+                ("id", id),
                 ("collection", collection),
                 ("title", title),
                 ("text", text),
@@ -770,7 +770,7 @@ pub mod test_table {
             ])?
         } else {
             RecordBatch::try_from_iter(vec![
-                ("ids", ids),
+                ("id", id),
                 ("collection", collection),
                 ("title", title),
                 ("text", text),
@@ -781,7 +781,7 @@ pub mod test_table {
         Ok(batch)
     }
 
-    /// Make a test table with fields for ids, title, text, metadata, score, and embeddings
+    /// Make a test table with fields for id, title, text, metadata, score, and embeddings
     /// and with each record batch replicated per batch
     pub fn make_test_table(
         name: &str,
@@ -996,7 +996,7 @@ mod tests {
             .iter()
             .flat_map(|batch| {
                 batch
-                    .column_by_name("ids")
+                    .column_by_name("id")
                     .unwrap()
                     .as_any()
                     .downcast_ref::<UInt32Array>()
@@ -1011,7 +1011,7 @@ mod tests {
             .iter()
             .flat_map(|batch| {
                 batch
-                    .column_by_name("ids")
+                    .column_by_name("id")
                     .unwrap()
                     .as_any()
                     .downcast_ref::<Int64Array>()
@@ -1082,7 +1082,7 @@ mod tests {
             .iter()
             .flat_map(|batch| {
                 batch
-                    .column_by_name("ids")
+                    .column_by_name("id")
                     .unwrap()
                     .as_any()
                     .downcast_ref::<UInt32Array>()
@@ -1097,7 +1097,7 @@ mod tests {
             .iter()
             .flat_map(|batch| {
                 batch
-                    .column_by_name("ids")
+                    .column_by_name("id")
                     .unwrap()
                     .as_any()
                     .downcast_ref::<Int64Array>()
@@ -1148,7 +1148,7 @@ mod tests {
             .iter()
             .flat_map(|batch| {
                 batch
-                    .column_by_name("ids")
+                    .column_by_name("id")
                     .unwrap()
                     .as_any()
                     .downcast_ref::<UInt32Array>()
@@ -1163,7 +1163,7 @@ mod tests {
             .iter()
             .flat_map(|batch| {
                 batch
-                    .column_by_name("ids")
+                    .column_by_name("id")
                     .unwrap()
                     .as_any()
                     .downcast_ref::<Int64Array>()
@@ -1188,7 +1188,7 @@ mod tests {
         assert_eq!(
             serde_json::Value::Object(json_rows[0].clone()),
             serde_json::json!({"collection": "collection0".to_string(),
-                "ids": 0, "metadata": "metadata0".to_string(), "text": "text0".to_string(), "title": "title0".to_string()
+                "id": 0, "metadata": "metadata0".to_string(), "text": "text0".to_string(), "title": "title0".to_string()
             }),
         );
 
@@ -1243,7 +1243,7 @@ mod tests {
         assert_eq!(
             serde_json::Value::Object(json_rows[0].clone()),
             serde_json::json!({"collection": "collection0".to_string(),
-                "ids": 0, "metadata": "metadata0".to_string(), "text": "text0".to_string(), "title": "title0".to_string()
+                "id": 0, "metadata": "metadata0".to_string(), "text": "text0".to_string(), "title": "title0".to_string()
             }),
         );
 

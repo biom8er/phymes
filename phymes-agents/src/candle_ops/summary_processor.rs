@@ -372,7 +372,7 @@ mod tests {
         let config = CandleOpsSummaryConfig {
             num_rows: Some(2),
             num_batches: Some(1),
-            col_names: Some("[\"embeddings\",\"lhs_pk\"]".to_string()),
+            col_names: Some("[\"embedding\",\"lhs_pk\"]".to_string()),
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = ArrowTableBuilder::new()
@@ -427,7 +427,7 @@ mod tests {
         assert_eq!(
             partitions.get_column_as_str_vec("content"),
             [
-                "[{\"embeddings\":[1.0,1.0,1.0,1.0],\"lhs_pk\":\"1\"},{\"embeddings\":[0.0,0.0,0.0,1.0],\"lhs_pk\":\"3\"}]"
+                "[{\"embedding\":[1.0,1.0,1.0,1.0],\"lhs_pk\":\"1\"},{\"embedding\":[0.0,0.0,0.0,1.0],\"lhs_pk\":\"3\"}]"
             ]
         );
 

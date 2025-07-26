@@ -300,7 +300,7 @@ Chunk documents by splitting a StringArray column in a [RecordBatch]
 
 # Arguments
 
-* `lhs` - `RecordBatch` with a column for 'score'
+* `lhs` - `RecordBatch`
 * `lhs_pk` - Left hand side primary key
 * `lhs_value` - Left hand value key
 * `chunk_size` - the length of the document chunks

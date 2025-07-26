@@ -360,6 +360,13 @@ impl Stream for CandleOpStream {
             self.rhs_inbox = rhs;
         }
 
+        // Attempt to parse the op_kwargs
+        let ops_kwargs_default = "{\"chunk_size\": 512, \"chunk_overlap\": 64, \"asc\": false}".to_string();
+        let ops_kwargs_str = self.config.as_ref().unwrap().op_kwargs.as_ref().unwrap_or(&ops_kwargs_default).to_owned();
+        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str.as_str()).unwrap_or(
+            serde_json::from_str(ops_kwargs_default.as_str()).unwrap()
+        );
+
         // Compute the ops function
         event!(
             Level::DEBUG,
@@ -397,7 +404,7 @@ impl Stream for CandleOpStream {
             )?,
             WhichCandleOps::SortScoresAndIndices => sort_scores_and_indices(
                 &self.lhs_inbox,
-                false,
+                ops_kwargs.get("asc").unwrap().as_bool().unwrap(),
                 self.runtime_env
                     .try_lock()
                     .unwrap()
@@ -411,8 +418,8 @@ impl Stream for CandleOpStream {
                 &self.lhs_inbox,
                 &self.config.as_ref().unwrap().lhs_pk,
                 &self.config.as_ref().unwrap().lhs_values,
-                512, //DM: need to add to op_kwargs
-                64,  //DM: need to add to op_kwargs
+                ops_kwargs.get("chunk_size").unwrap().as_u64().unwrap() as usize,
+                ops_kwargs.get("chunk_overlap").unwrap().as_u64().unwrap() as usize,
                 self.runtime_env
                     .try_lock()
                     .unwrap()
@@ -521,7 +528,7 @@ pub mod test_candle_ops_processor {
 
         // Make the batch
         let ids_ar: ArrayRef = Arc::new(StringArray::from(ids));
-        let batch = RecordBatch::try_from_iter(vec![(id_str, ids_ar), ("embeddings", embedding)])?;
+        let batch = RecordBatch::try_from_iter(vec![(id_str, ids_ar), ("embedding", embedding)])?;
         Ok(batch)
     }
 }
@@ -599,10 +606,10 @@ mod tests {
             rhs_name: Some("rhs_name".to_string()),
             lhs_pk: "lhs_pk".to_string(),
             lhs_fk: "lhs_fk".to_string(),
-            lhs_values: "embeddings".to_string(),
+            lhs_values: "embedding".to_string(),
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
-            rhs_values: Some("embeddings".to_string()),
+            rhs_values: Some("embedding".to_string()),
             which: WhichCandleOps::RelativeSimilarityScore,
             ..Default::default()
         };
@@ -936,10 +943,10 @@ mod tests {
             rhs_name: Some("rhs_name".to_string()),
             lhs_pk: "lhs_pk".to_string(),
             lhs_fk: "lhs_fk".to_string(),
-            lhs_values: "embeddings".to_string(),
+            lhs_values: "embedding".to_string(),
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
-            rhs_values: Some("embeddings".to_string()),
+            rhs_values: Some("embedding".to_string()),
             which: WhichCandleOps::RelativeSimilarityScore,
             ..Default::default()
         };
