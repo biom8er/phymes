@@ -4,6 +4,7 @@ use std::sync::Arc;
 #[cfg(feature = "openai_api")]
 use phymes_ai::openai_asset::{
     chat_processor::OpenAIChatProcessor, embed_processor::OpenAIEmbedProcessor,
+    openai_asset::openai_which::WhichOpenAIAsset
 };
 use phymes_ai::{
     candle_assets::candle_which::WhichCandleAsset, candle_chat::{
@@ -667,8 +668,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         #[cfg(not(feature = "candle"))]
         {
             candle_chat_config.candle_asset = None;
-            candle_chat_config.openai_asset =
-                Some(crate::openai_asset::openai_which::WhichOpenAIAsset::MetaLlamaV3p2_1B);
+            candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;
@@ -745,9 +745,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         #[cfg(not(feature = "candle"))]
         {
             candle_embed_config.candle_asset = None;
-            candle_embed_config.openai_asset = Some(
-                crate::openai_asset::openai_which::WhichOpenAIAsset::NvidiaLlamaV3p2NvEmbedQA1BV2,
-            );
+            candle_embed_config.openai_asset = Some(WhichOpenAIAsset::NvidiaLlamaV3p2NvEmbedQA1BV2);
             candle_embed_config.weights_config_file = None;
             candle_embed_config.weights_file = None;
             candle_embed_config.tokenizer_file = None;

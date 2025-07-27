@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
 #[cfg(feature = "openai_api")]
-use phymes_ai::openai_asset::chat_processor::OpenAIChatProcessor;
+use phymes_ai::openai_asset::{chat_processor::OpenAIChatProcessor, openai_asset::openai_which::WhichOpenAIAsset};
 use phymes_ai::{candle_assets::candle_which::WhichCandleAsset, candle_chat::{
     chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
     message_aggregator_processor::MessageAggregatorProcessor,
@@ -495,8 +495,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             // DM: Bug in Llama model system template that requires it to only call tools instead of respond...
             // see update template <https://gist.github.com/K-Mistele/820d142b4dab50bd8ef0c7bbcad4515c>
             // see discussion when using vLLM <https://github.com/vllm-project/vllm/issues/9991>
-            candle_chat_config.openai_asset =
-                Some(crate::openai_asset::openai_which::WhichOpenAIAsset::MetaLlamaV3p2_1B);
+            candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;

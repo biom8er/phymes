@@ -4,7 +4,7 @@ use std::sync::Arc;
 use super::agent_session_builder::AgentSessionBuilderTrait;
 use phymes_ai::{candle_assets::candle_which::WhichCandleAsset, candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor}};
 #[cfg(feature = "openai_api")]
-use phymes_ai::openai_asset::chat_processor::OpenAIChatProcessor;
+use phymes_ai::openai_asset::{chat_processor::OpenAIChatProcessor, openai_asset::openai_which::WhichOpenAIAsset};
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
     session::{
@@ -180,7 +180,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
         {
             candle_chat_config.candle_asset = None;
             candle_chat_config.openai_asset =
-                Some(crate::openai_asset::openai_which::WhichOpenAIAsset::MetaLlamaV3p2_1B);
+                Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;
