@@ -3,16 +3,15 @@ use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
 #[cfg(feature = "openai_api")]
-use crate::openai_asset::chat_processor::OpenAIChatProcessor;
-use crate::{
+use phymes_ai::openai_asset::{
+    chat_processor::OpenAIChatProcessor, openai_which::WhichOpenAIAsset,
+};
+use phymes_ai::{
+    candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
         chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
         message_aggregator_processor::MessageAggregatorProcessor,
         message_parser_processor::MessageParserProcessor,
-    },
-    candle_ops::{
-        ops_processor::CandleOpProcessor, ops_which::WhichCandleOps,
-        summary_config::CandleOpsSummaryConfig, summary_processor::OpsSummaryProcessor,
     },
 };
 use phymes_core::{
@@ -29,6 +28,10 @@ use phymes_core::{
         arrow_table_subscribe::ArrowTableSubscribe,
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
+};
+use phymes_etl::candle_ops::{
+    ops_processor::CandleOpProcessor, ops_which::WhichCandleOps,
+    summary_config::CandleOpsSummaryConfig, summary_processor::OpsSummaryProcessor,
 };
 
 use arrow::{
@@ -472,17 +475,14 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::SmolLM2_135MChat,
-            ),
+            candle_asset: Some(WhichCandleAsset::SmolLM2_135MChat),
             ..Default::default()
         };
 
         // Add hf_hub if available
         #[cfg(feature = "hf_hub")]
         {
-            candle_chat_config.candle_asset =
-                Some(crate::candle_assets::candle_which::WhichCandleAsset::QwenV2p5_3bChat);
+            candle_chat_config.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
             candle_chat_config.openai_asset = None;
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
@@ -491,14 +491,13 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
         }
 
         // Add openAI_api if available
-        #[cfg(not(feature = "candle"))]
+        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
             // DM: Bug in Llama model system template that requires it to only call tools instead of respond...
             // see update template <https://gist.github.com/K-Mistele/820d142b4dab50bd8ef0c7bbcad4515c>
             // see discussion when using vLLM <https://github.com/vllm-project/vllm/issues/9991>
-            candle_chat_config.openai_asset =
-                Some(crate::openai_asset::openai_which::WhichOpenAIAsset::MetaLlamaV3p2_1B);
+            candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;
@@ -555,8 +554,8 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
 
 pub mod test_tool_agent_session {
     use super::*;
-    use crate::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     use parking_lot::RwLock;
+    use phymes_ai::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     use phymes_core::{
         metrics::HashMap,
         session::{

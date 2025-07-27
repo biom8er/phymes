@@ -14,7 +14,7 @@ use phymes_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::openai_asset::{chat_completion, types};
+use phymes_ai::openai_asset::{chat_completion, types};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum WhichCandleOps {

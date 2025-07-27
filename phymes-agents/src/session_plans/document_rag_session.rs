@@ -2,19 +2,17 @@ use anyhow::Result;
 use std::sync::Arc;
 
 #[cfg(feature = "openai_api")]
-use crate::openai_asset::{
+use phymes_ai::openai_asset::{
     chat_processor::OpenAIChatProcessor, embed_processor::OpenAIEmbedProcessor,
+    openai_which::WhichOpenAIAsset,
 };
-use crate::{
+use phymes_ai::{
+    candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
         chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
         message_aggregator_processor::MessageAggregatorProcessor,
     },
     candle_embed::{embed_config::CandleEmbedConfig, embed_processor::CandleEmbedProcessor},
-    candle_ops::{
-        ops_config::CandleOpsConfig, ops_processor::CandleOpProcessor, ops_which::WhichCandleOps,
-        summary_config::CandleOpsSummaryConfig, summary_processor::OpsSummaryProcessor,
-    },
 };
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
@@ -30,6 +28,10 @@ use phymes_core::{
         arrow_table_subscribe::ArrowTableSubscribe,
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
+};
+use phymes_etl::candle_ops::{
+    ops_config::CandleOpsConfig, ops_processor::CandleOpProcessor, ops_which::WhichCandleOps,
+    summary_config::CandleOpsSummaryConfig, summary_processor::OpsSummaryProcessor,
 };
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
@@ -646,17 +648,14 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                 "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::QwenV2p5_1p5bChat,
-            ),
+            candle_asset: Some(WhichCandleAsset::QwenV2p5_1p5bChat),
             ..Default::default()
         };
 
         // Add hf_hub if available
         #[cfg(feature = "hf_hub")]
         {
-            candle_chat_config.candle_asset =
-                Some(crate::candle_assets::candle_which::WhichCandleAsset::QwenV2p5_3bChat);
+            candle_chat_config.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
             candle_chat_config.openai_asset = None;
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
@@ -665,11 +664,10 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         }
 
         // Add openAI_api if available
-        #[cfg(not(feature = "candle"))]
+        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
-            candle_chat_config.openai_asset =
-                Some(crate::openai_asset::openai_which::WhichOpenAIAsset::MetaLlamaV3p2_1B);
+            candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;
@@ -706,8 +704,8 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
-                crate::candle_assets::candle_which::WhichCandleAsset::QuantizedBertEmbed,
+                // WhichCandleAsset::BertEmbed,
+                WhichCandleAsset::QuantizedBertEmbed,
             ),
             // weights_config_file: Some(format!(
             //     "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/config.json",
@@ -726,7 +724,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             //     std::env::var("HOME").unwrap_or("".to_string())
             // )),
             // candle_asset: Some(
-            //     crate::candle_assets::candle_which::WhichCandleAsset::QwenV2_1p5bEmbed,
+            //     WhichCandleAsset::QwenV2_1p5bEmbed,
             // ),
             ..Default::default()
         };
@@ -738,17 +736,14 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             candle_embed_config.weights_file = None;
             candle_embed_config.tokenizer_file = None;
             candle_embed_config.tokenizer_config_file = None;
-            candle_embed_config.candle_asset =
-                Some(crate::candle_assets::candle_which::WhichCandleAsset::QwenV2_1p5bEmbed);
+            candle_embed_config.candle_asset = Some(WhichCandleAsset::QwenV2_1p5bEmbed);
         }
 
         // Add openAI_api if available
-        #[cfg(not(feature = "candle"))]
+        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_embed_config.candle_asset = None;
-            candle_embed_config.openai_asset = Some(
-                crate::openai_asset::openai_which::WhichOpenAIAsset::NvidiaLlamaV3p2NvEmbedQA1BV2,
-            );
+            candle_embed_config.openai_asset = Some(WhichOpenAIAsset::NvidiaLlamaV3p2NvEmbedQA1BV2);
             candle_embed_config.weights_config_file = None;
             candle_embed_config.weights_file = None;
             candle_embed_config.tokenizer_file = None;
@@ -900,9 +895,9 @@ pub fn fields_in_schemas(lhs_schema: SchemaRef, rhs_schema: SchemaRef) -> Vec<St
 
 pub mod test_doc_rag_session {
     use super::*;
-    use crate::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use parking_lot::RwLock;
+    use phymes_ai::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     use phymes_core::{
         metrics::HashMap,
         session::{

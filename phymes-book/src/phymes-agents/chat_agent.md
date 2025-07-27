@@ -2,7 +2,7 @@
 
 ## Synopsis
 
-This tutorial describes how the [Chat Agent Session Plan](../../../phymes-agents/src/session_plans/chat_agent_session.rs) uses the [phymes-agent](../../../phymes-agents/README.md) and [phymes-core](../../../phymes-core/README.md) crates to build a simple chat agent. The `chat agent` is provided in the [examples](../../../phymes-agents/examples/chat_agent_session/main.rs).
+This tutorial describes how the [Chat Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-agents/src/session_plans/chat_agent_session.rs) uses the [phymes-agent](https://github.com/biom8er/phymes/blob/main/phymes-agents/README.md) and [phymes-core](https://github.com/biom8er/phymes/blob/main/phymes-core/README.md) crates to build a simple chat agent. The `chat agent` is provided in the [examples](https://github.com/biom8er/phymes/blob/main/phymes-agents/examples/chat_agent_session/main.rs).
 
 ## Tutorial
 
@@ -42,4 +42,4 @@ The session ends because there are no further updates to the subjects. If the us
 
 ## Next steps
 
-The [Chat Agent Session Plan](../../../phymes-agents/src/session_plans/chat_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user.
+The [Chat Agent Session Plan](https://github.com/biom8er/phymes/phymes-agents/src/session_plans/chat_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user.

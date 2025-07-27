@@ -1,8 +1,10 @@
 [workspace]
 members = [
-    "phymes-app",
     "phymes-agents",
+    "phymes-ai",
+    "phymes-app",
     "phymes-core",
+    "phymes-etl",
     "phymes-server"
 ]
 resolver = "3"

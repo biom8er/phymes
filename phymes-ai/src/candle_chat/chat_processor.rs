@@ -7,6 +7,8 @@ use candle_core::DType;
 use candle_transformers::generation::{LogitsProcessor, Sampling};
 use tokenizers::Tokenizer;
 
+#[cfg(feature = "openai_api")]
+use crate::openai_asset::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics},
     session::{
@@ -655,6 +657,113 @@ pub fn process_prompt_chat(
     };
 
     Ok((prompt_tokens, to_sample, tos))
+}
+
+pub mod bench_chat_processor {
+    use phymes_core::{metrics::HashMap, session::runtime_env::RuntimeEnvTrait};
+
+    use crate::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+
+    use super::*;
+
+    /// Run the chat processor with a given config and return the message history
+    pub async fn bench_chat_processor(
+        metrics: ArrowTaskMetricsSet,
+        config: &CandleChatConfig,
+        user_content: &str,
+        name: &str,
+    ) -> Result<ArrowTable> {
+        // Named variables
+        let messages = "messages";
+
+        // State for the chat processor config
+        let candle_chat_config_json = serde_json::to_vec(config)?;
+        let candle_chat_config_table = ArrowTableBuilder::new()
+            .with_name(name)
+            .with_json(&candle_chat_config_json, 1)?
+            .build()?;
+
+        // Make the system prompt and add the user query
+        let message_builder = ArrowTableBuilder::new()
+            .with_name(messages)
+            .insert_system_template_str("You are a helpful assistant.")?
+            .append_new_user_query_str(user_content, "user")?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, ArrowOutgoingMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            ArrowOutgoingMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&ArrowTablePublish::None)
+                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            candle_chat_config_table.get_name().to_string(),
+            ArrowOutgoingMessage::get_builder()
+                .with_name(candle_chat_config_table.get_name())
+                .with_publisher("")
+                .with_subject(candle_chat_config_table.get_name())
+                .with_update(&ArrowTablePublish::None)
+                .with_message(candle_chat_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the chat task
+        #[allow(unused_variables)]
+        let chat_processor = CandleChatProcessor::new_with_pub_sub_for(
+            name,
+            &[ArrowTablePublish::ExtendChunks {
+                table_name: messages.to_string(),
+                col_name: "content".to_string(),
+            }],
+            &[
+                ArrowTableSubscribe::OnUpdateFullTable {
+                    table_name: messages.to_string(),
+                },
+                ArrowTableSubscribe::None,
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: candle_chat_config_table.get_name().to_string(),
+                },
+            ],
+            &[],
+        );
+        #[cfg(all(not(feature = "candle"), feature = "openai_api"))]
+        let chat_processor = OpenAIChatProcessor::new_with_pub_sub_for(
+            name,
+            &[ArrowTablePublish::ExtendChunks {
+                table_name: messages.to_string(),
+                col_name: "content".to_string(),
+            }],
+            &[
+                ArrowTableSubscribe::OnUpdateFullTable {
+                    table_name: messages.to_string(),
+                },
+                ArrowTableSubscribe::None,
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: candle_chat_config_table.get_name().to_string(),
+                },
+            ],
+            &[],
+        );
+        let mut stream = chat_processor.process(
+            message,
+            metrics,
+            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+        )?;
+
+        // Update the chat history with the response
+        let (message_builder, _stream) = message_builder
+            .append_chat_response_sendable_record_batch_stream(
+                &mut stream.remove(messages).unwrap().get_message_own(),
+                1000,
+            )
+            .await?;
+        message_builder.clone().build()
+    }
 }
 
 #[cfg(test)]

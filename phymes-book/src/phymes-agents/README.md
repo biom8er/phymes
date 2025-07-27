@@ -1,5 +1,3 @@
-# PHYMES Agents
+# PHYMES AI Agents
 
 {{#include ../../../phymes-agents/README.md:synopsis}}
-
-{{#include ../../../phymes-agents/README.md:concepts}}

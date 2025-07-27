@@ -1,12 +1,12 @@
-use crate::{candle_assets::device::device, candle_ops::ops_functions::join_inner};
-
 use super::{
-    ops_config::CandleOpsConfig,
-    ops_functions::{chunk_documents, relative_similarity_scores, sort_scores_and_indices},
-    ops_service::CandleOpsService,
-    ops_which::WhichCandleOps,
+    ops_config::CandleOpsConfig, ops_service::CandleOpsService, ops_which::WhichCandleOps,
 };
-
+use crate::ops_functions::{
+    chunk_documents::chunk_documents, join_inner::join_inner,
+    relative_similarity_scores::relative_similarity_scores,
+    sort_scores_and_indices::sort_scores_and_indices,
+};
+use phymes_ai::candle_assets::device::device;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
