@@ -1,5 +1,5 @@
 use arrow::{
-    array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray, UInt32Array},
+    array::{ArrayRef, Float32Array, StringArray, UInt32Array},
     datatypes::DataType,
     record_batch::RecordBatch,
 };
@@ -135,8 +135,6 @@ pub fn sort_scores_and_indices(
 
 #[cfg(test)]
 mod tests {
-    use crate::candle_ops::ops_processor::test_candle_ops_processor::make_embeddings_record_batch;
-
     use super::*;
 
     #[test]

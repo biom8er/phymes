@@ -1,11 +1,11 @@
 use arrow::{
-    array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray, UInt32Array},
+    array::{ArrayRef, Float32Array, StringArray, UInt32Array},
     datatypes::DataType,
     record_batch::RecordBatch,
 };
 
 use anyhow::Result;
-use candle_core::{Device, Tensor};
+use candle_core::Device;
 use std::sync::Arc;
 use tracing::instrument;
 
@@ -309,8 +309,6 @@ pub fn join_inner(
 
 #[cfg(test)]
 mod tests {
-    use crate::candle_ops::ops_processor::test_candle_ops_processor::make_embeddings_record_batch;
-
     use super::*;
 
     #[test]

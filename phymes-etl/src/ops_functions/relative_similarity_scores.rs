@@ -1,6 +1,5 @@
 use arrow::{
-    array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray, UInt32Array},
-    datatypes::DataType,
+    array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray},
     record_batch::RecordBatch,
 };
 
