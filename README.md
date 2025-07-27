@@ -138,8 +138,8 @@ The [`phymes-core`], [`phymes-ai`], [`phymes-etl`], [`phymes-agents`], [`phymes-
 | Crate | Description | Latest API Docs | README |
 | ----- | ----------- | --------------- | ------ |
 | [`phymes-core`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-core/latest) | [README](phymes-core/README.md) |
-| [`phymes-ai`] | Support for generative AI | [docs.rs](https://docs.rs/phymes-ai/latest) | [README](phymes-ai/README.md) |
-| [`phymes-etl`] | Support for GPU accelerated wrangling | [docs.rs](https://docs.rs/phymes-etl/latest) | [README](phymes-etl/README.md) |
+| [`phymes-ai`] | Support for Generative AI | [docs.rs](https://docs.rs/phymes-ai/latest) | [README](phymes-ai/README.md) |
+| [`phymes-etl`] | Support for GPU accelerated data wrangling | [docs.rs](https://docs.rs/phymes-etl/latest) | [README](phymes-etl/README.md) |
 | [`phymes-agents`] | Templates for building Agentic AI hypergraph messaging applications | [docs.rs](https://docs.rs/phymes-agents/latest) | [README](phymes-agents/README.md) |
 | [`phymes-server`] | Server that runs the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-server/latest) | [README](phymes-server/README.md) |
 | [`phymes-app`] | Frontend UI for dynamically interacting with the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-app/latest) | [README](phymes-app/README.md) |

@@ -1,6 +1,9 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use phymes_ai::{
-    candle_assets::candle_which::WhichCandleAsset, candle_chat::{chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor},
+    candle_assets::candle_which::WhichCandleAsset,
+    candle_chat::{
+        chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor,
+    },
 };
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics},
