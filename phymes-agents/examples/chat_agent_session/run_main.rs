@@ -1,8 +1,8 @@
-#[cfg(feature = "mkl")]
-extern crate intel_mkl_src;
+// #[cfg(feature = "mkl")]
+// extern crate intel_mkl_src;
 
-#[cfg(feature = "accelerate")]
-extern crate accelerate_src;
+// #[cfg(feature = "accelerate")]
+// extern crate accelerate_src;
 
 use anyhow::Result;
 use futures::TryStreamExt;
@@ -24,14 +24,6 @@ use phymes_core::{
 };
 
 pub async fn run_main() -> Result<()> {
-    println!(
-        "avx: {}, neon: {}, simd128: {}, f16c: {}",
-        candle_core::utils::with_avx(),
-        candle_core::utils::with_neon(),
-        candle_core::utils::with_simd128(),
-        candle_core::utils::with_f16c()
-    );
-
     // initialize the metrics
     let metrics = ArrowTaskMetricsSet::new();
 

@@ -8,10 +8,7 @@ use anyhow::Result;
 use clap::Parser;
 use phymes_core::{metrics::ArrowTaskMetricsSet, table::arrow_table::ArrowTableTrait};
 
-use phymes_agents::{
-    candle_chat::chat_config::CandleChatConfig,
-    session_plans::chat_agent_session::test_chat_agent_session::bench_chat_processor,
-};
+use phymes_ai::candle_chat::{chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor};
 
 pub async fn run_main() -> Result<()> {
     println!(

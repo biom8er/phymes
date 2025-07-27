@@ -34,7 +34,7 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
 
-use crate::candle_chat::message_history::create_timestamp;
+use phymes_ai::candle_chat::message_history::create_timestamp;
 
 use super::summary_config::CandleOpsSummaryConfig;
 

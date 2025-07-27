@@ -2,9 +2,9 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
-use crate::candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor};
+use phymes_ai::{candle_assets::candle_which::WhichCandleAsset, candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor}};
 #[cfg(feature = "openai_api")]
-use crate::openai_asset::chat_processor::OpenAIChatProcessor;
+use phymes_ai::openai_asset::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
     session::{
@@ -158,7 +158,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::SmolLM2_135MChat,
+                WhichCandleAsset::SmolLM2_135MChat,
             ),
             ..Default::default()
         };
@@ -167,7 +167,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
         #[cfg(feature = "hf_hub")]
         {
             candle_chat_config.candle_asset =
-                Some(crate::candle_assets::candle_which::WhichCandleAsset::QwenV2p5_1p5bChat);
+                Some(WhichCandleAsset::QwenV2p5_1p5bChat);
             candle_chat_config.openai_asset = None;
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
@@ -218,126 +218,25 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
 }
 
 pub mod test_chat_agent_session {
-    use parking_lot::{Mutex, RwLock};
+    use parking_lot::RwLock;
     use phymes_core::{
         metrics::HashMap,
         session::{
-            common_traits::{BuildableTrait, MappableTrait},
+            common_traits::MappableTrait,
             session_context::{SessionStream, SessionStreamState},
         },
-        table::arrow_table::ArrowTableTrait,
         task::arrow_message::{
             ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
+            ArrowMessageBuilderTrait,
         },
     };
 
     use super::*;
 
-    use crate::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_ai::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     #[allow(unused_imports)]
     #[cfg(feature = "openai_api")]
-    use crate::openai_asset::chat_processor::OpenAIChatProcessor;
-
-    /// Run the chat processor with a given config and return the message history
-    pub async fn bench_chat_processor(
-        metrics: ArrowTaskMetricsSet,
-        config: &CandleChatConfig,
-        user_content: &str,
-        name: &str,
-    ) -> Result<ArrowTable> {
-        // Named variables
-        let messages = "messages";
-
-        // State for the chat processor config
-        let candle_chat_config_json = serde_json::to_vec(config)?;
-        let candle_chat_config_table = ArrowTableBuilder::new()
-            .with_name(name)
-            .with_json(&candle_chat_config_json, 1)?
-            .build()?;
-
-        // Make the system prompt and add the user query
-        let message_builder = ArrowTableBuilder::new()
-            .with_name(messages)
-            .insert_system_template_str("You are a helpful assistant.")?
-            .append_new_user_query_str(user_content, "user")?;
-
-        // Build the current message state
-        let mut message = HashMap::<String, ArrowOutgoingMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            ArrowOutgoingMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&ArrowTablePublish::None)
-                .with_message(message_builder.clone().build()?.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = message.insert(
-            candle_chat_config_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
-                .with_name(candle_chat_config_table.get_name())
-                .with_publisher("")
-                .with_subject(candle_chat_config_table.get_name())
-                .with_update(&ArrowTablePublish::None)
-                .with_message(candle_chat_config_table.to_record_batch_stream())
-                .build()?,
-        );
-
-        // Build the chat task
-        #[allow(unused_variables)]
-        let chat_processor = CandleChatProcessor::new_with_pub_sub_for(
-            name,
-            &[ArrowTablePublish::ExtendChunks {
-                table_name: messages.to_string(),
-                col_name: "content".to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                ArrowTableSubscribe::None,
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: candle_chat_config_table.get_name().to_string(),
-                },
-            ],
-            &[],
-        );
-        #[cfg(all(not(feature = "candle"), feature = "openai_api"))]
-        let chat_processor = OpenAIChatProcessor::new_with_pub_sub_for(
-            name,
-            &[ArrowTablePublish::ExtendChunks {
-                table_name: messages.to_string(),
-                col_name: "content".to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                ArrowTableSubscribe::None,
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: candle_chat_config_table.get_name().to_string(),
-                },
-            ],
-            &[],
-        );
-        let mut stream = chat_processor.process(
-            message,
-            metrics,
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
-        )?;
-
-        // Update the chat history with the response
-        let (message_builder, _stream) = message_builder
-            .append_chat_response_sendable_record_batch_stream(
-                &mut stream.remove(messages).unwrap().get_message_own(),
-                1000,
-            )
-            .await?;
-        message_builder.clone().build()
-    }
+    use phymes_ai::openai_asset::chat_processor::OpenAIChatProcessor;
 
     /// Run the first query for the chat agent session and return the response
     pub fn bench_chat_agent_session_1<'a>(

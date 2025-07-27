@@ -3,14 +3,12 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
-use phymes_agents::{
-    candle_assets::device::device,
-    candle_ops::{
-        ops_config::{CandleOpsConfig, CandleOpsStreamManager},
-        ops_processor::CandleOpProcessor,
-        ops_service::CandleOpsService,
-        ops_which::WhichCandleOps,
-    },
+use phymes_ai::candle_assets::device::device;
+use phymes_etl::candle_ops::{
+    ops_config::{CandleOpsConfig, CandleOpsStreamManager},
+    ops_processor::CandleOpProcessor,
+    ops_service::CandleOpsService,
+    ops_which::WhichCandleOps,
 };
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},

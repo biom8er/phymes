@@ -1,7 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use phymes_agents::{
-    candle_assets::candle_which::WhichCandleAsset, candle_chat::chat_config::CandleChatConfig,
-    session_plans::chat_agent_session::test_chat_agent_session::bench_chat_processor,
+use phymes_ai::{
+    candle_assets::candle_which::WhichCandleAsset, candle_chat::{chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor},
 };
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics},
