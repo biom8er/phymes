@@ -50,6 +50,11 @@ jobs:
         with:
           name: mdbook
           path: target/book
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: mdbook
 
   docs:
     name: Upload cargo docs
