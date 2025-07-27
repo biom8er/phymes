@@ -7,6 +7,8 @@ use candle_core::DType;
 use candle_transformers::generation::{LogitsProcessor, Sampling};
 use tokenizers::Tokenizer;
 
+#[cfg(feature = "openai_api")]
+use crate::openai_asset::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics},
     session::{

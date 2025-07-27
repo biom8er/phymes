@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
 #[cfg(feature = "openai_api")]
-use phymes_ai::openai_asset::{chat_processor::OpenAIChatProcessor, openai_asset::openai_which::WhichOpenAIAsset};
+use phymes_ai::openai_asset::{chat_processor::OpenAIChatProcessor, openai_which::WhichOpenAIAsset};
 use phymes_ai::{candle_assets::candle_which::WhichCandleAsset, candle_chat::{
     chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
     message_aggregator_processor::MessageAggregatorProcessor,

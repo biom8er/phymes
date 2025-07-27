@@ -4,7 +4,7 @@ use std::sync::Arc;
 #[cfg(feature = "openai_api")]
 use phymes_ai::openai_asset::{
     chat_processor::OpenAIChatProcessor, embed_processor::OpenAIEmbedProcessor,
-    openai_asset::openai_which::WhichOpenAIAsset
+    openai_which::WhichOpenAIAsset
 };
 use phymes_ai::{
     candle_assets::candle_which::WhichCandleAsset, candle_chat::{
