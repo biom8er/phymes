@@ -1,7 +1,7 @@
 # Model Assets
 ## Synopsis
 
-This tutorial describes how the [Candle](https://github.com/huggingface/candle) model [assets](../../../phymes-agents/src/candle_assets/candle_assets.rs) are used to support text generation inference (TGI) and text embedding inference (TEI) services that are needed for agentic AI. A `chat` model that provides TGI via the command line is provided in the [examples](../../../phymes-agents/examples/chat/main.rs).
+This tutorial describes how the [Candle](https://github.com/huggingface/candle) model [assets](https://github.com/biom8er/phymes/blob/main/phymes-agents/src/candle_assets/candle_assets.rs) are used to support text generation inference (TGI) and text embedding inference (TEI) services that are needed for agentic AI. A `chat` model that provides TGI via the command line is provided in the [examples](https://github.com/biom8er/phymes/blob/main/phymes-agents/examples/chat/main.rs).
 
 ## Tutorial
 ### Candle assets

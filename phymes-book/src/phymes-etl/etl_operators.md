@@ -1,7 +1,7 @@
 # ETL Operators
 ## Synopsis
 
-This tutorial describes how the [Candle](https://github.com/huggingface/candle) `Tensor` class can provide GPU accelerated ETL operations such as sorting, joining, and group aggregation to build powerful tools and complete ETL pipelines that can be integrated with agentic AI. A `etl` executable that provides ETL operators over tabular data via the command line is provided in the [examples](../../../phymes-etl/examples/etl/main.rs).
+This tutorial describes how the [Candle](https://github.com/huggingface/candle) `Tensor` class can provide GPU accelerated ETL operations such as sorting, joining, and group aggregation to build powerful tools and complete ETL pipelines that can be integrated with agentic AI. A `etl` executable that provides ETL operators over tabular data via the command line is provided in the [examples](https://github.com/biom8er/phymes/blob/main/phymes-etl/examples/etl/main.rs).
 
 ## Tutorial
 ### Tensor operations

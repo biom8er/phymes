@@ -24,7 +24,7 @@
     - [ETL operators](./phymes-etl/etl_operators.md)
     - [Dcoument parsers](./phymes-etl/document_parsers.md)
     - [Data visualization](./phymes-etl/data_visualization.md)
-    - [Example: ETL](./phymes-ai/etl_example.md)
+    - [Example: ETL](./phymes-etl/etl_example.md)
 - [Phymes-Agents](./phymes-agents/README.md)
     - [Session plan: chat agent](./phymes-agents/chat_agent.md)
     - [Session plan: tool agent](./phymes-agents/tool_agent.md)

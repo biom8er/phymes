@@ -1,7 +1,7 @@
 # Session Plan: Tool Agent
 ## Synopsis
 
-This tutorial describes how the [Tool Agent Session Plan](../../../phymes-agents/src/session_plans/tool_agent_session.rs) uses the [phymes-agent](../../../phymes-agents/README.md) and [phymes-core](../../../phymes-core/README.md) crates to build a tool calling agent.
+This tutorial describes how the [Tool Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-agents/src/session_plans/tool_agent_session.rs) uses the [phymes-agent](https://github.com/biom8er/phymes/blob/main/phymes-agents/README.md) and [phymes-core](https://github.com/biom8er/phymes/blob/main/phymes-core/README.md) crates to build a tool calling agent.
 
 ## Tutorial
 
@@ -55,4 +55,4 @@ The session ends because there are no further updates to the subjects. If the us
 
 ## Next steps
 
-The [Tool Agent Session Plan](../../../phymes-agents/src/session_plans/tool_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user. A trivial use case is provided for sorting an array in a table that can be used as a starting point for creating more complex realistic use cases involving tools that manipulate (large) tabular data.
+The [Tool Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-agents/src/session_plans/tool_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user. A trivial use case is provided for sorting an array in a table that can be used as a starting point for creating more complex realistic use cases involving tools that manipulate (large) tabular data.
