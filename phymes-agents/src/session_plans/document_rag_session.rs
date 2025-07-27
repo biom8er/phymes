@@ -665,7 +665,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         }
 
         // Add openAI_api if available
-        #[cfg(not(feature = "candle"))]
+        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
             candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
@@ -742,7 +742,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         }
 
         // Add openAI_api if available
-        #[cfg(not(feature = "candle"))]
+        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_embed_config.candle_asset = None;
             candle_embed_config.openai_asset = Some(WhichOpenAIAsset::NvidiaLlamaV3p2NvEmbedQA1BV2);

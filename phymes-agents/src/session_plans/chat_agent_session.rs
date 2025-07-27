@@ -176,11 +176,10 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
         }
 
         // Add openAI_api if available
-        #[cfg(not(feature = "candle"))]
+        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
-            candle_chat_config.openai_asset =
-                Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
+            candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;

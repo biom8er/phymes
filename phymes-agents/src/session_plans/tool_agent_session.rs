@@ -489,7 +489,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
         }
 
         // Add openAI_api if available
-        #[cfg(not(feature = "candle"))]
+        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
             // DM: Bug in Llama model system template that requires it to only call tools instead of respond...
