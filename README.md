@@ -133,20 +133,23 @@ The phymes application is available for desktop (Linux, Windows, MacOS) and mobi
 
 ## Repository
 
-The [`phymes-core`], [`phymes-agents`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
+The [`phymes-core`], [`phymes-ai`], [`phymes-etl`], [`phymes-agents`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
 
 | Crate | Description | Latest API Docs | README |
 | ----- | ----------- | --------------- | ------ |
-| [`phymes-core`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-core/latest) | [README](phymes-core-readme) |
-| [`phymes-agents`] | Support for AI agents and GPU accelerated data analytics | [docs.rs](https://docs.rs/phymes-agents/latest) | [README](phymes-agents-readme) |
-| [`phymes-server`] | Server that runs the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-server/latest) | [README](phymes-server-readme) |
-| [`phymes-app`] | Frontend UI for dynamically interacting with the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-app/latest) | [README](phymes-app-readme) |
+| [`phymes-core`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-core/latest) | [README](phymes-core/README.md) |
+| [`phymes-ai`] | Support for generative AI | [docs.rs](https://docs.rs/phymes-ai/latest) | [README](phymes-ai/README.md) |
+| [`phymes-etl`] | Support for GPU accelerated wrangling | [docs.rs](https://docs.rs/phymes-etl/latest) | [README](phymes-etl/README.md) |
+| [`phymes-agents`] | Templates for building Agentic AI hypergraph messaging applications | [docs.rs](https://docs.rs/phymes-agents/latest) | [README](phymes-agents/README.md) |
+| [`phymes-server`] | Server that runs the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-server/latest) | [README](phymes-server/README.md) |
+| [`phymes-app`] | Frontend UI for dynamically interacting with the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-app/latest) | [README](phymes-app/README.md) |
 
-[`phymes-core`]: https://crates.io/phymes-core/arrow
+[`phymes-core`]: https://crates.io/crates/phymes-core
+[`phymes-ai`]: https://crates.io/crates/phymes-ai
+[`phymes-etl`]: https://crates.io/crates/phymes-etl
 [`phymes-agents`]: https://crates.io/crates/phymes-agents
 [`phymes-server`]: https://crates.io/crates/phymes-server
 [`phymes-app`]: https://crates.io/crates/phymes-app
-[arrow-rs-object-store repository]: https://github.com/apache/arrow-rs-object-store
 
 <!--- ANCHOR_END: repository --->
 
