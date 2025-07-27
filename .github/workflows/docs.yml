@@ -15,6 +15,8 @@ on:
       - phymes-book/**
       - phymes-app/**
       - phymes-core/**
+      - phymes-ai/**
+      - phymes-etl/**
       - phymes-agents/**
       - phymes-server/**
 
@@ -78,6 +80,8 @@ jobs:
       - name: Run cargo doc
         run: |
           cargo doc --document-private-items --no-deps -p phymes-core
+          cargo doc --document-private-items --no-deps -p phymes-ai
+          cargo doc --document-private-items --no-deps -p phymes-etl
           cargo doc --document-private-items --no-deps -p phymes-agents
           cargo doc --document-private-items --no-deps -p phymes-server
           cargo doc --document-private-items --no-deps -p phymes-app

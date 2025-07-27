@@ -340,7 +340,7 @@ Mixing and matching features that are compilation target specific and compilatio
 You can also use rust's official docker image:
 
 ```bash
-docker run --rm -v $(pwd):/phymes -it rust /bin/bash -c "cd /phymes && rustup component add rustfmt && cargo build -p phymes-core"
+docker run --rm -v ${pwd}:/phymes -it rust /bin/bash -c "cd /phymes && rustup component add rustfmt && cargo build -p phymes-core"
 ```
 
 From here on, this is a pure Rust project and `cargo` can be used to run tests, benchmarks, docs and examples as usual.
@@ -420,11 +420,23 @@ cargo test test_session_update_state -p phymes-core --features wsl -- --no-captu
 cargo test --doc
 ```
 
-You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-agents crates have unit tests. Please note that many of the tests in the phymes-agents crate do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-agents create, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,openai_api` or `--feature wsl,gpu,openai_api` feature flags depending upon GPU availability.
+You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-agents crates have unit tests. Please note that many of the tests in the phymes-ai and phymes-agent crates do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-ai and phymes-agents crates, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,openai_api` or `--feature wsl,gpu,openai_api` feature flags depending upon GPU availability.
 
 ```bash
 # run tests for the phymes-core crate
 cargo test --package phymes-core --features wsl --release
+
+# run tests for the phymes-etl crate with GPU acceleration
+cargo test --package phymes-etl --features wsl,gpu --release
+# or run tests for the phymes-etl crate on the CPU
+cargo test --package phymes-etl --features wsl --release
+
+# run tests for the phymes-ai crate with GPU acceleration with Candle assets
+cargo test --package phymes-ai --features wsl,gpu,candle --release
+# run tests for the phymes-ai crate with GPU acceleration with Candle assets from HuggingFace
+cargo test --package phymes-ai --features wsl,gpu,candle,hf_hub --release
+# or run tests for the phymes-ai crate on the CPU with OpenAI API token services
+cargo test --package phymes-ai --features wsl,openai_api --release
 
 # run tests for the phymes-agents crate with GPU acceleration with Candle assets
 cargo test --package phymes-agents --features wsl,gpu,candle --release
@@ -447,12 +459,26 @@ cargo test --package phymes-core --target wasm32-wasip2 --no-default-features --
 # be sure to replace the -26200b790e92721b with your systems unique hash
 wasmtime run target/wasm32-wasip2/debug/deps/phymes-core-26200b790e92721b.wasm
 
-# run tests for the phymes-agents crate with GPU acceleration
+# run tests for the phymes-etl crate
+cargo test --package phymes-etl --target wasm32-wasip2 --no-default-features --features wasip2,candle --no-run
+
+# build tests for the phymes-etl using wasmtime
+# be sure to replace the -9ce9c7c7142d7db7 with your systems unique hash
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes_etl-9ce9c7c7142d7db7.wasm
+
+# run tests for the phymes-ai crate
+cargo test --package phymes-ai --target wasm32-wasip2 --no-default-features --features wasip2,candle --no-run
+
+# build tests for the phymes-ai crate using wasmtime
+# be sure to replace the -9ce9c7c7142d7db7 with your systems unique hash
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes_ai-9ce9c7c7142d7db7.wasm
+
+# run tests for the phymes-agents crate
 cargo test --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --no-run
 
 # build tests for the phymes-agents crate using wasmtime
 # be sure to replace the -9ce9c7c7142d7db7 with your systems unique hash
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes-agents-9ce9c7c7142d7db7.wasm
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes_agents-9ce9c7c7142d7db7.wasm
 
 # run tests for the phymes-server crate
 cargo test -p phymes-server --features wasip2-candle --no-default-features --target wasm32-wasip2 --no-run
@@ -470,13 +496,13 @@ Run examples using the Rust standard `cargo run` command. A few simple examples 
 # run examples for the phymes-core crate
 cargo run --package phymes-core --features wsl --release --example addrows
 
-# run examples for the phymes-agents crate with GPU acceleration with Candle assets
-cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat -- --candle-asset SmoLM2-135M-chat
+# run examples for the phymes-ai and phymes-agents crates with GPU acceleration with Candle assets
+cargo run --package phymes-ai --features wsl,gpu,candle --release --example chat -- --candle-asset SmoLM2-135M-chat
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
 
-# or run examples for the phymes-agents crate on the CPU with OpenAI API token services
-cargo run --package phymes-agents --features wsl --release --example chat -- --openai-asset Llama-3.2-1b-instruct
-cargo run --package phymes-agents --features wsl --release --example chat_agent_session
+# or run examples for the phymes-ai and phymes-agents crates on the CPU with OpenAI API token services
+cargo run --package phymes-ai --features wsl,openai_api --release --example chat -- --openai-asset Llama-3.2-1b-instruct
+cargo run --package phymes-agents --features wsl,openai_api --release --example chat_agent_session
 ```
 
 The examples can also be ran using WASM. However, all assets needed to run the example need to be provided locally unlike native where we can rely on the HuggingFace API to download and cache models for us. The following bash script can be used to build the examples in wasm and run the examples using wasmtime:
@@ -488,8 +514,8 @@ cargo build --package phymes-core --target wasm32-wasip2 --no-default-features -
 # run the examples for the phymes-core crate
 wasmtime run target/wasm32-wasip2/release/examples/addrows.wasm
 
-# build the chat example for the phymes-agents crate
-cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
+# build the chat example for the phymes-ai crate
+cargo build --package phymes-ai --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
 
 # run the chat example for the phymes-agents crate
 wasmtime --dir="$HOME/.cache/hf" --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
@@ -508,10 +534,7 @@ We use `clippy` for checking lints during development, and CI runs `clippy` chec
 Run the following to check for `clippy` lints:
 
 ```bash
-cargo clippy -p phymes-core --tests --examples --features wsl -- -D warnings
-cargo clippy -p phymes-agents --tests --examples --features wsl -- -D warnings
-cargo clippy -p phymes-server --tests --examples --features wsl -- -D warnings
-cargo clippy -p phymes-app --tests --examples -- -D warnings
+cargo clippy --all-targets
 
 ```
 
@@ -535,15 +558,6 @@ Run the following to check for `rustfmt` changes (before submitting a PR!):
 cargo fmt --all -- --check
 ```
 
-The individual workspaces can then be formatted using `rustfmt`:
-
-```bash
-cargo fmt -p phymes-core --all
-cargo fmt -p phymes-agents --all
-cargo fmt -p phymes-server --all
-cargo fmt -p phymes-app --all
-```
-
 #### Rustdocs and mdBook for documentation
 
 We use `doc` for API documentation hosted on crates.io and [mdBook](https://github.com/rust-lang/mdBook) for the guide and tutorial static website with a mermaid preprocessor [mdbook-mermaid](https://lib.rs/crates/mdbook-mermaid) is used for generating mermaid diagrams hosted on GitHub Pages.
@@ -551,9 +565,11 @@ We use `doc` for API documentation hosted on crates.io and [mdBook](https://gith
 Run the following to create the API documentation using `doc`:
 
 ```bash
-cargo doc --document-private-items --no-deps -p phymes-core --features wsl
-cargo doc --document-private-items --no-deps -p phymes-agents --features wsl
-cargo doc --document-private-items --no-deps -p phymes-server --features wsl
+cargo doc --document-private-items --no-deps -p phymes-core
+cargo doc --document-private-items --no-deps -p phymes-ai
+cargo doc --document-private-items --no-deps -p phymes-etl
+cargo doc --document-private-items --no-deps -p phymes-agents
+cargo doc --document-private-items --no-deps -p phymes-server
 cargo doc --document-private-items --no-deps -p phymes-app
 ```
 
@@ -735,7 +751,7 @@ Before running the `phymes-server`, setup the environmental variables as needed 
 
 ### Debugging the PHYMES deployment
 
-We recommend debugging the application using two terminals: one for `phymes-app` and another for `phymes-server`. Dioxus provides a great development loop for front-end application development with nifty hot-reloading features, but requires it's own dedicated terminal to run. Tokio provides an industry grade server along with nifty security features. During development (specifically, debug mode), the server permissions are relaxed to enable iterative debugging of the application. The `phymes-core`, `phymes-agents`, and `phymes-server` all use the Tracing crates for tracing and logging functionality. The packages and verbosity of console logging can be specified on the command line using the `RUST_LOG` environmental variable.
+We recommend debugging the application using two terminals: one for `phymes-app` and another for `phymes-server`. Dioxus provides a great development loop for front-end application development with nifty hot-reloading features, but requires it's own dedicated terminal to run. Tokio provides an industry grade server along with nifty security features. During development (specifically, debug mode), the server permissions are relaxed to enable iterative debugging of the application. The `phymes-core`, `phymes-ai`, `phymes-etl`, `phymes-agents`, and `phymes-server` all use the Tracing crates for tracing and logging functionality. The packages and verbosity of console logging can be specified on the command line using the `RUST_LOG` environmental variable.
 
 In the first terminal:
 
