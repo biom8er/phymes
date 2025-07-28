@@ -93,7 +93,7 @@ pub async fn session_stream(
                 payload.session_plan.as_str(),
                 payload.session_name.as_str(),
                 Arc::clone(&session_stream_state),
-                payload.content.as_str(),
+                &String::from_utf8_lossy(&payload.content),
             )
             .unwrap();
 

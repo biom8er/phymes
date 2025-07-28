@@ -127,7 +127,7 @@ pub fn subjects_modal() -> Element {
         subject_name: "".to_string(),
         format: SessionResponseFormat::Bytes,
         publish: ArrowTablePublish::None,
-        content: "".to_string(),
+        content: "".to_string().into(),
         metadata: "".to_string(),
         stream: false,
     });
@@ -317,8 +317,8 @@ pub fn subjects_modal() -> Element {
             let file_path = std::path::Path::new(file_name);
             match file_path.extension() {
                 None => content.write().push_str(format!("File {file_name} has no extension.").as_str()),
-                Some(ext) => match os_str {
-                    "csv" => {
+                Some(ext) => match ext.to_str() {
+                    Some("csv") => {
                         // Read the file as CSV
                         if let Some(contents) = file_engine.read_file_to_string(file_name).await {
                             files_uploaded.write().push(SessionResponse {
@@ -340,7 +340,7 @@ pub fn subjects_modal() -> Element {
                             });
                         }
                     }
-                    "json" => {
+                    Some("json") => {
                         // Read the file as JSON
                         if let Some(contents) = file_engine.read_file_to_string(file_name).await {
                             files_uploaded.write().push(SessionResponse {
@@ -360,9 +360,8 @@ pub fn subjects_modal() -> Element {
                             });
                         }
                     }
-                    "pdf" => {
+                    Some("pdf") => {
                         // Read the file as PDF
-                        #[cfg(feature = "serialize")]
                         if let Some(contents) = file_engine.read_file(file_name).await {
                             files_uploaded.write().push(SessionResponse {
                                 session_plan: ACTIVE_SESSION_NAME.read().to_string(),
@@ -379,7 +378,7 @@ pub fn subjects_modal() -> Element {
                             });
                         }
                     }
-                    _ => content.write().push_str(format!("File {file_name} has unsupported extension {ext:?}.").as_str()),
+                    _ => content.write().push_str(format!("File {file_name} has unsupported extension {:?}.", ext).as_str()),
                 }
             }
         }
@@ -567,7 +566,7 @@ pub fn subjects_modal() -> Element {
                                             subject_name: subject_shown.read().to_string(),
                                             format: SessionResponseFormat::CSV { delimiter: b',', header: true, batch_size: 1024 },
                                             publish: ArrowTablePublish::None,
-                                            content: "".to_string(),
+                                            content: "".to_string().into(),
                                             metadata: "".to_string(),
                                             stream: false,
                                         };

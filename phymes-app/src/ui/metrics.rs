@@ -52,7 +52,7 @@ pub fn metrics_modal() -> Element {
         subject_name: "".to_string(),
         format: SessionResponseFormat::Bytes,
         publish: ArrowTablePublish::None,
-        content: "".to_string(),
+        content: "".to_string().into(),
         metadata: "".to_string(),
         stream: false,
     });
