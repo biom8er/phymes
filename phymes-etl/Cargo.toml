@@ -17,7 +17,7 @@ cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 nccl = ["cuda", "cudarc/nccl"]
 wasip2 = ["phymes-core/wasip2", "phymes-ai/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
-wsl = ["phymes-core/wsl", "phymes-ai/wsl", "tokio/full"]
+wsl = ["phymes-core/wsl", "phymes-ai/wsl", "tokio/full"]#, "lopdf/async"]
 gpu = ["phymes-ai/gpu", "cuda", "cudnn", "nccl"]
 openai_api = ["phymes-ai/openai_api"]
 candle = ["phymes-ai/candle"] # force use of candle models when openai_api is available
@@ -47,6 +47,7 @@ bytes = "1.10.1"
 getrandom = { version = "0.3.1", features = ["wasm_js"] }
 getrandom_0_2 = { package = "getrandom", version = "0.2.15", features = ["js"] }
 chrono = "0.4.41"
+#lopdf = { git = "https://github.com/J-F-Liu/lopdf.git", version = "0.37.0", default-features = false, optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false, features = ["cargo_bench_support"] }
