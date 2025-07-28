@@ -81,7 +81,7 @@ pub async fn session_put_state(
                             .unwrap()
                             .update_state_from_csv_str(
                                 &schema,
-                                payload.content.as_str(),
+                                &String::from_utf8_lossy(&payload.content),
                                 &payload.publish,
                                 delimiter,
                                 header,

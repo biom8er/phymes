@@ -34,6 +34,8 @@ pub enum SessionResponseFormat {
     Bytes,
     /// Arrow IPC
     IPC,
+    /// PDF
+    PDF,
     #[default]
     None,
 }
@@ -52,7 +54,8 @@ pub struct SessionResponse {
     /// Publish method
     pub publish: ArrowTablePublish,
     /// The content to publish or subscribe
-    pub content: String,
+    pub content: Vec<u8>,
+    /// Any additional metadata
     pub metadata: String,
     /// Stream the response
     pub stream: bool,

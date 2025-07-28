@@ -313,24 +313,74 @@ pub fn subjects_modal() -> Element {
     let read_files = move |file_engine: Arc<dyn FileEngine>, publish: ArrowTablePublish| async move {
         let files = file_engine.files();
         for file_name in &files {
-            if let Some(contents) = file_engine.read_file_to_string(file_name).await {
-                files_uploaded.write().push(SessionResponse {
-                    session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-                    session_name: create_session_name(
-                        EMAIL.read().as_str(),
-                        ACTIVE_SESSION_NAME.read().as_str(),
-                    ),
-                    subject_name: subject_shown.read().to_string(),
-                    metadata: file_name.clone(),
-                    content: contents,
-                    publish: publish.to_owned(),
-                    format: SessionResponseFormat::CSV {
-                        delimiter: b',',
-                        header: true,
-                        batch_size: 1024,
-                    },
-                    stream: false,
-                });
+            // Determine the file type
+            let file_path = std::path::Path::new(file_name);
+            match file_path.extension() {
+                None => content.write().push_str(format!("File {file_name} has no extension.").as_str()),
+                Some(ext) => match os_str {
+                    "csv" => {
+                        // Read the file as CSV
+                        if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+                            files_uploaded.write().push(SessionResponse {
+                                session_plan: ACTIVE_SESSION_NAME.read().to_string(),
+                                session_name: create_session_name(
+                                    EMAIL.read().as_str(),
+                                    ACTIVE_SESSION_NAME.read().as_str(),
+                                ),
+                                subject_name: subject_shown.read().to_string(),
+                                metadata: file_name.clone(),
+                                content: contents.into_bytes(),
+                                publish: publish.to_owned(),
+                                format: SessionResponseFormat::CSV {
+                                    delimiter: b',',
+                                    header: true,
+                                    batch_size: 1024,
+                                },
+                                stream: false,
+                            });
+                        }
+                    }
+                    "json" => {
+                        // Read the file as JSON
+                        if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+                            files_uploaded.write().push(SessionResponse {
+                                session_plan: ACTIVE_SESSION_NAME.read().to_string(),
+                                session_name: create_session_name(
+                                    EMAIL.read().as_str(),
+                                    ACTIVE_SESSION_NAME.read().as_str(),
+                                ),
+                                subject_name: subject_shown.read().to_string(),
+                                metadata: file_name.clone(),
+                                content: contents.into_bytes(),
+                                publish: publish.to_owned(),
+                                format: SessionResponseFormat::JSON {
+                                    batch_size: 1024,
+                                },
+                                stream: false,
+                            });
+                        }
+                    }
+                    "pdf" => {
+                        // Read the file as PDF
+                        #[cfg(feature = "serialize")]
+                        if let Some(contents) = file_engine.read_file(file_name).await {
+                            files_uploaded.write().push(SessionResponse {
+                                session_plan: ACTIVE_SESSION_NAME.read().to_string(),
+                                session_name: create_session_name(
+                                    EMAIL.read().as_str(),
+                                    ACTIVE_SESSION_NAME.read().as_str(),
+                                ),
+                                subject_name: subject_shown.read().to_string(),
+                                metadata: file_name.clone(),
+                                content: contents,
+                                publish: publish.to_owned(),
+                                format: SessionResponseFormat::PDF,
+                                stream: false,
+                            });
+                        }
+                    }
+                    _ => content.write().push_str(format!("File {file_name} has unsupported extension {ext:?}.").as_str()),
+                }
             }
         }
     };
