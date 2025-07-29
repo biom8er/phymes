@@ -27,7 +27,7 @@ std = [
     "tower-http/fs",
     "tower-http/trace",
     "tower-http/cors",
-    #"tower-http/limit",
+    "tower-http/limit",
     "tracing-subscriber/env-filter",
     ]
 wsl = ["std", "phymes-core/wsl", "phymes-etl/wsl", "phymes-agents/wsl", "dep:tempfile"]

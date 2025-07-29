@@ -38,7 +38,6 @@ pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowT
                             format!("Failed to extract text from page {page_num} id={page_id:?}: {e:}"),
                         )
                     })?;
-                    println!("{text}");
                     Ok((
                         id.to_string(),
                         page_num,
@@ -74,8 +73,8 @@ pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowT
     let text_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(text_vec));
     let batch = RecordBatch::try_from_iter(
         vec![
-            ("document_id", document_id_arr),
             ("chunk_id", chunk_id_arr),
+            ("document_id", document_id_arr),
             ("text", text_arr),
         ],
     )?;
