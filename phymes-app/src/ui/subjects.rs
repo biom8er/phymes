@@ -316,7 +316,9 @@ pub fn subjects_modal() -> Element {
             // Determine the file type
             let file_path = std::path::Path::new(file_name);
             match file_path.extension() {
-                None => content.write().push_str(format!("File {file_name} has no extension.").as_str()),
+                None => content
+                    .write()
+                    .push_str(format!("File {file_name} has no extension.").as_str()),
                 Some(ext) => match ext.to_str() {
                     Some("csv") => {
                         // Read the file as CSV
@@ -353,9 +355,7 @@ pub fn subjects_modal() -> Element {
                                 metadata: file_name.clone(),
                                 content: contents.into_bytes(),
                                 publish: publish.to_owned(),
-                                format: SessionResponseFormat::JSON {
-                                    batch_size: 1024,
-                                },
+                                format: SessionResponseFormat::JSON { batch_size: 1024 },
                                 stream: false,
                             });
                         }
@@ -363,7 +363,10 @@ pub fn subjects_modal() -> Element {
                     Some("pdf") => {
                         // Read the file as PDF
                         if let Some(contents) = file_engine.read_file(file_name).await {
-                            tracing::debug!("Reading PDF file: {file_name} with {} bytes", contents.len());
+                            tracing::debug!(
+                                "Reading PDF file: {file_name} with {} bytes",
+                                contents.len()
+                            );
                             files_uploaded.write().push(SessionResponse {
                                 session_plan: ACTIVE_SESSION_NAME.read().to_string(),
                                 session_name: create_session_name(
@@ -379,8 +382,10 @@ pub fn subjects_modal() -> Element {
                             });
                         }
                     }
-                    _ => content.write().push_str(format!("File {file_name} has unsupported extension {:?}.", ext).as_str()),
-                }
+                    _ => content.write().push_str(
+                        format!("File {file_name} has unsupported extension {ext:?}.").as_str(),
+                    ),
+                },
             }
         }
     };

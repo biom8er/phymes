@@ -1,56 +1,62 @@
+use std::io::Error;
 use std::sync::Arc;
-use std::io::{Error, ErrorKind};
 
+use anyhow::{Result, anyhow};
 use arrow::array::{ArrayRef, RecordBatch};
-use lopdf::{dictionary, Document, Object, Stream, content::{Content, Operation}};
+use lopdf::{
+    Document, Object, Stream,
+    content::{Content, Operation},
+    dictionary,
+};
 use phymes_core::session::common_traits::{BuildableTrait, BuilderTrait};
 use phymes_core::table::arrow_table::{ArrowTable, ArrowTableBuilderTrait};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use anyhow::{anyhow, Result};
-use tracing::{event, Level};
+use tracing::{Level, event};
+
+type ParsedPage = (String, u32, Vec<String>);
 
 /// Extract text from a PDF document(s) and return it as an ArrowTable
-/// 
+///
 /// # Arguments
 /// * `docs` - A slice of tuples containing the document id and the Document object
 /// * `name` - The name of the resulting ArrowTable
-/// 
+///
 /// # Returns
 /// * `Result<ArrowTable>` - An ArrowTable containing the page number and text extracted from the PDF documents
-/// 
+///
 /// # Notes
 /// * The output schema of the ArrowTable matches that used in the document RAG session plans i.e.,
 ///   `document_id`: The ID of the document, `chunk_id`: The page number, `text`: The text content of the page.
-/// 
+///
 /// # Errors
 /// * Returns an error if text extraction fails for any page in the document
 pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowTable> {
     // Extract the page number and text along with any errors from the documents
-    let pages: Vec<Result<(String, u32, Vec<String>), Error>> = docs
+    let pages: Vec<Result<ParsedPage, Error>> = docs
         .into_par_iter()
-        .map(|(id, doc)| doc.get_pages()
-            .into_par_iter()
-            .map(
-                |(page_num, page_id): (u32, (u32, u16))| -> Result<(String, u32, Vec<String>), Error> {
-
-                    // Extract text from the page
-                    let text = doc.extract_text(&[page_num]).map_err(|e| {
-                        Error::new(
-                            ErrorKind::Other,
-                            format!("Failed to extract text from page {page_num} id={page_id:?}: {e:}"),
-                        )
-                    })?;
-                    Ok((
-                        id.to_string(),
-                        page_num,
-                        text.split(|c| c == '\n' || c == '\r')
-                            .map(|s| s.trim_end().to_string())
-                            .collect::<Vec<String>>(),
-                    ))
-                },
-            )
-            .collect::<Vec<Result<(String, u32, Vec<String>), Error>>>()
-        ).flatten()
+        .map(|(id, doc)| {
+            doc.get_pages()
+                .into_par_iter()
+                .map(
+                    |(page_num, page_id): (u32, (u32, u16))| -> Result<ParsedPage, Error> {
+                        // Extract text from the page
+                        let text = doc.extract_text(&[page_num]).map_err(|e| {
+                            Error::other(format!(
+                                "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
+                            ))
+                        })?;
+                        Ok((
+                            id.to_string(),
+                            page_num,
+                            text.split(|c| ['\n', '\r'].contains(&c))
+                                .map(|s| s.trim_end().to_string())
+                                .collect::<Vec<String>>(),
+                        ))
+                    },
+                )
+                .collect::<Vec<Result<ParsedPage, Error>>>()
+        })
+        .flatten()
         .collect();
 
     // Create an ArrowTable to hold the extracted text
@@ -65,7 +71,7 @@ pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowT
                 // Join the lines of text into a single string for each page
                 text_vec.push(lines.join(" "));
             }
-            Err(e) => {                
+            Err(e) => {
                 event!(Level::ERROR, "{e:?}");
             }
         }
@@ -73,13 +79,11 @@ pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowT
     let document_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(document_id_vec));
     let chunk_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(chunk_id_vec));
     let text_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(text_vec));
-    let batch = RecordBatch::try_from_iter(
-        vec![
-            ("chunk_id", chunk_id_arr),
-            ("document_id", document_id_arr),
-            ("text", text_arr),
-        ],
-    )?;
+    let batch = RecordBatch::try_from_iter(vec![
+        ("chunk_id", chunk_id_arr),
+        ("document_id", document_id_arr),
+        ("text", text_arr),
+    ])?;
     ArrowTable::get_builder()
         .with_name(name)
         .with_record_batches(vec![batch])?
@@ -128,9 +132,10 @@ pub fn filter_pdf(mut doc: Document) -> Document {
 
     // Iterate over each page and filter out unwanted objects
     for page_id in page_ids {
-        let _ = doc.get_object_mut(page_id)
+        let _ = doc
+            .get_object_mut(page_id)
             .iter_mut()
-            .filter_map(|object|{
+            .filter_map(|object| {
                 if IGNORE_TYPE_NAMES.contains(&object.type_name().unwrap_or_default()) {
                     None
                 } else {
@@ -140,7 +145,8 @@ pub fn filter_pdf(mut doc: Document) -> Document {
             .map(|object| {
                 // Remove unwanted keys manually
                 let keys_to_remove: Vec<Vec<u8>> = match object.as_dict() {
-                    Ok(dict) => dict.iter()
+                    Ok(dict) => dict
+                        .iter()
                         .filter_map(|(k, _)| {
                             if IGNORE_KEYS.contains(&k.as_slice()) {
                                 Some(k.clone())
@@ -162,16 +168,18 @@ pub fn filter_pdf(mut doc: Document) -> Document {
 }
 
 /// Load the PDF document in memory
-/// 
+///
 /// # Arguments
 /// * `doc` - A byte slice containing the PDF document data
-/// 
+///
 /// # Returns
 /// * `Result<Document>` - The loaded PDF document
 pub fn load_pdf_document(doc: &[u8]) -> Result<Document> {
     match Document::load_mem(doc) {
         Ok(document) => Ok(document),
-        Err(e) => Err(anyhow!(format!("Failed to load PDF document in memory: {e}"))),
+        Err(e) => Err(anyhow!(format!(
+            "Failed to load PDF document in memory: {e}"
+        ))),
     }
 }
 
@@ -245,8 +253,17 @@ mod tests {
         // Check the results
         assert_eq!(table.get_name(), "test_table");
         assert_eq!(table.count_rows(), 4);
-        assert_eq!(table.get_column_as_str_vec("document_id"), ["doc_1", "doc_1", "doc_2", "doc_2"]);
-        assert_eq!(table.get_column_as_str_vec("chunk_id"), ["1", "2", "1", "2"]);
-        assert_eq!(table.get_column_as_str_vec("text"), ["123 ", "456 ", "123 ", "456 "]);
+        assert_eq!(
+            table.get_column_as_str_vec("document_id"),
+            ["doc_1", "doc_1", "doc_2", "doc_2"]
+        );
+        assert_eq!(
+            table.get_column_as_str_vec("chunk_id"),
+            ["1", "2", "1", "2"]
+        );
+        assert_eq!(
+            table.get_column_as_str_vec("text"),
+            ["123 ", "456 ", "123 ", "456 "]
+        );
     }
 }

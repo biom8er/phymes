@@ -217,22 +217,18 @@ pub fn chunk_documents(
 }
 
 /// Chunk a string according to chunk size with overlap for the remainder
-/// 
+///
 /// # Notes
 /// * This function attempts to protect against non-character boundaries
-/// 
+///
 /// # Arguments
 /// * `text` - The text to chunk
 /// * `chunk_size` - The size of each chunk
 /// * `chunk_overlap` - The overlap between chunks
-/// 
+///
 /// # Returns
 /// A vector of strings representing the chunks
-pub fn chunk_str(
-    text: &str,
-    chunk_size: usize,
-    chunk_overlap: usize,
-) -> Vec<String> {
+pub fn chunk_str(text: &str, chunk_size: usize, chunk_overlap: usize) -> Vec<String> {
     let mut chunks = Vec::new();
     let mut doc = text.to_string();
     while doc.len() > chunk_size {
@@ -254,7 +250,7 @@ pub fn chunk_str(
             }
         } else {
             let chunk_size = chunk_size - 1;
-            let (s1, s2) = doc.split_at_checked(chunk_size).unwrap();                
+            let (s1, s2) = doc.split_at_checked(chunk_size).unwrap();
             chunks.push(s1.to_string());
             if doc.is_char_boundary(chunk_size - chunk_overlap + 1) {
                 doc = [

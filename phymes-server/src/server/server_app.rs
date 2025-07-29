@@ -2,17 +2,17 @@
 #[allow(unused_imports)]
 use axum::{
     Router,
+    extract::DefaultBodyLimit,
     http::{self, Method},
     middleware,
     routing::{get_service, post},
-    extract::DefaultBodyLimit,
 };
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
+    limit::RequestBodyLimitLayer,
     services::ServeDir,
     trace::TraceLayer,
-    limit::RequestBodyLimitLayer
 };
 
 // General imports

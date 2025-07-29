@@ -1,12 +1,24 @@
 // Server related imports
 use axum::{
-    body::Body, extract::{rejection::JsonRejection, Json, State}, http::StatusCode, response::IntoResponse, Extension
+    Extension,
+    body::Body,
+    extract::{Json, State, rejection::JsonRejection},
+    http::StatusCode,
+    response::IntoResponse,
 };
 
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_core::{metrics::HashMap, session::common_traits::{BuilderTrait, MappableTrait}, table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowMessageBuilderTrait}};
+use phymes_core::{
+    metrics::HashMap,
+    session::common_traits::{BuilderTrait, MappableTrait},
+    table::arrow_table::ArrowTableTrait,
+    task::arrow_message::{
+        ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
+        ArrowMessageBuilderTrait,
+    },
+};
 use phymes_etl::document_parsers::pdf_parser::{extract_pdf_text, filter_pdf, load_pdf_document};
 
 // Library imports
@@ -87,11 +99,13 @@ pub async fn session_put_state(
                             .unwrap(),
                         SessionResponseFormat::PDF => {
                             // Load the PDF document and extract text
-                            let pdf = filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
+                            let pdf =
+                                filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
                             let table = extract_pdf_text(
                                 [(payload.metadata.as_str(), &pdf)].as_slice(),
                                 payload.subject_name.as_str(),
-                            ).unwrap();
+                            )
+                            .unwrap();
 
                             // Create the update message
                             let incoming_message = ArrowIncomingMessageBuilder::new()
@@ -102,8 +116,10 @@ pub async fn session_put_state(
                                 .with_update(&payload.publish)
                                 .build()
                                 .unwrap();
-                            let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
-                            incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
+                            let mut incoming_message_map =
+                                HashMap::<String, ArrowIncomingMessage>::new();
+                            incoming_message_map
+                                .insert(incoming_message.get_name().to_string(), incoming_message);
 
                             // Update the session state with the new message
                             session_stream_state
