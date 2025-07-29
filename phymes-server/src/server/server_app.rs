@@ -5,7 +5,7 @@ use axum::{
     http::{self, Method},
     middleware,
     routing::{get_service, post},
-    extract::DefaultBodyLimit,
+    // extract::DefaultBodyLimit,
 };
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
 use tower_http::{
