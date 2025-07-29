@@ -63,7 +63,7 @@ pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowT
                 document_id_vec.push(id);
                 chunk_id_vec.push(format!("{page_num}"));
                 // Join the lines of text into a single string for each page
-                text_vec.push(lines.join(""));
+                text_vec.push(lines.join(" "));
             }
             Err(e) => {                
                 event!(Level::ERROR, "{e:?}");
@@ -247,11 +247,6 @@ mod tests {
         assert_eq!(table.count_rows(), 4);
         assert_eq!(table.get_column_as_str_vec("document_id"), ["doc_1", "doc_1", "doc_2", "doc_2"]);
         assert_eq!(table.get_column_as_str_vec("chunk_id"), ["1", "2", "1", "2"]);
-        assert_eq!(table.get_column_as_str_vec("text"), [
-            "123",
-            "456",
-            "123",
-            "456"
-        ]);
+        assert_eq!(table.get_column_as_str_vec("text"), ["123 ", "456 ", "123 ", "456 "]);
     }
 }

@@ -214,7 +214,7 @@ jobs:
         run: |
           export WASMTIME_HOME="$HOME/.wasmtime"
           export PATH="$PATH:$WASMTIME_HOME/bin"
-          for file in target/wasm32-wasip2/release/deps/phymes_etl-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
+          for file in target/wasm32-wasip2/release/deps/phymes_etl-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
       - name: Build wasm32-unknown-unknown -p phymes-agents
         run: cargo check -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
       - name: Build wasm32-wasip2 -p phymes-agents tests

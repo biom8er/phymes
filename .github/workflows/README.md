@@ -63,7 +63,7 @@ cargo build -p phymes-core --target wasm32-wasip2 --no-default-features --featur
 wasmtime run target/wasm32-wasip2/release/examples/addrows.wasm
 cargo check -p phymes-etl --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
 cargo test -p phymes-etl --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_etl-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
+for file in target/wasm32-wasip2/release/deps/phymes_etl-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
 cargo check -p phymes-ai --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
 cargo test -p phymes-ai --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_agents-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
