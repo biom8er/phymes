@@ -5,7 +5,7 @@ use arrow::array::{ArrayRef, RecordBatch};
 use lopdf::{dictionary, Document, Object, Stream, content::{Content, Operation}};
 use phymes_core::session::common_traits::{BuildableTrait, BuilderTrait};
 use phymes_core::table::arrow_table::{ArrowTable, ArrowTableBuilderTrait};
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use anyhow::{anyhow, Result};
 use tracing::{event, Level};
 
@@ -27,11 +27,13 @@ use tracing::{event, Level};
 pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowTable> {
     // Extract the page number and text along with any errors from the documents
     let pages: Vec<Result<(String, u32, Vec<String>), Error>> = docs
-        .par_iter()
+        .into_par_iter()
         .map(|(id, doc)| doc.get_pages()
             .into_par_iter()
             .map(
                 |(page_num, page_id): (u32, (u32, u16))| -> Result<(String, u32, Vec<String>), Error> {
+
+                    // Extract text from the page
                     let text = doc.extract_text(&[page_num]).map_err(|e| {
                         Error::new(
                             ErrorKind::Other,
@@ -61,7 +63,7 @@ pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowT
                 document_id_vec.push(id);
                 chunk_id_vec.push(format!("{page_num}"));
                 // Join the lines of text into a single string for each page
-                text_vec.push(lines.join(" "));
+                text_vec.push(lines.join(""));
             }
             Err(e) => {                
                 event!(Level::ERROR, "{e:?}");
@@ -82,6 +84,81 @@ pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowT
         .with_name(name)
         .with_record_batches(vec![batch])?
         .build()
+}
+
+static IGNORE_TYPE_NAMES: &[&[u8]] = &[
+    b"Length",
+    b"BBox",
+    b"FormType",
+    b"Matrix",
+    b"Type",
+    b"XObject",
+    b"Subtype",
+    b"Filter",
+    b"ColorSpace",
+    b"Width",
+    b"Height",
+    b"BitsPerComponent",
+    b"Length1",
+    b"Length2",
+    b"Length3",
+    b"PTEX.FileName",
+    b"PTEX.PageNumber",
+    b"PTEX.InfoDict",
+    b"FontDescriptor",
+    b"ExtGState",
+    b"MediaBox",
+    b"Annot",
+];
+
+static IGNORE_KEYS: &[&[u8]] = &[
+    b"Producer",
+    b"ModDate",
+    b"Creator",
+    b"ProcSet",
+    b"XObject",
+    b"MediaBox",
+    b"Annots",
+];
+
+/// Filter a PDF document to remove unwanted objects and keys
+pub fn filter_pdf(mut doc: Document) -> Document {
+    // Extract the page IDs from the document
+    let page_ids: Vec<(u32, u16)> = doc.get_pages().values().cloned().collect::<Vec<_>>();
+
+    // Iterate over each page and filter out unwanted objects
+    for page_id in page_ids {
+        let _ = doc.get_object_mut(page_id)
+            .iter_mut()
+            .filter_map(|object|{
+                if IGNORE_TYPE_NAMES.contains(&object.type_name().unwrap_or_default()) {
+                    None
+                } else {
+                    Some(object)
+                }
+            })
+            .map(|object| {
+                // Remove unwanted keys manually
+                let keys_to_remove: Vec<Vec<u8>> = match object.as_dict() {
+                    Ok(dict) => dict.iter()
+                        .filter_map(|(k, _)| {
+                            if IGNORE_KEYS.contains(&k.as_slice()) {
+                                Some(k.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect(),
+                    Err(_) => Vec::new(),
+                };
+                for key in keys_to_remove {
+                    if let Ok(dict_mut) = object.as_dict_mut() {
+                        dict_mut.remove(&key);
+                    }
+                }
+            });
+    }
+    doc
 }
 
 /// Load the PDF document in memory
@@ -158,8 +235,8 @@ mod tests {
     #[test]
     fn test_extract_pdf_text() {
         // Create several PDF document in memory
-        let doc_1 = make_pdf_document(&["1\n2\n3", "4\n5\n6"]);
-        let doc_2 = make_pdf_document(&["1\n2\n3", "4\n5\n6"]);
+        let doc_1 = filter_pdf(make_pdf_document(&["1\n2\n3", "4\n5\n6"]));
+        let doc_2 = filter_pdf(make_pdf_document(&["1\n2\n3", "4\n5\n6"]));
         let docs = [("doc_1", &doc_1), ("doc_2", &doc_2)];
 
         // Extract text from the PDF document
@@ -171,10 +248,10 @@ mod tests {
         assert_eq!(table.get_column_as_str_vec("document_id"), ["doc_1", "doc_1", "doc_2", "doc_2"]);
         assert_eq!(table.get_column_as_str_vec("chunk_id"), ["1", "2", "1", "2"]);
         assert_eq!(table.get_column_as_str_vec("text"), [
-            "123 ",
-            "456 ",
-            "123 ",
-            "456 "
+            "123",
+            "456",
+            "123",
+            "456"
         ]);
     }
 }

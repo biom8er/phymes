@@ -7,7 +7,7 @@ use axum::{
 use anyhow::Result;
 use bytes::Bytes;
 use phymes_core::{metrics::HashMap, session::common_traits::{BuilderTrait, MappableTrait}, table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowMessageBuilderTrait}};
-use phymes_etl::document_parsers::pdf_parser::{extract_pdf_text, load_pdf_document};
+use phymes_etl::document_parsers::pdf_parser::{extract_pdf_text, filter_pdf, load_pdf_document};
 
 // Library imports
 use crate::handlers::sign_in::CurrentUser;
@@ -87,7 +87,7 @@ pub async fn session_put_state(
                             .unwrap(),
                         SessionResponseFormat::PDF => {
                             // Load the PDF document and extract text
-                            let pdf = load_pdf_document(payload.content.as_slice()).unwrap();
+                            let pdf = filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
                             let table = extract_pdf_text(
                                 [(payload.metadata.as_str(), &pdf)].as_slice(),
                                 payload.subject_name.as_str(),
