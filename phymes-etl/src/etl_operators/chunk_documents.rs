@@ -280,6 +280,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_chunk_str() {
+        let text = "Per Martin-Löf";
+        let chunk_size = 13;
+        let chunk_overlap = 2;
+        let chunks = chunk_str(text, chunk_size, chunk_overlap);
+        assert_eq!(chunks.len(), 2);
+        assert_eq!(chunks.first().unwrap(), "Per Martin-L");
+        assert_eq!(chunks.get(1).unwrap(), "Löf");
+    }
+
+    #[test]
     fn test_chunk_documents() -> Result<()> {
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
