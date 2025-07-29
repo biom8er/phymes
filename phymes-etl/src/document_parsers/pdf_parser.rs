@@ -6,7 +6,7 @@ use lopdf::{dictionary, Document, Object, Stream, content::{Content, Operation}}
 use phymes_core::session::common_traits::{BuildableTrait, BuilderTrait};
 use phymes_core::table::arrow_table::{ArrowTable, ArrowTableBuilderTrait};
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use tracing::{event, Level};
 
 /// Extract text from a PDF document(s) and return it as an ArrowTable
@@ -17,6 +17,10 @@ use tracing::{event, Level};
 /// 
 /// # Returns
 /// * `Result<ArrowTable>` - An ArrowTable containing the page number and text extracted from the PDF documents
+/// 
+/// # Notes
+/// * The output schema of the ArrowTable matches that used in the document RAG session plans i.e.,
+///   `document_id`: The ID of the document, `chunk_id`: The page number, `text`: The text content of the page.
 /// 
 /// # Errors
 /// * Returns an error if text extraction fails for any page in the document
@@ -50,15 +54,13 @@ pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowT
 
     // Create an ArrowTable to hold the extracted text
     let mut document_id_vec = Vec::new();
-    let mut chunk_id_vec = Vec::new();
+    let mut chunk_id_vec = Vec::new(); // the page number
     let mut text_vec = Vec::new();
-    let mut page_num_vec = Vec::new();
     for page in pages {
         match page {
             Ok((id, page_num, lines)) => {
                 document_id_vec.push(id);
                 chunk_id_vec.push(format!("{page_num}"));
-                page_num_vec.push(page_num);
                 // Join the lines of text into a single string for each page
                 text_vec.push(lines.join(" "));
             }
@@ -70,12 +72,10 @@ pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowT
     let document_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(document_id_vec));
     let chunk_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(chunk_id_vec));
     let text_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(text_vec));
-    let page_num_arr: ArrayRef = Arc::new(arrow::array::UInt32Array::from(page_num_vec));
     let batch = RecordBatch::try_from_iter(
         vec![
             ("document_id", document_id_arr),
             ("chunk_id", chunk_id_arr),
-            ("page_num", page_num_arr),
             ("text", text_arr),
         ],
     )?;
@@ -85,7 +85,22 @@ pub fn extract_pdf_text(docs: &[(&str, &Document)], name: &str) -> Result<ArrowT
         .build()
 }
 
-/// Make a PDF document with text content for testing purposes.
+/// Load the PDF document in memory
+/// 
+/// # Arguments
+/// * `doc` - A byte slice containing the PDF document data
+/// 
+/// # Returns
+/// * `Result<Document>` - The loaded PDF document
+pub fn load_pdf_document(doc: &[u8]) -> Result<Document> {
+    match Document::load_mem(doc) {
+        Ok(document) => Ok(document),
+        Err(e) => Err(anyhow!(format!("Failed to load PDF document in memory: {e}"))),
+    }
+}
+
+/// Make a PDF document with text content for testing purposes
+#[allow(dead_code)]
 fn make_pdf_document(contents: &[&str]) -> Document {
     let mut doc = Document::with_version("1.5");
     let pages_id = doc.new_object_id();
@@ -162,6 +177,5 @@ mod tests {
             "123 ",
             "456 "
         ]);
-
     }
 }

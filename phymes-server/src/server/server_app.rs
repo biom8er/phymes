@@ -5,12 +5,14 @@ use axum::{
     http::{self, Method},
     middleware,
     routing::{get_service, post},
+    extract::DefaultBodyLimit,
 };
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     services::ServeDir,
     trace::TraceLayer,
+    // limit::RequestBodyLimitLayer
 };
 
 // General imports
@@ -105,6 +107,15 @@ impl AppBuilder {
         }
     }
 
+    // #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+    // fn with_max_body_limit(self) -> Self {
+    //     use axum::extract::DefaultBodyLimit;
+    //     let limit = RequestBodyLimitLayer::new(1024 * 1024 * 10); // 10 MB
+    //     Self {
+    //         app: self.app.layer(DefaultBodyLimit::disable()).layer(limit),
+    //     }
+    // }
+
     pub fn build(self) -> Router {
         self.app
     }
@@ -133,6 +144,7 @@ impl Server {
                 .with_fallback(self.config.try_read().unwrap().assets_dir.as_str())
                 .with_trace_layer()
                 .with_cors_layer()
+                // .with_max_body_limit()
                 .build();
 
             let address = self.config.try_read().unwrap().address.clone();

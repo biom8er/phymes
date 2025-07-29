@@ -27,6 +27,8 @@ phymes-core = { path = "../phymes-core", default-features = false }
 phymes-server = { path = "../phymes-server", default-features = false }
 clap = {version = "4.5.40", optional = true}
 tokio = { version = "1.45.1", default-features = false, optional = true }
+tracing = "0.1.41"
+tracing-subscriber = "0.3.7"
 
 [features]
 default = ["web"]

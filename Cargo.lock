@@ -5410,6 +5410,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -5489,6 +5491,7 @@ dependencies = [
  "parking_lot",
  "phymes-agents",
  "phymes-core",
+ "phymes-etl",
  "reqwest",
  "serde",
  "serde_json",

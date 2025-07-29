@@ -15,7 +15,7 @@ no_std = [
     "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "tokio/time",
     # Axum serverless extras
     "dep:futures-executor", "dep:tower-service"]
-wasip2 =  ["no_std", "phymes-core/wasip2", "phymes-agents/wasip2"]    
+wasip2 =  ["no_std", "phymes-core/wasip2", "phymes-etl/wasip2", "phymes-agents/wasip2"]    
 std = [
     "tokio/full", "dep:reqwest",
     # Axum defaults
@@ -27,9 +27,10 @@ std = [
     "tower-http/fs",
     "tower-http/trace",
     "tower-http/cors",
+    #"tower-http/limit",
     "tracing-subscriber/env-filter",
     ]
-wsl = ["std", "phymes-core/wsl", "phymes-agents/wsl", "dep:tempfile"]
+wsl = ["std", "phymes-core/wsl", "phymes-etl/wsl", "phymes-agents/wsl", "dep:tempfile"]
 hf_hub = ["phymes-agents/hf_hub"]
 openai_api = ["phymes-agents/openai_api"]
 gpu = ["phymes-agents/gpu"]
@@ -56,6 +57,7 @@ bcrypt = { version = "0.17.0", default-features = false, features = ["alloc"]}
 chrono = { version = "0.4.41", features = ["wasmbind"] }
 phymes-core = { path = "../phymes-core", default-features = false}
 phymes-agents = { path = "../phymes-agents", default-features = false }
+phymes-etl = { path = "../phymes-etl", default-features = false }
 parking_lot = "0.12.3"
 http = { version = "1.3.1"}
 futures-executor = { version = "0.3.21", optional = true }

@@ -363,6 +363,7 @@ pub fn subjects_modal() -> Element {
                     Some("pdf") => {
                         // Read the file as PDF
                         if let Some(contents) = file_engine.read_file(file_name).await {
+                            tracing::debug!("Reading PDF file: {file_name} with {} bytes", contents.len());
                             files_uploaded.write().push(SessionResponse {
                                 session_plan: ACTIVE_SESSION_NAME.read().to_string(),
                                 session_name: create_session_name(
@@ -524,7 +525,7 @@ pub fn subjects_modal() -> Element {
                                 label { r#for: "textread_extend", svg { dangerous_inner_html: arrow_add_icon_svg() } }
                                 input {
                                     r#type: "file",
-                                    accept: ".csv,",
+                                    accept: ".csv,.pdf,.json",
                                     multiple: true,
                                     id: "textread_extend",
                                     directory: enable_directory_upload,
@@ -541,7 +542,7 @@ pub fn subjects_modal() -> Element {
                                 label { r#for: "textread_replace", svg { dangerous_inner_html: arrow_up_icon_svg() } }
                                 input {
                                     r#type: "file",
-                                    accept: ".csv,",
+                                    accept: ".csv,.pdf,.json",
                                     multiple: true,
                                     id: "textread_replace",
                                     directory: enable_directory_upload,
@@ -679,10 +680,10 @@ pub fn subjects_modal() -> Element {
                                         .await {
                                         Ok(response) => match response.text().await {
                                             // DM: Find a better way to give feedback to the user on success and error
-                                            Ok(_text) => (),
-                                            Err(_err) => (),
+                                            Ok(text) => tracing::debug!("Put response {text}"),
+                                            Err(err) => tracing::debug!("Put err {err:?}"),
                                         },
-                                        Err(_err) => (),
+                                        Err(err) => tracing::debug!("Put err {err:?}"),
                                     }
 
                                     #[cfg(feature = "serverless")]
