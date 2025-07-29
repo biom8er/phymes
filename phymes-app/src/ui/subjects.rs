@@ -127,7 +127,7 @@ pub fn subjects_modal() -> Element {
         subject_name: "".to_string(),
         format: SessionResponseFormat::Bytes,
         publish: ArrowTablePublish::None,
-        content: "".to_string(),
+        content: "".to_string().into(),
         metadata: "".to_string(),
         stream: false,
     });
@@ -313,24 +313,79 @@ pub fn subjects_modal() -> Element {
     let read_files = move |file_engine: Arc<dyn FileEngine>, publish: ArrowTablePublish| async move {
         let files = file_engine.files();
         for file_name in &files {
-            if let Some(contents) = file_engine.read_file_to_string(file_name).await {
-                files_uploaded.write().push(SessionResponse {
-                    session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-                    session_name: create_session_name(
-                        EMAIL.read().as_str(),
-                        ACTIVE_SESSION_NAME.read().as_str(),
+            // Determine the file type
+            let file_path = std::path::Path::new(file_name);
+            match file_path.extension() {
+                None => content
+                    .write()
+                    .push_str(format!("File {file_name} has no extension.").as_str()),
+                Some(ext) => match ext.to_str() {
+                    Some("csv") => {
+                        // Read the file as CSV
+                        if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+                            files_uploaded.write().push(SessionResponse {
+                                session_plan: ACTIVE_SESSION_NAME.read().to_string(),
+                                session_name: create_session_name(
+                                    EMAIL.read().as_str(),
+                                    ACTIVE_SESSION_NAME.read().as_str(),
+                                ),
+                                subject_name: subject_shown.read().to_string(),
+                                metadata: file_name.clone(),
+                                content: contents.into_bytes(),
+                                publish: publish.to_owned(),
+                                format: SessionResponseFormat::CSV {
+                                    delimiter: b',',
+                                    header: true,
+                                    batch_size: 1024,
+                                },
+                                stream: false,
+                            });
+                        }
+                    }
+                    Some("json") => {
+                        // Read the file as JSON
+                        if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+                            files_uploaded.write().push(SessionResponse {
+                                session_plan: ACTIVE_SESSION_NAME.read().to_string(),
+                                session_name: create_session_name(
+                                    EMAIL.read().as_str(),
+                                    ACTIVE_SESSION_NAME.read().as_str(),
+                                ),
+                                subject_name: subject_shown.read().to_string(),
+                                metadata: file_name.clone(),
+                                content: contents.into_bytes(),
+                                publish: publish.to_owned(),
+                                format: SessionResponseFormat::JSON { batch_size: 1024 },
+                                stream: false,
+                            });
+                        }
+                    }
+                    Some("pdf") => {
+                        // Read the file as PDF
+                        if let Some(contents) = file_engine.read_file(file_name).await {
+                            tracing::debug!(
+                                "Reading PDF file: {file_name} with {} bytes",
+                                contents.len()
+                            );
+                            files_uploaded.write().push(SessionResponse {
+                                session_plan: ACTIVE_SESSION_NAME.read().to_string(),
+                                session_name: create_session_name(
+                                    EMAIL.read().as_str(),
+                                    ACTIVE_SESSION_NAME.read().as_str(),
+                                ),
+                                subject_name: subject_shown.read().to_string(),
+                                metadata: file_name.clone(),
+                                content: contents,
+                                publish: publish.to_owned(),
+                                format: SessionResponseFormat::PDF,
+                                stream: false,
+                            });
+                        }
+                    }
+                    _ => content.write().push_str(
+                        format!("File {file_name} has unsupported extension {ext:?}.").as_str(),
                     ),
-                    subject_name: subject_shown.read().to_string(),
-                    metadata: file_name.clone(),
-                    content: contents,
-                    publish: publish.to_owned(),
-                    format: SessionResponseFormat::CSV {
-                        delimiter: b',',
-                        header: true,
-                        batch_size: 1024,
-                    },
-                    stream: false,
-                });
+                },
             }
         }
     };
@@ -475,7 +530,7 @@ pub fn subjects_modal() -> Element {
                                 label { r#for: "textread_extend", svg { dangerous_inner_html: arrow_add_icon_svg() } }
                                 input {
                                     r#type: "file",
-                                    accept: ".csv,",
+                                    accept: ".csv,.pdf,.json",
                                     multiple: true,
                                     id: "textread_extend",
                                     directory: enable_directory_upload,
@@ -492,7 +547,7 @@ pub fn subjects_modal() -> Element {
                                 label { r#for: "textread_replace", svg { dangerous_inner_html: arrow_up_icon_svg() } }
                                 input {
                                     r#type: "file",
-                                    accept: ".csv,",
+                                    accept: ".csv,.pdf,.json",
                                     multiple: true,
                                     id: "textread_replace",
                                     directory: enable_directory_upload,
@@ -517,7 +572,7 @@ pub fn subjects_modal() -> Element {
                                             subject_name: subject_shown.read().to_string(),
                                             format: SessionResponseFormat::CSV { delimiter: b',', header: true, batch_size: 1024 },
                                             publish: ArrowTablePublish::None,
-                                            content: "".to_string(),
+                                            content: "".to_string().into(),
                                             metadata: "".to_string(),
                                             stream: false,
                                         };
@@ -630,10 +685,10 @@ pub fn subjects_modal() -> Element {
                                         .await {
                                         Ok(response) => match response.text().await {
                                             // DM: Find a better way to give feedback to the user on success and error
-                                            Ok(_text) => (),
-                                            Err(_err) => (),
+                                            Ok(text) => tracing::debug!("Put response {text}"),
+                                            Err(err) => tracing::debug!("Put err {err:?}"),
                                         },
-                                        Err(_err) => (),
+                                        Err(err) => tracing::debug!("Put err {err:?}"),
                                     }
 
                                     #[cfg(feature = "serverless")]

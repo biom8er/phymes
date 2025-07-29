@@ -10,7 +10,16 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_core::table::arrow_table::ArrowTableTrait;
+use phymes_core::{
+    metrics::HashMap,
+    session::common_traits::{BuilderTrait, MappableTrait},
+    table::arrow_table::ArrowTableTrait,
+    task::arrow_message::{
+        ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
+        ArrowMessageBuilderTrait,
+    },
+};
+use phymes_etl::document_parsers::pdf_parser::{extract_pdf_text, filter_pdf, load_pdf_document};
 
 // Library imports
 use crate::handlers::sign_in::CurrentUser;
@@ -81,13 +90,43 @@ pub async fn session_put_state(
                             .unwrap()
                             .update_state_from_csv_str(
                                 &schema,
-                                payload.content.as_str(),
+                                &String::from_utf8_lossy(&payload.content),
                                 &payload.publish,
                                 delimiter,
                                 header,
                                 batch_size,
                             )
                             .unwrap(),
+                        SessionResponseFormat::PDF => {
+                            // Load the PDF document and extract text
+                            let pdf =
+                                filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
+                            let table = extract_pdf_text(
+                                [(payload.metadata.as_str(), &pdf)].as_slice(),
+                                payload.subject_name.as_str(),
+                            )
+                            .unwrap();
+
+                            // Create the update message
+                            let incoming_message = ArrowIncomingMessageBuilder::new()
+                                .with_name(payload.subject_name.as_str())
+                                .with_subject(payload.subject_name.as_str())
+                                .with_publisher(payload.session_name.as_str())
+                                .with_message(table)
+                                .with_update(&payload.publish)
+                                .build()
+                                .unwrap();
+                            let mut incoming_message_map =
+                                HashMap::<String, ArrowIncomingMessage>::new();
+                            incoming_message_map
+                                .insert(incoming_message.get_name().to_string(), incoming_message);
+
+                            // Update the session state with the new message
+                            session_stream_state
+                                .try_write()
+                                .unwrap()
+                                .update_state_from_messages(incoming_message_map)
+                        }
                         _ => unimplemented!(),
                     };
                     session_stream_state

@@ -530,7 +530,7 @@ impl SessionStreamState {
     /// Update the state from the published messages
     /// and return a map of changed subscriptions along with their publishers
     #[instrument(skip(self, messages))]
-    fn update_state_from_messages(
+    pub fn update_state_from_messages(
         &self,
         messages: IncomingMessageMap,
     ) -> HashMap<String, Vec<String>> {

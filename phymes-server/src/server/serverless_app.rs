@@ -161,7 +161,7 @@ mod tests {
             subject_name: "".to_string(),
             format: SessionResponseFormat::Bytes,
             publish: ArrowTablePublish::None,
-            content: "".to_string(),
+            content: "".to_string().into(),
             metadata: "".to_string(),
             stream: false,
         };
@@ -259,7 +259,7 @@ mod tests {
             subject_name: "".to_string(),
             format: SessionResponseFormat::Bytes,
             publish: ArrowTablePublish::None,
-            content: "".to_string(),
+            content: "".to_string().into(),
             metadata: "".to_string(),
             stream: false,
         };
@@ -289,7 +289,7 @@ mod tests {
             subject_name: "messages".to_string(),
             format: SessionResponseFormat::Bytes,
             publish: ArrowTablePublish::None,
-            content: "What is the world's tallest mountain?".to_string(),
+            content: "What is the world's tallest mountain?".to_string().into(),
             metadata: "".to_string(),
             stream: true,
         };

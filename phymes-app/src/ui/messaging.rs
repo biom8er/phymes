@@ -66,7 +66,7 @@ pub fn messaging_interface_view() -> Element {
             subject_name: MESSAGES_SUBJECT_NAME.to_string(),
             format: SessionResponseFormat::Bytes,
             publish: ArrowTablePublish::None,
-            content: "".to_string(),
+            content: "".to_string().into(),
             metadata: "".to_string(),
             stream: false,
         };
@@ -279,7 +279,7 @@ pub fn messaging_interface_footer() -> Element {
                                 subject_name: MESSAGES_SUBJECT_NAME.to_string(),
                                 format: SessionResponseFormat::Bytes,
                                 publish: ArrowTablePublish::None,
-                                content: prompt.to_string(),
+                                content: prompt.to_string().into(),
                                 metadata: "".to_string(),
                                 stream: false,
                             };

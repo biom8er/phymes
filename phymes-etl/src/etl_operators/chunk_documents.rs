@@ -51,23 +51,7 @@ pub fn chunk_documents(
                 .map(|s| s.unwrap_or_default())
                 .collect::<Vec<_>>()
         })
-        // Break the strings according to their size
-        // DM: Implement a proper chunking function that is language specific...
-        .map(|s| {
-            let mut chunks = Vec::new();
-            let mut doc = s.to_string();
-            while doc.len() > chunk_size {
-                let (s1, s2) = doc.split_at(chunk_size);
-                chunks.push(s1.to_string());
-                doc = [
-                    s1[chunk_size - chunk_overlap..chunk_size].to_string(),
-                    s2[..].to_string(),
-                ]
-                .join("");
-            }
-            chunks.push(doc);
-            chunks
-        })
+        .map(|s| chunk_str(s, chunk_size, chunk_overlap))
         .collect::<Vec<_>>();
 
     // Wrap the output into a record batch
@@ -232,9 +216,75 @@ pub fn chunk_documents(
     Ok(batch)
 }
 
+/// Chunk a string according to chunk size with overlap for the remainder
+///
+/// # Notes
+/// * This function attempts to protect against non-character boundaries
+///
+/// # Arguments
+/// * `text` - The text to chunk
+/// * `chunk_size` - The size of each chunk
+/// * `chunk_overlap` - The overlap between chunks
+///
+/// # Returns
+/// A vector of strings representing the chunks
+pub fn chunk_str(text: &str, chunk_size: usize, chunk_overlap: usize) -> Vec<String> {
+    let mut chunks = Vec::new();
+    let mut doc = text.to_string();
+    while doc.len() > chunk_size {
+        if let Some((s1, s2)) = doc.split_at_checked(chunk_size) {
+            chunks.push(s1.to_string());
+            if doc.is_char_boundary(chunk_size - chunk_overlap) {
+                doc = [
+                    s1[chunk_size - chunk_overlap..chunk_size].to_string(),
+                    s2[..].to_string(),
+                ]
+                .join("");
+            } else {
+                let chunk_size = chunk_size - 1;
+                doc = [
+                    s1[chunk_size - chunk_overlap..chunk_size].to_string(),
+                    s2[..].to_string(),
+                ]
+                .join("");
+            }
+        } else {
+            let chunk_size = chunk_size - 1;
+            let (s1, s2) = doc.split_at_checked(chunk_size).unwrap();
+            chunks.push(s1.to_string());
+            if doc.is_char_boundary(chunk_size - chunk_overlap + 1) {
+                doc = [
+                    s1[chunk_size - chunk_overlap + 1..chunk_size].to_string(),
+                    s2[..].to_string(),
+                ]
+                .join("");
+            } else {
+                doc = [
+                    s1[chunk_size - chunk_overlap..chunk_size].to_string(),
+                    s2[..].to_string(),
+                ]
+                .join("");
+            }
+        }
+    }
+    chunks.push(doc);
+    chunks
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_chunk_str() {
+        let text = "Per Martin-Löf";
+        let chunk_size = 13;
+        let chunk_overlap = 2;
+        let chunks = chunk_str(text, chunk_size, chunk_overlap);
+        assert_eq!(chunks.len(), 2);
+        assert_eq!(chunks.first().unwrap(), "Per Martin-L");
+        assert_eq!(chunks.get(1).unwrap(), "Löf");
+    }
 
     #[test]
     fn test_chunk_documents() -> Result<()> {
