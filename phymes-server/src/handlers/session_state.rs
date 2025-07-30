@@ -19,7 +19,9 @@ use phymes_core::{
         ArrowMessageBuilderTrait,
     },
 };
-use phymes_data::candle_operators::extract_pdf_text::{extract_pdf_text, filter_pdf, load_pdf_document};
+use phymes_data::candle_operators::extract_pdf_text::{
+    extract_pdf_text, filter_pdf, load_pdf_document,
+};
 
 // Library imports
 use crate::handlers::sign_in::CurrentUser;
@@ -101,11 +103,15 @@ pub async fn session_put_state(
                             // DM: alternatively, we could wrap into a Table and extract the text
                             //     using the `phymes_data` pipeline
                             // Load the PDF document and extract text
-                            let pdf = filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
-                            let batch = extract_pdf_text([(payload.metadata.clone(), pdf)].as_slice()).unwrap();                        
+                            let pdf =
+                                filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
+                            let batch =
+                                extract_pdf_text([(payload.metadata.clone(), pdf)].as_slice())
+                                    .unwrap();
                             let table = ArrowTable::get_builder()
                                 .with_name(payload.subject_name.as_str())
-                                .with_record_batches(vec![batch]).unwrap()
+                                .with_record_batches(vec![batch])
+                                .unwrap()
                                 .build()
                                 .unwrap();
 

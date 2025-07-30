@@ -11,7 +11,10 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::candle_operators::{
-    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, sort_scores_and_indices::SortScoresAndIndices
+    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait,
+    extract_pdf_text::ExtractPDFText, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner,
+    relative_similarity_score::RelativeSimilarityScore,
+    sort_scores_and_indices::SortScoresAndIndices,
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]

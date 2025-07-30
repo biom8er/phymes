@@ -1,19 +1,19 @@
-use std::{
-    io::Error, iter::zip,
-    collections::HashMap, sync::Arc
-};
+use std::{collections::HashMap, io::Error, iter::zip, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use arrow::{array::{ArrayRef, ListArray, RecordBatch, StringArray, UInt8Array}, datatypes::{DataType, Field, Schema}};
+use arrow::{
+    array::{ArrayRef, ListArray, RecordBatch, StringArray, UInt8Array},
+    datatypes::{DataType, Field, Schema},
+};
+use candle_core::Device;
 use lopdf::{
     Document, Object, Stream,
     content::{Content, Operation},
     dictionary,
 };
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use tracing::{instrument, Level, event};
-use candle_core::Device;
 use phymes_ml::openai_asset::{chat_completion, types};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use tracing::{Level, event, instrument};
 
 use crate::candle_operators::data_operator::DataOperatorTrait;
 
@@ -35,41 +35,50 @@ impl DataOperatorTrait for ExtractPDFText {
         _rhs_pk: Option<&str>,
         _rhs_fk: Option<&str>,
         _rhs_values: Option<&str>,
-        _kwargs: Option<&str>
-    ) -> Self where Self: Sized {
+        _kwargs: Option<&str>,
+    ) -> Self
+    where
+        Self: Sized,
+    {
         assert_eq!(lhs_pk, "document_id");
-        ExtractPDFText { lhs_pk: lhs_pk.to_string(), lhs_values: lhs_values.to_string() }
+        ExtractPDFText {
+            lhs_pk: lhs_pk.to_string(),
+            lhs_values: lhs_values.to_string(),
+        }
     }
-    fn forward(&self,
+    fn forward(
+        &self,
         lhs_args: &[RecordBatch],
         _rhs_args: Option<&[RecordBatch]>,
-        _device: &Device
+        _device: &Device,
     ) -> Result<RecordBatch> {
         let docs = prepare_pdf_documents(&self.lhs_pk, &self.lhs_values, lhs_args);
         extract_pdf_text(&docs)
     }
-    fn get_schema_lhs_input(&self,
+    fn get_schema_lhs_input(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<arrow::datatypes::Field>>,
     ) -> Option<arrow::datatypes::SchemaRef> {
         let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
-        let list_data_type = DataType::LargeList(
-            Arc::new(Field::new_list_field(DataType::UInt8, false))
-        );
+        let list_data_type =
+            DataType::LargeList(Arc::new(Field::new_list_field(DataType::UInt8, false)));
         let lhs_values = Field::new(self.lhs_values.clone(), list_data_type, false);
         let mut fields = vec![lhs_pk, lhs_values];
         if let Some(other) = other {
             fields.extend(other);
         }
-        Some(Arc::new(Schema::new(fields)))        
+        Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_rhs_input(&self,
+    fn get_schema_rhs_input(
+        &self,
         _list_size: Option<usize>,
         _other: Option<Vec<arrow::datatypes::Field>>,
     ) -> Option<arrow::datatypes::SchemaRef> {
         None
     }
-    fn get_schema_output(&self,
+    fn get_schema_output(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<arrow::datatypes::Field>>,
     ) -> Option<arrow::datatypes::SchemaRef> {
@@ -80,11 +89,9 @@ impl DataOperatorTrait for ExtractPDFText {
         if let Some(other) = other {
             fields.extend(other);
         }
-        Some(Arc::new(Schema::new(fields)))        
+        Some(Arc::new(Schema::new(fields)))
     }
-    fn check_schema_lhs_input(&self,
-        other: arrow::datatypes::SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_lhs_input(&self, other: arrow::datatypes::SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name(&self.lhs_pk).is_none() {
             return Err(anyhow!(
                 "LHS input is missing column for lhs_pk {}.",
@@ -99,14 +106,10 @@ impl DataOperatorTrait for ExtractPDFText {
         }
         Ok(Some(true))
     }
-    fn check_schema_rhs_input(&self,
-        _other: arrow::datatypes::SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_rhs_input(&self, _other: arrow::datatypes::SchemaRef) -> Result<Option<bool>> {
         Ok(None)
     }
-    fn check_schema_output(&self,
-        other: arrow::datatypes::SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_output(&self, other: arrow::datatypes::SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name(&self.lhs_pk).is_none() {
             return Err(anyhow!("LHS output is missing column for lhs_pk."));
         }
@@ -116,7 +119,7 @@ impl DataOperatorTrait for ExtractPDFText {
         if other.column_with_name("text").is_none() {
             return Err(anyhow!("Output is missing column for text."));
         }
-        Ok(Some(true))        
+        Ok(Some(true))
     }
     fn get_description() -> String {
         "Extract text from PDF documents".to_string()
@@ -380,9 +383,13 @@ pub fn load_pdf_document(doc: &[u8]) -> Result<Document> {
 }
 
 /// Prepare PDF documents for processing by extracting the document ID and PDF data
-pub fn prepare_pdf_documents(lhs_pk: &str, lhs_values: &str, docs: &[RecordBatch]) -> Vec<(String, Document)> {
+pub fn prepare_pdf_documents(
+    lhs_pk: &str,
+    lhs_values: &str,
+    docs: &[RecordBatch],
+) -> Vec<(String, Document)> {
     docs.iter()
-        .map(|batch| {
+        .flat_map(|batch| {
             let document_id = batch
                 .column_by_name(lhs_pk)
                 .unwrap()
@@ -399,8 +406,9 @@ pub fn prepare_pdf_documents(lhs_pk: &str, lhs_values: &str, docs: &[RecordBatch
                 .downcast_ref::<ListArray>()
                 .unwrap()
                 .iter()
-                .map(|s| { 
-                    let bytes = s.unwrap()
+                .map(|s| {
+                    let bytes = s
+                        .unwrap()
                         .as_any()
                         .downcast_ref::<UInt8Array>()
                         .unwrap()
@@ -412,7 +420,6 @@ pub fn prepare_pdf_documents(lhs_pk: &str, lhs_values: &str, docs: &[RecordBatch
                 .collect::<Vec<_>>();
             zip(document_id, pdf_data)
         })
-        .flatten()
         .collect()
 }
 
@@ -469,7 +476,10 @@ fn make_pdf_document(contents: &[&str]) -> Document {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
+    use phymes_core::{
+        session::common_traits::{BuildableTrait, BuilderTrait},
+        table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    };
 
     use super::*;
 
@@ -482,11 +492,12 @@ mod tests {
 
         // Extract text from the PDF document
         let batch = extract_pdf_text(&docs).unwrap();
-        
+
         // Check the results
         let table = ArrowTable::get_builder()
             .with_name("")
-            .with_record_batches(vec![batch]).unwrap()
+            .with_record_batches(vec![batch])
+            .unwrap()
             .build()
             .unwrap();
         assert_eq!(table.count_rows(), 4);
