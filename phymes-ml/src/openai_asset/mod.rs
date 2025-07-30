@@ -9,7 +9,7 @@ use std::{future::Future, pin::Pin};
 ///   the connection is not dropped during repeated polling
 ///   of the stream.
 #[cfg(feature = "openai_api")]
-enum OpenAIRequestState {
+pub enum OpenAIRequestState {
     NotStarted,
     Connecting(Pin<Box<dyn Future<Output = Result<Response, reqwest::Error>> + Send + 'static>>),
     ToText(Pin<Box<dyn Future<Output = Result<String, reqwest::Error>> + Send + 'static>>),
