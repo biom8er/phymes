@@ -5,7 +5,7 @@ This tutorial describes how the [Document RAG Agent Session Plan](https://github
 
 ## Tutorial
 
-The document RAG agent adds a complex document parsing, embedding, and retrieval ETL pipeline to the agentic AI architecture of the chat agent.
+The document RAG agent adds a complex document parsing, embedding, and retrieval Data pipeline to the agentic AI architecture of the chat agent.
 
 ```mermaid
 stateDiagram-v2

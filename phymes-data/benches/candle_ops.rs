@@ -22,7 +22,7 @@ use phymes_core::{
         ArrowOutgoingMessageTrait,
     },
 };
-use phymes_etl::candle_ops::{
+use phymes_data::candle_ops::{
     ops_config::{CandleOpsConfig, CandleOpsStreamManager},
     ops_processor::CandleOpProcessor,
     ops_service::CandleOpsService,

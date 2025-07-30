@@ -1,12 +1,12 @@
 [package]
-name = "phymes-etl"
+name = "phymes-data"
 version = "0.1.0"
 edition = "2024"
 authors = ["Douglas McCloskey"]
-description = "The extract transform load (ETL) operators for PHYMES"
+description = "The Data wrangling operators for PHYMES"
 license = "MIT AND Apache-2.0"
 repository = "https://github.com/biom8er/phymes"
-documentation = "https://docs.rs/phymes-etl"
+documentation = "https://docs.rs/phymes-data"
 
 [features]
 default = ["wsl", "candle"]

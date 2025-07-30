@@ -38,8 +38,8 @@ cargo run --package phymes-agents --features wsl,gpu,candle --release --example 
 cargo check --all-targets
 cargo check -p phymes-core --all-targets --features wsl
 cargo check -p phymes-core --all-targets --features wasip2
-cargo check -p phymes-etl --all-targets --features wsl
-cargo check -p phymes-etl --all-targets --features wasip2
+cargo check -p phymes-data --all-targets --features wsl
+cargo check -p phymes-data --all-targets --features wasip2
 cargo check -p phymes-ai --all-targets --features wsl
 cargo check -p phymes-ai --all-targets --features wsl,hf_hub,candle
 cargo check -p phymes-ai --all-targets --features wsl,openai_api
@@ -61,9 +61,9 @@ cargo test -p phymes-core --features wasip2 --no-default-features --target wasm3
 for file in target/wasm32-wasip2/release/deps/phymes_core-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
 cargo build -p phymes-core --target wasm32-wasip2 --no-default-features --features wasip2 --release --example addrows
 wasmtime run target/wasm32-wasip2/release/examples/addrows.wasm
-cargo check -p phymes-etl --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
-cargo test -p phymes-etl --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_etl-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
+cargo check -p phymes-data --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
+cargo test -p phymes-data --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
+for file in target/wasm32-wasip2/release/deps/phymes_data-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
 cargo check -p phymes-ai --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
 cargo test -p phymes-ai --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_agents-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
@@ -82,7 +82,7 @@ mdbook test phymes-book
 mdbook build phymes-book
 cargo doc --document-private-items --no-deps -p phymes-core
 cargo doc --document-private-items --no-deps -p phymes-ai
-cargo doc --document-private-items --no-deps -p phymes-etl
+cargo doc --document-private-items --no-deps -p phymes-data
 cargo doc --document-private-items --no-deps -p phymes-agents
 cargo doc --document-private-items --no-deps -p phymes-server
 cargo doc --document-private-items --no-deps -p phymes-app
@@ -122,9 +122,9 @@ cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --fea
 cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --features wsl,candle -- --sample-size 10
 cargo bench --bench doc_rag_session -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
 for file in target/wasm32-wasip2/release/deps/doc_rag_session-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
-cargo bench --bench candle_ops -p phymes-etl --no-default-features --features wsl,gpu,candle -- --sample-size 10 --measurement-time 1
-cargo bench --bench candle_ops -p phymes-etl --no-default-features --features wsl,candle -- --sample-size 10 --measurement-time 1
-cargo bench --bench candle_ops -p phymes-etl --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
+cargo bench --bench candle_ops -p phymes-data --no-default-features --features wsl,gpu,candle -- --sample-size 10 --measurement-time 1
+cargo bench --bench candle_ops -p phymes-data --no-default-features --features wsl,candle -- --sample-size 10 --measurement-time 1
+cargo bench --bench candle_ops -p phymes-data --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
 for file in target/wasm32-wasip2/release/deps/candle_ops-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
 mv ~/.cache/metrics/* ./target/criterion/metrics/
 ```

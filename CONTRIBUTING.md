@@ -426,10 +426,10 @@ You can find up-to-date information on the current CI tests in [.github/workflow
 # run tests for the phymes-core crate
 cargo test --package phymes-core --features wsl --release
 
-# run tests for the phymes-etl crate with GPU acceleration
-cargo test --package phymes-etl --features wsl,gpu --release
-# or run tests for the phymes-etl crate on the CPU
-cargo test --package phymes-etl --features wsl --release
+# run tests for the phymes-data crate with GPU acceleration
+cargo test --package phymes-data --features wsl,gpu --release
+# or run tests for the phymes-data crate on the CPU
+cargo test --package phymes-data --features wsl --release
 
 # run tests for the phymes-ai crate with GPU acceleration with Candle assets
 cargo test --package phymes-ai --features wsl,gpu,candle --release
@@ -459,12 +459,12 @@ cargo test --package phymes-core --target wasm32-wasip2 --no-default-features --
 # be sure to replace the -26200b790e92721b with your systems unique hash
 wasmtime run target/wasm32-wasip2/debug/deps/phymes-core-26200b790e92721b.wasm
 
-# run tests for the phymes-etl crate
-cargo test --package phymes-etl --target wasm32-wasip2 --no-default-features --features wasip2,candle --no-run
+# run tests for the phymes-data crate
+cargo test --package phymes-data --target wasm32-wasip2 --no-default-features --features wasip2,candle --no-run
 
-# build tests for the phymes-etl using wasmtime
+# build tests for the phymes-data using wasmtime
 # be sure to replace the -9ce9c7c7142d7db7 with your systems unique hash
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes_etl-9ce9c7c7142d7db7.wasm
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes_data-9ce9c7c7142d7db7.wasm
 
 # run tests for the phymes-ai crate
 cargo test --package phymes-ai --target wasm32-wasip2 --no-default-features --features wasip2,candle --no-run
@@ -567,7 +567,7 @@ Run the following to create the API documentation using `doc`:
 ```bash
 cargo doc --document-private-items --no-deps -p phymes-core
 cargo doc --document-private-items --no-deps -p phymes-ai
-cargo doc --document-private-items --no-deps -p phymes-etl
+cargo doc --document-private-items --no-deps -p phymes-data
 cargo doc --document-private-items --no-deps -p phymes-agents
 cargo doc --document-private-items --no-deps -p phymes-server
 cargo doc --document-private-items --no-deps -p phymes-app
@@ -751,7 +751,7 @@ Before running the `phymes-server`, setup the environmental variables as needed 
 
 ### Debugging the PHYMES deployment
 
-We recommend debugging the application using two terminals: one for `phymes-app` and another for `phymes-server`. Dioxus provides a great development loop for front-end application development with nifty hot-reloading features, but requires it's own dedicated terminal to run. Tokio provides an industry grade server along with nifty security features. During development (specifically, debug mode), the server permissions are relaxed to enable iterative debugging of the application. The `phymes-core`, `phymes-ai`, `phymes-etl`, `phymes-agents`, and `phymes-server` all use the Tracing crates for tracing and logging functionality. The packages and verbosity of console logging can be specified on the command line using the `RUST_LOG` environmental variable.
+We recommend debugging the application using two terminals: one for `phymes-app` and another for `phymes-server`. Dioxus provides a great development loop for front-end application development with nifty hot-reloading features, but requires it's own dedicated terminal to run. Tokio provides an industry grade server along with nifty security features. During development (specifically, debug mode), the server permissions are relaxed to enable iterative debugging of the application. The `phymes-core`, `phymes-ai`, `phymes-data`, `phymes-agents`, and `phymes-server` all use the Tracing crates for tracing and logging functionality. The packages and verbosity of console logging can be specified on the command line using the `RUST_LOG` environmental variable.
 
 In the first terminal:
 

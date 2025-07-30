@@ -19,7 +19,7 @@ use phymes_core::{
         ArrowMessageBuilderTrait,
     },
 };
-use phymes_etl::document_parsers::pdf_parser::{extract_pdf_text, filter_pdf, load_pdf_document};
+use phymes_data::document_parsers::pdf_parser::{extract_pdf_text, filter_pdf, load_pdf_document};
 
 // Library imports
 use crate::handlers::sign_in::CurrentUser;

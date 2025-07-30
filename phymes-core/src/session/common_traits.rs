@@ -12,6 +12,7 @@ use crate::task::{
 
 /// General imports
 use anyhow::Result;
+use arrow::array::RecordBatch;
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -114,6 +115,14 @@ pub trait RunnableTrait {
 pub trait TensorProcessorTrait: Send + Sync + Debug {
     /// Device
     fn get_device(&self) -> &Device;
+}
+
+/// Data operators and other tools that utilize tensor services
+pub trait DataProcessorTrait: TensorProcessorTrait + Send + Sync + Debug {
+    /// Run the data operator in the backward direction
+    // fn backward(&self, data: &[RecordBatch]) -> Result<(RecordBatch, Option<RecordBatch>)>;
+    /// Run the data operator in the forward direction
+    fn forward(&self, lhs: &[RecordBatch], rhs: Option<&[RecordBatch]>) -> Result<RecordBatch>;
 }
 
 /// Tokens representations in different dimensions

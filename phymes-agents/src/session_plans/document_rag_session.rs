@@ -29,7 +29,7 @@ use phymes_core::{
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
-use phymes_etl::candle_ops::{
+use phymes_data::candle_ops::{
     ops_config::CandleOpsConfig, ops_processor::CandleOpProcessor, ops_which::WhichCandleOps,
     summary_config::CandleOpsSummaryConfig, summary_processor::OpsSummaryProcessor,
 };
