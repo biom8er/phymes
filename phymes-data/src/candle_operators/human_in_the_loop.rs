@@ -1,12 +1,13 @@
 use arrow::{
-    datatypes::{DataType, Field, Schema, SchemaRef}, record_batch::RecordBatch
+    datatypes::{DataType, Field, Schema, SchemaRef},
+    record_batch::RecordBatch,
 };
 
-use anyhow::{anyhow, Result};
-use candle_core::Device;
-use std::{collections::HashMap, sync::Arc};
 use super::data_operator::DataOperatorTrait;
+use anyhow::{Result, anyhow};
+use candle_core::Device;
 use phymes_ml::openai_asset::{chat_completion, types};
+use std::{collections::HashMap, sync::Arc};
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
 #[derive(Debug)]
@@ -23,17 +24,18 @@ impl DataOperatorTrait for HumanInTheLoop {
         _rhs_pk: Option<&str>,
         _rhs_fk: Option<&str>,
         _rhs_values: Option<&str>,
-        _kwargs: Option<&str>
+        _kwargs: Option<&str>,
     ) -> Self {
         HumanInTheLoop
     }
     fn get_description() -> String {
         "Ask a question to clarify the user's query, ask a questionn to get additional information that the user did not provide, confirm a choice of tool, confirm arguments for a tool before answering the user's query or calling a tool, or provide the answer to the user's query.".to_string()
     }
-    fn get_schema_lhs_input(&self,
+    fn get_schema_lhs_input(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {        
+    ) -> Option<SchemaRef> {
         let role = Field::new("role", DataType::Utf8, false);
         let content = Field::new("content", DataType::Utf8, false);
         let mut fields = vec![role, content];
@@ -42,13 +44,15 @@ impl DataOperatorTrait for HumanInTheLoop {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_rhs_input(&self,
+    fn get_schema_rhs_input(
+        &self,
         _list_size: Option<usize>,
         _other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {
         None
     }
-    fn get_schema_output(&self,
+    fn get_schema_output(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {
@@ -60,9 +64,7 @@ impl DataOperatorTrait for HumanInTheLoop {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn check_schema_lhs_input(&self,
-        other: SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_lhs_input(&self, other: SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name("role").is_none() {
             return Err(anyhow!("LHS input is missing column for role."));
         }
@@ -71,14 +73,10 @@ impl DataOperatorTrait for HumanInTheLoop {
         }
         Ok(Some(true))
     }
-    fn check_schema_rhs_input(&self,
-        _other: SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_rhs_input(&self, _other: SchemaRef) -> Result<Option<bool>> {
         Ok(None)
     }
-    fn check_schema_output(&self,
-        other: SchemaRef,
-    ) -> Result<Option<bool>> {    
+    fn check_schema_output(&self, other: SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name("role").is_none() {
             return Err(anyhow!("Output is missing column for role."));
         }
@@ -87,7 +85,7 @@ impl DataOperatorTrait for HumanInTheLoop {
         }
         Ok(Some(true))
     }
-    fn get_json_tool_schema() -> String {        
+    fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_args".to_string(),
@@ -112,11 +110,12 @@ impl DataOperatorTrait for HumanInTheLoop {
         };
         serde_json::to_string(&tool).unwrap()
     }
-    fn forward(&self,
+    fn forward(
+        &self,
         lhs_args: &[RecordBatch],
         _rhs_args: Option<&[RecordBatch]>,
-        _device: &Device
+        _device: &Device,
     ) -> Result<RecordBatch> {
         Ok(lhs_args.first().unwrap().clone())
-    } 
+    }
 }

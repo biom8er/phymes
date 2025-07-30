@@ -2,19 +2,6 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
-#[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_asset::openai_which::WhichOpenAIAsset,
-    openai_chat::chat_processor::OpenAIChatProcessor
-};
-use phymes_ml::{
-    candle_assets::candle_which::WhichCandleAsset,
-    candle_chat::{
-        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
-        message_aggregator_processor::MessageAggregatorProcessor,
-        message_parser_processor::MessageParserProcessor,
-    },
-};
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
     session::{
@@ -32,8 +19,22 @@ use phymes_core::{
 };
 use phymes_data::{
     candle_data::{
-        data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor},
-    candle_operators::which_operator::WhichCandleOperator
+        data_processor::CandleDataProcessor, summary_config::DataSummaryConfig,
+        summary_processor::DataSummaryProcessor,
+    },
+    candle_operators::which_operator::WhichCandleOperator,
+};
+use phymes_ml::{
+    candle_assets::candle_which::WhichCandleAsset,
+    candle_chat::{
+        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
+        message_aggregator_processor::MessageAggregatorProcessor,
+        message_parser_processor::MessageParserProcessor,
+    },
+};
+#[cfg(feature = "openai_api")]
+use phymes_ml::{
+    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
 };
 
 use arrow::{
@@ -557,7 +558,6 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
 pub mod test_tool_agent_session {
     use super::*;
     use parking_lot::RwLock;
-    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     use phymes_core::{
         metrics::HashMap,
         session::{
@@ -569,6 +569,7 @@ pub mod test_tool_agent_session {
             ArrowMessageBuilderTrait,
         },
     };
+    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
 
     pub fn bench_tool_agent_session<'a>(
         session_stream_state: Arc<RwLock<SessionStreamState>>,

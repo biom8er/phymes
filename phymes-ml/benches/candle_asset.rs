@@ -1,5 +1,6 @@
 use candle_core::DType;
 use criterion::{Criterion, criterion_group, criterion_main};
+use phymes_core::session::common_traits::{TokenProcessorTrait, TokenWrapper};
 use phymes_ml::{
     candle_assets::{
         candle_which::{WhichCandleAsset, load_model_asset_path, load_tokenizer},
@@ -11,7 +12,6 @@ use phymes_ml::{
     },
     candle_embed::embed_config::CandleEmbedConfig,
 };
-use phymes_core::session::common_traits::{TokenProcessorTrait, TokenWrapper};
 
 fn benchmark_build_candle_chat_asset(c: &mut Criterion) {
     // Cases for different chat configurations

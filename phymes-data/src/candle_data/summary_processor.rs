@@ -182,10 +182,9 @@ impl DataSummaryStream {
 
     fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
         if self.config.is_none() {
-            let config: DataSummaryConfig =
-                serde_json::from_value(serde_json::Value::Object(
-                    config_table.to_json_object()?.first().unwrap().to_owned(),
-                ))?;
+            let config: DataSummaryConfig = serde_json::from_value(serde_json::Value::Object(
+                config_table.to_json_object()?.first().unwrap().to_owned(),
+            ))?;
             self.config.replace(config);
         }
         Ok(())

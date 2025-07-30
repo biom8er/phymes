@@ -1,20 +1,6 @@
 use anyhow::Result;
 use std::sync::Arc;
 
-#[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_asset::openai_which::WhichOpenAIAsset,
-    openai_chat::chat_processor::OpenAIChatProcessor,
-    openai_embed::embed_processor::OpenAIEmbedProcessor,
-};
-use phymes_ml::{
-    candle_assets::candle_which::WhichCandleAsset,
-    candle_chat::{
-        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
-        message_aggregator_processor::MessageAggregatorProcessor,
-    },
-    candle_embed::{embed_config::CandleEmbedConfig, embed_processor::CandleEmbedProcessor},
-};
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
     session::{
@@ -33,8 +19,22 @@ use phymes_core::{
 use phymes_data::{
     candle_data::{
         data_config::DataConfig, data_processor::CandleDataProcessor,
-        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor},
-    candle_operators::which_operator::WhichCandleOperator
+        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
+    },
+    candle_operators::which_operator::WhichCandleOperator,
+};
+use phymes_ml::{
+    candle_assets::candle_which::WhichCandleAsset,
+    candle_chat::{
+        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
+        message_aggregator_processor::MessageAggregatorProcessor,
+    },
+    candle_embed::{embed_config::CandleEmbedConfig, embed_processor::CandleEmbedProcessor},
+};
+#[cfg(feature = "openai_api")]
+use phymes_ml::{
+    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_embed::embed_processor::OpenAIEmbedProcessor,
 };
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
@@ -900,7 +900,6 @@ pub mod test_doc_rag_session {
     use super::*;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use parking_lot::RwLock;
-    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     use phymes_core::{
         metrics::HashMap,
         session::{
@@ -912,6 +911,7 @@ pub mod test_doc_rag_session {
             ArrowMessageBuilderTrait,
         },
     };
+    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
 
     pub fn bench_doc_rag_session_docs<'a>(
         session_stream_state: Arc<RwLock<SessionStreamState>>,

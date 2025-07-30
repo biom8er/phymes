@@ -4,7 +4,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
@@ -30,7 +30,7 @@ impl DataOperatorTrait for SortScoresAndIndices {
         _rhs_pk: Option<&str>,
         _rhs_fk: Option<&str>,
         _rhs_value: Option<&str>,
-        kwargs: Option<&str>
+        kwargs: Option<&str>,
     ) -> Self {
         // Attempt to parse the op_kwargs
         let ops_kwargs_default = "{\"asc\": false}";
@@ -42,39 +42,46 @@ impl DataOperatorTrait for SortScoresAndIndices {
             asc: ops_kwargs
                 .get("asc")
                 .and_then(|v| v.as_bool())
-                .unwrap_or(false)
+                .unwrap_or(false),
         }
     }
-    fn forward(&self,
+    fn forward(
+        &self,
         lhs_args: &[RecordBatch],
         _rhs_args: Option<&[RecordBatch]>,
-        device: &Device
+        device: &Device,
     ) -> Result<RecordBatch> {
-        assert_eq!(self.lhs_values, "score", "The score column must be named 'score'");
+        assert_eq!(
+            self.lhs_values, "score",
+            "The score column must be named 'score'"
+        );
         sort_scores_and_indices(lhs_args, self.asc, device)
     }
-    fn get_schema_lhs_input(&self,
+    fn get_schema_lhs_input(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<arrow::datatypes::Field>>,
-    ) -> Option<arrow::datatypes::SchemaRef> {        
+    ) -> Option<arrow::datatypes::SchemaRef> {
         assert_eq!(self.lhs_values, "score");
         let lhs_value = Field::new(self.lhs_values.clone(), DataType::Float32, false);
         let mut fields = vec![lhs_value];
         if let Some(other) = other {
             fields.extend(other);
         }
-        Some(Arc::new(Schema::new(fields)))        
+        Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_rhs_input(&self,
+    fn get_schema_rhs_input(
+        &self,
         _list_size: Option<usize>,
         _other: Option<Vec<arrow::datatypes::Field>>,
     ) -> Option<arrow::datatypes::SchemaRef> {
         None
     }
-    fn get_schema_output(&self,
+    fn get_schema_output(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<arrow::datatypes::Field>>,
-    ) -> Option<arrow::datatypes::SchemaRef> { 
+    ) -> Option<arrow::datatypes::SchemaRef> {
         let score = Field::new("score", DataType::Float32, false);
         let mut fields = vec![score];
         if let Some(other) = other {
@@ -82,22 +89,16 @@ impl DataOperatorTrait for SortScoresAndIndices {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn check_schema_lhs_input(&self,
-        other: arrow::datatypes::SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_lhs_input(&self, other: arrow::datatypes::SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name("score").is_none() {
             return Err(anyhow!("LHS input is missing column for score."));
         }
         Ok(Some(true))
     }
-    fn check_schema_rhs_input(&self,
-        _other: arrow::datatypes::SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_rhs_input(&self, _other: arrow::datatypes::SchemaRef) -> Result<Option<bool>> {
         Ok(None)
     }
-    fn check_schema_output(&self,
-        other: arrow::datatypes::SchemaRef,
-    ) -> Result<Option<bool>> {        
+    fn check_schema_output(&self, other: arrow::datatypes::SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name("score").is_none() {
             return Err(anyhow!("LHS output is missing column for score."));
         }
@@ -129,8 +130,7 @@ impl DataOperatorTrait for SortScoresAndIndices {
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table"
-                        .to_string(),
+                    "The primary key column identifier for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),

@@ -4,7 +4,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use candle_core::Device;
 use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
@@ -32,7 +32,7 @@ impl DataOperatorTrait for JoinInner {
         rhs_pk: Option<&str>,
         rhs_fk: Option<&str>,
         _rhs_value: Option<&str>,
-        _kwargs: Option<&str>
+        _kwargs: Option<&str>,
     ) -> Self {
         JoinInner {
             lhs_pk: lhs_pk.to_string(),
@@ -41,17 +41,25 @@ impl DataOperatorTrait for JoinInner {
             rhs_fk: rhs_fk.unwrap_or("rhs_fk").to_string(),
         }
     }
-    fn forward(&self,
+    fn forward(
+        &self,
         lhs_args: &[RecordBatch],
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
-    ) -> Result<RecordBatch> {        
-        join_inner(&self.lhs_fk, lhs_args, &self.rhs_fk, rhs_args.unwrap(), device)
+    ) -> Result<RecordBatch> {
+        join_inner(
+            &self.lhs_fk,
+            lhs_args,
+            &self.rhs_fk,
+            rhs_args.unwrap(),
+            device,
+        )
     }
-    fn get_schema_lhs_input(&self,
+    fn get_schema_lhs_input(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {        
+    ) -> Option<SchemaRef> {
         let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
         let lhs_fk = Field::new(self.lhs_fk.clone(), DataType::Utf8, false);
         let mut fields = vec![lhs_pk, lhs_fk];
@@ -60,10 +68,11 @@ impl DataOperatorTrait for JoinInner {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_rhs_input(&self,
+    fn get_schema_rhs_input(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {        
+    ) -> Option<SchemaRef> {
         let rhs_pk = Field::new(self.rhs_pk.clone(), DataType::Utf8, false);
         let rhs_fk = Field::new(self.rhs_fk.clone(), DataType::Utf8, false);
         let mut fields = vec![rhs_pk, rhs_fk];
@@ -72,7 +81,8 @@ impl DataOperatorTrait for JoinInner {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_output(&self,
+    fn get_schema_output(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {
@@ -84,9 +94,7 @@ impl DataOperatorTrait for JoinInner {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn check_schema_lhs_input(&self,
-        other: SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_lhs_input(&self, other: SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name(&self.lhs_fk).is_none() {
             return Err(anyhow!(
                 "LHS input is missing column for lhs_fk {}.",
@@ -95,9 +103,7 @@ impl DataOperatorTrait for JoinInner {
         }
         Ok(Some(true))
     }
-    fn check_schema_rhs_input(&self,
-        other: SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_rhs_input(&self, other: SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name(&self.rhs_fk).is_none() {
             return Err(anyhow!(
                 "RHS input is missing column for rhs_fk {}.",
@@ -106,9 +112,7 @@ impl DataOperatorTrait for JoinInner {
         }
         Ok(Some(true))
     }
-    fn check_schema_output(&self,
-        other: SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_output(&self, other: SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name(&self.lhs_fk).is_none() {
             return Err(anyhow!("LHS output is missing column for lhs_fk."));
         }
@@ -143,8 +147,7 @@ impl DataOperatorTrait for JoinInner {
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table"
-                        .to_string(),
+                    "The primary key column identifier for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),

@@ -1,13 +1,15 @@
 use arrow::{
-    array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray}, datatypes::{DataType, Field, Schema, SchemaRef}, record_batch::RecordBatch
+    array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray},
+    datatypes::{DataType, Field, Schema, SchemaRef},
+    record_batch::RecordBatch,
 };
 
-use anyhow::{anyhow, Result};
+use super::data_operator::DataOperatorTrait;
+use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
+use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
-use super::data_operator::DataOperatorTrait;
-use phymes_ml::openai_asset::{chat_completion, types};
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
 #[derive(Debug)]
@@ -24,14 +26,15 @@ impl DataOperatorTrait for RelativeSimilarityScore {
     fn get_static_name() -> &'static str {
         "relative-similarity-score"
     }
-    fn new( 
+    fn new(
         lhs_pk: &str,
         lhs_fk: &str,
         lhs_values: &str,
         rhs_pk: Option<&str>,
         rhs_fk: Option<&str>,
         rhs_values: Option<&str>,
-        _kwargs: Option<&str>) -> Self {
+        _kwargs: Option<&str>,
+    ) -> Self {
         RelativeSimilarityScore {
             lhs_pk: lhs_pk.to_string(),
             lhs_fk: lhs_fk.to_string(),
@@ -42,12 +45,14 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         }
     }
     fn get_description() -> String {
-        "Compute the relative similarity score between two different lists of embedding vectors".to_string()
+        "Compute the relative similarity score between two different lists of embedding vectors"
+            .to_string()
     }
-    fn forward(&self,
+    fn forward(
+        &self,
         lhs_args: &[RecordBatch],
         rhs_args: Option<&[RecordBatch]>,
-        device: &Device
+        device: &Device,
     ) -> Result<RecordBatch> {
         relative_similarity_score(
             &self.lhs_pk,
@@ -59,10 +64,11 @@ impl DataOperatorTrait for RelativeSimilarityScore {
             device,
         )
     }
-    fn get_schema_lhs_input(&self,
+    fn get_schema_lhs_input(
+        &self,
         list_size: Option<usize>,
         other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {        
+    ) -> Option<SchemaRef> {
         let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
         let lhs_fk = Field::new(self.lhs_fk.clone(), DataType::Utf8, false);
         let embed_size = list_size.unwrap_or(2);
@@ -78,7 +84,8 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_rhs_input(&self,
+    fn get_schema_rhs_input(
+        &self,
         list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {
@@ -97,10 +104,11 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_output(&self,
+    fn get_schema_output(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {        
+    ) -> Option<SchemaRef> {
         let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
         let rhs_pk = Field::new(self.rhs_pk.clone(), DataType::Utf8, false);
         let score = Field::new("score", DataType::Float32, false);
@@ -110,9 +118,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn check_schema_lhs_input(&self,
-        other: SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_lhs_input(&self, other: SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name(&self.lhs_pk).is_none() {
             return Err(anyhow!(
                 "LHS input is missing column for lhs_pk {}.",
@@ -122,10 +128,9 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         if other.column_with_name("embedding").is_none() {
             return Err(anyhow!("LHS input is missing column for embedding."));
         }
-        Ok(Some(true))}
-    fn check_schema_rhs_input(&self,
-        other: SchemaRef,
-    ) -> Result<Option<bool>> {
+        Ok(Some(true))
+    }
+    fn check_schema_rhs_input(&self, other: SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name(&self.rhs_pk).is_none() {
             return Err(anyhow!(
                 "RHS input is missing column for rhs_pk {}.",
@@ -137,9 +142,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         }
         Ok(Some(true))
     }
-    fn check_schema_output(&self,
-        other: SchemaRef,
-    ) -> Result<Option<bool>> {        
+    fn check_schema_output(&self, other: SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name(&self.lhs_pk).is_none() {
             return Err(anyhow!("LHS output is missing column for lhs_pk."));
         }
@@ -151,7 +154,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         }
         Ok(Some(true))
     }
-    fn get_json_tool_schema() -> String {        
+    fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -174,8 +177,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table"
-                        .to_string(),
+                    "The primary key column identifier for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),

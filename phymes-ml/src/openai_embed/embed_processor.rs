@@ -2,7 +2,10 @@ use crate::{
     candle_embed::{
         embed_config::CandleEmbedConfig, embed_processor::convert_embedding_vector_to_record_batch,
     },
-    openai_asset::{OpenAIRequestState, embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat}}
+    openai_asset::{
+        OpenAIRequestState,
+        embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat},
+    },
 };
 
 use reqwest::{Client, header::CONTENT_TYPE};

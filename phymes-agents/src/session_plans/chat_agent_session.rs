@@ -2,15 +2,6 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
-#[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_asset::openai_which::WhichOpenAIAsset,
-    openai_chat::chat_processor::OpenAIChatProcessor,
-};
-use phymes_ml::{
-    candle_assets::candle_which::WhichCandleAsset,
-    candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor},
-};
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
     session::{
@@ -25,6 +16,14 @@ use phymes_core::{
         arrow_table_subscribe::ArrowTableSubscribe,
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
+};
+use phymes_ml::{
+    candle_assets::candle_which::WhichCandleAsset,
+    candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor},
+};
+#[cfg(feature = "openai_api")]
+use phymes_ml::{
+    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
 };
 
 use arrow::datatypes::{DataType, Field, Schema};

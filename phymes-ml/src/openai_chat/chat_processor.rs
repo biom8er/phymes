@@ -39,8 +39,12 @@ use crate::{
         chat_config::CandleChatConfig,
         message_history::{MessageHistoryTraitExt, create_timestamp},
     },
-    openai_asset::{OpenAIRequestState, 
-        chat_completion::{ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType}}
+    openai_asset::{
+        OpenAIRequestState,
+        chat_completion::{
+            ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType,
+        },
+    },
 };
 
 #[derive(Default, Debug)]

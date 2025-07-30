@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray},
-};
+use arrow::array::{ArrayRef, RecordBatch, StringArray};
 
 /// General dependencies
 use clap::ValueEnum;
@@ -12,7 +10,12 @@ use phymes_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::candle_operators::{chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, sort_scores_and_indices::SortScoresAndIndices};
+use crate::candle_operators::{
+    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait,
+    human_in_the_loop::HumanInTheLoop, join_inner::JoinInner,
+    relative_similarity_score::RelativeSimilarityScore,
+    sort_scores_and_indices::SortScoresAndIndices,
+};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum WhichCandleOperator {
@@ -86,6 +89,7 @@ impl WhichCandleOperator {
     }
 
     /// Build the actual operator
+    #[allow(clippy::too_many_arguments)]
     pub fn build(
         &self,
         lhs_pk: &str,

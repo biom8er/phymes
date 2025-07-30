@@ -3,7 +3,6 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
-use phymes_ml::candle_assets::device::device;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
@@ -26,9 +25,11 @@ use phymes_data::{
     candle_data::{
         data_config::{DataConfig, DataStreamManager},
         data_processor::CandleDataProcessor,
-        tensor_service::CandleTensorService},
+        tensor_service::CandleTensorService,
+    },
     candle_operators::which_operator::WhichCandleOperator,
 };
+use phymes_ml::candle_assets::device::device;
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for dataset sizes

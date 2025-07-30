@@ -4,7 +4,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use candle_core::Device;
 use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
@@ -32,7 +32,7 @@ impl DataOperatorTrait for ChunkDocuments {
         _rhs_pk: Option<&str>,
         _rhs_fk: Option<&str>,
         _rhs_values: Option<&str>,
-        kwargs: Option<&str>
+        kwargs: Option<&str>,
     ) -> Self {
         // Attempt to parse the op_kwargs
         let ops_kwargs_default = "{\"chunk_size\": 512, \"chunk_overlap\": 64}";
@@ -52,17 +52,26 @@ impl DataOperatorTrait for ChunkDocuments {
                 .unwrap_or(64) as usize,
         }
     }
-    fn forward(&self,
+    fn forward(
+        &self,
         lhs_args: &[RecordBatch],
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        chunk_documents(&self.lhs_pk, &self.lhs_values, lhs_args, self.chunk_size, self.chunk_overlap, device)
+        chunk_documents(
+            &self.lhs_pk,
+            &self.lhs_values,
+            lhs_args,
+            self.chunk_size,
+            self.chunk_overlap,
+            device,
+        )
     }
-    fn get_schema_lhs_input(&self,
+    fn get_schema_lhs_input(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {        
+    ) -> Option<SchemaRef> {
         let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
         let text = Field::new("text", DataType::Utf8, false);
         let mut fields = vec![lhs_pk, text];
@@ -71,13 +80,15 @@ impl DataOperatorTrait for ChunkDocuments {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_rhs_input(&self,
+    fn get_schema_rhs_input(
+        &self,
         _list_size: Option<usize>,
         _other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {
         None
     }
-    fn get_schema_output(&self,
+    fn get_schema_output(
+        &self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {
@@ -90,9 +101,7 @@ impl DataOperatorTrait for ChunkDocuments {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn check_schema_lhs_input(&self,
-        other: SchemaRef,
-    ) -> Result<Option<bool>> {        
+    fn check_schema_lhs_input(&self, other: SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name(&self.lhs_pk).is_none() {
             return Err(anyhow!(
                 "LHS input is missing column for lhs_pk {}.",
@@ -104,14 +113,10 @@ impl DataOperatorTrait for ChunkDocuments {
         }
         Ok(Some(true))
     }
-    fn check_schema_rhs_input(&self,
-        _other: SchemaRef,
-    ) -> Result<Option<bool>> {
+    fn check_schema_rhs_input(&self, _other: SchemaRef) -> Result<Option<bool>> {
         Ok(None)
     }
-    fn check_schema_output(&self,
-        other: SchemaRef,
-    ) -> Result<Option<bool>> {        
+    fn check_schema_output(&self, other: SchemaRef) -> Result<Option<bool>> {
         if other.column_with_name(&self.lhs_pk).is_none() {
             return Err(anyhow!("LHS output is missing column for lhs_pk."));
         }
@@ -126,7 +131,7 @@ impl DataOperatorTrait for ChunkDocuments {
     fn get_description() -> String {
         "Chunk documents by splitting the document text".to_string()
     }
-    fn get_json_tool_schema() -> String {        
+    fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -149,8 +154,7 @@ impl DataOperatorTrait for ChunkDocuments {
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table"
-                        .to_string(),
+                    "The primary key column identifier for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),

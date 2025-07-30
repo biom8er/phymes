@@ -1,6 +1,5 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
 use crate::candle_operators::data_operator::DataOperatorTrait;
-use phymes_ml::candle_assets::device::device;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
@@ -21,6 +20,7 @@ use phymes_core::{
         arrow_processor::ArrowProcessorTrait,
     },
 };
+use phymes_ml::candle_assets::device::device;
 
 use arrow::{
     array::StringArray,
@@ -296,7 +296,12 @@ impl Stream for CandleDataStream {
                 }
             };
             // Check that the schema is correct
-            if let Err(e) = self.data_operator.as_ref().unwrap().check_schema_lhs_input(lhs.first().unwrap().schema()) {
+            if let Err(e) = self
+                .data_operator
+                .as_ref()
+                .unwrap()
+                .check_schema_lhs_input(lhs.first().unwrap().schema())
+            {
                 panic!("Error: {e:?}")
             }
             self.lhs_inbox = lhs;
@@ -336,7 +341,12 @@ impl Stream for CandleDataStream {
                 }
             };
             // Check that the schema is correct
-            if let Err(e) = self.data_operator.as_ref().unwrap().check_schema_rhs_input(rhs.first().unwrap().schema()) {
+            if let Err(e) = self
+                .data_operator
+                .as_ref()
+                .unwrap()
+                .check_schema_rhs_input(rhs.first().unwrap().schema())
+            {
                 panic!("Error: {e:?}")
             }
             self.rhs_inbox = rhs;
@@ -350,7 +360,7 @@ impl Stream for CandleDataStream {
         );
         self.init_tensor_service()?;
         let batch = self.data_operator.as_ref().unwrap().forward(
-            &self.lhs_inbox, 
+            &self.lhs_inbox,
             Some(&self.rhs_inbox),
             self.runtime_env
                 .try_lock()
@@ -384,11 +394,7 @@ impl Stream for CandleDataStream {
 impl RecordBatchStream for CandleDataStream {
     fn schema(&self) -> SchemaRef {
         match self.data_operator.as_ref() {
-            Some(data_operator) => data_operator.get_schema_output(
-                    None,
-                    None,
-                )
-                .unwrap(),
+            Some(data_operator) => data_operator.get_schema_output(None, None).unwrap(),
             None => Arc::new(Schema::empty()),
         }
     }
