@@ -76,12 +76,12 @@ impl DataOperatorTrait for RelativeSimilarityScores {
     fn get_schema_output(
         &self,
         lhs_pk: &str,
-        lhs_fk: &str,
-        lhs_value: &str,
+        _lhs_fk: &str,
+        _lhs_value: &str,
         rhs_pk: &str,
-        rhs_fk: &str,
-        rhs_values: &str,
-        list_size: Option<usize>,
+        _rhs_fk: &str,
+        _rhs_values: &str,
+        _list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {        
         let lhs_pk = Field::new(lhs_pk, DataType::Utf8, false);
@@ -96,8 +96,8 @@ impl DataOperatorTrait for RelativeSimilarityScores {
     fn check_schema_lhs_input(
         &self,
         lhs_pk: &str,
-        lhs_fk: &str,
-        lhs_value: &str,
+        _lhs_fk: &str,
+        _lhs_value: &str,
         other: SchemaRef,
     ) -> Result<Option<bool>> {
         if other.column_with_name(lhs_pk).is_none() {
@@ -113,8 +113,8 @@ impl DataOperatorTrait for RelativeSimilarityScores {
     fn check_schema_rhs_input(
         &self,
         rhs_pk: &str,
-        rhs_fk: &str,
-        rhs_values: &str,
+        _rhs_fk: &str,
+        _rhs_values: &str,
         other: SchemaRef,
     ) -> Result<Option<bool>> {
         if other.column_with_name(rhs_pk).is_none() {
@@ -131,11 +131,11 @@ impl DataOperatorTrait for RelativeSimilarityScores {
     fn check_schema_output(
         &self,
         lhs_pk: &str,
-        lhs_fk: &str,
-        lhs_value: &str,
+        _lhs_fk: &str,
+        _lhs_value: &str,
         rhs_pk: &str,
-        rhs_fk: &str,
-        rhs_values: &str,
+        _rhs_fk: &str,
+        _rhs_values: &str,
         other: SchemaRef,
     ) -> Result<Option<bool>> {        
         if other.column_with_name(lhs_pk).is_none() {
@@ -240,11 +240,11 @@ impl DataOperatorTrait for RelativeSimilarityScores {
         serde_json::to_string(&tool).unwrap()
     }
     fn forward(&self, lhs_pk: &str,
-        lhs_fk: &str,
+        _lhs_fk: &str,
         lhs_value: &str,
         lhs_args: &[RecordBatch], 
         rhs_pk: Option<&str>,
-        rhs_fk: Option<&str>,
+        _rhs_fk: Option<&str>,
         rhs_value: Option<&str>,
         rhs_args: Option<&[RecordBatch]>,
         device: &Device
