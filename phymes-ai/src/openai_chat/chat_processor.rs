@@ -4,9 +4,6 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use super::chat_completion::{
-    ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType,
-};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{ArrayRef, RecordBatch, StringArray},
@@ -42,7 +39,8 @@ use crate::{
         chat_config::CandleChatConfig,
         message_history::{MessageHistoryTraitExt, create_timestamp},
     },
-    openai_asset::OpenAIRequestState,
+    openai_asset::{OpenAIRequestState, 
+        chat_completion::{ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType}}
 };
 
 #[derive(Default, Debug)]

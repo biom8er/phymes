@@ -3,18 +3,18 @@ use phymes_core::session::common_traits::TensorProcessorTrait;
 
 /// The actual asset struct
 #[derive(Debug)]
-pub struct CandleOpsService {
+pub struct CandleTensorService {
     /// The device for computation
     pub device: Device,
 }
 
-impl CandleOpsService {
-    pub fn new(device: Device) -> CandleOpsService {
-        CandleOpsService { device }
+impl CandleTensorService {
+    pub fn new(device: Device) -> CandleTensorService {
+        CandleTensorService { device }
     }
 }
 
-impl TensorProcessorTrait for CandleOpsService {
+impl TensorProcessorTrait for CandleTensorService {
     fn get_device(&self) -> &Device {
         &self.device
     }

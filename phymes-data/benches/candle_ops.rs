@@ -22,11 +22,12 @@ use phymes_core::{
         ArrowOutgoingMessageTrait,
     },
 };
-use phymes_data::candle_ops::{
-    ops_config::{CandleOpsConfig, CandleOpsStreamManager},
-    ops_processor::CandleOpProcessor,
-    ops_service::CandleOpsService,
-    ops_which::WhichCandleOps,
+use phymes_data::{
+    candle_data::{
+        data_config::{DataConfig, DataStreamManager},
+        data_processor::CandleDataProcessor,
+        tensor_service::CandleTensorService},
+    candle_operators::which_operator::WhichCandleOperator,
 };
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
@@ -44,15 +45,15 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for stream and accumulation options
     let stream_vec = [
         // CandleOpsStreamManager::AccumulateLHSStreamRHS,
-        CandleOpsStreamManager::AccumulateLHSAccumulateRHS,
+        DataStreamManager::AccumulateLHSAccumulateRHS,
         // CandleOpsStreamManager::StreamLHSStreamRHS,
         // CandleOpsStreamManager::StreamLHSAccumulateRHS,
     ];
 
     // Cases for the ops functions
     let ops_configs_vec = [
-        CandleOpsConfig {
-            which: WhichCandleOps::RelativeSimilarityScore,
+        DataConfig {
+            which: WhichCandleOperator::RelativeSimilarityScore,
             // lhs_pk: "id".to_string(), // DM: relative similarity score assumes ID column is a string!
             lhs_pk: "title".to_string(),
             lhs_fk: "title".to_string(),
@@ -63,8 +64,8 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             rhs_values: Some("embedding".to_string()),
             ..Default::default()
         },
-        CandleOpsConfig {
-            which: WhichCandleOps::SortScoresAndIndices,
+        DataConfig {
+            which: WhichCandleOperator::SortScoresAndIndices,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "score".to_string(),
@@ -74,8 +75,8 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             op_kwargs: Some("{\"asc\": false}".to_string()),
             ..Default::default()
         },
-        CandleOpsConfig {
-            which: WhichCandleOps::ChunkDocuments,
+        DataConfig {
+            which: WhichCandleOperator::ChunkDocuments,
             // lhs_pk: "id".to_string(), // DM: check_schema_rhs_input assumes ID column is a string!
             lhs_pk: "title".to_string(),
             lhs_fk: "title".to_string(),
@@ -87,8 +88,8 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             op_kwargs: Some("{\"chunk_size\": 512, \"chunk_overlap\": 64}".to_string()),
             ..Default::default()
         },
-        CandleOpsConfig {
-            which: WhichCandleOps::JoinInner,
+        DataConfig {
+            which: WhichCandleOperator::JoinInner,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(), // DM: join_inner assumes fk column is a string!
             lhs_values: "embedding".to_string(),
@@ -121,7 +122,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             for config in ops_configs_vec.iter() {
                 // Build the runtime environment
                 let device = device(false).unwrap();
-                let service = CandleOpsService::new(device);
+                let service = CandleTensorService::new(device);
                 let runtime_env = RuntimeEnv {
                     token_service: None,
                     tensor_service: Some(Box::new(service)),
@@ -221,7 +222,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
                         // Make the stream and run
                         let _result = rt.block_on(async {
-                            let ops_processor = CandleOpProcessor::new_with_pub_sub_for(
+                            let ops_processor = CandleDataProcessor::new_with_pub_sub_for(
                                 name.as_str(),
                                 &[ArrowTablePublish::Replace {
                                     table_name: "results".to_string(),

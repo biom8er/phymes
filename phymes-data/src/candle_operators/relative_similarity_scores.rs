@@ -166,7 +166,7 @@ pub fn relative_similarity_scores_tensor(lhs: &Tensor, rhs: &Tensor) -> Result<T
 
 #[cfg(test)]
 mod tests {
-    use crate::candle_ops::ops_processor::test_candle_ops_processor::make_embeddings_record_batch;
+    use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch;
 
     use super::*;
 

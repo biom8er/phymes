@@ -16,10 +16,6 @@ enum OpenAIRequestState {
     Done,
 }
 
-#[cfg(feature = "openai_api")]
-pub mod chat_processor;
-#[cfg(feature = "openai_api")]
-pub mod embed_processor;
 pub mod openai_which;
 
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>

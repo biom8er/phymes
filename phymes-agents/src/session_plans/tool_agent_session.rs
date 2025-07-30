@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
 #[cfg(feature = "openai_api")]
-use phymes_ai::openai_asset::{
-    chat_processor::OpenAIChatProcessor, openai_which::WhichOpenAIAsset,
+use phymes_ai::{
+    openai_asset::openai_which::WhichOpenAIAsset,
+    openai_chat::chat_processor::OpenAIChatProcessor
 };
 use phymes_ai::{
     candle_assets::candle_which::WhichCandleAsset,
@@ -29,9 +30,10 @@ use phymes_core::{
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
-use phymes_data::candle_ops::{
-    ops_processor::CandleOpProcessor, ops_which::WhichCandleOps,
-    summary_config::CandleOpsSummaryConfig, summary_processor::OpsSummaryProcessor,
+use phymes_data::{
+    candle_data::{
+        data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor},
+    candle_operators::which_operator::WhichCandleOperator
 };
 
 use arrow::{
@@ -105,12 +107,12 @@ impl Default for ToolAgentSession<'_> {
             chat_processor_name: "chat_processor_1",
             chat_task_name: "chat_task_1",
             chat_runtime_env_name: "chat_rt_1",
-            tool_task_name: WhichCandleOps::SortScoresAndIndices.get_name(),
-            tool_processor_name: WhichCandleOps::SortScoresAndIndices.get_name(),
+            tool_task_name: WhichCandleOperator::SortScoresAndIndices.get_name(),
+            tool_processor_name: WhichCandleOperator::SortScoresAndIndices.get_name(),
             tool_runtime_env_name: "tool_rt_1",
             summary_processor_name: "summary_processor_1",
-            hitl_task_name: WhichCandleOps::HumanInTheLoops.get_name(),
-            hitl_processor_name: WhichCandleOps::HumanInTheLoops.get_name(),
+            hitl_task_name: WhichCandleOperator::HumanInTheLoops.get_name(),
+            hitl_processor_name: WhichCandleOperator::HumanInTheLoops.get_name(),
             message_parser_task_name: "message_parser_task_1",
             message_parser_processor_name: "message_parser_processor_1",
             message_aggregator_task_name: "message_aggregator_task_1",
@@ -133,12 +135,12 @@ impl<'a> ToolAgentSession<'a> {
     }
     pub fn make_tools_table(&self) -> Result<ArrowTable> {
         let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
-            WhichCandleOps::SortScoresAndIndices.get_name(),
-            WhichCandleOps::HumanInTheLoops.get_name(),
+            WhichCandleOperator::SortScoresAndIndices.get_name(),
+            WhichCandleOperator::HumanInTheLoops.get_name(),
         ]));
         let tool: ArrayRef = Arc::new(StringArray::from(vec![
-            WhichCandleOps::SortScoresAndIndices.get_json_tool_schema(),
-            WhichCandleOps::HumanInTheLoops.get_json_tool_schema(),
+            WhichCandleOperator::SortScoresAndIndices.get_json_tool_schema(),
+            WhichCandleOperator::HumanInTheLoops.get_json_tool_schema(),
         ]));
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)])?;
         ArrowTableBuilder::new()
@@ -393,7 +395,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 &[],
             ));
         }
-        processors.push(CandleOpProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.tool_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
@@ -408,7 +410,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             ],
             &[self.summary_processor_name],
         ));
-        processors.push(CandleOpProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.hitl_processor_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.state_messages_table_name.to_string(),
@@ -418,7 +420,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             }],
             &[],
         ));
-        processors.push(OpsSummaryProcessor::new_with_pub_sub_for(
+        processors.push(DataSummaryProcessor::new_with_pub_sub_for(
             self.summary_processor_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.message_aggregator_task_name.to_string(),
@@ -516,7 +518,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             .build()?;
 
         // Summary config
-        let summary_config = CandleOpsSummaryConfig {
+        let summary_config = DataSummaryConfig {
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config)?;

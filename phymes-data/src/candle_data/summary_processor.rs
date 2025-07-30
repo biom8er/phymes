@@ -36,7 +36,7 @@ use tracing::{Level, event, instrument};
 
 use phymes_ai::candle_chat::message_history::create_timestamp;
 
-use super::summary_config::CandleOpsSummaryConfig;
+use super::summary_config::DataSummaryConfig;
 
 /// Processor that takes the results of an OpsProcessor
 ///   and creates a summary of the result for chat inference
@@ -45,14 +45,14 @@ use super::summary_config::CandleOpsSummaryConfig;
 ///
 /// - The default role is `tool`
 #[derive(Default, Debug)]
-pub struct OpsSummaryProcessor {
+pub struct DataSummaryProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
 }
 
-impl OpsSummaryProcessor {
+impl DataSummaryProcessor {
     pub fn new_with_pub_sub_for(
         name: &str,
         publications: &[ArrowTablePublish],
@@ -68,13 +68,13 @@ impl OpsSummaryProcessor {
     }
 }
 
-impl MappableTrait for OpsSummaryProcessor {
+impl MappableTrait for DataSummaryProcessor {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl ArrowProcessorTrait for OpsSummaryProcessor {
+impl ArrowProcessorTrait for DataSummaryProcessor {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
@@ -120,7 +120,7 @@ impl ArrowProcessorTrait for OpsSummaryProcessor {
         };
 
         // Make the outbox and send
-        let out = Box::pin(OpsSummaryStream::new(
+        let out = Box::pin(DataSummaryStream::new(
             messages,
             config,
             Arc::clone(&runtime_env),
@@ -140,7 +140,7 @@ impl ArrowProcessorTrait for OpsSummaryProcessor {
 }
 
 #[allow(dead_code)]
-pub struct OpsSummaryStream {
+pub struct DataSummaryStream {
     /// Output schema (role and content)
     schema: SchemaRef,
     /// The input message to process
@@ -152,10 +152,10 @@ pub struct OpsSummaryStream {
     /// Runtime metrics recording
     baseline_metrics: BaselineMetrics,
     /// Parameters for chat inference
-    config: Option<CandleOpsSummaryConfig>,
+    config: Option<DataSummaryConfig>,
 }
 
-impl OpsSummaryStream {
+impl DataSummaryStream {
     pub fn new(
         message_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
@@ -182,7 +182,7 @@ impl OpsSummaryStream {
 
     fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
         if self.config.is_none() {
-            let config: CandleOpsSummaryConfig =
+            let config: DataSummaryConfig =
                 serde_json::from_value(serde_json::Value::Object(
                     config_table.to_json_object()?.first().unwrap().to_owned(),
                 ))?;
@@ -192,7 +192,7 @@ impl OpsSummaryStream {
     }
 }
 
-impl Stream for OpsSummaryStream {
+impl Stream for DataSummaryStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -326,7 +326,7 @@ impl Stream for OpsSummaryStream {
     }
 }
 
-impl RecordBatchStream for OpsSummaryStream {
+impl RecordBatchStream for DataSummaryStream {
     fn schema(&self) -> SchemaRef {
         Arc::clone(&self.schema)
     }
@@ -338,7 +338,7 @@ mod tests {
         arrow_table::ArrowTableBuilder, arrow_table_publish::ArrowTablePublish,
     };
 
-    use crate::candle_ops::ops_processor::test_candle_ops_processor::make_embeddings_record_batch;
+    use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch;
 
     use super::*;
 
@@ -369,7 +369,7 @@ mod tests {
         );
 
         // Make the config
-        let config = CandleOpsSummaryConfig {
+        let config = DataSummaryConfig {
             num_rows: Some(2),
             num_batches: Some(1),
             col_names: Some("[\"embedding\",\"lhs_pk\"]".to_string()),
@@ -401,7 +401,7 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = OpsSummaryProcessor::new_with_pub_sub_for(
+        let processor = DataSummaryProcessor::new_with_pub_sub_for(
             "summary_processor",
             &[ArrowTablePublish::Extend {
                 table_name: "messages".to_string(),

@@ -2,10 +2,10 @@ use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-use super::ops_which::WhichCandleOps;
+use crate::candle_operators::which_operator::WhichCandleOperator;
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
-pub enum CandleOpsStreamManager {
+pub enum DataStreamManager {
     /// Accumulate the LHS record batches before
     /// streaming operations for each RHS record batch
     #[value(name = "accumulate-lhs-stream-rhs")]
@@ -23,7 +23,7 @@ pub enum CandleOpsStreamManager {
     StreamLHSAccumulateRHS,
 }
 
-impl CandleOpsStreamManager {
+impl DataStreamManager {
     pub fn get_name(&self) -> &str {
         match self {
             Self::AccumulateLHSStreamRHS => "accumulate-lhs-stream-rhs",
@@ -37,7 +37,7 @@ impl CandleOpsStreamManager {
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(author, version, about, long_about = None)]
 #[serde(default)]
-pub struct CandleOpsConfig {
+pub struct DataConfig {
     /// Run on CPU rather than GPU even if a GPU is available.
     #[arg(long)]
     pub cpu: bool,
@@ -91,14 +91,14 @@ pub struct CandleOpsConfig {
 
     /// The streaming strategy to use
     #[arg(long, default_value = "accumulate-lhs-accumulate-rhs")]
-    pub stream: CandleOpsStreamManager,
+    pub stream: DataStreamManager,
 
     /// The operator to invoke
     #[arg(long, default_value = "relative-similarity-score")]
-    pub which: WhichCandleOps,
+    pub which: WhichCandleOperator,
 }
 
-impl Default for CandleOpsConfig {
+impl Default for DataConfig {
     fn default() -> Self {
         Self {
             cpu: false,
@@ -113,16 +113,16 @@ impl Default for CandleOpsConfig {
             lhs_args: None,
             rhs_args: None,
             op_kwargs: None,
-            stream: CandleOpsStreamManager::AccumulateLHSAccumulateRHS,
-            which: WhichCandleOps::RelativeSimilarityScore,
+            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            which: WhichCandleOperator::RelativeSimilarityScore,
         }
     }
 }
 
-impl CandleOpsConfig {
+impl DataConfig {
     #[allow(dead_code)]
     fn new_from_json(input: &str) -> Result<Self> {
-        let self_data: CandleOpsConfig = serde_json::from_str(input)?;
+        let self_data: DataConfig = serde_json::from_str(input)?;
         Ok(self_data)
     }
 }

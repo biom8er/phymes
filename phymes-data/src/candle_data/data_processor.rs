@@ -1,7 +1,6 @@
-use super::{
-    ops_config::CandleOpsConfig, ops_service::CandleOpsService, ops_which::WhichCandleOps,
-};
-use crate::etl_operators::{
+use super::{data_config::DataConfig, tensor_service::CandleTensorService};
+use crate::candle_operators::{
+    which_operator::WhichCandleOperator,
     chunk_documents::chunk_documents, join_inner::join_inner,
     relative_similarity_scores::relative_similarity_scores,
     sort_scores_and_indices::sort_scores_and_indices,
@@ -49,14 +48,14 @@ use tracing::{Level, event, instrument};
 /// Each operator has a defined input and output schema that calling processors or consuming processors
 /// need to adhere to
 #[derive(Default, Debug)]
-pub struct CandleOpProcessor {
+pub struct CandleDataProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
 }
 
-impl CandleOpProcessor {
+impl CandleDataProcessor {
     pub fn new_with_pub_sub_for(
         name: &str,
         publications: &[ArrowTablePublish],
@@ -72,13 +71,13 @@ impl CandleOpProcessor {
     }
 }
 
-impl MappableTrait for CandleOpProcessor {
+impl MappableTrait for CandleDataProcessor {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl ArrowProcessorTrait for CandleOpProcessor {
+impl ArrowProcessorTrait for CandleDataProcessor {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
@@ -124,7 +123,7 @@ impl ArrowProcessorTrait for CandleOpProcessor {
         }
 
         // Run the ops
-        let out = Box::pin(CandleOpStream::new(
+        let out = Box::pin(CandleDataStream::new(
             message,
             config,
             Arc::clone(&runtime_env),
@@ -144,7 +143,7 @@ impl ArrowProcessorTrait for CandleOpProcessor {
 
 /// Compute the relative similarity score between two embeddings
 #[allow(dead_code)]
-pub struct CandleOpStream {
+pub struct CandleDataStream {
     /// The messages containing the lhs and rhs
     /// which we cannot determine until we intialize the config
     messages: OutgoingMessageMap,
@@ -155,7 +154,7 @@ pub struct CandleOpStream {
     /// Runtime metrics recording
     baseline_metrics: BaselineMetrics,
     /// Parameters for tensor operations
-    config: Option<CandleOpsConfig>,
+    config: Option<DataConfig>,
     /// The polled record batches from the input
     lhs_inbox: Vec<RecordBatch>,
     /// The polled record batches from the input
@@ -164,7 +163,7 @@ pub struct CandleOpStream {
     outbox: Vec<RecordBatch>,
 }
 
-impl CandleOpStream {
+impl CandleDataStream {
     pub fn new(
         messages: OutgoingMessageMap,
         config_stream: SendableRecordBatchStream,
@@ -194,7 +193,7 @@ impl CandleOpStream {
                 .is_none()
             {
                 let device = device(config.cpu)?;
-                let service = CandleOpsService::new(device);
+                let service = CandleTensorService::new(device);
                 let _ = self
                     .runtime_env
                     .try_lock()
@@ -211,7 +210,7 @@ impl CandleOpStream {
     }
 }
 
-impl Stream for CandleOpStream {
+impl Stream for CandleDataStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -242,7 +241,7 @@ impl Stream for CandleOpStream {
                     .join("");
                 let mut config_values: serde_json::Value = serde_json::from_str(&config_json)?;
                 config_values["arguments"]["which"] = config_values["name"].clone();
-                let config: CandleOpsConfig =
+                let config: DataConfig =
                     serde_json::from_value(config_values.get("arguments").unwrap().clone())?;
                 self.config.replace(config);
             } else {
@@ -250,7 +249,7 @@ impl Stream for CandleOpStream {
                     .with_name("config")
                     .with_record_batches(batches)?
                     .build()?;
-                let config: CandleOpsConfig = serde_json::from_value(serde_json::Value::Object(
+                let config: DataConfig = serde_json::from_value(serde_json::Value::Object(
                     config_table.to_json_object()?.first().unwrap().to_owned(),
                 ))?;
                 self.config.replace(config);
@@ -381,7 +380,7 @@ impl Stream for CandleOpStream {
         );
         self.init_tensor_service()?;
         let batch = match self.config.as_ref().unwrap().which {
-            WhichCandleOps::RelativeSimilarityScore => relative_similarity_scores(
+            WhichCandleOperator::RelativeSimilarityScore => relative_similarity_scores(
                 &self.lhs_inbox,
                 &self.rhs_inbox,
                 &self.config.as_ref().unwrap().lhs_pk,
@@ -408,7 +407,7 @@ impl Stream for CandleOpStream {
                     .unwrap()
                     .get_device(),
             )?,
-            WhichCandleOps::SortScoresAndIndices => sort_scores_and_indices(
+            WhichCandleOperator::SortScoresAndIndices => sort_scores_and_indices(
                 &self.lhs_inbox,
                 ops_kwargs.get("asc").unwrap().as_bool().unwrap(),
                 self.runtime_env
@@ -419,8 +418,8 @@ impl Stream for CandleOpStream {
                     .unwrap()
                     .get_device(),
             )?,
-            WhichCandleOps::HumanInTheLoops => self.lhs_inbox.first().unwrap().to_owned(),
-            WhichCandleOps::ChunkDocuments => chunk_documents(
+            WhichCandleOperator::HumanInTheLoops => self.lhs_inbox.first().unwrap().to_owned(),
+            WhichCandleOperator::ChunkDocuments => chunk_documents(
                 &self.lhs_inbox,
                 &self.config.as_ref().unwrap().lhs_pk,
                 &self.config.as_ref().unwrap().lhs_values,
@@ -434,7 +433,7 @@ impl Stream for CandleOpStream {
                     .unwrap()
                     .get_device(),
             )?,
-            WhichCandleOps::JoinInner => join_inner(
+            WhichCandleOperator::JoinInner => join_inner(
                 &self.lhs_inbox,
                 &self.config.as_ref().unwrap().lhs_fk,
                 &self.rhs_inbox,
@@ -474,7 +473,7 @@ impl Stream for CandleOpStream {
     }
 }
 
-impl RecordBatchStream for CandleOpStream {
+impl RecordBatchStream for CandleDataStream {
     fn schema(&self) -> SchemaRef {
         match self.config.as_ref() {
             Some(config) => config
@@ -541,7 +540,7 @@ pub mod test_candle_ops_processor {
 
 #[cfg(test)]
 mod tests {
-    use crate::candle_ops::ops_which::WhichCandleOps;
+    use crate::candle_operators::which_operator::WhichCandleOperator;
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
     use phymes_core::table::{arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish};
@@ -607,7 +606,7 @@ mod tests {
         );
 
         // Make the config
-        let config = CandleOpsConfig {
+        let config = DataConfig {
             lhs_name: "lhs_name".to_string(),
             rhs_name: Some("rhs_name".to_string()),
             lhs_pk: "lhs_pk".to_string(),
@@ -616,7 +615,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOps::RelativeSimilarityScore,
+            which: WhichCandleOperator::RelativeSimilarityScore,
             ..Default::default()
         };
         let config_table = ArrowTable::get_builder()
@@ -630,7 +629,7 @@ mod tests {
 
         // Make the runtime environment
         let device = device(config.cpu)?;
-        let service = CandleOpsService::new(device);
+        let service = CandleTensorService::new(device);
         let runtime_env = RuntimeEnv {
             token_service: None,
             tensor_service: Some(Box::new(service)),
@@ -641,7 +640,7 @@ mod tests {
         let runtime_env = Arc::new(Mutex::new(runtime_env));
 
         // Make the stream and run
-        let ops_stream = CandleOpStream::new(
+        let ops_stream = CandleDataStream::new(
             messages,
             config_table.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
@@ -706,8 +705,8 @@ mod tests {
         let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor");
 
         // Make the config
-        let config_args = CandleOpsConfig {
-            which: WhichCandleOps::HumanInTheLoops,
+        let config_args = DataConfig {
+            which: WhichCandleOperator::HumanInTheLoops,
             lhs_args: Some("{\"role\": \"assistant\", \"content\": \"RESPONSE\"}".to_string()),
             rhs_args: None,
             ..Default::default()
@@ -718,7 +717,7 @@ mod tests {
             .build()?;
 
         // Make the stream and run
-        let ops_stream = CandleOpStream::new(
+        let ops_stream = CandleDataStream::new(
             HashMap::<String, ArrowOutgoingMessage>::new(),
             config_args_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
@@ -823,7 +822,7 @@ mod tests {
         let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor");
 
         // Make the stream and run
-        let ops_stream = CandleOpStream::new(
+        let ops_stream = CandleDataStream::new(
             messages,
             config_table.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
@@ -944,7 +943,7 @@ mod tests {
         );
 
         // Make the config
-        let config = CandleOpsConfig {
+        let config = DataConfig {
             lhs_name: "lhs_name".to_string(),
             rhs_name: Some("rhs_name".to_string()),
             lhs_pk: "lhs_pk".to_string(),
@@ -953,7 +952,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOps::RelativeSimilarityScore,
+            which: WhichCandleOperator::RelativeSimilarityScore,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -976,7 +975,7 @@ mod tests {
 
         // Make the runtime environment
         let device = device(config.cpu)?;
-        let service = CandleOpsService::new(device);
+        let service = CandleTensorService::new(device);
         let runtime_env = RuntimeEnv {
             token_service: None,
             tensor_service: Some(Box::new(service)),
@@ -987,7 +986,7 @@ mod tests {
         let runtime_env = Arc::new(Mutex::new(runtime_env));
 
         // Make the stream and run
-        let ops_processor = CandleOpProcessor::new_with_pub_sub_for(
+        let ops_processor = CandleDataProcessor::new_with_pub_sub_for(
             "candle_ops_processor",
             &[ArrowTablePublish::Replace {
                 table_name: "results".to_string(),

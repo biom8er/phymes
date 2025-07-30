@@ -2,9 +2,10 @@ use anyhow::Result;
 use std::sync::Arc;
 
 #[cfg(feature = "openai_api")]
-use phymes_ai::openai_asset::{
-    chat_processor::OpenAIChatProcessor, embed_processor::OpenAIEmbedProcessor,
-    openai_which::WhichOpenAIAsset,
+use phymes_ai::{
+    openai_asset::openai_which::WhichOpenAIAsset,
+    openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_embed::embed_processor::OpenAIEmbedProcessor,
 };
 use phymes_ai::{
     candle_assets::candle_which::WhichCandleAsset,
@@ -29,9 +30,11 @@ use phymes_core::{
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
-use phymes_data::candle_ops::{
-    ops_config::CandleOpsConfig, ops_processor::CandleOpProcessor, ops_which::WhichCandleOps,
-    summary_config::CandleOpsSummaryConfig, summary_processor::OpsSummaryProcessor,
+use phymes_data::{
+    candle_data::{
+        data_config::DataConfig, data_processor::CandleDataProcessor,
+        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor},
+    candle_operators::which_operator::WhichCandleOperator
 };
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
@@ -425,7 +428,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             ));
         }
 
-        processors.push(CandleOpProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.document_chunk_processor_1_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.document_chunk_task_name.to_string(),
@@ -507,7 +510,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             ));
         }
 
-        processors.push(CandleOpProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.relative_similarity_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
@@ -531,7 +534,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                 self.state_documents_table_name,
             ],
         ));
-        processors.push(CandleOpProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.sort_scores_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
@@ -546,7 +549,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                 self.state_documents_table_name,
             ],
         ));
-        processors.push(CandleOpProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.document_chunk_processor_2_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_documents_table_name.to_string(),
@@ -565,7 +568,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                 self.state_scores_table_name,
             ],
         ));
-        processors.push(CandleOpProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.join_chunks_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_scores_chunks_join_table_name.to_string(),
@@ -580,7 +583,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             ],
             &[self.top_k_processor_name],
         ));
-        processors.push(OpsSummaryProcessor::new_with_pub_sub_for(
+        processors.push(DataSummaryProcessor::new_with_pub_sub_for(
             self.top_k_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_top_k_docs_table_name.to_string(),
@@ -762,12 +765,12 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             .build()?;
 
         // Chunk documents config
-        let chunk_document_config = CandleOpsConfig {
+        let chunk_document_config = DataConfig {
             lhs_name: self.state_documents_table_name.to_string(),
             lhs_pk: "document_id".to_string(),
             lhs_fk: "document_id".to_string(),
             lhs_values: "text".to_string(),
-            which: WhichCandleOps::ChunkDocuments,
+            which: WhichCandleOperator::ChunkDocuments,
             ..Default::default()
         };
         let chunk_document_config_json = serde_json::to_vec(&chunk_document_config)?;
@@ -781,7 +784,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             .build()?;
 
         // Relative similarity config
-        let rel_sim_config = CandleOpsConfig {
+        let rel_sim_config = DataConfig {
             lhs_name: self.state_q_embed_table_name.to_string(),
             lhs_pk: "query_id".to_string(),
             lhs_fk: "query_id".to_string(),
@@ -790,7 +793,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOps::RelativeSimilarityScore,
+            which: WhichCandleOperator::RelativeSimilarityScore,
             ..Default::default()
         };
         let rel_sim_config_json = serde_json::to_vec(&rel_sim_config)?;
@@ -800,12 +803,12 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             .build()?;
 
         // Sort scores config
-        let sort_scores_config = CandleOpsConfig {
+        let sort_scores_config = DataConfig {
             lhs_name: self.state_scores_table_name.to_string(),
             lhs_pk: "chunk_id".to_string(),
             lhs_fk: "chunk_id".to_string(),
             lhs_values: "score".to_string(),
-            which: WhichCandleOps::SortScoresAndIndices,
+            which: WhichCandleOperator::SortScoresAndIndices,
             ..Default::default()
         };
         let sort_scores_config_json = serde_json::to_vec(&sort_scores_config)?;
@@ -815,7 +818,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             .build()?;
 
         // Join chunks scores config
-        let join_chunks_config = CandleOpsConfig {
+        let join_chunks_config = DataConfig {
             lhs_name: self.state_scores_table_name.to_string(),
             lhs_pk: "chunk_id".to_string(),
             lhs_fk: "chunk_id".to_string(),
@@ -824,7 +827,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some("text".to_string()),
-            which: WhichCandleOps::JoinInner,
+            which: WhichCandleOperator::JoinInner,
             ..Default::default()
         };
         let join_chunks_config_json = serde_json::to_vec(&join_chunks_config)?;
@@ -834,7 +837,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             .build()?;
 
         // Summary config (to limit the number of documents)
-        let top_k_config = CandleOpsSummaryConfig {
+        let top_k_config = DataSummaryConfig {
             col_names: Some("[\"text\"]".to_string()),
             num_rows: Some(3),
             num_batches: Some(1),

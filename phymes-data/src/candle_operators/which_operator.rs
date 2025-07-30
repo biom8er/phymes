@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use phymes_ai::openai_asset::{chat_completion, types};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
-pub enum WhichCandleOps {
+pub enum WhichCandleOperator {
     #[value(name = "relative-similarity-score")]
     #[serde(alias = "relative-similarity-score")]
     RelativeSimilarityScore,
@@ -35,15 +35,14 @@ pub enum WhichCandleOps {
     JoinInner,
 }
 
-impl Default for WhichCandleOps {
+impl Default for WhichCandleOperator {
     fn default() -> Self {
         Self::RelativeSimilarityScore
     }
 }
 
-impl WhichCandleOps {
-    /// Get the mandatory fields that are expected to be found in
-    /// the LHS input schema
+impl WhichCandleOperator {
+    /// Get the mandatory fields that are expected to be found in the LHS input schema
     pub fn get_schema_lhs_input(
         &self,
         lhs_pk: &str,
@@ -108,8 +107,7 @@ impl WhichCandleOps {
         }
     }
 
-    /// Get the mandatory fields that are expected to be found in
-    /// the RHS input schema
+    /// Get the mandatory fields that are expected to be found in the RHS input schema
     pub fn get_schema_rhs_input(
         &self,
         rhs_pk: &str,
@@ -150,8 +148,7 @@ impl WhichCandleOps {
         }
     }
 
-    /// Get the mandatory fields that are expected to be found in
-    /// the output schema
+    /// Get the mandatory fields that are expected to be found in the output schema
     #[allow(unused_variables, clippy::too_many_arguments)]
     pub fn get_schema_output(
         &self,
@@ -533,7 +530,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
     let mut tool_id_vec = Vec::new();
     let mut tool_vec = Vec::new();
     for destination in destinations.iter() {
-        if let Some(ops) = WhichCandleOps::new_from_name(destination) {
+        if let Some(ops) = WhichCandleOperator::new_from_name(destination) {
             tool_id_vec.push(ops.get_name().to_string());
             tool_vec.push(ops.get_json_tool_schema());
         }

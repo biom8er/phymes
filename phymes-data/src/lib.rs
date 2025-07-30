@@ -1,3 +1,3 @@
-pub mod candle_ops;
+pub mod candle_data;
 pub mod document_parsers;
-pub mod etl_operators;
+pub mod candle_operators;
