@@ -12,14 +12,14 @@ use anyhow::Result;
 use bytes::Bytes;
 use phymes_core::{
     metrics::HashMap,
-    session::common_traits::{BuilderTrait, MappableTrait},
-    table::arrow_table::ArrowTableTrait,
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
+    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
     task::arrow_message::{
         ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
         ArrowMessageBuilderTrait,
     },
 };
-use phymes_data::document_parsers::pdf_parser::{extract_pdf_text, filter_pdf, load_pdf_document};
+use phymes_data::candle_operators::extract_pdf_text::{extract_pdf_text, filter_pdf, load_pdf_document};
 
 // Library imports
 use crate::handlers::sign_in::CurrentUser;
@@ -98,14 +98,16 @@ pub async fn session_put_state(
                             )
                             .unwrap(),
                         SessionResponseFormat::PDF => {
+                            // DM: alternatively, we could wrap into a Table and extract the text
+                            //     using the `phymes_data` pipeline
                             // Load the PDF document and extract text
-                            let pdf =
-                                filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
-                            let table = extract_pdf_text(
-                                [(payload.metadata.as_str(), &pdf)].as_slice(),
-                                payload.subject_name.as_str(),
-                            )
-                            .unwrap();
+                            let pdf = filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
+                            let batch = extract_pdf_text([(payload.metadata.clone(), pdf)].as_slice()).unwrap();                        
+                            let table = ArrowTable::get_builder()
+                                .with_name(payload.subject_name.as_str())
+                                .with_record_batches(vec![batch]).unwrap()
+                                .build()
+                                .unwrap();
 
                             // Create the update message
                             let incoming_message = ArrowIncomingMessageBuilder::new()

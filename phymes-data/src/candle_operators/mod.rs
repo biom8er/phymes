@@ -5,3 +5,4 @@ pub mod join_inner;
 pub mod relative_similarity_score;
 pub mod sort_scores_and_indices;
 pub mod which_operator;
+pub mod extract_pdf_text;

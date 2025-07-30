@@ -11,10 +11,7 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::candle_operators::{
-    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait,
-    human_in_the_loop::HumanInTheLoop, join_inner::JoinInner,
-    relative_similarity_score::RelativeSimilarityScore,
-    sort_scores_and_indices::SortScoresAndIndices,
+    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, sort_scores_and_indices::SortScoresAndIndices
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -54,7 +51,7 @@ impl WhichCandleOperator {
             Self::HumanInTheLoop => HumanInTheLoop::get_static_name(),
             Self::ChunkDocuments => ChunkDocuments::get_static_name(),
             Self::JoinInner => JoinInner::get_static_name(),
-            Self::ExtractPDFText => todo!(),
+            Self::ExtractPDFText => ExtractPDFText::get_static_name(),
         }
     }
 
@@ -66,7 +63,7 @@ impl WhichCandleOperator {
             Self::HumanInTheLoop => HumanInTheLoop::get_json_tool_schema(),
             Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
             Self::JoinInner => JoinInner::get_json_tool_schema(),
-            Self::ExtractPDFText => todo!(),
+            Self::ExtractPDFText => ExtractPDFText::get_json_tool_schema(),
         }
     }
 
@@ -82,8 +79,9 @@ impl WhichCandleOperator {
             Some(Self::ChunkDocuments)
         } else if name == JoinInner::get_name() {
             Some(Self::JoinInner)
+        } else if name == ExtractPDFText::get_name() {
+            Some(Self::ExtractPDFText)
         } else {
-            //Err(anyhow!("No Candle Operator found for {}.", name))
             None
         }
     }
@@ -116,7 +114,9 @@ impl WhichCandleOperator {
             Self::JoinInner => Box::new(JoinInner::new(
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
-            Self::ExtractPDFText => todo!(),
+            Self::ExtractPDFText => Box::new(ExtractPDFText::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
         }
     }
 }
