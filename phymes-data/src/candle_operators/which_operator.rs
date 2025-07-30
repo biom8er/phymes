@@ -84,6 +84,37 @@ impl WhichCandleOperator {
             None
         }
     }
+
+    /// Build the actual operator
+    pub fn build(
+        &self,
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_values: &str,
+        rhs_pk: Option<&str>,
+        rhs_fk: Option<&str>,
+        rhs_values: Option<&str>,
+        kwargs: Option<&str>,
+    ) -> Box<dyn DataOperatorTrait> {
+        match self {
+            Self::RelativeSimilarityScores => Box::new(RelativeSimilarityScores::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
+            Self::SortScoresAndIndices => Box::new(SortScoresAndIndices::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
+            Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
+            Self::ChunkDocuments => Box::new(ChunkDocuments::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
+            Self::JoinInner => Box::new(JoinInner::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
+            Self::ExtractPDFText => todo!(),
+        }
+    }
 }
 
 pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Option<ArrowTable> {

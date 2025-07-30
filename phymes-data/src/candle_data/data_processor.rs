@@ -1,10 +1,5 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
-use crate::candle_operators::{
-    which_operator::WhichCandleOperator,
-    chunk_documents::chunk_documents, join_inner::join_inner,
-    relative_similarity_scores::relative_similarity_scores,
-    sort_scores_and_indices::sort_scores_and_indices,
-};
+use crate::candle_operators::{data_operator::DataOperatorTrait, which_operator::WhichCandleOperator};
 use phymes_ai::candle_assets::device::device;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
@@ -149,12 +144,14 @@ pub struct CandleDataStream {
     messages: OutgoingMessageMap,
     /// Parameters for tensor operations
     config_stream: SendableRecordBatchStream,
-    /// The Candle model assets needed for inference
+    /// The tensor services needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
     baseline_metrics: BaselineMetrics,
     /// Parameters for tensor operations
     config: Option<DataConfig>,
+    /// The data operator to run
+    data_operator: Option<Box<dyn DataOperatorTrait>>,
     /// The polled record batches from the input
     lhs_inbox: Vec<RecordBatch>,
     /// The polled record batches from the input
@@ -176,6 +173,7 @@ impl CandleDataStream {
             baseline_metrics,
             runtime_env,
             config: None,
+            data_operator: None,
             lhs_inbox: Vec::new(),
             rhs_inbox: Vec::new(),
             outbox: Vec::new(),
@@ -256,6 +254,20 @@ impl Stream for CandleDataStream {
             }
         }
 
+        // Build the data operator
+        if self.data_operator.is_none() {
+            let config = self.config.as_ref().unwrap().clone();
+            self.data_operator.replace(config.which.build(
+                &config.lhs_pk,
+                &config.lhs_fk,
+                &config.lhs_values,
+                config.rhs_pk.as_deref(),
+                config.rhs_fk.as_deref(),
+                config.rhs_values.as_deref(),
+                config.op_kwargs.as_deref(),
+            ));
+        }
+
         // Collect the LHS queries
         event!(Level::DEBUG, "Collecting OpsProcessor LHS.");
         if self.lhs_inbox.is_empty() {
@@ -284,12 +296,7 @@ impl Stream for CandleDataStream {
                 }
             };
             // Check that the schema is correct
-            if let Err(e) = self.config.as_ref().unwrap().which.check_schema_lhs_input(
-                self.config.as_ref().unwrap().lhs_pk.as_str(),
-                self.config.as_ref().unwrap().lhs_fk.as_str(),
-                self.config.as_ref().unwrap().lhs_values.as_str(),
-                lhs.first().unwrap().schema(),
-            ) {
+            if let Err(e) = self.data_operator.as_ref().unwrap().check_schema_lhs_input(lhs.first().unwrap().schema()) {
                 panic!("Error: {e:?}")
             }
             self.lhs_inbox = lhs;
@@ -329,130 +336,31 @@ impl Stream for CandleDataStream {
                 }
             };
             // Check that the schema is correct
-            if let Err(e) = self.config.as_ref().unwrap().which.check_schema_rhs_input(
-                self.config
-                    .as_ref()
-                    .unwrap()
-                    .rhs_pk
-                    .as_ref()
-                    .unwrap()
-                    .as_str(),
-                self.config
-                    .as_ref()
-                    .unwrap()
-                    .rhs_fk
-                    .as_ref()
-                    .unwrap()
-                    .as_str(),
-                self.config
-                    .as_ref()
-                    .unwrap()
-                    .rhs_values
-                    .as_ref()
-                    .unwrap()
-                    .as_str(),
-                rhs.first().unwrap().schema(),
-            ) {
+            if let Err(e) = self.data_operator.as_ref().unwrap().check_schema_rhs_input(rhs.first().unwrap().schema()) {
                 panic!("Error: {e:?}")
             }
             self.rhs_inbox = rhs;
         }
 
-        // Attempt to parse the op_kwargs
-        let ops_kwargs_default =
-            "{\"chunk_size\": 512, \"chunk_overlap\": 64, \"asc\": false}".to_string();
-        let ops_kwargs_str = self
-            .config
-            .as_ref()
-            .unwrap()
-            .op_kwargs
-            .as_ref()
-            .unwrap_or(&ops_kwargs_default)
-            .to_owned();
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str.as_str())
-            .unwrap_or(serde_json::from_str(ops_kwargs_default.as_str()).unwrap());
-
-        // Compute the ops function
+        // Compute the data operator
         event!(
             Level::DEBUG,
             "Executing Ops {}.",
             self.config.as_ref().unwrap().which.get_name()
         );
         self.init_tensor_service()?;
-        let batch = match self.config.as_ref().unwrap().which {
-            WhichCandleOperator::RelativeSimilarityScores => relative_similarity_scores(
-                &self.lhs_inbox,
-                &self.rhs_inbox,
-                &self.config.as_ref().unwrap().lhs_pk,
-                &self.config.as_ref().unwrap().lhs_values,
-                self.config
-                    .as_ref()
-                    .unwrap()
-                    .rhs_pk
-                    .as_ref()
-                    .unwrap()
-                    .as_str(),
-                self.config
-                    .as_ref()
-                    .unwrap()
-                    .rhs_values
-                    .as_ref()
-                    .unwrap()
-                    .as_str(),
-                self.runtime_env
-                    .try_lock()
-                    .unwrap()
-                    .tensor_service
-                    .as_ref()
-                    .unwrap()
-                    .get_device(),
-            )?,
-            WhichCandleOperator::SortScoresAndIndices => sort_scores_and_indices(
-                &self.lhs_inbox,
-                ops_kwargs.get("asc").unwrap().as_bool().unwrap(),
-                self.runtime_env
-                    .try_lock()
-                    .unwrap()
-                    .tensor_service
-                    .as_ref()
-                    .unwrap()
-                    .get_device(),
-            )?,
-            WhichCandleOperator::HumanInTheLoop => self.lhs_inbox.first().unwrap().to_owned(),
-            WhichCandleOperator::ChunkDocuments => chunk_documents(
-                &self.lhs_inbox,
-                &self.config.as_ref().unwrap().lhs_pk,
-                &self.config.as_ref().unwrap().lhs_values,
-                ops_kwargs.get("chunk_size").unwrap().as_u64().unwrap() as usize,
-                ops_kwargs.get("chunk_overlap").unwrap().as_u64().unwrap() as usize,
-                self.runtime_env
-                    .try_lock()
-                    .unwrap()
-                    .tensor_service
-                    .as_ref()
-                    .unwrap()
-                    .get_device(),
-            )?,
-            WhichCandleOperator::JoinInner => join_inner(
-                &self.lhs_inbox,
-                &self.config.as_ref().unwrap().lhs_fk,
-                &self.rhs_inbox,
-                self.config
-                    .as_ref()
-                    .unwrap()
-                    .rhs_fk
-                    .as_ref()
-                    .unwrap()
-                    .as_str(),
-                self.runtime_env
-                    .try_lock()
-                    .unwrap()
-                    .tensor_service
-                    .as_ref()
-                    .unwrap()
-                    .get_device(),
-            )?,
-        };
+        let batch = self.data_operator.as_ref().unwrap().forward(
+            &self.lhs_inbox, 
+            Some(&self.rhs_inbox),
+            self.runtime_env
+                .try_lock()
+                .unwrap()
+                .tensor_service
+                .as_ref()
+                .unwrap()
+                .get_device(),
+        )?;
+
         // DM: need to update this with the other config options for streaming
         self.rhs_inbox.clear();
         if self.config.as_ref().unwrap().rhs_name.is_none() {
@@ -475,16 +383,8 @@ impl Stream for CandleDataStream {
 
 impl RecordBatchStream for CandleDataStream {
     fn schema(&self) -> SchemaRef {
-        match self.config.as_ref() {
-            Some(config) => config
-                .which
-                .get_schema_output(
-                    config.lhs_pk.as_str(),
-                    config.lhs_fk.as_str(),
-                    config.lhs_values.as_str(),
-                    config.rhs_pk.as_ref().map_or("", |v| v),
-                    config.rhs_fk.as_ref().map_or("", |v| v),
-                    config.rhs_values.as_ref().map_or("", |v| v),
+        match self.data_operator.as_ref() {
+            Some(data_operator) => data_operator.get_schema_output(
                     None,
                     None,
                 )
