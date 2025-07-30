@@ -1,10 +1,11 @@
 use arrow::{array::RecordBatch, datatypes::{Field, SchemaRef}};
 use anyhow::Result;
 use candle_core::Device;
+use phymes_core::session::common_traits::MappableTrait;
 use std::fmt::Debug;
 
 /// Data operators and other tools that utilize tensor services
-pub trait DataOperatorTrait: Send + Sync + Debug {
+pub trait DataOperatorTrait: MappableTrait + Send + Sync + Debug {
     /// Short name for the DataOperator, such as 'AddRows'.
     /// Like [`get_name`](DataOperator::get_name) but can be called without an instance.
     fn get_static_name() -> &'static str
@@ -19,75 +20,92 @@ pub trait DataOperatorTrait: Send + Sync + Debug {
         }
     }
 
-    /// The user defined name of the DataOperator
-    fn get_name() -> String where Self: Sized {
-        Self::get_static_name().to_string()
-    }
-
     /// Create a new instance of the data operator
     /// with the given keyword arguments.
     /// 
     /// # Arguments
     /// * `kwargs` - Optional JSON string with keyword arguments
-    fn new(
-        lhs_pk: &str,
-        lhs_fk: &str,
-        lhs_values: &str,
-        rhs_pk: Option<&str>,
-        rhs_fk: Option<&str>,
-        rhs_values: Option<&str>,
-        kwargs: Option<&str>
-    ) -> Self where Self: Sized;
+    fn new(kwargs: Option<&str>) -> Self where Self: Sized;
 
     /// Run the data operator in the backward direction
     // fn backward(&self, data: &[RecordBatch]) -> Result<(RecordBatch, Option<RecordBatch>)>;
     /// Run the data operator in the forward direction
     #[allow(clippy::too_many_arguments)]
-    fn forward(&self,
-        lhs_args: &[RecordBatch],
+    fn forward(&self, 
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_value: &str,
+        lhs_args: &[RecordBatch], 
+        rhs_pk: Option<&str>,
+        rhs_fk: Option<&str>,
+        rhs_value: Option<&str>,
         rhs_args: Option<&[RecordBatch]>,
         device: &Device
     ) -> Result<RecordBatch>;
 
     /// Get the mandatory fields that are expected to be found in the LHS input schema
-    fn get_schema_lhs_input(&self,
+    fn get_schema_lhs_input(
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_value: &str,
         list_size: Option<usize>,
         other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef>;    
+    ) -> Option<SchemaRef> where Self: Sized;    
 
     /// Get the mandatory fields that are expected to be found in the RHS input schema
-    fn get_schema_rhs_input(&self,
+    fn get_schema_rhs_input(
+        rhs_pk: &str,
+        rhs_fk: &str,
+        rhs_values: &str,
         list_size: Option<usize>,
         other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef>;
+    ) -> Option<SchemaRef> where Self: Sized;
 
     /// Get the mandatory fields that are expected to be found in the output schema
     #[allow(unused_variables, clippy::too_many_arguments)]
-    fn get_schema_output(&self,
+    fn get_schema_output(
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_value: &str,
+        rhs_pk: &str,
+        rhs_fk: &str,
+        rhs_values: &str,
         list_size: Option<usize>,
         other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef>;
+    ) -> Option<SchemaRef> where Self: Sized;
 
     /// Check the expected mandatory fields for the LHS input
     #[allow(unused_variables)]
-    fn check_schema_lhs_input(&self,
+    fn check_schema_lhs_input(
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_value: &str,
         other: SchemaRef,
-    ) -> Result<Option<bool>>;    
+    ) -> Result<Option<bool>> where Self: Sized;    
 
     /// Check the expected mandatory fields for the RHS input
     #[allow(unused_variables)]
-    fn check_schema_rhs_input(&self,
+    fn check_schema_rhs_input(
+        rhs_pk: &str,
+        rhs_fk: &str,
+        rhs_values: &str,
         other: SchemaRef,
-    ) -> Result<Option<bool>>;    
+    ) -> Result<Option<bool>> where Self: Sized;    
 
     /// Check the expected mandatory fields for the output
     #[allow(unused_variables, clippy::too_many_arguments)]
-    fn check_schema_output(&self,
+    fn check_schema_output(
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_value: &str,
+        rhs_pk: &str,
+        rhs_fk: &str,
+        rhs_values: &str,
         other: SchemaRef,
-    ) -> Result<Option<bool>>;    
+    ) -> Result<Option<bool>> where Self: Sized;    
 
     /// The description to use for the operation
-    fn get_description() -> String where Self: Sized;    
+    fn get_description() -> &str where Self: Sized;    
 
     /// The description to use for the operation
     fn get_json_tool_schema() -> String where Self: Sized;

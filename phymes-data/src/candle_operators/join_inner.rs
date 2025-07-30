@@ -7,7 +7,6 @@ use arrow::{
 use anyhow::{anyhow, Result};
 use candle_core::Device;
 use phymes_ai::openai_asset::{chat_completion, types};
-use phymes_core::session::common_traits::MappableTrait;
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -15,139 +14,113 @@ use crate::candle_operators::data_operator::DataOperatorTrait;
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
 #[derive(Debug)]
-pub struct JoinInner;
-
-impl MappableTrait for JoinInner {
-    fn get_name(&self) -> &str {
-        "join-inner"
-    }
+pub struct JoinInner {
+    lhs_pk: String,
+    lhs_fk: String,
+    rhs_pk: String,
+    rhs_fk: String,
 }
 
 impl DataOperatorTrait for JoinInner {
-    fn new(_kwargs: Option<&str>) -> Self {
-        JoinInner
+    fn get_name() -> String {
+        "join-inner".to_string()
     }
-    fn forward(
-        &self,
-        _lhs_pk: &str,
-        lhs_fk: &str,
-        _lhs_value: &str,
-        lhs_args: &[RecordBatch],
-        rhs_pk: Option<&str>,
-        rhs_fk: Option<&str>,
-        _rhs_value: Option<&str>,
-        rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        if rhs_pk.is_none() || rhs_fk.is_none() {
-            return Err(anyhow!("RHS primary key and foreign key must be provided"));
-        }
-        
-        join_inner(lhs_args, lhs_fk, rhs_args.unwrap(), rhs_fk.unwrap(), device)
-    }
-    fn get_schema_lhs_input(
-        &self,
+    fn new(
         lhs_pk: &str,
         lhs_fk: &str,
         _lhs_value: &str,
+        rhs_pk: Option<&str>,
+        rhs_fk: Option<&str>,
+        _rhs_value: Option<&str>,
+        _kwargs: Option<&str>
+    ) -> Self {
+        JoinInner {
+            lhs_pk: lhs_pk.to_string(),
+            lhs_fk: lhs_fk.to_string(),
+            rhs_pk: rhs_pk.unwrap_or("rhs_pk").to_string(),
+            rhs_fk: rhs_fk.unwrap_or("rhs_fk").to_string(),
+        }
+    }
+    fn forward(&self,
+        lhs_args: &[RecordBatch],
+        rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {        
+        join_inner(&self.lhs_fk, lhs_args, &self.rhs_fk, rhs_args.unwrap(), device)
+    }
+    fn get_schema_lhs_input(&self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {        
-        let lhs_pk = Field::new(lhs_pk, DataType::Utf8, false);
-        let lhs_fk = Field::new(lhs_fk, DataType::Utf8, false);
+        let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
+        let lhs_fk = Field::new(self.lhs_fk.clone(), DataType::Utf8, false);
         let mut fields = vec![lhs_pk, lhs_fk];
         if let Some(other) = other {
             fields.extend(other);
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_rhs_input(
-        &self,
-        rhs_pk: &str,
-        rhs_fk: &str,
-        _rhs_values: &str,
+    fn get_schema_rhs_input(&self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {        
-        let rhs_pk = Field::new(rhs_pk, DataType::Utf8, false);
-        let rhs_fk = Field::new(rhs_fk, DataType::Utf8, false);
+        let rhs_pk = Field::new(self.rhs_pk.clone(), DataType::Utf8, false);
+        let rhs_fk = Field::new(self.rhs_fk.clone(), DataType::Utf8, false);
         let mut fields = vec![rhs_pk, rhs_fk];
         if let Some(other) = other {
             fields.extend(other);
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_output(
-        &self,
-        _lhs_pk: &str,
-        lhs_fk: &str,
-        _lhs_value: &str,
-        _rhs_pk: &str,
-        rhs_fk: &str,
-        _rhs_values: &str,
+    fn get_schema_output(&self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {
-        let lhs_fk = Field::new(lhs_fk, DataType::Utf8, false);
-        let rhs_fk = Field::new(rhs_fk, DataType::Utf8, false);
+        let lhs_fk = Field::new(self.lhs_fk.clone(), DataType::Utf8, false);
+        let rhs_fk = Field::new(self.rhs_fk.clone(), DataType::Utf8, false);
         let mut fields = vec![lhs_fk, rhs_fk];
         if let Some(other) = other {
             fields.extend(other);
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn check_schema_lhs_input(
-        &self,
-        _lhs_pk: &str,
-        lhs_fk: &str,
-        _lhs_value: &str,
+    fn check_schema_lhs_input(&self,
         other: SchemaRef,
     ) -> Result<Option<bool>> {
-        if other.column_with_name(lhs_fk).is_none() {
+        if other.column_with_name(&self.lhs_fk).is_none() {
             return Err(anyhow!(
                 "LHS input is missing column for lhs_fk {}.",
-                lhs_fk
+                self.lhs_fk
             ));
         }
         Ok(Some(true))
     }
-    fn check_schema_rhs_input(
-        &self,
-        _rhs_pk: &str,
-        rhs_fk: &str,
-        _rhs_values: &str,
+    fn check_schema_rhs_input(&self,
         other: SchemaRef,
     ) -> Result<Option<bool>> {
-        if other.column_with_name(rhs_fk).is_none() {
+        if other.column_with_name(&self.rhs_fk).is_none() {
             return Err(anyhow!(
                 "RHS input is missing column for rhs_fk {}.",
-                rhs_fk
+                self.rhs_fk
             ));
         }
         Ok(Some(true))
     }
-    fn check_schema_output(
-        &self,
-        _lhs_pk: &str,
-        lhs_fk: &str,
-        _lhs_value: &str,
-        _rhs_pk: &str,
-        rhs_fk: &str,
-        _rhs_values: &str,
+    fn check_schema_output(&self,
         other: SchemaRef,
     ) -> Result<Option<bool>> {
-        if other.column_with_name(lhs_fk).is_none() {
+        if other.column_with_name(&self.lhs_fk).is_none() {
             return Err(anyhow!("LHS output is missing column for lhs_fk."));
         }
-        if other.column_with_name(rhs_fk).is_none() {
+        if other.column_with_name(&self.rhs_fk).is_none() {
             return Err(anyhow!("RHS output is missing column for rhs_fk."));
         }
         Ok(Some(true))
     }
-    fn get_description(&self) -> &str {
-        "Join two tables on their foreign keys"
+    fn get_description() -> String {
+        "Join two tables on their foreign keys".to_string()
     }
-    fn get_json_tool_schema(&self) -> String {
+    fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -219,8 +192,8 @@ impl DataOperatorTrait for JoinInner {
         //     }),
         // );
         let function = types::Function {
-            name: self.get_name().to_string(),
-            description: Some(self.get_description().to_string()),
+            name: Self::get_name(),
+            description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,
                 properties: Some(properties),
@@ -252,16 +225,16 @@ Inner join along the LHS foreign key and RHS PK of two [RecordBatch]
 * `device` - The compute device
 
 */
-#[instrument(skip(lhs, rhs, lhs_fk, rhs_fk, _device))]
+#[instrument(skip(lhs_fk, lhs_args, rhs_fk, rhs_args, _device))]
 pub fn join_inner(
-    lhs: &[RecordBatch],
     lhs_fk: &str,
-    rhs: &[RecordBatch],
+    lhs_args: &[RecordBatch],
     rhs_fk: &str,
+    rhs_args: &[RecordBatch],
     _device: &Device,
 ) -> Result<RecordBatch> {
     // Extract the foreign keys
-    let lhs_fk_vec = lhs
+    let lhs_fk_vec = lhs_args
         .iter()
         .flat_map(|batch| {
             batch
@@ -275,7 +248,7 @@ pub fn join_inner(
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-    let rhs_fk_vec = rhs
+    let rhs_fk_vec = rhs_args
         .iter()
         .flat_map(|batch| {
             batch
@@ -314,7 +287,7 @@ pub fn join_inner(
     batch_vec.push((rhs_fk, array_ref));
 
     // ... starting with the lhs
-    let columns: Vec<String> = lhs
+    let columns: Vec<String> = lhs_args
         .first()
         .unwrap()
         .schema()
@@ -329,7 +302,7 @@ pub fn join_inner(
         })
         .collect();
     for column in columns.iter() {
-        let array_vec = lhs
+        let array_vec = lhs_args
             .iter()
             .flat_map(|batch| {
                 batch
@@ -350,7 +323,7 @@ pub fn join_inner(
         let array_ref: ArrayRef = Arc::new(StringArray::from(array_vec));
         batch_vec.push((column, array_ref));
     }
-    let columns: Vec<String> = lhs
+    let columns: Vec<String> = lhs_args
         .first()
         .unwrap()
         .schema()
@@ -365,7 +338,7 @@ pub fn join_inner(
         })
         .collect();
     for column in columns.iter() {
-        let array_vec = lhs
+        let array_vec = lhs_args
             .iter()
             .flat_map(|batch| {
                 batch
@@ -386,7 +359,7 @@ pub fn join_inner(
         let array_ref: ArrayRef = Arc::new(UInt32Array::from(array_vec));
         batch_vec.push((column, array_ref));
     }
-    let columns: Vec<String> = lhs
+    let columns: Vec<String> = lhs_args
         .first()
         .unwrap()
         .schema()
@@ -401,7 +374,7 @@ pub fn join_inner(
         })
         .collect();
     for column in columns.iter() {
-        let array_vec = lhs
+        let array_vec = lhs_args
             .iter()
             .flat_map(|batch| {
                 batch
@@ -424,7 +397,7 @@ pub fn join_inner(
     }
 
     // ... and then the rhs
-    let columns: Vec<String> = rhs
+    let columns: Vec<String> = rhs_args
         .first()
         .unwrap()
         .schema()
@@ -439,7 +412,7 @@ pub fn join_inner(
         })
         .collect();
     for column in columns.iter() {
-        let array_vec = rhs
+        let array_vec = rhs_args
             .iter()
             .flat_map(|batch| {
                 batch
@@ -460,7 +433,7 @@ pub fn join_inner(
         let array_ref: ArrayRef = Arc::new(StringArray::from(array_vec));
         batch_vec.push((column, array_ref));
     }
-    let columns: Vec<String> = rhs
+    let columns: Vec<String> = rhs_args
         .first()
         .unwrap()
         .schema()
@@ -475,7 +448,7 @@ pub fn join_inner(
         })
         .collect();
     for column in columns.iter() {
-        let array_vec = rhs
+        let array_vec = rhs_args
             .iter()
             .flat_map(|batch| {
                 batch
@@ -496,7 +469,7 @@ pub fn join_inner(
         let array_ref: ArrayRef = Arc::new(UInt32Array::from(array_vec));
         batch_vec.push((column, array_ref));
     }
-    let columns: Vec<String> = rhs
+    let columns: Vec<String> = rhs_args
         .first()
         .unwrap()
         .schema()
@@ -511,7 +484,7 @@ pub fn join_inner(
         })
         .collect();
     for column in columns.iter() {
-        let array_vec = rhs
+        let array_vec = rhs_args
             .iter()
             .flat_map(|batch| {
                 batch
@@ -580,10 +553,10 @@ mod tests {
 
         // Chunk the documents
         let result = join_inner(
-            &[lhs_batch_1, lhs_batch_2],
             "lhs_pk",
-            &[rhs_batch_1],
+            &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",
+            &[rhs_batch_1],
             &Device::Cpu,
         )?;
 

@@ -7,7 +7,6 @@ use arrow::{
 use anyhow::{anyhow, Result};
 use candle_core::{Device, Tensor};
 use phymes_ai::openai_asset::{chat_completion, types};
-use phymes_core::session::common_traits::MappableTrait;
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -16,77 +15,63 @@ use crate::candle_operators::data_operator::DataOperatorTrait;
 /// Sort the [RecordBatch] according to the `score` column and then apply the sorting order to the rest of the record batch columns
 #[derive(Debug)]
 pub struct SortScoresAndIndices {
+    lhs_values: String,
     asc: bool,
 }
 
-impl MappableTrait for SortScoresAndIndices {
-    fn get_name(&self) -> &str {
-        "sort-scores-and-indices"
-    }
-}
-
 impl DataOperatorTrait for SortScoresAndIndices {
-    fn new(kwargs: Option<&str>) -> Self {
+    fn get_name() -> String {
+        "sort-scores-and-indices".to_string()
+    }
+    fn new(
+        _lhs_pk: &str,
+        _lhs_fk: &str,
+        lhs_value: &str,
+        _rhs_pk: Option<&str>,
+        _rhs_fk: Option<&str>,
+        _rhs_value: Option<&str>,
+        kwargs: Option<&str>
+    ) -> Self {
         // Attempt to parse the op_kwargs
         let ops_kwargs_default = "{\"asc\": false}";
         let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
         let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
             .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
         SortScoresAndIndices {
+            lhs_values: lhs_value.to_string(),
             asc: ops_kwargs
                 .get("asc")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false)
         }
     }
-    fn forward(&self, 
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_value: &str,
-        lhs_args: &[RecordBatch], 
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_value: Option<&str>,
+    fn forward(&self,
+        lhs_args: &[RecordBatch],
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device
     ) -> Result<RecordBatch> {
-        assert_eq!(lhs_value, "score", "The score column must be named 'score'");
+        assert_eq!(self.lhs_values, "score", "The score column must be named 'score'");
         sort_scores_and_indices(lhs_args, self.asc, device)
     }
-    fn get_schema_lhs_input(
-        &self,
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_value: &str,
+    fn get_schema_lhs_input(&self,
         _list_size: Option<usize>,
         other: Option<Vec<arrow::datatypes::Field>>,
     ) -> Option<arrow::datatypes::SchemaRef> {        
-        assert_eq!(lhs_value, "score");
-        let lhs_value = Field::new(lhs_value, DataType::Float32, false);
+        assert_eq!(self.lhs_values, "score");
+        let lhs_value = Field::new(self.lhs_values.clone(), DataType::Float32, false);
         let mut fields = vec![lhs_value];
         if let Some(other) = other {
             fields.extend(other);
         }
         Some(Arc::new(Schema::new(fields)))        
     }
-    fn get_schema_rhs_input(
-        &self,
-        _rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn get_schema_rhs_input(&self,
         _list_size: Option<usize>,
         _other: Option<Vec<arrow::datatypes::Field>>,
     ) -> Option<arrow::datatypes::SchemaRef> {
         None
     }
-    fn get_schema_output(
-        &self,
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_value: &str,
-        _rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn get_schema_output(&self,
         _list_size: Option<usize>,
         other: Option<Vec<arrow::datatypes::Field>>,
     ) -> Option<arrow::datatypes::SchemaRef> { 
@@ -97,11 +82,7 @@ impl DataOperatorTrait for SortScoresAndIndices {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn check_schema_lhs_input(
-        &self,
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_value: &str,
+    fn check_schema_lhs_input(&self,
         other: arrow::datatypes::SchemaRef,
     ) -> Result<Option<bool>> {
         if other.column_with_name("score").is_none() {
@@ -109,23 +90,12 @@ impl DataOperatorTrait for SortScoresAndIndices {
         }
         Ok(Some(true))
     }
-    fn check_schema_rhs_input(
-        &self,
-        _rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn check_schema_rhs_input(&self,
         _other: arrow::datatypes::SchemaRef,
     ) -> Result<Option<bool>> {
         Ok(None)
     }
-    fn check_schema_output(
-        &self,
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_value: &str,
-        _rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn check_schema_output(&self,
         other: arrow::datatypes::SchemaRef,
     ) -> Result<Option<bool>> {        
         if other.column_with_name("score").is_none() {
@@ -133,10 +103,10 @@ impl DataOperatorTrait for SortScoresAndIndices {
         }
         Ok(Some(true))
     }
-    fn get_description(&self) -> &str {
-        "Sort the the list of computed scores in ascending order"
+    fn get_description() -> String {
+        "Sort the the list of computed scores in ascending order".to_string()
     }
-    fn get_json_tool_schema(&self) -> String {
+    fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -208,8 +178,8 @@ impl DataOperatorTrait for SortScoresAndIndices {
         //     }),
         // );
         let function = types::Function {
-            name: self.get_name().to_string(),
-            description: Some(self.get_description().to_string()),
+            name: Self::get_name(),
+            description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,
                 properties: Some(properties),

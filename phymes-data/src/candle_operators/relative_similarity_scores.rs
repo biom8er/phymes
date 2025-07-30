@@ -4,7 +4,6 @@ use arrow::{
 
 use anyhow::{anyhow, Result};
 use candle_core::{Device, Tensor};
-use phymes_core::session::common_traits::MappableTrait;
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 use super::data_operator::DataOperatorTrait;
@@ -12,80 +11,98 @@ use phymes_ai::openai_asset::{chat_completion, types};
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
 #[derive(Debug)]
-pub struct RelativeSimilarityScores;
-
-impl MappableTrait for RelativeSimilarityScores {
-    fn get_name(&self) -> &str {
-        "relative_similarity_scores"
-    }
+pub struct RelativeSimilarityScores {
+    lhs_pk: String,
+    lhs_fk: String,
+    lhs_values: String,
+    rhs_fk: String,
+    rhs_pk: String,
+    rhs_values: String,
 }
 
 impl DataOperatorTrait for RelativeSimilarityScores {
-    fn new(_kwargs: Option<&str>) -> Self {
-        RelativeSimilarityScores
+    fn get_name() -> String {
+        "relative_similarity_scores".to_string()
     }
-    fn get_description(&self) -> &str {
-        "Compute the relative similarity scores between two record batches"
-    }
-    fn get_schema_lhs_input(
-        &self,
+    fn new( 
         lhs_pk: &str,
         lhs_fk: &str,
-        lhs_value: &str,
+        lhs_values: &str,
+        rhs_pk: Option<&str>,
+        rhs_fk: Option<&str>,
+        rhs_values: Option<&str>,
+        _kwargs: Option<&str>) -> Self {
+        RelativeSimilarityScores {
+            lhs_pk: lhs_pk.to_string(),
+            lhs_fk: lhs_fk.to_string(),
+            lhs_values: lhs_values.to_string(),
+            rhs_pk: rhs_pk.unwrap_or("rhs_pk").to_string(),
+            rhs_fk: rhs_fk.unwrap_or("rhs_fk").to_string(),
+            rhs_values: rhs_values.unwrap_or("embedding").to_string(),
+        }
+    }
+    fn get_description() -> String {
+        "Compute the relative similarity scores between two record batches".to_string()
+    }
+    fn forward(&self,
+        lhs_args: &[RecordBatch],
+        rhs_args: Option<&[RecordBatch]>,
+        device: &Device
+    ) -> Result<RecordBatch> {
+        relative_similarity_scores(
+            &self.lhs_pk,
+            &self.lhs_values,
+            lhs_args,
+            &self.rhs_pk,
+            &self.rhs_values,
+            rhs_args.unwrap_or(&[]),
+            device,
+        )
+    }
+    fn get_schema_lhs_input(&self,
         list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {        
-        let lhs_pk = Field::new(lhs_pk, DataType::Utf8, false);
-        let lhs_fk = Field::new(lhs_fk, DataType::Utf8, false);
+        let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
+        let lhs_fk = Field::new(self.lhs_fk.clone(), DataType::Utf8, false);
         let embed_size = list_size.unwrap_or(2);
         let list_data_type = DataType::FixedSizeList(
             Arc::new(Field::new_list_field(DataType::Float32, false)),
             embed_size.try_into().unwrap(),
         );
-        assert_eq!(lhs_value, "embedding");
-        let lhs_value = Field::new(lhs_value, list_data_type, false);
+        assert_eq!(self.lhs_values, "embedding");
+        let lhs_value = Field::new(self.lhs_values.clone(), list_data_type, false);
         let mut fields = vec![lhs_pk, lhs_fk, lhs_value];
         if let Some(other) = other {
             fields.extend(other);
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_rhs_input(
-        &self,
-        rhs_pk: &str,
-        rhs_fk: &str,
-        rhs_values: &str,
+    fn get_schema_rhs_input(&self,
         list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {
-        let rhs_pk = Field::new(rhs_pk, DataType::Utf8, false);
-        let rhs_fk = Field::new(rhs_fk, DataType::Utf8, false);
+        let rhs_pk = Field::new(self.rhs_pk.clone(), DataType::Utf8, false);
+        let rhs_fk = Field::new(self.rhs_fk.clone(), DataType::Utf8, false);
         let embed_size = list_size.unwrap_or(2);
         let list_data_type = DataType::FixedSizeList(
             Arc::new(Field::new_list_field(DataType::Float32, false)),
             embed_size.try_into().unwrap(),
         );
-        assert_eq!(rhs_values, "embedding");
-        let rhs_values = Field::new(rhs_values, list_data_type, false);
+        assert_eq!(self.rhs_values, "embedding");
+        let rhs_values = Field::new(self.rhs_values.clone(), list_data_type, false);
         let mut fields = vec![rhs_pk, rhs_fk, rhs_values];
         if let Some(other) = other {
             fields.extend(other);
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_output(
-        &self,
-        lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_value: &str,
-        rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn get_schema_output(&self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {        
-        let lhs_pk = Field::new(lhs_pk, DataType::Utf8, false);
-        let rhs_pk = Field::new(rhs_pk, DataType::Utf8, false);
+        let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
+        let rhs_pk = Field::new(self.rhs_pk.clone(), DataType::Utf8, false);
         let score = Field::new("score", DataType::Float32, false);
         let mut fields = vec![lhs_pk, rhs_pk, score];
         if let Some(other) = other {
@@ -93,34 +110,26 @@ impl DataOperatorTrait for RelativeSimilarityScores {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn check_schema_lhs_input(
-        &self,
-        lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_value: &str,
+    fn check_schema_lhs_input(&self,
         other: SchemaRef,
     ) -> Result<Option<bool>> {
-        if other.column_with_name(lhs_pk).is_none() {
+        if other.column_with_name(&self.lhs_pk).is_none() {
             return Err(anyhow!(
                 "LHS input is missing column for lhs_pk {}.",
-                lhs_pk
+                self.lhs_pk
             ));
         }
         if other.column_with_name("embedding").is_none() {
             return Err(anyhow!("LHS input is missing column for embedding."));
         }
         Ok(Some(true))}
-    fn check_schema_rhs_input(
-        &self,
-        rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn check_schema_rhs_input(&self,
         other: SchemaRef,
     ) -> Result<Option<bool>> {
-        if other.column_with_name(rhs_pk).is_none() {
+        if other.column_with_name(&self.rhs_pk).is_none() {
             return Err(anyhow!(
                 "RHS input is missing column for rhs_pk {}.",
-                rhs_pk
+                self.rhs_pk
             ));
         }
         if other.column_with_name("embedding").is_none() {
@@ -128,20 +137,13 @@ impl DataOperatorTrait for RelativeSimilarityScores {
         }
         Ok(Some(true))
     }
-    fn check_schema_output(
-        &self,
-        lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_value: &str,
-        rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn check_schema_output(&self,
         other: SchemaRef,
     ) -> Result<Option<bool>> {        
-        if other.column_with_name(lhs_pk).is_none() {
+        if other.column_with_name(&self.lhs_pk).is_none() {
             return Err(anyhow!("LHS output is missing column for lhs_pk."));
         }
-        if other.column_with_name(rhs_pk).is_none() {
+        if other.column_with_name(&self.rhs_pk).is_none() {
             return Err(anyhow!("RHS output is missing column for rhs_pk."));
         }
         if other.column_with_name("embedding").is_none() {
@@ -149,7 +151,7 @@ impl DataOperatorTrait for RelativeSimilarityScores {
         }
         Ok(Some(true))
     }
-    fn get_json_tool_schema(&self) -> String {        
+    fn get_json_tool_schema() -> String {        
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -221,8 +223,8 @@ impl DataOperatorTrait for RelativeSimilarityScores {
         //     }),
         // );
         let function = types::Function {
-            name: self.get_name().to_string(),
-            description: Some(self.get_description().to_string()),
+            name: Self::get_name(),
+            description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,
                 properties: Some(properties),
@@ -239,26 +241,6 @@ impl DataOperatorTrait for RelativeSimilarityScores {
         };
         serde_json::to_string(&tool).unwrap()
     }
-    fn forward(&self, lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_value: &str,
-        lhs_args: &[RecordBatch], 
-        rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        rhs_value: Option<&str>,
-        rhs_args: Option<&[RecordBatch]>,
-        device: &Device
-    ) -> Result<RecordBatch> {
-        relative_similarity_scores(
-            lhs_pk,
-            lhs_value,
-            lhs_args,
-            rhs_pk.unwrap_or("rhs_pk"),
-            rhs_value.unwrap_or("embedding"),
-            rhs_args.unwrap_or(&[]),
-            device,
-        )
-    } 
 }
 
 /**

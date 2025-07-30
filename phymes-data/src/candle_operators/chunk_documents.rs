@@ -7,7 +7,6 @@ use arrow::{
 use anyhow::{anyhow, Result};
 use candle_core::Device;
 use phymes_ai::openai_asset::{chat_completion, types};
-use phymes_core::session::common_traits::MappableTrait;
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -16,24 +15,33 @@ use crate::candle_operators::data_operator::DataOperatorTrait;
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug)]
 pub struct ChunkDocuments {
+    lhs_pk: String,
+    lhs_values: String,
     chunk_size: usize,
     chunk_overlap: usize,
 }
 
-impl MappableTrait for ChunkDocuments {
-    fn get_name(&self) -> &str {
-        "chunk-documents"
-    }
-}
-
 impl DataOperatorTrait for ChunkDocuments {
-    fn new(kwargs: Option<&str>) -> Self {
+    fn get_name() -> String {
+        "chunk-documents".to_string()
+    }
+    fn new(
+        lhs_pk: &str,
+        _lhs_fk: &str,
+        lhs_values: &str,
+        _rhs_pk: Option<&str>,
+        _rhs_fk: Option<&str>,
+        _rhs_values: Option<&str>,
+        kwargs: Option<&str>
+    ) -> Self {
         // Attempt to parse the op_kwargs
         let ops_kwargs_default = "{\"chunk_size\": 512, \"chunk_overlap\": 64}";
         let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
         let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
             .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
         ChunkDocuments {
+            lhs_pk: lhs_pk.to_string(),
+            lhs_values: lhs_values.to_string(),
             chunk_size: ops_kwargs
                 .get("chunk_size")
                 .and_then(|v| v.as_u64())
@@ -44,29 +52,18 @@ impl DataOperatorTrait for ChunkDocuments {
                 .unwrap_or(64) as usize,
         }
     }
-    fn forward(
-        &self,
-        lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_values: &str,
+    fn forward(&self,
         lhs_args: &[RecordBatch],
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_value: Option<&str>,
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        chunk_documents(lhs_pk, lhs_values, lhs_args, self.chunk_size, self.chunk_overlap, device)
+        chunk_documents(&self.lhs_pk, &self.lhs_values, lhs_args, self.chunk_size, self.chunk_overlap, device)
     }
-    fn get_schema_lhs_input(
-        &self,
-        lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_value: &str,
+    fn get_schema_lhs_input(&self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {        
-        let lhs_pk = Field::new(lhs_pk, DataType::Utf8, false);
+        let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
         let text = Field::new("text", DataType::Utf8, false);
         let mut fields = vec![lhs_pk, text];
         if let Some(other) = other {
@@ -74,28 +71,17 @@ impl DataOperatorTrait for ChunkDocuments {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn get_schema_rhs_input(
-        &self,
-        _rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn get_schema_rhs_input(&self,
         _list_size: Option<usize>,
         _other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {
         None
     }
-    fn get_schema_output(
-        &self,
-        lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_value: &str,
-        _rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn get_schema_output(&self,
         _list_size: Option<usize>,
         other: Option<Vec<Field>>,
     ) -> Option<SchemaRef> {
-                let lhs_pk = Field::new(lhs_pk, DataType::Utf8, false);
+        let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
         let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
         let text = Field::new("text", DataType::Float32, false);
         let mut fields = vec![lhs_pk, chunk_id, text];
@@ -104,17 +90,13 @@ impl DataOperatorTrait for ChunkDocuments {
         }
         Some(Arc::new(Schema::new(fields)))
     }
-    fn check_schema_lhs_input(
-        &self,
-        lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_value: &str,
+    fn check_schema_lhs_input(&self,
         other: SchemaRef,
     ) -> Result<Option<bool>> {        
-        if other.column_with_name(lhs_pk).is_none() {
+        if other.column_with_name(&self.lhs_pk).is_none() {
             return Err(anyhow!(
                 "LHS input is missing column for lhs_pk {}.",
-                lhs_pk
+                self.lhs_pk
             ));
         }
         if other.column_with_name("text").is_none() {
@@ -122,26 +104,15 @@ impl DataOperatorTrait for ChunkDocuments {
         }
         Ok(Some(true))
     }
-    fn check_schema_rhs_input(
-        &self,
-        _rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn check_schema_rhs_input(&self,
         _other: SchemaRef,
     ) -> Result<Option<bool>> {
         Ok(None)
     }
-    fn check_schema_output(
-        &self,
-        lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_value: &str,
-        _rhs_pk: &str,
-        _rhs_fk: &str,
-        _rhs_values: &str,
+    fn check_schema_output(&self,
         other: SchemaRef,
     ) -> Result<Option<bool>> {        
-        if other.column_with_name(lhs_pk).is_none() {
+        if other.column_with_name(&self.lhs_pk).is_none() {
             return Err(anyhow!("LHS output is missing column for lhs_pk."));
         }
         if other.column_with_name("chunk_id").is_none() {
@@ -152,10 +123,10 @@ impl DataOperatorTrait for ChunkDocuments {
         }
         Ok(Some(true))
     }
-    fn get_description(&self) -> &str {
-        "Chunk documents by splitting the document text"
+    fn get_description() -> String {
+        "Chunk documents by splitting the document text".to_string()
     }
-    fn get_json_tool_schema(&self) -> String {        
+    fn get_json_tool_schema() -> String {        
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -227,8 +198,8 @@ impl DataOperatorTrait for ChunkDocuments {
         //     }),
         // );
         let function = types::Function {
-            name: self.get_name().to_string(),
-            description: Some(self.get_description().to_string()),
+            name: Self::get_name(),
+            description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,
                 properties: Some(properties),
