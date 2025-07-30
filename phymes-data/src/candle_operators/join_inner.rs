@@ -1,13 +1,243 @@
 use arrow::{
     array::{ArrayRef, Float32Array, StringArray, UInt32Array},
-    datatypes::DataType,
+    datatypes::{DataType, Field, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use candle_core::Device;
-use std::sync::Arc;
+use phymes_ai::openai_asset::{chat_completion, types};
+use phymes_core::session::common_traits::MappableTrait;
+use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
+
+use crate::candle_operators::data_operator::DataOperatorTrait;
+
+/// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
+#[derive(Debug)]
+pub struct JoinInner;
+
+impl MappableTrait for JoinInner {
+    fn get_name(&self) -> &str {
+        "join-inner"
+    }
+}
+
+impl DataOperatorTrait for JoinInner {
+    fn new(_kwargs: Option<&str>) -> Self {
+        JoinInner
+    }
+    fn forward(
+        &self,
+        _lhs_pk: &str,
+        lhs_fk: &str,
+        _lhs_value: &str,
+        lhs_args: &[RecordBatch],
+        rhs_pk: Option<&str>,
+        rhs_fk: Option<&str>,
+        _rhs_value: Option<&str>,
+        rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        if rhs_pk.is_none() || rhs_fk.is_none() {
+            return Err(anyhow!("RHS primary key and foreign key must be provided"));
+        }
+        
+        join_inner(lhs_args, lhs_fk, rhs_args.unwrap(), rhs_fk.unwrap(), device)
+    }
+    fn get_schema_lhs_input(
+        &self,
+        lhs_pk: &str,
+        lhs_fk: &str,
+        _lhs_value: &str,
+        _list_size: Option<usize>,
+        other: Option<Vec<Field>>,
+    ) -> Option<SchemaRef> {        
+        let lhs_pk = Field::new(lhs_pk, DataType::Utf8, false);
+        let lhs_fk = Field::new(lhs_fk, DataType::Utf8, false);
+        let mut fields = vec![lhs_pk, lhs_fk];
+        if let Some(other) = other {
+            fields.extend(other);
+        }
+        Some(Arc::new(Schema::new(fields)))
+    }
+    fn get_schema_rhs_input(
+        &self,
+        rhs_pk: &str,
+        rhs_fk: &str,
+        _rhs_values: &str,
+        _list_size: Option<usize>,
+        other: Option<Vec<Field>>,
+    ) -> Option<SchemaRef> {        
+        let rhs_pk = Field::new(rhs_pk, DataType::Utf8, false);
+        let rhs_fk = Field::new(rhs_fk, DataType::Utf8, false);
+        let mut fields = vec![rhs_pk, rhs_fk];
+        if let Some(other) = other {
+            fields.extend(other);
+        }
+        Some(Arc::new(Schema::new(fields)))
+    }
+    fn get_schema_output(
+        &self,
+        _lhs_pk: &str,
+        lhs_fk: &str,
+        _lhs_value: &str,
+        _rhs_pk: &str,
+        rhs_fk: &str,
+        _rhs_values: &str,
+        _list_size: Option<usize>,
+        other: Option<Vec<Field>>,
+    ) -> Option<SchemaRef> {
+        let lhs_fk = Field::new(lhs_fk, DataType::Utf8, false);
+        let rhs_fk = Field::new(rhs_fk, DataType::Utf8, false);
+        let mut fields = vec![lhs_fk, rhs_fk];
+        if let Some(other) = other {
+            fields.extend(other);
+        }
+        Some(Arc::new(Schema::new(fields)))
+    }
+    fn check_schema_lhs_input(
+        &self,
+        _lhs_pk: &str,
+        lhs_fk: &str,
+        _lhs_value: &str,
+        other: SchemaRef,
+    ) -> Result<Option<bool>> {
+        if other.column_with_name(lhs_fk).is_none() {
+            return Err(anyhow!(
+                "LHS input is missing column for lhs_fk {}.",
+                lhs_fk
+            ));
+        }
+        Ok(Some(true))
+    }
+    fn check_schema_rhs_input(
+        &self,
+        _rhs_pk: &str,
+        rhs_fk: &str,
+        _rhs_values: &str,
+        other: SchemaRef,
+    ) -> Result<Option<bool>> {
+        if other.column_with_name(rhs_fk).is_none() {
+            return Err(anyhow!(
+                "RHS input is missing column for rhs_fk {}.",
+                rhs_fk
+            ));
+        }
+        Ok(Some(true))
+    }
+    fn check_schema_output(
+        &self,
+        _lhs_pk: &str,
+        lhs_fk: &str,
+        _lhs_value: &str,
+        _rhs_pk: &str,
+        rhs_fk: &str,
+        _rhs_values: &str,
+        other: SchemaRef,
+    ) -> Result<Option<bool>> {
+        if other.column_with_name(lhs_fk).is_none() {
+            return Err(anyhow!("LHS output is missing column for lhs_fk."));
+        }
+        if other.column_with_name(rhs_fk).is_none() {
+            return Err(anyhow!("RHS output is missing column for rhs_fk."));
+        }
+        Ok(Some(true))
+    }
+    fn get_description(&self) -> &str {
+        "Join two tables on their foreign keys"
+    }
+    fn get_json_tool_schema(&self) -> String {
+        let mut properties = HashMap::new();
+        properties.insert(
+            "lhs_name".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some("The name of the left hand side table".to_string()),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_name".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The name of the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        properties.insert(
+            "lhs_pk".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The primary key column identifier for the left hand side table"
+                        .to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_pk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The primary key column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        // properties.insert(
+        //     "lhs_fk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The foriegn key column identifier for the left hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        // properties.insert(
+        //     "rhs_fk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The foriegn key column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        properties.insert(
+            "lhs_values".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The values column identifier for the left hand side table".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_values".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The values column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        let function = types::Function {
+            name: self.get_name().to_string(),
+            description: Some(self.get_description().to_string()),
+            parameters: types::FunctionParameters {
+                schema_type: types::JSONSchemaType::Object,
+                properties: Some(properties),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "lhs_pk".to_string(),
+                    "lhs_values".to_string(),
+                ]),
+            },
+        };
+        let tool = chat_completion::Tool {
+            r#type: chat_completion::ToolType::Function,
+            function,
+        };
+        serde_json::to_string(&tool).unwrap()
+    }
+}
 
 /**
 Inner join along the LHS foreign key and RHS PK of two [RecordBatch]
