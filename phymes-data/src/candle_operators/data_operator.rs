@@ -1,5 +1,6 @@
 use arrow::{array::RecordBatch, datatypes::{Field, SchemaRef}};
 use anyhow::Result;
+use candle_core::Device;
 use phymes_core::session::common_traits::MappableTrait;
 use std::fmt::Debug;
 
@@ -23,7 +24,8 @@ pub trait DataOperatorTrait: MappableTrait + Send + Sync + Debug {
         rhs_pk: Option<&str>,
         rhs_fk: Option<&str>,
         rhs_value: Option<&str>,
-        rhs_args: Option<&[RecordBatch]>
+        rhs_args: Option<&[RecordBatch]>,
+        device: &Device
     ) -> Result<RecordBatch>;
 
     /// Get the mandatory fields that are expected to be found in the LHS input schema

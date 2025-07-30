@@ -1,12 +1,265 @@
 use arrow::{
-    array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray},
-    record_batch::RecordBatch,
+    array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray}, datatypes::{DataType, Field, Schema, SchemaRef}, record_batch::RecordBatch
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use candle_core::{Device, Tensor};
-use std::sync::Arc;
+use phymes_core::session::common_traits::MappableTrait;
+use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
+use super::data_operator::DataOperatorTrait;
+use phymes_ai::openai_asset::{chat_completion, types};
+
+/// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
+#[derive(Debug)]
+pub struct RelativeSimilarityScores;
+
+impl MappableTrait for RelativeSimilarityScores {
+    fn get_name(&self) -> &str {
+        "relative_similarity_scores"
+    }
+}
+
+impl DataOperatorTrait for RelativeSimilarityScores {
+    fn new(_kwargs: Option<&str>) -> Self {
+        RelativeSimilarityScores
+    }
+    fn get_description(&self) -> &str {
+        "Compute the relative similarity scores between two record batches"
+    }
+    fn get_schema_lhs_input(
+        &self,
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_value: &str,
+        list_size: Option<usize>,
+        other: Option<Vec<Field>>,
+    ) -> Option<SchemaRef> {        
+        let lhs_pk = Field::new(lhs_pk, DataType::Utf8, false);
+        let lhs_fk = Field::new(lhs_fk, DataType::Utf8, false);
+        let embed_size = list_size.unwrap_or(2);
+        let list_data_type = DataType::FixedSizeList(
+            Arc::new(Field::new_list_field(DataType::Float32, false)),
+            embed_size.try_into().unwrap(),
+        );
+        assert_eq!(lhs_value, "embedding");
+        let lhs_value = Field::new(lhs_value, list_data_type, false);
+        let mut fields = vec![lhs_pk, lhs_fk, lhs_value];
+        if let Some(other) = other {
+            fields.extend(other);
+        }
+        Some(Arc::new(Schema::new(fields)))
+    }
+    fn get_schema_rhs_input(
+        &self,
+        rhs_pk: &str,
+        rhs_fk: &str,
+        rhs_values: &str,
+        list_size: Option<usize>,
+        other: Option<Vec<Field>>,
+    ) -> Option<SchemaRef> {
+        let rhs_pk = Field::new(rhs_pk, DataType::Utf8, false);
+        let rhs_fk = Field::new(rhs_fk, DataType::Utf8, false);
+        let embed_size = list_size.unwrap_or(2);
+        let list_data_type = DataType::FixedSizeList(
+            Arc::new(Field::new_list_field(DataType::Float32, false)),
+            embed_size.try_into().unwrap(),
+        );
+        assert_eq!(rhs_values, "embedding");
+        let rhs_values = Field::new(rhs_values, list_data_type, false);
+        let mut fields = vec![rhs_pk, rhs_fk, rhs_values];
+        if let Some(other) = other {
+            fields.extend(other);
+        }
+        Some(Arc::new(Schema::new(fields)))
+    }
+    fn get_schema_output(
+        &self,
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_value: &str,
+        rhs_pk: &str,
+        rhs_fk: &str,
+        rhs_values: &str,
+        list_size: Option<usize>,
+        other: Option<Vec<Field>>,
+    ) -> Option<SchemaRef> {        
+        let lhs_pk = Field::new(lhs_pk, DataType::Utf8, false);
+        let rhs_pk = Field::new(rhs_pk, DataType::Utf8, false);
+        let score = Field::new("score", DataType::Float32, false);
+        let mut fields = vec![lhs_pk, rhs_pk, score];
+        if let Some(other) = other {
+            fields.extend(other);
+        }
+        Some(Arc::new(Schema::new(fields)))
+    }
+    fn check_schema_lhs_input(
+        &self,
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_value: &str,
+        other: SchemaRef,
+    ) -> Result<Option<bool>> {
+        if other.column_with_name(lhs_pk).is_none() {
+            return Err(anyhow!(
+                "LHS input is missing column for lhs_pk {}.",
+                lhs_pk
+            ));
+        }
+        if other.column_with_name("embedding").is_none() {
+            return Err(anyhow!("LHS input is missing column for embedding."));
+        }
+        Ok(Some(true))}
+    fn check_schema_rhs_input(
+        &self,
+        rhs_pk: &str,
+        rhs_fk: &str,
+        rhs_values: &str,
+        other: SchemaRef,
+    ) -> Result<Option<bool>> {
+        if other.column_with_name(rhs_pk).is_none() {
+            return Err(anyhow!(
+                "RHS input is missing column for rhs_pk {}.",
+                rhs_pk
+            ));
+        }
+        if other.column_with_name("embedding").is_none() {
+            return Err(anyhow!("RHS input is missing column for embedding."));
+        }
+        Ok(Some(true))
+    }
+    fn check_schema_output(
+        &self,
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_value: &str,
+        rhs_pk: &str,
+        rhs_fk: &str,
+        rhs_values: &str,
+        other: SchemaRef,
+    ) -> Result<Option<bool>> {        
+        if other.column_with_name(lhs_pk).is_none() {
+            return Err(anyhow!("LHS output is missing column for lhs_pk."));
+        }
+        if other.column_with_name(rhs_pk).is_none() {
+            return Err(anyhow!("RHS output is missing column for rhs_pk."));
+        }
+        if other.column_with_name("embedding").is_none() {
+            return Err(anyhow!("Output is missing column for embedding."));
+        }
+        Ok(Some(true))
+    }
+    fn get_json_tool_schema(&self) -> String {        
+        let mut properties = HashMap::new();
+        properties.insert(
+            "lhs_name".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some("The name of the left hand side table".to_string()),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_name".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The name of the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        properties.insert(
+            "lhs_pk".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The primary key column identifier for the left hand side table"
+                        .to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_pk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The primary key column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        // properties.insert(
+        //     "lhs_fk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The foriegn key column identifier for the left hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        // properties.insert(
+        //     "rhs_fk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The foriegn key column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        properties.insert(
+            "lhs_values".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The values column identifier for the left hand side table".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_values".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The values column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        let function = types::Function {
+            name: self.get_name().to_string(),
+            description: Some(self.get_description().to_string()),
+            parameters: types::FunctionParameters {
+                schema_type: types::JSONSchemaType::Object,
+                properties: Some(properties),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "lhs_pk".to_string(),
+                    "lhs_values".to_string(),
+                ]),
+            },
+        };
+        let tool = chat_completion::Tool {
+            r#type: chat_completion::ToolType::Function,
+            function,
+        };
+        serde_json::to_string(&tool).unwrap()
+    }
+    fn forward(&self, lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_value: &str,
+        lhs_args: &[RecordBatch], 
+        rhs_pk: Option<&str>,
+        rhs_fk: Option<&str>,
+        rhs_value: Option<&str>,
+        rhs_args: Option<&[RecordBatch]>,
+        device: &Device
+    ) -> Result<RecordBatch> {
+        relative_similarity_scores(
+            lhs_pk,
+            lhs_value,
+            lhs_args,
+            rhs_pk.unwrap_or("rhs_pk"),
+            rhs_value.unwrap_or("embedding"),
+            rhs_args.unwrap_or(&[]),
+            device,
+        )
+    } 
+}
 
 /**
 Compute the relative similarity between two [RecordBatch]es
@@ -19,18 +272,18 @@ Compute the relative similarity between two [RecordBatch]es
 * `device` - The compute device
 
 */
-#[instrument(skip(lhs, rhs, lhs_pk, lhs_values, rhs_pk, rhs_values, device))]
-pub fn relative_similarity_scores(
-    lhs: &[RecordBatch],
-    rhs: &[RecordBatch],
+#[instrument(skip(lhs_pk, lhs_values, lhs_args, rhs_pk, rhs_values, rhs_args, device))]
+fn relative_similarity_scores(
     lhs_pk: &str,
     lhs_values: &str,
+    lhs_args: &[RecordBatch],
     rhs_pk: &str,
     rhs_values: &str,
+    rhs_args: &[RecordBatch],
     device: &Device,
 ) -> Result<RecordBatch> {
     // Extract out the lhs_id and the embeddings
-    let lhs_embeddings = lhs
+    let lhs_embeddings = lhs_args
         .iter()
         .flat_map(|batch| {
             batch
@@ -53,7 +306,7 @@ pub fn relative_similarity_scores(
         })
         .collect::<Vec<_>>();
 
-    let lhs_id = lhs
+    let lhs_id = lhs_args
         .iter()
         .flat_map(|batch| {
             batch
@@ -69,7 +322,7 @@ pub fn relative_similarity_scores(
         .collect::<Vec<_>>();
 
     // Extract out the rhs and the embeddings
-    let rhs_embeddings = rhs
+    let rhs_embeddings = rhs_args
         .iter()
         .flat_map(|batch| {
             batch
@@ -92,7 +345,7 @@ pub fn relative_similarity_scores(
         })
         .collect::<Vec<_>>();
 
-    let rhs_id = rhs
+    let rhs_id = rhs_args
         .iter()
         .flat_map(|batch| {
             batch
@@ -228,12 +481,12 @@ mod tests {
 
         // Compute the relative similarity scores
         let result = relative_similarity_scores(
-            &[lhs],
-            &[rhs],
             "lhs_pk",
             "embedding",
+            &[lhs],
             "rhs_pk",
             "embedding",
+            &[rhs],
             &Device::Cpu,
         )?;
 
