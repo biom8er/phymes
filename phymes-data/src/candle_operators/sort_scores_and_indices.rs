@@ -6,7 +6,7 @@ use arrow::{
 
 use anyhow::{anyhow, Result};
 use candle_core::{Device, Tensor};
-use phymes_ai::openai_asset::{chat_completion, types};
+use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -20,8 +20,8 @@ pub struct SortScoresAndIndices {
 }
 
 impl DataOperatorTrait for SortScoresAndIndices {
-    fn get_name() -> String {
-        "sort-scores-and-indices".to_string()
+    fn get_static_name() -> &'static str {
+        "sort-scores-and-indices"
     }
     fn new(
         _lhs_pk: &str,

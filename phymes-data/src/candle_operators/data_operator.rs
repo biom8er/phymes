@@ -92,15 +92,3 @@ pub trait DataOperatorTrait: Send + Sync + Debug {
     /// The description to use for the operation
     fn get_json_tool_schema() -> String where Self: Sized;
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// A compilation test to ensure that the `DataOperator::get_name()` method can
-    /// be called from a trait object.
-    #[allow(dead_code)]
-    fn use_data_operator_name_as_trait_object(data_op: &dyn DataOperatorTrait) {
-        let _ = data_op.get_name();
-    }
-}

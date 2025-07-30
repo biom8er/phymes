@@ -2,7 +2,7 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 
 use candle_core::DType;
-use phymes_ai::candle_assets::{candle_which::WhichCandleAsset, device::device};
+use phymes_ml::candle_assets::{candle_which::WhichCandleAsset, device::device};
 
 #[derive(Parser, Debug, Serialize, Deserialize, Default, Clone)]
 #[command(author, version, about, long_about = None)]

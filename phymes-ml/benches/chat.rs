@@ -1,5 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use phymes_ai::{
+use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
         chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor,

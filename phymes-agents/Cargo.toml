@@ -10,16 +10,16 @@ documentation = "https://docs.rs/phymes-agents"
 
 [features]
 default = ["wsl", "candle"]
-hf_hub = ["phymes-ai/hf_hub"]
-openai_api = ["phymes-ai/openai_api"]
-wasip2 = ["phymes-core/wasip2", "phymes-ai/wasip2", "phymes-data/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "phymes-core/wasip2"]
-wsl = ["phymes-core/wsl", "phymes-ai/wsl", "phymes-data/wsl", "tokio/full"]
-gpu = ["phymes-ai/gpu", "phymes-data/gpu"]
+hf_hub = ["phymes-ml/hf_hub"]
+openai_api = ["phymes-ml/openai_api"]
+wasip2 = ["phymes-core/wasip2", "phymes-ml/wasip2", "phymes-data/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "phymes-core/wasip2"]
+wsl = ["phymes-core/wsl", "phymes-ml/wsl", "phymes-data/wsl", "tokio/full"]
+gpu = ["phymes-ml/gpu", "phymes-data/gpu"]
 candle = [] # force use of candle models when openai_api is available
 
 [dependencies]
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
-phymes-ai = { path = "../phymes-ai", default-features = false, optional = true }
+phymes-ml = { path = "../phymes-ml", default-features = false, optional = true }
 phymes-data = { path = "../phymes-data", default-features = false, optional = true }
 arrow = { version = "54.3.1", default-features = false, features = ["csv", "json", "ipc"] }
 tokio = { version = "1.45.1", default-features = false, optional = true}

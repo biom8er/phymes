@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "phymes-agents",
-    "phymes-ai",
+    "phymes-ml",
     "phymes-app",
     "phymes-core",
     "phymes-data",

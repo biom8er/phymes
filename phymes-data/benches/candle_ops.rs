@@ -3,7 +3,7 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
-use phymes_ai::candle_assets::device::device;
+use phymes_ml::candle_assets::device::device;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
@@ -53,7 +53,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for the ops functions
     let ops_configs_vec = [
         DataConfig {
-            which: WhichCandleOperator::RelativeSimilarityScores,
+            which: WhichCandleOperator::RelativeSimilarityScore,
             // lhs_pk: "id".to_string(), // DM: relative similarity score assumes ID column is a string!
             lhs_pk: "title".to_string(),
             lhs_fk: "title".to_string(),

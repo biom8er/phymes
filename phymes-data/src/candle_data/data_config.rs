@@ -114,7 +114,7 @@ impl Default for DataConfig {
             rhs_args: None,
             op_kwargs: None,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
-            which: WhichCandleOperator::RelativeSimilarityScores,
+            which: WhichCandleOperator::RelativeSimilarityScore,
         }
     }
 }

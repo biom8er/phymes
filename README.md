@@ -133,19 +133,19 @@ The phymes application is available for desktop (Linux, Windows, MacOS) and mobi
 
 ## Repository
 
-The [`phymes-core`], [`phymes-ai`], [`phymes-data`], [`phymes-agents`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
+The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
 
 | Crate | Description | Latest API Docs | README |
 | ----- | ----------- | --------------- | ------ |
 | [`phymes-core`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-core/latest) | [README](phymes-core/README.md) |
-| [`phymes-ai`] | Support for Generative AI | [docs.rs](https://docs.rs/phymes-ai/latest) | [README](phymes-ai/README.md) |
+| [`phymes-ml`] | Support for machine learning (ML) and generative artificial intelligence (AI) | [docs.rs](https://docs.rs/phymes-ml/latest) | [README](phymes-ml/README.md) |
 | [`phymes-data`] | Support for GPU accelerated data wrangling | [docs.rs](https://docs.rs/phymes-data/latest) | [README](phymes-data/README.md) |
 | [`phymes-agents`] | Templates for building Agentic AI hypergraph messaging applications | [docs.rs](https://docs.rs/phymes-agents/latest) | [README](phymes-agents/README.md) |
 | [`phymes-server`] | Server that runs the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-server/latest) | [README](phymes-server/README.md) |
 | [`phymes-app`] | Frontend UI for dynamically interacting with the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-app/latest) | [README](phymes-app/README.md) |
 
 [`phymes-core`]: https://crates.io/crates/phymes-core
-[`phymes-ai`]: https://crates.io/crates/phymes-ai
+[`phymes-ml`]: https://crates.io/crates/phymes-ml
 [`phymes-data`]: https://crates.io/crates/phymes-data
 [`phymes-agents`]: https://crates.io/crates/phymes-agents
 [`phymes-server`]: https://crates.io/crates/phymes-server

@@ -7,11 +7,11 @@ use candle_core::{Device, Tensor};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 use super::data_operator::DataOperatorTrait;
-use phymes_ai::openai_asset::{chat_completion, types};
+use phymes_ml::openai_asset::{chat_completion, types};
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
 #[derive(Debug)]
-pub struct RelativeSimilarityScores {
+pub struct RelativeSimilarityScore {
     lhs_pk: String,
     lhs_fk: String,
     lhs_values: String,
@@ -20,9 +20,9 @@ pub struct RelativeSimilarityScores {
     rhs_values: String,
 }
 
-impl DataOperatorTrait for RelativeSimilarityScores {
-    fn get_name() -> String {
-        "relative_similarity_scores".to_string()
+impl DataOperatorTrait for RelativeSimilarityScore {
+    fn get_static_name() -> &'static str {
+        "relative-similarity-score"
     }
     fn new( 
         lhs_pk: &str,
@@ -32,7 +32,7 @@ impl DataOperatorTrait for RelativeSimilarityScores {
         rhs_fk: Option<&str>,
         rhs_values: Option<&str>,
         _kwargs: Option<&str>) -> Self {
-        RelativeSimilarityScores {
+        RelativeSimilarityScore {
             lhs_pk: lhs_pk.to_string(),
             lhs_fk: lhs_fk.to_string(),
             lhs_values: lhs_values.to_string(),
@@ -42,14 +42,14 @@ impl DataOperatorTrait for RelativeSimilarityScores {
         }
     }
     fn get_description() -> String {
-        "Compute the relative similarity scores between two record batches".to_string()
+        "Compute the relative similarity score between two different lists of embedding vectors".to_string()
     }
     fn forward(&self,
         lhs_args: &[RecordBatch],
         rhs_args: Option<&[RecordBatch]>,
         device: &Device
     ) -> Result<RecordBatch> {
-        relative_similarity_scores(
+        relative_similarity_score(
             &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
@@ -255,7 +255,7 @@ Compute the relative similarity between two [RecordBatch]es
 
 */
 #[instrument(skip(lhs_pk, lhs_values, lhs_args, rhs_pk, rhs_values, rhs_args, device))]
-fn relative_similarity_scores(
+fn relative_similarity_score(
     lhs_pk: &str,
     lhs_values: &str,
     lhs_args: &[RecordBatch],
@@ -462,7 +462,7 @@ mod tests {
         let rhs = make_embeddings_record_batch("rhs_pk", rhs_ids_vec, rhs_embeddings_vec)?;
 
         // Compute the relative similarity scores
-        let result = relative_similarity_scores(
+        let result = relative_similarity_score(
             "lhs_pk",
             "embedding",
             &[lhs],

@@ -10,4 +10,4 @@ In progress...
 
 ## Next steps
 
-The [Ops Processor](https://github.com/biom8er/phymes/blob/main/phymes-ai/examples/chat/main.rs) can be chained in a number of ways by the user to cover the functionality of e.g., Python Pandas or PostgreSQL with the benefit of GPU acceleration and control over how data streams are processed.
+The [Ops Processor](https://github.com/biom8er/phymes/blob/main/phymes-ml/examples/chat/main.rs) can be chained in a number of ways by the user to cover the functionality of e.g., Python Pandas or PostgreSQL with the benefit of GPU acceleration and control over how data streams are processed.

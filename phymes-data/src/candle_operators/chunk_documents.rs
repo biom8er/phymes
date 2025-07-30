@@ -6,7 +6,7 @@ use arrow::{
 
 use anyhow::{anyhow, Result};
 use candle_core::Device;
-use phymes_ai::openai_asset::{chat_completion, types};
+use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -22,8 +22,8 @@ pub struct ChunkDocuments {
 }
 
 impl DataOperatorTrait for ChunkDocuments {
-    fn get_name() -> String {
-        "chunk-documents".to_string()
+    fn get_static_name() -> &'static str {
+        "chunk-documents"
     }
     fn new(
         lhs_pk: &str,

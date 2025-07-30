@@ -1,6 +1,6 @@
 use candle_core::DType;
 use criterion::{Criterion, criterion_group, criterion_main};
-use phymes_ai::{
+use phymes_ml::{
     candle_assets::{
         candle_which::{WhichCandleAsset, load_model_asset_path, load_tokenizer},
         device::device,

@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
 #[cfg(feature = "openai_api")]
-use phymes_ai::{
+use phymes_ml::{
     openai_asset::openai_which::WhichOpenAIAsset,
     openai_chat::chat_processor::OpenAIChatProcessor,
 };
-use phymes_ai::{
+use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor},
 };
@@ -235,10 +235,10 @@ pub mod test_chat_agent_session {
 
     use super::*;
 
-    use phymes_ai::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     #[allow(unused_imports)]
     #[cfg(feature = "openai_api")]
-    use phymes_ai::openai_asset::chat_processor::OpenAIChatProcessor;
+    use phymes_ml::openai_asset::chat_processor::OpenAIChatProcessor;
 
     /// Run the first query for the chat agent session and return the response
     pub fn bench_chat_agent_session_1<'a>(

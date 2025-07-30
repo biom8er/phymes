@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
 #[cfg(feature = "openai_api")]
-use phymes_ai::{
+use phymes_ml::{
     openai_asset::openai_which::WhichOpenAIAsset,
     openai_chat::chat_processor::OpenAIChatProcessor
 };
-use phymes_ai::{
+use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
         chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
@@ -557,7 +557,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
 pub mod test_tool_agent_session {
     use super::*;
     use parking_lot::RwLock;
-    use phymes_ai::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
     use phymes_core::{
         metrics::HashMap,
         session::{

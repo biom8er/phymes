@@ -15,7 +15,7 @@ on:
       - .github/**
       - phymes-app/**
       - phymes-core/**
-      - phymes-ai/**
+      - phymes-ml/**
       - phymes-data/**
       - phymes-agents/**
       - phymes-server/**
@@ -44,7 +44,7 @@ jobs:
       # DM: Redundant with GPU and WASM tests
       # - name: Run examples for agents
       #   run: |          
-      #     cargo run --package phymes-ai --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+      #     cargo run --package phymes-ml --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
       #     cargo run --package phymes-agents --release --example chat_agent_session
       # - name: Run examples for core
       #   run: cargo run --package phymes-core --release --example addrows
@@ -93,7 +93,7 @@ jobs:
           export PATH="$PATH:$HOME/.cargo/bin"
           export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
-          cargo run --package phymes-ai --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+          cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
           cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
 
   # test compilation features on linux (except those already built in other jobs)
@@ -118,14 +118,14 @@ jobs:
         run: cargo check -p phymes-data --all-targets --features wsl
       - name: Check compilation -p phymes-data --all-targets --features wasip2
         run: cargo check -p phymes-data --all-targets --features wasip2        
-      - name: Check compilation -p phymes-ai --all-targets --features wsl
-        run: cargo check -p phymes-ai --all-targets --features wsl
-      - name: Check compilation -p phymes-ai --all-targets --features wsl,hf_hub,candle
-        run: cargo check -p phymes-ai --all-targets --features wsl,hf_hub,candle
-      - name: Check compilation -p phymes-ai --all-targets --features wsl,openai_api
-        run: cargo check -p phymes-ai --all-targets --features wsl,openai_api
-      - name: Check compilation -p phymes-ai --all-targets --features wasip2
-        run: cargo check -p phymes-ai --all-targets --features wasip2
+      - name: Check compilation -p phymes-ml --all-targets --features wsl
+        run: cargo check -p phymes-ml --all-targets --features wsl
+      - name: Check compilation -p phymes-ml --all-targets --features wsl,hf_hub,candle
+        run: cargo check -p phymes-ml --all-targets --features wsl,hf_hub,candle
+      - name: Check compilation -p phymes-ml --all-targets --features wsl,openai_api
+        run: cargo check -p phymes-ml --all-targets --features wsl,openai_api
+      - name: Check compilation -p phymes-ml --all-targets --features wasip2
+        run: cargo check -p phymes-ml --all-targets --features wasip2
       - name: Check compilation -p phymes-agents --all-targets --features wsl
         run: cargo check -p phymes-agents --all-targets --features wsl
       - name: Check compilation -p phymes-agents --all-targets --features wsl,hf_hub,candle
@@ -189,19 +189,19 @@ jobs:
           export WASMTIME_HOME="$HOME/.wasmtime"
           export PATH="$PATH:$WASMTIME_HOME/bin"
           wasmtime run target/wasm32-wasip2/release/examples/addrows.wasm          
-      - name: Build wasm32-unknown-unknown -p phymes-ai
-        run: cargo check -p phymes-ai --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
-      - name: Build wasm32-wasip2 -p phymes-ai tests
-        run: cargo test -p phymes-ai --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-      - name: Run wasm32-wasip2 -p phymes-ai tests
+      - name: Build wasm32-unknown-unknown -p phymes-ml
+        run: cargo check -p phymes-ml --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
+      - name: Build wasm32-wasip2 -p phymes-ml tests
+        run: cargo test -p phymes-ml --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
+      - name: Run wasm32-wasip2 -p phymes-ml tests
         run: |
           export WASMTIME_HOME="$HOME/.wasmtime"
           export PATH="$PATH:$WASMTIME_HOME/bin"
-          for file in target/wasm32-wasip2/release/deps/phymes_ai-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
-      - name: Build wasm32-wasip2 -p phymes-ai examples
+          for file in target/wasm32-wasip2/release/deps/phymes_ml-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
+      - name: Build wasm32-wasip2 -p phymes-ml examples
         run: |
-          cargo build --package phymes-ai --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
-      - name: Run wasm32-wasip2 -p phymes-ai examples
+          cargo build --package phymes-ml --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
+      - name: Run wasm32-wasip2 -p phymes-ml examples
         run: |
           export WASMTIME_HOME="$HOME/.wasmtime"
           export PATH="$PATH:$WASMTIME_HOME/bin"

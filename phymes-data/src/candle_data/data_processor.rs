@@ -1,6 +1,6 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
-use crate::candle_operators::{data_operator::DataOperatorTrait, which_operator::WhichCandleOperator};
-use phymes_ai::candle_assets::device::device;
+use crate::candle_operators::data_operator::DataOperatorTrait;
+use phymes_ml::candle_assets::device::device;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
@@ -515,7 +515,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScores,
+            which: WhichCandleOperator::RelativeSimilarityScore,
             ..Default::default()
         };
         let config_table = ArrowTable::get_builder()
@@ -852,7 +852,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScores,
+            which: WhichCandleOperator::RelativeSimilarityScore,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

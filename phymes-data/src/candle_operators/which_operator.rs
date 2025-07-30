@@ -12,13 +12,13 @@ use phymes_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::candle_operators::{chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_scores::RelativeSimilarityScores, sort_scores_and_indices::SortScoresAndIndices};
+use crate::candle_operators::{chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, sort_scores_and_indices::SortScoresAndIndices};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum WhichCandleOperator {
     #[value(name = "relative-similarity-score")]
     #[serde(alias = "relative-similarity-score")]
-    RelativeSimilarityScores,
+    RelativeSimilarityScore,
     #[value(name = "sort-scores-and-indices")]
     #[serde(alias = "sort-scores-and-indices")]
     SortScoresAndIndices,
@@ -38,19 +38,19 @@ pub enum WhichCandleOperator {
 
 impl Default for WhichCandleOperator {
     fn default() -> Self {
-        Self::RelativeSimilarityScores
+        Self::RelativeSimilarityScore
     }
 }
 
 impl WhichCandleOperator {
     /// Wrapper to return the name of any operator
-    pub fn get_name(&self) -> String {
+    pub fn get_name(&self) -> &str {
         match self {
-            Self::RelativeSimilarityScores => RelativeSimilarityScores::get_name().to_string(),
-            Self::SortScoresAndIndices => SortScoresAndIndices::get_name().to_string(),
-            Self::HumanInTheLoop => HumanInTheLoop::get_name().to_string(),
-            Self::ChunkDocuments => ChunkDocuments::get_name().to_string(),
-            Self::JoinInner => JoinInner::get_name().to_string(),
+            Self::RelativeSimilarityScore => RelativeSimilarityScore::get_static_name(),
+            Self::SortScoresAndIndices => SortScoresAndIndices::get_static_name(),
+            Self::HumanInTheLoop => HumanInTheLoop::get_static_name(),
+            Self::ChunkDocuments => ChunkDocuments::get_static_name(),
+            Self::JoinInner => JoinInner::get_static_name(),
             Self::ExtractPDFText => todo!(),
         }
     }
@@ -58,7 +58,7 @@ impl WhichCandleOperator {
     /// Wrapper to return the JSON schema for the tool
     pub fn get_json_tool_schema(&self) -> String {
         match self {
-            Self::RelativeSimilarityScores => RelativeSimilarityScores::get_json_tool_schema(),
+            Self::RelativeSimilarityScore => RelativeSimilarityScore::get_json_tool_schema(),
             Self::SortScoresAndIndices => SortScoresAndIndices::get_json_tool_schema(),
             Self::HumanInTheLoop => HumanInTheLoop::get_json_tool_schema(),
             Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
@@ -69,8 +69,8 @@ impl WhichCandleOperator {
 
     /// Return the operation based on the name
     pub fn new_from_name(name: &str) -> Option<Self> {
-        if name == RelativeSimilarityScores::get_name() {
-            Some(Self::RelativeSimilarityScores)
+        if name == RelativeSimilarityScore::get_name() {
+            Some(Self::RelativeSimilarityScore)
         } else if name == SortScoresAndIndices::get_name() {
             Some(Self::SortScoresAndIndices)
         } else if name == HumanInTheLoop::get_name() {
@@ -97,7 +97,7 @@ impl WhichCandleOperator {
         kwargs: Option<&str>,
     ) -> Box<dyn DataOperatorTrait> {
         match self {
-            Self::RelativeSimilarityScores => Box::new(RelativeSimilarityScores::new(
+            Self::RelativeSimilarityScore => Box::new(RelativeSimilarityScore::new(
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
             Self::SortScoresAndIndices => Box::new(SortScoresAndIndices::new(

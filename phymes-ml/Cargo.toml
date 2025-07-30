@@ -1,12 +1,12 @@
 [package]
-name = "phymes-ai"
+name = "phymes-ml"
 version = "0.1.0"
 edition = "2024"
 authors = ["Douglas McCloskey"]
-description = "The Generative AI token services for PHYMES"
+description = "The machine learning (ML) and generative AI token services for PHYMES"
 license = "MIT AND Apache-2.0"
 repository = "https://github.com/biom8er/phymes"
-documentation = "https://docs.rs/phymes-ai"
+documentation = "https://docs.rs/phymes-ml"
 
 [features]
 default = ["wsl", "candle"]

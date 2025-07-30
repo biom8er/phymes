@@ -6,15 +6,15 @@ use anyhow::{anyhow, Result};
 use candle_core::Device;
 use std::{collections::HashMap, sync::Arc};
 use super::data_operator::DataOperatorTrait;
-use phymes_ai::openai_asset::{chat_completion, types};
+use phymes_ml::openai_asset::{chat_completion, types};
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
 #[derive(Debug)]
 pub struct HumanInTheLoop;
 
 impl DataOperatorTrait for HumanInTheLoop {
-    fn get_name() -> String {
-        "human-in-the-loop".to_string()
+    fn get_static_name() -> &'static str {
+        "human-in-the-loop"
     }
     fn new(
         _lhs_pk: &str,
