@@ -1,13 +1,232 @@
 use arrow::{
     array::{ArrayRef, Float32Array, StringArray, UInt32Array},
-    datatypes::DataType,
+    datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use candle_core::{Device, Tensor};
-use std::sync::Arc;
+use phymes_ai::openai_asset::{chat_completion, types};
+use phymes_core::session::common_traits::MappableTrait;
+use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
+
+use crate::candle_operators::data_operator::DataOperatorTrait;
+
+/// Sort the [RecordBatch] according to the `score` column and then apply the sorting order to the rest of the record batch columns
+#[derive(Debug)]
+pub struct SortScoresAndIndices {
+    asc: bool,
+}
+
+impl MappableTrait for SortScoresAndIndices {
+    fn get_name(&self) -> &str {
+        "sort-scores-and-indices"
+    }
+}
+
+impl DataOperatorTrait for SortScoresAndIndices {
+    fn new(kwargs: Option<&str>) -> Self {
+        // Attempt to parse the op_kwargs
+        let ops_kwargs_default = "{\"asc\": false}";
+        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
+        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
+            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
+        SortScoresAndIndices {
+            asc: ops_kwargs
+                .get("asc")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+        }
+    }
+    fn forward(&self, 
+        _lhs_pk: &str,
+        _lhs_fk: &str,
+        lhs_value: &str,
+        lhs_args: &[RecordBatch], 
+        _rhs_pk: Option<&str>,
+        _rhs_fk: Option<&str>,
+        _rhs_value: Option<&str>,
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device
+    ) -> Result<RecordBatch> {
+        assert_eq!(lhs_value, "score", "The score column must be named 'score'");
+        sort_scores_and_indices(lhs_args, self.asc, device)
+    }
+    fn get_schema_lhs_input(
+        &self,
+        _lhs_pk: &str,
+        _lhs_fk: &str,
+        lhs_value: &str,
+        _list_size: Option<usize>,
+        other: Option<Vec<arrow::datatypes::Field>>,
+    ) -> Option<arrow::datatypes::SchemaRef> {        
+        assert_eq!(lhs_value, "score");
+        let lhs_value = Field::new(lhs_value, DataType::Float32, false);
+        let mut fields = vec![lhs_value];
+        if let Some(other) = other {
+            fields.extend(other);
+        }
+        Some(Arc::new(Schema::new(fields)))        
+    }
+    fn get_schema_rhs_input(
+        &self,
+        _rhs_pk: &str,
+        _rhs_fk: &str,
+        _rhs_values: &str,
+        _list_size: Option<usize>,
+        _other: Option<Vec<arrow::datatypes::Field>>,
+    ) -> Option<arrow::datatypes::SchemaRef> {
+        None
+    }
+    fn get_schema_output(
+        &self,
+        _lhs_pk: &str,
+        _lhs_fk: &str,
+        _lhs_value: &str,
+        _rhs_pk: &str,
+        _rhs_fk: &str,
+        _rhs_values: &str,
+        _list_size: Option<usize>,
+        other: Option<Vec<arrow::datatypes::Field>>,
+    ) -> Option<arrow::datatypes::SchemaRef> { 
+        let score = Field::new("score", DataType::Float32, false);
+        let mut fields = vec![score];
+        if let Some(other) = other {
+            fields.extend(other);
+        }
+        Some(Arc::new(Schema::new(fields)))
+    }
+    fn check_schema_lhs_input(
+        &self,
+        _lhs_pk: &str,
+        _lhs_fk: &str,
+        _lhs_value: &str,
+        other: arrow::datatypes::SchemaRef,
+    ) -> Result<Option<bool>> {
+        if other.column_with_name("score").is_none() {
+            return Err(anyhow!("LHS input is missing column for score."));
+        }
+        Ok(Some(true))
+    }
+    fn check_schema_rhs_input(
+        &self,
+        _rhs_pk: &str,
+        _rhs_fk: &str,
+        _rhs_values: &str,
+        _other: arrow::datatypes::SchemaRef,
+    ) -> Result<Option<bool>> {
+        Ok(None)
+    }
+    fn check_schema_output(
+        &self,
+        _lhs_pk: &str,
+        _lhs_fk: &str,
+        _lhs_value: &str,
+        _rhs_pk: &str,
+        _rhs_fk: &str,
+        _rhs_values: &str,
+        other: arrow::datatypes::SchemaRef,
+    ) -> Result<Option<bool>> {        
+        if other.column_with_name("score").is_none() {
+            return Err(anyhow!("LHS output is missing column for score."));
+        }
+        Ok(Some(true))
+    }
+    fn get_description(&self) -> &str {
+        "Sort the the list of computed scores in ascending order"
+    }
+    fn get_json_tool_schema(&self) -> String {
+        let mut properties = HashMap::new();
+        properties.insert(
+            "lhs_name".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some("The name of the left hand side table".to_string()),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_name".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The name of the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        properties.insert(
+            "lhs_pk".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The primary key column identifier for the left hand side table"
+                        .to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_pk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The primary key column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        // properties.insert(
+        //     "lhs_fk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The foriegn key column identifier for the left hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        // properties.insert(
+        //     "rhs_fk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The foriegn key column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        properties.insert(
+            "lhs_values".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The values column identifier for the left hand side table".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_values".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The values column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        let function = types::Function {
+            name: self.get_name().to_string(),
+            description: Some(self.get_description().to_string()),
+            parameters: types::FunctionParameters {
+                schema_type: types::JSONSchemaType::Object,
+                properties: Some(properties),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "lhs_pk".to_string(),
+                    "lhs_values".to_string(),
+                ]),
+            },
+        };
+        let tool = chat_completion::Tool {
+            r#type: chat_completion::ToolType::Function,
+            function,
+        };
+        serde_json::to_string(&tool).unwrap()
+    }
+}
 
 /**
 Sort the [RecordBatch] according to the `score` column

@@ -17,7 +17,8 @@ pub trait DataOperatorTrait: MappableTrait + Send + Sync + Debug {
     // fn backward(&self, data: &[RecordBatch]) -> Result<(RecordBatch, Option<RecordBatch>)>;
     /// Run the data operator in the forward direction
     #[allow(clippy::too_many_arguments)]
-    fn forward(&self, lhs_pk: &str,
+    fn forward(&self, 
+        lhs_pk: &str,
         lhs_fk: &str,
         lhs_value: &str,
         lhs_args: &[RecordBatch], 
