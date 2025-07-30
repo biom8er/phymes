@@ -380,7 +380,7 @@ impl Stream for CandleDataStream {
         );
         self.init_tensor_service()?;
         let batch = match self.config.as_ref().unwrap().which {
-            WhichCandleOperator::RelativeSimilarityScore => relative_similarity_scores(
+            WhichCandleOperator::RelativeSimilarityScores => relative_similarity_scores(
                 &self.lhs_inbox,
                 &self.rhs_inbox,
                 &self.config.as_ref().unwrap().lhs_pk,
@@ -418,7 +418,7 @@ impl Stream for CandleDataStream {
                     .unwrap()
                     .get_device(),
             )?,
-            WhichCandleOperator::HumanInTheLoops => self.lhs_inbox.first().unwrap().to_owned(),
+            WhichCandleOperator::HumanInTheLoop => self.lhs_inbox.first().unwrap().to_owned(),
             WhichCandleOperator::ChunkDocuments => chunk_documents(
                 &self.lhs_inbox,
                 &self.config.as_ref().unwrap().lhs_pk,
@@ -615,7 +615,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: WhichCandleOperator::RelativeSimilarityScores,
             ..Default::default()
         };
         let config_table = ArrowTable::get_builder()
@@ -706,7 +706,7 @@ mod tests {
 
         // Make the config
         let config_args = DataConfig {
-            which: WhichCandleOperator::HumanInTheLoops,
+            which: WhichCandleOperator::HumanInTheLoop,
             lhs_args: Some("{\"role\": \"assistant\", \"content\": \"RESPONSE\"}".to_string()),
             rhs_args: None,
             ..Default::default()
@@ -952,7 +952,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: WhichCandleOperator::RelativeSimilarityScores,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

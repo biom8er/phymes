@@ -111,8 +111,8 @@ impl Default for ToolAgentSession<'_> {
             tool_processor_name: WhichCandleOperator::SortScoresAndIndices.get_name(),
             tool_runtime_env_name: "tool_rt_1",
             summary_processor_name: "summary_processor_1",
-            hitl_task_name: WhichCandleOperator::HumanInTheLoops.get_name(),
-            hitl_processor_name: WhichCandleOperator::HumanInTheLoops.get_name(),
+            hitl_task_name: WhichCandleOperator::HumanInTheLoop.get_name(),
+            hitl_processor_name: WhichCandleOperator::HumanInTheLoop.get_name(),
             message_parser_task_name: "message_parser_task_1",
             message_parser_processor_name: "message_parser_processor_1",
             message_aggregator_task_name: "message_aggregator_task_1",
@@ -136,11 +136,11 @@ impl<'a> ToolAgentSession<'a> {
     pub fn make_tools_table(&self) -> Result<ArrowTable> {
         let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
             WhichCandleOperator::SortScoresAndIndices.get_name(),
-            WhichCandleOperator::HumanInTheLoops.get_name(),
+            WhichCandleOperator::HumanInTheLoop.get_name(),
         ]));
         let tool: ArrayRef = Arc::new(StringArray::from(vec![
             WhichCandleOperator::SortScoresAndIndices.get_json_tool_schema(),
-            WhichCandleOperator::HumanInTheLoops.get_json_tool_schema(),
+            WhichCandleOperator::HumanInTheLoop.get_json_tool_schema(),
         ]));
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)])?;
         ArrowTableBuilder::new()

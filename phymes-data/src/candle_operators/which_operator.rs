@@ -1,35 +1,30 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
-use anyhow::{Result, anyhow};
 use arrow::{
     array::{ArrayRef, RecordBatch, StringArray},
-    datatypes::{DataType, Field, Schema, SchemaRef},
 };
 
 /// General dependencies
 use clap::ValueEnum;
-use futures::future::Join;
 use phymes_core::{
     session::common_traits::BuilderTrait,
     table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
 };
 use serde::{Deserialize, Serialize};
 
-use phymes_ai::openai_asset::{chat_completion, types};
-
-use crate::candle_operators::{chunk_documents::ChunkDocuments, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, sort_scores_and_indices::SortScoresAndIndices};
+use crate::candle_operators::{chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_scores::RelativeSimilarityScores, sort_scores_and_indices::SortScoresAndIndices};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum WhichCandleOperator {
     #[value(name = "relative-similarity-score")]
     #[serde(alias = "relative-similarity-score")]
-    RelativeSimilarityScore,
+    RelativeSimilarityScores,
     #[value(name = "sort-scores-and-indices")]
     #[serde(alias = "sort-scores-and-indices")]
     SortScoresAndIndices,
     #[value(name = "human-in-the-loop")]
     #[serde(alias = "human-in-the-loop")]
-    HumanInTheLoops,
+    HumanInTheLoop,
     #[value(name = "chunk-documents")]
     #[serde(alias = "chunk-documents")]
     ChunkDocuments,
@@ -43,169 +38,43 @@ pub enum WhichCandleOperator {
 
 impl Default for WhichCandleOperator {
     fn default() -> Self {
-        Self::RelativeSimilarityScore
+        Self::RelativeSimilarityScores
     }
 }
 
 impl WhichCandleOperator {
-    /// The name of the operation
-    pub fn get_name(&self) -> &str {
+    /// Wrapper to return the name of any operator
+    pub fn get_name(&self) -> String {
         match self {
-            Self::RelativeSimilarityScore => "relative-similarity-score",
-            Self::SortScoresAndIndices => "sort-scores-and-indices",
-            Self::HumanInTheLoops => "human-in-the-loop",
-            Self::ChunkDocuments => "chunk-documents",
-            Self::JoinInner => "join-inner",
+            Self::RelativeSimilarityScores => RelativeSimilarityScores::get_name().to_string(),
+            Self::SortScoresAndIndices => SortScoresAndIndices::get_name().to_string(),
+            Self::HumanInTheLoop => HumanInTheLoop::get_name().to_string(),
+            Self::ChunkDocuments => ChunkDocuments::get_name().to_string(),
+            Self::JoinInner => JoinInner::get_name().to_string(),
+            Self::ExtractPDFText => todo!(),
         }
     }
 
-    /// The description to use for the operation
-    pub fn get_description(&self) -> &str {
-        match self {
-            Self::RelativeSimilarityScore => {
-                "Compute the relative similarity score between two different lists of embedding vectors"
-            }
-            Self::SortScoresAndIndices => "Sort the the list of computed scores in ascending order",
-            Self::HumanInTheLoops => {
-                "Ask a question to clarify the user's query, ask a questionn to get additional information that the user did not provide, confirm a choice of tool, confirm arguments for a tool before answering the user's query or calling a tool, or provide the answer to the user's query."
-            }
-            Self::ChunkDocuments => "Chunk documents by splitting the document text",
-            Self::JoinInner => "Join two tables on their foreign keys",
-        }
-    }
-
-    /// The description to use for the operation
+    /// Wrapper to return the JSON schema for the tool
     pub fn get_json_tool_schema(&self) -> String {
         match self {
-            Self::RelativeSimilarityScore
-            | Self::SortScoresAndIndices
-            | Self::ChunkDocuments
-            | Self::JoinInner => {
-                let mut properties = HashMap::new();
-                properties.insert(
-                    "lhs_name".to_string(),
-                    Box::new(types::JSONSchemaDefine {
-                        schema_type: Some(types::JSONSchemaType::String),
-                        description: Some("The name of the left hand side table".to_string()),
-                        ..Default::default()
-                    }),
-                );
-                // properties.insert(
-                //     "rhs_name".to_string(),
-                //     Box::new(types::JSONSchemaDefine {
-                //         schema_type: Some(types::JSONSchemaType::String),
-                //         description: Some("The name of the right hand side table".to_string()),
-                //         ..Default::default()
-                //     }),
-                // );
-                properties.insert(
-                    "lhs_pk".to_string(),
-                    Box::new(types::JSONSchemaDefine {
-                        schema_type: Some(types::JSONSchemaType::String),
-                        description: Some(
-                            "The primary key column identifier for the left hand side table"
-                                .to_string(),
-                        ),
-                        ..Default::default()
-                    }),
-                );
-                // properties.insert(
-                //     "rhs_pk".to_string(),
-                //     Box::new(types::JSONSchemaDefine {
-                //         schema_type: Some(types::JSONSchemaType::String),
-                //         description: Some("The primary key column identifier for the right hand side table".to_string()),
-                //         ..Default::default()
-                //     }),
-                // );
-                // properties.insert(
-                //     "lhs_fk".to_string(),
-                //     Box::new(types::JSONSchemaDefine {
-                //         schema_type: Some(types::JSONSchemaType::String),
-                //         description: Some("The foriegn key column identifier for the left hand side table".to_string()),
-                //         ..Default::default()
-                //     }),
-                // );
-                // properties.insert(
-                //     "rhs_fk".to_string(),
-                //     Box::new(types::JSONSchemaDefine {
-                //         schema_type: Some(types::JSONSchemaType::String),
-                //         description: Some("The foriegn key column identifier for the right hand side table".to_string()),
-                //         ..Default::default()
-                //     }),
-                // );
-                properties.insert(
-                    "lhs_values".to_string(),
-                    Box::new(types::JSONSchemaDefine {
-                        schema_type: Some(types::JSONSchemaType::String),
-                        description: Some(
-                            "The values column identifier for the left hand side table".to_string(),
-                        ),
-                        ..Default::default()
-                    }),
-                );
-                // properties.insert(
-                //     "rhs_values".to_string(),
-                //     Box::new(types::JSONSchemaDefine {
-                //         schema_type: Some(types::JSONSchemaType::String),
-                //         description: Some("The values column identifier for the right hand side table".to_string()),
-                //         ..Default::default()
-                //     }),
-                // );
-                let function = types::Function {
-                    name: self.get_name().to_string(),
-                    description: Some(self.get_description().to_string()),
-                    parameters: types::FunctionParameters {
-                        schema_type: types::JSONSchemaType::Object,
-                        properties: Some(properties),
-                        required: Some(vec![
-                            "lhs_name".to_string(),
-                            "lhs_pk".to_string(),
-                            "lhs_values".to_string(),
-                        ]),
-                    },
-                };
-                let tool = chat_completion::Tool {
-                    r#type: chat_completion::ToolType::Function,
-                    function,
-                };
-                serde_json::to_string(&tool).unwrap()
-            }
-            Self::HumanInTheLoops => {
-                let mut properties = HashMap::new();
-                properties.insert(
-                    "lhs_args".to_string(),
-                    Box::new(types::JSONSchemaDefine {
-                        schema_type: Some(types::JSONSchemaType::String),
-                        description: Some("The question or answer for the user. Format lhs_arg value as JSON according to the schema {\"role\": \"assistant\", \"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your question or answer for the user".to_string()),
-                        ..Default::default()
-                    }),
-                );
-                let function = types::Function {
-                    name: self.get_name().to_string(),
-                    description: Some(self.get_description().to_string()),
-                    parameters: types::FunctionParameters {
-                        schema_type: types::JSONSchemaType::Object,
-                        properties: Some(properties),
-                        required: Some(vec!["lhs_args".to_string()]),
-                    },
-                };
-                let tool = chat_completion::Tool {
-                    r#type: chat_completion::ToolType::Function,
-                    function,
-                };
-                serde_json::to_string(&tool).unwrap()
-            }
+            Self::RelativeSimilarityScores => RelativeSimilarityScores::get_json_tool_schema(),
+            Self::SortScoresAndIndices => SortScoresAndIndices::get_json_tool_schema(),
+            Self::HumanInTheLoop => HumanInTheLoop::get_json_tool_schema(),
+            Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
+            Self::JoinInner => JoinInner::get_json_tool_schema(),
+            Self::ExtractPDFText => todo!(),
         }
     }
 
     /// Return the operation based on the name
     pub fn new_from_name(name: &str) -> Option<Self> {
-        if name == RelativeSimilarityScore::get_name() {
-            Some(Self::RelativeSimilarityScore)
+        if name == RelativeSimilarityScores::get_name() {
+            Some(Self::RelativeSimilarityScores)
         } else if name == SortScoresAndIndices::get_name() {
             Some(Self::SortScoresAndIndices)
         } else if name == HumanInTheLoop::get_name() {
-            Some(Self::HumanInTheLoops)
+            Some(Self::HumanInTheLoop)
         } else if name == ChunkDocuments::get_name() {
             Some(Self::ChunkDocuments)
         } else if name == JoinInner::get_name() {
@@ -249,7 +118,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_convert_destinations_to_tools_all() -> Result<()> {
+    fn test_convert_destinations_to_tools_all() {
         let result = convert_destinations_to_tools(
             "test",
             &[
@@ -372,14 +241,11 @@ mod tests {
                 .unwrap()
                 .contains("\"required\":[\"lhs_args\"]}}}")
         );
-
-        Ok(())
     }
 
     #[test]
-    fn test_convert_destinations_to_tools_missing() -> Result<()> {
+    fn test_convert_destinations_to_tools_missing() {
         let result = convert_destinations_to_tools("test", &["missing".to_string()]);
         assert!(result.is_none());
-        Ok(())
     }
 }

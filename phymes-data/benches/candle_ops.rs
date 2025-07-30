@@ -53,7 +53,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for the ops functions
     let ops_configs_vec = [
         DataConfig {
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: WhichCandleOperator::RelativeSimilarityScores,
             // lhs_pk: "id".to_string(), // DM: relative similarity score assumes ID column is a string!
             lhs_pk: "title".to_string(),
             lhs_fk: "title".to_string(),

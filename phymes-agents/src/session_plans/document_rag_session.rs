@@ -793,7 +793,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: WhichCandleOperator::RelativeSimilarityScores,
             ..Default::default()
         };
         let rel_sim_config_json = serde_json::to_vec(&rel_sim_config)?;
