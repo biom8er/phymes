@@ -5345,48 +5345,12 @@ dependencies = [
  "getrandom 0.2.16",
  "getrandom 0.3.3",
  "parking_lot",
- "phymes-ai",
  "phymes-core",
- "phymes-etl",
+ "phymes-data",
+ "phymes-ml",
  "reqwest",
  "serde",
  "serde_json",
- "tokio",
- "tracing",
- "tracing-chrome",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "phymes-ai"
-version = "0.1.0"
-dependencies = [
- "accelerate-src",
- "anyhow",
- "arrow",
- "bytes",
- "candle-core",
- "candle-flash-attn",
- "candle-hf-hub",
- "candle-nn",
- "candle-transformers",
- "chrono",
- "clap 4.5.41",
- "criterion",
- "cudarc 0.9.15",
- "futures",
- "getrandom 0.2.16",
- "getrandom 0.3.3",
- "intel-mkl-src",
- "minijinja",
- "minijinja-contrib",
- "new_string_template",
- "parking_lot",
- "phymes-core",
- "reqwest",
- "serde",
- "serde_json",
- "tokenizers",
  "tokio",
  "tracing",
  "tracing-chrome",
@@ -5443,7 +5407,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "phymes-etl"
+name = "phymes-data"
 version = "0.1.0"
 dependencies = [
  "accelerate-src",
@@ -5461,11 +5425,47 @@ dependencies = [
  "intel-mkl-src",
  "lopdf",
  "parking_lot",
- "phymes-ai",
  "phymes-core",
+ "phymes-ml",
  "rayon",
  "serde",
  "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-chrome",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "phymes-ml"
+version = "0.1.0"
+dependencies = [
+ "accelerate-src",
+ "anyhow",
+ "arrow",
+ "bytes",
+ "candle-core",
+ "candle-flash-attn",
+ "candle-hf-hub",
+ "candle-nn",
+ "candle-transformers",
+ "chrono",
+ "clap 4.5.41",
+ "criterion",
+ "cudarc 0.9.15",
+ "futures",
+ "getrandom 0.2.16",
+ "getrandom 0.3.3",
+ "intel-mkl-src",
+ "minijinja",
+ "minijinja-contrib",
+ "new_string_template",
+ "parking_lot",
+ "phymes-core",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokenizers",
  "tokio",
  "tracing",
  "tracing-chrome",
@@ -5491,7 +5491,7 @@ dependencies = [
  "parking_lot",
  "phymes-agents",
  "phymes-core",
- "phymes-etl",
+ "phymes-data",
  "reqwest",
  "serde",
  "serde_json",

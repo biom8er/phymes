@@ -133,20 +133,20 @@ The phymes application is available for desktop (Linux, Windows, MacOS) and mobi
 
 ## Repository
 
-The [`phymes-core`], [`phymes-ai`], [`phymes-etl`], [`phymes-agents`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
+The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
 
 | Crate | Description | Latest API Docs | README |
 | ----- | ----------- | --------------- | ------ |
 | [`phymes-core`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-core/latest) | [README](phymes-core/README.md) |
-| [`phymes-ai`] | Support for Generative AI | [docs.rs](https://docs.rs/phymes-ai/latest) | [README](phymes-ai/README.md) |
-| [`phymes-etl`] | Support for GPU accelerated data wrangling | [docs.rs](https://docs.rs/phymes-etl/latest) | [README](phymes-etl/README.md) |
+| [`phymes-ml`] | Support for machine learning (ML) and generative artificial intelligence (AI) | [docs.rs](https://docs.rs/phymes-ml/latest) | [README](phymes-ml/README.md) |
+| [`phymes-data`] | Support for GPU accelerated data wrangling | [docs.rs](https://docs.rs/phymes-data/latest) | [README](phymes-data/README.md) |
 | [`phymes-agents`] | Templates for building Agentic AI hypergraph messaging applications | [docs.rs](https://docs.rs/phymes-agents/latest) | [README](phymes-agents/README.md) |
 | [`phymes-server`] | Server that runs the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-server/latest) | [README](phymes-server/README.md) |
 | [`phymes-app`] | Frontend UI for dynamically interacting with the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-app/latest) | [README](phymes-app/README.md) |
 
 [`phymes-core`]: https://crates.io/crates/phymes-core
-[`phymes-ai`]: https://crates.io/crates/phymes-ai
-[`phymes-etl`]: https://crates.io/crates/phymes-etl
+[`phymes-ml`]: https://crates.io/crates/phymes-ml
+[`phymes-data`]: https://crates.io/crates/phymes-data
 [`phymes-agents`]: https://crates.io/crates/phymes-agents
 [`phymes-server`]: https://crates.io/crates/phymes-server
 [`phymes-app`]: https://crates.io/crates/phymes-app
@@ -156,7 +156,7 @@ The [`phymes-core`], [`phymes-ai`], [`phymes-etl`], [`phymes-agents`], [`phymes-
 ## Roadmap
 
 1. More examples for running hypergraph algorithms and simulators using `phymes-core`, and production agentic AI examples e.g., NVIDIA RAG [Blue Print](https://github.com/NVIDIA-AI-Blueprints/rag) within `phymes-agent`.
-2. Improved GPU accelerated ETL operators including joins and aggregations [see](https://arxiv.org/pdf/2312.00720)
+2. Improved GPU accelerated Data operators including joins and aggregations [see](https://arxiv.org/pdf/2312.00720)
 3. Better test coverage of `phymes-server` and `phymes-app` which also require a refactor particularly of `phymes-app` components
 4. Proper application database and sign-in user journey
 5. Better OpenAI (and non-OpenAI) API token service coverage e.g. [rust-genai], support for building Model Context Provider ([MCP]) e.g. [rust-sdk], and integrations with other external databases e.g. [rig]

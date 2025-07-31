@@ -579,7 +579,7 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use hashbrown::HashMap;
 
-    /// A compilation test to ensure that the `ArrowTask::name()` method can
+    /// A compilation test to ensure that the `ArrowTask::get_name()` method can
     /// be called from a trait object.
     #[allow(dead_code)]
     fn use_task_name_as_trait_object(plan: &dyn ArrowTaskTrait<T = ArrowTaskBuilder>) {
