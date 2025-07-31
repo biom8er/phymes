@@ -24,6 +24,8 @@ use phymes_data::{
     },
     candle_operators::which_operator::WhichCandleOperator,
 };
+#[cfg(feature = "openai_api")]
+use phymes_ml::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
@@ -32,8 +34,6 @@ use phymes_ml::{
         message_parser_processor::MessageParserProcessor,
     },
 };
-#[cfg(feature = "openai_api")]
-use phymes_ml::openai_chat::chat_processor::OpenAIChatProcessor;
 
 use arrow::{
     array::{ArrayRef, Float32Array, StringArray},
