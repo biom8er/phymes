@@ -22,9 +22,7 @@ use phymes_ml::{
     candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor},
 };
 #[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
-};
+use phymes_ml::openai_chat::chat_processor::OpenAIChatProcessor;
 
 use arrow::datatypes::{DataType, Field, Schema};
 
@@ -235,9 +233,6 @@ pub mod test_chat_agent_session {
     use super::*;
 
     use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
-    #[allow(unused_imports)]
-    #[cfg(feature = "openai_api")]
-    use phymes_ml::openai_asset::chat_processor::OpenAIChatProcessor;
 
     /// Run the first query for the chat agent session and return the response
     pub fn bench_chat_agent_session_1<'a>(

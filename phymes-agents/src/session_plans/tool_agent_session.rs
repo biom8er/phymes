@@ -33,9 +33,7 @@ use phymes_ml::{
     },
 };
 #[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
-};
+use phymes_ml::openai_chat::chat_processor::OpenAIChatProcessor;
 
 use arrow::{
     array::{ArrayRef, Float32Array, StringArray},
