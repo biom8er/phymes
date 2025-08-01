@@ -1,11 +1,12 @@
 use arrow::{
-    array::{ArrayRef, Float32Array, StringArray, UInt32Array},
+    array::{ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt32Array, UInt8Array},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
+use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
 use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
@@ -55,7 +56,7 @@ impl DataOperatorTrait for SortScoresAndIndices {
             self.lhs_values, "score",
             "The score column must be named 'score'"
         );
-        sort_scores_and_indices(lhs_args, self.asc, device)
+        sort_column_and_indices(lhs_args, self.asc, device)
     }
     fn get_schema_lhs_input(
         &self,
@@ -204,13 +205,15 @@ Sort the [RecordBatch] according to the `score` column
 
 # Arguments
 
+* `lhs_values` - The name of the column to sort by, typically "score"
 * `lhs` - RecordBatch with a column for `score`
 * `asc` - true for ascending and false for descending
 * `device` - The compute device
 
 */
-#[instrument(skip(lhs, asc, device))]
-pub fn sort_scores_and_indices(
+#[instrument(skip(lhs_values, lhs, asc, device))]
+pub fn sort_column_and_indices(
+    lhs_values: &str,
     lhs: &[RecordBatch],
     asc: bool,
     device: &Device,
@@ -220,7 +223,7 @@ pub fn sort_scores_and_indices(
         .iter()
         .flat_map(|batch| {
             batch
-                .column_by_name("score")
+                .column_by_name(lhs_values)
                 .unwrap()
                 .as_any()
                 .downcast_ref::<Float32Array>()
@@ -246,15 +249,15 @@ pub fn sort_scores_and_indices(
     let sorted_indices: ArrayRef = Arc::new(UInt32Array::from(asort_vec));
 
     // ...Primitive columns can be done on the GPU
-    // DM: repeat for all primitive types not just UInt32
-    let columns: Vec<String> = lhs
-        .first()
-        .unwrap()
-        .schema()
+    let lhs_table = ArrowTable::get_builder()
+        .with_record_batches(lhs.to_vec())?
+        .with_name("")
+        .build()?;
+    let columns: Vec<String> = lhs_table.get_schema()
         .fields()
         .iter()
         .filter_map(|field| {
-            if (field.name() != "score") & (field.data_type() == &DataType::UInt32) {
+            if (field.name() != "score") & (field.data_type().is_primitive()) {
                 Some(field.name().clone())
             } else {
                 None
@@ -262,26 +265,54 @@ pub fn sort_scores_and_indices(
         })
         .collect();
     for column in columns.iter() {
-        let array_vec = lhs
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name(column)
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<UInt32Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let tensor = Tensor::from_iter(array_vec, device)?;
-        let sorted = tensor.gather(&asort, candle_core::D::Minus1)?;
-        let array_vec = sorted.to_vec1::<u32>()?;
-        let sorted_array: ArrayRef = Arc::new(UInt32Array::from(array_vec));
+        let sorted_array: ArrayRef = match lhs_table.get_column_data_type(column)? {
+            DataType::UInt8 => {
+                let array_vec = lhs_table.get_column_as_vec_primitive::<u8>(column).unwrap();
+                let tensor = Tensor::from_iter(array_vec, device)?;
+                let sorted = tensor.gather(&asort, candle_core::D::Minus1)?;
+                let array_vec = sorted.to_vec1::<u8>()?;
+                Arc::new(UInt8Array::from(array_vec))
+            }
+            DataType::UInt32 => {
+                let array_vec = lhs_table.get_column_as_vec_primitive::<u32>(column).unwrap();
+                let tensor = Tensor::from_iter(array_vec, device)?;
+                let sorted = tensor.gather(&asort, candle_core::D::Minus1)?;
+                let array_vec = sorted.to_vec1::<u32>()?;
+                Arc::new(UInt32Array::from(array_vec))
+            }
+            DataType::Int64 => {
+                let array_vec = lhs_table.get_column_as_vec_primitive::<i64>(column).unwrap();
+                let tensor = Tensor::from_iter(array_vec, device)?;
+                let sorted = tensor.gather(&asort, candle_core::D::Minus1)?;
+                let array_vec = sorted.to_vec1::<i64>()?;
+                Arc::new(Int64Array::from(array_vec))
+            }
+            DataType::Float32 => {
+                let array_vec = lhs_table.get_column_as_vec_primitive::<f32>(column).unwrap();
+                let tensor = Tensor::from_iter(array_vec, device)?;
+                let sorted = tensor.gather(&asort, candle_core::D::Minus1)?;
+                let array_vec = sorted.to_vec1::<f32>()?;
+                Arc::new(Float32Array::from(array_vec))
+            }
+            DataType::Float64 => {
+                let array_vec = lhs_table.get_column_as_vec_primitive::<f64>(column).unwrap();
+                let tensor = Tensor::from_iter(array_vec, device)?;
+                let sorted = tensor.gather(&asort, candle_core::D::Minus1)?;
+                let array_vec = sorted.to_vec1::<f64>()?;
+                Arc::new(Float64Array::from(array_vec))
+            }
+            // DM: repeat for all primitive types...
+            // Note: Candle::Tensor library supports u8, u32, i64, bf16, f16, f32, f64
+            _ => return Err(anyhow!(
+                "Unsupported data type for column {}: {}",
+                column,
+                lhs_table.get_column_data_type(column)?.to_string()
+            )),
+        };
         batch_vec.push((column, sorted_array));
     }
+
+    // ...Nested columns must be done on the CPU
 
     // ...StringArray columns must be done on the CPU
     let columns: Vec<String> = lhs
@@ -353,7 +384,7 @@ mod tests {
         ])?;
 
         // Sort according to score
-        let result = sort_scores_and_indices(&[batch_1, batch_2], true, &Device::Cpu)?;
+        let result = sort_column_and_indices(&[batch_1, batch_2], true, &Device::Cpu)?;
 
         let lhs_id = result
             .column_by_name("lhs_pk")
