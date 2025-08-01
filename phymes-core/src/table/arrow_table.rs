@@ -5,7 +5,7 @@ use super::{
     stream_adapter::RecordBatchStreamAdapter,
 };
 
-use arrow::compute::concat_batches;
+use arrow::{array::{FixedSizeListArray, Int16Array, Int32Array, Int64Array, Int8Array, ListArray}, compute::concat_batches};
 use arrow::datatypes::Schema;
 use arrow::ipc::{
     reader::{FileReader, StreamReader},
@@ -35,6 +35,7 @@ use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Cursor, Seek};
 use std::sync::Arc;
+use num_traits::{Num, Bounded, NumCast};
 
 use anyhow::{Result, anyhow};
 use bytes::Bytes;
@@ -183,6 +184,7 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
             .sum::<usize>()
     }
 
+    /// Get a column as a vector of strings
     fn get_column_as_str_vec(&self, column_name: &str) -> Vec<&str> {
         self.get_record_batches()
             .iter()
@@ -198,6 +200,230 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>()
+    }
+
+    /// Get the type of the column
+    fn get_column_data_type(&self, column_name: &str) -> Result<DataType> {
+        let data_type = self.get_schema()
+            .field_with_name(column_name)?
+            .data_type()
+            .clone();
+        Ok(data_type)
+    }
+    
+    /// Get a column as a vector of primitive types
+    fn get_array_as_vec_primitive<T>(arr: &Arc<dyn Array>, column_name: &str) -> Result<Vec<T>>
+    where
+        T: Num + Bounded + NumCast + Send + Sync + 'static,
+    {
+        let data_type = arr.data_type();
+        if !data_type.is_primitive() {
+            return Err(anyhow!("Column {} is not a primitive type", column_name));
+        }
+        use std::any::TypeId;
+        match data_type {
+            DataType::Int8 => {
+                if TypeId::of::<T>() != TypeId::of::<i8>() {
+                    return Err(anyhow!("Expected Int8 data type for column {}", column_name));
+                }
+                let arr_vec = arr.as_any()
+                    .downcast_ref::<Int8Array>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| NumCast::from(s.unwrap_or_default()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            DataType::Int16 => {
+                if TypeId::of::<T>() != TypeId::of::<i16>() {
+                    return Err(anyhow!("Expected Int16 data type for column {}", column_name));
+                }
+                let arr_vec =  arr.as_any()
+                    .downcast_ref::<Int16Array>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| NumCast::from(s.unwrap_or_default()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            DataType::Int32 => {
+                if TypeId::of::<T>() != TypeId::of::<i32>() {
+                    return Err(anyhow!("Expected Int32 data type for column {}", column_name));
+                }
+                let arr_vec = arr.as_any()
+                    .downcast_ref::<Int32Array>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| NumCast::from(s.unwrap_or_default()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            DataType::Int64 => {
+                if TypeId::of::<T>() != TypeId::of::<i64>() {
+                    return Err(anyhow!("Expected Int64 data type for column {}", column_name));
+                }
+                let arr_vec = arr.as_any()
+                    .downcast_ref::<Int64Array>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| NumCast::from(s.unwrap_or_default()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            DataType::UInt8 => {
+                if TypeId::of::<T>() != TypeId::of::<u8>() {
+                    return Err(anyhow!("Expected UInt8 data type for column {}", column_name));
+                }
+                let arr_vec = arr.as_any()
+                    .downcast_ref::<UInt8Array>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| NumCast::from(s.unwrap_or_default()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            DataType::UInt16 => {
+                if TypeId::of::<T>() != TypeId::of::<u16>() {
+                    return Err(anyhow!("Expected UInt16 data type for column {}", column_name));
+                }
+                let arr_vec =  arr.as_any()
+                    .downcast_ref::<UInt16Array>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| NumCast::from(s.unwrap_or_default()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            DataType::UInt32 => {
+                if TypeId::of::<T>() != TypeId::of::<u32>() {
+                    return Err(anyhow!("Expected UInt32 data type for column {}", column_name));
+                }
+                let arr_vec = arr.as_any()
+                    .downcast_ref::<UInt32Array>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| NumCast::from(s.unwrap_or_default()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            DataType::UInt64 => {
+                if TypeId::of::<T>() != TypeId::of::<u64>() {
+                    return Err(anyhow!("Expected UInt64 data type for column {}", column_name));
+                }
+                let arr_vec = arr.as_any()
+                    .downcast_ref::<UInt64Array>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| NumCast::from(s.unwrap_or_default()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            DataType::Float32 => {
+                if TypeId::of::<T>() != TypeId::of::<f32>() {
+                    return Err(anyhow!("Expected Float32 data type for column {}", column_name));
+                }
+                let arr_vec = arr.as_any()
+                    .downcast_ref::<Float32Array>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| NumCast::from(s.unwrap_or_default()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            DataType::Float64 => {
+                if TypeId::of::<T>() != TypeId::of::<f64>() {
+                    return Err(anyhow!("Expected Float64 data type for column {}", column_name));
+                }
+                let arr_vec = arr.as_any()
+                    .downcast_ref::<Float64Array>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| NumCast::from(s.unwrap_or_default()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            _ => Err(anyhow!("Unsupported data type {} for column {}", data_type.to_string(), column_name)),
+        }
+    }
+
+    fn get_column_as_vec_nested<T>(&self, column_name: &str) -> Result<Vec<Vec<T>>>
+    where
+        T: Num + Bounded + NumCast + Send + Sync + 'static,
+    {
+        let data_type = self.get_column_data_type(column_name)?;
+        if !data_type.is_nested() {
+            return Err(anyhow!("Column {} is not a nested type", column_name));
+        }
+        match data_type {
+            DataType::FixedSizeList(_field, _size) => {
+                // DM: deal with each primitive data type
+                let arr_vec = self.get_record_batches()
+                    .iter()
+                    .flat_map(|batch| {
+                        batch
+                            .column_by_name(column_name)
+                            .unwrap()
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| {
+                                let values = Self::get_array_as_vec_primitive::<T>(
+                                    &s.unwrap(),
+                                    column_name,
+                                )
+                                .unwrap_or_default();
+                                values
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            },            
+            DataType::List(_field) => {
+                // DM: deal with each primitive data type
+                let arr_vec = self.get_record_batches()
+                    .iter()
+                    .flat_map(|batch| {
+                        batch
+                            .column_by_name(column_name)
+                            .unwrap()
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| {
+                                let values = Self::get_array_as_vec_primitive::<T>(
+                                    &s.unwrap(),
+                                    column_name,
+                                )
+                                .unwrap_or_default();
+                                values
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            _ => Err(anyhow!("Unsupported data type {} for column {}", data_type.to_string(), column_name)),
+        }
+    }
+
+    /// Get a column as a vector of primitive types
+    fn get_column_as_vec_primitive<T>(&self, column_name: &str) -> Result<Vec<T>>
+    where
+        T: Num + Bounded + NumCast + Send + Sync + 'static,
+    {
+        let mut result = Vec::new();
+        for batch in self.get_record_batches() {
+            if let Some(array) = batch.column_by_name(column_name) {
+                let vec = Self::get_array_as_vec_primitive::<T>(&array.clone(), column_name)?;
+                result.extend(vec);
+            } else {
+                return Err(anyhow!("Column {} not found", column_name));
+            }
+        }
+        Ok(result)
     }
 }
 
@@ -926,7 +1152,7 @@ mod tests {
 
     // Todo: additional tests for builder members
 
-    use arrow::array::{Int64Array, UInt32Array};
+    use arrow::array::UInt32Array;
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempfile;
 
@@ -991,37 +1217,9 @@ mod tests {
         let test_table_read_title = test_table_read.get_column_as_str_vec("title");
         assert_eq!(test_table_title, test_table_read_title);
 
-        let test_table_id = test_table
-            .get_record_batches()
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name("id")
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<UInt32Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let test_table_read_id = test_table_read
-            .get_record_batches()
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name("id")
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<Int64Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default() as u32)
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(test_table_id, test_table_read_id);
+        let test_table_id: Vec<u32> = test_table.get_column_as_vec_primitive("id")?;
+        let test_table_read_id: Vec<i64> = test_table_read.get_column_as_vec_primitive("id")?;
+        assert_eq!(test_table_id, test_table_read_id.into_iter().map(|x| x as u32).collect::<Vec<u32>>());
 
         Ok(())
     }
@@ -1077,38 +1275,9 @@ mod tests {
         let test_table_read_title = test_table_read.get_column_as_str_vec("title");
         assert_eq!(test_table_title, test_table_read_title);
 
-        let test_table_id = test_table
-            .get_record_batches()
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name("id")
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<UInt32Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let test_table_read_id = test_table_read
-            .get_record_batches()
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name("id")
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<Int64Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default() as u32)
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(test_table_id, test_table_read_id);
-
+        let test_table_id: Vec<u32> = test_table.get_column_as_vec_primitive("id")?;
+        let test_table_read_id: Vec<i64> = test_table_read.get_column_as_vec_primitive("id")?;
+        assert_eq!(test_table_id, test_table_read_id.into_iter().map(|x| x as u32).collect::<Vec<u32>>());
         Ok(())
     }
 
@@ -1143,37 +1312,9 @@ mod tests {
         let test_table_read_title = test_table_read.get_column_as_str_vec("title");
         assert_eq!(test_table_title, test_table_read_title);
 
-        let test_table_id = test_table
-            .get_record_batches()
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name("id")
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<UInt32Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let test_table_read_id = test_table_read
-            .get_record_batches()
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name("id")
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<Int64Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default() as u32)
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(test_table_id, test_table_read_id);
+        let test_table_id: Vec<u32> = test_table.get_column_as_vec_primitive("id")?;
+        let test_table_read_id: Vec<i64> = test_table_read.get_column_as_vec_primitive("id")?;
+        assert_eq!(test_table_id, test_table_read_id.into_iter().map(|x| x as u32).collect::<Vec<u32>>());
 
         Ok(())
     }
