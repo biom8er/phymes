@@ -218,7 +218,11 @@ pub fn sort_column_and_indices(
     asc: bool,
     device: &Device,
 ) -> Result<RecordBatch> {
+    // Wrap the output into a record batch
+    let mut batch_vec = Vec::new();
+
     // Extract out the score
+    // DM: update to include any supported primitive types
     let lhs_embeddings: Vec<f32> = lhs
         .iter()
         .flat_map(|batch| {
@@ -239,9 +243,6 @@ pub fn sort_column_and_indices(
     let (sorted, asort) = lhs_tensor.sort_last_dim(asc)?;
     let sorted_vec: Vec<f32> = sorted.to_vec1::<f32>()?;
     let asort_vec: Vec<u32> = asort.to_vec1::<u32>()?;
-
-    // Wrap the output into a record batch
-    let mut batch_vec = Vec::new();
     let out_scores: ArrayRef = Arc::new(Float32Array::from(sorted_vec));
     batch_vec.push(("score", out_scores));
 
