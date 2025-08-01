@@ -5,7 +5,7 @@ use super::{
     stream_adapter::RecordBatchStreamAdapter,
 };
 
-use arrow::{array::{FixedSizeListArray, Int16Array, Int32Array, Int64Array, Int8Array, ListArray}, compute::concat_batches};
+use arrow::{array::{FixedSizeListArray, Int16Array, Int32Array, Int64Array, Int8Array, ListArray}, compute::{concat_batches, kernels::concat}};
 use arrow::datatypes::Schema;
 use arrow::ipc::{
     reader::{FileReader, StreamReader},
@@ -425,6 +425,16 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
         }
         Ok(result)
     }
+
+    /// Get a column as an arrow array
+    fn get_column_as_array(&self, column_name: &str) -> Arc<dyn Array> {
+        let array_refs = self.get_record_batches()
+            .iter()
+            .map(|batch| batch.column_by_name(column_name).unwrap().as_ref())
+            .collect::<Vec<_>>();
+        concat::concat(&array_refs).unwrap()
+
+    }   
 }
 
 #[derive(Debug, Clone)]
