@@ -34,6 +34,57 @@ impl DataStreamManager {
     }
 }
 
+
+/// Data Aggregation (Reduction) operators
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+pub enum DataAggregator {
+    Max,
+    Min,
+    Sum,
+    Mean,
+    Var,
+    Count,
+    Concat,
+}
+
+impl DataAggregator {
+    pub fn get_name(&self) -> &str {
+        match self {
+            Self::Max => "Max",
+            Self::Min => "Min",
+            Self::Sum => "Sum",
+            Self::Mean => "Mean",
+            Self::Var => "Var",
+            Self::Count => "Count",
+            Self::Concat => "Concat",
+        }
+    }
+}
+
+/// Data Comparison operators
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+pub enum DataComparator {
+    /// Primitive
+    Equals,
+    NotEquals,
+    LessThanOrEqualTo,
+    GreaterThanOrEqualTo,
+    LessThan,
+    GreaterThan,
+    Between,
+    /// Nested and non-primitive
+    Contains,
+    EndsWith,
+    CaseInsensitiveLike,
+    Like,
+    CaseInsensitiveNotLike,
+    NotLike,
+    InList,
+    InListUtf8,
+    RegExpIsMatch,
+    StartsWith,
+}
+
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(author, version, about, long_about = None)]
 #[serde(default)]

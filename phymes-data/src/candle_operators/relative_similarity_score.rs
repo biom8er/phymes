@@ -374,8 +374,8 @@ Compute the relative similarity between two [RecordBatch]es
 
 # Arguments
 
-* `lhs` - Query 2D Tensor
-* `rhs` - Document chunk 2D Tensor
+* `lhs_args` - Query 2D Tensor
+* `lhs_args` - Document chunk 2D Tensor
 * `device` - The compute device
 
 */
