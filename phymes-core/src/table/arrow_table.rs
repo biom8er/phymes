@@ -508,6 +508,23 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
     }
 
     /// Get a column as a vector of primitive types
+    fn get_column_as_vec_nonprimitive<T>(&self, column_name: &str) -> Result<Vec<T>>
+    where
+        T: From<String> + 'static,
+    {
+        let mut result = Vec::new();
+        for batch in self.get_record_batches() {
+            if let Some(array) = batch.column_by_name(column_name) {
+                let vec = Self::get_array_as_vec_nonprimitive::<T>(&array.clone(), column_name)?;
+                result.extend(vec);
+            } else {
+                return Err(anyhow!("Column {} not found", column_name));
+            }
+        }
+        Ok(result)
+    }
+
+    /// Get a column as a vector of primitive types
     fn get_column_as_vec_primitive<T>(&self, column_name: &str) -> Result<Vec<T>>
     where
         T: Num + Bounded + NumCast + Send + Sync + 'static,
