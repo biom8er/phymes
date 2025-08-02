@@ -368,12 +368,11 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
                             .unwrap()
                             .iter()
                             .map(|s| {
-                                let values = Self::get_array_as_vec_primitive::<T>(
+                                Self::get_array_as_vec_primitive::<T>(
                                     &s.unwrap(),
                                     column_name,
                                 )
-                                .unwrap_or_default();
-                                values
+                                .unwrap_or_default()
                             })
                             .collect::<Vec<_>>()
                     })
@@ -393,12 +392,11 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
                             .unwrap()
                             .iter()
                             .map(|s| {
-                                let values = Self::get_array_as_vec_primitive::<T>(
+                                Self::get_array_as_vec_primitive::<T>(
                                     &s.unwrap(),
                                     column_name,
                                 )
-                                .unwrap_or_default();
-                                values
+                                .unwrap_or_default()
                             })
                             .collect::<Vec<_>>()
                     })
