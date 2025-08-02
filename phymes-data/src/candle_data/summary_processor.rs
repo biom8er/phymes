@@ -337,7 +337,7 @@ mod tests {
         arrow_table::ArrowTableBuilder, arrow_table_publish::ArrowTablePublish,
     };
 
-    use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch;
+    use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
 
     use super::*;
 
@@ -351,7 +351,8 @@ mod tests {
             vec![0., 1., 0., 1.],
             vec![0., 0., 0., 1.],
         ];
-        let lhs_batch = make_embeddings_record_batch("lhs_pk", lhs_ids_vec, lhs_embeddings_vec)?;
+        let lhs_batch =
+            make_embeddings_record_batch_str_f32("lhs_pk", lhs_ids_vec, lhs_embeddings_vec)?;
         let lhs_table = ArrowTable::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?

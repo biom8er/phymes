@@ -6,7 +6,10 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::Device;
-use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
+use phymes_core::{
+    session::common_traits::{BuildableTrait, BuilderTrait},
+    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+};
 use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
@@ -256,9 +259,10 @@ pub fn chunk_documents(
         .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?;
-    
+
     // Extract out the document text
-    let text = lhs_table.get_record_batches()
+    let text = lhs_table
+        .get_record_batches()
         .iter()
         .flat_map(|batch| {
             batch
@@ -280,12 +284,12 @@ pub fn chunk_documents(
     // Extract the rest of the columns according to type
     // Create new columns expanding when text vec size > 1
     // Ignore the lhs_values and chunk_id columns
-    let columns: Vec<String> = lhs_table.get_schema()
+    let columns: Vec<String> = lhs_table
+        .get_schema()
         .fields()
         .iter()
         .filter_map(|field| {
-            if (field.name() != lhs_values) 
-                & (field.name() != "chunk_id") {
+            if (field.name() != lhs_values) & (field.name() != "chunk_id") {
                 Some(field.name().clone())
             } else {
                 None
@@ -295,7 +299,8 @@ pub fn chunk_documents(
     for column in columns.iter() {
         let array_ref: ArrayRef = match lhs_table.get_column_data_type(column)? {
             DataType::UInt8 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -318,7 +323,8 @@ pub fn chunk_documents(
                 Arc::new(arrow::array::UInt8Array::from(array_vec))
             }
             DataType::UInt16 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -341,7 +347,8 @@ pub fn chunk_documents(
                 Arc::new(arrow::array::UInt16Array::from(array_vec))
             }
             DataType::UInt32 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -364,7 +371,8 @@ pub fn chunk_documents(
                 Arc::new(UInt32Array::from(array_vec))
             }
             DataType::UInt64 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -387,7 +395,8 @@ pub fn chunk_documents(
                 Arc::new(arrow::array::UInt64Array::from(array_vec))
             }
             DataType::Int8 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -410,7 +419,8 @@ pub fn chunk_documents(
                 Arc::new(arrow::array::Int8Array::from(array_vec))
             }
             DataType::Int16 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -433,7 +443,8 @@ pub fn chunk_documents(
                 Arc::new(arrow::array::Int16Array::from(array_vec))
             }
             DataType::Int32 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -456,7 +467,8 @@ pub fn chunk_documents(
                 Arc::new(arrow::array::Int32Array::from(array_vec))
             }
             DataType::Int64 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -479,7 +491,8 @@ pub fn chunk_documents(
                 Arc::new(arrow::array::Int64Array::from(array_vec))
             }
             DataType::Float32 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -502,7 +515,8 @@ pub fn chunk_documents(
                 Arc::new(Float32Array::from(array_vec))
             }
             DataType::Float64 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -525,7 +539,8 @@ pub fn chunk_documents(
                 Arc::new(arrow::array::Float64Array::from(array_vec))
             }
             DataType::Utf8 => {
-                let array_vec = lhs_table.get_record_batches()
+                let array_vec = lhs_table
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -547,11 +562,13 @@ pub fn chunk_documents(
                     .collect::<Vec<_>>();
                 Arc::new(StringArray::from(array_vec))
             }
-            _ => return Err(anyhow!(
-                "Unsupported data type for column {}: {}",
-                column,
-                lhs_table.get_column_data_type(column)?.to_string()
-            )),
+            _ => {
+                return Err(anyhow!(
+                    "Unsupported data type for column {}: {}",
+                    column,
+                    lhs_table.get_column_data_type(column)?.to_string()
+                ));
+            }
         };
         batch_vec.push((column, array_ref));
     }

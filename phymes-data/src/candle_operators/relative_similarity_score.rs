@@ -1,9 +1,14 @@
 use arrow::{
-    array::{ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt32Array, UInt8Array},
+    array::{
+        ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt8Array, UInt32Array,
+    },
     datatypes::{DataType, Field, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
-use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
+use phymes_core::{
+    session::common_traits::{BuildableTrait, BuilderTrait},
+    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+};
 
 use super::data_operator::DataOperatorTrait;
 use anyhow::{Result, anyhow};
@@ -247,16 +252,20 @@ impl DataOperatorTrait for RelativeSimilarityScore {
 }
 
 /// Helper method to extract out the embeddings information from the LHS and RHS arguments
-fn embeddings_to_tensor(values: &str, table: &ArrowTable, device: &Device) -> Result<(usize, usize, Tensor)> {
+fn embeddings_to_tensor(
+    values: &str,
+    table: &ArrowTable,
+    device: &Device,
+) -> Result<(usize, usize, Tensor)> {
     match table.get_column_data_type(values)? {
-        DataType::FixedSizeList(field, _)
-        | DataType::List(field) =>  match field.data_type() {
+        DataType::FixedSizeList(field, _) | DataType::List(field) => match field.data_type() {
             DataType::UInt8 => {
                 let lhs_embeddings = table.get_column_as_vec_nested_primitive::<u8>(values)?;
                 let lhs_dim_0 = lhs_embeddings.len();
                 let lhs_dim_1 = lhs_embeddings.first().unwrap().len();
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
-                let lhs_tensor = Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
+                let lhs_tensor =
+                    Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
                 Ok((lhs_dim_0, lhs_dim_1, lhs_tensor))
             }
             DataType::UInt32 => {
@@ -264,7 +273,8 @@ fn embeddings_to_tensor(values: &str, table: &ArrowTable, device: &Device) -> Re
                 let lhs_dim_0 = lhs_embeddings.len();
                 let lhs_dim_1 = lhs_embeddings.first().unwrap().len();
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
-                let lhs_tensor = Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
+                let lhs_tensor =
+                    Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
                 Ok((lhs_dim_0, lhs_dim_1, lhs_tensor))
             }
             DataType::Int64 => {
@@ -272,7 +282,8 @@ fn embeddings_to_tensor(values: &str, table: &ArrowTable, device: &Device) -> Re
                 let lhs_dim_0 = lhs_embeddings.len();
                 let lhs_dim_1 = lhs_embeddings.first().unwrap().len();
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
-                let lhs_tensor = Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
+                let lhs_tensor =
+                    Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
                 Ok((lhs_dim_0, lhs_dim_1, lhs_tensor))
             }
             // DataType::Float16 => {
@@ -282,7 +293,8 @@ fn embeddings_to_tensor(values: &str, table: &ArrowTable, device: &Device) -> Re
                 let lhs_dim_0 = lhs_embeddings.len();
                 let lhs_dim_1 = lhs_embeddings.first().unwrap().len();
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
-                let lhs_tensor = Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
+                let lhs_tensor =
+                    Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
                 Ok((lhs_dim_0, lhs_dim_1, lhs_tensor))
             }
             DataType::Float64 => {
@@ -290,29 +302,36 @@ fn embeddings_to_tensor(values: &str, table: &ArrowTable, device: &Device) -> Re
                 let lhs_dim_0 = lhs_embeddings.len();
                 let lhs_dim_1 = lhs_embeddings.first().unwrap().len();
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
-                let lhs_tensor = Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
+                let lhs_tensor =
+                    Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
                 Ok((lhs_dim_0, lhs_dim_1, lhs_tensor))
             }
-            _ => return Err(anyhow!(
+            _ => Err(anyhow!(
                 "Unsupported data type for column {}: {}",
                 values,
                 field.data_type().to_string()
             )),
-        }
-        _ => return Err(anyhow!(
+        },
+        _ => Err(anyhow!(
             "Unsupported data type for column {}: {}",
             values,
             table.get_column_data_type(values)?.to_string()
-        ))
+        )),
     }
 }
 
 /// Helper method to calculate the relative similarity scores
-fn tensor_to_scores(lhs_values: &str, lhs_table: &ArrowTable, lhs_tensor: Tensor, _rhs_values: &str, _rhs_table: &ArrowTable, rhs_tensor: Tensor) -> Result<ArrayRef> {
+fn tensor_to_scores(
+    lhs_values: &str,
+    lhs_table: &ArrowTable,
+    lhs_tensor: Tensor,
+    _rhs_values: &str,
+    _rhs_table: &ArrowTable,
+    rhs_tensor: Tensor,
+) -> Result<ArrayRef> {
     let result = relative_similarity_scores_tensor(&lhs_tensor, &rhs_tensor)?.flatten_all()?;
     match lhs_table.get_column_data_type(lhs_values)? {
-        DataType::FixedSizeList(field, _)
-        | DataType::List(field) =>  match field.data_type() {
+        DataType::FixedSizeList(field, _) | DataType::List(field) => match field.data_type() {
             DataType::UInt8 => {
                 let result_vec = result.to_vec1::<u8>()?;
                 Ok(Arc::new(UInt8Array::from(result_vec)))
@@ -335,17 +354,17 @@ fn tensor_to_scores(lhs_values: &str, lhs_table: &ArrowTable, lhs_tensor: Tensor
                 let result_vec = result.to_vec1::<f64>()?;
                 Ok(Arc::new(Float64Array::from(result_vec)))
             }
-            _ => return Err(anyhow!(
+            _ => Err(anyhow!(
                 "Unsupported data type for column {}: {}",
                 lhs_values,
                 field.data_type().to_string()
             )),
-        }
-        _ => return Err(anyhow!(
+        },
+        _ => Err(anyhow!(
             "Unsupported data type for column {}: {}",
             lhs_values,
             lhs_table.get_column_data_type(lhs_values)?.to_string()
-        ))
+        )),
     }
 }
 
@@ -379,20 +398,61 @@ fn relative_similarity_score(
         .with_record_batches(rhs_args.to_vec())?
         .with_name("")
         .build()?;
-    
+
     // Compute the relative similarity score
     let (lhs_dim_0, _lhs_dim_1, lhs_tensor) = embeddings_to_tensor(lhs_values, &lhs_table, device)?;
     let (rhs_dim_0, _rhs_dim_1, rhs_tensor) = embeddings_to_tensor(rhs_values, &rhs_table, device)?;
-    let out_scores = tensor_to_scores(lhs_values, &lhs_table, lhs_tensor, rhs_values, &rhs_table, rhs_tensor)?;
+    let out_scores = tensor_to_scores(
+        lhs_values, &lhs_table, lhs_tensor, rhs_values, &rhs_table, rhs_tensor,
+    )?;
 
     // Create the expanded LHS and RHS PKs
     let lhs_id: ArrayRef = match lhs_table.get_column_data_type(lhs_pk)? {
         // Broadcast along dim_0 by rhs_dim_0
         DataType::UInt8 => {
             let lhs_ids = lhs_table.get_column_as_vec_primitive::<u8>(lhs_pk)?;
-            let lhs_tensor = Tensor::from_iter(lhs_ids, device)?.reshape((1, rhs_dim_0))?.broadcast_as((lhs_dim_0, rhs_dim_0))?.flatten_all()?;
+            let lhs_tensor = Tensor::from_iter(lhs_ids, device)?
+                .reshape((lhs_dim_0, 1))?
+                .broadcast_as((lhs_dim_0, rhs_dim_0))?
+                .flatten_all()?;
             let lhs_ids_vec = lhs_tensor.to_vec1::<u8>()?;
             Arc::new(UInt8Array::from(lhs_ids_vec))
+        }
+        DataType::UInt32 => {
+            let lhs_ids = lhs_table.get_column_as_vec_primitive::<u32>(lhs_pk)?;
+            let lhs_tensor = Tensor::from_iter(lhs_ids, device)?
+                .reshape((lhs_dim_0, 1))?
+                .broadcast_as((lhs_dim_0, rhs_dim_0))?
+                .flatten_all()?;
+            let lhs_ids_vec = lhs_tensor.to_vec1::<u32>()?;
+            Arc::new(UInt32Array::from(lhs_ids_vec))
+        }
+        DataType::Int64 => {
+            let lhs_ids = lhs_table.get_column_as_vec_primitive::<i64>(lhs_pk)?;
+            let lhs_tensor = Tensor::from_iter(lhs_ids, device)?
+                .reshape((lhs_dim_0, 1))?
+                .broadcast_as((lhs_dim_0, rhs_dim_0))?
+                .flatten_all()?;
+            let lhs_ids_vec = lhs_tensor.to_vec1::<i64>()?;
+            Arc::new(Int64Array::from(lhs_ids_vec))
+        }
+        DataType::Float32 => {
+            let lhs_ids = lhs_table.get_column_as_vec_primitive::<f32>(lhs_pk)?;
+            let lhs_tensor = Tensor::from_iter(lhs_ids, device)?
+                .reshape((lhs_dim_0, 1))?
+                .broadcast_as((lhs_dim_0, rhs_dim_0))?
+                .flatten_all()?;
+            let lhs_ids_vec = lhs_tensor.to_vec1::<f32>()?;
+            Arc::new(Float32Array::from(lhs_ids_vec))
+        }
+        DataType::Float64 => {
+            let lhs_ids = lhs_table.get_column_as_vec_primitive::<f64>(lhs_pk)?;
+            let lhs_tensor = Tensor::from_iter(lhs_ids, device)?
+                .reshape((lhs_dim_0, 1))?
+                .broadcast_as((lhs_dim_0, lhs_dim_0))?
+                .flatten_all()?;
+            let lhs_ids_vec = lhs_tensor.to_vec1::<f64>()?;
+            Arc::new(Float64Array::from(lhs_ids_vec))
         }
         DataType::Utf8 => {
             let lhs_ids = lhs_table.get_column_as_vec_nonprimitive::<String>(lhs_pk)?;
@@ -404,19 +464,60 @@ fn relative_similarity_score(
             }
             Arc::new(StringArray::from(lhs_ids_vec))
         }
-        _ => return Err(anyhow!(
-            "Unsupported data type for column {}: {}",
-            lhs_pk,
-            lhs_table.get_column_data_type(lhs_pk)?.to_string()
-        ))
+        _ => {
+            return Err(anyhow!(
+                "Unsupported data type for column {}: {}",
+                lhs_pk,
+                lhs_table.get_column_data_type(lhs_pk)?.to_string()
+            ));
+        }
     };
     let rhs_id: ArrayRef = match rhs_table.get_column_data_type(rhs_pk)? {
         // Broadcast along dim_1 by lhs_dim_0
         DataType::UInt8 => {
-            let rhs_ids = lhs_table.get_column_as_vec_primitive::<u8>(rhs_pk)?;
-            let rhs_tensor = Tensor::from_iter(rhs_ids, device)?.reshape((lhs_dim_0, 1))?.broadcast_as((lhs_dim_0, rhs_dim_0))?.flatten_all()?;
+            let rhs_ids = rhs_table.get_column_as_vec_primitive::<u8>(rhs_pk)?;
+            let rhs_tensor = Tensor::from_iter(rhs_ids, device)?
+                .reshape((1, rhs_dim_0))?
+                .broadcast_as((lhs_dim_0, rhs_dim_0))?
+                .flatten_all()?;
             let rhs_ids_vec = rhs_tensor.to_vec1::<u8>()?;
             Arc::new(UInt8Array::from(rhs_ids_vec))
+        }
+        DataType::UInt32 => {
+            let rhs_ids = rhs_table.get_column_as_vec_primitive::<u32>(rhs_pk)?;
+            let rhs_tensor = Tensor::from_iter(rhs_ids, device)?
+                .reshape((1, rhs_dim_0))?
+                .broadcast_as((lhs_dim_0, rhs_dim_0))?
+                .flatten_all()?;
+            let rhs_ids_vec = rhs_tensor.to_vec1::<u32>()?;
+            Arc::new(UInt32Array::from(rhs_ids_vec))
+        }
+        DataType::Int64 => {
+            let rhs_ids = rhs_table.get_column_as_vec_primitive::<i64>(rhs_pk)?;
+            let rhs_tensor = Tensor::from_iter(rhs_ids, device)?
+                .reshape((1, rhs_dim_0))?
+                .broadcast_as((lhs_dim_0, rhs_dim_0))?
+                .flatten_all()?;
+            let rhs_ids_vec = rhs_tensor.to_vec1::<i64>()?;
+            Arc::new(Int64Array::from(rhs_ids_vec))
+        }
+        DataType::Float32 => {
+            let rhs_ids = rhs_table.get_column_as_vec_primitive::<f32>(rhs_pk)?;
+            let rhs_tensor = Tensor::from_iter(rhs_ids, device)?
+                .reshape((1, rhs_dim_0))?
+                .broadcast_as((lhs_dim_0, rhs_dim_0))?
+                .flatten_all()?;
+            let rhs_ids_vec = rhs_tensor.to_vec1::<f32>()?;
+            Arc::new(Float32Array::from(rhs_ids_vec))
+        }
+        DataType::Float64 => {
+            let rhs_ids = rhs_table.get_column_as_vec_primitive::<f64>(rhs_pk)?;
+            let rhs_tensor = Tensor::from_iter(rhs_ids, device)?
+                .reshape((1, rhs_dim_0))?
+                .broadcast_as((lhs_dim_0, rhs_dim_0))?
+                .flatten_all()?;
+            let rhs_ids_vec = rhs_tensor.to_vec1::<f64>()?;
+            Arc::new(Float64Array::from(rhs_ids_vec))
         }
         DataType::Utf8 => {
             let rhs_ids = rhs_table.get_column_as_vec_nonprimitive::<String>(rhs_pk)?;
@@ -428,13 +529,16 @@ fn relative_similarity_score(
             }
             Arc::new(StringArray::from(rhs_ids_vec))
         }
-        _ => return Err(anyhow!(
-            "Unsupported data type for column {}: {}",
-            rhs_pk,
-            rhs_table.get_column_data_type(rhs_pk)?.to_string()
-        ))
+        // DM: assuming that the PKs are not nested types...
+        _ => {
+            return Err(anyhow!(
+                "Unsupported data type for column {}: {}",
+                rhs_pk,
+                rhs_table.get_column_data_type(rhs_pk)?.to_string()
+            ));
+        }
     };
-    
+
     // Create the output batch
     let batch = RecordBatch::try_from_iter(vec![
         (lhs_pk, lhs_id),
@@ -468,7 +572,9 @@ pub fn relative_similarity_scores_tensor(lhs: &Tensor, rhs: &Tensor) -> Result<T
 
 #[cfg(test)]
 mod tests {
-    use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch;
+    use crate::candle_data::data_processor::test_candle_ops_processor::{
+        make_embeddings_record_batch_str_f32, make_embeddings_record_batch_u32_f32,
+    };
 
     use super::*;
 
@@ -511,6 +617,7 @@ mod tests {
 
     #[test]
     fn test_relative_similarity_scores() -> Result<()> {
+        // ------ PK = String ------
         // LHS and RHS record batches
         let lhs_ids_vec = vec!["1", "2", "3"];
         let lhs_embeddings_vec: Vec<Vec<f32>> = vec![
@@ -518,7 +625,7 @@ mod tests {
             vec![0., 1., 0., 1.],
             vec![0., 0., 0., 1.],
         ];
-        let lhs = make_embeddings_record_batch("lhs_pk", lhs_ids_vec, lhs_embeddings_vec)?;
+        let lhs = make_embeddings_record_batch_str_f32("lhs_pk", lhs_ids_vec, lhs_embeddings_vec)?;
         let rhs_ids_vec = vec!["1", "2", "3", "4"];
         let rhs_embeddings_vec: Vec<Vec<f32>> = vec![
             vec![1., 1., 1., 1.],
@@ -526,7 +633,7 @@ mod tests {
             vec![1., 1., 1., 1.],
             vec![1., 1., 1., 1.],
         ];
-        let rhs = make_embeddings_record_batch("rhs_pk", rhs_ids_vec, rhs_embeddings_vec)?;
+        let rhs = make_embeddings_record_batch_str_f32("rhs_pk", rhs_ids_vec, rhs_embeddings_vec)?;
 
         // Compute the relative similarity scores
         let result = relative_similarity_score(
@@ -561,6 +668,70 @@ mod tests {
             .unwrap()
             .as_any()
             .downcast_ref::<StringArray>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(rhs_id, rhs_ids_test);
+        let scores = result
+            .column_by_name("score")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<Float32Array>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(scores, scores_test);
+
+        // ------ PK = u32 ------
+        // LHS and RHS record batches
+        let lhs_ids_vec: Vec<u32> = vec![1, 2, 3];
+        let lhs_embeddings_vec: Vec<Vec<f32>> = vec![
+            vec![1., 1., 1., 1.],
+            vec![0., 1., 0., 1.],
+            vec![0., 0., 0., 1.],
+        ];
+        let lhs = make_embeddings_record_batch_u32_f32("lhs_pk", lhs_ids_vec, lhs_embeddings_vec)?;
+        let rhs_ids_vec: Vec<u32> = vec![1, 2, 3, 4];
+        let rhs_embeddings_vec: Vec<Vec<f32>> = vec![
+            vec![1., 1., 1., 1.],
+            vec![1., 1., 1., 1.],
+            vec![1., 1., 1., 1.],
+            vec![1., 1., 1., 1.],
+        ];
+        let rhs = make_embeddings_record_batch_u32_f32("rhs_pk", rhs_ids_vec, rhs_embeddings_vec)?;
+
+        // Compute the relative similarity scores
+        let result = relative_similarity_score(
+            "lhs_pk",
+            "embedding",
+            &[lhs],
+            "rhs_pk",
+            "embedding",
+            &[rhs],
+            &Device::Cpu,
+        )?;
+
+        // Expected values
+        let lhs_ids_test = vec![1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3];
+        let rhs_ids_test = vec![1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4];
+
+        let lhs_id = result
+            .column_by_name("lhs_pk")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(lhs_id, lhs_ids_test);
+        let rhs_id = result
+            .column_by_name("rhs_pk")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<UInt32Array>()
             .unwrap()
             .iter()
             .map(|s| s.unwrap_or_default())
