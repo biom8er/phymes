@@ -309,36 +309,31 @@ fn embeddings_to_tensor(values: &str, table: &ArrowTable, device: &Device) -> Re
 
 /// Helper method to calculate the relative similarity scores
 fn tensor_to_scores(lhs_values: &str, lhs_table: &ArrowTable, lhs_tensor: Tensor, _rhs_values: &str, _rhs_table: &ArrowTable, rhs_tensor: Tensor) -> Result<ArrayRef> {
-    let result = relative_similarity_scores_tensor(&lhs_tensor, &rhs_tensor)?;
+    let result = relative_similarity_scores_tensor(&lhs_tensor, &rhs_tensor)?.flatten_all()?;
     match lhs_table.get_column_data_type(lhs_values)? {
         DataType::FixedSizeList(field, _)
         | DataType::List(field) =>  match field.data_type() {
             DataType::UInt8 => {
-                let result_vec = result.to_vec2::<u8>()?;
-                let out_scores_vec = result_vec.into_iter().flatten().collect::<Vec<_>>();
-                Ok(Arc::new(UInt8Array::from(out_scores_vec)))
+                let result_vec = result.to_vec1::<u8>()?;
+                Ok(Arc::new(UInt8Array::from(result_vec)))
             }
             DataType::UInt32 => {
-                let result_vec = result.to_vec2::<u32>()?;
-                let out_scores_vec = result_vec.into_iter().flatten().collect::<Vec<_>>();
-                Ok(Arc::new(UInt32Array::from(out_scores_vec)))
+                let result_vec = result.to_vec1::<u32>()?;
+                Ok(Arc::new(UInt32Array::from(result_vec)))
             }
             DataType::Int64 => {
-                let result_vec = result.to_vec2::<i64>()?;
-                let out_scores_vec = result_vec.into_iter().flatten().collect::<Vec<_>>();
-                Ok(Arc::new(Int64Array::from(out_scores_vec)))
+                let result_vec = result.to_vec1::<i64>()?;
+                Ok(Arc::new(Int64Array::from(result_vec)))
             }
             // DataType::Float16 => {
             // }
             DataType::Float32 => {
-                let result_vec = result.to_vec2::<f32>()?;
-                let out_scores_vec = result_vec.into_iter().flatten().collect::<Vec<_>>();
-                Ok(Arc::new(Float32Array::from(out_scores_vec)))
+                let result_vec = result.to_vec1::<f32>()?;
+                Ok(Arc::new(Float32Array::from(result_vec)))
             }
             DataType::Float64 => {
-                let result_vec = result.to_vec2::<f64>()?;
-                let out_scores_vec = result_vec.into_iter().flatten().collect::<Vec<_>>();
-                Ok(Arc::new(Float64Array::from(out_scores_vec)))
+                let result_vec = result.to_vec1::<f64>()?;
+                Ok(Arc::new(Float64Array::from(result_vec)))
             }
             _ => return Err(anyhow!(
                 "Unsupported data type for column {}: {}",
@@ -395,9 +390,8 @@ fn relative_similarity_score(
         // Broadcast along dim_0 by rhs_dim_0
         DataType::UInt8 => {
             let lhs_ids = lhs_table.get_column_as_vec_primitive::<u8>(lhs_pk)?;
-            let lhs_tensor = Tensor::from_iter(lhs_ids, device)?.reshape((1, rhs_dim_0))?.broadcast_as((lhs_dim_0, rhs_dim_0))?;
-            let lhs_ids_vec = lhs_tensor.to_vec2::<u8>()?;
-            let lhs_ids_vec = lhs_ids_vec.into_iter().flatten().collect::<Vec<_>>();
+            let lhs_tensor = Tensor::from_iter(lhs_ids, device)?.reshape((1, rhs_dim_0))?.broadcast_as((lhs_dim_0, rhs_dim_0))?.flatten_all()?;
+            let lhs_ids_vec = lhs_tensor.to_vec1::<u8>()?;
             Arc::new(UInt8Array::from(lhs_ids_vec))
         }
         DataType::Utf8 => {
@@ -420,9 +414,8 @@ fn relative_similarity_score(
         // Broadcast along dim_1 by lhs_dim_0
         DataType::UInt8 => {
             let rhs_ids = lhs_table.get_column_as_vec_primitive::<u8>(rhs_pk)?;
-            let rhs_tensor = Tensor::from_iter(rhs_ids, device)?.reshape((lhs_dim_0, 1))?.broadcast_as((lhs_dim_0, rhs_dim_0))?;
-            let rhs_ids_vec = rhs_tensor.to_vec2::<u8>()?;
-            let rhs_ids_vec = rhs_ids_vec.into_iter().flatten().collect::<Vec<_>>();
+            let rhs_tensor = Tensor::from_iter(rhs_ids, device)?.reshape((lhs_dim_0, 1))?.broadcast_as((lhs_dim_0, rhs_dim_0))?.flatten_all()?;
+            let rhs_ids_vec = rhs_tensor.to_vec1::<u8>()?;
             Arc::new(UInt8Array::from(rhs_ids_vec))
         }
         DataType::Utf8 => {

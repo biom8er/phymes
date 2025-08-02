@@ -1,5 +1,5 @@
 use arrow::{
-    array::{ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt32Array, UInt8Array},
+    array::{Array, ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt32Array, UInt8Array},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
@@ -199,6 +199,71 @@ impl DataOperatorTrait for SortScoresAndIndices {
     }
 }
 
+/// Take the columns according to the indices over the specified columns
+pub fn take_columns_by_indices(column_names: &[String], table: &ArrowTable, asort_arr: UInt32Array, asort_tensor: Tensor, device: &Device) -> Result<Vec<(String, Arc<dyn Array>)>> {
+    let mut batch_vec = Vec::new();
+    for column in column_names.iter() {
+        let sorted_array: ArrayRef = match table.get_column_data_type(column)? {
+            DataType::UInt8 => {
+                let array_vec = table.get_column_as_vec_primitive::<u8>(column).unwrap();
+                let tensor = Tensor::from_iter(array_vec, device)?;
+                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let array_vec = sorted.to_vec1::<u8>()?;
+                Arc::new(UInt8Array::from(array_vec))
+            }
+            DataType::UInt32 => {
+                let array_vec = table.get_column_as_vec_primitive::<u32>(column).unwrap();
+                let tensor = Tensor::from_iter(array_vec, device)?;
+                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let array_vec = sorted.to_vec1::<u32>()?;
+                Arc::new(UInt32Array::from(array_vec))
+            }
+            DataType::Int64 => {
+                let array_vec = table.get_column_as_vec_primitive::<i64>(column).unwrap();
+                let tensor = Tensor::from_iter(array_vec, device)?;
+                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let array_vec = sorted.to_vec1::<i64>()?;
+                Arc::new(Int64Array::from(array_vec))
+            }
+            DataType::Float32 => {
+                let array_vec = table.get_column_as_vec_primitive::<f32>(column).unwrap();
+                let tensor = Tensor::from_iter(array_vec, device)?;
+                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let array_vec = sorted.to_vec1::<f32>()?;
+                Arc::new(Float32Array::from(array_vec))
+            }
+            DataType::Float64 => {
+                let array_vec = table.get_column_as_vec_primitive::<f64>(column).unwrap();
+                let tensor = Tensor::from_iter(array_vec, device)?;
+                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let array_vec = sorted.to_vec1::<f64>()?;
+                Arc::new(Float64Array::from(array_vec))
+            }
+            DataType::Utf8 => {
+                // StringArray must be sorted on the CPU
+                let array_ref: ArrayRef = Arc::new(StringArray::from(table.get_column_as_vec_str(column)));
+                arrow::compute::take(&array_ref, &asort_arr, None)?
+            }
+            DataType::FixedSizeList(_f, _s) => {
+                let array_ref: ArrayRef = table.get_column_as_array(column);
+                arrow::compute::take(&array_ref, &asort_arr, None)?
+            }
+            DataType::List(_f) => {
+                let array_ref: ArrayRef = table.get_column_as_array(column);
+                arrow::compute::take(&array_ref, &asort_arr, None)?
+            }
+            // Note: Candle::Tensor library supports u8, u32, i64, bf16, f16, f32, f64
+            _ => return Err(anyhow!(
+                "Unsupported data type for column {}: {}",
+                column,
+                table.get_column_data_type(column)?.to_string()
+            )),
+        };
+        batch_vec.push((column.to_owned(), sorted_array));
+    }
+    Ok(batch_vec)
+}
+
 /**
 Sort the [RecordBatch] according to the `score` column
   and then apply the sorting order to the rest of the record batch columns
@@ -224,17 +289,15 @@ pub fn sort_column_and_indices(
         .with_name("")
         .build()?;
 
-    // Wrap the output into a record batch
-    let mut batch_vec = Vec::new();
-
     // Extract out the column to sort by
+    let mut batch_vec = Vec::new();
     let (asort_arr, asort_tensor) = match lhs_table.get_column_data_type(lhs_values)? {
         DataType::UInt8 => {
             let array_vec = lhs_table.get_column_as_vec_primitive::<u8>(lhs_values).unwrap();
             let tensor = Tensor::from_iter(array_vec, device)?;
             let (sorted, asort) = tensor.sort_last_dim(asc)?;
             let lhs_sorted: ArrayRef = Arc::new(UInt8Array::from(sorted.to_vec1::<u8>()?));
-            batch_vec.push((lhs_values, lhs_sorted));
+            batch_vec.push((lhs_values.to_owned(), lhs_sorted));
             let asort_arr = UInt32Array::from(asort.to_vec1::<u32>()?);
             (asort_arr, asort)
         }
@@ -243,7 +306,7 @@ pub fn sort_column_and_indices(
             let tensor = Tensor::from_iter(array_vec, device)?;
             let (sorted, asort) = tensor.sort_last_dim(asc)?;
             let lhs_sorted: ArrayRef = Arc::new(UInt32Array::from(sorted.to_vec1::<u32>()?));
-            batch_vec.push((lhs_values, lhs_sorted));
+            batch_vec.push((lhs_values.to_owned(), lhs_sorted));
             let asort_arr = UInt32Array::from(asort.to_vec1::<u32>()?);
             (asort_arr, asort)
         }
@@ -252,7 +315,7 @@ pub fn sort_column_and_indices(
             let tensor = Tensor::from_iter(array_vec, device)?;
             let (sorted, asort) = tensor.sort_last_dim(asc)?;
             let lhs_sorted: ArrayRef = Arc::new(Int64Array::from(sorted.to_vec1::<i64>()?));
-            batch_vec.push((lhs_values, lhs_sorted));
+            batch_vec.push((lhs_values.to_owned(), lhs_sorted));
             let asort_arr = UInt32Array::from(asort.to_vec1::<u32>()?);
             (asort_arr, asort)
         }
@@ -261,7 +324,7 @@ pub fn sort_column_and_indices(
             let tensor = Tensor::from_iter(array_vec, device)?;
             let (sorted, asort) = tensor.sort_last_dim(asc)?;
             let lhs_sorted: ArrayRef = Arc::new(Float32Array::from(sorted.to_vec1::<f32>()?));
-            batch_vec.push((lhs_values, lhs_sorted));
+            batch_vec.push((lhs_values.to_owned(), lhs_sorted));
             let asort_arr = UInt32Array::from(asort.to_vec1::<u32>()?);
             (asort_arr, asort)
         }
@@ -270,7 +333,7 @@ pub fn sort_column_and_indices(
             let tensor = Tensor::from_iter(array_vec, device)?;
             let (sorted, asort) = tensor.sort_last_dim(asc)?;
             let lhs_sorted: ArrayRef = Arc::new(Float64Array::from(sorted.to_vec1::<f64>()?));
-            batch_vec.push((lhs_values, lhs_sorted));
+            batch_vec.push((lhs_values.to_owned(), lhs_sorted));
             let asort_arr = UInt32Array::from(asort.to_vec1::<u32>()?);
             (asort_arr, asort)
         }
@@ -286,7 +349,7 @@ pub fn sort_column_and_indices(
                 None
             )?;
             let lhs_sorted = arrow::compute::take(&array_ref, &sorted_indices, None)?;
-            batch_vec.push((lhs_values, lhs_sorted));
+            batch_vec.push((lhs_values.to_owned(), lhs_sorted));
             let asort = sorted_indices
                 .iter()
                 .map(|v| v.unwrap_or_default())
@@ -305,7 +368,7 @@ pub fn sort_column_and_indices(
                 None
             )?;
             let lhs_sorted = arrow::compute::take(&array_ref, &sorted_indices, None)?;
-            batch_vec.push((lhs_values, lhs_sorted));
+            batch_vec.push((lhs_values.to_owned(), lhs_sorted));
             let asort = sorted_indices
                 .iter()
                 .map(|v| v.unwrap_or_default())
@@ -324,7 +387,7 @@ pub fn sort_column_and_indices(
                 None
             )?;
             let lhs_sorted = arrow::compute::take(&array_ref, &sorted_indices, None)?;
-            batch_vec.push((lhs_values, lhs_sorted));
+            batch_vec.push((lhs_values.to_owned(), lhs_sorted));
             let asort = sorted_indices
                 .iter()
                 .map(|v| v.unwrap_or_default())
@@ -347,66 +410,7 @@ pub fn sort_column_and_indices(
             }
         })
         .collect();
-    for column in columns.iter() {
-        let sorted_array: ArrayRef = match lhs_table.get_column_data_type(column)? {
-            DataType::UInt8 => {
-                let array_vec = lhs_table.get_column_as_vec_primitive::<u8>(column).unwrap();
-                let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
-                let array_vec = sorted.to_vec1::<u8>()?;
-                Arc::new(UInt8Array::from(array_vec))
-            }
-            DataType::UInt32 => {
-                let array_vec = lhs_table.get_column_as_vec_primitive::<u32>(column).unwrap();
-                let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
-                let array_vec = sorted.to_vec1::<u32>()?;
-                Arc::new(UInt32Array::from(array_vec))
-            }
-            DataType::Int64 => {
-                let array_vec = lhs_table.get_column_as_vec_primitive::<i64>(column).unwrap();
-                let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
-                let array_vec = sorted.to_vec1::<i64>()?;
-                Arc::new(Int64Array::from(array_vec))
-            }
-            DataType::Float32 => {
-                let array_vec = lhs_table.get_column_as_vec_primitive::<f32>(column).unwrap();
-                let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
-                let array_vec = sorted.to_vec1::<f32>()?;
-                Arc::new(Float32Array::from(array_vec))
-            }
-            DataType::Float64 => {
-                let array_vec = lhs_table.get_column_as_vec_primitive::<f64>(column).unwrap();
-                let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
-                let array_vec = sorted.to_vec1::<f64>()?;
-                Arc::new(Float64Array::from(array_vec))
-            }
-            DataType::Utf8 => {
-                // StringArray must be sorted on the CPU
-                let array_ref: ArrayRef = Arc::new(StringArray::from(lhs_table.get_column_as_vec_str(column)));
-                arrow::compute::take(&array_ref, &asort_arr, None)?
-            }
-            DataType::FixedSizeList(_f, _s) => {
-                let array_ref: ArrayRef = lhs_table.get_column_as_array(column);
-                arrow::compute::take(&array_ref, &asort_arr, None)?
-            }
-            DataType::List(_f) => {
-                let array_ref: ArrayRef = lhs_table.get_column_as_array(column);
-                arrow::compute::take(&array_ref, &asort_arr, None)?
-            }
-            // Note: Candle::Tensor library supports u8, u32, i64, bf16, f16, f32, f64
-            _ => return Err(anyhow!(
-                "Unsupported data type for column {}: {}",
-                column,
-                lhs_table.get_column_data_type(column)?.to_string()
-            )),
-        };
-        batch_vec.push((column, sorted_array));
-    }
-
+    batch_vec.extend(take_columns_by_indices(&columns, &lhs_table, asort_arr, asort_tensor, device)?);
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
 }
