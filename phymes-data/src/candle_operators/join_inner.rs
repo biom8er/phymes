@@ -1,5 +1,5 @@
 use arrow::{
-    array::{ArrayRef, UInt8Array},
+    array::{Array, ArrayRef, UInt8Array},
     datatypes::{DataType, Field, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
@@ -222,6 +222,54 @@ impl DataOperatorTrait for JoinInner {
     }
 }
 
+type JointInnerTensorResult = (Arc<dyn Array>, Tensor, Arc<dyn Array>, Tensor);
+
+/// Helper method to compute the inner join using Tensors
+fn join_inner_tensor(
+    lhs_dim_0: usize,
+    lhs_tensor: Tensor,
+    rhs_dim_0: usize,
+    rhs_tensor: Tensor,
+    device: &Device,
+) -> Result<JointInnerTensorResult> {
+    let match_tensor = lhs_tensor.cmp(&rhs_tensor, CmpOp::Eq)?;
+
+    // Convert the matches into indices
+    let lhs_indices_tensor = (&Tensor::arange(1u8, (lhs_dim_0 + 1) as u8, device)?
+        .reshape((lhs_dim_0, 1))?
+        .broadcast_as((lhs_dim_0, rhs_dim_0))?
+        * &match_tensor)?
+        .flatten_all()?;
+    let rhs_indices_tensor = (&Tensor::arange(1u8, (rhs_dim_0 + 1) as u8, device)?
+        .reshape((1, rhs_dim_0))?
+        .broadcast_as((lhs_dim_0, rhs_dim_0))?
+        * &match_tensor)?
+        .flatten_all()?;
+
+    // Extract out the indices
+    let lhs_indices = lhs_indices_tensor.to_vec1::<u8>()?;
+    let lhs_indices = lhs_indices
+        .into_iter()
+        .filter_map(|v| if v >= 1 { Some(v - 1) } else { None })
+        .collect::<Vec<_>>();
+    let lhs_tensor = Tensor::from_iter(
+        lhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
+        device,
+    )?;
+    let lhs_arr: ArrayRef = Arc::new(UInt8Array::from(lhs_indices));
+    let rhs_indices = rhs_indices_tensor.to_vec1::<u8>()?;
+    let rhs_indices = rhs_indices
+        .into_iter()
+        .filter_map(|v| if v >= 1 { Some(v - 1) } else { None })
+        .collect::<Vec<_>>();
+    let rhs_tensor = Tensor::from_iter(
+        rhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
+        device,
+    )?;
+    let rhs_arr: ArrayRef = Arc::new(UInt8Array::from(rhs_indices));
+    Ok((lhs_arr, lhs_tensor, rhs_arr, rhs_tensor))
+}
+
 /**
 Inner join along the LHS foreign key and RHS PK of two [RecordBatch]
   ONLY the rows with matching values in common are returned
@@ -278,42 +326,67 @@ pub fn join_inner(
                 let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
                     .reshape((1, rhs_dim_0))?
                     .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                let match_tensor = lhs_tensor.cmp(&rhs_tensor, CmpOp::Eq)?;
+                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+            }
+            DataType::UInt32 => {
+                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<u32>(lhs_fk)?;
+                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<u32>(rhs_fk)?;
+                let lhs_dim_0 = lhs_fk_vec.len();
+                let rhs_dim_0 = rhs_fk_vec.len();
 
-                // Convert the matches into indices
-                let lhs_indices_tensor = (&Tensor::arange(1u8, (lhs_dim_0 + 1) as u8, device)?
+                // Broadcast along dims 0 and 1 to find the matching FKs
+                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
                     .reshape((lhs_dim_0, 1))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?
-                    * &match_tensor)?
-                    .flatten_all()?;
-                let rhs_indices_tensor = (&Tensor::arange(1u8, (rhs_dim_0 + 1) as u8, device)?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
                     .reshape((1, rhs_dim_0))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?
-                    * &match_tensor)?
-                    .flatten_all()?;
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+            }
+            DataType::Int64 => {
+                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<i64>(lhs_fk)?;
+                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<i64>(rhs_fk)?;
+                let lhs_dim_0 = lhs_fk_vec.len();
+                let rhs_dim_0 = rhs_fk_vec.len();
 
-                // Extract out the indices
-                let lhs_indices = lhs_indices_tensor.to_vec1::<u8>()?;
-                let lhs_indices = lhs_indices
-                    .into_iter()
-                    .filter_map(|v| if v >= 1 { Some(v - 1) } else { None })
-                    .collect::<Vec<_>>();
-                let lhs_tensor = Tensor::from_iter(
-                    lhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
-                    device,
-                )?;
-                let lhs_arr: ArrayRef = Arc::new(UInt8Array::from(lhs_indices));
-                let rhs_indices = rhs_indices_tensor.to_vec1::<u8>()?;
-                let rhs_indices = rhs_indices
-                    .into_iter()
-                    .filter_map(|v| if v >= 1 { Some(v - 1) } else { None })
-                    .collect::<Vec<_>>();
-                let rhs_tensor = Tensor::from_iter(
-                    rhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
-                    device,
-                )?;
-                let rhs_arr: ArrayRef = Arc::new(UInt8Array::from(rhs_indices));
-                (lhs_arr, lhs_tensor, rhs_arr, rhs_tensor)
+                // Broadcast along dims 0 and 1 to find the matching FKs
+                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
+                    .reshape((lhs_dim_0, 1))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
+                    .reshape((1, rhs_dim_0))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+            }
+            DataType::Float32 => {
+                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<f32>(lhs_fk)?;
+                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<f32>(rhs_fk)?;
+                let lhs_dim_0 = lhs_fk_vec.len();
+                let rhs_dim_0 = rhs_fk_vec.len();
+
+                // Broadcast along dims 0 and 1 to find the matching FKs
+                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
+                    .reshape((lhs_dim_0, 1))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
+                    .reshape((1, rhs_dim_0))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+            }
+            DataType::Float64 => {
+                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<f64>(lhs_fk)?;
+                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<f64>(rhs_fk)?;
+                let lhs_dim_0 = lhs_fk_vec.len();
+                let rhs_dim_0 = rhs_fk_vec.len();
+
+                // Broadcast along dims 0 and 1 to find the matching FKs
+                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
+                    .reshape((lhs_dim_0, 1))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
+                    .reshape((1, rhs_dim_0))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
             }
             DataType::Utf8 => {
                 let lhs_fk_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(lhs_fk)?;
