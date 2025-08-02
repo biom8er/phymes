@@ -502,15 +502,15 @@ mod tests {
             .unwrap();
         assert_eq!(table.count_rows(), 4);
         assert_eq!(
-            table.get_column_as_str_vec("document_id"),
+            table.get_column_as_vec_str("document_id"),
             ["doc_1", "doc_1", "doc_2", "doc_2"]
         );
         assert_eq!(
-            table.get_column_as_str_vec("chunk_id"),
+            table.get_column_as_vec_str("chunk_id"),
             ["1", "2", "1", "2"]
         );
         assert_eq!(
-            table.get_column_as_str_vec("text"),
+            table.get_column_as_vec_str("text"),
             ["123 ", "456 ", "123 ", "456 "]
         );
     }

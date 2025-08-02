@@ -380,7 +380,7 @@ impl Stream for CandleChatStream {
                         .with_record_batches(batches)?
                         .build()?;
                     let tool_vec: Vec<Tool> = tool_table
-                        .get_column_as_str_vec("tool")
+                        .get_column_as_vec_str("tool")
                         .iter()
                         .map(|s| {
                             let tool: Tool = serde_json::from_str(s).unwrap();

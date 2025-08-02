@@ -691,8 +691,8 @@ impl SessionStreamState {
             .build()?;
 
         // Extract out the data
-        let task_vec = table.get_column_as_str_vec("task_name");
-        let subject_vec = table.get_column_as_str_vec("subject_name");
+        let task_vec = table.get_column_as_vec_str("task_name");
+        let subject_vec = table.get_column_as_vec_str("subject_name");
         let status_vec = table
             .get_record_batches()
             .iter()
@@ -1468,7 +1468,7 @@ mod tests {
         let info = session_context.get_tasks_info_as_table("table")?;
         assert_eq!(info.get_name(), "table");
         assert_eq!(
-            info.get_column_as_str_vec("task_names"),
+            info.get_column_as_vec_str("task_names"),
             [
                 "session_1",
                 "session_1",
@@ -1488,7 +1488,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            info.get_column_as_str_vec("processor_names"),
+            info.get_column_as_vec_str("processor_names"),
             [
                 "session_1",
                 "session_1",
@@ -1508,7 +1508,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            info.get_column_as_str_vec("subject_names"),
+            info.get_column_as_vec_str("subject_names"),
             [
                 "state_1", "state_2", "state_3", "state_1", "state_2", "state_3", "state_1",
                 "config_1", "state_1", "state_2", "config_2", "state_2", "state_3", "config_3",
@@ -1516,7 +1516,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            info.get_column_as_str_vec("pub_or_sub"),
+            info.get_column_as_vec_str("pub_or_sub"),
             [
                 "-", "-", "-", "+", "+", "+", "-", "-", "+", "-", "-", "+", "-", "-", "+"
             ]
@@ -1533,7 +1533,7 @@ mod tests {
         let info = session_context.get_subjects_info_as_table("table")?;
         assert_eq!(info.get_name(), "table");
         assert_eq!(
-            info.get_column_as_str_vec("subject_names"),
+            info.get_column_as_vec_str("subject_names"),
             [
                 "config_1", "config_1", "config_1", "config_2", "config_2", "config_2", "config_3",
                 "config_3", "config_3", "state_1", "state_1", "state_1", "state_1", "state_1",
@@ -1543,7 +1543,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            info.get_column_as_str_vec("column_names"),
+            info.get_column_as_vec_str("column_names"),
             [
                 "a",
                 "b",
@@ -1578,7 +1578,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            info.get_column_as_str_vec("type_names"),
+            info.get_column_as_vec_str("type_names"),
             [
                 "Utf8",
                 "UInt32",

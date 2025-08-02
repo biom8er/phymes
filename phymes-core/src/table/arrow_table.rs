@@ -5,7 +5,7 @@ use super::{
     stream_adapter::RecordBatchStreamAdapter,
 };
 
-use arrow::{array::{FixedSizeListArray, Int16Array, Int32Array, Int64Array, Int8Array, ListArray}, compute::{concat_batches, kernels::concat}};
+use arrow::{array::{FixedSizeListArray, Int16Array, Int32Array, Int64Array, Int8Array, LargeStringArray, ListArray}, compute::{concat_batches, kernels::concat}};
 use arrow::datatypes::Schema;
 use arrow::ipc::{
     reader::{FileReader, StreamReader},
@@ -185,7 +185,7 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
     }
 
     /// Get a column as a vector of strings
-    fn get_column_as_str_vec(&self, column_name: &str) -> Vec<&str> {
+    fn get_column_as_vec_str(&self, column_name: &str) -> Vec<&str> {
         self.get_record_batches()
             .iter()
             .flat_map(|batch| {
@@ -209,6 +209,45 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
             .data_type()
             .clone();
         Ok(data_type)
+    }
+    
+    /// Get a column as a vector of non-primitive types
+    fn get_array_as_vec_nonprimitive<T>(arr: &Arc<dyn Array>, column_name: &str) -> Result<Vec<T>>
+    where
+        T: From<String> + 'static,
+    {
+        let data_type = arr.data_type();
+        if data_type.is_primitive() {
+            return Err(anyhow!("Column {} is a primitive type", column_name));
+        }
+        use std::any::TypeId;
+        match data_type {
+            DataType::Utf8 => {
+                if TypeId::of::<T>() != TypeId::of::<String>() {
+                    return Err(anyhow!("Expected String data type for column {}", column_name));
+                }
+                let arr_vec = arr.as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| T::from(s.unwrap_or_default().to_string()))
+                    .collect::<Vec<T>>();
+                Ok(arr_vec)
+            }
+            DataType::LargeUtf8 => {
+                if TypeId::of::<T>() != TypeId::of::<String>() {
+                    return Err(anyhow!("Expected Int16 data type for column {}", column_name));
+                }
+                let arr_vec =  arr.as_any()
+                    .downcast_ref::<LargeStringArray>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| T::from(s.unwrap_or_default().to_string()))
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            _ => Err(anyhow!("Unsupported data type {} for column {}", data_type.to_string(), column_name)),
+        }
     }
     
     /// Get a column as a vector of primitive types
@@ -346,7 +385,68 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
         }
     }
 
-    fn get_column_as_vec_nested<T>(&self, column_name: &str) -> Result<Vec<Vec<T>>>
+    fn get_column_as_vec_nested_nonprimitive<T>(&self, column_name: &str) -> Result<Vec<Vec<T>>>
+    where
+        T: From<String> + 'static,
+    {
+        let data_type = self.get_column_data_type(column_name)?;
+        if !data_type.is_nested() {
+            return Err(anyhow!("Column {} is not a nested type", column_name));
+        }
+        match data_type {
+            DataType::FixedSizeList(_field, _size) => {
+                // DM: deal with each primitive data type
+                let arr_vec = self.get_record_batches()
+                    .iter()
+                    .flat_map(|batch| {
+                        batch
+                            .column_by_name(column_name)
+                            .unwrap()
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| {
+                                Self::get_array_as_vec_nonprimitive::<T>(
+                                    &s.unwrap(),
+                                    column_name,
+                                )
+                                .unwrap_or_default()                               
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            },            
+            DataType::List(_field) => {
+                // DM: deal with each primitive data type
+                let arr_vec = self.get_record_batches()
+                    .iter()
+                    .flat_map(|batch| {
+                        batch
+                            .column_by_name(column_name)
+                            .unwrap()
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| {
+                                Self::get_array_as_vec_nonprimitive::<T>(
+                                    &s.unwrap(),
+                                    column_name,
+                                )
+                                .unwrap_or_default() 
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            _ => Err(anyhow!("Unsupported data type {} for column {}", data_type.to_string(), column_name)),
+        }
+    }
+
+    fn get_column_as_vec_nested_primitive<T>(&self, column_name: &str) -> Result<Vec<Vec<T>>>
     where
         T: Num + Bounded + NumCast + Send + Sync + 'static,
     {
@@ -372,7 +472,7 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
                                     &s.unwrap(),
                                     column_name,
                                 )
-                                .unwrap_or_default()
+                                .unwrap_or_default()                     
                             })
                             .collect::<Vec<_>>()
                     })
@@ -396,7 +496,7 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
                                     &s.unwrap(),
                                     column_name,
                                 )
-                                .unwrap_or_default()
+                                .unwrap_or_default()   
                             })
                             .collect::<Vec<_>>()
                     })
@@ -1221,8 +1321,8 @@ mod tests {
 
         // Test each columns since
         // JSON reader coerces UInt32 to Int64
-        let test_table_title = test_table.get_column_as_str_vec("title");
-        let test_table_read_title = test_table_read.get_column_as_str_vec("title");
+        let test_table_title = test_table.get_column_as_vec_str("title");
+        let test_table_read_title = test_table_read.get_column_as_vec_str("title");
         assert_eq!(test_table_title, test_table_read_title);
 
         let test_table_id: Vec<u32> = test_table.get_column_as_vec_primitive("id")?;
@@ -1279,8 +1379,8 @@ mod tests {
 
         // Test each columns since
         // JSON reader coerces UInt32 to Int64
-        let test_table_title = test_table.get_column_as_str_vec("title");
-        let test_table_read_title = test_table_read.get_column_as_str_vec("title");
+        let test_table_title = test_table.get_column_as_vec_str("title");
+        let test_table_read_title = test_table_read.get_column_as_vec_str("title");
         assert_eq!(test_table_title, test_table_read_title);
 
         let test_table_id: Vec<u32> = test_table.get_column_as_vec_primitive("id")?;
@@ -1316,8 +1416,8 @@ mod tests {
 
         // Test each columns since
         // JSON reader coerces UInt32 to Int64
-        let test_table_title = test_table.get_column_as_str_vec("title");
-        let test_table_read_title = test_table_read.get_column_as_str_vec("title");
+        let test_table_title = test_table.get_column_as_vec_str("title");
+        let test_table_read_title = test_table_read.get_column_as_vec_str("title");
         assert_eq!(test_table_title, test_table_read_title);
 
         let test_table_id: Vec<u32> = test_table.get_column_as_vec_primitive("id")?;

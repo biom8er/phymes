@@ -169,7 +169,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            result.get_column_as_str_vec("tool_id"),
+            result.get_column_as_vec_str("tool_id"),
             &[
                 "relative-similarity-score",
                 "sort-scores-and-indices",
@@ -178,7 +178,7 @@ mod tests {
                 "human-in-the-loop",
             ]
         );
-        let functions = result.get_column_as_str_vec("tool");
+        let functions = result.get_column_as_vec_str("tool");
         assert!(functions.first().unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"relative-similarity-score\",\"description\":\"Compute the relative similarity score between two different lists of embedding vectors\"")
         );
         assert!(

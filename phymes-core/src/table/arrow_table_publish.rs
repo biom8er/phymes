@@ -432,11 +432,11 @@ mod tests {
         )?;
         assert_eq!(old.count_rows(), 5);
         assert_eq!(
-            old.get_column_as_str_vec("role"),
+            old.get_column_as_vec_str("role"),
             ["user", "assistant", "user", "assistant", "assistant"]
         );
         assert_eq!(
-            old.get_column_as_str_vec("content"),
+            old.get_column_as_vec_str("content"),
             [
                 "Hi!",
                 "Hello how can I help?",

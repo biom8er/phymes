@@ -1,5 +1,5 @@
 use arrow::{
-    array::{Array, ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt32Array, UInt8Array},
+    array::{ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt32Array, UInt8Array},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
@@ -211,19 +211,18 @@ Sort the [RecordBatch] according to the `score` column
 * `device` - The compute device
 
 */
-#[instrument(skip(lhs_values, lhs, asc, device))]
+#[instrument(skip(lhs_values, lhs_args, asc, device))]
 pub fn sort_column_and_indices(
     lhs_values: &str,
-    lhs: &[RecordBatch],
+    lhs_args: &[RecordBatch],
     asc: bool,
     device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
     let lhs_table = ArrowTable::get_builder()
-        .with_record_batches(lhs.to_vec())?
+        .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?;
-    println!("Sorting column: {}", lhs_values);
 
     // Wrap the output into a record batch
     let mut batch_vec = Vec::new();
@@ -277,7 +276,7 @@ pub fn sort_column_and_indices(
         }
         DataType::Utf8 => {
             // StringArray must be sorted on the CPU
-            let array_ref: ArrayRef = Arc::new(StringArray::from(lhs_table.get_column_as_str_vec(lhs_values)));
+            let array_ref: ArrayRef = Arc::new(StringArray::from(lhs_table.get_column_as_vec_str(lhs_values)));
             let sorted_indices = arrow::compute::sort_to_indices(
                 &array_ref,
                 Some(arrow::compute::SortOptions {
@@ -387,7 +386,7 @@ pub fn sort_column_and_indices(
             }
             DataType::Utf8 => {
                 // StringArray must be sorted on the CPU
-                let array_ref: ArrayRef = Arc::new(StringArray::from(lhs_table.get_column_as_str_vec(column)));
+                let array_ref: ArrayRef = Arc::new(StringArray::from(lhs_table.get_column_as_vec_str(column)));
                 arrow::compute::take(&array_ref, &asort_arr, None)?
             }
             DataType::FixedSizeList(_f, _s) => {
@@ -408,9 +407,6 @@ pub fn sort_column_and_indices(
         batch_vec.push((column, sorted_array));
     }
 
-    for batch in batch_vec.iter() {
-        println!("Column: {}, Type: {:?}. Len: {}", batch.0, batch.1.data_type(), batch.1.len());
-    }
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
 }

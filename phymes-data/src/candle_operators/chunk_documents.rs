@@ -6,6 +6,7 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::Device;
+use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
 use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
@@ -250,8 +251,14 @@ pub fn chunk_documents(
     chunk_overlap: usize,
     _device: &Device,
 ) -> Result<RecordBatch> {
+    // Wrap the lhs into an ArrowTable
+    let lhs_table = ArrowTable::get_builder()
+        .with_record_batches(lhs_args.to_vec())?
+        .with_name("")
+        .build()?;
+    
     // Extract out the document text
-    let text = lhs_args
+    let text = lhs_table.get_record_batches()
         .iter()
         .flat_map(|batch| {
             batch
@@ -272,14 +279,13 @@ pub fn chunk_documents(
 
     // Extract the rest of the columns according to type
     // Create new columns expanding when text vec size > 1
-    let columns: Vec<String> = lhs_args
-        .first()
-        .unwrap()
-        .schema()
+    // Ignore the lhs_values and chunk_id columns
+    let columns: Vec<String> = lhs_table.get_schema()
         .fields()
         .iter()
         .filter_map(|field| {
-            if field.data_type() == &DataType::Float32 {
+            if (field.name() != lhs_values) 
+                & (field.name() != "chunk_id") {
                 Some(field.name().clone())
             } else {
                 None
@@ -287,106 +293,82 @@ pub fn chunk_documents(
         })
         .collect();
     for column in columns.iter() {
-        let array_vec = lhs_args
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name(column)
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<Float32Array>()
-                    .unwrap()
+        let array_ref: ArrayRef = match lhs_table.get_column_data_type(column)? {
+            DataType::UInt32 => {
+                let array_vec = lhs_table.get_record_batches()
                     .iter()
-                    .map(|s| s.unwrap())
-                    .collect::<Vec<_>>()
-            })
-            .enumerate()
-            .flat_map(|(index, s)| {
-                let mut ar = Vec::new();
-                (0..text.get(index).unwrap().len()).for_each(|_i| ar.push(s));
-                ar
-            })
-            .collect::<Vec<_>>();
-        let sorted_array: ArrayRef = Arc::new(Float32Array::from(array_vec));
-        batch_vec.push((column, sorted_array));
-    }
-    let columns: Vec<String> = lhs_args
-        .first()
-        .unwrap()
-        .schema()
-        .fields()
-        .iter()
-        .filter_map(|field| {
-            if field.data_type() == &DataType::UInt32 {
-                Some(field.name().clone())
-            } else {
-                None
+                    .flat_map(|batch| {
+                        batch
+                            .column_by_name(column)
+                            .unwrap()
+                            .as_any()
+                            .downcast_ref::<UInt32Array>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| s.unwrap_or_default())
+                            .collect::<Vec<_>>()
+                    })
+                    .enumerate()
+                    .flat_map(|(index, s)| {
+                        let mut ar = Vec::new();
+                        (0..text.get(index).unwrap().len()).for_each(|_i| ar.push(s));
+                        ar
+                    })
+                    .collect::<Vec<_>>();
+                Arc::new(UInt32Array::from(array_vec))
             }
-        })
-        .collect();
-    for column in columns.iter() {
-        let array_vec = lhs_args
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name(column)
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<UInt32Array>()
-                    .unwrap()
+            DataType::Float32 => {
+                let array_vec = lhs_table.get_record_batches()
                     .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .enumerate()
-            .flat_map(|(index, s)| {
-                let mut ar = Vec::new();
-                (0..text.get(index).unwrap().len()).for_each(|_i| ar.push(s));
-                ar
-            })
-            .collect::<Vec<_>>();
-        let sorted_array: ArrayRef = Arc::new(UInt32Array::from(array_vec));
-        batch_vec.push((column, sorted_array));
-    }
-    let columns: Vec<String> = lhs_args
-        .first()
-        .unwrap()
-        .schema()
-        .fields()
-        .iter()
-        .filter_map(|field| {
-            if (field.name() != lhs_values)
-                & (field.name() != "chunk_id")
-                & (field.data_type() == &DataType::Utf8)
-            {
-                Some(field.name().clone())
-            } else {
-                None
+                    .flat_map(|batch| {
+                        batch
+                            .column_by_name(column)
+                            .unwrap()
+                            .as_any()
+                            .downcast_ref::<Float32Array>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| s.unwrap())
+                            .collect::<Vec<_>>()
+                    })
+                    .enumerate()
+                    .flat_map(|(index, s)| {
+                        let mut ar = Vec::new();
+                        (0..text.get(index).unwrap().len()).for_each(|_i| ar.push(s));
+                        ar
+                    })
+                    .collect::<Vec<_>>();
+                Arc::new(Float32Array::from(array_vec))
             }
-        })
-        .collect();
-    for column in columns.iter() {
-        let array_vec = lhs_args
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name(column)
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<StringArray>()
-                    .unwrap()
+            DataType::Utf8 => {
+                let array_vec = lhs_table.get_record_batches()
                     .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .enumerate()
-            .flat_map(|(index, s)| {
-                let mut ar = Vec::new();
-                (0..text.get(index).unwrap().len()).for_each(|_i| ar.push(s.to_string()));
-                ar
-            })
-            .collect::<Vec<_>>();
-        let array_ref: ArrayRef = Arc::new(StringArray::from(array_vec));
+                    .flat_map(|batch| {
+                        batch
+                            .column_by_name(column)
+                            .unwrap()
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| s.unwrap_or_default())
+                            .collect::<Vec<_>>()
+                    })
+                    .enumerate()
+                    .flat_map(|(index, s)| {
+                        let mut ar = Vec::new();
+                        (0..text.get(index).unwrap().len()).for_each(|_i| ar.push(s.to_string()));
+                        ar
+                    })
+                    .collect::<Vec<_>>();
+                Arc::new(StringArray::from(array_vec))
+            }
+            _ => return Err(anyhow!(
+                "Unsupported data type for column {}: {}",
+                column,
+                lhs_table.get_column_data_type(column)?.to_string()
+            )),
+        };
         batch_vec.push((column, array_ref));
     }
 

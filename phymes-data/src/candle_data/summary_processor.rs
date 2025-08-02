@@ -422,9 +422,9 @@ mod tests {
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         // DM: change after upgrading to Qwen 3 series
         // assert_eq!(partitions.get_column_as_str_vec("role"), ["function"]);
-        assert_eq!(partitions.get_column_as_str_vec("role"), ["tool"]);
+        assert_eq!(partitions.get_column_as_vec_str("role"), ["tool"]);
         assert_eq!(
-            partitions.get_column_as_str_vec("content"),
+            partitions.get_column_as_vec_str("content"),
             [
                 "[{\"embedding\":[1.0,1.0,1.0,1.0],\"lhs_pk\":\"1\"},{\"embedding\":[0.0,0.0,0.0,1.0],\"lhs_pk\":\"3\"}]"
             ]

@@ -285,7 +285,7 @@ impl Stream for CandleEmbedStream {
                 .with_record_batches(vec![batch])?
                 .build()?;
             let input: Vec<String> = table
-                .get_column_as_str_vec("text")
+                .get_column_as_vec_str("text")
                 .into_iter()
                 .map(|s| s.to_owned())
                 .collect();
@@ -352,7 +352,7 @@ impl Stream for CandleEmbedStream {
                 .with_record_batches(vec![batch])?
                 .build()?;
             let input: Vec<String> = table
-                .get_column_as_str_vec("text")
+                .get_column_as_vec_str("text")
                 .into_iter()
                 .map(|s| s.to_owned())
                 .collect();

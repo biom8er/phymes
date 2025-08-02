@@ -70,8 +70,8 @@ impl MessageHistoryTraitExt for ArrowTable {
     }
 
     fn to_openai_messages(self) -> Vec<ChatCompletionMessage> {
-        let role_vec = self.get_column_as_str_vec("role");
-        let content_vec = self.get_column_as_str_vec("content");
+        let role_vec = self.get_column_as_vec_str("role");
+        let content_vec = self.get_column_as_vec_str("content");
         let mut messages = Vec::with_capacity(role_vec.len());
         for i in 0..role_vec.len() {
             #[allow(clippy::if_same_then_else)]
@@ -467,7 +467,7 @@ mod test_message_history {
                             .with_record_batches(batches)?
                             .build()?;
                         let tool_vec: Vec<chat_completion::Tool> = tool_table
-                            .get_column_as_str_vec("tool")
+                            .get_column_as_vec_str("tool")
                             .iter()
                             .map(|s| {
                                 let tool: chat_completion::Tool = serde_json::from_str(s).unwrap();
@@ -716,7 +716,7 @@ mod tests {
             .await?;
         let messages = message_builder.clone().build()?;
 
-        let messages_content = messages.get_column_as_str_vec("content");
+        let messages_content = messages.get_column_as_vec_str("content");
         assert_eq!(
             messages_content,
             &[
@@ -732,7 +732,7 @@ mod tests {
             .with_name("")
             .with_record_batches(batches)?
             .build()?;
-        let messages_content = messages.get_column_as_str_vec("content");
+        let messages_content = messages.get_column_as_vec_str("content");
         assert_eq!(
             messages_content,
             &[
@@ -803,7 +803,7 @@ mod tests {
             .await?;
         let messages = message_builder.clone().build()?;
 
-        let messages_content = messages.get_column_as_str_vec("content");
+        let messages_content = messages.get_column_as_vec_str("content");
         assert_eq!(
             messages_content,
             &[
@@ -819,7 +819,7 @@ mod tests {
             .with_name("")
             .with_record_batches(batches)?
             .build()?;
-        let messages_content = messages.get_column_as_str_vec("content");
+        let messages_content = messages.get_column_as_vec_str("content");
         assert_eq!(
             messages_content,
             &[
