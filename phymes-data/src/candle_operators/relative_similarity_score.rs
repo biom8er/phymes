@@ -2,7 +2,7 @@ use arrow::{
     array::{
         ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt8Array, UInt32Array,
     },
-    datatypes::{DataType, Field, Schema, SchemaRef},
+    datatypes::DataType,
     record_batch::RecordBatch,
 };
 use phymes_core::{
@@ -21,9 +21,9 @@ use tracing::instrument;
 #[derive(Debug)]
 pub struct RelativeSimilarityScore {
     lhs_pk: String,
-    lhs_fk: String,
+    _lhs_fk: String,
     lhs_values: String,
-    rhs_fk: String,
+    _rhs_fk: String,
     rhs_pk: String,
     rhs_values: String,
 }
@@ -43,10 +43,10 @@ impl DataOperatorTrait for RelativeSimilarityScore {
     ) -> Self {
         RelativeSimilarityScore {
             lhs_pk: lhs_pk.to_string(),
-            lhs_fk: lhs_fk.to_string(),
+            _lhs_fk: lhs_fk.to_string(),
             lhs_values: lhs_values.to_string(),
             rhs_pk: rhs_pk.unwrap_or("rhs_pk").to_string(),
-            rhs_fk: rhs_fk.unwrap_or("rhs_fk").to_string(),
+            _rhs_fk: rhs_fk.unwrap_or("rhs_fk").to_string(),
             rhs_values: rhs_values.unwrap_or("embedding").to_string(),
         }
     }

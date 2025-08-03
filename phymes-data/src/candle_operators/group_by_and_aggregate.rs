@@ -1,10 +1,11 @@
-use std::{fmt::Display, ops::Range, sync::Arc};
+use std::{collections::HashMap, fmt::Display, ops::Range, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use arrow::{array::{ArrayData, ArrayRef, FixedSizeListArray, Float32Array, Float64Array, Int64Array, ListArray, RecordBatch, StringArray, UInt32Array, UInt8Array}, buffer::Buffer, compute::kernels::partition::partition, datatypes::{ArrowNativeType, DataType, Field, Schema}};
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
 use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
+use phymes_ml::openai_asset::{chat_completion, types};
 
 use crate::{candle_data::data_config::DataAggregator, candle_operators::{sort_scores_and_indices::sort_column_and_indices, data_operator::DataOperatorTrait}};
 
@@ -30,12 +31,12 @@ impl DataOperatorTrait for GroupByAndAggregate {
         group_by_and_aggregate(&lhs_values, lhs_args, &agg_columns, &self.agg_operators, device)
     }
     fn new(
-        lhs_pk: &str,
-        lhs_fk: &str,
+        _lhs_pk: &str,
+        _lhs_fk: &str,
         lhs_values: &str,
-        rhs_pk: Option<&str>,
-        rhs_fk: Option<&str>,
-        rhs_values: Option<&str>,
+        _rhs_pk: Option<&str>,
+        _rhs_fk: Option<&str>,
+        _rhs_values: Option<&str>,
         kwargs: Option<&str>,
     ) -> Self {
         // Attempt to parse the lhs_values
@@ -53,27 +54,103 @@ impl DataOperatorTrait for GroupByAndAggregate {
             .collect::<Vec<_>>();
         let agg_operators = ops_kwargs.get("agg_operators").unwrap()
             .as_array().unwrap()
-            .into_iter().map(|v| serde_json::from_value::<DataAggregator>(v).unwrap())
+            .into_iter().map(|v| serde_json::from_value::<DataAggregator>(v.clone()).unwrap())
             .collect::<Vec<_>>();
 
         // Make the object
         GroupByAndAggregate { lhs_values, agg_columns, agg_operators }        
     }
-    fn get_schema_lhs_input(
-        &self,
-        _list_size: Option<usize>,
-        other: Option<Vec<arrow::datatypes::Field>>,
-    ) -> Option<arrow::datatypes::SchemaRef> {
-        let mut fields = Vec::new();
-        for lhs_value in self.lhs_values.iter() {
-            
-        }
-        let lhs_value = Field::new(self.lhs_values.clone(), DataType::Float32, false);
-        let mut fields = vec![lhs_value];
-        if let Some(other) = other {
-            fields.extend(other);
-        }
-        Some(Arc::new(Schema::new(fields))
+    fn get_description() -> String {
+        "Group by user specified columns and aggregate user specified aggregation columns using the user specified aggregation operators.".to_string()
+    }
+    fn get_json_tool_schema() -> String {
+        let mut properties = HashMap::new();
+        properties.insert(
+            "lhs_name".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some("The name of the left hand side table".to_string()),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_name".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The name of the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        properties.insert(
+            "lhs_pk".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The primary key column identifier for the left hand side table".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_pk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The primary key column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        // properties.insert(
+        //     "lhs_fk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The foriegn key column identifier for the left hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        // properties.insert(
+        //     "rhs_fk".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The foriegn key column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        properties.insert(
+            "lhs_values".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The values column identifier for the left hand side table in the form of a JSON list of strings".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        // properties.insert(
+        //     "rhs_values".to_string(),
+        //     Box::new(types::JSONSchemaDefine {
+        //         schema_type: Some(types::JSONSchemaType::String),
+        //         description: Some("The values column identifier for the right hand side table".to_string()),
+        //         ..Default::default()
+        //     }),
+        // );
+        let function = types::Function {
+            name: Self::get_name(),
+            description: Some(Self::get_description()),
+            parameters: types::FunctionParameters {
+                schema_type: types::JSONSchemaType::Object,
+                properties: Some(properties),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "lhs_pk".to_string(),
+                    "lhs_values".to_string(),
+                ]),
+            },
+        };
+        let tool = chat_completion::Tool {
+            r#type: chat_completion::ToolType::Function,
+            function,
+        };
+        serde_json::to_string(&tool).unwrap()        
     }
 }
 

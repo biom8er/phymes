@@ -3,7 +3,6 @@ use std::{collections::HashMap, io::Error, iter::zip, sync::Arc};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{ArrayRef, ListArray, RecordBatch, StringArray, UInt8Array},
-    datatypes::{DataType, Field, Schema},
 };
 use candle_core::Device;
 use lopdf::{

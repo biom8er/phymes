@@ -1,6 +1,6 @@
 use arrow::{
     array::{Array, ArrayRef, UInt8Array},
-    datatypes::{DataType, Field, Schema, SchemaRef},
+    datatypes::DataType,
     record_batch::RecordBatch,
 };
 
@@ -22,9 +22,9 @@ use crate::candle_operators::{
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
 #[derive(Debug)]
 pub struct JoinInner {
-    lhs_pk: String,
+    _lhs_pk: String,
     lhs_fk: String,
-    rhs_pk: String,
+    _rhs_pk: String,
     rhs_fk: String,
 }
 
@@ -42,9 +42,9 @@ impl DataOperatorTrait for JoinInner {
         _kwargs: Option<&str>,
     ) -> Self {
         JoinInner {
-            lhs_pk: lhs_pk.to_string(),
+            _lhs_pk: lhs_pk.to_string(),
             lhs_fk: lhs_fk.to_string(),
-            rhs_pk: rhs_pk.unwrap_or("rhs_pk").to_string(),
+            _rhs_pk: rhs_pk.unwrap_or("rhs_pk").to_string(),
             rhs_fk: rhs_fk.unwrap_or("rhs_fk").to_string(),
         }
     }

@@ -1,7 +1,6 @@
 use anyhow::Result;
 use arrow::{
     array::RecordBatch,
-    datatypes::{Field, SchemaRef},
 };
 use candle_core::Device;
 use std::fmt::Debug;

@@ -1,13 +1,10 @@
-use arrow::{
-    datatypes::{DataType, Field, Schema, SchemaRef},
-    record_batch::RecordBatch,
-};
+use arrow::record_batch::RecordBatch;
 
 use super::data_operator::DataOperatorTrait;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use candle_core::Device;
 use phymes_ml::openai_asset::{chat_completion, types};
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
 #[derive(Debug)]

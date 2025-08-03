@@ -1,6 +1,6 @@
 use arrow::{
     array::{ArrayRef, Float32Array, StringArray, UInt32Array},
-    datatypes::{DataType, Field, Schema, SchemaRef},
+    datatypes::DataType,
     record_batch::RecordBatch,
 };
 

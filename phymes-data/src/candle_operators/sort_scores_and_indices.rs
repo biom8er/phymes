@@ -3,7 +3,7 @@ use arrow::{
         Array, ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt8Array,
         UInt32Array,
     },
-    datatypes::{DataType, Field, Schema},
+    datatypes::DataType,
     record_batch::RecordBatch,
 };
 
@@ -409,7 +409,7 @@ pub fn sort_column_and_indices(
 mod tests {
     use arrow::{
         array::{ArrayData, FixedSizeListArray},
-        buffer::Buffer,
+        buffer::Buffer, datatypes::Field,
     };
     use phymes_ml::candle_assets::device::device;
 
