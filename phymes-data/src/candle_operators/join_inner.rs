@@ -459,6 +459,7 @@ pub fn join_inner(
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt8Array, UInt32Array};
+    use phymes_ml::candle_assets::device::device;
 
     use super::*;
 
@@ -500,13 +501,16 @@ mod tests {
             ("rhs_metadata", rhs_metadata_array),
         ])?;
 
+        // Make the device
+        let device = device(false)?;
+
         // Chunk the documents
         let result = join_inner(
             "lhs_pk",
             &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",
             &[rhs_batch_1],
-            &Device::Cpu,
+            &device,
         )?;
 
         let lhs_id = result
@@ -612,7 +616,7 @@ mod tests {
             &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",
             &[rhs_batch_1],
-            &Device::Cpu,
+            &device,
         )?;
 
         let lhs_id = result

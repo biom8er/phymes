@@ -669,6 +669,8 @@ pub fn chunk_str(text: &str, chunk_size: usize, chunk_overlap: usize) -> Vec<Str
 
 #[cfg(test)]
 mod tests {
+    use phymes_ml::candle_assets::device::device;
+
     use super::*;
 
     #[test]
@@ -707,9 +709,12 @@ mod tests {
             ("text", lhs_text_array),
             ("metadata", lhs_metadata_array),
         ])?;
+        
+        // Make the device
+        let device = device(false)?;
 
         // Chunk the documents
-        let result = chunk_documents("lhs_pk", "text", &[batch_1, batch_2], 10, 2, &Device::Cpu)?;
+        let result = chunk_documents("lhs_pk", "text", &[batch_1, batch_2], 10, 2, &device)?;
 
         let lhs_id = result
             .column_by_name("lhs_pk")

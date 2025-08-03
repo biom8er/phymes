@@ -458,6 +458,7 @@ mod tests {
         array::{ArrayData, FixedSizeListArray},
         buffer::Buffer,
     };
+    use phymes_ml::candle_assets::device::device;
 
     use super::*;
 
@@ -486,8 +487,11 @@ mod tests {
             ("score", lhs_scores_array2),
             ("metadata", lhs_metadata_array2.clone()),
         ])?;
+        
+        // Make the device
+        let device = device(false)?;
 
-        let result = sort_column_and_indices("score", &[batch_1, batch_2], true, &Device::Cpu)?;
+        let result = sort_column_and_indices("score", &[batch_1, batch_2], true, &device)?;
 
         let lhs_id = result
             .column_by_name("lhs_pk")
@@ -529,7 +533,7 @@ mod tests {
             ("id", ids_array.clone()),
             ("score", u8_array.clone()),
         ])?;
-        let result = sort_column_and_indices("score", &[batch], true, &Device::Cpu)?;
+        let result = sort_column_and_indices("score", &[batch], true, &device)?;
         let sorted_ids = result
             .column_by_name("id")
             .unwrap()
@@ -560,7 +564,7 @@ mod tests {
             ("id", ids_array.clone()),
             ("score", i64_array.clone()),
         ])?;
-        let result = sort_column_and_indices("score", &[batch], true, &Device::Cpu)?;
+        let result = sort_column_and_indices("score", &[batch], true, &device)?;
         let sorted_ids = result
             .column_by_name("id")
             .unwrap()
@@ -591,7 +595,7 @@ mod tests {
             ("id", ids_array.clone()),
             ("score", f64_array.clone()),
         ])?;
-        let result = sort_column_and_indices("score", &[batch], true, &Device::Cpu)?;
+        let result = sort_column_and_indices("score", &[batch], true, &device)?;
         let sorted_ids = result
             .column_by_name("id")
             .unwrap()
@@ -622,7 +626,7 @@ mod tests {
             ("id", ids_array.clone()),
             ("score", str_array.clone()),
         ])?;
-        let result = sort_column_and_indices("score", &[batch], true, &Device::Cpu)?;
+        let result = sort_column_and_indices("score", &[batch], true, &device)?;
         let sorted_ids = result
             .column_by_name("id")
             .unwrap()
@@ -667,7 +671,7 @@ mod tests {
         let list_array: ArrayRef = Arc::new(FixedSizeListArray::from(list_data));
         let batch =
             RecordBatch::try_from_iter(vec![("id", ids_array.clone()), ("score", list_array)])?;
-        let result = sort_column_and_indices("score", &[batch], true, &Device::Cpu)?;
+        let result = sort_column_and_indices("score", &[batch], true, &device)?;
         let sorted_ids = result
             .column_by_name("id")
             .unwrap()

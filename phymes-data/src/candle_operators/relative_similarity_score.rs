@@ -572,6 +572,8 @@ pub fn relative_similarity_scores_tensor(lhs: &Tensor, rhs: &Tensor) -> Result<T
 
 #[cfg(test)]
 mod tests {
+    use phymes_ml::candle_assets::device::device;
+
     use crate::candle_data::data_processor::test_candle_ops_processor::{
         make_embeddings_record_batch_str_f32, make_embeddings_record_batch_u32_f32,
     };
@@ -580,6 +582,7 @@ mod tests {
 
     #[test]
     fn test_relative_similarity_scores_tensor() -> Result<()> {
+        let device = device(false)?;
         let lhs_vec: Vec<Vec<f32>> = vec![
             vec![1., 1., 1., 1.],
             vec![0., 1., 0., 1.],
@@ -596,12 +599,12 @@ mod tests {
         ];
         let lhs = Tensor::from_iter(
             lhs_vec.into_iter().flatten().collect::<Vec<_>>(),
-            &Device::Cpu,
+            &device,
         )?
         .reshape((3, 4))?;
         let rhs = Tensor::from_iter(
             rhs_vec.into_iter().flatten().collect::<Vec<_>>(),
-            &Device::Cpu,
+            &device,
         )?
         .reshape((4, 4))?;
         let result = relative_similarity_scores_tensor(&lhs, &rhs)?;
@@ -634,6 +637,9 @@ mod tests {
             vec![1., 1., 1., 1.],
         ];
         let rhs = make_embeddings_record_batch_str_f32("rhs_pk", rhs_ids_vec, rhs_embeddings_vec)?;
+        
+        // Make the device
+        let device = device(false)?;
 
         // Compute the relative similarity scores
         let result = relative_similarity_score(
@@ -643,7 +649,7 @@ mod tests {
             "rhs_pk",
             "embedding",
             &[rhs],
-            &Device::Cpu,
+            &device,
         )?;
 
         // Expected values
@@ -710,7 +716,7 @@ mod tests {
             "rhs_pk",
             "embedding",
             &[rhs],
-            &Device::Cpu,
+            &device,
         )?;
 
         // Expected values

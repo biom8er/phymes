@@ -6,8 +6,60 @@ use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
 use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
 
-use crate::{candle_data::data_config::DataAggregator, candle_operators::sort_scores_and_indices::sort_column_and_indices};
+use crate::{candle_data::data_config::DataAggregator, candle_operators::{sort_scores_and_indices::sort_column_and_indices, data_operator::DataOperatorTrait}};
 
+/// Sort the [RecordBatch] according to the `score` column and then apply the sorting order to the rest of the record batch columns
+#[derive(Debug)]
+pub struct GroupByAndAggregate {
+    lhs_values: Vec<String>,
+    agg_columns: Vec<String>,
+    agg_operators: Vec<DataAggregator>,
+}
+
+impl DataOperatorTrait for GroupByAndAggregate {
+    fn get_static_name() -> &'static str {
+        "group-by-and-aggregate"
+    }
+    fn forward(&self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        let lhs_values = self.lhs_values.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        let agg_columns = self.agg_columns.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        group_by_and_aggregate(&lhs_values, lhs_args, &agg_columns, &self.agg_operators, device)
+    }
+    fn new(
+        lhs_pk: &str,
+        lhs_fk: &str,
+        lhs_values: &str,
+        rhs_pk: Option<&str>,
+        rhs_fk: Option<&str>,
+        rhs_values: Option<&str>,
+        kwargs: Option<&str>,
+    ) -> Self {
+        // Attempt to parse the lhs_values
+        let lhs_values: Vec<String> = serde_json::from_str(lhs_values)
+            .unwrap_or_default();
+
+        // Attempt to parse the op_kwargs
+        let ops_kwargs_default = "{\"agg_columns\": [], \"agg_operators\": []}";
+        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
+        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
+            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
+        let agg_columns = ops_kwargs.get("agg_columns").unwrap()
+            .as_array().unwrap()
+            .into_iter().map(|v| v.to_string())
+            .collect::<Vec<_>>();
+        let agg_operators = ops_kwargs.get("agg_operators").unwrap()
+            .as_array().unwrap()
+            .into_iter().map(|v| serde_json::from_value::<DataAggregator>(v).unwrap())
+            .collect::<Vec<_>>();
+
+        // Make the object
+        GroupByAndAggregate { lhs_values, agg_columns, agg_operators }        
+    }
+}
 
 /// Partition a lexocographically sorted slice of [RecordBatch]es
 fn partition_record_batches(lhs_values: &[&str], lhs_table: &ArrowTable) -> Result<Vec<Range<usize>>> {
@@ -73,20 +125,6 @@ fn extract_aggregator_column_nested_primitive<T>(group_column:&str, lhs_table: &
         T: Num + Bounded + NumCast + Send + Sync + Clone + 'static
 {    
     let array_vec = lhs_table.get_column_as_vec_nested_primitive::<T>(group_column).unwrap();
-    let mut agg_vec = Vec::new();
-    for range in ranges.iter() {
-        let value = array_vec.get(range.start).unwrap();
-        agg_vec.push(value.to_owned());
-    }
-    agg_vec
-}
-
-/// Helper function to extract the aggregator column for non-primitive types
-fn extract_aggregator_column_nested_nonprimitive<T>(group_column:&str, lhs_table: &ArrowTable, ranges: &[Range<usize>]) -> Vec<Vec<T>> 
-    where
-        T: From<String> + Clone + Display + 'static
-{    
-    let array_vec = lhs_table.get_column_as_vec_nested_nonprimitive::<T>(group_column).unwrap();
     let mut agg_vec = Vec::new();
     for range in ranges.iter() {
         let value = array_vec.get(range.start).unwrap();

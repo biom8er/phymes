@@ -34,6 +34,10 @@ pub trait DataOperatorTrait: Send + Sync + Debug {
     /// with the given keyword arguments.
     ///
     /// # Arguments
+    /// * `lhs_pk` - Primary Key for the LHS table
+    /// * `lhs_fk` - Foreign Key for the LHS table
+    /// * `lhs_values` - Values column(s) for the LHS table
+    ///                  Either a string or a JSON list of strings
     /// * `kwargs` - Optional JSON string with keyword arguments
     fn new(
         lhs_pk: &str,
