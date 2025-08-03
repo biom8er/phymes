@@ -295,15 +295,6 @@ impl Stream for CandleDataStream {
                     }
                 }
             };
-            // Check that the schema is correct
-            if let Err(e) = self
-                .data_operator
-                .as_ref()
-                .unwrap()
-                .check_schema_lhs_input(lhs.first().unwrap().schema())
-            {
-                panic!("Error: {e:?}")
-            }
             self.lhs_inbox = lhs;
         };
 
@@ -340,15 +331,6 @@ impl Stream for CandleDataStream {
                     }
                 }
             };
-            // Check that the schema is correct
-            if let Err(e) = self
-                .data_operator
-                .as_ref()
-                .unwrap()
-                .check_schema_rhs_input(rhs.first().unwrap().schema())
-            {
-                panic!("Error: {e:?}")
-            }
             self.rhs_inbox = rhs;
         }
 
@@ -393,10 +375,7 @@ impl Stream for CandleDataStream {
 
 impl RecordBatchStream for CandleDataStream {
     fn schema(&self) -> SchemaRef {
-        match self.data_operator.as_ref() {
-            Some(data_operator) => data_operator.get_schema_output(None, None).unwrap(),
-            None => Arc::new(Schema::empty()),
-        }
+        Arc::new(Schema::empty())
     }
 }
 

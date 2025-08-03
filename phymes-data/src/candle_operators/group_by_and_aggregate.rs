@@ -59,6 +59,22 @@ impl DataOperatorTrait for GroupByAndAggregate {
         // Make the object
         GroupByAndAggregate { lhs_values, agg_columns, agg_operators }        
     }
+    fn get_schema_lhs_input(
+        &self,
+        _list_size: Option<usize>,
+        other: Option<Vec<arrow::datatypes::Field>>,
+    ) -> Option<arrow::datatypes::SchemaRef> {
+        let mut fields = Vec::new();
+        for lhs_value in self.lhs_values.iter() {
+            
+        }
+        let lhs_value = Field::new(self.lhs_values.clone(), DataType::Float32, false);
+        let mut fields = vec![lhs_value];
+        if let Some(other) = other {
+            fields.extend(other);
+        }
+        Some(Arc::new(Schema::new(fields))
+    }
 }
 
 /// Partition a lexocographically sorted slice of [RecordBatch]es

@@ -64,53 +64,6 @@ impl DataOperatorTrait for SortScoresAndIndices {
         );
         sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device)
     }
-    fn get_schema_lhs_input(
-        &self,
-        _list_size: Option<usize>,
-        other: Option<Vec<arrow::datatypes::Field>>,
-    ) -> Option<arrow::datatypes::SchemaRef> {
-        assert_eq!(self.lhs_values, "score");
-        let lhs_value = Field::new(self.lhs_values.clone(), DataType::Float32, false);
-        let mut fields = vec![lhs_value];
-        if let Some(other) = other {
-            fields.extend(other);
-        }
-        Some(Arc::new(Schema::new(fields)))
-    }
-    fn get_schema_rhs_input(
-        &self,
-        _list_size: Option<usize>,
-        _other: Option<Vec<arrow::datatypes::Field>>,
-    ) -> Option<arrow::datatypes::SchemaRef> {
-        None
-    }
-    fn get_schema_output(
-        &self,
-        _list_size: Option<usize>,
-        other: Option<Vec<arrow::datatypes::Field>>,
-    ) -> Option<arrow::datatypes::SchemaRef> {
-        let score = Field::new("score", DataType::Float32, false);
-        let mut fields = vec![score];
-        if let Some(other) = other {
-            fields.extend(other);
-        }
-        Some(Arc::new(Schema::new(fields)))
-    }
-    fn check_schema_lhs_input(&self, other: arrow::datatypes::SchemaRef) -> Result<Option<bool>> {
-        if other.column_with_name("score").is_none() {
-            return Err(anyhow!("LHS input is missing column for score."));
-        }
-        Ok(Some(true))
-    }
-    fn check_schema_rhs_input(&self, _other: arrow::datatypes::SchemaRef) -> Result<Option<bool>> {
-        Ok(None)
-    }
-    fn check_schema_output(&self, other: arrow::datatypes::SchemaRef) -> Result<Option<bool>> {
-        if other.column_with_name("score").is_none() {
-            return Err(anyhow!("LHS output is missing column for score."));
-        }
-        Ok(Some(true))
-    }
     fn get_description() -> String {
         "Sort the the list of computed scores in ascending order".to_string()
     }

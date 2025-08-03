@@ -71,67 +71,6 @@ impl DataOperatorTrait for ChunkDocuments {
             device,
         )
     }
-    fn get_schema_lhs_input(
-        &self,
-        _list_size: Option<usize>,
-        other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {
-        let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
-        let text = Field::new("text", DataType::Utf8, false);
-        let mut fields = vec![lhs_pk, text];
-        if let Some(other) = other {
-            fields.extend(other);
-        }
-        Some(Arc::new(Schema::new(fields)))
-    }
-    fn get_schema_rhs_input(
-        &self,
-        _list_size: Option<usize>,
-        _other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {
-        None
-    }
-    fn get_schema_output(
-        &self,
-        _list_size: Option<usize>,
-        other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {
-        let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let text = Field::new("text", DataType::Float32, false);
-        let mut fields = vec![lhs_pk, chunk_id, text];
-        if let Some(other) = other {
-            fields.extend(other);
-        }
-        Some(Arc::new(Schema::new(fields)))
-    }
-    fn check_schema_lhs_input(&self, other: SchemaRef) -> Result<Option<bool>> {
-        if other.column_with_name(&self.lhs_pk).is_none() {
-            return Err(anyhow!(
-                "LHS input is missing column for lhs_pk {}.",
-                self.lhs_pk
-            ));
-        }
-        if other.column_with_name("text").is_none() {
-            return Err(anyhow!("LHS input is missing column for text."));
-        }
-        Ok(Some(true))
-    }
-    fn check_schema_rhs_input(&self, _other: SchemaRef) -> Result<Option<bool>> {
-        Ok(None)
-    }
-    fn check_schema_output(&self, other: SchemaRef) -> Result<Option<bool>> {
-        if other.column_with_name(&self.lhs_pk).is_none() {
-            return Err(anyhow!("LHS output is missing column for lhs_pk."));
-        }
-        if other.column_with_name("chunk_id").is_none() {
-            return Err(anyhow!("RHS output is missing column for chunk_id."));
-        }
-        if other.column_with_name("text").is_none() {
-            return Err(anyhow!("Output is missing column for text."));
-        }
-        Ok(Some(true))
-    }
     fn get_description() -> String {
         "Chunk documents by splitting the document text".to_string()
     }
