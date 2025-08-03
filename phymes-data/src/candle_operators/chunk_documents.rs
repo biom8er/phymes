@@ -648,7 +648,7 @@ mod tests {
             ("text", lhs_text_array),
             ("metadata", lhs_metadata_array),
         ])?;
-        
+
         // Make the device
         let device = device(false)?;
 

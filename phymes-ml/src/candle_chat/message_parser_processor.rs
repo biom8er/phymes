@@ -345,9 +345,9 @@ impl Stream for MessageParserStream {
                             self.schema = message.get_schema();
                             message.get_record_batches_own().remove(0)
                             // // and append error message for next try
-                            // let mut role_vec = message.get_column_as_str_vec("role");
+                            // let mut role_vec = message.get_column_as_vec_str("role");
                             // role_vec.push("assistant");
-                            // let mut content_vec = message.get_column_as_str_vec("content");
+                            // let mut content_vec = message.get_column_as_vec_str("content");
                             // let e_str = e.to_string();
                             // content_vec.push(e_str.as_str());
                             // let role_arr: ArrayRef = Arc::new(StringArray::from(role_vec));

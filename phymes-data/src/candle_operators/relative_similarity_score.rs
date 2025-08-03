@@ -507,16 +507,10 @@ mod tests {
         let scores_vec: Vec<f32> = vec![
             1.0, 1.0, 1.0, 1.0, 0.70710677, 0.70710677, 0.70710677, 0.70710677, 0.5, 0.5, 0.5, 0.5,
         ];
-        let lhs = Tensor::from_iter(
-            lhs_vec.into_iter().flatten().collect::<Vec<_>>(),
-            &device,
-        )?
-        .reshape((3, 4))?;
-        let rhs = Tensor::from_iter(
-            rhs_vec.into_iter().flatten().collect::<Vec<_>>(),
-            &device,
-        )?
-        .reshape((4, 4))?;
+        let lhs = Tensor::from_iter(lhs_vec.into_iter().flatten().collect::<Vec<_>>(), &device)?
+            .reshape((3, 4))?;
+        let rhs = Tensor::from_iter(rhs_vec.into_iter().flatten().collect::<Vec<_>>(), &device)?
+            .reshape((4, 4))?;
         let result = relative_similarity_scores_tensor(&lhs, &rhs)?;
         let result_vec = result
             .to_vec2::<f32>()?
@@ -547,7 +541,7 @@ mod tests {
             vec![1., 1., 1., 1.],
         ];
         let rhs = make_embeddings_record_batch_str_f32("rhs_pk", rhs_ids_vec, rhs_embeddings_vec)?;
-        
+
         // Make the device
         let device = device(false)?;
 

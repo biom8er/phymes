@@ -409,7 +409,8 @@ pub fn sort_column_and_indices(
 mod tests {
     use arrow::{
         array::{ArrayData, FixedSizeListArray},
-        buffer::Buffer, datatypes::Field,
+        buffer::Buffer,
+        datatypes::Field,
     };
     use phymes_ml::candle_assets::device::device;
 
@@ -440,7 +441,7 @@ mod tests {
             ("score", lhs_scores_array2),
             ("metadata", lhs_metadata_array2.clone()),
         ])?;
-        
+
         // Make the device
         let device = device(false)?;
 

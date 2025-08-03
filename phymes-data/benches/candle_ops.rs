@@ -56,7 +56,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     let ops_configs_vec = [
         DataConfig {
             which: WhichCandleOperator::RelativeSimilarityScore,
-            lhs_pk: "id".to_string(), 
+            lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "embedding".to_string(),
             rhs_pk: Some("id".to_string()),
@@ -99,7 +99,10 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             lhs_pk: "id".to_string(),
             lhs_fk: "id".to_string(),
             lhs_values: "[\"title\",\"collection\"]".to_string(),
-            op_kwargs: Some("{\"agg_columns\": [id, text, score], \"agg_operators\": [Sum, Count, Max]}".to_string()),
+            op_kwargs: Some(
+                "{\"agg_columns\": [id, text, score], \"agg_operators\": [Sum, Count, Max]}"
+                    .to_string(),
+            ),
             ..Default::default()
         },
     ];

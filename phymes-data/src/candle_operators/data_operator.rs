@@ -1,14 +1,12 @@
 use anyhow::Result;
-use arrow::{
-    array::RecordBatch,
-};
+use arrow::array::RecordBatch;
 use candle_core::Device;
 use std::fmt::Debug;
 
 /// Data operators and other tools that utilize tensor services
 pub trait DataOperatorTrait: Send + Sync + Debug {
     /// Short name for the DataOperator, such as 'AddRows'.
-    /// Like [`get_name`](DataOperator::get_name) but can be called without an instance.
+    /// Like `get_name` but can be called without an instance.
     fn get_static_name() -> &'static str
     where
         Self: Sized,
@@ -36,7 +34,7 @@ pub trait DataOperatorTrait: Send + Sync + Debug {
     /// * `lhs_pk` - Primary Key for the LHS table
     /// * `lhs_fk` - Foreign Key for the LHS table
     /// * `lhs_values` - Values column(s) for the LHS table
-    ///                  Either a string or a JSON list of strings
+    ///   Either a string or a JSON list of strings
     /// * `kwargs` - Optional JSON string with keyword arguments
     fn new(
         lhs_pk: &str,

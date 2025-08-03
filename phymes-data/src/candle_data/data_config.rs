@@ -34,7 +34,6 @@ impl DataStreamManager {
     }
 }
 
-
 /// Data Aggregation (Reduction) operators
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataAggregator {

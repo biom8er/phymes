@@ -1,9 +1,7 @@
 use std::{collections::HashMap, io::Error, iter::zip, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use arrow::{
-    array::{ArrayRef, ListArray, RecordBatch, StringArray, UInt8Array},
-};
+use arrow::array::{ArrayRef, ListArray, RecordBatch, StringArray, UInt8Array};
 use candle_core::Device;
 use lopdf::{
     Document, Object, Stream,
