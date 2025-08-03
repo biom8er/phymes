@@ -242,7 +242,7 @@ impl Stream for MessageParserStream {
                 .build()?
                 .concat_record_batches()?;
             // ... and then a single string
-            let content = message.get_column_as_str_vec("content").join("");
+            let content = message.get_column_as_vec_str("content").join("");
             event!(Level::DEBUG, "Extracted content: {}", content.as_str());
 
             // Extract out the function arguments
@@ -345,9 +345,9 @@ impl Stream for MessageParserStream {
                             self.schema = message.get_schema();
                             message.get_record_batches_own().remove(0)
                             // // and append error message for next try
-                            // let mut role_vec = message.get_column_as_str_vec("role");
+                            // let mut role_vec = message.get_column_as_vec_str("role");
                             // role_vec.push("assistant");
-                            // let mut content_vec = message.get_column_as_str_vec("content");
+                            // let mut content_vec = message.get_column_as_vec_str("content");
                             // let e_str = e.to_string();
                             // content_vec.push(e_str.as_str());
                             // let role_arr: ArrayRef = Arc::new(StringArray::from(role_vec));
@@ -496,19 +496,19 @@ mod tests {
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 2);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         assert_eq!(
-            partitions.get_column_as_str_vec("name"),
+            partitions.get_column_as_vec_str("name"),
             ["get_current_weather", "get_weather"]
         );
         assert_eq!(
-            partitions.get_column_as_str_vec("publisher"),
+            partitions.get_column_as_vec_str("publisher"),
             ["message_parser_processor", "message_parser_processor"]
         );
         assert_eq!(
-            partitions.get_column_as_str_vec("subject"),
+            partitions.get_column_as_vec_str("subject"),
             ["get_current_weather", "get_weather"]
         );
         assert_eq!(
-            partitions.get_column_as_str_vec("values"),
+            partitions.get_column_as_vec_str("values"),
             [
                 "{\"arguments\":{\"format\":\"celsius\",\"location\":\"San Francisco, CA\"},\"name\":\"get_current_weather\"}",
                 "{\"arguments\":{\"location\":\"Santa Ana, CA\",\"time\":\"08:00\"},\"name\":\"get_weather\"}"
@@ -600,19 +600,19 @@ mod tests {
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         assert_eq!(
-            partitions.get_column_as_str_vec("name"),
+            partitions.get_column_as_vec_str("name"),
             ["get_current_weather"]
         );
         assert_eq!(
-            partitions.get_column_as_str_vec("publisher"),
+            partitions.get_column_as_vec_str("publisher"),
             ["message_parser_processor"]
         );
         assert_eq!(
-            partitions.get_column_as_str_vec("subject"),
+            partitions.get_column_as_vec_str("subject"),
             ["get_current_weather"]
         );
         assert_eq!(
-            partitions.get_column_as_str_vec("values"),
+            partitions.get_column_as_vec_str("values"),
             [
                 "{\"arguments\":{\"format\":\"celsius\",\"location\":\"San Francisco, CA\"},\"name\":\"get_current_weather\"}"
             ]
@@ -703,9 +703,9 @@ mod tests {
         assert_eq!(partitions.count_rows(), 1);
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
-        assert_eq!(partitions.get_column_as_str_vec("role"), ["assistant"]);
+        assert_eq!(partitions.get_column_as_vec_str("role"), ["assistant"]);
         assert_eq!(
-            partitions.get_column_as_str_vec("content"),
+            partitions.get_column_as_vec_str("content"),
             ["<get_current_weather location=\"Boston, MA\" unit=\"fahrenheit\">"]
         );
 

@@ -41,6 +41,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         // ("s", "xs"),
         ("s", "s"),
         // ("s", "m"),
+        // ("m", "m"),
     ];
 
     // Cases for stream and accumulation options
@@ -55,12 +56,10 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     let ops_configs_vec = [
         DataConfig {
             which: WhichCandleOperator::RelativeSimilarityScore,
-            // lhs_pk: "id".to_string(), // DM: relative similarity score assumes ID column is a string!
-            lhs_pk: "title".to_string(),
+            lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "embedding".to_string(),
-            // rhs_pk: Some("id".to_string()), // DM: relative similarity score assumes ID column is a string!
-            rhs_pk: Some("title".to_string()),
+            rhs_pk: Some("id".to_string()),
             rhs_fk: Some("title".to_string()),
             rhs_values: Some("embedding".to_string()),
             ..Default::default()
@@ -76,27 +75,34 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             op_kwargs: Some("{\"asc\": false}".to_string()),
             ..Default::default()
         },
+        // DataConfig {
+        //     which: WhichCandleOperator::ChunkDocuments,
+        //     lhs_pk: "id".to_string(),
+        //     lhs_fk: "title".to_string(),
+        //     lhs_values: "text".to_string(),
+        //     rhs_pk: Some("id".to_string()),
+        //     rhs_fk: Some("title".to_string()),
+        //     rhs_values: Some("text".to_string()),
+        //     op_kwargs: Some("{\"chunk_size\": 512, \"chunk_overlap\": 64}".to_string()),
+        //     ..Default::default()
+        // },
         DataConfig {
-            which: WhichCandleOperator::ChunkDocuments,
-            // lhs_pk: "id".to_string(), // DM: check_schema_rhs_input assumes ID column is a string!
+            which: WhichCandleOperator::JoinInner,
             lhs_pk: "title".to_string(),
-            lhs_fk: "title".to_string(),
-            lhs_values: "text".to_string(),
-            // rhs_pk: Some("id".to_string()), // DM: check_schema_rhs_input assumes ID column is a string!
+            lhs_fk: "id".to_string(),
             rhs_pk: Some("title".to_string()),
-            rhs_fk: Some("title".to_string()),
-            rhs_values: Some("text".to_string()),
-            op_kwargs: Some("{\"chunk_size\": 512, \"chunk_overlap\": 64}".to_string()),
+            rhs_fk: Some("id".to_string()),
             ..Default::default()
         },
         DataConfig {
-            which: WhichCandleOperator::JoinInner,
+            which: WhichCandleOperator::GroupByAndAggregate,
             lhs_pk: "id".to_string(),
-            lhs_fk: "title".to_string(), // DM: join_inner assumes fk column is a string!
-            lhs_values: "embedding".to_string(),
-            rhs_pk: Some("id".to_string()),
-            rhs_fk: Some("title".to_string()), // DM: join_inner assumes fk column is a string!
-            rhs_values: Some("embedding".to_string()),
+            lhs_fk: "id".to_string(),
+            lhs_values: "[\"title\",\"collection\"]".to_string(),
+            op_kwargs: Some(
+                "{\"agg_columns\": [id, text, score], \"agg_operators\": [Sum, Count, Max]}"
+                    .to_string(),
+            ),
             ..Default::default()
         },
     ];
@@ -141,10 +147,14 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
                 // Create a unique identifier for the benchmark
                 let id = format!(
-                    "{}_{lhs_size}-{rhs_size}_{}_{wasm}_{gpu}_{candle}",
+                    "{}_{lhs_size}-{rhs_size}_{wasm}_{gpu}_{candle}",
                     config.which.get_name(),
-                    stream.get_name()
                 );
+                // let id = format!(
+                //     "{}_{lhs_size}-{rhs_size}_{}_{wasm}_{gpu}_{candle}",
+                //     config.which.get_name(),
+                //     stream.get_name()
+                // );
                 let mut iter = 0;
                 c.bench_function(id.as_str(), |b| {
                     b.iter(|| {

@@ -12,7 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::candle_operators::{
     chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait,
-    extract_pdf_text::ExtractPDFText, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner,
+    extract_pdf_text::ExtractPDFText, group_by_and_aggregate::GroupByAndAggregate,
+    human_in_the_loop::HumanInTheLoop, join_inner::JoinInner,
     relative_similarity_score::RelativeSimilarityScore,
     sort_scores_and_indices::SortScoresAndIndices,
 };
@@ -37,6 +38,9 @@ pub enum WhichCandleOperator {
     #[value(name = "extract-pdf-text")]
     #[serde(alias = "extract-pdf-text")]
     ExtractPDFText,
+    #[value(name = "group-by-and-aggregate")]
+    #[serde(alias = "group-by-and-aggregate")]
+    GroupByAndAggregate,
 }
 
 impl Default for WhichCandleOperator {
@@ -55,6 +59,7 @@ impl WhichCandleOperator {
             Self::ChunkDocuments => ChunkDocuments::get_static_name(),
             Self::JoinInner => JoinInner::get_static_name(),
             Self::ExtractPDFText => ExtractPDFText::get_static_name(),
+            Self::GroupByAndAggregate => GroupByAndAggregate::get_static_name(),
         }
     }
 
@@ -67,6 +72,7 @@ impl WhichCandleOperator {
             Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
             Self::JoinInner => JoinInner::get_json_tool_schema(),
             Self::ExtractPDFText => ExtractPDFText::get_json_tool_schema(),
+            Self::GroupByAndAggregate => GroupByAndAggregate::get_json_tool_schema(),
         }
     }
 
@@ -84,6 +90,8 @@ impl WhichCandleOperator {
             Some(Self::JoinInner)
         } else if name == ExtractPDFText::get_name() {
             Some(Self::ExtractPDFText)
+        } else if name == GroupByAndAggregate::get_name() {
+            Some(Self::GroupByAndAggregate)
         } else {
             None
         }
@@ -118,6 +126,9 @@ impl WhichCandleOperator {
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
             Self::ExtractPDFText => Box::new(ExtractPDFText::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
+            Self::GroupByAndAggregate => Box::new(GroupByAndAggregate::new(
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
         }
@@ -169,7 +180,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            result.get_column_as_str_vec("tool_id"),
+            result.get_column_as_vec_str("tool_id"),
             &[
                 "relative-similarity-score",
                 "sort-scores-and-indices",
@@ -178,7 +189,7 @@ mod tests {
                 "human-in-the-loop",
             ]
         );
-        let functions = result.get_column_as_str_vec("tool");
+        let functions = result.get_column_as_vec_str("tool");
         assert!(functions.first().unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"relative-similarity-score\",\"description\":\"Compute the relative similarity score between two different lists of embedding vectors\"")
         );
         assert!(

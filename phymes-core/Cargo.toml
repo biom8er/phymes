@@ -46,3 +46,4 @@ candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.
 tokenizers = { version = "0.21.1", default-features = false, optional = true }
 bytes = "1.10.1"
 getrandom = { version = "0.3.1", features = ["wasm_js"] }
+num-traits = { version = "0.2", default-features = false }

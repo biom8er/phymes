@@ -1,23 +1,30 @@
 use arrow::{
-    array::{ArrayRef, Float32Array, StringArray, UInt32Array},
-    datatypes::{DataType, Field, Schema, SchemaRef},
+    array::{Array, ArrayRef, UInt8Array},
+    datatypes::DataType,
     record_batch::RecordBatch,
 };
 
 use anyhow::{Result, anyhow};
-use candle_core::Device;
+use candle_core::{Device, Tensor, op::CmpOp};
+use phymes_core::{
+    session::common_traits::{BuildableTrait, BuilderTrait},
+    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+};
 use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::candle_operators::data_operator::DataOperatorTrait;
+use crate::candle_operators::{
+    data_operator::DataOperatorTrait,
+    sort_scores_and_indices::{sort_column_and_indices, take_columns_by_indices},
+};
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
 #[derive(Debug)]
 pub struct JoinInner {
-    lhs_pk: String,
+    _lhs_pk: String,
     lhs_fk: String,
-    rhs_pk: String,
+    _rhs_pk: String,
     rhs_fk: String,
 }
 
@@ -35,9 +42,9 @@ impl DataOperatorTrait for JoinInner {
         _kwargs: Option<&str>,
     ) -> Self {
         JoinInner {
-            lhs_pk: lhs_pk.to_string(),
+            _lhs_pk: lhs_pk.to_string(),
             lhs_fk: lhs_fk.to_string(),
-            rhs_pk: rhs_pk.unwrap_or("rhs_pk").to_string(),
+            _rhs_pk: rhs_pk.unwrap_or("rhs_pk").to_string(),
             rhs_fk: rhs_fk.unwrap_or("rhs_fk").to_string(),
         }
     }
@@ -54,72 +61,6 @@ impl DataOperatorTrait for JoinInner {
             rhs_args.unwrap(),
             device,
         )
-    }
-    fn get_schema_lhs_input(
-        &self,
-        _list_size: Option<usize>,
-        other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {
-        let lhs_pk = Field::new(self.lhs_pk.clone(), DataType::Utf8, false);
-        let lhs_fk = Field::new(self.lhs_fk.clone(), DataType::Utf8, false);
-        let mut fields = vec![lhs_pk, lhs_fk];
-        if let Some(other) = other {
-            fields.extend(other);
-        }
-        Some(Arc::new(Schema::new(fields)))
-    }
-    fn get_schema_rhs_input(
-        &self,
-        _list_size: Option<usize>,
-        other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {
-        let rhs_pk = Field::new(self.rhs_pk.clone(), DataType::Utf8, false);
-        let rhs_fk = Field::new(self.rhs_fk.clone(), DataType::Utf8, false);
-        let mut fields = vec![rhs_pk, rhs_fk];
-        if let Some(other) = other {
-            fields.extend(other);
-        }
-        Some(Arc::new(Schema::new(fields)))
-    }
-    fn get_schema_output(
-        &self,
-        _list_size: Option<usize>,
-        other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {
-        let lhs_fk = Field::new(self.lhs_fk.clone(), DataType::Utf8, false);
-        let rhs_fk = Field::new(self.rhs_fk.clone(), DataType::Utf8, false);
-        let mut fields = vec![lhs_fk, rhs_fk];
-        if let Some(other) = other {
-            fields.extend(other);
-        }
-        Some(Arc::new(Schema::new(fields)))
-    }
-    fn check_schema_lhs_input(&self, other: SchemaRef) -> Result<Option<bool>> {
-        if other.column_with_name(&self.lhs_fk).is_none() {
-            return Err(anyhow!(
-                "LHS input is missing column for lhs_fk {}.",
-                self.lhs_fk
-            ));
-        }
-        Ok(Some(true))
-    }
-    fn check_schema_rhs_input(&self, other: SchemaRef) -> Result<Option<bool>> {
-        if other.column_with_name(&self.rhs_fk).is_none() {
-            return Err(anyhow!(
-                "RHS input is missing column for rhs_fk {}.",
-                self.rhs_fk
-            ));
-        }
-        Ok(Some(true))
-    }
-    fn check_schema_output(&self, other: SchemaRef) -> Result<Option<bool>> {
-        if other.column_with_name(&self.lhs_fk).is_none() {
-            return Err(anyhow!("LHS output is missing column for lhs_fk."));
-        }
-        if other.column_with_name(&self.rhs_fk).is_none() {
-            return Err(anyhow!("RHS output is missing column for rhs_fk."));
-        }
-        Ok(Some(true))
     }
     fn get_description() -> String {
         "Join two tables on their foreign keys".to_string()
@@ -215,6 +156,54 @@ impl DataOperatorTrait for JoinInner {
     }
 }
 
+type JointInnerTensorResult = (Arc<dyn Array>, Tensor, Arc<dyn Array>, Tensor);
+
+/// Helper method to compute the inner join using Tensors
+fn join_inner_tensor(
+    lhs_dim_0: usize,
+    lhs_tensor: Tensor,
+    rhs_dim_0: usize,
+    rhs_tensor: Tensor,
+    device: &Device,
+) -> Result<JointInnerTensorResult> {
+    let match_tensor = lhs_tensor.cmp(&rhs_tensor, CmpOp::Eq)?;
+
+    // Convert the matches into indices
+    let lhs_indices_tensor = (&Tensor::arange(1u8, (lhs_dim_0 + 1) as u8, device)?
+        .reshape((lhs_dim_0, 1))?
+        .broadcast_as((lhs_dim_0, rhs_dim_0))?
+        * &match_tensor)?
+        .flatten_all()?;
+    let rhs_indices_tensor = (&Tensor::arange(1u8, (rhs_dim_0 + 1) as u8, device)?
+        .reshape((1, rhs_dim_0))?
+        .broadcast_as((lhs_dim_0, rhs_dim_0))?
+        * &match_tensor)?
+        .flatten_all()?;
+
+    // Extract out the indices
+    let lhs_indices = lhs_indices_tensor.to_vec1::<u8>()?;
+    let lhs_indices = lhs_indices
+        .into_iter()
+        .filter_map(|v| if v >= 1 { Some(v - 1) } else { None })
+        .collect::<Vec<_>>();
+    let lhs_tensor = Tensor::from_iter(
+        lhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
+        device,
+    )?;
+    let lhs_arr: ArrayRef = Arc::new(UInt8Array::from(lhs_indices));
+    let rhs_indices = rhs_indices_tensor.to_vec1::<u8>()?;
+    let rhs_indices = rhs_indices
+        .into_iter()
+        .filter_map(|v| if v >= 1 { Some(v - 1) } else { None })
+        .collect::<Vec<_>>();
+    let rhs_tensor = Tensor::from_iter(
+        rhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
+        device,
+    )?;
+    let rhs_arr: ArrayRef = Arc::new(UInt8Array::from(rhs_indices));
+    Ok((lhs_arr, lhs_tensor, rhs_arr, rhs_tensor))
+}
+
 /**
 Inner join along the LHS foreign key and RHS PK of two [RecordBatch]
   ONLY the rows with matching values in common are returned
@@ -228,297 +217,189 @@ Inner join along the LHS foreign key and RHS PK of two [RecordBatch]
 * `device` - The compute device
 
 */
-#[instrument(skip(lhs_fk, lhs_args, rhs_fk, rhs_args, _device))]
+#[instrument(skip(lhs_fk, lhs_args, rhs_fk, rhs_args, device))]
 pub fn join_inner(
     lhs_fk: &str,
     lhs_args: &[RecordBatch],
     rhs_fk: &str,
     rhs_args: &[RecordBatch],
-    _device: &Device,
+    device: &Device,
 ) -> Result<RecordBatch> {
-    // Extract the foreign keys
-    let lhs_fk_vec = lhs_args
-        .iter()
-        .flat_map(|batch| {
-            batch
-                .column_by_name(lhs_fk)
-                .unwrap()
-                .as_any()
-                .downcast_ref::<StringArray>()
-                .unwrap()
-                .iter()
-                .map(|s| s.unwrap_or_default())
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-    let rhs_fk_vec = rhs_args
-        .iter()
-        .flat_map(|batch| {
-            batch
-                .column_by_name(rhs_fk)
-                .unwrap()
-                .as_any()
-                .downcast_ref::<StringArray>()
-                .unwrap()
-                .iter()
-                .map(|s| s.unwrap_or_default())
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
+    // Presort the lhs and rhs according to PKs
+    let lhs_sorted = sort_column_and_indices(lhs_fk, lhs_args, true, device)?;
+    let rhs_sorted = sort_column_and_indices(rhs_fk, rhs_args, true, device)?;
 
-    // Find matches between foreign keys
-    let mut lhs_indices = Vec::new();
-    let mut rhs_indices = Vec::new();
-    let mut lhs_fk_matches_vec = Vec::new();
-    let mut rhs_fk_matches_vec = Vec::new();
-    for (li, lfk) in lhs_fk_vec.iter().enumerate() {
-        for (ri, rfk) in rhs_fk_vec.iter().enumerate() {
-            if lfk == rfk {
-                lhs_indices.push(li);
-                rhs_indices.push(ri);
-                lhs_fk_matches_vec.push(lfk.to_owned());
-                rhs_fk_matches_vec.push(rfk.to_owned());
+    // Wrap the lhs and rhs into an ArrowTable
+    let lhs_table = ArrowTable::get_builder()
+        .with_record_batches(vec![lhs_sorted])?
+        .with_name("")
+        .build()?;
+    let rhs_table = ArrowTable::get_builder()
+        .with_record_batches(vec![rhs_sorted])?
+        .with_name("")
+        .build()?;
+
+    // Join by the FKs
+    assert_eq!(
+        lhs_table.get_column_data_type(lhs_fk)?,
+        rhs_table.get_column_data_type(rhs_fk)?,
+        "LHS FK and RHS FK columns must be the same type."
+    );
+    let (lhs_asort_arr, lhs_asort_tensor, rhs_asort_arr, rhs_asort_tensor) =
+        match lhs_table.get_column_data_type(lhs_fk)? {
+            DataType::UInt8 => {
+                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<u8>(lhs_fk)?;
+                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<u8>(rhs_fk)?;
+                let lhs_dim_0 = lhs_fk_vec.len();
+                let rhs_dim_0 = rhs_fk_vec.len();
+
+                // Broadcast along dims 0 and 1 to find the matching FKs
+                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
+                    .reshape((lhs_dim_0, 1))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
+                    .reshape((1, rhs_dim_0))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
             }
-        }
-    }
+            DataType::UInt32 => {
+                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<u32>(lhs_fk)?;
+                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<u32>(rhs_fk)?;
+                let lhs_dim_0 = lhs_fk_vec.len();
+                let rhs_dim_0 = rhs_fk_vec.len();
 
-    // Build lhs columns
+                // Broadcast along dims 0 and 1 to find the matching FKs
+                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
+                    .reshape((lhs_dim_0, 1))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
+                    .reshape((1, rhs_dim_0))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+            }
+            DataType::Int64 => {
+                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<i64>(lhs_fk)?;
+                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<i64>(rhs_fk)?;
+                let lhs_dim_0 = lhs_fk_vec.len();
+                let rhs_dim_0 = rhs_fk_vec.len();
+
+                // Broadcast along dims 0 and 1 to find the matching FKs
+                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
+                    .reshape((lhs_dim_0, 1))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
+                    .reshape((1, rhs_dim_0))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+            }
+            DataType::Float32 => {
+                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<f32>(lhs_fk)?;
+                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<f32>(rhs_fk)?;
+                let lhs_dim_0 = lhs_fk_vec.len();
+                let rhs_dim_0 = rhs_fk_vec.len();
+
+                // Broadcast along dims 0 and 1 to find the matching FKs
+                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
+                    .reshape((lhs_dim_0, 1))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
+                    .reshape((1, rhs_dim_0))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+            }
+            DataType::Float64 => {
+                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<f64>(lhs_fk)?;
+                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<f64>(rhs_fk)?;
+                let lhs_dim_0 = lhs_fk_vec.len();
+                let rhs_dim_0 = rhs_fk_vec.len();
+
+                // Broadcast along dims 0 and 1 to find the matching FKs
+                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
+                    .reshape((lhs_dim_0, 1))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
+                    .reshape((1, rhs_dim_0))?
+                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
+                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+            }
+            DataType::Utf8 => {
+                let lhs_fk_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(lhs_fk)?;
+                let rhs_fk_vec = rhs_table.get_column_as_vec_nonprimitive::<String>(rhs_fk)?;
+                let mut lhs_indices = Vec::new();
+                let mut rhs_indices = Vec::new();
+
+                // Find matches between foreign keys
+                for (li, lfk) in lhs_fk_vec.iter().enumerate() {
+                    for (ri, rfk) in rhs_fk_vec.iter().enumerate() {
+                        if lfk == rfk {
+                            lhs_indices.push(li as u8);
+                            rhs_indices.push(ri as u8);
+                        }
+                    }
+                }
+                let lhs_tensor = Tensor::from_iter(
+                    lhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
+                    device,
+                )?;
+                let lhs_arr: ArrayRef = Arc::new(UInt8Array::from(lhs_indices));
+                let rhs_tensor = Tensor::from_iter(
+                    rhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
+                    device,
+                )?;
+                let rhs_arr: ArrayRef = Arc::new(UInt8Array::from(rhs_indices));
+                (lhs_arr, lhs_tensor, rhs_arr, rhs_tensor)
+            }
+            _ => {
+                return Err(anyhow!(
+                    "Unsupported data type for column {}: {}",
+                    lhs_fk,
+                    lhs_table.get_column_data_type(lhs_fk)?.to_string()
+                ));
+            }
+        };
+
+    // Build the joined table
     let mut batch_vec = Vec::new();
-    let array_ref: ArrayRef = Arc::new(StringArray::from(lhs_fk_matches_vec));
-    batch_vec.push((lhs_fk, array_ref));
-    let array_ref: ArrayRef = Arc::new(StringArray::from(rhs_fk_matches_vec));
-    batch_vec.push((rhs_fk, array_ref));
-
-    // ... starting with the lhs
-    let columns: Vec<String> = lhs_args
-        .first()
-        .unwrap()
-        .schema()
+    let lhs_columns: Vec<String> = lhs_table
+        .get_schema()
         .fields()
         .iter()
-        .filter_map(|field| {
-            if (field.name() != lhs_fk) & (field.data_type() == &DataType::Utf8) {
-                Some(field.name().clone())
-            } else {
-                None
-            }
-        })
+        .map(|field| field.name().to_owned())
         .collect();
-    for column in columns.iter() {
-        let array_vec = lhs_args
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name(column)
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<StringArray>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let array_vec = lhs_indices
-            .iter()
-            .map(|i| array_vec.get(*i).unwrap().to_owned())
-            .collect::<Vec<_>>();
-        let array_ref: ArrayRef = Arc::new(StringArray::from(array_vec));
-        batch_vec.push((column, array_ref));
-    }
-    let columns: Vec<String> = lhs_args
-        .first()
-        .unwrap()
-        .schema()
+    batch_vec.extend(take_columns_by_indices(
+        &lhs_columns,
+        &lhs_table,
+        lhs_asort_arr,
+        lhs_asort_tensor,
+        device,
+    )?);
+    let rhs_columns: Vec<String> = rhs_table
+        .get_schema()
         .fields()
         .iter()
-        .filter_map(|field| {
-            if field.data_type() == &DataType::UInt32 {
-                Some(field.name().clone())
-            } else {
-                None
-            }
-        })
+        .map(|field| field.name().to_owned())
         .collect();
-    for column in columns.iter() {
-        let array_vec = lhs_args
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name(column)
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<UInt32Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let array_vec = lhs_indices
-            .iter()
-            .map(|i| array_vec.get(*i).unwrap().to_owned())
-            .collect::<Vec<_>>();
-        let array_ref: ArrayRef = Arc::new(UInt32Array::from(array_vec));
-        batch_vec.push((column, array_ref));
-    }
-    let columns: Vec<String> = lhs_args
-        .first()
-        .unwrap()
-        .schema()
-        .fields()
-        .iter()
-        .filter_map(|field| {
-            if field.data_type() == &DataType::Float32 {
-                Some(field.name().clone())
-            } else {
-                None
-            }
-        })
-        .collect();
-    for column in columns.iter() {
-        let array_vec = lhs_args
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name(column)
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<Float32Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let array_vec = lhs_indices
-            .iter()
-            .map(|i| array_vec.get(*i).unwrap().to_owned())
-            .collect::<Vec<_>>();
-        let array_ref: ArrayRef = Arc::new(Float32Array::from(array_vec));
-        batch_vec.push((column, array_ref));
-    }
-
-    // ... and then the rhs
-    let columns: Vec<String> = rhs_args
-        .first()
-        .unwrap()
-        .schema()
-        .fields()
-        .iter()
-        .filter_map(|field| {
-            if (field.name() != rhs_fk) & (field.data_type() == &DataType::Utf8) {
-                Some(field.name().clone())
-            } else {
-                None
-            }
-        })
-        .collect();
-    for column in columns.iter() {
-        let array_vec = rhs_args
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name(column)
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<StringArray>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let array_vec = rhs_indices
-            .iter()
-            .map(|i| array_vec.get(*i).unwrap().to_owned())
-            .collect::<Vec<_>>();
-        let array_ref: ArrayRef = Arc::new(StringArray::from(array_vec));
-        batch_vec.push((column, array_ref));
-    }
-    let columns: Vec<String> = rhs_args
-        .first()
-        .unwrap()
-        .schema()
-        .fields()
-        .iter()
-        .filter_map(|field| {
-            if field.data_type() == &DataType::UInt32 {
-                Some(field.name().clone())
-            } else {
-                None
-            }
-        })
-        .collect();
-    for column in columns.iter() {
-        let array_vec = rhs_args
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name(column)
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<UInt32Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let array_vec = rhs_indices
-            .iter()
-            .map(|i| array_vec.get(*i).unwrap().to_owned())
-            .collect::<Vec<_>>();
-        let array_ref: ArrayRef = Arc::new(UInt32Array::from(array_vec));
-        batch_vec.push((column, array_ref));
-    }
-    let columns: Vec<String> = rhs_args
-        .first()
-        .unwrap()
-        .schema()
-        .fields()
-        .iter()
-        .filter_map(|field| {
-            if field.data_type() == &DataType::Float32 {
-                Some(field.name().clone())
-            } else {
-                None
-            }
-        })
-        .collect();
-    for column in columns.iter() {
-        let array_vec = rhs_args
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name(column)
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<Float32Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let array_vec = rhs_indices
-            .iter()
-            .map(|i| array_vec.get(*i).unwrap().to_owned())
-            .collect::<Vec<_>>();
-        let array_ref: ArrayRef = Arc::new(Float32Array::from(array_vec));
-        batch_vec.push((column, array_ref));
-    }
-
+    batch_vec.extend(take_columns_by_indices(
+        &rhs_columns,
+        &rhs_table,
+        rhs_asort_arr,
+        rhs_asort_tensor,
+        device,
+    )?);
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
 }
 
 #[cfg(test)]
 mod tests {
+    use arrow::array::{ArrayRef, StringArray, UInt8Array, UInt32Array};
+    use phymes_ml::candle_assets::device::device;
+
     use super::*;
 
     #[test]
     fn test_join_inner() -> Result<()> {
+        // ------ FK = String ------
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
@@ -544,7 +425,7 @@ mod tests {
         ])?;
         let rhs_ids_vec_1 = vec!["0", "2", "2"];
         let rhs_ids_array: ArrayRef = Arc::new(StringArray::from(rhs_ids_vec_1));
-        let rhs_metadata_vec_1: Vec<u32> = vec![8, 9, 9];
+        let rhs_metadata_vec_1: Vec<u32> = vec![8, 9, 10];
         let rhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(rhs_metadata_vec_1));
         let rhs_text_vec_1 = vec!["right", "right", "right"];
         let rhs_text_array: ArrayRef = Arc::new(StringArray::from(rhs_text_vec_1));
@@ -554,13 +435,16 @@ mod tests {
             ("rhs_metadata", rhs_metadata_array),
         ])?;
 
+        // Make the device
+        let device = device(false)?;
+
         // Chunk the documents
         let result = join_inner(
             "lhs_pk",
             &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",
             &[rhs_batch_1],
-            &Device::Cpu,
+            &device,
         )?;
 
         let lhs_id = result
@@ -612,7 +496,113 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 9]);
+        assert_eq!(metadata, vec![8, 9, 10]);
+        let text = result
+            .column_by_name("rhs_text")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(text, vec!["right", "right", "right"]);
+
+        // ------ FK = u8 ------
+        // Make the test record batches
+        let lhs_ids_vec_1: Vec<u8> = vec![0, 1];
+        let lhs_ids_array: ArrayRef = Arc::new(UInt8Array::from(lhs_ids_vec_1));
+        let lhs_metadata_vec_1: Vec<u32> = vec![1, 2];
+        let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_1));
+        let lhs_text_vec_1 = vec!["left", "left"];
+        let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_1));
+        let lhs_batch_1 = RecordBatch::try_from_iter(vec![
+            ("lhs_pk", lhs_ids_array),
+            ("lhs_text", lhs_text_array),
+            ("lhs_metadata", lhs_metadata_array),
+        ])?;
+        let lhs_ids_vec_2: Vec<u8> = vec![2, 3];
+        let lhs_ids_array: ArrayRef = Arc::new(UInt8Array::from(lhs_ids_vec_2));
+        let lhs_metadata_vec_2: Vec<u32> = vec![3, 4];
+        let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_2));
+        let lhs_text_vec_2 = vec!["left", "left"];
+        let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_2));
+        let lhs_batch_2 = RecordBatch::try_from_iter(vec![
+            ("lhs_pk", lhs_ids_array),
+            ("lhs_text", lhs_text_array),
+            ("lhs_metadata", lhs_metadata_array),
+        ])?;
+        let rhs_ids_vec_1: Vec<u8> = vec![0, 2, 2];
+        let rhs_ids_array: ArrayRef = Arc::new(UInt8Array::from(rhs_ids_vec_1));
+        let rhs_metadata_vec_1: Vec<u32> = vec![8, 9, 10];
+        let rhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(rhs_metadata_vec_1));
+        let rhs_text_vec_1 = vec!["right", "right", "right"];
+        let rhs_text_array: ArrayRef = Arc::new(StringArray::from(rhs_text_vec_1));
+        let rhs_batch_1 = RecordBatch::try_from_iter(vec![
+            ("rhs_pk", rhs_ids_array),
+            ("rhs_text", rhs_text_array),
+            ("rhs_metadata", rhs_metadata_array),
+        ])?;
+
+        // Chunk the documents
+        let result = join_inner(
+            "lhs_pk",
+            &[lhs_batch_1, lhs_batch_2],
+            "rhs_pk",
+            &[rhs_batch_1],
+            &device,
+        )?;
+
+        let lhs_id = result
+            .column_by_name("lhs_pk")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<UInt8Array>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(lhs_id, vec![0, 2, 2]);
+        let metadata = result
+            .column_by_name("lhs_metadata")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(metadata, vec![1, 3, 3]);
+        let text = result
+            .column_by_name("lhs_text")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(text, vec!["left", "left", "left"]);
+        let lhs_id = result
+            .column_by_name("rhs_pk")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<UInt8Array>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(lhs_id, vec![0, 2, 2]);
+        let metadata = result
+            .column_by_name("rhs_metadata")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(metadata, vec![8, 9, 10]);
         let text = result
             .column_by_name("rhs_text")
             .unwrap()

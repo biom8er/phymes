@@ -337,7 +337,7 @@ mod tests {
         arrow_table::ArrowTableBuilder, arrow_table_publish::ArrowTablePublish,
     };
 
-    use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch;
+    use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
 
     use super::*;
 
@@ -351,7 +351,8 @@ mod tests {
             vec![0., 1., 0., 1.],
             vec![0., 0., 0., 1.],
         ];
-        let lhs_batch = make_embeddings_record_batch("lhs_pk", lhs_ids_vec, lhs_embeddings_vec)?;
+        let lhs_batch =
+            make_embeddings_record_batch_str_f32("lhs_pk", lhs_ids_vec, lhs_embeddings_vec)?;
         let lhs_table = ArrowTable::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
@@ -421,10 +422,10 @@ mod tests {
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         // DM: change after upgrading to Qwen 3 series
-        // assert_eq!(partitions.get_column_as_str_vec("role"), ["function"]);
-        assert_eq!(partitions.get_column_as_str_vec("role"), ["tool"]);
+        // assert_eq!(partitions.get_column_as_vec_str("role"), ["function"]);
+        assert_eq!(partitions.get_column_as_vec_str("role"), ["tool"]);
         assert_eq!(
-            partitions.get_column_as_str_vec("content"),
+            partitions.get_column_as_vec_str("content"),
             [
                 "[{\"embedding\":[1.0,1.0,1.0,1.0],\"lhs_pk\":\"1\"},{\"embedding\":[0.0,0.0,0.0,1.0],\"lhs_pk\":\"3\"}]"
             ]

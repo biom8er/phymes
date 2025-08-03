@@ -114,7 +114,7 @@ impl ArrowIncomingMessage {
             // Each row is a new message
             let data = field_names
                 .iter()
-                .map(|f| self.message.get_column_as_str_vec(f))
+                .map(|f| self.message.get_column_as_vec_str(f))
                 .collect::<Vec<_>>();
             let n_rows: usize = self
                 .message
@@ -986,7 +986,7 @@ mod tests {
                 .get("data")
                 .unwrap()
                 .get_message()
-                .get_column_as_str_vec("values")
+                .get_column_as_vec_str("values")
                 .first()
                 .unwrap(),
             json_str_1
@@ -1005,7 +1005,7 @@ mod tests {
                 .get("chat")
                 .unwrap()
                 .get_message()
-                .get_column_as_str_vec("values")
+                .get_column_as_vec_str("values")
                 .first()
                 .unwrap(),
             json_str_2

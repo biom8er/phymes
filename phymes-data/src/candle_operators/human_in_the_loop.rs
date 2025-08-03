@@ -1,13 +1,10 @@
-use arrow::{
-    datatypes::{DataType, Field, Schema, SchemaRef},
-    record_batch::RecordBatch,
-};
+use arrow::record_batch::RecordBatch;
 
 use super::data_operator::DataOperatorTrait;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use candle_core::Device;
 use phymes_ml::openai_asset::{chat_completion, types};
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
 #[derive(Debug)]
@@ -30,60 +27,6 @@ impl DataOperatorTrait for HumanInTheLoop {
     }
     fn get_description() -> String {
         "Ask a question to clarify the user's query, ask a questionn to get additional information that the user did not provide, confirm a choice of tool, confirm arguments for a tool before answering the user's query or calling a tool, or provide the answer to the user's query.".to_string()
-    }
-    fn get_schema_lhs_input(
-        &self,
-        _list_size: Option<usize>,
-        other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let mut fields = vec![role, content];
-        if let Some(other) = other {
-            fields.extend(other);
-        }
-        Some(Arc::new(Schema::new(fields)))
-    }
-    fn get_schema_rhs_input(
-        &self,
-        _list_size: Option<usize>,
-        _other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {
-        None
-    }
-    fn get_schema_output(
-        &self,
-        _list_size: Option<usize>,
-        other: Option<Vec<Field>>,
-    ) -> Option<SchemaRef> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let mut fields = vec![role, content];
-        if let Some(other) = other {
-            fields.extend(other);
-        }
-        Some(Arc::new(Schema::new(fields)))
-    }
-    fn check_schema_lhs_input(&self, other: SchemaRef) -> Result<Option<bool>> {
-        if other.column_with_name("role").is_none() {
-            return Err(anyhow!("LHS input is missing column for role."));
-        }
-        if other.column_with_name("content").is_none() {
-            return Err(anyhow!("LHS input is missing column for content."));
-        }
-        Ok(Some(true))
-    }
-    fn check_schema_rhs_input(&self, _other: SchemaRef) -> Result<Option<bool>> {
-        Ok(None)
-    }
-    fn check_schema_output(&self, other: SchemaRef) -> Result<Option<bool>> {
-        if other.column_with_name("role").is_none() {
-            return Err(anyhow!("Output is missing column for role."));
-        }
-        if other.column_with_name("content").is_none() {
-            return Err(anyhow!("Output is missing column for content."));
-        }
-        Ok(Some(true))
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
