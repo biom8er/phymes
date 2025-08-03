@@ -5425,6 +5425,7 @@ dependencies = [
  "getrandom 0.3.3",
  "intel-mkl-src",
  "lopdf",
+ "num-traits",
  "parking_lot",
  "phymes-core",
  "phymes-ml",

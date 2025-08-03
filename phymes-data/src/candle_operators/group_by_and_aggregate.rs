@@ -1,8 +1,9 @@
-use std::{ops::Range, sync::Arc};
+use std::{fmt::Display, ops::Range, sync::Arc};
 
 use anyhow::{anyhow, Result};
-use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array}, compute::kernels::partition::partition, datatypes::{DataType, Schema}};
-use candle_core::{Device, Tensor};
+use arrow::{array::{ArrayData, ArrayRef, FixedSizeListArray, Float32Array, Float64Array, Int64Array, ListArray, RecordBatch, StringArray, UInt32Array, UInt8Array}, buffer::Buffer, compute::kernels::partition::partition, datatypes::{ArrowNativeType, DataType, Field, Schema}};
+use candle_core::{Device, Tensor, WithDType};
+use num_traits::{Bounded, Num, NumCast};
 use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
 
 use crate::{candle_data::data_config::DataAggregator, candle_operators::sort_scores_and_indices::sort_column_and_indices};
@@ -38,6 +39,122 @@ fn aggregator_operator_tensor(agg_column: &str, agg_operator: &DataAggregator, l
     Ok(agg_tensor)
 }
 
+/// Helper function to extract the aggregator column for primitive types
+fn extract_aggregator_column_primitive<T>(group_column:&str, lhs_table: &ArrowTable, ranges: &[Range<usize>]) -> Vec<T> 
+    where
+        T: Num + Bounded + NumCast + Send + Sync + Clone + 'static
+{    
+    let array_vec = lhs_table.get_column_as_vec_primitive::<T>(group_column).unwrap();
+    let mut agg_vec = Vec::new();
+    for range in ranges.iter() {
+        let value = array_vec.get(range.start).unwrap();
+        agg_vec.push(NumCast::from(value.clone()).unwrap());
+    }
+    agg_vec
+}
+
+/// Helper function to extract the aggregator column for primitive types
+fn extract_aggregator_column_nonprimitive<T>(group_column:&str, lhs_table: &ArrowTable, ranges: &[Range<usize>]) -> Vec<T> 
+    where
+        T: From<String> + Clone + Display + 'static
+{    
+    let array_vec = lhs_table.get_column_as_vec_nonprimitive::<T>(group_column).unwrap();
+    let mut agg_vec = Vec::new();
+    for range in ranges.iter() {
+        let value = array_vec.get(range.start).unwrap();
+        agg_vec.push(T::from(value.to_string()));
+    }
+    agg_vec
+}
+
+/// Helper function to extract the aggregator column for primitive types
+fn extract_aggregator_column_nested_primitive<T>(group_column:&str, lhs_table: &ArrowTable, ranges: &[Range<usize>]) -> Vec<Vec<T>> 
+    where
+        T: Num + Bounded + NumCast + Send + Sync + Clone + 'static
+{    
+    let array_vec = lhs_table.get_column_as_vec_nested_primitive::<T>(group_column).unwrap();
+    let mut agg_vec = Vec::new();
+    for range in ranges.iter() {
+        let value = array_vec.get(range.start).unwrap();
+        agg_vec.push(value.to_owned());
+    }
+    agg_vec
+}
+
+/// Helper function to extract the aggregator column for non-primitive types
+fn extract_aggregator_column_nested_nonprimitive<T>(group_column:&str, lhs_table: &ArrowTable, ranges: &[Range<usize>]) -> Vec<Vec<T>> 
+    where
+        T: From<String> + Clone + Display + 'static
+{    
+    let array_vec = lhs_table.get_column_as_vec_nested_nonprimitive::<T>(group_column).unwrap();
+    let mut agg_vec = Vec::new();
+    for range in ranges.iter() {
+        let value = array_vec.get(range.start).unwrap();
+        agg_vec.push(value.to_owned());
+    }
+    agg_vec
+}
+
+/// Helper function to build a fixed list primitive type
+fn build_aggregator_column_fixed_size_list<T>(agg_vec: Vec<Vec<T>>, data_type: DataType) -> ArrayRef 
+    where
+        T: ArrowNativeType + 'static
+{
+    let dim_0 = agg_vec.len();
+    let dim_1 = agg_vec.first().unwrap().len();
+    let list_values = agg_vec.into_iter().flatten().collect::<Vec<_>>();
+    let value_data = ArrayData::builder(data_type.clone())
+        .len(list_values.len())
+        .add_buffer(Buffer::from_vec(list_values))
+        .build()
+        .unwrap();
+    let list_data_type =
+        DataType::FixedSizeList(Arc::new(Field::new_list_field(data_type, false)), dim_1 as i32);
+    let list_data = ArrayData::builder(list_data_type)
+        .len(dim_0)
+        .add_child_data(value_data)
+        .build()
+        .unwrap();
+    Arc::new(FixedSizeListArray::from(list_data))
+}
+
+/// Helper function to build a list primitive type
+fn build_aggregator_column_list<T>(agg_vec: Vec<Vec<T>>, data_type: DataType) -> ArrayRef 
+    where
+        T: ArrowNativeType + 'static
+{
+    let dim_0 = agg_vec.len();
+    let list_values = agg_vec.into_iter().flatten().collect::<Vec<_>>();
+    let value_data = ArrayData::builder(data_type.clone())
+        .len(list_values.len())
+        .add_buffer(Buffer::from_vec(list_values))
+        .build()
+        .unwrap();
+    let list_data_type =
+        DataType::List(Arc::new(Field::new_list_field(data_type, false)));
+    let list_data = ArrayData::builder(list_data_type)
+        .len(dim_0)
+        .add_child_data(value_data)
+        .build()
+        .unwrap();
+    Arc::new(ListArray::from(list_data))
+}
+
+/// Helper function to build the aggregation column
+fn build_aggregation_column_primitive<T>(agg_column: &str, agg_operator: &DataAggregator, lhs_table: &ArrowTable, ranges: &[Range<usize>], device: &Device) -> Result<Vec<T>> 
+    where
+        T: Num + Bounded + NumCast + Send + Sync + WithDType + 'static
+{    
+    let array_vec = lhs_table.get_column_as_vec_primitive::<T>(agg_column)?;
+    let tensor = Tensor::from_iter(array_vec, device)?;
+    let mut agg_vec = Vec::new();
+    for range in ranges.iter() {
+        let agg_tensor = aggregator_operator_tensor(&agg_column, agg_operator, &lhs_table, &tensor, range, device)?;
+        agg_vec.push(agg_tensor.to_vec0::<T>()?);
+    }
+    Ok(agg_vec)
+}
+
 /// Group by specified columns and aggregate using a specified aggregation operator over specified columns
 /// 
 /// # Arguments
@@ -47,7 +164,7 @@ fn aggregator_operator_tensor(agg_column: &str, agg_operator: &DataAggregator, l
 /// * `agg_columns` - Slice of Strings for the aggregation columns
 /// * `agg_operators` - Slice of [DataAggregator]s specifying the aggregator operator to apply to each agg_column
 /// * `device` - The compute device
-fn group_by_and_aggregate(lhs_values: &[&str], lhs_args: &[RecordBatch], agg_columns: &[&str], agg_operators: &[DataAggregator], device: &Device) -> Result<RecordBatch> {
+pub fn group_by_and_aggregate(lhs_values: &[&str], lhs_args: &[RecordBatch], agg_columns: &[&str], agg_operators: &[DataAggregator], device: &Device) -> Result<RecordBatch> {
     // Presort the lhs group by columns
     let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
     for (iter, column_name) in lhs_values.iter().enumerate() {
@@ -72,29 +189,82 @@ fn group_by_and_aggregate(lhs_values: &[&str], lhs_args: &[RecordBatch], agg_col
     for group_column in lhs_values.iter() {
         let lhs_agg: ArrayRef = match lhs_table.get_column_data_type(group_column)? {
             DataType::UInt8 => {
-                let array_vec = lhs_table.get_column_as_vec_primitive::<u8>(group_column).unwrap();
-                let mut agg_vec = Vec::new();
-                for range in ranges.iter() {
-                    agg_vec.push(array_vec.get(range.start).unwrap().to_owned());
-                }
+                let agg_vec = extract_aggregator_column_primitive::<u8>(&group_column, &lhs_table, &ranges);
                 Arc::new(UInt8Array::from(agg_vec))
             }
             DataType::UInt32 => {
-                let array_vec = lhs_table.get_column_as_vec_primitive::<u32>(group_column).unwrap();
-                let mut agg_vec = Vec::new();
-                for range in ranges.iter() {
-                    agg_vec.push(array_vec.get(range.start).unwrap().to_owned());
-                }
+                let agg_vec = extract_aggregator_column_primitive::<u32>(&group_column, &lhs_table, &ranges);
                 Arc::new(UInt32Array::from(agg_vec))
             }
-            // DM: repeat for all other types
+            DataType::Int64 => {
+                let agg_vec = extract_aggregator_column_primitive::<i64>(&group_column, &lhs_table, &ranges);
+                Arc::new(Int64Array::from(agg_vec))
+            }
+            DataType::Float32 => {
+                let agg_vec = extract_aggregator_column_primitive::<f32>(&group_column, &lhs_table, &ranges);
+                Arc::new(Float32Array::from(agg_vec))
+            }
+            DataType::Float64 => {
+                let agg_vec = extract_aggregator_column_primitive::<f64>(&group_column, &lhs_table, &ranges);
+                Arc::new(Float64Array::from(agg_vec))
+            }
             DataType::Utf8 => {
-                let array_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(group_column).unwrap();
-                let mut agg_vec = Vec::new();
-                for range in ranges.iter() {
-                    agg_vec.push(array_vec.get(range.start).unwrap().to_owned());
-                }
+                let agg_vec = extract_aggregator_column_nonprimitive::<String>(&group_column, &lhs_table, &ranges);
                 Arc::new(StringArray::from(agg_vec))
+            }
+            DataType::FixedSizeList(f, _) => match f.data_type() {
+                DataType::UInt8 => {
+                    let agg_vec = extract_aggregator_column_nested_primitive::<u8>(&group_column, &lhs_table, &ranges);
+                    build_aggregator_column_fixed_size_list::<u8>(agg_vec, DataType::UInt8)
+                }
+                DataType::UInt32 => {
+                    let agg_vec = extract_aggregator_column_nested_primitive::<u32>(&group_column, &lhs_table, &ranges);
+                    build_aggregator_column_fixed_size_list::<u32>(agg_vec, DataType::UInt32)
+                }
+                DataType::Int64 => {
+                    let agg_vec = extract_aggregator_column_nested_primitive::<i64>(&group_column, &lhs_table, &ranges);
+                    build_aggregator_column_fixed_size_list::<i64>(agg_vec, DataType::Int64)
+                }
+                DataType::Float32 => {
+                    let agg_vec = extract_aggregator_column_nested_primitive::<f32>(&group_column, &lhs_table, &ranges);
+                    build_aggregator_column_fixed_size_list::<f32>(agg_vec, DataType::Float32)
+                }
+                DataType::Float64 => {
+                    let agg_vec = extract_aggregator_column_nested_primitive::<f64>(&group_column, &lhs_table, &ranges);
+                    build_aggregator_column_fixed_size_list::<f64>(agg_vec, DataType::Float64)
+                }
+                _ => return Err(anyhow!(
+                    "Unsupported data type for column {}: {}",
+                    group_column,
+                    lhs_table.get_column_data_type(group_column)?.to_string()
+                )),
+            }
+             DataType::List(f) => match f.data_type() {
+                DataType::UInt8 => {
+                    let agg_vec = extract_aggregator_column_nested_primitive::<u8>(&group_column, &lhs_table, &ranges);
+                    build_aggregator_column_list::<u8>(agg_vec, DataType::UInt8)
+                }
+                DataType::UInt32 => {
+                    let agg_vec = extract_aggregator_column_nested_primitive::<u32>(&group_column, &lhs_table, &ranges);
+                    build_aggregator_column_list::<u32>(agg_vec, DataType::UInt32)
+                }
+                DataType::Int64 => {
+                    let agg_vec = extract_aggregator_column_nested_primitive::<i64>(&group_column, &lhs_table, &ranges);
+                    build_aggregator_column_list::<i64>(agg_vec, DataType::Int64)
+                }
+                DataType::Float32 => {
+                    let agg_vec = extract_aggregator_column_nested_primitive::<f32>(&group_column, &lhs_table, &ranges);
+                    build_aggregator_column_list::<f32>(agg_vec, DataType::Float32)
+                }
+                DataType::Float64 => {
+                    let agg_vec = extract_aggregator_column_nested_primitive::<f64>(&group_column, &lhs_table, &ranges);
+                    build_aggregator_column_list::<f64>(agg_vec, DataType::Float64)
+                }
+                _ => return Err(anyhow!(
+                    "Unsupported data type for column {}: {}",
+                    group_column,
+                    lhs_table.get_column_data_type(group_column)?.to_string()
+                )),
             }
             _ => return Err(anyhow!(
                 "Unsupported data type for column {}: {}",
@@ -109,28 +279,27 @@ fn group_by_and_aggregate(lhs_values: &[&str], lhs_args: &[RecordBatch], agg_col
     for (agg_column, agg_operator) in agg_columns.iter().zip(agg_operators.iter()) {
         let lhs_agg: ArrayRef = match lhs_table.get_column_data_type(agg_column)? {
             DataType::UInt8 => {
-                let array_vec = lhs_table.get_column_as_vec_primitive::<u8>(agg_column).unwrap();
-                let tensor = Tensor::from_iter(array_vec, device)?;
-                let mut agg_vec = Vec::new();
-                for range in ranges.iter() {
-                    let agg_tensor = aggregator_operator_tensor(&agg_column, agg_operator, &lhs_table, &tensor, range, device)?;
-                    agg_vec.push(agg_tensor.to_vec0::<u8>()?);
-                }
+                let agg_vec = build_aggregation_column_primitive::<u8>(&agg_column, agg_operator, &lhs_table, &ranges, device)?;
                 Arc::new(UInt8Array::from(agg_vec))
             }
             DataType::UInt32 => {
-                let array_vec = lhs_table.get_column_as_vec_primitive::<u32>(agg_column).unwrap();
-                let tensor = Tensor::from_iter(array_vec, device)?;
-                let mut agg_vec = Vec::new();
-                for range in ranges.iter() {
-                    let agg_tensor = aggregator_operator_tensor(&agg_column, agg_operator, &lhs_table, &tensor, range, device)?;
-                    agg_vec.push(agg_tensor.to_vec0::<u32>()?);
-                }
+                let agg_vec = build_aggregation_column_primitive::<u32>(&agg_column, agg_operator, &lhs_table, &ranges, device)?;
                 Arc::new(UInt32Array::from(agg_vec))
             }
-            // DM: repeat for all other types
+            DataType::Int64 => {
+                let agg_vec = build_aggregation_column_primitive::<i64>(&agg_column, agg_operator, &lhs_table, &ranges, device)?;
+                Arc::new(Int64Array::from(agg_vec))
+            }
+            DataType::Float32 => {
+                let agg_vec = build_aggregation_column_primitive::<f32>(&agg_column, agg_operator, &lhs_table, &ranges, device)?;
+                Arc::new(Float32Array::from(agg_vec))
+            }
+            DataType::Float64 => {
+                let agg_vec = build_aggregation_column_primitive::<f64>(&agg_column, agg_operator, &lhs_table, &ranges, device)?;
+                Arc::new(Float64Array::from(agg_vec))
+            }
             DataType::Utf8 => {
-                let array_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(agg_column).unwrap();
+                let array_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(agg_column)?;
                 let array_ref: ArrayRef = Arc::new(StringArray::from(array_vec));
                 let mut agg_vec = Vec::new();
                 for range in ranges.iter() {
@@ -157,6 +326,132 @@ fn group_by_and_aggregate(lhs_values: &[&str], lhs_args: &[RecordBatch], agg_col
                     agg_vec.push(agg_value);
                 }
                 Arc::new(StringArray::from(agg_vec))
+            }
+            DataType::FixedSizeList(f, _) => {
+                let mut agg_vec = Vec::new();
+                for range in ranges.iter() {
+                    let agg_value = match agg_operator {
+                        DataAggregator::Count => vec![range.end - range.start],
+                        _ => return Err(anyhow!(
+                            "Unsupported data type {} and aggregator operator {} for column {}",
+                            lhs_table.get_column_data_type(agg_column)?.to_string(),
+                            agg_operator.get_name(),
+                            agg_column,
+                            
+                        )),
+                    };
+                    agg_vec.push(agg_value);
+                }
+                match f.data_type() {
+                    DataType::UInt8 => {
+                        let agg_vec = agg_vec.into_iter()
+                            .map(|v| v.into_iter()
+                                .map(|v| v as u8)
+                                .collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<u8>(agg_vec, DataType::UInt8)
+                    }
+                    DataType::UInt32 => {
+                        let agg_vec = agg_vec.into_iter()
+                            .map(|v| v.into_iter()
+                                .map(|v| v as u32)
+                                .collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<u32>(agg_vec, DataType::UInt32)
+                    }
+                    DataType::Int64 => {
+                        let agg_vec = agg_vec.into_iter()
+                            .map(|v| v.into_iter()
+                                .map(|v| v as i64)
+                                .collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<i64>(agg_vec, DataType::Int64)
+                    }
+                    DataType::Float32 => {
+                        let agg_vec = agg_vec.into_iter()
+                            .map(|v| v.into_iter()
+                                .map(|v| v as f32)
+                                .collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<f32>(agg_vec, DataType::Float32)
+                    }
+                    DataType::Float64 => {
+                        let agg_vec = agg_vec.into_iter()
+                            .map(|v| v.into_iter()
+                                .map(|v| v as f64)
+                                .collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<f64>(agg_vec, DataType::Float64)
+                    }
+                    _ => return Err(anyhow!(
+                        "Unsupported data type for column {}: {}",
+                        agg_column,
+                        lhs_table.get_column_data_type(agg_column)?.to_string()
+                    )),
+                }
+            }
+            DataType::List(f) => {
+                let mut agg_vec = Vec::new();
+                for range in ranges.iter() {
+                    let agg_value = match agg_operator {
+                        DataAggregator::Count => vec![range.end - range.start],
+                        _ => return Err(anyhow!(
+                            "Unsupported data type {} and aggregator operator {} for column {}",
+                            lhs_table.get_column_data_type(agg_column)?.to_string(),
+                            agg_operator.get_name(),
+                            agg_column,
+                            
+                        )),
+                    };
+                    agg_vec.push(agg_value);
+                }
+                match f.data_type() {
+                    DataType::UInt8 => {
+                        let agg_vec = agg_vec.into_iter()
+                            .map(|v| v.into_iter()
+                                .map(|v| v as u8)
+                                .collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list::<u8>(agg_vec, DataType::UInt8)
+                    }
+                    DataType::UInt32 => {
+                        let agg_vec = agg_vec.into_iter()
+                            .map(|v| v.into_iter()
+                                .map(|v| v as u32)
+                                .collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list::<u32>(agg_vec, DataType::UInt32)
+                    }
+                    DataType::Int64 => {
+                        let agg_vec = agg_vec.into_iter()
+                            .map(|v| v.into_iter()
+                                .map(|v| v as i64)
+                                .collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list::<i64>(agg_vec, DataType::Int64)
+                    }
+                    DataType::Float32 => {
+                        let agg_vec = agg_vec.into_iter()
+                            .map(|v| v.into_iter()
+                                .map(|v| v as f32)
+                                .collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list::<f32>(agg_vec, DataType::Float32)
+                    }
+                    DataType::Float64 => {
+                        let agg_vec = agg_vec.into_iter()
+                            .map(|v| v.into_iter()
+                                .map(|v| v as f64)
+                                .collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list::<f64>(agg_vec, DataType::Float64)
+                    }
+                    _ => return Err(anyhow!(
+                        "Unsupported data type for column {}: {}",
+                        agg_column,
+                        lhs_table.get_column_data_type(agg_column)?.to_string()
+                    )),
+                }
             }
             _ => return Err(anyhow!(
                 "Unsupported data type for column {}: {}",
