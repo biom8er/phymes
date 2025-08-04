@@ -29,7 +29,7 @@ arrow = { version = "54.3.1", default-features = false }
 candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
 tokio = { version = "1.45.1", default-features = false, optional = true}
 futures = { version = "0.3.31", default-features = false }
-clap = { version = "4.2.4", features = ["derive"] }
+clap = { version = "4.5.42", features = ["derive"] }
 anyhow = { version = "1", features = ["backtrace"] }
 tracing = "0.1.41"
 tracing-chrome = "0.7.1"
