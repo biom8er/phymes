@@ -217,34 +217,22 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
         //  when chained or nested within other streams
         // DM: another tool agent session publish/subscribe network needs to be
         //  made for openai_api access that breaks down the chat task into seperate
-        //  tasks for each processor...
-        if cfg!(not(feature = "candle")) {
-            tasks.push(TaskPlan {
-                task_name: self.message_aggregator_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
-                processor_names: vec![self.message_aggregator_processor_name.to_string()],
-            });
-            tasks.push(TaskPlan {
-                task_name: self.chat_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
-                processor_names: vec![self.chat_processor_name.to_string()],
-            });
-            tasks.push(TaskPlan {
-                task_name: self.message_parser_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
-                processor_names: vec![self.message_parser_processor_name.to_string()],
-            });
-        } else {
-            tasks.push(TaskPlan {
-                task_name: self.chat_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.message_aggregator_processor_name.to_string(),
-                    self.chat_processor_name.to_string(),
-                    self.message_parser_processor_name.to_string(),
-                ],
-            });
-        }
+        //  tasks for each processor...        
+        tasks.push(TaskPlan {
+            task_name: self.message_aggregator_task_name.to_string(),
+            runtime_env_name: self.chat_runtime_env_name.to_string(),
+            processor_names: vec![self.message_aggregator_processor_name.to_string()],
+        });
+        tasks.push(TaskPlan {
+            task_name: self.chat_task_name.to_string(),
+            runtime_env_name: self.chat_runtime_env_name.to_string(),
+            processor_names: vec![self.chat_processor_name.to_string()],
+        });
+        tasks.push(TaskPlan {
+            task_name: self.message_parser_task_name.to_string(),
+            runtime_env_name: self.chat_runtime_env_name.to_string(),
+            processor_names: vec![self.message_parser_processor_name.to_string()],
+        });
         tasks.push(TaskPlan {
             task_name: self.tool_task_name.to_string(),
             runtime_env_name: self.tool_runtime_env_name.to_string(),
@@ -258,7 +246,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             runtime_env_name: "rt_default".to_string(),
             processor_names: vec![
                 self.hitl_task_name.to_string(),
-                self.summary_processor_name.to_string(),
+                // self.summary_processor_name.to_string(),
             ],
         });
         tasks.push(TaskPlan {
@@ -273,23 +261,22 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
     fn make_processors(&self) -> Vec<Arc<dyn ArrowProcessorTrait>> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
-
-        if cfg!(not(feature = "candle")) {
-            processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
-                self.message_aggregator_processor_name,
-                &[ArrowTablePublish::Replace {
+        processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
+            self.message_aggregator_processor_name,
+            &[ArrowTablePublish::Replace {
+                table_name: self.state_messages_table_name.to_string(),
+            }],
+            &[
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: self.message_aggregator_task_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.state_messages_table_name.to_string(),
-                }],
-                &[
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: self.message_aggregator_task_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysLastRecordBatch {
-                        table_name: self.state_messages_table_name.to_string(),
-                    },
-                ],
-                &[],
-            ));
+                },
+            ],
+            &[],
+        ));
+        if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIChatProcessor::new_with_pub_sub_for(
                 self.chat_processor_name,
@@ -310,43 +297,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 ],
                 &[],
             ));
-            processors.push(MessageParserProcessor::new_with_pub_sub_for(
-                self.message_parser_processor_name,
-                &[
-                    ArrowTablePublish::ExtendChunks {
-                        // The first publication is the default publish target
-                        table_name: self.state_messages_table_name.to_string(),
-                        col_name: "content".to_string(),
-                    },
-                    ArrowTablePublish::Extend {
-                        table_name: self.tool_task_name.to_string(),
-                    },
-                    ArrowTablePublish::Extend {
-                        table_name: self.hitl_task_name.to_string(),
-                    },
-                ],
-                &[
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: self.message_parser_task_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.message_parser_processor_name.to_string(),
-                    },
-                ],
-                &[],
-            ));
         } else {
-            processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
-                self.message_aggregator_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
-                    table_name: self.state_messages_table_name.to_string(),
-                    col_name: "content".to_string(),
-                }],
-                &[ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: self.message_aggregator_task_name.to_string(),
-                }],
-                &[],
-            ));
             processors.push(CandleChatProcessor::new_with_pub_sub_for(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
@@ -354,8 +305,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     col_name: "content".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        // We only want to trigger on aggregator table
+                    ArrowTableSubscribe::OnUpdateFullTable {
                         table_name: self.state_messages_table_name.to_string(),
                     },
                     ArrowTableSubscribe::AlwaysFullTable {
@@ -367,33 +317,32 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 ],
                 &[],
             ));
-            processors.push(MessageParserProcessor::new_with_pub_sub_for(
-                self.message_parser_processor_name,
-                &[
-                    ArrowTablePublish::ExtendChunks {
-                        // The first publication is the default publish target
-                        table_name: self.state_messages_table_name.to_string(),
-                        col_name: "content".to_string(),
-                    },
-                    ArrowTablePublish::Extend {
-                        table_name: self.tool_task_name.to_string(),
-                    },
-                    ArrowTablePublish::Extend {
-                        table_name: self.hitl_task_name.to_string(),
-                    },
-                ],
-                &[
-                    ArrowTableSubscribe::AlwaysLastRecordBatch {
-                        // We only want to trigger an update on aggregator table
-                        table_name: self.message_parser_task_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.message_parser_processor_name.to_string(),
-                    },
-                ],
-                &[],
-            ));
         }
+        processors.push(MessageParserProcessor::new_with_pub_sub_for(
+            self.message_parser_processor_name,
+            &[
+                ArrowTablePublish::ExtendChunks {
+                    // The first publication is the default publish target
+                    table_name: self.state_messages_table_name.to_string(),
+                    col_name: "content".to_string(),
+                },
+                ArrowTablePublish::Extend {
+                    table_name: self.tool_task_name.to_string(),
+                },
+                ArrowTablePublish::Extend {
+                    table_name: self.hitl_task_name.to_string(),
+                },
+            ],
+            &[
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: self.message_parser_task_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.message_parser_processor_name.to_string(),
+                },
+            ],
+            &[],
+        ));
         processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.tool_processor_name,
             &[ArrowTablePublish::Replace {
@@ -548,7 +497,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             .with_runtime_envs(self.make_runtime_envs()?)
             .with_state(self.make_state_tables()?)
             .with_processors(self.make_processors())
-            .with_max_iter(8)
+            .with_max_iter(25)
             .build()
     }
 }
@@ -624,7 +573,7 @@ mod tests {
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Make the user query
-        let user_query = "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`. Do not call a function if you are able to answer the questions with information from previous tool_response";
+        let user_query = "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`. Respond using human-in-the-loop when you have the answer.";
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(

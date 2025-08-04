@@ -348,6 +348,11 @@ impl Stream for OpenAIChatStream {
                         Some(s) => s,
                         _ => "".to_string(),
                     };
+                    event!(
+                        Level::INFO,
+                        "Generated the next token {}.",
+                        content.as_str()
+                    );
 
                     // Wrap into a record batch
                     let role_arr: ArrayRef =

@@ -296,7 +296,8 @@ impl Stream for MessageParserStream {
                         .replace("}}<|python_tag|>{", "}},{")
                         .replace("<|python_tag|>", "")
                         .replace("|>", "")
-                        .replace("\"parameters\":", "\"arguments\":");
+                        .replace("\"parameters\":", "\"arguments\":")
+                        .replace("\"function\":", "\"name\":");
 
                     // Clean up into a proper JSON list
                     let content = format_tool_calls_str(content.as_str());

@@ -305,19 +305,21 @@ pub fn messaging_interface_footer() -> Element {
                                         let json_rows: Vec<Map<String, Value>> = serde_json::from_str(json_str.trim_end_matches(char::from(0)))
                                             .unwrap_or_else(|e| {
                                                 let mut m = Map::new();
-                                                m.insert("content".to_string(), format!("Error: {e:?}").into());
+                                                m.insert("content".to_string(), format!("{e:?} caused by {json_str}").into());
                                                 vec![m]
                                             });
                                         for row in json_rows.iter() {
-                                            sync_message_content.send(SyncCurrentMessageContentState {
-                                                content: row.get("content").unwrap().as_str().unwrap().to_string(),
-                                                replace_last: false
-                                            });
+                                            if row.get("role").unwrap().as_str().unwrap() == "assistant" {
+                                                sync_message_content.send(SyncCurrentMessageContentState {
+                                                    content: row.get("content").unwrap().as_str().unwrap().to_string(),
+                                                    replace_last: false
+                                                });
+                                            }
                                         }
                                     }
                                 },
                                 Err(e) => {
-                                    sync_message_content.send(SyncCurrentMessageContentState {content: format!("Error: {e:?}"), replace_last: true});
+                                    sync_message_content.send(SyncCurrentMessageContentState {content: format!("{e:?}"), replace_last: true});
                                 }
                             }
 

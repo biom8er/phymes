@@ -121,9 +121,9 @@ pub async fn session_stream(
                         .into_iter()
                         .flatten()
                         .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
-                        .map(|(_k, v)| v.get_message_own().to_json_object().unwrap())
-                        .flat_map(|v| Bytes::from(serde_json::to_string(&v).unwrap()))
+                        .flat_map(|(_k, v)| v.get_message_own().to_json_object().unwrap())
                         .collect::<Vec<_>>();
+                    let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
                     // Write the updates to disk
                     if let Err(e) = state.write_state_by_email(

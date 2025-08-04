@@ -887,7 +887,7 @@ impl SessionStreamStep {
     /// in parallel according to which subscriptions were updated.
     /// The computation continues in a series of super-steps until a termination condition is met.
     ///
-    /// Returns:
+    /// # Returns
     ///
     /// `OutgoingMessageMap` streams if the the `Session` subsject was updated and None otherwise.
     #[instrument(skip(state, messages))]

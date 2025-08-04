@@ -443,7 +443,7 @@ cargo test --package phymes-agents --features wsl,gpu,candle --release
 # run tests for the phymes-agents crate with GPU acceleration with Candle assets from HuggingFace
 cargo test --package phymes-agents --features wsl,gpu,candle,hf_hub --release
 # or run tests for the phymes-agents crate on the CPU with OpenAI API token services
-cargo test --package phymes-agents --features wsl,openai_api --release
+cargo test --package phymes-agents --no-default-features --features wsl,openai_api --release
 
 # run tests for the phymes-server crate
 cargo test --package phymes-server --features wsl --release
@@ -501,8 +501,8 @@ cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
 
 # or run examples for the phymes-ml and phymes-agents crates on the CPU with OpenAI API token services
-cargo run --package phymes-ml --features wsl,openai_api --release --example chat -- --openai-asset Llama-3.2-1b-instruct
-cargo run --package phymes-agents --features wsl,openai_api --release --example chat_agent_session
+cargo run --package phymes-ml --no-default-features --features wsl,openai_api --release --example chat -- --openai-asset Llama-3.2-1b-instruct
+cargo run --package phymes-agents --no-default-features --features wsl,openai_api --release --example chat_agent_session
 ```
 
 The examples can also be ran using WASM. However, all assets needed to run the example need to be provided locally unlike native where we can rely on the HuggingFace API to download and cache models for us. The following bash script can be used to build the examples in wasm and run the examples using wasmtime:
@@ -641,7 +641,7 @@ Second, build the server with the desired features.
 cargo build --package phymes-server --features wsl,gpu,candle --release
 
 # Or OpenAI API
-cargo build --package phymes-server --features wsl --release
+cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
 ```
 
 Third, move the server executable to the same directory as the web assets
@@ -671,7 +671,7 @@ Second, build the phymes-server application with the desired features.
 cargo build --package phymes-server --features wsl,gpu,candle --release
 
 # Or OpenAI API
-cargo build --package phymes-server --features wsl --release
+cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
 ```
 
 Third, launch the `phymes-app` executable
@@ -704,7 +704,7 @@ Second, build the phymes-server application with the desired features. Note that
 cargo build --package phymes-server --features wsl,gpu,candle --release
 
 # Or OpenAI API
-cargo build --package phymes-server --features wsl --release
+cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
 ```
 
 Third, launch the `phymes-app` executable on a device emulator or on the physical device.
@@ -720,7 +720,7 @@ Fourth, launch the `phymes-server` executable
 First, build the phymes-server application with Candle token services.
 
 ```bash
-cargo build --package phymes-server --no-default-features --features wasip2-candle --target wasm32-wasip2 --release
+cargo build --package phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release
 ```
 
 Second, iteratively query the phymes-server using `wasmtime`.
@@ -768,8 +768,8 @@ cargo run -p phymes-server --features wsl,gpu,candle
 # only INFO level logs
 RUST_LOG=phymes_server=INFO cargo run -p phymes-server --features wsl,gpu,candle
 
-# debug level logs for phymes-server, phymes-core, and phymes-agents
-RUST_LOG=phymes_server=DEBUG,INFO,phymes_core=DEBUG,INFO,phymes_ml=DEBUG,INFO cargo run -p phymes-server --features wsl,gpu,candle
+# DEBUG and INFO level logs for phymes-server, phymes-core, and phymes-ml with BACKTRACE level 1
+RUST_BACKTRACE=1 RUST_LOG=phymes_server=DEBUG,INFO,phymes_core=DEBUG,INFO,phymes_ml=DEBUG,INFO cargo run -p phymes-server --features wsl,gpu,candle,hf_hub
 ```
 
 <!--- ANCHOR_END: deploying --->
