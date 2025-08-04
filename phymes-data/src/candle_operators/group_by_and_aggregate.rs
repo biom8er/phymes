@@ -21,7 +21,7 @@ use phymes_ml::openai_asset::{chat_completion, types};
 use crate::{
     candle_data::data_config::DataAggregator,
     candle_operators::{
-        data_operator::DataOperatorTrait, sort_scores_and_indices::sort_column_and_indices,
+        data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices,
     },
 };
 

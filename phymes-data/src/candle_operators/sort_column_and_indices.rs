@@ -17,18 +17,18 @@ use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::candle_operators::data_operator::DataOperatorTrait;
+use crate::candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait};
 
 /// Sort the [RecordBatch] according to the `score` column and then apply the sorting order to the rest of the record batch columns
 #[derive(Debug)]
-pub struct SortScoresAndIndices {
+pub struct SortColumnAndIndices {
     lhs_values: String,
     asc: bool,
 }
 
-impl DataOperatorTrait for SortScoresAndIndices {
+impl DataOperatorTrait for SortColumnAndIndices {
     fn get_static_name() -> &'static str {
-        "sort-scores-and-indices"
+        "sort-column-and-indices"
     }
     fn new(
         _lhs_pk: &str,
@@ -44,7 +44,7 @@ impl DataOperatorTrait for SortScoresAndIndices {
         let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
         let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
             .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
-        SortScoresAndIndices {
+        SortColumnAndIndices {
             lhs_values: lhs_value.to_string(),
             asc: ops_kwargs
                 .get("asc")
@@ -58,11 +58,10 @@ impl DataOperatorTrait for SortScoresAndIndices {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        assert_eq!(
-            self.lhs_values, "score",
-            "The score column must be named 'score'"
-        );
-        sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device)
+        match sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }
     }
     fn get_description() -> String {
         "Sort the the list of computed scores in ascending order".to_string()

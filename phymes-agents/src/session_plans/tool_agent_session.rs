@@ -25,7 +25,7 @@ use phymes_data::{
     candle_operators::which_operator::WhichCandleOperator,
 };
 #[cfg(feature = "openai_api")]
-use phymes_ml::openai_chat::chat_processor::OpenAIChatProcessor;
+use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_asset::openai_which::WhichOpenAIAsset};
 use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
@@ -106,8 +106,8 @@ impl Default for ToolAgentSession<'_> {
             chat_processor_name: "chat_processor_1",
             chat_task_name: "chat_task_1",
             chat_runtime_env_name: "chat_rt_1",
-            tool_task_name: WhichCandleOperator::SortScoresAndIndices.get_name(),
-            tool_processor_name: WhichCandleOperator::SortScoresAndIndices.get_name(),
+            tool_task_name: WhichCandleOperator::SortColumnAndIndices.get_name(),
+            tool_processor_name: WhichCandleOperator::SortColumnAndIndices.get_name(),
             tool_runtime_env_name: "tool_rt_1",
             summary_processor_name: "summary_processor_1",
             hitl_task_name: WhichCandleOperator::HumanInTheLoop.get_name(),
@@ -134,11 +134,11 @@ impl<'a> ToolAgentSession<'a> {
     }
     pub fn make_tools_table(&self) -> Result<ArrowTable> {
         let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
-            WhichCandleOperator::SortScoresAndIndices.get_name(),
+            WhichCandleOperator::SortColumnAndIndices.get_name(),
             WhichCandleOperator::HumanInTheLoop.get_name(),
         ]));
         let tool: ArrayRef = Arc::new(StringArray::from(vec![
-            WhichCandleOperator::SortScoresAndIndices.get_json_tool_schema(),
+            WhichCandleOperator::SortColumnAndIndices.get_json_tool_schema(),
             WhichCandleOperator::HumanInTheLoop.get_json_tool_schema(),
         ]));
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)])?;
@@ -461,22 +461,22 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             repeat_last_n: 64,
             // All files need to be local for WASM testing
             weights_config_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             weights_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf.gguf",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             tokenizer_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             tokenizer_config_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(WhichCandleAsset::SmolLM2_135MChat),
+            candle_asset: Some(WhichCandleAsset::QwenV2p5_1p5bChat),
             ..Default::default()
         };
 

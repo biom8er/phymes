@@ -35,6 +35,7 @@ use phymes_ml::{
 use phymes_ml::{
     openai_chat::chat_processor::OpenAIChatProcessor,
     openai_embed::embed_processor::OpenAIEmbedProcessor,
+    openai_asset::openai_which::WhichOpenAIAsset,
 };
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
@@ -808,7 +809,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: "chunk_id".to_string(),
             lhs_fk: "chunk_id".to_string(),
             lhs_values: "score".to_string(),
-            which: WhichCandleOperator::SortScoresAndIndices,
+            which: WhichCandleOperator::SortColumnAndIndices,
             ..Default::default()
         };
         let sort_scores_config_json = serde_json::to_vec(&sort_scores_config)?;

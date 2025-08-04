@@ -65,7 +65,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: WhichCandleOperator::SortScoresAndIndices,
+            which: WhichCandleOperator::SortColumnAndIndices,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "score".to_string(),

@@ -15,7 +15,7 @@ use crate::candle_operators::{
     extract_pdf_text::ExtractPDFText, group_by_and_aggregate::GroupByAndAggregate,
     human_in_the_loop::HumanInTheLoop, join_inner::JoinInner,
     relative_similarity_score::RelativeSimilarityScore,
-    sort_scores_and_indices::SortScoresAndIndices,
+    sort_column_and_indices::SortColumnAndIndices,
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -23,9 +23,9 @@ pub enum WhichCandleOperator {
     #[value(name = "relative-similarity-score")]
     #[serde(alias = "relative-similarity-score")]
     RelativeSimilarityScore,
-    #[value(name = "sort-scores-and-indices")]
-    #[serde(alias = "sort-scores-and-indices")]
-    SortScoresAndIndices,
+    #[value(name = "sort-column-and-indices")]
+    #[serde(alias = "sort-column-and-indices")]
+    SortColumnAndIndices,
     #[value(name = "human-in-the-loop")]
     #[serde(alias = "human-in-the-loop")]
     HumanInTheLoop,
@@ -50,11 +50,11 @@ impl Default for WhichCandleOperator {
 }
 
 impl WhichCandleOperator {
-    /// Wrapper to return the name of any operator
+    /// Wrapper to return the name of any SortColumnAndIndices
     pub fn get_name(&self) -> &str {
         match self {
             Self::RelativeSimilarityScore => RelativeSimilarityScore::get_static_name(),
-            Self::SortScoresAndIndices => SortScoresAndIndices::get_static_name(),
+            Self::SortColumnAndIndices => SortColumnAndIndices::get_static_name(),
             Self::HumanInTheLoop => HumanInTheLoop::get_static_name(),
             Self::ChunkDocuments => ChunkDocuments::get_static_name(),
             Self::JoinInner => JoinInner::get_static_name(),
@@ -63,11 +63,11 @@ impl WhichCandleOperator {
         }
     }
 
-    /// Wrapper to return the JSON schema for the tool
+    /// Wrapper to return the JSON schema SortColumnAndIndices
     pub fn get_json_tool_schema(&self) -> String {
         match self {
             Self::RelativeSimilarityScore => RelativeSimilarityScore::get_json_tool_schema(),
-            Self::SortScoresAndIndices => SortScoresAndIndices::get_json_tool_schema(),
+            Self::SortColumnAndIndices => SortColumnAndIndices::get_json_tool_schema(),
             Self::HumanInTheLoop => HumanInTheLoop::get_json_tool_schema(),
             Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
             Self::JoinInner => JoinInner::get_json_tool_schema(),
@@ -76,12 +76,12 @@ impl WhichCandleOperator {
         }
     }
 
-    /// Return the operation based on the name
+    /// Return the operatiSortColumnAndIndices
     pub fn new_from_name(name: &str) -> Option<Self> {
         if name == RelativeSimilarityScore::get_name() {
             Some(Self::RelativeSimilarityScore)
-        } else if name == SortScoresAndIndices::get_name() {
-            Some(Self::SortScoresAndIndices)
+        } else if name == SortColumnAndIndices::get_name() {
+            Some(Self::SortColumnAndIndices)
         } else if name == HumanInTheLoop::get_name() {
             Some(Self::HumanInTheLoop)
         } else if name == ChunkDocuments::get_name() {
@@ -113,7 +113,7 @@ impl WhichCandleOperator {
             Self::RelativeSimilarityScore => Box::new(RelativeSimilarityScore::new(
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
-            Self::SortScoresAndIndices => Box::new(SortScoresAndIndices::new(
+            Self::SortColumnAndIndices => Box::new(SortColumnAndIndices::new(
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
             Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(
@@ -172,7 +172,7 @@ mod tests {
             "test",
             &[
                 "relative-similarity-score".to_string(),
-                "sort-scores-and-indices".to_string(),
+                "sort-column-and-indices".to_string(),
                 "chunk-documents".to_string(),
                 "join-inner".to_string(),
                 "human-in-the-loop".to_string(),
@@ -183,7 +183,7 @@ mod tests {
             result.get_column_as_vec_str("tool_id"),
             &[
                 "relative-similarity-score",
-                "sort-scores-and-indices",
+                "sort-column-and-indices",
                 "chunk-documents",
                 "join-inner",
                 "human-in-the-loop",
@@ -211,7 +211,7 @@ mod tests {
                 .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
         );
 
-        assert!(functions.get(1).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"sort-scores-and-indices\",\"description\":\"Sort the the list of computed scores in ascending order\"")
+        assert!(functions.get(1).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"sort-column-and-indices\",\"description\":\"Sort the the list of computed scores in ascending order\"")
         );
         assert!(
             functions

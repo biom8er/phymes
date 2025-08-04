@@ -769,7 +769,7 @@ cargo run -p phymes-server --features wsl,gpu,candle
 RUST_LOG=phymes_server=INFO cargo run -p phymes-server --features wsl,gpu,candle
 
 # debug level logs for phymes-server, phymes-core, and phymes-agents
-RUST_LOG=phymes_server=DEBUG,phymes_core=DEBUG,phymes_agents=DEBUG cargo run -p phymes-server --features wsl,gpu,candle
+RUST_LOG=phymes_server=DEBUG,INFO,phymes_core=DEBUG,INFO,phymes_ml=DEBUG,INFO cargo run -p phymes-server --features wsl,gpu,candle
 ```
 
 <!--- ANCHOR_END: deploying --->

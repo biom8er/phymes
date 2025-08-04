@@ -16,7 +16,7 @@ use tracing::instrument;
 
 use crate::candle_operators::{
     data_operator::DataOperatorTrait,
-    sort_scores_and_indices::{sort_column_and_indices, take_columns_by_indices},
+    sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned

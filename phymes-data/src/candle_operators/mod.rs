@@ -4,6 +4,6 @@ pub mod extract_pdf_text;
 pub mod group_by_and_aggregate;
 pub mod human_in_the_loop;
 pub mod join_inner;
+pub mod sort_column_and_indices;
 pub mod relative_similarity_score;
-pub mod sort_scores_and_indices;
 pub mod which_operator;

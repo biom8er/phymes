@@ -1,7 +1,14 @@
 use anyhow::Result;
-use arrow::array::RecordBatch;
+use arrow::array::{ArrayRef, RecordBatch, StringArray};
 use candle_core::Device;
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
+
+/// Helper function to create an error message that
+/// can be sent back to a function-calling agent
+pub fn make_error_record_batch(error: &str) -> RecordBatch {
+    let error: ArrayRef = Arc::new(StringArray::from(vec![error]));
+    RecordBatch::try_from_iter(vec![("error", error)]).unwrap()
+}
 
 /// Data operators and other tools that utilize tensor services
 pub trait DataOperatorTrait: Send + Sync + Debug {
