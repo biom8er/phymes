@@ -27,7 +27,7 @@ use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
         chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
-        message_aggregator_processor::MessageAggregatorProcessor,
+        message_aggregator_processor::MessageAggregatorProcessor, message_history::create_messages_schema,
     },
     candle_embed::{embed_config::CandleEmbedConfig, embed_processor::CandleEmbedProcessor},
 };
@@ -151,24 +151,16 @@ impl<'a> DocumentRAGSession<'a> {
         }
     }
     pub fn make_messages_table(&self) -> Result<ArrowTable> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         ArrowTableBuilder::new()
             .with_name(self.state_messages_table_name)
-            .with_schema(schema)
+            .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()
     }
     pub fn make_message_aggregator_table(&self) -> Result<ArrowTable> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         ArrowTableBuilder::new()
             .with_name(self.message_aggregator_task_name)
-            .with_schema(schema)
+            .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()
     }
@@ -264,13 +256,9 @@ impl<'a> DocumentRAGSession<'a> {
             .build()
     }
     pub fn make_top_k_docs_table(&self) -> Result<ArrowTable> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         ArrowTableBuilder::new()
             .with_name(self.state_top_k_docs_table_name)
-            .with_schema(schema)
+            .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()
     }

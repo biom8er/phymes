@@ -7,8 +7,7 @@ use phymes_core::table::{
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::{ArrayRef, StringArray},
-    record_batch::RecordBatch,
+    array::{ArrayRef, Int64Array, StringArray}, datatypes::{DataType, Field, Fields, Schema, SchemaRef}, record_batch::RecordBatch
 };
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
@@ -20,10 +19,55 @@ use crate::openai_asset::chat_completion::{
 };
 
 /// Generate a timestamp that can be added to the message table
-/// Same as in phymes-app/src/ui/messaging_state.rs
-pub fn create_timestamp() -> String {
+pub fn create_timestamp_str() -> String {
     let now: DateTime<Utc> = Utc::now();
     now.format("%a %b %e %T %Y").to_string()
+}
+
+/// Generate a timestamp that can be added to the message table
+pub fn create_timestamp_micros() -> i64 {
+    let now: DateTime<Utc> = Utc::now();
+    now.timestamp_micros()
+}
+
+/// Convert timestamp in micro seconds to a formatted string
+pub fn convert_timestamp_micros_to_str(timestamp_micros: i64) -> String {
+// Convert microseconds to seconds and nanoseconds
+    let datetime = DateTime::from_timestamp(
+        timestamp_micros / 1_000_000, // seconds
+        ((timestamp_micros % 1_000_000) * 1_000) as u32, // nanoseconds
+    ).unwrap();
+
+    // Format as a string
+    datetime.format("%a %b %e %T %Y").to_string()
+}
+
+/// Create message fields
+pub fn create_messages_fields() -> Fields {    
+    let field_names = ["role", "content"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    fields_vec.push(Field::new("timestamp", DataType::Int64, false));
+    Fields::from(fields_vec)
+}
+
+pub fn create_messages_schema() -> SchemaRef {    
+    let fields = create_messages_fields();
+    Arc::new(Schema::new(fields))
+}
+
+pub fn create_messages_record_batch(role: Vec<String>, content: Vec<String>, timestamp: Vec<i64>) -> Result<RecordBatch> {    
+    let role: ArrayRef = Arc::new(StringArray::from(role));
+    let content: ArrayRef = Arc::new(StringArray::from(content));
+    let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("role", role),
+        ("content", content),
+        ("timestamp", timestamp),
+    ])?;
+    Ok(batch)
 }
 
 pub trait MessageHistoryTraitExt: Sized {
@@ -149,14 +193,7 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
         // Fill in the system template
 
         // Add the system content to the history (should be the first record batch)
-        let role: ArrayRef = Arc::new(StringArray::from(vec!["system"]));
-        let content: ArrayRef = Arc::new(StringArray::from(vec![system_prompt]));
-        let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("role", role),
-            ("content", content),
-            ("timestamp", timestamp),
-        ])?;
+        let batch = create_messages_record_batch(vec!["system".to_string()], vec![system_prompt.to_string()], vec![create_timestamp_micros()])?;
         match self.record_batches {
             Some(ref mut batches) => {
                 batches.insert(0, batch);
@@ -171,14 +208,7 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
     }
 
     fn append_new_user_query_str(mut self, content: &str, role: &str) -> Result<Self> {
-        let role: ArrayRef = Arc::new(StringArray::from(vec![role]));
-        let content: ArrayRef = Arc::new(StringArray::from(vec![content]));
-        let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("role", role),
-            ("content", content),
-            ("timestamp", timestamp),
-        ])?;
+        let batch = create_messages_record_batch(vec![role.to_string()], vec![content.to_string()], vec![create_timestamp_micros()])?;
         match self.record_batches {
             Some(ref mut batches) => {
                 batches.push(batch);
@@ -227,7 +257,7 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
             RecordBatchReceiverStream::builder(self.schema.clone().unwrap(), capacity);
         let mut content = Vec::<String>::new();
         let mut role = String::new();
-        let mut timestamp = String::new();
+        let mut timestamp: i64 = 0;
         while let Some(result) = stream.next().await {
             match result {
                 Ok(batch) => {
@@ -265,20 +295,18 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
                     }
 
                     // Extract out the timestamp
-                    if timestamp.is_empty() {
-                        timestamp = batch_copy
-                            .column_by_name("timestamp")
-                            .unwrap()
-                            .as_any()
-                            .downcast_ref::<StringArray>()
-                            .unwrap()
-                            .iter()
-                            .map(|s| s.unwrap_or(""))
-                            .collect::<Vec<_>>()
-                            .first()
-                            .unwrap()
-                            .to_string();
-                    }
+                    timestamp = batch_copy
+                        .column_by_name("timestamp")
+                        .unwrap()
+                        .as_any()
+                        .downcast_ref::<Int64Array>()
+                        .unwrap()
+                        .iter()
+                        .map(|s| s.unwrap_or_default())
+                        .collect::<Vec<_>>()
+                        .first()
+                        .unwrap()
+                        .to_owned();
 
                     // Forward the stream
                     let tx_1 = builder.tx();
@@ -292,15 +320,8 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
         }
 
         // update the chat history
-        let content_string: String = content.join("");
-        let role: ArrayRef = Arc::new(StringArray::from(vec![role]));
-        let content: ArrayRef = Arc::new(StringArray::from(vec![content_string]));
-        let timestamp: ArrayRef = Arc::new(StringArray::from(vec![timestamp]));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("role", role),
-            ("content", content),
-            ("timestamp", timestamp),
-        ])?;
+        let content_string: String = content.join("");        
+        let batch = create_messages_record_batch(vec![role.to_string()], vec![content_string.to_string()], vec![timestamp])?;
         match self.record_batches {
             Some(ref mut batches) => {
                 batches.push(batch);
@@ -493,14 +514,7 @@ mod test_message_history {
                 )?;
 
                 // mock generationg of next token
-                let role: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
-                let content: ArrayRef = Arc::new(StringArray::from(vec![prompt]));
-                let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-                let batch = RecordBatch::try_from_iter(vec![
-                    ("role", role),
-                    ("content", content),
-                    ("timestamp", timestamp),
-                ])?;
+                let batch = create_messages_record_batch(vec!["assistant".to_string()], vec![prompt], vec![create_timestamp_micros()])?;
 
                 // record the poll
                 self.sample += 1;
@@ -511,14 +525,7 @@ mod test_message_history {
                     true => format!("Function{}", self.sample),
                     false => format!("Response{}", self.sample),
                 };
-                let content: ArrayRef = Arc::new(StringArray::from(vec![response]));
-                let role: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
-                let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-                let batch = RecordBatch::try_from_iter(vec![
-                    ("role", role),
-                    ("content", content),
-                    ("timestamp", timestamp),
-                ])?;
+                let batch = create_messages_record_batch(vec!["assistant".to_string()], vec![response], vec![create_timestamp_micros()])?;
 
                 // record the poll
                 self.sample += 1;

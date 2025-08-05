@@ -34,7 +34,7 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
 
-use phymes_ml::candle_chat::message_history::create_timestamp;
+use phymes_ml::candle_chat::message_history::create_timestamp_str;
 
 use super::summary_config::DataSummaryConfig;
 
@@ -307,7 +307,7 @@ impl Stream for DataSummaryStream {
             // let role: ArrayRef = Arc::new(StringArray::from(vec!["function"]));
             let role: ArrayRef = Arc::new(StringArray::from(vec!["tool"]));
             let content: ArrayRef = Arc::new(StringArray::from(vec![content]));
-            let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
+            let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp_str()]));
             let batch = RecordBatch::try_from_iter(vec![
                 ("role", role),
                 ("content", content),

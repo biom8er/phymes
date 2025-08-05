@@ -3,6 +3,7 @@ use dioxus::prelude::*;
 
 // General imports
 use futures::StreamExt;
+use phymes_ml::candle_chat::message_history::create_timestamp_str;
 use serde_json::{self, Map, Value};
 
 #[cfg(not(feature = "serverless"))]
@@ -34,7 +35,7 @@ use phymes_server::server::{
 use crate::{
     state::{
         messaging::{
-            clear_current_message_state, create_timestamp, sync_current_message_content_state,
+            clear_current_message_state, sync_current_message_content_state,
             sync_current_message_state, ClearCurrentMessageState, SyncCurrentMessageContentState,
             SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
         },
@@ -96,15 +97,16 @@ pub fn messaging_interface_view() -> Element {
                         });
                     for row in json_rows.iter() {
                         if row.get("role").is_some() {
+                            use phymes_ml::candle_chat::message_history::convert_timestamp_micros_to_str;
+
                             sync_current_message_state.send(SyncCurrentMessageState {
                                 role: row.get("role").unwrap().as_str().unwrap().to_string(),
                                 content: row.get("content").unwrap().as_str().unwrap().to_string(),
-                                timestamp: row
+                                timestamp: convert_timestamp_micros_to_str(row
                                     .get("timestamp")
                                     .unwrap()
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string(),
+                                    .as_i64()
+                                    .unwrap()),
                             });
                         }
                     }
@@ -161,7 +163,7 @@ pub fn messaging_interface_view() -> Element {
         sync_message.send(SyncCurrentMessageState {
             role: "assistant".to_string(), 
             content: "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊".to_string(),
-            timestamp: create_timestamp(),
+            timestamp: create_timestamp_str(),
         });
     }
 
@@ -259,14 +261,14 @@ pub fn messaging_interface_footer() -> Element {
                             sync_message.send(SyncCurrentMessageState {
                                 role: "user".to_string(),
                                 content: prompt.to_string(),
-                                timestamp: create_timestamp()
+                                timestamp: create_timestamp_str()
                             });
 
                             // let the user know that the response is being prepared
                             sync_message.send(SyncCurrentMessageState {
                                 role: "assistant".to_string(),
                                 content: "Preparing response...".to_string(),
-                                timestamp: create_timestamp()
+                                timestamp: create_timestamp_str()
                             });
 
                             // create the message

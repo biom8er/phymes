@@ -167,14 +167,8 @@ impl OpenAIChatStream {
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
-        // Default schema
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
-
         Ok(Self {
-            schema,
+            schema: create_messages_schema(),
             message_stream,
             tools_stream,
             baseline_metrics,
@@ -355,16 +349,7 @@ impl Stream for OpenAIChatStream {
                     );
 
                     // Wrap into a record batch
-                    let role_arr: ArrayRef =
-                        Arc::new(StringArray::from(vec!["assistant".to_string()]));
-                    let content_arr: ArrayRef = Arc::new(StringArray::from(vec![content]));
-                    let timestamp_arr: ArrayRef =
-                        Arc::new(StringArray::from(vec![create_timestamp()]));
-                    let batch = RecordBatch::try_from_iter(vec![
-                        ("role", role_arr),
-                        ("content", content_arr),
-                        ("timestamp", timestamp_arr),
-                    ])?;
+                    let batch = create_messages_record_batch(vec!["assistant".to_string()], vec![content.to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));

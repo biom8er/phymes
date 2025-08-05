@@ -29,9 +29,7 @@ use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_asset::
 use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
-        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
-        message_aggregator_processor::MessageAggregatorProcessor,
-        message_parser_processor::MessageParserProcessor,
+        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor, message_aggregator_processor::MessageAggregatorProcessor, message_history::create_messages_schema, message_parser_processor::MessageParserProcessor
     },
 };
 
@@ -157,35 +155,23 @@ impl<'a> ToolAgentSession<'a> {
             .build()
     }
     pub fn make_messages_table(&self) -> Result<ArrowTable> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         ArrowTableBuilder::new()
             .with_name(self.state_messages_table_name)
-            .with_schema(schema)
+            .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()
     }
     pub fn make_message_aggregator_table(&self) -> Result<ArrowTable> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         ArrowTableBuilder::new()
             .with_name(self.message_aggregator_task_name)
-            .with_schema(schema)
+            .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()
     }
     pub fn make_message_parser_table(&self) -> Result<ArrowTable> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         ArrowTableBuilder::new()
             .with_name(self.message_parser_task_name)
-            .with_schema(schema)
+            .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()
     }

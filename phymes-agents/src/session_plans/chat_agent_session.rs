@@ -21,10 +21,8 @@ use phymes_core::{
 use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_asset::openai_which::WhichOpenAIAsset};
 use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
-    candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor},
+    candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor, message_history::create_messages_schema},
 };
-
-use arrow::datatypes::{DataType, Field, Schema};
 
 pub struct ChatAgentSession<'a> {
     pub chat_task_name: &'a str,
@@ -192,13 +190,9 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         let messages = ArrowTableBuilder::new()
             .with_name(self.chat_subscription_name)
-            .with_schema(schema)
+            .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()?;
         Ok(vec![config, messages])

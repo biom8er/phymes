@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, ready},
@@ -19,7 +18,7 @@ use phymes_core::{
     },
     task::{
         arrow_message::{
-            ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
+            ArrowMessageBuilderTrait, ArrowOutgoingMessage,
             ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
@@ -29,11 +28,13 @@ use phymes_core::{
 use anyhow::Result;
 use arrow::{
     array::RecordBatch,
-    datatypes::{DataType, Field, Fields, Schema, SchemaRef},
+    datatypes::{Fields, SchemaRef},
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
+
+use crate::candle_chat::message_history::{create_messages_fields, create_messages_schema};
 
 /// Collect messages that match a given schema
 /// 
@@ -47,20 +48,6 @@ pub fn collect_messages_by_schema(message: &mut OutgoingMessageMap, fields: &Fie
     message.extract_if(|_msg_name, msg| msg.get_message().schema().fields().contains(&fields))
         .map(|(_msg_name, msg)| msg.get_message_own())
         .collect::<Vec<_>>()
-}
-
-/// Helper that provides the messages schema by default
-pub fn collect_messages_by_messages_schema(message: &mut OutgoingMessageMap) -> Vec<Pin<Box<dyn RecordBatchStream + Send>>> {
-    // Expected schema for messages
-    let field_names = ["role", "content", "timestamp"];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    let fields = Fields::from(fields_vec);
-
-    // Only process messages with the expected schema
-    collect_messages_by_schema(message, &fields)
 }
 
 /// Processor that aggregates messages
@@ -134,7 +121,7 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Collect the messages with the messages schema
-        let input = collect_messages_by_messages_schema(&mut message);
+        let input = collect_messages_by_schema(&mut message, &create_messages_fields());
 
         // Make the outbox and send
         let out = Box::pin(MessageAggregatorStream::new(
@@ -172,14 +159,8 @@ impl MessageAggregatorStream {
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
-        // Default schema
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
-
         Ok(Self {
-            schema,
+            schema: create_messages_schema(),
             input,
             runtime_env,
             baseline_metrics,

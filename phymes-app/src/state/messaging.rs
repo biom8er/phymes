@@ -2,16 +2,8 @@
 use dioxus::prelude::*;
 
 // General imports
-use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-
-/// Generate a timestamp that can be added to the message table
-/// Same as in phymes-agents/src/candle_chat/message_history.rs
-pub fn create_timestamp() -> String {
-    let now: DateTime<Utc> = Utc::now();
-    now.format("%a %b %e %T %Y").to_string()
-}
 
 // Current message state
 #[allow(clippy::redundant_closure)]

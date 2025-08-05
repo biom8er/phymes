@@ -5368,6 +5368,7 @@ dependencies = [
  "dioxus",
  "futures",
  "phymes-core",
+ "phymes-ml",
  "phymes-server",
  "plotly",
  "reqwest",

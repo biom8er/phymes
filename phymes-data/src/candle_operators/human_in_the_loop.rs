@@ -4,7 +4,7 @@ use tracing::{event, Level};
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
 use candle_core::Device;
-use phymes_ml::{candle_chat::message_history::create_timestamp, openai_asset::{chat_completion, types}};
+use phymes_ml::{candle_chat::message_history::create_timestamp_str, openai_asset::{chat_completion, types}};
 use std::{collections::HashMap, sync::Arc};
 
 /// Redirect a tool call to the user for intervention
@@ -70,7 +70,7 @@ impl DataOperatorTrait for HumanInTheLoop {
 fn prepare_hitl_record_batch(content: &str) -> Result<RecordBatch> {
     let role_arr: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
     let content_arr: ArrayRef = Arc::new(StringArray::from(vec![content.to_string()]));
-    let timestamp_arr: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
+    let timestamp_arr: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp_str()]));
     let batch = RecordBatch::try_from_iter(vec![
         ("role", role_arr),
         ("content", content_arr),
