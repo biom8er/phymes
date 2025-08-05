@@ -5,3 +5,4 @@ pub mod arrow_task;
 pub mod coalesce;
 pub mod limit;
 pub mod test_exec;
+pub mod publish_subscribe;

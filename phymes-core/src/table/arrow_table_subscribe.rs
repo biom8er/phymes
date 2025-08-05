@@ -51,7 +51,13 @@ impl ArrowTableSubscribe {
 
 /// Subscribe to an arrow table
 pub trait ArrowTableSubscribeTrait: ArrowTableTrait {
-    fn subscribe_table(&self, subscribe: &ArrowTableSubscribe)
+    /// Implement the subscription
+    /// 
+    /// # Arguments
+    /// 
+    /// * `updated` - whether the table has been updated or not
+    /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
+    fn subscribe_table(&self, subscribe: &ArrowTableSubscribe, updated: bool)
     -> Option<SendableRecordBatchStream>;
 }
 
@@ -59,6 +65,7 @@ impl ArrowTableSubscribeTrait for ArrowTable {
     fn subscribe_table(
         &self,
         subscribe: &ArrowTableSubscribe,
+        updated: bool
     ) -> Option<SendableRecordBatchStream> {
         match subscribe {
             ArrowTableSubscribe::AlwaysFullTable { table_name: _ } => {
@@ -68,10 +75,18 @@ impl ArrowTableSubscribeTrait for ArrowTable {
                 Some(self.to_record_batch_stream_last_record_batch())
             }
             ArrowTableSubscribe::OnUpdateFullTable { table_name: _ } => {
-                Some(self.to_record_batch_stream())
+                if updated {
+                    Some(self.to_record_batch_stream())
+                } else {
+                    None
+                }                
             }
             ArrowTableSubscribe::OnUpdateLastRecordBatch { table_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch())
+                if updated {
+                    Some(self.to_record_batch_stream_last_record_batch())
+                } else {
+                    None
+                }
             }
             ArrowTableSubscribe::None => None,
             ArrowTableSubscribe::Custom(_) => None,
@@ -82,9 +97,9 @@ impl ArrowTableSubscribeTrait for ArrowTable {
 /// Determine when all subscriptions are ready
 pub trait SubscribeTrait {
     fn check_subscriptions(&self, subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, state: &StateMap) -> bool;
-    fn new_box() -> Box<dyn SubscribeTrait>
-    where
-        Self: Sized;
+    // fn new_box() -> Box<dyn SubscribeTrait>
+    // where
+    //     Self: Sized;
 }
 
 /// Subscribe when any matching table name has been updated

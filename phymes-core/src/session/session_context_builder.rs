@@ -244,8 +244,8 @@ impl BuilderTrait for SessionContextBuilder {
                 r
             ));
         }
+
         // ...then build
-        // DM: Refactor remove the need for the copy
         let runtime_env_map = self
             .runtime_envs
             .take()
@@ -279,8 +279,8 @@ impl BuilderTrait for SessionContextBuilder {
                 r
             ));
         }
+
         // ...then build
-        // DM: Refactor remove the need for the copy
         let state_map = self
             .state
             .take()
@@ -311,12 +311,8 @@ impl BuilderTrait for SessionContextBuilder {
                     .filter(|p| processor_names.contains(&p.get_name().to_string()))
                     .map(Arc::clone)
                     .collect::<Vec<_>>();
-                //println!("processor names: {}", p.iter().map(|p| p.get_name()).collect::<Vec<_>>().join(", "));
-                let (subscriptions, publications) = self.get_task_sub_pub(&t.task_name);
                 let task = ArrowTask::get_builder()
                     .with_name(&t.task_name)
-                    .with_publications(publications)
-                    .with_subscriptions(subscriptions)
                     .with_metrics(metrics.clone())
                     .with_runtime_env(Arc::clone(
                         runtime_env_map.get(t.runtime_env_name.as_str()).unwrap(),

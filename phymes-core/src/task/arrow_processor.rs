@@ -1,14 +1,13 @@
 use crate::{
     metrics::ArrowTaskMetricsSet,
     session::{
-        common_traits::{MappableTrait, OutgoingMessageMap, PubSubTrait},
+        common_traits::{MappableTrait, OutgoingMessageMap},
         runtime_env::RuntimeEnv,
-    },
-    table::{
+    }, table::{
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::ArrowTableSubscribe,
         stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
+    }, task::publish_subscribe::PubSubTrait,
 };
 use anyhow::Result;
 use parking_lot::Mutex;
@@ -251,12 +250,12 @@ impl MappableTrait for ArrowProcessorEcho {
 }
 
 impl PubSubTrait for ArrowProcessorEcho {
-    fn get_publications(&self) -> &[ArrowTablePublish] {
-        &self.publications
+    fn get_publications(&self) -> Vec<ArrowTablePublish> {
+        self.publications.clone()
     }
 
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-        &self.subscriptions
+    fn get_subscriptions(&self) -> Vec<ArrowTableSubscribe> {
+        self.subscriptions.clone()
     }
 }
 
@@ -342,12 +341,12 @@ pub mod test_processor {
     }
 
     impl PubSubTrait for ArrowProcessorMock {
-        fn get_publications(&self) -> &[ArrowTablePublish] {
-            &self.publications
+        fn get_publications(&self) -> Vec<ArrowTablePublish> {
+            self.publications.clone()
         }
 
-        fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-            &self.subscriptions
+        fn get_subscriptions(&self) -> Vec<ArrowTableSubscribe> {
+            self.subscriptions.clone()
         }
     }
 

@@ -362,7 +362,7 @@ mod test_message_history {
                 ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
                 ArrowOutgoingMessageTrait,
             },
-            arrow_processor::ArrowProcessorTrait,
+            arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
         },
     };
     use std::{
@@ -386,6 +386,16 @@ mod test_message_history {
         }
     }
 
+    impl PubSubTrait for CandleChatMockProcessor {
+        fn get_publications(&self) -> Vec<ArrowTablePublish> {
+            self.publications.clone()
+        }
+
+        fn get_subscriptions(&self) -> Vec<ArrowTableSubscribe> {
+            self.subscriptions.clone()
+        }
+    }
+
     impl ArrowProcessorTrait for CandleChatMockProcessor {
         fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
             Arc::new(Self {
@@ -394,14 +404,6 @@ mod test_message_history {
                 subscriptions: vec![ArrowTableSubscribe::None],
                 forward: Vec::new(),
             })
-        }
-
-        fn get_publications(&self) -> &[ArrowTablePublish] {
-            &self.publications
-        }
-
-        fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-            &self.subscriptions
         }
 
         fn get_forward_subscriptions(&self) -> &[String] {

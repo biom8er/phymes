@@ -1,9 +1,6 @@
 use crate::metrics::HashMap;
 use crate::session::runtime_env::RuntimeEnv;
-use crate::table::{
-    arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish,
-    arrow_table_subscribe::ArrowTableSubscribe,
-};
+use crate::table::arrow_table::ArrowTable;
 use crate::task::{
     arrow_message::{ArrowIncomingIPCMessage, ArrowIncomingMessage, ArrowOutgoingMessage},
     arrow_processor::ArrowProcessorTrait,
@@ -114,16 +111,6 @@ pub trait BuilderTrait {
     {
         self.build().map(Arc::new)
     }
-}
-
-/// For task or processor objects that publish and
-/// subscribe to messages
-pub trait PubSubTrait {
-    /// Get an immutable list of subscription subject names
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe];
-
-    /// Get an immutable list of publication subject names
-    fn get_publications(&self) -> &[ArrowTablePublish];
 }
 
 /// For task objects that run computation and send/recieve

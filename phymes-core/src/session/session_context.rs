@@ -13,7 +13,6 @@ use std::task::{Context, Poll, ready};
 use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
 
-use super::common_traits::PubSubTrait;
 use super::{
     common_traits::{
         BuildableTrait, BuilderTrait, IncomingMessageMap, MappableTrait, OutgoingMessageMap,
@@ -35,6 +34,7 @@ use crate::task::{
         ArrowOutgoingMessage, ArrowOutgoingMessageTrait,
     },
     arrow_task::ArrowTaskTrait,
+    publish_subscribe::PubSubTrait
 };
 
 /// Get the metrics for multiple sessions as a table
@@ -918,7 +918,9 @@ impl SessionStreamStep {
             event!(Level::DEBUG, "Superstep for task {}", &task_name);
 
             // Run the task and collect the stream responses
+            let updates = state.try_read().unwrap().get_superstep_updates().get(task_name).unwrap().clone();
             let messages = task.get_subscriptions_from_state(
+                &updates,
                 state.try_read().unwrap().session_context.get_states(),
             );
             for (resp_name, resp) in task.run(messages)?.into_iter() {
