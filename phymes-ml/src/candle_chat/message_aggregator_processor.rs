@@ -33,6 +33,7 @@ use arrow::{
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
+use phymes_data::candle_operators::sort_column_and_indices::sort_column_and_indices;
 use tracing::{Level, event, instrument};
 
 /// Collect messages that match a given schema
@@ -189,19 +190,8 @@ impl Stream for MessageAggregatorStream {
             // Clear the input so that any subsequent pools will return None
             self.input.clear();
 
-            // Sort the record batches by timestamp
-
-
-            // Concatenate into a single record batch
-            let batch = ArrowTable::get_builder()
-                .with_name("messages")
-                .with_record_batches(batches)?
-                .build()?
-                .concat_record_batches()?
-                .get_record_batches_own()
-                .first()
-                .unwrap()
-                .to_owned();
+            // Sort the record batches by timestamp and concatenate
+            let batch = sort_column_and_indices("timestamp", &batches, true, &device)?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
