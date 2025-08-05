@@ -237,10 +237,10 @@ impl ArrowTaskTrait for ArrowTask {
 }
 
 impl PubSubTrait for ArrowTask {
-    fn get_subscriptions(&self) -> &Vec<ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
         &self.subscriptions
     }
-    fn get_publications(&self) -> &Vec<ArrowTablePublish> {
+    fn get_publications(&self) -> &[ArrowTablePublish] {
         &self.publications
     }
 }

@@ -120,10 +120,10 @@ pub trait BuilderTrait {
 /// subscribe to messages
 pub trait PubSubTrait {
     /// Get an immutable list of subscription subject names
-    fn get_subscriptions(&self) -> &Vec<ArrowTableSubscribe>;
+    fn get_subscriptions(&self) -> &[ArrowTableSubscribe];
 
     /// Get an immutable list of publication subject names
-    fn get_publications(&self) -> &Vec<ArrowTablePublish>;
+    fn get_publications(&self) -> &[ArrowTablePublish];
 }
 
 /// For task objects that run computation and send/recieve

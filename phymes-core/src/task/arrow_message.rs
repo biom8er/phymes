@@ -358,6 +358,9 @@ pub trait ArrowMessageBuilderTrait: BuilderTrait + Send {
     fn make_name(self) -> Result<Self>
     where
         Self: Sized;
+    fn make_random_name(self) -> Result<Self>
+    where
+        Self: Sized;
     fn with_update(self, update: &ArrowTablePublish) -> Self;
 }
 
@@ -445,6 +448,19 @@ impl ArrowMessageBuilderTrait for ArrowIncomingMessageBuilder {
             None => return Err(anyhow!("Cannot make name without subject name")),
         };
         let name = format!("from_{publisher}_on_{subject}");
+        Ok(self.with_name(&name))
+    }
+    fn make_random_name(self) -> Result<Self>
+        where
+            Self: Sized {
+        let mut buf = [0u8; 16];
+        getrandom::fill(&mut buf)?;
+        let hash = u128::from_ne_bytes(buf);
+        let subject = match self.subject {
+            Some(ref s) => s,
+            None => return Err(anyhow!("Cannot make name without subject name")),
+        };
+        let name = format!("{subject}_{hash}");
         Ok(self.with_name(&name))
     }
 }
@@ -542,6 +558,19 @@ impl ArrowMessageBuilderTrait for ArrowOutgoingMessageBuilder {
         let name = format!("from_{publisher}_on_{subject}");
         Ok(self.with_name(&name))
     }
+    fn make_random_name(self) -> Result<Self>
+        where
+            Self: Sized {
+        let mut buf = [0u8; 16];
+        getrandom::fill(&mut buf)?;
+        let hash = u128::from_ne_bytes(buf);
+        let subject = match self.subject {
+            Some(ref s) => s,
+            None => return Err(anyhow!("Cannot make name without subject name")),
+        };
+        let name = format!("{subject}_{hash}");
+        Ok(self.with_name(&name))
+    }
 }
 
 impl ArrowOutgoingMessageBuilderTrait for ArrowOutgoingMessageBuilder {
@@ -620,6 +649,19 @@ impl ArrowMessageBuilderTrait for ArrowIncomingIPCMessageBuilder {
             None => return Err(anyhow!("Cannot make name without subject name")),
         };
         let name = format!("from_{publisher}_on_{subject}");
+        Ok(self.with_name(&name))
+    }
+    fn make_random_name(self) -> Result<Self>
+        where
+            Self: Sized {
+        let mut buf = [0u8; 16];
+        getrandom::fill(&mut buf)?;
+        let hash = u128::from_ne_bytes(buf);
+        let subject = match self.subject {
+            Some(ref s) => s,
+            None => return Err(anyhow!("Cannot make name without subject name")),
+        };
+        let name = format!("{subject}_{hash}");
         Ok(self.with_name(&name))
     }
 }
@@ -715,6 +757,19 @@ impl ArrowMessageBuilderTrait for ArrowOutgoingIPCMessageBuilder {
             None => return Err(anyhow!("Cannot make name without subject name")),
         };
         let name = format!("from_{publisher}_on_{subject}");
+        Ok(self.with_name(&name))
+    }
+    fn make_random_name(self) -> Result<Self>
+        where
+            Self: Sized {
+        let mut buf = [0u8; 16];
+        getrandom::fill(&mut buf)?;
+        let hash = u128::from_ne_bytes(buf);
+        let subject = match self.subject {
+            Some(ref s) => s,
+            None => return Err(anyhow!("Cannot make name without subject name")),
+        };
+        let name = format!("{subject}_{hash}");
         Ok(self.with_name(&name))
     }
 }

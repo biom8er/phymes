@@ -1,7 +1,7 @@
 use crate::{
     metrics::ArrowTaskMetricsSet,
     session::{
-        common_traits::{MappableTrait, OutgoingMessageMap},
+        common_traits::{MappableTrait, OutgoingMessageMap, PubSubTrait},
         runtime_env::RuntimeEnv,
     },
     table::{
@@ -19,7 +19,7 @@ use tracing::{Level, event};
 /// For inner task objects that perform the actual processing
 /// and designed to allow for chaining multiple processors
 /// into streaming computational tree
-pub trait ArrowProcessorTrait: MappableTrait + Send + Sync + Debug {
+pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
     /// New processor
     ///
     /// # Notes
@@ -48,12 +48,6 @@ pub trait ArrowProcessorTrait: MappableTrait + Send + Sync + Debug {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait>
     where
         Self: Sized;
-
-    /// Get publications
-    fn get_publications(&self) -> &[ArrowTablePublish];
-
-    /// Get subscriptions
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe];
 
     /// Get forwarded subscriptions
     fn get_forward_subscriptions(&self) -> &[String];
@@ -256,6 +250,16 @@ impl MappableTrait for ArrowProcessorEcho {
     }
 }
 
+impl PubSubTrait for ArrowProcessorEcho {
+    fn get_publications(&self) -> &[ArrowTablePublish] {
+        &self.publications
+    }
+
+    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
+        &self.subscriptions
+    }
+}
+
 impl ArrowProcessorTrait for ArrowProcessorEcho {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait>
     where
@@ -267,14 +271,6 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
         })
-    }
-
-    fn get_publications(&self) -> &[ArrowTablePublish] {
-        &self.publications
-    }
-
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-        &self.subscriptions
     }
 
     fn get_forward_subscriptions(&self) -> &[String] {
@@ -345,6 +341,16 @@ pub mod test_processor {
         }
     }
 
+    impl PubSubTrait for ArrowProcessorMock {
+        fn get_publications(&self) -> &[ArrowTablePublish] {
+            &self.publications
+        }
+
+        fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
+            &self.subscriptions
+        }
+    }
+
     impl ArrowProcessorTrait for ArrowProcessorMock {
         fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait>
         where
@@ -356,14 +362,6 @@ pub mod test_processor {
                 subscriptions: vec![ArrowTableSubscribe::None],
                 forward: Vec::new(),
             })
-        }
-
-        fn get_publications(&self) -> &[ArrowTablePublish] {
-            &self.publications
-        }
-
-        fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-            &self.subscriptions
         }
 
         fn get_forward_subscriptions(&self) -> &[String] {

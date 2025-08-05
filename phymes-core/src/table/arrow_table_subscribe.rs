@@ -82,6 +82,9 @@ impl ArrowTableSubscribeTrait for ArrowTable {
 /// Determine when all subscriptions are ready
 pub trait SubscribeTrait {
     fn check_subscriptions(&self, subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, state: &StateMap) -> bool;
+    fn new_box() -> Box<dyn SubscribeTrait>
+    where
+        Self: Sized;
 }
 
 /// Subscribe when any matching table name has been updated
