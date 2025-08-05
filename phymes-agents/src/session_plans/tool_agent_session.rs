@@ -20,8 +20,7 @@ use phymes_core::{
 };
 use phymes_data::{
     candle_data::{
-        data_processor::CandleDataProcessor, summary_config::DataSummaryConfig,
-        summary_processor::DataSummaryProcessor,
+        data_config::DataConfig, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor
     },
     candle_operators::which_operator::WhichCandleOperator,
 };
@@ -260,6 +259,9 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.state_messages_table_name.to_string(),
                 },
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.message_aggregator_processor_name.to_string(),
+                },
             ],
             &[],
         ));
@@ -452,6 +454,21 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
+        // Message aggregator config
+        let aggregator_config = DataConfig {
+            lhs_name: "".to_string(),
+            lhs_pk: "".to_string(),
+            lhs_fk: "".to_string(),
+            lhs_values: "timestamp".to_string(),
+            which: WhichCandleOperator::SortColumnAndIndices,
+            ..Default::default()
+        };
+        let aggregator_config_json = serde_json::to_vec(&aggregator_config)?;
+        let aggregator_state = ArrowTableBuilder::new()
+            .with_name(self.message_aggregator_processor_name)
+            .with_json(&aggregator_config_json, 1)?
+            .build()?;
+
         // Summary config
         let summary_config = DataSummaryConfig {
             ..Default::default()
@@ -465,6 +482,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
         Ok(vec![
             candle_chat_state,
             candle_message_parser_state,
+            aggregator_state,
             summary_state,
             self.make_scores_table()?,
             self.make_messages_table()?,

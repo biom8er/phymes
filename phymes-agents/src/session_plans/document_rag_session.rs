@@ -63,6 +63,7 @@ pub struct DocumentRAGSession<'a> {
     // DM: needed for openai api since we cannot chain streams
     pub message_aggregator_task_name: &'a str,
     pub message_aggregator_processor_name: &'a str,
+    pub message_aggregator_runtime_env_name: &'a str,
     pub chat_processor_name: &'a str,
     pub chat_runtime_env_name: &'a str,
     /// Embed tasks
@@ -111,6 +112,7 @@ impl Default for DocumentRAGSession<'_> {
             chat_task_name: "chat_task_1",
             message_aggregator_task_name: "message_aggregator_task_1",
             message_aggregator_processor_name: "message_aggregator_1",
+            message_aggregator_runtime_env_name: "message_aggregator_rt_1",
             chat_processor_name: "chat_processor_1",
             chat_runtime_env_name: "chat_rt_1",
             embed_query_task_name: "embed_query_task_1",
@@ -277,7 +279,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         if cfg!(not(feature = "candle")) {
             tasks.push(TaskPlan {
                 task_name: self.message_aggregator_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
+                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_name.to_string()],
             });
             tasks.push(TaskPlan {
@@ -361,6 +363,9 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                     ArrowTableSubscribe::OnUpdateFullTable {
                         table_name: self.state_top_k_docs_table_name.to_string(),
                     },
+                    ArrowTableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.message_aggregator_processor_name.to_string(),
+                    },
                 ],
                 &[],
             ));
@@ -395,6 +400,9 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                     },
                     ArrowTableSubscribe::OnUpdateFullTable {
                         table_name: self.state_top_k_docs_table_name.to_string(),
+                    },
+                    ArrowTableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.message_aggregator_processor_name.to_string(),
                     },
                 ],
                 &[],
@@ -607,6 +615,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
 
     fn make_runtime_envs(&self) -> Result<Vec<RuntimeEnv>> {
         Ok(vec![
+            RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
             RuntimeEnv::new().with_name(self.chat_runtime_env_name),
             RuntimeEnv::new().with_name(self.embed_documents_runtime_env_name),
             RuntimeEnv::new().with_name(self.embed_query_runtime_env_name),
@@ -754,6 +763,21 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             .with_json(&candle_embed_config_json, 1)?
             .build()?;
 
+        // Message aggregator config
+        let aggregator_config = DataConfig {
+            lhs_name: "".to_string(),
+            lhs_pk: "".to_string(),
+            lhs_fk: "".to_string(),
+            lhs_values: "timestamp".to_string(),
+            which: WhichCandleOperator::SortColumnAndIndices,
+            ..Default::default()
+        };
+        let aggregator_config_json = serde_json::to_vec(&aggregator_config)?;
+        let aggregator_state = ArrowTableBuilder::new()
+            .with_name(self.message_aggregator_processor_name)
+            .with_json(&aggregator_config_json, 1)?
+            .build()?;
+
         // Chunk documents config
         let chunk_document_config = DataConfig {
             lhs_name: self.state_documents_table_name.to_string(),
@@ -842,6 +866,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             candle_chat_state,
             candle_doc_embed_state,
             candle_query_embed_state,
+            aggregator_state,
             chunk_document_1_state,
             rel_sim_state,
             sort_scores_state,

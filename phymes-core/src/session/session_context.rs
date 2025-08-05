@@ -491,8 +491,9 @@ impl SessionStreamState {
     ///
     /// # Notes
     ///
-    /// We assume that all tasks available have already been added
+    /// * We assume that all tasks available have already been added
     ///   upon initialization of `superstep_updates`
+    /// * Subject updates where the executing task and publisher are the same are ignored
     ///
     /// # Arguments
     ///
