@@ -5,35 +5,31 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
-    session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics}, schemas::message_history::{create_messages_fields, create_messages_schema}, session::{
+        common_traits::{device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
         runtime_env::RuntimeEnv,
-    },
-    schemas::message_history::{create_messages_fields, create_messages_schema},
-    table::{
-        arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    }, table::{
+        arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::ArrowTableSubscribe,
         stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
-    task::{
+    }, task::{
         arrow_message::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage,
             ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
-    },
+    }
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use arrow::{
     array::RecordBatch,
     datatypes::{Fields, SchemaRef},
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_data::candle_operators::sort_column_and_indices::sort_column_and_indices;
+use phymes_data::{candle_data::{data_config::DataConfig, tensor_service::CandleTensorService}, candle_operators::data_operator::DataOperatorTrait};
 use tracing::{Level, event, instrument};
 
 /// Collect messages that match a given schema
@@ -123,9 +119,16 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
         // Collect the messages with the messages schema
         let input = collect_messages_by_schema(&mut message, &create_messages_fields());
 
+        // Extract out the config
+        let config = match message.remove(self.get_name()) {
+            Some(s) => s.get_message_own(),
+            None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
+        };
+
         // Make the outbox and send
         let out = Box::pin(MessageAggregatorStream::new(
             input,
+            config,
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),
         )?);
@@ -147,6 +150,12 @@ pub struct MessageAggregatorStream {
     schema: SchemaRef,
     /// The input message to process
     input: Vec<SendableRecordBatchStream>,
+    /// Parameters for chat inference
+    config_stream: SendableRecordBatchStream,
+    /// Parameters for tensor operations
+    config: Option<DataConfig>,
+    /// The data operator to run
+    data_operator: Option<Box<dyn DataOperatorTrait>>,
     /// The Candle model assets needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
@@ -156,15 +165,57 @@ pub struct MessageAggregatorStream {
 impl MessageAggregatorStream {
     pub fn new(
         input: Vec<SendableRecordBatchStream>,
+        config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
         Ok(Self {
             schema: create_messages_schema(),
             input,
+            config_stream,
+            config: None,
+            data_operator: None,
             runtime_env,
             baseline_metrics,
         })
+    }
+
+    #[instrument(skip(self))]
+    fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
+        if self.config.is_none() {
+            let config: DataConfig = serde_json::from_value(serde_json::Value::Object(
+                config_table.to_json_object()?.first().unwrap().to_owned(),
+            ))?;
+            self.config.replace(config);
+        }
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    fn init_tensor_service(&mut self) -> Result<()> {
+        if let Some(ref config) = self.config {
+            if self
+                .runtime_env
+                .try_lock()
+                .unwrap()
+                .tensor_service
+                .is_none()
+            {
+                let device = device(config.cpu)?;
+                let service = CandleTensorService::new(device);
+                let _ = self
+                    .runtime_env
+                    .try_lock()
+                    .unwrap()
+                    .tensor_service
+                    .replace(Box::new(service));
+            }
+        } else {
+            return Err(anyhow!(
+                "The config for Ops processor needs to be initialized before trying to initialize the tensor service."
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -179,6 +230,32 @@ impl Stream for MessageAggregatorStream {
             let metrics = self.baseline_metrics.clone();
             let _timer = metrics.elapsed_compute().timer();
 
+            // initialize the config and tensor services
+            let mut batches = Vec::new();
+            while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
+                batches.push(batch);
+            }
+            let config_table = ArrowTableBuilder::new()
+                .with_name("config")
+                .with_record_batches(batches)?
+                .build()?;
+            self.init_config(config_table)?;
+            self.init_tensor_service()?;
+
+            // Build the data operator
+            if self.data_operator.is_none() {
+                let config = self.config.as_ref().unwrap().clone();
+                self.data_operator.replace(config.which.build(
+                    &config.lhs_pk,
+                    &config.lhs_fk,
+                    &config.lhs_values,
+                    config.rhs_pk.as_deref(),
+                    config.rhs_fk.as_deref(),
+                    config.rhs_values.as_deref(),
+                    config.op_kwargs.as_deref(),
+                ));
+            }
+
             // Collect the input
             let mut batches = Vec::new();
             for i in self.input.as_mut_slice().iter_mut() {
@@ -191,7 +268,17 @@ impl Stream for MessageAggregatorStream {
             self.input.clear();
 
             // Sort the record batches by timestamp and concatenate
-            let batch = sort_column_and_indices("timestamp", &batches, true, &device)?;
+            let batch = self.data_operator.as_ref().unwrap().forward(
+                &batches,
+                None,
+                self.runtime_env
+                    .try_lock()
+                    .unwrap()
+                    .tensor_service
+                    .as_ref()
+                    .unwrap()
+                    .get_device(),
+            )?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -219,6 +306,7 @@ mod tests {
             test_table::{make_test_table, make_test_table_chat},
         },
     };
+    use phymes_data::candle_operators::which_operator::WhichCandleOperator;
 
     use super::*;
 
@@ -256,16 +344,45 @@ mod tests {
                 .with_message(make_test_table("t1", 4, 8, 3)?.to_record_batch_stream())
                 .build()?,
         );
+        
+        // Make the config
+        let config = DataConfig {
+            lhs_name: "".to_string(),
+            lhs_pk: "".to_string(),
+            lhs_fk: "".to_string(),
+            lhs_values: "timestamp".to_string(),
+            which: WhichCandleOperator::SortColumnAndIndices,
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = ArrowTableBuilder::new()
+            .with_name("aggregator_processor")
+            .with_json(&config_json, 1)?
+            .build()?;
+        let _ = message_1.insert(
+            "aggregator_processor".to_string(),
+            ArrowOutgoingMessage::get_builder()
+                .with_name("aggregator_processor")
+                .with_publisher("")
+                .with_subject("")
+                .with_update(&ArrowTablePublish::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );
 
         let metrics = ArrowTaskMetricsSet::new();
 
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+        // Make the runtime environment
+        let device = device(config.cpu)?;
+        let service = CandleTensorService::new(device);
+        let runtime_env = RuntimeEnv {
             token_service: None,
-            tensor_service: None,
+            tensor_service: Some(Box::new(service)),
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
-        }));
+        };
+        let runtime_env = Arc::new(Mutex::new(runtime_env));
 
         // Create the aggregator and run
         let agg_arc_1 = MessageAggregatorProcessor::new_arc("aggregator_processor");
@@ -284,6 +401,7 @@ mod tests {
         assert_eq!(partitions.count_rows(), 8);
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 8);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
+        dbg!(partitions);
 
         Ok(())
     }

@@ -1092,6 +1092,7 @@ pub mod test_table {
         datatypes::{DataType, Field, Schema, SchemaRef},
         record_batch::RecordBatch,
     };
+    use chrono::{DateTime, Utc};
 
     /// Make a test record batch schema with fields for id, title, text, metadata, score, and embeddings
     pub fn make_test_table_schema(embed_end: u32) -> Result<SchemaRef> {
@@ -1292,11 +1293,11 @@ pub mod test_table {
             "What is Deep Learning?".to_string(),
             "magic!".to_string(),
         ]));
-        let timestamap: ArrayRef = Arc::new(StringArray::from(vec![
-            "Fri Jul 11 09:16:02 2025".to_string(),
-            "Fri Jul 11 09:16:20 2025".to_string(),
-            "Fri Jul 11 09:16:20 2025".to_string(),
-            "Fri Jul 11 09:16:21 2025".to_string(),
+        let timestamap: ArrayRef = Arc::new(Int64Array::from(vec![
+            "2025-08-05T12:34:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
+            "2025-08-05T12:55:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
+            "2025-08-05T12:50:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
+            "2025-08-05T12:40:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
         ]));
 
         let batch = RecordBatch::try_from_iter(vec![

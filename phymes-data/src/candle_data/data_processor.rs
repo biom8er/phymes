@@ -107,7 +107,6 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
-        event!(Level::INFO, "Got config!");
 
         // Make the outbox and move forwarded messages
         let mut outbox = HashMap::<String, ArrowOutgoingMessage>::new();
@@ -124,7 +123,6 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),
         )?);
-        event!(Level::INFO, "Made the out");
         let out_m = ArrowOutgoingMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
