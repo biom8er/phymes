@@ -399,9 +399,32 @@ mod tests {
         .with_name("")
         .build()?;
         assert_eq!(partitions.count_rows(), 8);
+        assert_eq!(partitions.get_column_as_vec_str("role"), &["assistant",
+            "assistant",
+            "user",
+            "user",
+            "assistant",
+            "assistant",
+            "user",
+            "user"]);
+        assert_eq!(partitions.get_column_as_vec_str("content"), &["Hello how can I help?",
+            "Hello how can I help?",
+            "What is Deep Learning?",
+            "What is Deep Learning?",
+            "magic!",
+            "magic!",
+            "Hi!",
+            "Hi!"]);
+        assert_eq!(partitions.get_column_as_vec_primitive::<i64>("timestamp").unwrap(), &[1754398556,
+            1754398556,
+            1754398256,
+            1754398256,
+            1754397656,
+            1754397656,
+            1754397296,
+            1754397296]);
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 8);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
-        dbg!(partitions);
 
         Ok(())
     }
