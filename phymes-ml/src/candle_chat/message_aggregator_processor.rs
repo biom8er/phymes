@@ -35,6 +35,34 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
 
+/// Collect messages that match a given schema
+/// 
+/// # Arguments
+/// * `messages` - The messages to process
+/// * `fields` - The fields of the schema that need to match
+/// 
+/// # Returns
+/// Vec of extracted messages
+pub fn collect_messages_by_schema(message: &mut OutgoingMessageMap, fields: &Fields) -> Vec<Pin<Box<dyn RecordBatchStream + Send>>> {
+    message.extract_if(|_msg_name, msg| msg.get_message().schema().fields().contains(&fields))
+        .map(|(_msg_name, msg)| msg.get_message_own())
+        .collect::<Vec<_>>()
+}
+
+/// Helper that provides the messages schema by default
+pub fn collect_messages_by_messages_schema(message: &mut OutgoingMessageMap) -> Vec<Pin<Box<dyn RecordBatchStream + Send>>> {
+    // Expected schema for messages
+    let field_names = ["role", "content", "timestamp"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let fields = Fields::from(fields_vec);
+
+    // Only process messages with the expected schema
+    collect_messages_by_schema(message, &fields)
+}
+
 /// Processor that aggregates messages
 ///
 /// # Notes
@@ -105,23 +133,8 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
     ) -> Result<OutgoingMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Expected schema for messages
-        let field_names = ["role", "content", "timestamp"];
-        let fields_vec = field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Utf8, false))
-            .collect::<Vec<_>>();
-        let fields = Fields::from(fields_vec);
-
-        // Only process messages with the expected schema
-        let mut update = HashSet::<ArrowTablePublish>::new();
-        let input = message
-            .extract_if(|_msg_name, msg| msg.get_message().schema().fields().contains(&fields))
-            .map(|(_msg_name, msg)| {
-                update.insert(msg.get_update().clone());
-                msg.get_message_own()
-            })
-            .collect::<Vec<_>>();
+        // Collect the messages with the messages schema
+        let input = collect_messages_by_messages_schema(&mut message);
 
         // Make the outbox and send
         let out = Box::pin(MessageAggregatorStream::new(

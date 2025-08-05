@@ -51,6 +51,7 @@ use tracing::{Level, event, instrument};
 use super::{chat_config::CandleChatConfig, message_history::MessageHistoryTraitExt};
 use crate::openai_asset::chat_completion::Tool;
 
+/// Processor for text generation inference (TGI) using Candle models
 #[derive(Default, Debug)]
 pub struct CandleChatProcessor {
     name: String,
