@@ -1,5 +1,3 @@
-use crate::candle_assets::device::device;
-
 use candle_core::{DType, Tensor};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
@@ -7,7 +5,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper,
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper, device
         },
         runtime_env::RuntimeEnv,
     },

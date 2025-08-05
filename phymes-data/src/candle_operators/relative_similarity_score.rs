@@ -13,7 +13,7 @@ use phymes_core::{
 use super::data_operator::DataOperatorTrait;
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
-use phymes_ml::openai_asset::{chat_completion, types};
+use phymes_core::schemas::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -482,7 +482,7 @@ pub fn relative_similarity_scores_tensor(lhs: &Tensor, rhs: &Tensor) -> Result<T
 
 #[cfg(test)]
 mod tests {
-    use phymes_ml::candle_assets::device::device;
+    use phymes_core::session::common_traits::device;
 
     use crate::candle_data::data_processor::test_candle_ops_processor::{
         make_embeddings_record_batch_str_f32, make_embeddings_record_batch_u32_f32,

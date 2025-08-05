@@ -9,8 +9,8 @@ use candle_core::Device;
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    schemas::{chat_completion, types}
 };
-use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -608,7 +608,7 @@ pub fn chunk_str(text: &str, chunk_size: usize, chunk_overlap: usize) -> Vec<Str
 
 #[cfg(test)]
 mod tests {
-    use phymes_ml::candle_assets::device::device;
+    use phymes_core::session::common_traits::device;
 
     use super::*;
 

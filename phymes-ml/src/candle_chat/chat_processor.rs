@@ -1,7 +1,4 @@
-use crate::{
-    candle_assets::{device::device, token_output_stream::TokenOutputStream},
-    candle_chat::message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros},
-};
+use crate::candle_assets::token_output_stream::TokenOutputStream;
 
 use candle_core::DType;
 use candle_transformers::generation::{LogitsProcessor, Sampling};
@@ -10,26 +7,24 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "openai_api")]
 use crate::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
-    session::{
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics}, schemas::{chat_completion::Tool, message_history::MessageHistoryTraitExt}, session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper,
+            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper
         },
         runtime_env::RuntimeEnv,
-    },
-    table::{
+    }, schemas::message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros
+    }, table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::ArrowTableSubscribe,
         stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
-    task::{
+    }, task::{
         arrow_message::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
-    },
+    }
 };
 
 use arrow::{
@@ -47,8 +42,7 @@ use std::{
 };
 use tracing::{Level, event, instrument};
 
-use super::{chat_config::CandleChatConfig, message_history::MessageHistoryTraitExt};
-use crate::openai_asset::chat_completion::Tool;
+use super::chat_config::CandleChatConfig;
 
 /// Processor for text generation inference (TGI) using Candle models
 #[derive(Default, Debug)]
@@ -633,9 +627,7 @@ pub fn process_prompt_chat(
 }
 
 pub mod bench_chat_processor {
-    use phymes_core::{metrics::HashMap, session::runtime_env::RuntimeEnvTrait};
-
-    use crate::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_core::{metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt, session::runtime_env::RuntimeEnvTrait};
 
     use super::*;
 
@@ -741,12 +733,9 @@ pub mod bench_chat_processor {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{metrics::HashMap, session::runtime_env::RuntimeEnvTrait};
+    use phymes_core::{metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt, session::runtime_env::RuntimeEnvTrait};
 
-    use crate::{
-        candle_assets::candle_which::{load_model_asset_path, load_tokenizer},
-        candle_chat::message_history::MessageHistoryBuilderTraitExt,
-    };
+    use crate::candle_assets::candle_which::{load_model_asset_path, load_tokenizer};
 
     use super::*;
 

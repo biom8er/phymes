@@ -655,6 +655,7 @@ mod tests {
     }
 
     use candle_core::DType;
+    use phymes_core::session::common_traits::device;
 
     #[test]
     fn load_model_varbuilder_test() {
@@ -670,7 +671,7 @@ mod tests {
         let repo = "sentence-transformers/all-MiniLM-L6-v2".to_string();
         let filename_bin = "pytorch_model.bin".to_string();
         let revision = "main".to_string();
-        let device = crate::candle_assets::device::device(true).expect("CPU should always work...");
+        let device = device(true).expect("CPU should always work...");
 
         let _vb_pyt = load_model_varbuilder(
             load_model_asset_path(&path_bin, &repo, &filename_bin, &revision),
@@ -709,7 +710,7 @@ mod tests {
         let repo = "sentence-transformers/all-MiniLM-L6-v2".to_string();
         let filename = "model.safetensors".to_string();
         let revision = "main".to_string();
-        let device = crate::candle_assets::device::device(true).expect("CPU should always work...");
+        let device = device(true).expect("CPU should always work...");
 
         let vb = load_model_varbuilder(
             load_model_asset_path(&path, &repo, &filename, &revision),
@@ -730,7 +731,7 @@ mod tests {
         let repo = "Smol/smollm2-135m-instruct-q4_k_m.gguf".to_string();
         let filename = "smollm2-135m-instruct-q4_k_m.gguf".to_string();
         let revision = "main".to_string();
-        let device = crate::candle_assets::device::device(true).expect("CPU should always work...");
+        let device = device(true).expect("CPU should always work...");
 
         let (content, mut file) =
             load_model_gguf(load_model_asset_path(&path, &repo, &filename, &revision))

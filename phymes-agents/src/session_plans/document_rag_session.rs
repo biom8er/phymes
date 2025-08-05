@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
+    schemas::message_history::create_messages_schema,
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
@@ -27,7 +28,7 @@ use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
         chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
-        message_aggregator_processor::MessageAggregatorProcessor, message_history::create_messages_schema,
+        message_aggregator_processor::MessageAggregatorProcessor,
     },
     candle_embed::{embed_config::CandleEmbedConfig, embed_processor::CandleEmbedProcessor},
 };
@@ -900,7 +901,7 @@ pub mod test_doc_rag_session {
             ArrowMessageBuilderTrait,
         },
     };
-    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
 
     pub fn bench_doc_rag_session_docs<'a>(
         session_stream_state: Arc<RwLock<SessionStreamState>>,

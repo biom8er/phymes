@@ -1,4 +1,4 @@
-use phymes_core::table::{
+use crate::table::{
     arrow_script::ArrowTableScript,
     arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
     stream::SendableRecordBatchStream,
@@ -14,7 +14,7 @@ use futures::StreamExt;
 use std::sync::Arc;
 use tracing::{Level, event};
 
-use crate::openai_asset::chat_completion::{
+use super::chat_completion::{
     self, ChatCompletionMessage, Content, MessageRole, ToolCall,
 };
 
@@ -346,7 +346,7 @@ mod test_message_history {
     use arrow::datatypes::SchemaRef;
     use futures::Stream;
     use parking_lot::Mutex;
-    use phymes_core::{
+    use crate::{
         metrics::{ArrowTaskMetricsSet, HashMap},
         session::{
             common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
@@ -550,10 +550,10 @@ mod test_message_history {
 
 #[cfg(test)]
 mod tests {
-    use crate::openai_asset::chat_completion::Tool;
+    use super::chat_completion::Tool;
     use futures::TryStreamExt;
     use parking_lot::Mutex;
-    use phymes_core::{
+    use crate::{
         metrics::{ArrowTaskMetricsSet, HashMap},
         session::{
             common_traits::{BuildableTrait, BuilderTrait},

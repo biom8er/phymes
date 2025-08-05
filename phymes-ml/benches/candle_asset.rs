@@ -1,11 +1,8 @@
 use candle_core::DType;
 use criterion::{Criterion, criterion_group, criterion_main};
-use phymes_core::session::common_traits::{TokenProcessorTrait, TokenWrapper};
+use phymes_core::session::common_traits::{TokenProcessorTrait, TokenWrapper, device};
 use phymes_ml::{
-    candle_assets::{
-        candle_which::{WhichCandleAsset, load_model_asset_path, load_tokenizer},
-        device::device,
-    },
+    candle_assets::candle_which::{WhichCandleAsset, load_model_asset_path, load_tokenizer},
     candle_chat::{
         chat_config::CandleChatConfig,
         chat_processor::{process_logits_sampler, process_prompt_chat},

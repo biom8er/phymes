@@ -5,24 +5,21 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
-    session::{
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics}, schemas::chat_completion::ToolCall, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
         runtime_env::RuntimeEnv,
-    },
-    table::{
+    }, table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::ArrowTableSubscribe,
         stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
-    task::{
+    }, task::{
         arrow_message::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
-    },
+    }
 };
 
 use anyhow::{Result, anyhow};
@@ -35,10 +32,7 @@ use parking_lot::Mutex;
 use serde_json::json;
 use tracing::{Level, event, instrument};
 
-use crate::{
-    candle_chat::{chat_config::CandleChatConfig, tool_parser::format_tool_calls_str},
-    openai_asset::chat_completion::ToolCall,
-};
+use crate::candle_chat::{chat_config::CandleChatConfig, tool_parser::format_tool_calls_str};
 
 use super::tool_parser::extract_tool_calls_str;
 

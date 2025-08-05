@@ -1,11 +1,10 @@
-use arrow::{array::{ArrayRef, StringArray}, record_batch::RecordBatch};
-use tracing::{event, Level};
+use arrow::record_batch::RecordBatch;
 
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
 use candle_core::Device;
-use phymes_ml::{candle_chat::message_history::create_timestamp_str, openai_asset::{chat_completion, types}};
-use std::{collections::HashMap, sync::Arc};
+use phymes_core::schemas::{chat_completion, message_history::{create_messages_record_batch, create_timestamp_micros}, types};
+use std::collections::HashMap;
 
 /// Redirect a tool call to the user for intervention
 #[derive(Debug)]
@@ -62,38 +61,6 @@ impl DataOperatorTrait for HumanInTheLoop {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        prepare_hitl_record_batch(&self.lhs_values)
-    }
-}
-
-/// Wrap the lhs_values into a record batch according to the messages schema
-fn prepare_hitl_record_batch(content: &str) -> Result<RecordBatch> {
-    let role_arr: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
-    let content_arr: ArrayRef = Arc::new(StringArray::from(vec![content.to_string()]));
-    let timestamp_arr: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp_str()]));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("role", role_arr),
-        ("content", content_arr),
-        ("timestamp", timestamp_arr),
-    ])?;
-    event!(Level::DEBUG, "Messages joined: {:?}.", &batch);
-    Ok(batch)
-}
-
-#[cfg(test)]
-mod tests {
-    use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
-
-    use super::*;
-
-    #[test]
-    fn test_prepare_hitl_record_batch() {
-        let result = prepare_hitl_record_batch("").unwrap();
-        let result_table = ArrowTable::get_builder()
-            .with_record_batches(vec![result]).unwrap()
-            .with_name("")
-            .build().unwrap();
-        assert_eq!(result_table.get_column_as_vec_str("role"), &["assistant"]);
-        assert_eq!(result_table.get_column_as_vec_str("content"), &[""]);
+        create_messages_record_batch(vec!["assistant".to_string()], vec![self.lhs_values.to_string()], vec![create_timestamp_micros()])
     }
 }

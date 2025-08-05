@@ -25,7 +25,6 @@ serde_json = "1.0.140"
 plotly = { version = "0.13.3", default-features = false, optional = true}
 phymes-core = { path = "../phymes-core", default-features = false }
 phymes-server = { path = "../phymes-server", default-features = false }
-phymes-ml = { path = "../phymes-ml", default-features = false }
 clap = {version = "4.5.40", optional = true}
 tokio = { version = "1.45.1", default-features = false, optional = true }
 tracing = "0.1.41"
@@ -39,12 +38,12 @@ plotly_cdn_js = ["dep:plotly"]
 plotly_embed_js = ["plotly/plotly_embed_js"]
 
 # Serverside options for gpu and token/tensor services
-wasip2 = ["phymes-server/wasip2", "phymes-core/wasip2", "phymes-ml/wasip2"]
-wsl = ["phymes-server/wsl", "phymes-core/wsl", "phymes-ml/wsl"]
-gpu = ["phymes-server/gpu", "phymes-ml/gpu"]
-candle = ["phymes-server/candle", "phymes-ml/candle"]
-hf_hub = ["phymes-server/hf_hub", "phymes-ml/hf_hub"]
-openai_api = ["phymes-server/openai_api", "phymes-ml/openai_api"]
+wasip2 = ["phymes-server/wasip2", "phymes-core/wasip2"]
+wsl = ["phymes-server/wsl", "phymes-core/wsl"]
+gpu = ["phymes-server/gpu"]
+candle = ["phymes-server/candle"]
+hf_hub = ["phymes-server/hf_hub"]
+openai_api = ["phymes-server/openai_api"]
 # DM: this is a work in progress because we need to access
 #     resources on the device while in the browser context
 serverless = [] # Switch to use the serverless application

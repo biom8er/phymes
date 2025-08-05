@@ -4,6 +4,7 @@ use std::sync::Arc;
 use super::agent_session_builder::AgentSessionBuilderTrait;
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
+    schemas::message_history::create_messages_schema,
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
@@ -29,7 +30,7 @@ use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_asset::
 use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
-        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor, message_aggregator_processor::MessageAggregatorProcessor, message_history::create_messages_schema, message_parser_processor::MessageParserProcessor
+        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor, message_aggregator_processor::MessageAggregatorProcessor, message_parser_processor::MessageParserProcessor
     },
 };
 
@@ -502,7 +503,7 @@ pub mod test_tool_agent_session {
             ArrowMessageBuilderTrait,
         },
     };
-    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
 
     pub fn bench_tool_agent_session<'a>(
         session_stream_state: Arc<RwLock<SessionStreamState>>,

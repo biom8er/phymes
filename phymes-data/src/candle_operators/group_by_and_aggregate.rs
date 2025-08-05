@@ -16,7 +16,7 @@ use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
-use phymes_ml::openai_asset::{chat_completion, types};
+use phymes_core::schemas::{chat_completion, types};
 
 use crate::{
     candle_data::data_config::DataAggregator,
@@ -788,7 +788,7 @@ pub fn group_by_and_aggregate(
 
 #[cfg(test)]
 mod tests {
-    use phymes_ml::candle_assets::device::device;
+    use phymes_core::session::common_traits::device;
 
     use super::*;
 

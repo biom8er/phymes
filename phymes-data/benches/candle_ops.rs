@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{BuildableTrait, BuilderTrait},
+        common_traits::{BuildableTrait, BuilderTrait, device},
         runtime_env::RuntimeEnv,
         session_context::get_metrics_as_pivot_table,
     },
@@ -29,7 +29,6 @@ use phymes_data::{
     },
     candle_operators::which_operator::WhichCandleOperator,
 };
-use phymes_ml::candle_assets::device::device;
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for dataset sizes

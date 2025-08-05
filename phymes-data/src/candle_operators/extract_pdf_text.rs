@@ -8,7 +8,7 @@ use lopdf::{
     content::{Content, Operation},
     dictionary,
 };
-use phymes_ml::openai_asset::{chat_completion, types};
+use phymes_core::schemas::{chat_completion, types};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::{Level, event, instrument};
 

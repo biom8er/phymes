@@ -3,14 +3,16 @@ use dioxus::prelude::*;
 
 // General imports
 use futures::StreamExt;
-use phymes_ml::candle_chat::message_history::create_timestamp_str;
 use serde_json::{self, Map, Value};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
-use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+use phymes_core::{
+    schemas::message_history::{create_timestamp_str, convert_timestamp_micros_to_str},
+    table::arrow_table_publish::ArrowTablePublish
+};
 use phymes_server::handlers::{
     session_info::{SessionResponse, SessionResponseFormat},
     sign_in::create_session_name,
@@ -97,7 +99,6 @@ pub fn messaging_interface_view() -> Element {
                         });
                     for row in json_rows.iter() {
                         if row.get("role").is_some() {
-                            use phymes_ml::candle_chat::message_history::convert_timestamp_micros_to_str;
 
                             sync_current_message_state.send(SyncCurrentMessageState {
                                 role: row.get("role").unwrap().as_str().unwrap().to_string(),

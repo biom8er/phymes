@@ -4,6 +4,7 @@ use std::sync::Arc;
 use super::agent_session_builder::AgentSessionBuilderTrait;
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
+    schemas::message_history::create_messages_schema,
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
@@ -21,7 +22,7 @@ use phymes_core::{
 use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_asset::openai_which::WhichOpenAIAsset};
 use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
-    candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor, message_history::create_messages_schema},
+    candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor},
 };
 
 pub struct ChatAgentSession<'a> {
@@ -226,7 +227,7 @@ pub mod test_chat_agent_session {
 
     use super::*;
 
-    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
 
     /// Run the first query for the chat agent session and return the response
     pub fn bench_chat_agent_session_1<'a>(

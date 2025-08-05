@@ -1,8 +1,9 @@
 use clap::Parser;
+use phymes_core::session::common_traits::device;
 use serde::{Deserialize, Serialize};
 
 use candle_core::DType;
-use phymes_ml::candle_assets::{candle_which::WhichCandleAsset, device::device};
+use phymes_ml::candle_assets::candle_which::WhichCandleAsset;
 
 #[derive(Parser, Debug, Serialize, Deserialize, Default, Clone)]
 #[command(author, version, about, long_about = None)]

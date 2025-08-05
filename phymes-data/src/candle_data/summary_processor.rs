@@ -10,6 +10,7 @@ use phymes_core::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
         runtime_env::RuntimeEnv,
     },
+    schemas::message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros},
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
@@ -33,8 +34,6 @@ use arrow::{
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
-
-use phymes_ml::candle_chat::message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros};
 
 use super::summary_config::DataSummaryConfig;
 

@@ -10,6 +10,7 @@ use phymes_core::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
         runtime_env::RuntimeEnv,
     },
+    schemas::message_history::{create_messages_fields, create_messages_schema},
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
@@ -33,8 +34,6 @@ use arrow::{
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
-
-use crate::candle_chat::message_history::{create_messages_fields, create_messages_schema};
 
 /// Collect messages that match a given schema
 /// 
@@ -191,7 +190,7 @@ impl Stream for MessageAggregatorStream {
             self.input.clear();
 
             // Sort the record batches by timestamp
-            
+
 
             // Concatenate into a single record batch
             let batch = ArrowTable::get_builder()

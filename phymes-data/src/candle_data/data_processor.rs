@@ -3,7 +3,7 @@ use crate::candle_operators::data_operator::DataOperatorTrait;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, device},
         runtime_env::RuntimeEnv,
     },
     table::{
@@ -20,7 +20,6 @@ use phymes_core::{
         arrow_processor::ArrowProcessorTrait,
     },
 };
-use phymes_ml::candle_assets::device::device;
 
 use arrow::{
     array::StringArray,
