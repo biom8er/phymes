@@ -27,14 +27,14 @@ use phymes_core::{
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray},
-    datatypes::{DataType, Field, Schema, SchemaRef},
+    array::RecordBatch,
+    datatypes::{Schema, SchemaRef},
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
 
-use phymes_ml::candle_chat::message_history::create_timestamp_str;
+use phymes_ml::candle_chat::message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros};
 
 use super::summary_config::DataSummaryConfig;
 
@@ -162,16 +162,8 @@ impl DataSummaryStream {
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
-        // Output schema
-        let field_names = ["role", "content", "timestamp"];
-        let fields_vec = field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Utf8, false))
-            .collect::<Vec<_>>();
-        let schema = Arc::new(Schema::new(fields_vec));
-
         Ok(Self {
-            schema,
+            schema: create_messages_schema(),
             message_stream,
             config_stream,
             runtime_env,
@@ -305,14 +297,7 @@ impl Stream for DataSummaryStream {
             // Wrap into a record batch
             // DM: Change when upgrading to Qwen 3
             // let role: ArrayRef = Arc::new(StringArray::from(vec!["function"]));
-            let role: ArrayRef = Arc::new(StringArray::from(vec!["tool"]));
-            let content: ArrayRef = Arc::new(StringArray::from(vec![content]));
-            let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp_str()]));
-            let batch = RecordBatch::try_from_iter(vec![
-                ("role", role),
-                ("content", content),
-                ("timestamp", timestamp),
-            ])?;
+            let batch = create_messages_record_batch(vec!["tool".to_string()], vec![content.to_string()], vec![create_timestamp_micros()])?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));

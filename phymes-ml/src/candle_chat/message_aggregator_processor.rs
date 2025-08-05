@@ -190,6 +190,9 @@ impl Stream for MessageAggregatorStream {
             // Clear the input so that any subsequent pools will return None
             self.input.clear();
 
+            // Sort the record batches by timestamp
+            
+
             // Concatenate into a single record batch
             let batch = ArrowTable::get_builder()
                 .with_name("messages")
