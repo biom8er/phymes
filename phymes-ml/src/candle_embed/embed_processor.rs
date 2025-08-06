@@ -5,7 +5,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper, device
+            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper
         },
         runtime_env::RuntimeEnv,
     },
@@ -20,7 +20,7 @@ use phymes_core::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait,
+        arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
     },
 };
 
@@ -73,6 +73,16 @@ impl MappableTrait for CandleEmbedProcessor {
     }
 }
 
+impl PubSubTrait for CandleEmbedProcessor {
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        self.publications.iter().collect()
+    }
+
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        self.subscriptions.iter().collect()
+    }
+}
+
 impl ArrowProcessorTrait for CandleEmbedProcessor {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
@@ -81,14 +91,6 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
         })
-    }
-
-    fn get_publications(&self) -> &[ArrowTablePublish] {
-        &self.publications
-    }
-
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-        &self.subscriptions
     }
 
     fn get_forward_subscriptions(&self) -> &[String] {

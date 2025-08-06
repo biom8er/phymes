@@ -61,7 +61,7 @@ impl SessionContextBuilder {
     pub fn get_task_sub_pub(
         &self,
         task_name: &str,
-    ) -> (Vec<ArrowTableSubscribe>, Vec<ArrowTablePublish>) {
+    ) -> (Vec<&ArrowTableSubscribe>, Vec<&ArrowTablePublish>) {
         // Get the processor name
         let processors = self
             .tasks
@@ -88,12 +88,12 @@ impl SessionContextBuilder {
             .filter(|p| processors.contains(&p.get_name()))
             .for_each(|p| {
                 p.get_subscriptions().iter().for_each(|s| {
-                    if *s != ArrowTableSubscribe::None {
+                    if **s != ArrowTableSubscribe::None {
                         subscriptons_set.insert(s.to_owned());
                     }
                 });
                 p.get_publications().iter().for_each(|s| {
-                    if *s != ArrowTablePublish::None {
+                    if **s != ArrowTablePublish::None {
                         publications_set.insert(s.to_owned());
                     }
                 });
@@ -635,16 +635,16 @@ mod tests {
         let plan = test_session_context_builder::make_test_session_builder_parallel_task();
         let (subscriptions, publications) = plan.get_task_sub_pub("task_1");
         assert!(
-            subscriptions.contains(&ArrowTableSubscribe::AlwaysFullTable {
+            subscriptions.contains(&&ArrowTableSubscribe::AlwaysFullTable {
                 table_name: "config_1".to_string()
             })
         );
         assert!(
-            subscriptions.contains(&ArrowTableSubscribe::OnUpdateFullTable {
+            subscriptions.contains(&&ArrowTableSubscribe::OnUpdateFullTable {
                 table_name: "state_1".to_string()
             })
         );
-        assert!(publications.contains(&ArrowTablePublish::Extend {
+        assert!(publications.contains(&&ArrowTablePublish::Extend {
             table_name: "state_1".to_string()
         }));
     }

@@ -7,12 +7,11 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "openai_api")]
 use crate::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics}, schemas::{chat_completion::Tool, message_history::MessageHistoryTraitExt}, session::{
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics}, schemas::{chat_completion::Tool, message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros, MessageHistoryTraitExt}}, session::{
         common_traits::{
             device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper
         },
         runtime_env::RuntimeEnv,
-    }, schemas::message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros
     }, table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
@@ -23,7 +22,7 @@ use phymes_core::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait,
+        arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
     }
 };
 
@@ -75,6 +74,16 @@ impl MappableTrait for CandleChatProcessor {
     }
 }
 
+impl PubSubTrait for CandleChatProcessor {    
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        self.publications.iter().collect()
+    }
+
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        self.subscriptions.iter().collect()
+    }
+}
+
 impl ArrowProcessorTrait for CandleChatProcessor {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
@@ -83,14 +92,6 @@ impl ArrowProcessorTrait for CandleChatProcessor {
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
         })
-    }
-
-    fn get_publications(&self) -> &[ArrowTablePublish] {
-        &self.publications
-    }
-
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-        &self.subscriptions
     }
 
     fn get_forward_subscriptions(&self) -> &[String] {

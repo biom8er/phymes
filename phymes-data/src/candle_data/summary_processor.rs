@@ -5,25 +5,21 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::{
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
         runtime_env::RuntimeEnv,
-    },
-    schemas::message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros},
-    table::{
+    }, table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::ArrowTableSubscribe,
         stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
-    task::{
+    }, task::{
         arrow_message::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait,
-    },
+        arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
+    }
 };
 
 use anyhow::{Result, anyhow};
@@ -73,6 +69,16 @@ impl MappableTrait for DataSummaryProcessor {
     }
 }
 
+impl PubSubTrait for DataSummaryProcessor {
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        self.publications.iter().collect()
+    }
+
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        self.subscriptions.iter().collect()
+    }
+}
+
 impl ArrowProcessorTrait for DataSummaryProcessor {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
@@ -81,14 +87,6 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
         })
-    }
-
-    fn get_publications(&self) -> &[ArrowTablePublish] {
-        &self.publications
-    }
-
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-        &self.subscriptions
     }
 
     fn get_forward_subscriptions(&self) -> &[String] {

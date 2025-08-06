@@ -387,12 +387,12 @@ mod test_message_history {
     }
 
     impl PubSubTrait for CandleChatMockProcessor {
-        fn get_publications(&self) -> Vec<ArrowTablePublish> {
-            self.publications.clone()
+        fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+            self.publications.iter().collect::<Vec<_>>()
         }
 
-        fn get_subscriptions(&self) -> Vec<ArrowTableSubscribe> {
-            self.subscriptions.clone()
+        fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+            self.subscriptions.iter().collect::<Vec<_>>()
         }
     }
 

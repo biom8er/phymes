@@ -3,7 +3,7 @@ use crate::candle_operators::data_operator::DataOperatorTrait;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, device},
+        common_traits::{device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
         runtime_env::RuntimeEnv,
     },
     table::{
@@ -17,7 +17,7 @@ use phymes_core::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait,
+        arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
     },
 };
 
@@ -71,6 +71,16 @@ impl MappableTrait for CandleDataProcessor {
     }
 }
 
+impl PubSubTrait for CandleDataProcessor {
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        self.publications.iter().collect()
+    }
+
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        self.subscriptions.iter().collect()
+    }
+}
+
 impl ArrowProcessorTrait for CandleDataProcessor {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
@@ -79,14 +89,6 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
         })
-    }
-
-    fn get_publications(&self) -> &[ArrowTablePublish] {
-        &self.publications
-    }
-
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-        &self.subscriptions
     }
 
     fn get_forward_subscriptions(&self) -> &[String] {

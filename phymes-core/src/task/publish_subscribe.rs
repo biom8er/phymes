@@ -4,10 +4,10 @@ use crate::{metrics::HashMap, session::common_traits::{BuildableTrait, BuilderTr
 /// subscribe to messages
 pub trait PubSubTrait {
     /// Get an immutable list of subscription subject names
-    fn get_subscriptions(&self) -> Vec<ArrowTableSubscribe>;
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe>;
 
     /// Get an immutable list of publication subject names
-    fn get_publications(&self) -> Vec<ArrowTablePublish>;
+    fn get_publications(&self) -> Vec<&ArrowTablePublish>;
 
     /// Get subscriptions from the state
     /// 

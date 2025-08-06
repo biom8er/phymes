@@ -204,15 +204,15 @@ impl ArrowTaskTrait for ArrowTask {
 }
 
 impl PubSubTrait for ArrowTask {
-    fn get_subscriptions(&self) -> Vec<ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
         self.get_processors().iter()
-            .flat_map(|p| p.get_subscriptions().to_owned())
-            .collect::<Vec<ArrowTableSubscribe>>()
+            .flat_map(|p| p.get_subscriptions())
+            .collect::<Vec<&ArrowTableSubscribe>>()
     }
-    fn get_publications(&self) -> Vec<ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
         self.get_processors().iter()
-            .flat_map(|p| p.get_publications().to_owned())
-            .collect::<Vec<ArrowTablePublish>>()
+            .flat_map(|p| p.get_publications())
+            .collect::<Vec<&ArrowTablePublish>>()
     }
 }
 
@@ -388,6 +388,12 @@ pub mod test_task {
             state.insert(table.get_name().to_string(), Arc::new(RwLock::new(table)));
         }
         Ok(state)
+    }
+
+    pub fn make_state_updates(table_name: &str) -> HashMap::<String, bool> {        
+        let mut updates = HashMap::<String, bool>::new();
+        let _ = updates.insert(table_name.to_string(), true);
+        updates
     }
 
     pub fn make_runtime_env(name: &str) -> Result<RuntimeEnv> {
@@ -669,8 +675,9 @@ mod tests {
             "test_config",
             metrics.clone(),
         )?;
-        let test_state = test_task::make_state("test_table", "test_config")?;
-        let messages = test_task.get_subscriptions_from_state(&test_state);
+        let messages = test_task.get_subscriptions_from_state(
+            &test_task::make_state_updates("test_table"),
+            &test_task::make_state("test_table", "test_config")?);
         assert_eq!(messages.len(), 2);
         assert!(messages.get("test_table").is_some());
         assert_eq!(
@@ -772,8 +779,9 @@ mod tests {
             "test_config",
             metrics.clone(),
         )?;
-        let test_state = test_task::make_state("test_table", "test_config")?;
-        let input = test_task.get_subscriptions_from_state(&test_state);
+        let input = test_task.get_subscriptions_from_state(
+            &test_task::make_state_updates("test_table"),
+            &test_task::make_state("test_table", "test_config")?);
         let mut response = test_task.run(input)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
@@ -821,8 +829,9 @@ mod tests {
             "test_config",
             metrics.clone(),
         )?;
-        let test_state = test_task::make_state("test_table", "test_config")?;
-        let input = test_task.get_subscriptions_from_state(&test_state);
+        let input = test_task.get_subscriptions_from_state(
+            &test_task::make_state_updates("test_table"),
+            &test_task::make_state("test_table", "test_config")?);
         let mut response = test_task.run(input)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());

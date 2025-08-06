@@ -250,12 +250,12 @@ impl MappableTrait for ArrowProcessorEcho {
 }
 
 impl PubSubTrait for ArrowProcessorEcho {
-    fn get_publications(&self) -> Vec<ArrowTablePublish> {
-        self.publications.clone()
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        self.publications.iter().collect::<Vec<_>>()
     }
 
-    fn get_subscriptions(&self) -> Vec<ArrowTableSubscribe> {
-        self.subscriptions.clone()
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        self.subscriptions.iter().collect::<Vec<_>>()
     }
 }
 
@@ -341,12 +341,12 @@ pub mod test_processor {
     }
 
     impl PubSubTrait for ArrowProcessorMock {
-        fn get_publications(&self) -> Vec<ArrowTablePublish> {
-            self.publications.clone()
+        fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+            self.publications.iter().collect::<Vec<_>>()
         }
 
-        fn get_subscriptions(&self) -> Vec<ArrowTableSubscribe> {
-            self.subscriptions.clone()
+        fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+            self.subscriptions.iter().collect::<Vec<_>>()
         }
     }
 
