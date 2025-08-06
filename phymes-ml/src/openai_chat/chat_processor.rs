@@ -220,7 +220,7 @@ impl OpenAIChatStream {
 
         // Tool arguments
         if let Some(tools) = tools {
-            req = req.tools(tools).tool_choice(ToolChoiceType::Auto);
+            req = req.tools(tools).tool_choice(ToolChoiceType::Required);
         }
         req
     }

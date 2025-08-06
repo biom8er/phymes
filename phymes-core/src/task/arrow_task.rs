@@ -541,7 +541,6 @@ mod tests {
     use super::*;
     use crate::table::arrow_table::ArrowTableTrait;
     use crate::table::arrow_table::test_table::make_test_table;
-    use crate::table::arrow_table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait};
     use crate::table::{
         arrow_table::{ArrowTableBuilder, ArrowTableBuilderTrait},
         arrow_table_publish::ArrowTablePublish,

@@ -274,7 +274,7 @@ mod tests {
                 .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
         );
 
-        assert!(functions.get(4).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"human-in-the-loop\",\"description\":\"Ask a question to clarify the user's query, ask a questionn to get additional information that the user did not provide, confirm a choice of tool, confirm arguments for a tool before answering the user's query or calling a tool, or provide the answer to the user's query.\"")
+        assert!(functions.get(4).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"human-in-the-loop\",\"description\":\"1. Ask a question to clarify the query from the user if information is missing or if you are uncertain about your response; or 2. provide the answer to the user if you are certain about your response.\"")
         );
         assert!(
             functions
@@ -282,13 +282,13 @@ mod tests {
                 .unwrap()
                 .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
         );
-        assert!(functions.get(4).unwrap().contains("\"lhs_args\":{\"type\":\"string\",\"description\":\"The question or answer for the user. Format lhs_arg value as JSON according to the schema {\\\"role\\\": \\\"assistant\\\", \\\"content\\\": \\\"`RESPONSE`\\\"} where `RESPONSE` is where you put your question or answer for the user\"")
+        assert!(functions.get(4).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The content for the user\"")
         );
         assert!(
             functions
                 .get(4)
                 .unwrap()
-                .contains("\"required\":[\"lhs_args\"]}}}")
+                .contains("\"required\":[\"lhs_values\"]}}}")
         );
     }
 

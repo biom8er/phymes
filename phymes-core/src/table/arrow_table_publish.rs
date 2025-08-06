@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::{ArrayRef, Float32Array, Int32Array, RecordBatch, StringArray},
+    array::{ArrayRef, Float32Array, Float64Array, Int16Array, Int32Array, Int64Array, Int8Array, RecordBatch, StringArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array},
     datatypes::{DataType, Field, Schema},
 };
 use serde::{Deserialize, Serialize};
@@ -186,15 +186,47 @@ fn get_first_row(batch: &RecordBatch) -> Result<Vec<String>> {
                 let array = column.as_any().downcast_ref::<StringArray>().unwrap();
                 array.value(0).to_string()
             }
+            DataType::UInt8 => {
+                let array = column.as_any().downcast_ref::<UInt8Array>().unwrap();
+                array.value(0).to_string()
+            }
+            DataType::UInt16 => {
+                let array = column.as_any().downcast_ref::<Int16Array>().unwrap();
+                array.value(0).to_string()
+            }
+            DataType::UInt32 => {
+                let array = column.as_any().downcast_ref::<UInt32Array>().unwrap();
+                array.value(0).to_string()
+            }
+            DataType::UInt64 => {
+                let array = column.as_any().downcast_ref::<UInt64Array>().unwrap();
+                array.value(0).to_string()
+            }
+            DataType::Int8 => {
+                let array = column.as_any().downcast_ref::<Int8Array>().unwrap();
+                array.value(0).to_string()
+            }
+            DataType::Int16 => {
+                let array = column.as_any().downcast_ref::<Int16Array>().unwrap();
+                array.value(0).to_string()
+            }
             DataType::Int32 => {
                 let array = column.as_any().downcast_ref::<Int32Array>().unwrap();
+                array.value(0).to_string()
+            }
+            DataType::Int64 => {
+                let array = column.as_any().downcast_ref::<Int64Array>().unwrap();
                 array.value(0).to_string()
             }
             DataType::Float32 => {
                 let array = column.as_any().downcast_ref::<Float32Array>().unwrap();
                 array.value(0).to_string()
             }
-            _ => return Err(anyhow!("Unsupported type")),
+            DataType::Float64 => {
+                let array = column.as_any().downcast_ref::<Float64Array>().unwrap();
+                array.value(0).to_string()
+            }
+            _ => return Err(anyhow!("Unsupported data type {} for array.", column.data_type().to_string())),
         };
         first_row.push(value);
     }
@@ -226,13 +258,45 @@ fn create_record_batch_from_first_row(
                     Arc::new(StringArray::from(values)) as ArrayRef
                 }
             }
+            DataType::Int8 => {
+                let values = vec![first_row[i].parse::<i8>().unwrap()];
+                Arc::new(Int8Array::from(values)) as ArrayRef
+            }
+            DataType::Int16 => {
+                let values = vec![first_row[i].parse::<i16>().unwrap()];
+                Arc::new(Int16Array::from(values)) as ArrayRef
+            }
             DataType::Int32 => {
                 let values = vec![first_row[i].parse::<i32>().unwrap()];
                 Arc::new(Int32Array::from(values)) as ArrayRef
             }
+            DataType::Int64 => {
+                let values = vec![first_row[i].parse::<i64>().unwrap()];
+                Arc::new(Int64Array::from(values)) as ArrayRef
+            }
+            DataType::UInt8 => {
+                let values = vec![first_row[i].parse::<u8>().unwrap()];
+                Arc::new(UInt8Array::from(values)) as ArrayRef
+            }
+            DataType::UInt16 => {
+                let values = vec![first_row[i].parse::<u16>().unwrap()];
+                Arc::new(UInt16Array::from(values)) as ArrayRef
+            }
+            DataType::UInt32 => {
+                let values = vec![first_row[i].parse::<u32>().unwrap()];
+                Arc::new(UInt32Array::from(values)) as ArrayRef
+            }
+            DataType::UInt64 => {
+                let values = vec![first_row[i].parse::<u64>().unwrap()];
+                Arc::new(UInt64Array::from(values)) as ArrayRef
+            }
             DataType::Float32 => {
                 let values = vec![first_row[i].parse::<f32>().unwrap()];
                 Arc::new(Float32Array::from(values)) as ArrayRef
+            }
+            DataType::Float64 => {
+                let values = vec![first_row[i].parse::<f64>().unwrap()];
+                Arc::new(Float64Array::from(values)) as ArrayRef
             }
             _ => return Err(anyhow!("Unsupported type")),
         };

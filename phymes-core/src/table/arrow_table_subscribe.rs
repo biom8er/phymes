@@ -217,6 +217,7 @@ mod test_subscribe {
 
     use super::*;
 
+    #[allow(dead_code)]
     pub fn make_test_state() -> StateMap {
         let mut state = HashMap::<String, Arc<RwLock<ArrowTable>>>::new();
         state.insert("t1".to_string(), Arc::new(RwLock::new(
@@ -231,6 +232,7 @@ mod test_subscribe {
         state
     }
 
+    #[allow(dead_code)]
     pub fn make_test_subscriptions(use_table_name: bool) -> Vec<ArrowTableSubscribe> {
         if use_table_name {
             vec![
@@ -260,6 +262,7 @@ mod test_subscribe {
         
     }
 
+    #[allow(dead_code)]
     pub fn make_test_updates(is_any: bool) -> HashMap<String, bool> {
         let mut updates = HashMap::<String, bool>::new();
         updates.insert("t1".to_string(), true);

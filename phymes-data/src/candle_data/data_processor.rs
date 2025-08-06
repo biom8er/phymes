@@ -660,7 +660,7 @@ mod tests {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        assert_eq!(rhs_id.first().unwrap(), &"RESPONSE");
+        assert_eq!(rhs_id.first().unwrap(), &"lhs_values");
 
         // Case 3: LHS and RHS messages from multiple stream batch
         println!("Case 3: LHS and RHS messages from multiple stream batch");
