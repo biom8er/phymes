@@ -398,10 +398,12 @@ pub mod test_task {
         Ok(state)
     }
 
-    pub fn make_state_updates(table_name: &str) -> HashMap::<String, bool> {        
-        let mut updates = HashMap::<String, bool>::new();
-        let _ = updates.insert(table_name.to_string(), true);
-        updates
+    pub fn make_state_updates(table_names: &[&str], updates: &[bool]) -> HashMap::<String, bool> {        
+        let mut updated = HashMap::<String, bool>::new();
+        for (i, table_name) in table_names.iter().enumerate() {
+            let _ = updated.insert(table_name.to_string(), *updates.get(i).unwrap());
+        }        
+        updated
     }
 
     pub fn make_runtime_env(name: &str) -> Result<RuntimeEnv> {
@@ -445,7 +447,7 @@ pub mod test_task {
         table_name_1: &str,
         table_name_2: &str,
         config_name: &str,
-        metrics: ArrowTaskMetricsSet,
+        metrics: ArrowTaskMetricsSet
     ) -> Result<ArrowTask> {
         let processor_name = format!("{name}_processor");
         ArrowTask::get_builder()
@@ -539,6 +541,7 @@ mod tests {
     use super::*;
     use crate::table::arrow_table::ArrowTableTrait;
     use crate::table::arrow_table::test_table::make_test_table;
+    use crate::table::arrow_table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait};
     use crate::table::{
         arrow_table::{ArrowTableBuilder, ArrowTableBuilderTrait},
         arrow_table_publish::ArrowTablePublish,
@@ -679,6 +682,8 @@ mod tests {
     #[test]
     fn test_get_subscriptions_from_state() -> Result<()> {
         let metrics = ArrowTaskMetricsSet::new();
+
+        // Single processor with All logic
         let test_task = test_task::make_test_task_single_processor(
             "test_task",
             "test_rt",
@@ -687,7 +692,50 @@ mod tests {
             metrics.clone(),
         )?;
         let messages = test_task.get_subscriptions_from_state(
-            &test_task::make_state_updates("test_table"),
+            &test_task::make_state_updates(&["test_table"], &[true]),
+            &test_task::make_state("test_table", "test_config")?);
+        assert_eq!(messages.len(), 2);
+        assert!(messages.get("test_table").is_some());
+        assert_eq!(
+            messages.get("test_table").unwrap().get_subject(),
+            "test_table"
+        );
+        assert!(messages.get("test_config").is_some());
+        assert_eq!(
+            messages.get("test_config").unwrap().get_subject(),
+            "test_config"
+        );
+
+        // Multiple processors with no OnUpdates
+        let test_task = test_task::make_test_task_multiple_subscriptions(
+            "test_task",
+            "test_rt",
+            "test_table",
+            "test_table_2",
+            "test_config",
+            metrics.clone(),
+        )?;
+        let messages = test_task.get_subscriptions_from_state(
+            &test_task::make_state_updates(&["test_table"], &[false]),
+            &test_task::make_state("test_table", "test_config")?);
+        assert_eq!(messages.len(), 1);
+        assert!(messages.get("test_config").is_some());
+        assert_eq!(
+            messages.get("test_config").unwrap().get_subject(),
+            "test_config"
+        );
+
+        // Multiple processors with one OnUpdates
+        let test_task = test_task::make_test_task_multiple_subscriptions(
+            "test_task",
+            "test_rt",
+            "test_table",
+            "test_table_2",
+            "test_config",
+            metrics.clone(),
+        )?;
+        let messages = test_task.get_subscriptions_from_state(
+            &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?);
         assert_eq!(messages.len(), 2);
         assert!(messages.get("test_table").is_some());
@@ -791,7 +839,7 @@ mod tests {
             metrics.clone(),
         )?;
         let input = test_task.get_subscriptions_from_state(
-            &test_task::make_state_updates("test_table"),
+            &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?);
         let mut response = test_task.run(input)?;
         assert_eq!(response.len(), 1);
@@ -841,7 +889,7 @@ mod tests {
             metrics.clone(),
         )?;
         let input = test_task.get_subscriptions_from_state(
-            &test_task::make_state_updates("test_table"),
+            &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?);
         let mut response = test_task.run(input)?;
         assert_eq!(response.len(), 1);
