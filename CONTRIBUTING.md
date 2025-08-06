@@ -374,12 +374,12 @@ Instead of using token credits with remote OpenAI API endpoints, it is possible 
 
 ```bash
 # Text Generation Inference with Llama 3.2 (terminal 1)
-export NGC_API_KEY=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
+export NGC_API_KEY=nvapi-
 export LOCAL_NIM_CACHE=$HOME/.cache/nim
 docker run -it --rm --gpus all --shm-size=16GB -e NGC_API_KEY -v "$LOCAL_NIM_CACHE:/opt/nim/.cache" -u $(id -u) -p 8000:8000 nvcr.io/nim/meta/llama-3.2-1b-instruct:1.8.6
 
 # Text Embedding Inference with Llama 3.2 (terminal 2)
-export NGC_API_KEY=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
+export NGC_API_KEY=nvapi-
 export LOCAL_NIM_CACHE=$HOME/.cache/nim
 docker run -it --rm --gpus all --shm-size=16GB -e NGC_API_KEY -v "$LOCAL_NIM_CACHE:/opt/nim/.cache" -u $(id -u) -p 8001:8000 nvcr.io/nim/nvidia/llama-3.2-nv-embedqa-1b-v2:latest
 ```
