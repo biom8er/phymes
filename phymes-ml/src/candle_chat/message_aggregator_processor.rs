@@ -5,13 +5,13 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics}, schemas::message_history::{create_messages_fields, create_messages_schema}, session::{
-        common_traits::{device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::message_history::{create_messages_fields, create_messages_schema}, session::{
+        common_traits::{device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap},
         runtime_env::RuntimeEnv,
     }, table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     }, task::{
         arrow_message::{
@@ -53,12 +53,13 @@ pub fn collect_messages_by_schema(message: &mut OutgoingMessageMap, fields: &Fie
 /// - There is no guarantee that the order of incoming
 ///   messages is preserved
 /// - All incoming meessages MUST have the same schema
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct MessageAggregatorProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl MessageAggregatorProcessor {
@@ -67,12 +68,14 @@ impl MessageAggregatorProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe
         })
     }
 }
@@ -87,9 +90,11 @@ impl PubSubTrait for MessageAggregatorProcessor {
     fn get_publications(&self) -> Vec<&ArrowTablePublish> {
         self.publications.iter().collect()
     }
-
     fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
         self.subscriptions.iter().collect()
+    }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
@@ -102,6 +107,7 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
             }],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 

@@ -3,13 +3,13 @@ use crate::candle_operators::data_operator::DataOperatorTrait;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+        common_traits::{device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap},
         runtime_env::RuntimeEnv,
     },
     table::{
         arrow_table::{ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{
@@ -41,12 +41,13 @@ use tracing::{Level, event, instrument};
 ///
 /// Each operator has a defined input and output schema that calling processors or consuming processors
 /// need to adhere to
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct CandleDataProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl CandleDataProcessor {
@@ -55,12 +56,14 @@ impl CandleDataProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe
         })
     }
 }
@@ -79,6 +82,9 @@ impl PubSubTrait for CandleDataProcessor {
     fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
         self.subscriptions.iter().collect()
     }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+    }
 }
 
 impl ArrowProcessorTrait for CandleDataProcessor {
@@ -88,6 +94,7 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
@@ -892,6 +899,7 @@ mod tests {
             }],
             &[],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut ops_stream = ops_processor.process(messages, metrics, runtime_env)?;
         let result = ops_stream

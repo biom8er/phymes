@@ -5,13 +5,13 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics}, schemas::chat_completion::ToolCall, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::chat_completion::ToolCall, session::{
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap},
         runtime_env::RuntimeEnv,
     }, table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     }, task::{
         arrow_message::{
@@ -51,12 +51,13 @@ use super::tool_parser::extract_tool_calls_str;
 /// - There needs to be a subject called `Error` that any
 ///   message content that cannot be parsed can be sent to
 ///   for a retry
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct MessageParserProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl MessageParserProcessor {
@@ -65,12 +66,14 @@ impl MessageParserProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe
         })
     }
 }
@@ -85,9 +88,11 @@ impl PubSubTrait for MessageParserProcessor {
     fn get_publications(&self) -> Vec<&ArrowTablePublish> {
         self.publications.iter().collect()
     }
-
     fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
         self.subscriptions.iter().collect()
+    }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
@@ -98,6 +103,7 @@ impl ArrowProcessorTrait for MessageParserProcessor {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
@@ -479,6 +485,7 @@ mod tests {
                 table_name: "messages".to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
 
@@ -583,6 +590,7 @@ mod tests {
                 table_name: "messages".to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
 
@@ -687,6 +695,7 @@ mod tests {
                 table_name: "messages".to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
 

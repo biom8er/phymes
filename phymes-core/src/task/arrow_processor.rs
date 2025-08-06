@@ -5,7 +5,7 @@ use crate::{
         runtime_env::RuntimeEnv,
     }, table::{
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     }, task::publish_subscribe::PubSubTrait,
 };
@@ -44,6 +44,18 @@ pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug
     /// ## 3. Remote RPC call
     /// Process with `message` and make an RPC call
     /// that returns a stream or batch of `RecordBatch`es
+    // DM: let's introduce this after tool fixes...
+    // fn new_arc_with_pub_sub_for(
+    //     name: &str,
+    //     publications: &[ArrowTablePublish],
+    //     subscriptions: &[ArrowTableSubscribe],
+    //     forward: &[&str],
+    //     subscribe: Box<dyn SubscribeTrait>
+    // ) -> Arc<dyn ArrowProcessorTrait>
+    // where
+    //     Self: Sized;
+
+    /// New processor with defaults
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait>
     where
         Self: Sized;
@@ -219,12 +231,13 @@ pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug
 /// Processor that returns the input
 /// with optional conversion to another format
 /// e.g., Bytes for web app streaming
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct ArrowProcessorEcho {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl ArrowProcessorEcho {
@@ -233,12 +246,14 @@ impl ArrowProcessorEcho {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe,
         })
     }
 }
@@ -257,6 +272,9 @@ impl PubSubTrait for ArrowProcessorEcho {
     fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
         self.subscriptions.iter().collect::<Vec<_>>()
     }
+    fn check_subscriptions(&self, updates: &crate::metrics::HashMap<String, bool>, state: &crate::session::common_traits::StateMap) -> bool {
+        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+    }
 }
 
 impl ArrowProcessorTrait for ArrowProcessorEcho {
@@ -269,6 +287,7 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
@@ -310,12 +329,13 @@ pub mod test_processor {
     };
 
     /// Mock processor that adds an additional record batch
-    #[derive(Default, Debug)]
+    #[derive(Debug)]
     pub struct ArrowProcessorMock {
         name: String,
         publications: Vec<ArrowTablePublish>,
         subscriptions: Vec<ArrowTableSubscribe>,
         forward: Vec<String>,
+        subscribe: Box<dyn SubscribeTrait>,
     }
 
     impl ArrowProcessorMock {
@@ -324,12 +344,14 @@ pub mod test_processor {
             publications: &[ArrowTablePublish],
             subscriptions: &[ArrowTableSubscribe],
             forward: &[&str],
+            subscribe: Box<dyn SubscribeTrait>,
         ) -> Arc<dyn ArrowProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
                 publications: publications.to_owned(),
                 subscriptions: subscriptions.to_owned(),
                 forward: forward.iter().map(|s| s.to_string()).collect(),
+                subscribe
             })
         }
     }
@@ -348,6 +370,9 @@ pub mod test_processor {
         fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
             self.subscriptions.iter().collect::<Vec<_>>()
         }
+        fn check_subscriptions(&self, updates: &crate::metrics::HashMap<String, bool>, state: &crate::session::common_traits::StateMap) -> bool {
+            self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+        }
     }
 
     impl ArrowProcessorTrait for ArrowProcessorMock {
@@ -360,6 +385,7 @@ pub mod test_processor {
                 publications: vec![ArrowTablePublish::None],
                 subscriptions: vec![ArrowTableSubscribe::None],
                 forward: Vec::new(),
+                subscribe: AllTableNamesSubscribe::new_box(),
             })
         }
 

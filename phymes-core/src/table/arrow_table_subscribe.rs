@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
 use crate::{metrics::HashMap, session::common_traits::StateMap};
@@ -95,18 +96,33 @@ impl ArrowTableSubscribeTrait for ArrowTable {
 }
 
 /// Determine when all subscriptions are ready
-pub trait SubscribeTrait {
+pub trait SubscribeTrait: Debug + Send + Sync {
     fn check_subscriptions(&self, subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, state: &StateMap) -> bool;
-    // fn new_box() -> Box<dyn SubscribeTrait>
-    // where
-    //     Self: Sized;
+    fn new_box() -> Box<dyn SubscribeTrait>
+    where
+        Self: Sized;
+}
+
+/// Always subscribe (dummy subscription check for testing)
+#[derive(Default, Debug)]
+pub struct AlwaysSubscribe;
+
+impl SubscribeTrait for AlwaysSubscribe {
+    fn check_subscriptions(&self, _subscriptions: &[ArrowTableSubscribe], _updates: &HashMap<String, bool>, _state: &StateMap) -> bool {
+        true
+    }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(AlwaysSubscribe {})        
+    }
 }
 
 /// Subscribe when any matching table name has been updated
+#[derive(Default, Debug)]
 pub struct AnyTableNameSubscribe;
 
 impl SubscribeTrait for AnyTableNameSubscribe {
     fn check_subscriptions(&self, subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, _state: &StateMap) -> bool {
+        // DM: fix for the case of no is_updates
         for subscription in subscriptions.iter() {
             if subscription.is_update() & updates.get(subscription.get_table_name()).unwrap_or(&false) {
                 return true;
@@ -114,9 +130,13 @@ impl SubscribeTrait for AnyTableNameSubscribe {
         }
         false
     }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(AnyTableNameSubscribe {})        
+    }
 }
 
 /// Subscribe when all matching table names has been updated
+#[derive(Default, Debug)]
 pub struct AllTableNamesSubscribe;
 
 impl SubscribeTrait for AllTableNamesSubscribe {
@@ -128,13 +148,18 @@ impl SubscribeTrait for AllTableNamesSubscribe {
         }
         true
     }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(AllTableNamesSubscribe {})        
+    }
 }
 
 /// Subscribe when any matching table schema has been updated
+#[derive(Default, Debug)]
 pub struct AnyTableSchemaSubscribe;
 
 impl SubscribeTrait for AnyTableSchemaSubscribe {
     fn check_subscriptions(&self, subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        // DM: fix for the case of no is_updates
         for subscription in subscriptions.iter() {
             if subscription.is_update() {
                 for (table_name, update) in updates {
@@ -148,9 +173,13 @@ impl SubscribeTrait for AnyTableSchemaSubscribe {
         }
         false
     }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(AnyTableSchemaSubscribe {})        
+    }
 }
 
 /// Subscribe when all matching table schemas has been updated
+#[derive(Default, Debug)]
 pub struct AllTableSchemasSubscribe;
 
 impl SubscribeTrait for AllTableSchemasSubscribe {
@@ -167,5 +196,8 @@ impl SubscribeTrait for AllTableSchemasSubscribe {
             }
         }
         true
+    }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(AllTableSchemasSubscribe {})        
     }
 }

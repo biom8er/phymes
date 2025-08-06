@@ -7,15 +7,15 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "openai_api")]
 use crate::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics}, schemas::{chat_completion::Tool, message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros, MessageHistoryTraitExt}}, session::{
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::{chat_completion::Tool, message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros, MessageHistoryTraitExt}}, session::{
         common_traits::{
-            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper
+            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, TokenWrapper
         },
         runtime_env::RuntimeEnv,
     }, table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     }, task::{
         arrow_message::{
@@ -44,12 +44,13 @@ use tracing::{Level, event, instrument};
 use super::chat_config::CandleChatConfig;
 
 /// Processor for text generation inference (TGI) using Candle models
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct CandleChatProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl CandleChatProcessor {
@@ -58,12 +59,14 @@ impl CandleChatProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe
         })
     }
 }
@@ -82,6 +85,9 @@ impl PubSubTrait for CandleChatProcessor {
     fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
         self.subscriptions.iter().collect()
     }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+    }
 }
 
 impl ArrowProcessorTrait for CandleChatProcessor {
@@ -91,6 +97,7 @@ impl ArrowProcessorTrait for CandleChatProcessor {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
@@ -696,6 +703,7 @@ pub mod bench_chat_processor {
                 },
             ],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         #[cfg(all(not(feature = "candle"), feature = "openai_api"))]
         let chat_processor = OpenAIChatProcessor::new_with_pub_sub_for(
@@ -935,6 +943,7 @@ mod tests {
                 },
             ],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = chat_processor.process(
             message,

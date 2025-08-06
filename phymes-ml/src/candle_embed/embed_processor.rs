@@ -2,17 +2,17 @@ use candle_core::{DType, Tensor};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
         common_traits::{
-            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, TokenWrapper
+            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, TokenWrapper
         },
         runtime_env::RuntimeEnv,
     },
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{
@@ -43,12 +43,13 @@ use tracing::{Level, event, instrument};
 
 use super::embed_config::CandleEmbedConfig;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct CandleEmbedProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl CandleEmbedProcessor {
@@ -57,12 +58,14 @@ impl CandleEmbedProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe
         })
     }
 }
@@ -77,9 +80,11 @@ impl PubSubTrait for CandleEmbedProcessor {
     fn get_publications(&self) -> Vec<&ArrowTablePublish> {
         self.publications.iter().collect()
     }
-
     fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
         self.subscriptions.iter().collect()
+    }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
@@ -90,6 +95,7 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 

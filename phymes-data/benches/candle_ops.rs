@@ -6,15 +6,15 @@ use parking_lot::Mutex;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, device},
+        common_traits::{device, BuildableTrait, BuilderTrait},
         runtime_env::RuntimeEnv,
         session_context::get_metrics_as_pivot_table,
     },
     table::{
         arrow_table::{
-            ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait, test_table::TestTableSizes,
+            test_table::TestTableSizes, ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait
         },
-        arrow_table_publish::ArrowTablePublish,
+        arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
     },
     task::arrow_message::{
         ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
@@ -239,6 +239,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 }],
                                 &[],
                                 &[],
+                                AllTableNamesSubscribe::new_box(),
                             );
                             let mut ops_stream = ops_processor
                                 .process(messages, metrics.clone(), runtime_env.clone())

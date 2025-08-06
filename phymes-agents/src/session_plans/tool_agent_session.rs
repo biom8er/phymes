@@ -14,7 +14,7 @@ use phymes_core::{
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
@@ -264,6 +264,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 },
             ],
             &[],
+            AllTableNamesSubscribe::new_box(),
         ));
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
@@ -285,6 +286,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ));
         } else {
             processors.push(CandleChatProcessor::new_with_pub_sub_for(
@@ -305,6 +307,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ));
         }
         processors.push(MessageParserProcessor::new_with_pub_sub_for(
@@ -331,6 +334,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 },
             ],
             &[],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.tool_processor_name,
@@ -346,6 +350,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 },
             ],
             &[self.summary_processor_name],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.hitl_processor_name,
@@ -356,6 +361,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 table_name: self.hitl_task_name.to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors.push(DataSummaryProcessor::new_with_pub_sub_for(
             self.summary_processor_name,
@@ -366,6 +372,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 table_name: self.summary_processor_name.to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors.push(ArrowProcessorEcho::new_with_pub_sub_for(
             self.session_context_name,
@@ -376,6 +383,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 table_name: self.state_messages_table_name.to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors
     }

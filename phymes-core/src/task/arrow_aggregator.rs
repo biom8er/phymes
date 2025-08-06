@@ -13,7 +13,7 @@ use crate::{
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{arrow_message::{
@@ -40,12 +40,13 @@ use tracing::{Level, event};
 /// - There is no guarantee that the order of incoming
 ///   messages is preserved
 /// - All incoming meessages MUST have the same schema
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct ArrowAggregatorProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl ArrowAggregatorProcessor {
@@ -54,12 +55,14 @@ impl ArrowAggregatorProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe
         })
     }
 }
@@ -78,6 +81,9 @@ impl PubSubTrait for ArrowAggregatorProcessor {
     fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
         self.subscriptions.iter().collect::<Vec<_>>()
     }
+    fn check_subscriptions(&self, updates: &crate::metrics::HashMap<String, bool>, state: &crate::session::common_traits::StateMap) -> bool {
+        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+    }
 }
 
 impl ArrowProcessorTrait for ArrowAggregatorProcessor {
@@ -87,6 +93,7 @@ impl ArrowProcessorTrait for ArrowAggregatorProcessor {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 

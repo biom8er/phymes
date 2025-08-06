@@ -6,12 +6,12 @@ use std::{
 
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros}, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap},
         runtime_env::RuntimeEnv,
     }, table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     }, task::{
         arrow_message::{
@@ -39,12 +39,13 @@ use super::summary_config::DataSummaryConfig;
 /// # Notes
 ///
 /// - The default role is `tool`
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct DataSummaryProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl DataSummaryProcessor {
@@ -53,12 +54,14 @@ impl DataSummaryProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe
         })
     }
 }
@@ -77,6 +80,9 @@ impl PubSubTrait for DataSummaryProcessor {
     fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
         self.subscriptions.iter().collect()
     }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+    }
 }
 
 impl ArrowProcessorTrait for DataSummaryProcessor {
@@ -86,6 +92,7 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
@@ -390,6 +397,7 @@ mod tests {
             }],
             &[],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(messages, metrics.clone(), runtime_env)?;
 

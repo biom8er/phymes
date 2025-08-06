@@ -354,7 +354,7 @@ mod test_message_history {
         },
         table::{
             arrow_table_publish::ArrowTablePublish,
-            arrow_table_subscribe::ArrowTableSubscribe,
+            arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
             stream::{RecordBatchStream, SendableRecordBatchStream},
         },
         task::{
@@ -372,12 +372,13 @@ mod test_message_history {
     };
 
     #[allow(dead_code)]
-    #[derive(Default, Debug)]
+    #[derive(Debug)]
     pub struct CandleChatMockProcessor {
         name: String,
         publications: Vec<ArrowTablePublish>,
         subscriptions: Vec<ArrowTableSubscribe>,
         forward: Vec<String>,
+        subscribe: Box<dyn SubscribeTrait>,
     }
 
     impl MappableTrait for CandleChatMockProcessor {
@@ -394,6 +395,9 @@ mod test_message_history {
         fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
             self.subscriptions.iter().collect::<Vec<_>>()
         }
+        fn check_subscriptions(&self, updates: &crate::metrics::HashMap<String, bool>, state: &crate::session::common_traits::StateMap) -> bool {
+            self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+        }
     }
 
     impl ArrowProcessorTrait for CandleChatMockProcessor {
@@ -403,6 +407,7 @@ mod test_message_history {
                 publications: vec![ArrowTablePublish::None],
                 subscriptions: vec![ArrowTableSubscribe::None],
                 forward: Vec::new(),
+                subscribe: AllTableNamesSubscribe::new_box(),
             })
         }
 

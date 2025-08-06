@@ -214,6 +214,14 @@ impl PubSubTrait for ArrowTask {
             .flat_map(|p| p.get_publications())
             .collect::<Vec<&ArrowTablePublish>>()
     }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        for processor in self.get_processors() {
+            if !processor.check_subscriptions(updates, state) {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 pub trait ArrowTaskBuilderTrait: BuilderTrait {
@@ -331,9 +339,9 @@ pub mod test_task {
         },
         table::{
             arrow_table::{
-                ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, test_table::make_test_table,
+                test_table::make_test_table, ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait
             },
-            arrow_table_publish::ArrowTablePublish,
+            arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
         },
         task::{
             arrow_message::{
@@ -425,7 +433,8 @@ pub mod test_task {
                         table_name: config_name.to_string(),
                     },
                 ],
-                &[]
+                &[],
+                AllTableNamesSubscribe::new_box()
             )])
             .build()
     }
@@ -458,7 +467,8 @@ pub mod test_task {
                         table_name: config_name.to_string(),
                     }
                 ],
-                &[]
+                &[],
+                AllTableNamesSubscribe::new_box()
             )])
             .build()
     }
@@ -489,7 +499,8 @@ pub mod test_task {
                     ArrowTableSubscribe::AlwaysFullTable {
                         table_name: config_name.to_string(),
                     }],
-                    &[]
+                    &[],
+                    AllTableNamesSubscribe::new_box()
                 ),
                 ArrowProcessorMock::new_arc(processor_name_2.as_str()),
                 ArrowProcessorMock::new_arc(processor_name_3.as_str()),

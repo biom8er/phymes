@@ -14,7 +14,7 @@ use phymes_core::{
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
@@ -93,6 +93,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ));
         } else {
             processors.push(CandleChatProcessor::new_with_pub_sub_for(
@@ -111,6 +112,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ));
         }
         processors.push(ArrowProcessorEcho::new_with_pub_sub_for(
@@ -122,6 +124,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                 table_name: self.chat_subscription_name.to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors
     }

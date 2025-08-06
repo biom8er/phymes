@@ -53,4 +53,7 @@ pub trait PubSubTrait {
         }
         map
     }
+
+    // Check if the criteria for reading the subscriptions has been full-filled
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool;
 }
