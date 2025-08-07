@@ -45,14 +45,6 @@ use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///
-/// # Supersteps
-///
-/// 1. Embed documents: session -> embed_task (chunk_processor, embed_processor)
-/// 2. Embed queries: session -> embed_task (embed_processor)
-/// 3. Vector search: -> vs_task (rel_sim_score_processor, sort_score_processor, summary_processor)
-/// 4. Chat: session -> chat_task (chat_processor)
-/// 5. End
-///
 /// # Notes
 ///
 /// * The embedding size must be specified before which is determined by the size of
@@ -629,6 +621,9 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                 ArrowTablePublish::Extend {
                     table_name: self.state_queries_table_name.to_string(),
                 },
+                ArrowTablePublish::Extend {
+                    table_name: self.state_assistant_messages_table_name.to_string(),
+                },
             ],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.state_assistant_messages_table_name.to_string(),
@@ -1151,7 +1146,7 @@ mod tests {
                 .unwrap()
                 .remove(&format!(
                     "from_{}_on_{}",
-                    doc_rag_session.session_context_name, doc_rag_session.state_messages_table_name
+                    doc_rag_session.session_context_name, doc_rag_session.state_assistant_messages_table_name
                 ))
                 .unwrap()
                 .get_message_own()

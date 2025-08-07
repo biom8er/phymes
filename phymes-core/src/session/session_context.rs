@@ -810,6 +810,7 @@ impl SessionStreamStep {
                     response_batches.extend(message_map);
                 }
                 Err(e) => {
+                    event!(Level::ERROR, "Error joining message streams: {e:?}");
                     if e.is_panic() {
                         std::panic::resume_unwind(e.into_panic());
                     } else {
@@ -900,12 +901,17 @@ impl SessionStreamStep {
 
             // Run the task and collect the stream responses
             let messages = task.get_subscriptions_from_state(updates, states);
-            for (resp_name, resp) in task.run(messages)?.into_iter() {
-                if task_name == state.try_read().unwrap().session_context.get_name() {
-                    session_streams.insert(resp_name, resp);
-                } else {
-                    response_streams.insert(resp_name, resp);
+            match task.run(messages){
+                Ok(result) => {
+                    for (resp_name, resp) in result.into_iter() {
+                        if task_name == state.try_read().unwrap().session_context.get_name() {
+                            session_streams.insert(resp_name, resp);
+                        } else {
+                            response_streams.insert(resp_name, resp);
+                        }
+                    }
                 }
+                Err(err) => event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name),
             }
         }
 

@@ -12,7 +12,7 @@ use std::sync::Arc;
 use phymes_agents::session_plans::{
     agent_session_builder::AgentSessionBuilderTrait,
     document_rag_session::{
-        self, test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query}, DocumentRAGSession
+        test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query}, DocumentRAGSession
     },
 };
 use phymes_core::{
@@ -74,16 +74,16 @@ pub async fn run_main() -> Result<()> {
         "Updates: {:?}",
         session_stream_state.try_read().unwrap().get_superstep_updates()
     );
-    println!(
-        "Messages: {:?}",
-        session_stream_state
-            .try_read()
-            .unwrap()
-            .get_session_context()
-            .get_states()
-            .get(doc_rag_session.state_messages_table_name)
-            .unwrap()
-    );
+    // println!(
+    //     "Messages: {:?}",
+    //     session_stream_state
+    //         .try_read()
+    //         .unwrap()
+    //         .get_session_context()
+    //         .get_states()
+    //         .get(doc_rag_session.state_messages_table_name)
+    //         .unwrap()
+    // );
     println!(
         "Assistant: {:?}",
         session_stream_state

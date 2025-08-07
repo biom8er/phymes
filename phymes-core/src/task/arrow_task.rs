@@ -95,7 +95,7 @@ pub trait ArrowTaskTrait:
     ///   the final message map
     fn make_outbox(&self, outbox: OutgoingMessageMap) -> OutgoingMessageMap {
         let mut map = HashMap::<String, ArrowOutgoingMessage>::new();
-        for (_name, message) in outbox.into_iter() {
+        for (name, message) in outbox.into_iter() {
             let publications = self.get_publications();
             let update = publications
                 .iter()
@@ -104,6 +104,7 @@ pub trait ArrowTaskTrait:
 
             // Skip messages that are not in the publications
             if update.is_empty() {
+                event!(Level::ERROR, "No publications found for message {} on {} from {}", &name, message.get_subject(), message.get_publisher());
                 continue;
             }
 

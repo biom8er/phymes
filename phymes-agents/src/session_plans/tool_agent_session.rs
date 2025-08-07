@@ -40,37 +40,6 @@ use arrow::{
 };
 
 /// Tool agent node with human-in-the-loop
-///
-/// # Supersteps
-///
-/// 1. Tool call: session -> chat_task (message_aggregator, chat_processor, message_parser)
-/// 2. Tool invoke: -> tool_task (config_processor, ops_processor, summary_processor)
-///    or human-in-the-loop_task (config_processor, ops_processor)
-/// 3. if tool_task: -> chat_task (message_aggregator, chat_processor, message_parser)
-///    else if human-in-the-loop_task: End
-/// 4. End
-///
-/// ## Chat Task
-///
-/// chat_task is composed of chained processors:
-/// message_aggregator -> chat_processor -> message_parser
-/// where message_aggregator combines multiple messages
-///   i.e., from parallel tool calls,
-/// chat_processor does the text generation using an LLM,
-/// and message_parser parses the LLM structured output to
-///   determine 1) the destination of the messsage(s) and
-///   2) split the messages into seperate tool calls
-///
-/// ## Tool Task
-///
-/// tool_task is composed of a chained processor:
-/// config_processor -> ops_processor -> summary_processor
-/// where config_processor parses the tool call and
-///   creates the ops_config
-/// where ops_processor performs the computation
-///   according to the ops_config,
-/// and summary_processor formats computation result
-///   into a message for the chat_task
 pub struct ToolAgentSession<'a> {
     /// Text generation inference capabilities (i.e, the agent)
     pub chat_task_name: &'a str,
@@ -84,6 +53,7 @@ pub struct ToolAgentSession<'a> {
     pub message_aggregator_processor_1_name: &'a str,
     pub message_aggregator_task_2_name: &'a str,
     pub message_aggregator_processor_2_name: &'a str,
+    pub message_aggregator_runtime_env_name: &'a str, // sometimes there are locks with the other aggregator
     /// The tool node (one of the CandleOps i.e., sort op)
     pub tool_task_name: &'a str,
     pub tool_processor_name: &'a str,
@@ -121,6 +91,7 @@ impl Default for ToolAgentSession<'_> {
             message_aggregator_processor_1_name: "message_aggregator_processor_1",
             message_aggregator_task_2_name: "message_aggregator_task_2",
             message_aggregator_processor_2_name: "message_aggregator_processor_2",
+            message_aggregator_runtime_env_name: "message_aggregator_rt_1",
             state_messages_table_name: "messages",
             state_user_messages_table_name: "user_messages",
             state_assistant_messages_table_name: "assistant_messages",
@@ -241,7 +212,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
         });
         tasks.push(TaskPlan {
             task_name: self.message_aggregator_task_2_name.to_string(),
-            runtime_env_name: self.tool_runtime_env_name.to_string(),
+            runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
             processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
         });
         tasks.push(TaskPlan {
@@ -435,6 +406,8 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             self.session_context_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.state_user_messages_table_name.to_string(),
+            },ArrowTablePublish::Extend {
+                table_name: self.state_assistant_messages_table_name.to_string(),
             }],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.state_assistant_messages_table_name.to_string(),
@@ -447,6 +420,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
 
     fn make_runtime_envs(&self) -> Result<Vec<RuntimeEnv>> {
         Ok(vec![
+            RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
             RuntimeEnv::new().with_name(self.chat_runtime_env_name),
             RuntimeEnv::new().with_name(self.tool_runtime_env_name),
             RuntimeEnv::new().with_name("rt_default"),
