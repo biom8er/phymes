@@ -282,13 +282,13 @@ mod tests {
                 .unwrap()
                 .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
         );
-        assert!(functions.get(4).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"Format lhs_arg value as JSON according to the schema {\"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your response for the user\"")
+        assert!(functions.get(4).unwrap().contains("\"lhs_args\":{\"type\":\"string\",\"description\":\"Format lhs_args value according to the schema {\\\"content\\\": \\\"`RESPONSE`\\\"} where `RESPONSE` is where you put your response for the user\"")
         );
         assert!(
             functions
                 .get(4)
                 .unwrap()
-                .contains("\"required\":[\"lhs_values\"]}}}")
+                .contains("\"required\":[\"lhs_args\"]}}}")
         );
     }
 

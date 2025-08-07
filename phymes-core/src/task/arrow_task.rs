@@ -26,12 +26,12 @@ use crate::{
     metrics::{ArrowTaskMetricsSet, HashMap, MetricsSet},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap,
-            RunnableTrait, StateMap},
-        runtime_env::RuntimeEnv},
-    table::{
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe},
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, RunnableTrait,
+            StateMap,
+        },
+        runtime_env::RuntimeEnv,
+    },
+    table::{arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::ArrowTableSubscribe},
 };
 
 /// Trait to implement the actual task which could involve one or
@@ -104,7 +104,13 @@ pub trait ArrowTaskTrait:
 
             // Skip messages that are not in the publications
             if update.is_empty() {
-                event!(Level::ERROR, "No publications found for message {} on {} from {}", &name, message.get_subject(), message.get_publisher());
+                event!(
+                    Level::ERROR,
+                    "No publications found for message {} on {} from {}",
+                    &name,
+                    message.get_subject(),
+                    message.get_publisher()
+                );
                 continue;
             }
 
@@ -206,12 +212,14 @@ impl ArrowTaskTrait for ArrowTask {
 
 impl PubSubTrait for ArrowTask {
     fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
-        self.get_processors().iter()
+        self.get_processors()
+            .iter()
             .flat_map(|p| p.get_subscriptions())
             .collect::<Vec<&ArrowTableSubscribe>>()
     }
     fn get_publications(&self) -> Vec<&ArrowTablePublish> {
-        self.get_processors().iter()
+        self.get_processors()
+            .iter()
             .flat_map(|p| p.get_publications())
             .collect::<Vec<&ArrowTablePublish>>()
     }
@@ -340,9 +348,10 @@ pub mod test_task {
         },
         table::{
             arrow_table::{
-                test_table::make_test_table, ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait
+                ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, test_table::make_test_table,
             },
-            arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
+            arrow_table_publish::ArrowTablePublish,
+            arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
         },
         task::{
             arrow_message::{
@@ -399,11 +408,11 @@ pub mod test_task {
         Ok(state)
     }
 
-    pub fn make_state_updates(table_names: &[&str], updates: &[bool]) -> HashMap::<String, bool> {        
+    pub fn make_state_updates(table_names: &[&str], updates: &[bool]) -> HashMap<String, bool> {
         let mut updated = HashMap::<String, bool>::new();
         for (i, table_name) in table_names.iter().enumerate() {
             let _ = updated.insert(table_name.to_string(), *updates.get(i).unwrap());
-        }        
+        }
         updated
     }
 
@@ -429,7 +438,8 @@ pub mod test_task {
                 &[ArrowTablePublish::Extend {
                     table_name: table_name.to_string(),
                 }],
-                &[ArrowTableSubscribe::OnUpdateFullTable {
+                &[
+                    ArrowTableSubscribe::OnUpdateFullTable {
                         table_name: table_name.to_string(),
                     },
                     ArrowTableSubscribe::AlwaysFullTable {
@@ -437,7 +447,7 @@ pub mod test_task {
                     },
                 ],
                 &[],
-                AllTableNamesSubscribe::new_box()
+                AllTableNamesSubscribe::new_box(),
             )])
             .build()
     }
@@ -448,7 +458,7 @@ pub mod test_task {
         table_name_1: &str,
         table_name_2: &str,
         config_name: &str,
-        metrics: ArrowTaskMetricsSet
+        metrics: ArrowTaskMetricsSet,
     ) -> Result<ArrowTask> {
         let processor_name = format!("{name}_processor");
         ArrowTask::get_builder()
@@ -460,7 +470,8 @@ pub mod test_task {
                 &[ArrowTablePublish::Extend {
                     table_name: table_name_1.to_string(),
                 }],
-                &[ArrowTableSubscribe::OnUpdateFullTable {
+                &[
+                    ArrowTableSubscribe::OnUpdateFullTable {
                         table_name: table_name_1.to_string(),
                     },
                     ArrowTableSubscribe::OnUpdateFullTable {
@@ -468,10 +479,10 @@ pub mod test_task {
                     },
                     ArrowTableSubscribe::AlwaysFullTable {
                         table_name: config_name.to_string(),
-                    }
+                    },
                 ],
                 &[],
-                AllTableNamesSubscribe::new_box()
+                AllTableNamesSubscribe::new_box(),
             )])
             .build()
     }
@@ -496,14 +507,16 @@ pub mod test_task {
                     &[ArrowTablePublish::Extend {
                         table_name: table_name.to_string(),
                     }],
-                    &[ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: table_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: config_name.to_string(),
-                    }],
+                    &[
+                        ArrowTableSubscribe::OnUpdateFullTable {
+                            table_name: table_name.to_string(),
+                        },
+                        ArrowTableSubscribe::AlwaysFullTable {
+                            table_name: config_name.to_string(),
+                        },
+                    ],
                     &[],
-                    AllTableNamesSubscribe::new_box()
+                    AllTableNamesSubscribe::new_box(),
                 ),
                 ArrowProcessorMock::new_arc(processor_name_2.as_str()),
                 ArrowProcessorMock::new_arc(processor_name_3.as_str()),
@@ -693,7 +706,8 @@ mod tests {
         )?;
         let messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
-            &test_task::make_state("test_table", "test_config")?);
+            &test_task::make_state("test_table", "test_config")?,
+        );
         assert_eq!(messages.len(), 2);
         assert!(messages.get("test_table").is_some());
         assert_eq!(
@@ -717,7 +731,8 @@ mod tests {
         )?;
         let messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[false]),
-            &test_task::make_state("test_table", "test_config")?);
+            &test_task::make_state("test_table", "test_config")?,
+        );
         assert_eq!(messages.len(), 1);
         assert!(messages.get("test_config").is_some());
         assert_eq!(
@@ -736,7 +751,8 @@ mod tests {
         )?;
         let messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
-            &test_task::make_state("test_table", "test_config")?);
+            &test_task::make_state("test_table", "test_config")?,
+        );
         assert_eq!(messages.len(), 2);
         assert!(messages.get("test_table").is_some());
         assert_eq!(
@@ -840,7 +856,8 @@ mod tests {
         )?;
         let input = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
-            &test_task::make_state("test_table", "test_config")?);
+            &test_task::make_state("test_table", "test_config")?,
+        );
         let mut response = test_task.run(input)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
@@ -890,7 +907,8 @@ mod tests {
         )?;
         let input = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
-            &test_task::make_state("test_table", "test_config")?);
+            &test_task::make_state("test_table", "test_config")?,
+        );
         let mut response = test_task.run(input)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());

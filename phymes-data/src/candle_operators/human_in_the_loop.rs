@@ -5,7 +5,15 @@ use crate::candle_operators::data_operator::make_error_record_batch;
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
 use candle_core::Device;
-use phymes_core::{schemas::{chat_completion, message_history::{create_messages_record_batch, create_timestamp_micros}, types}, session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
+use phymes_core::{
+    schemas::{
+        chat_completion,
+        message_history::{create_messages_record_batch, create_timestamp_micros},
+        types,
+    },
+    session::common_traits::{BuildableTrait, BuilderTrait},
+    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+};
 use std::collections::HashMap;
 
 /// Redirect a tool call to the user for intervention
@@ -36,7 +44,7 @@ impl DataOperatorTrait for HumanInTheLoop {
             "lhs_args".to_string(),
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
-                description: Some("Format lhs_arg value as JSON according to the schema {\"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your response for the user".to_string()),
+                description: Some("Format lhs_args value according to the schema {\"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your response for the user".to_string()),
                 ..Default::default()
             }),
         );
@@ -77,5 +85,9 @@ fn create_hitl_record_batch(lhs_args: &[RecordBatch]) -> Result<RecordBatch> {
         .first()
         .unwrap()
         .to_string();
-    create_messages_record_batch(vec!["assistant".to_string()], vec![content], vec![create_timestamp_micros()])
+    create_messages_record_batch(
+        vec!["assistant".to_string()],
+        vec![content],
+        vec![create_timestamp_micros()],
+    )
 }

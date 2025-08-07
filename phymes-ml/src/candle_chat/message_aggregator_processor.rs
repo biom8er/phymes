@@ -5,43 +5,57 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::message_history::{create_messages_fields, create_messages_schema}, session::{
-        common_traits::{device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    schemas::message_history::{create_messages_fields, create_messages_schema},
+    session::{
+        common_traits::{
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, device,
+        },
         runtime_env::RuntimeEnv,
-    }, table::{
+    },
+    table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
-    }, task::{
+    },
+    task::{
         arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage,
-            ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
+            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
+            ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
-    }
+        arrow_processor::ArrowProcessorTrait,
+        publish_subscribe::PubSubTrait,
+    },
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
     datatypes::{Fields, SchemaRef},
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_data::{candle_data::{data_config::DataConfig, tensor_service::CandleTensorService}, candle_operators::data_operator::DataOperatorTrait};
+use phymes_data::{
+    candle_data::{data_config::DataConfig, tensor_service::CandleTensorService},
+    candle_operators::data_operator::DataOperatorTrait,
+};
 use tracing::{Level, event, instrument};
 
 /// Collect messages that match a given schema
-/// 
+///
 /// # Arguments
 /// * `messages` - The messages to process
 /// * `fields` - The fields of the schema that need to match
-/// 
+///
 /// # Returns
 /// Vec of extracted messages
-pub fn collect_messages_by_schema(message: &mut OutgoingMessageMap, fields: &Fields) -> Vec<Pin<Box<dyn RecordBatchStream + Send>>> {
-    message.extract_if(|_msg_name, msg| msg.get_message().schema().fields().contains(&fields))
+pub fn collect_messages_by_schema(
+    message: &mut OutgoingMessageMap,
+    fields: &Fields,
+) -> Vec<Pin<Box<dyn RecordBatchStream + Send>>> {
+    message
+        .extract_if(|_msg_name, msg| msg.get_message().schema().fields().contains(fields))
         .map(|(_msg_name, msg)| msg.get_message_own())
         .collect::<Vec<_>>()
 }
@@ -75,7 +89,7 @@ impl MessageAggregatorProcessor {
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe
+            subscribe,
         })
     }
 }
@@ -86,7 +100,7 @@ impl MappableTrait for MessageAggregatorProcessor {
     }
 }
 
-impl PubSubTrait for MessageAggregatorProcessor {    
+impl PubSubTrait for MessageAggregatorProcessor {
     fn get_publications(&self) -> Vec<&ArrowTablePublish> {
         self.publications.iter().collect()
     }
@@ -94,7 +108,8 @@ impl PubSubTrait for MessageAggregatorProcessor {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
@@ -352,7 +367,7 @@ mod tests {
                 .with_message(make_test_table("t1", 4, 8, 3)?.to_record_batch_stream())
                 .build()?,
         );
-        
+
         // Make the config
         let config = DataConfig {
             lhs_name: "".to_string(),
@@ -408,26 +423,41 @@ mod tests {
         .with_name("")
         .build()?;
         assert_eq!(partitions.count_rows(), 8);
-        assert_eq!(partitions.get_column_as_vec_str("role"), &[
-            "user",
-            "user",
-            "assistant",
-            "assistant",
-            "user",
-            "user",
-            "assistant",
-            "assistant"]);
-        assert_eq!(partitions.get_column_as_vec_str("content"), &[
-            "Hi!",
-            "Hi!",
-            "magic!",
-            "magic!",
-            "What is Deep Learning?",
-            "What is Deep Learning?",
-            "Hello how can I help?",
-            "Hello how can I help?"]);
-        assert_eq!(partitions.get_column_as_vec_primitive::<i64>("timestamp").unwrap(), &[
-            1754224496, 1754224496, 1754311256, 1754311256, 1754398256, 1754398256, 1754484956, 1754484956]);
+        assert_eq!(
+            partitions.get_column_as_vec_str("role"),
+            &[
+                "user",
+                "user",
+                "assistant",
+                "assistant",
+                "user",
+                "user",
+                "assistant",
+                "assistant"
+            ]
+        );
+        assert_eq!(
+            partitions.get_column_as_vec_str("content"),
+            &[
+                "Hi!",
+                "Hi!",
+                "magic!",
+                "magic!",
+                "What is Deep Learning?",
+                "What is Deep Learning?",
+                "Hello how can I help?",
+                "Hello how can I help?"
+            ]
+        );
+        assert_eq!(
+            partitions
+                .get_column_as_vec_primitive::<i64>("timestamp")
+                .unwrap(),
+            &[
+                1754224496, 1754224496, 1754311256, 1754311256, 1754398256, 1754398256, 1754484956,
+                1754484956
+            ]
+        );
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 8);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
 

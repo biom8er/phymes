@@ -14,23 +14,30 @@ use phymes_core::{
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, ArrowTableSubscribe, SubscribeTrait},
+        arrow_table_subscribe::{
+            AllTableNamesSubscribe, AnyTableNameSubscribe, ArrowTableSubscribe, SubscribeTrait,
+        },
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
 use phymes_data::{
     candle_data::{
-        data_config::DataConfig, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor
+        data_config::DataConfig, data_processor::CandleDataProcessor,
+        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
     },
     candle_operators::which_operator::WhichCandleOperator,
 };
-#[cfg(feature = "openai_api")]
-use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_asset::openai_which::WhichOpenAIAsset};
 use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
-        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor, message_aggregator_processor::MessageAggregatorProcessor, message_parser_processor::MessageParserProcessor
+        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
+        message_aggregator_processor::MessageAggregatorProcessor,
+        message_parser_processor::MessageParserProcessor,
     },
+};
+#[cfg(feature = "openai_api")]
+use phymes_ml::{
+    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
 };
 
 use arrow::{
@@ -47,7 +54,12 @@ pub struct ChatContentSubscribe {
 }
 
 impl SubscribeTrait for ChatContentSubscribe {
-    fn check_subscriptions(&self, _subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, _state: &StateMap) -> bool {
+    fn check_subscriptions(
+        &self,
+        _subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        _state: &StateMap,
+    ) -> bool {
         let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
         let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
         *tool || *user
@@ -56,7 +68,7 @@ impl SubscribeTrait for ChatContentSubscribe {
         Box::new(Self {
             user_message_table_name: "user_messages".to_string(),
             tool_message_table_name: "tool_messages".to_string(),
-        })        
+        })
     }
 }
 
@@ -221,56 +233,54 @@ impl<'a> ToolAgentSession<'a> {
 
 impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
     fn make_task_plan(&self) -> Vec<TaskPlan> {
-        let mut tasks = Vec::new();
-
-        // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
-        //  when chained or nested within other streams
-        // DM: another tool agent session publish/subscribe network needs to be
-        //  made for openai_api access that breaks down the chat task into seperate
-        //  tasks for each processor...
-        tasks.push(TaskPlan {
-            task_name: self.message_aggregator_task_1_name.to_string(),
-            runtime_env_name: self.tool_runtime_env_name.to_string(),
-            processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.message_aggregator_task_2_name.to_string(),
-            runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
-            processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.chat_task_name.to_string(),
-            runtime_env_name: self.chat_runtime_env_name.to_string(),
-            processor_names: vec![self.chat_processor_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.message_parser_task_name.to_string(),
-            runtime_env_name: self.chat_runtime_env_name.to_string(),
-            processor_names: vec![self.message_parser_processor_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.tool_task_name.to_string(),
-            runtime_env_name: self.tool_runtime_env_name.to_string(),
-            processor_names: vec![
-                self.tool_processor_name.to_string(),
-                self.summary_processor_1_name.to_string(),
-            ],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.hitl_task_name.to_string(),
-            runtime_env_name: self.tool_runtime_env_name.to_string(),
-            processor_names: vec![
-                self.hitl_task_name.to_string(),
-                self.summary_processor_2_name.to_string(),
-            ],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.session_context_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
-            processor_names: vec![self.session_context_name.to_string()],
-        });
-
-        tasks
+        vec![
+            // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
+            //  when chained or nested within other streams
+            // DM: another tool agent session publish/subscribe network needs to be
+            //  made for openai_api access that breaks down the chat task into seperate
+            //  tasks for each processor...
+            TaskPlan {
+                task_name: self.message_aggregator_task_1_name.to_string(),
+                runtime_env_name: self.tool_runtime_env_name.to_string(),
+                processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.message_aggregator_task_2_name.to_string(),
+                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
+                processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.chat_task_name.to_string(),
+                runtime_env_name: self.chat_runtime_env_name.to_string(),
+                processor_names: vec![self.chat_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.message_parser_task_name.to_string(),
+                runtime_env_name: self.chat_runtime_env_name.to_string(),
+                processor_names: vec![self.message_parser_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.tool_task_name.to_string(),
+                runtime_env_name: self.tool_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.tool_processor_name.to_string(),
+                    self.summary_processor_1_name.to_string(),
+                ],
+            },
+            TaskPlan {
+                task_name: self.hitl_task_name.to_string(),
+                runtime_env_name: self.tool_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.hitl_task_name.to_string(),
+                    self.summary_processor_2_name.to_string(),
+                ],
+            },
+            TaskPlan {
+                task_name: self.session_context_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![self.session_context_name.to_string()],
+            },
+        ]
     }
 
     fn make_processors(&self) -> Vec<Arc<dyn ArrowProcessorTrait>> {
@@ -436,11 +446,14 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
         ));
         processors.push(ArrowProcessorEcho::new_with_pub_sub_for(
             self.session_context_name,
-            &[ArrowTablePublish::Extend {
-                table_name: self.state_user_messages_table_name.to_string(),
-            },ArrowTablePublish::Extend {
-                table_name: self.state_assistant_messages_table_name.to_string(),
-            }],
+            &[
+                ArrowTablePublish::Extend {
+                    table_name: self.state_user_messages_table_name.to_string(),
+                },
+                ArrowTablePublish::Extend {
+                    table_name: self.state_assistant_messages_table_name.to_string(),
+                },
+            ],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.state_assistant_messages_table_name.to_string(),
             }],
@@ -595,6 +608,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
 pub mod test_tool_agent_session {
     use super::*;
     use parking_lot::RwLock;
+    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
     use phymes_core::{
         metrics::HashMap,
         session::{
@@ -606,7 +620,6 @@ pub mod test_tool_agent_session {
             ArrowMessageBuilderTrait,
         },
     };
-    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
 
     pub fn bench_tool_agent_session<'a>(
         session_stream_state: Arc<RwLock<SessionStreamState>>,
@@ -776,16 +789,26 @@ mod tests {
                     assert_eq!(metric.value().as_usize(), 3);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == tool_agent_session.summary_processor_1_name
+                    && metric.task().as_ref().unwrap()
+                        == tool_agent_session.summary_processor_1_name
                 {
                     assert_eq!(metric.value().as_usize(), 1);
                 }
             }
 
             // DM: Bug in Llama model system template that requires it to only call tools instead of respond...
-            if cfg!(feature = "candle") {
-                assert_eq!(json_data.first().unwrap().get("role").unwrap(), "assistant");
-            }
+            let roles = ["assistant", "tool"];
+            assert!(
+                roles.contains(
+                    &json_data
+                        .first()
+                        .unwrap()
+                        .get("role")
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                )
+            );
             assert!(json_data.first().unwrap().get("content").is_some());
         }
 

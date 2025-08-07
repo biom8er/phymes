@@ -10,8 +10,8 @@ use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
 use phymes_core::{
-    schemas::message_history::{create_timestamp_str, convert_timestamp_micros_to_str},
-    table::arrow_table_publish::ArrowTablePublish
+    schemas::message_history::{convert_timestamp_micros_to_str, create_timestamp_str},
+    table::arrow_table_publish::ArrowTablePublish,
 };
 use phymes_server::handlers::{
     session_info::{SessionResponse, SessionResponseFormat},
@@ -99,15 +99,12 @@ pub fn messaging_interface_view() -> Element {
                         });
                     for row in json_rows.iter() {
                         if row.get("role").is_some() {
-
                             sync_current_message_state.send(SyncCurrentMessageState {
                                 role: row.get("role").unwrap().as_str().unwrap().to_string(),
                                 content: row.get("content").unwrap().as_str().unwrap().to_string(),
-                                timestamp: convert_timestamp_micros_to_str(row
-                                    .get("timestamp")
-                                    .unwrap()
-                                    .as_i64()
-                                    .unwrap()),
+                                timestamp: convert_timestamp_micros_to_str(
+                                    row.get("timestamp").unwrap().as_i64().unwrap(),
+                                ),
                             });
                         }
                     }

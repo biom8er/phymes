@@ -6,15 +6,16 @@ use parking_lot::Mutex;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{device, BuildableTrait, BuilderTrait},
+        common_traits::{BuildableTrait, BuilderTrait, device},
         runtime_env::RuntimeEnv,
         session_context::get_metrics_as_pivot_table,
     },
     table::{
         arrow_table::{
-            test_table::TestTableSizes, ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait
+            ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait, test_table::TestTableSizes,
         },
-        arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
+        arrow_table_publish::ArrowTablePublish,
+        arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
     },
     task::arrow_message::{
         ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,

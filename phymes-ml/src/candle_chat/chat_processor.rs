@@ -7,29 +7,38 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "openai_api")]
 use crate::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::{chat_completion::Tool, message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros, MessageHistoryTraitExt}}, session::{
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    schemas::{
+        chat_completion::Tool,
+        message_history::{
+            MessageHistoryTraitExt, create_messages_record_batch, create_messages_schema,
+            create_timestamp_micros,
+        },
+    },
+    session::{
         common_traits::{
-            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, TokenWrapper
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
+            TokenWrapper, device,
         },
         runtime_env::RuntimeEnv,
-    }, table::{
+    },
+    table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
-    }, task::{
+    },
+    task::{
         arrow_message::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
-    }
+        arrow_processor::ArrowProcessorTrait,
+        publish_subscribe::PubSubTrait,
+    },
 };
 
-use arrow::{
-    datatypes::SchemaRef,
-    record_batch::RecordBatch,
-};
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
 use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
@@ -66,7 +75,7 @@ impl CandleChatProcessor {
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe
+            subscribe,
         })
     }
 }
@@ -77,7 +86,7 @@ impl MappableTrait for CandleChatProcessor {
     }
 }
 
-impl PubSubTrait for CandleChatProcessor {    
+impl PubSubTrait for CandleChatProcessor {
     fn get_publications(&self) -> Vec<&ArrowTablePublish> {
         self.publications.iter().collect()
     }
@@ -86,7 +95,8 @@ impl PubSubTrait for CandleChatProcessor {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
@@ -463,7 +473,11 @@ impl Stream for CandleChatStream {
             );
 
             // Wrap into a record batch
-            let batch = create_messages_record_batch(vec!["assistant".to_string()], vec![content.to_string()], vec![create_timestamp_micros()])?;
+            let batch = create_messages_record_batch(
+                vec!["assistant".to_string()],
+                vec![content.to_string()],
+                vec![create_timestamp_micros()],
+            )?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -517,7 +531,11 @@ impl Stream for CandleChatStream {
             }
 
             // Wrap into a record batch
-            let batch = create_messages_record_batch(vec!["assistant".to_string()], vec![content.to_string()], vec![create_timestamp_micros()])?;
+            let batch = create_messages_record_batch(
+                vec!["assistant".to_string()],
+                vec![content.to_string()],
+                vec![create_timestamp_micros()],
+            )?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -535,7 +553,11 @@ impl Stream for CandleChatStream {
                 .map_err(candle_core::Error::msg)
             {
                 // Wrap into a record batch
-                let batch = create_messages_record_batch(vec!["assistant".to_string()], vec![rest.to_string()], vec![create_timestamp_micros()])?;
+                let batch = create_messages_record_batch(
+                    vec!["assistant".to_string()],
+                    vec![rest.to_string()],
+                    vec![create_timestamp_micros()],
+                )?;
 
                 // record the poll
                 Poll::Ready(Some(Ok(batch)))
@@ -635,7 +657,10 @@ pub fn process_prompt_chat(
 }
 
 pub mod bench_chat_processor {
-    use phymes_core::{metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt, session::runtime_env::RuntimeEnvTrait};
+    use phymes_core::{
+        metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt,
+        session::runtime_env::RuntimeEnvTrait,
+    };
 
     use super::*;
 
@@ -722,6 +747,7 @@ pub mod bench_chat_processor {
                 },
             ],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = chat_processor.process(
             message,
@@ -742,7 +768,10 @@ pub mod bench_chat_processor {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt, session::runtime_env::RuntimeEnvTrait};
+    use phymes_core::{
+        metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt,
+        session::runtime_env::RuntimeEnvTrait,
+    };
 
     use crate::candle_assets::candle_which::{load_model_asset_path, load_tokenizer};
 

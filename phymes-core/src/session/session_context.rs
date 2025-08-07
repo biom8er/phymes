@@ -34,7 +34,7 @@ use crate::task::{
         ArrowOutgoingMessage, ArrowOutgoingMessageTrait,
     },
     arrow_task::ArrowTaskTrait,
-    publish_subscribe::PubSubTrait
+    publish_subscribe::PubSubTrait,
 };
 
 /// Get the metrics for multiple sessions as a table
@@ -899,7 +899,7 @@ impl SessionStreamStep {
 
             // Run the task and collect the stream responses
             let messages = task.get_subscriptions_from_state(updates, states);
-            match task.run(messages){
+            match task.run(messages) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
                         if task_name == state.try_read().unwrap().session_context.get_name() {
@@ -1636,36 +1636,36 @@ mod tests {
                 .into_iter()
                 .collect::<HashSet<_>>()
         );
-        assert_eq!(
-            init.get("task_1")
-                .unwrap()
-                .keys()
-                .map(|k| k.as_str())
-                .collect::<Vec<_>>(),
-            &["state_1"]
-        );
+        let mut subscriptions = init
+            .get("task_1")
+            .unwrap()
+            .keys()
+            .map(|k| k.as_str())
+            .collect::<Vec<_>>();
+        subscriptions.sort();
+        assert_eq!(subscriptions, &["config_1", "state_1"]);
         for (_k, v) in init.get("task_1").unwrap() {
             assert!(!v);
         }
-        assert_eq!(
-            init.get("task_2")
-                .unwrap()
-                .keys()
-                .map(|k| k.as_str())
-                .collect::<Vec<_>>(),
-            &["state_2"]
-        );
+        let mut subscriptions = init
+            .get("task_2")
+            .unwrap()
+            .keys()
+            .map(|k| k.as_str())
+            .collect::<Vec<_>>();
+        subscriptions.sort();
+        assert_eq!(subscriptions, &["config_2", "state_2"]);
         for (_k, v) in init.get("task_2").unwrap() {
             assert!(!v);
         }
-        assert_eq!(
-            init.get("task_3")
-                .unwrap()
-                .keys()
-                .map(|k| k.as_str())
-                .collect::<Vec<_>>(),
-            &["state_3"]
-        );
+        let mut subscriptions = init
+            .get("task_3")
+            .unwrap()
+            .keys()
+            .map(|k| k.as_str())
+            .collect::<Vec<_>>();
+        subscriptions.sort();
+        assert_eq!(subscriptions, &["config_3", "state_3"]);
         for (_k, v) in init.get("task_3").unwrap() {
             assert!(!v);
         }

@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 use crate::{metrics::HashMap, session::common_traits::StateMap};
 
@@ -53,20 +53,23 @@ impl ArrowTableSubscribe {
 /// Subscribe to an arrow table
 pub trait ArrowTableSubscribeTrait: ArrowTableTrait {
     /// Implement the subscription
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `updated` - whether the table has been updated or not
     /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
-    fn subscribe_table(&self, subscribe: &ArrowTableSubscribe, updated: bool)
-    -> Option<SendableRecordBatchStream>;
+    fn subscribe_table(
+        &self,
+        subscribe: &ArrowTableSubscribe,
+        updated: bool,
+    ) -> Option<SendableRecordBatchStream>;
 }
 
 impl ArrowTableSubscribeTrait for ArrowTable {
     fn subscribe_table(
         &self,
         subscribe: &ArrowTableSubscribe,
-        updated: bool
+        updated: bool,
     ) -> Option<SendableRecordBatchStream> {
         match subscribe {
             ArrowTableSubscribe::AlwaysFullTable { table_name: _ } => {
@@ -80,7 +83,7 @@ impl ArrowTableSubscribeTrait for ArrowTable {
                     Some(self.to_record_batch_stream())
                 } else {
                     None
-                }                
+                }
             }
             ArrowTableSubscribe::OnUpdateLastRecordBatch { table_name: _ } => {
                 if updated {
@@ -97,7 +100,12 @@ impl ArrowTableSubscribeTrait for ArrowTable {
 
 /// Determine when all subscriptions are ready
 pub trait SubscribeTrait: Debug + Send + Sync {
-    fn check_subscriptions(&self, subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, state: &StateMap) -> bool;
+    fn check_subscriptions(
+        &self,
+        subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        state: &StateMap,
+    ) -> bool;
     fn new_box() -> Box<dyn SubscribeTrait>
     where
         Self: Sized;
@@ -108,12 +116,18 @@ pub trait SubscribeTrait: Debug + Send + Sync {
 pub struct AlwaysSubscribe;
 
 impl SubscribeTrait for AlwaysSubscribe {
-    fn check_subscriptions(&self, _subscriptions: &[ArrowTableSubscribe], _updates: &HashMap<String, bool>, _state: &StateMap) -> bool {
+    fn check_subscriptions(
+        &self,
+        _subscriptions: &[ArrowTableSubscribe],
+        _updates: &HashMap<String, bool>,
+        _state: &StateMap,
+    ) -> bool {
         true
-    }    
+    }
     fn new_box() -> Box<dyn SubscribeTrait>
     where
-        Self: Sized {
+        Self: Sized,
+    {
         Box::new(Self)
     }
 }
@@ -123,7 +137,12 @@ impl SubscribeTrait for AlwaysSubscribe {
 pub struct AnyTableNameSubscribe;
 
 impl SubscribeTrait for AnyTableNameSubscribe {
-    fn check_subscriptions(&self, subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, _state: &StateMap) -> bool {
+    fn check_subscriptions(
+        &self,
+        subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        _state: &StateMap,
+    ) -> bool {
         let mut is_update_count: usize = 0;
         for subscription in subscriptions.iter() {
             if subscription.is_update() {
@@ -136,7 +155,7 @@ impl SubscribeTrait for AnyTableNameSubscribe {
         is_update_count == 0
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
-        Box::new(Self {})        
+        Box::new(Self {})
     }
 }
 
@@ -145,16 +164,23 @@ impl SubscribeTrait for AnyTableNameSubscribe {
 pub struct AllTableNamesSubscribe;
 
 impl SubscribeTrait for AllTableNamesSubscribe {
-    fn check_subscriptions(&self, subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, _state: &StateMap) -> bool {
+    fn check_subscriptions(
+        &self,
+        subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        _state: &StateMap,
+    ) -> bool {
         for subscription in subscriptions.iter() {
-            if subscription.is_update() & !updates.get(subscription.get_table_name()).unwrap_or(&true) {
+            if subscription.is_update()
+                & !updates.get(subscription.get_table_name()).unwrap_or(&true)
+            {
                 return false;
             }
         }
         true
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
-        Box::new(Self {})        
+        Box::new(Self {})
     }
 }
 
@@ -163,15 +189,31 @@ impl SubscribeTrait for AllTableNamesSubscribe {
 pub struct AnyTableSchemaSubscribe;
 
 impl SubscribeTrait for AnyTableSchemaSubscribe {
-    fn check_subscriptions(&self, subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+    fn check_subscriptions(
+        &self,
+        subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        state: &StateMap,
+    ) -> bool {
         let mut is_update_count: usize = 0;
         for subscription in subscriptions.iter() {
             if subscription.is_update() {
                 is_update_count += 1;
                 for (table_name, update) in updates {
-                    if state.get(subscription.get_table_name()).unwrap().try_read().unwrap().get_schema().eq(
-                        &state.get(table_name).unwrap().try_read().unwrap().get_schema())
-                        & *update {
+                    if state
+                        .get(subscription.get_table_name())
+                        .unwrap()
+                        .try_read()
+                        .unwrap()
+                        .get_schema()
+                        .eq(&state
+                            .get(table_name)
+                            .unwrap()
+                            .try_read()
+                            .unwrap()
+                            .get_schema())
+                        & *update
+                    {
                         return true;
                     }
                 }
@@ -180,7 +222,7 @@ impl SubscribeTrait for AnyTableSchemaSubscribe {
         is_update_count == 0
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
-        Box::new(Self {})        
+        Box::new(Self {})
     }
 }
 
@@ -189,13 +231,29 @@ impl SubscribeTrait for AnyTableSchemaSubscribe {
 pub struct AllTableSchemasSubscribe;
 
 impl SubscribeTrait for AllTableSchemasSubscribe {
-    fn check_subscriptions(&self, subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+    fn check_subscriptions(
+        &self,
+        subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        state: &StateMap,
+    ) -> bool {
         for subscription in subscriptions.iter() {
             if subscription.is_update() {
                 for (table_name, update) in updates {
-                    if state.get(subscription.get_table_name()).unwrap().try_read().unwrap().get_schema().eq(
-                        &state.get(table_name).unwrap().try_read().unwrap().get_schema())
-                        & !*update {
+                    if state
+                        .get(subscription.get_table_name())
+                        .unwrap()
+                        .try_read()
+                        .unwrap()
+                        .get_schema()
+                        .eq(&state
+                            .get(table_name)
+                            .unwrap()
+                            .try_read()
+                            .unwrap()
+                            .get_schema())
+                        & !*update
+                    {
                         return false;
                     }
                 }
@@ -204,7 +262,7 @@ impl SubscribeTrait for AllTableSchemasSubscribe {
         true
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
-        Box::new(Self {})        
+        Box::new(Self {})
     }
 }
 
@@ -220,14 +278,17 @@ mod test_subscribe {
     #[allow(dead_code)]
     pub fn make_test_state() -> StateMap {
         let mut state = HashMap::<String, Arc<RwLock<ArrowTable>>>::new();
-        state.insert("t1".to_string(), Arc::new(RwLock::new(
-            make_test_table("t1", 1, 0, 1).unwrap()))
+        state.insert(
+            "t1".to_string(),
+            Arc::new(RwLock::new(make_test_table("t1", 1, 0, 1).unwrap())),
         );
-        state.insert("t2".to_string(), Arc::new(RwLock::new(
-            make_test_table("t2", 1, 0, 1).unwrap()))
+        state.insert(
+            "t2".to_string(),
+            Arc::new(RwLock::new(make_test_table("t2", 1, 0, 1).unwrap())),
         );
-        state.insert("t3".to_string(), Arc::new(RwLock::new(
-            make_test_table("t3", 1, 0, 1).unwrap()))
+        state.insert(
+            "t3".to_string(),
+            Arc::new(RwLock::new(make_test_table("t3", 1, 0, 1).unwrap())),
         );
         state
     }
@@ -259,7 +320,6 @@ mod test_subscribe {
                 },
             ]
         }
-        
     }
 
     #[allow(dead_code)]
@@ -274,7 +334,6 @@ mod test_subscribe {
         updates.insert("t3".to_string(), false);
         updates
     }
-
 }
 
 #[cfg(test)]
@@ -287,7 +346,7 @@ mod tests {
         let subscriptions = test_subscribe::make_test_subscriptions(true);
         let updates = test_subscribe::make_test_updates(true);
         let sub = AlwaysSubscribe::new_box();
-        assert!(sub.check_subscriptions(&subscriptions, &updates, &state)); 
+        assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
     }
 
     #[test]

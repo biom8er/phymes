@@ -36,22 +36,17 @@ cargo test --features wsl,gpu,candle
 cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
 cargo check --all-targets
-cargo check -p phymes-core --all-targets --features wsl
-cargo check -p phymes-core --all-targets --features wasip2
-cargo check -p phymes-data --all-targets --features wsl
-cargo check -p phymes-data --all-targets --features wasip2
-cargo check -p phymes-ml --all-targets --features wsl
-cargo check -p phymes-ml --all-targets --features wsl,hf_hub,candle
-cargo check -p phymes-ml --all-targets --features wsl,openai_api
-cargo check -p phymes-ml --all-targets --features wasip2
-cargo check -p phymes-agents --all-targets --features wsl
-cargo check -p phymes-agents --all-targets --features wsl,hf_hub,candle
-cargo check -p phymes-agents --all-targets --features wsl,openai_api
-cargo check -p phymes-agents --all-targets --features wasip2
-cargo check -p phymes-server --all-targets --features wsl
-cargo check -p phymes-server --all-targets --features wsl,hf_hub,candle
-cargo check -p phymes-server --all-targets --features wsl,openai_api
-cargo check -p phymes-server --all-targets --features wasip2
+cargo check -p phymes-core --all-targets --no-default-features --features wsl
+cargo check -p phymes-data --all-targets --no-default-features --features wsl
+cargo check -p phymes-ml --all-targets --no-default-features --features wsl
+cargo check -p phymes-ml --all-targets --no-default-features --features wsl,hf_hub,candle
+cargo check -p phymes-ml --all-targets --no-default-features --features wsl,openai_api
+cargo check -p phymes-agents --all-targets --no-default-features --features wsl
+cargo check -p phymes-agents --all-targets --no-default-features --features wsl,hf_hub,candle
+cargo check -p phymes-agents --all-targets --no-default-features --features wsl,openai_api
+cargo check -p phymes-server --all-targets --no-default-features --features wsl
+cargo check -p phymes-server --all-targets --no-default-features --features wsl,hf_hub,candle
+cargo check -p phymes-server --all-targets --no-default-features --features wsl,openai_api
 cargo check -p phymes-app --all-targets --features mobile
 cargo check -p phymes-app --all-targets --features desktop
 cargo clippy --all-targets -- -D warnings

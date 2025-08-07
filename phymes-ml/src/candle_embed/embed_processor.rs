@@ -5,7 +5,8 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
         common_traits::{
-            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, TokenWrapper
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
+            TokenWrapper, device,
         },
         runtime_env::RuntimeEnv,
     },
@@ -20,7 +21,8 @@ use phymes_core::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
+        arrow_processor::ArrowProcessorTrait,
+        publish_subscribe::PubSubTrait,
     },
 };
 
@@ -65,7 +67,7 @@ impl CandleEmbedProcessor {
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe
+            subscribe,
         })
     }
 }
@@ -84,7 +86,8 @@ impl PubSubTrait for CandleEmbedProcessor {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 

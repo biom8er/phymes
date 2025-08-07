@@ -34,9 +34,8 @@ use phymes_ml::{
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{
-    openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
     openai_embed::embed_processor::OpenAIEmbedProcessor,
-    openai_asset::openai_which::WhichOpenAIAsset,
 };
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
@@ -355,7 +354,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
             self.message_aggregator_processor_1_name,
             &[ArrowTablePublish::Replace {
-                table_name: self.chat_task_name.to_string()
+                table_name: self.chat_task_name.to_string(),
             }],
             &[
                 ArrowTableSubscribe::OnUpdateFullTable {
@@ -377,7 +376,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
             self.message_aggregator_processor_2_name,
             &[ArrowTablePublish::Extend {
-                table_name: self.state_messages_table_name.to_string()
+                table_name: self.state_messages_table_name.to_string(),
             }],
             &[
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
@@ -944,6 +943,7 @@ pub mod test_doc_rag_session {
     use super::*;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use parking_lot::RwLock;
+    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
     use phymes_core::{
         metrics::HashMap,
         session::{
@@ -955,7 +955,6 @@ pub mod test_doc_rag_session {
             ArrowMessageBuilderTrait,
         },
     };
-    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
 
     pub fn bench_doc_rag_session_docs<'a>(
         session_stream_state: Arc<RwLock<SessionStreamState>>,
@@ -1146,7 +1145,8 @@ mod tests {
                 .unwrap()
                 .remove(&format!(
                     "from_{}_on_{}",
-                    doc_rag_session.session_context_name, doc_rag_session.state_assistant_messages_table_name
+                    doc_rag_session.session_context_name,
+                    doc_rag_session.state_assistant_messages_table_name
                 ))
                 .unwrap()
                 .get_message_own()

@@ -5,21 +5,30 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::message_history::{create_messages_record_batch, create_messages_schema, create_timestamp_micros}, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    schemas::message_history::{
+        create_messages_record_batch, create_messages_schema, create_timestamp_micros,
+    },
+    session::{
+        common_traits::{
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
+        },
         runtime_env::RuntimeEnv,
-    }, table::{
+    },
+    table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
-    }, task::{
+    },
+    task::{
         arrow_message::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
-    }
+        arrow_processor::ArrowProcessorTrait,
+        publish_subscribe::PubSubTrait,
+    },
 };
 
 use anyhow::{Result, anyhow};
@@ -61,7 +70,7 @@ impl DataSummaryProcessor {
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe
+            subscribe,
         })
     }
 }
@@ -81,7 +90,8 @@ impl PubSubTrait for DataSummaryProcessor {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
@@ -301,7 +311,11 @@ impl Stream for DataSummaryStream {
             // Wrap into a record batch
             // DM: Change when upgrading to Qwen 3
             // let role: ArrayRef = Arc::new(StringArray::from(vec!["function"]));
-            let batch = create_messages_record_batch(vec!["tool".to_string()], vec![content.to_string()], vec![create_timestamp_micros()])?;
+            let batch = create_messages_record_batch(
+                vec!["tool".to_string()],
+                vec![content.to_string()],
+                vec![create_timestamp_micros()],
+            )?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));

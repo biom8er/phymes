@@ -73,7 +73,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         ) {
             Ok(batch) => Ok(batch),
             Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
-        }        
+        }
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();

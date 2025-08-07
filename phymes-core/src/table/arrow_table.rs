@@ -791,7 +791,7 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
                 self.schema = Some(batch.schema());
             } else {
                 return Err(anyhow!("Missing schema and batches!"));
-            }            
+            }
         };
 
         // Check the batch schemas are consistent
@@ -890,7 +890,7 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
                 let schema = Arc::new(schema);
                 self.schema = Some(schema.clone());
                 schema
-            }            
+            }
         };
         // let schema = self.schema.clone().unwrap_or_else(|| {
         //     let (schema, _) = infer_json_schema(&mut cursor, None).unwrap();
@@ -1307,10 +1307,22 @@ pub mod test_table {
             "magic!".to_string(),
         ]));
         let timestamap: ArrayRef = Arc::new(Int64Array::from(vec![
-            "2025-08-03T12:34:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
-            "2025-08-06T12:55:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
-            "2025-08-05T12:50:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
-            "2025-08-04T12:40:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
+            "2025-08-03T12:34:56Z"
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+                .timestamp(),
+            "2025-08-06T12:55:56Z"
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+                .timestamp(),
+            "2025-08-05T12:50:56Z"
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+                .timestamp(),
+            "2025-08-04T12:40:56Z"
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+                .timestamp(),
         ]));
 
         let batch = RecordBatch::try_from_iter(vec![

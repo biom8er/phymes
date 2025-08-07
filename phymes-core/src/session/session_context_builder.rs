@@ -365,10 +365,13 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
-    use crate::{table::arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait}, task::{
-        arrow_processor::{test_processor::ArrowProcessorMock, ArrowProcessorEcho},
-        arrow_task::test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
-    }};
+    use crate::{
+        table::arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
+        task::{
+            arrow_processor::{ArrowProcessorEcho, test_processor::ArrowProcessorMock},
+            arrow_task::test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
+        },
+    };
 
     use super::*;
 
@@ -430,7 +433,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
-                AllTableNamesSubscribe::new_box()
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "processor_3",
@@ -446,7 +449,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
-                AllTableNamesSubscribe::new_box()
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "session_1",
@@ -473,7 +476,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
-                AllTableNamesSubscribe::new_box()
+                AllTableNamesSubscribe::new_box(),
             ),
         ];
 
@@ -500,7 +503,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
-                AllTableNamesSubscribe::new_box()
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "processor_2",
@@ -516,7 +519,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
-                AllTableNamesSubscribe::new_box()
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "processor_3",
@@ -532,7 +535,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
-                AllTableNamesSubscribe::new_box()
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "session_1",
@@ -543,7 +546,7 @@ pub mod test_session_context_builder {
                     table_name: "state_1".to_string(),
                 }],
                 &[],
-                AllTableNamesSubscribe::new_box()
+                AllTableNamesSubscribe::new_box(),
             ),
         ];
 

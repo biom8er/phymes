@@ -15,7 +15,10 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 /// Imports from Candle
-use candle_core::{{Device, Tensor}, utils::{cuda_is_available, metal_is_available}};
+use candle_core::{
+    utils::{cuda_is_available, metal_is_available},
+    {Device, Tensor},
+};
 use tokenizers::Tokenizer;
 
 /// From https://github.com/huggingface/candle/blob/main/candle-examples/src/lib.rs

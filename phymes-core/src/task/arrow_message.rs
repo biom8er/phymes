@@ -451,8 +451,9 @@ impl ArrowMessageBuilderTrait for ArrowIncomingMessageBuilder {
         Ok(self.with_name(&name))
     }
     fn make_random_name(self) -> Result<Self>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         let mut buf = [0u8; 16];
         getrandom::fill(&mut buf)?;
         let hash = u128::from_ne_bytes(buf);
@@ -559,8 +560,9 @@ impl ArrowMessageBuilderTrait for ArrowOutgoingMessageBuilder {
         Ok(self.with_name(&name))
     }
     fn make_random_name(self) -> Result<Self>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         let mut buf = [0u8; 16];
         getrandom::fill(&mut buf)?;
         let hash = u128::from_ne_bytes(buf);
@@ -652,8 +654,9 @@ impl ArrowMessageBuilderTrait for ArrowIncomingIPCMessageBuilder {
         Ok(self.with_name(&name))
     }
     fn make_random_name(self) -> Result<Self>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         let mut buf = [0u8; 16];
         getrandom::fill(&mut buf)?;
         let hash = u128::from_ne_bytes(buf);
@@ -760,8 +763,9 @@ impl ArrowMessageBuilderTrait for ArrowOutgoingIPCMessageBuilder {
         Ok(self.with_name(&name))
     }
     fn make_random_name(self) -> Result<Self>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         let mut buf = [0u8; 16];
         getrandom::fill(&mut buf)?;
         let hash = u128::from_ne_bytes(buf);

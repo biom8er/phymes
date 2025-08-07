@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::{ArrayRef, Float32Array, Float64Array, Int16Array, Int32Array, Int64Array, Int8Array, RecordBatch, StringArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array},
+    array::{
+        ArrayRef, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Int64Array,
+        RecordBatch, StringArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
+    },
     datatypes::{DataType, Field, Schema},
 };
 use serde::{Deserialize, Serialize};
@@ -226,7 +229,12 @@ fn get_first_row(batch: &RecordBatch) -> Result<Vec<String>> {
                 let array = column.as_any().downcast_ref::<Float64Array>().unwrap();
                 array.value(0).to_string()
             }
-            _ => return Err(anyhow!("Unsupported data type {} for array.", column.data_type().to_string())),
+            _ => {
+                return Err(anyhow!(
+                    "Unsupported data type {} for array.",
+                    column.data_type().to_string()
+                ));
+            }
         };
         first_row.push(value);
     }

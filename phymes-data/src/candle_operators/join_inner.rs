@@ -6,16 +6,16 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor, op::CmpOp};
+use phymes_core::schemas::{chat_completion, types};
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
-use phymes_core::schemas::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::candle_operators::{
-    data_operator::{make_error_record_batch, DataOperatorTrait},
+    data_operator::{DataOperatorTrait, make_error_record_batch},
     sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
 };
 
@@ -63,7 +63,7 @@ impl DataOperatorTrait for JoinInner {
         ) {
             Ok(batch) => Ok(batch),
             Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
-        } 
+        }
     }
     fn get_description() -> String {
         "Join two tables on their foreign keys".to_string()

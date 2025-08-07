@@ -5,21 +5,33 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::{chat_completion::ToolCall, message_history::{create_messages_record_batch, create_timestamp_micros, create_values_record_batch}}, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    schemas::{
+        chat_completion::ToolCall,
+        message_history::{
+            create_messages_record_batch, create_timestamp_micros, create_values_record_batch,
+        },
+    },
+    session::{
+        common_traits::{
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
+        },
         runtime_env::RuntimeEnv,
-    }, table::{
+    },
+    table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
-    }, task::{
+    },
+    task::{
         arrow_message::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
-    }
+        arrow_processor::ArrowProcessorTrait,
+        publish_subscribe::PubSubTrait,
+    },
 };
 
 use anyhow::{Result, anyhow};
@@ -73,7 +85,7 @@ impl MessageParserProcessor {
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe
+            subscribe,
         })
     }
 }
@@ -84,7 +96,7 @@ impl MappableTrait for MessageParserProcessor {
     }
 }
 
-impl PubSubTrait for MessageParserProcessor {    
+impl PubSubTrait for MessageParserProcessor {
     fn get_publications(&self) -> Vec<&ArrowTablePublish> {
         self.publications.iter().collect()
     }
@@ -92,7 +104,8 @@ impl PubSubTrait for MessageParserProcessor {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
@@ -260,9 +273,25 @@ impl Stream for MessageParserStream {
                     let mut subjects_vec = Vec::new();
                     let mut values_vec = Vec::new();
                     for tool_call in tool_calls.iter() {
-                        names_vec.push(tool_call.function.name.as_ref().unwrap().as_str().to_string());
+                        names_vec.push(
+                            tool_call
+                                .function
+                                .name
+                                .as_ref()
+                                .unwrap()
+                                .as_str()
+                                .to_string(),
+                        );
                         publishers_vec.push("message_parser_processor".to_string());
-                        subjects_vec.push(tool_call.function.name.as_ref().unwrap().as_str().to_string());
+                        subjects_vec.push(
+                            tool_call
+                                .function
+                                .name
+                                .as_ref()
+                                .unwrap()
+                                .as_str()
+                                .to_string(),
+                        );
 
                         // Parse the arguments and rebuild the as a `serde_json::Value`
                         let arguments = serde_json::from_str::<serde_json::Value>(
@@ -322,7 +351,12 @@ impl Stream for MessageParserStream {
                                 );
                                 values_vec.push(serde_json::to_string(&json_value)?);
                             }
-                            create_values_record_batch(names_vec, publishers_vec, subjects_vec, values_vec)?
+                            create_values_record_batch(
+                                names_vec,
+                                publishers_vec,
+                                subjects_vec,
+                                values_vec,
+                            )?
                         }
                         Err(e) => {
                             // Cannot be parsed, send back to publisher
@@ -336,7 +370,13 @@ impl Stream for MessageParserStream {
 
                             // Assistant content
                             timestamp_vec.push(create_timestamp_micros());
-                            role_vec.push(message.get_column_as_vec_str("role").first().unwrap().to_string());
+                            role_vec.push(
+                                message
+                                    .get_column_as_vec_str("role")
+                                    .first()
+                                    .unwrap()
+                                    .to_string(),
+                            );
                             content_vec.push(content);
 
                             // // Mock user content

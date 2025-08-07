@@ -11,9 +11,7 @@ use std::sync::Arc;
 
 use phymes_agents::session_plans::{
     agent_session_builder::AgentSessionBuilderTrait,
-    tool_agent_session::{
-        test_tool_agent_session::bench_tool_agent_session, ToolAgentSession
-    },
+    tool_agent_session::{ToolAgentSession, test_tool_agent_session::bench_tool_agent_session},
 };
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap},

@@ -1,9 +1,11 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
-use crate::candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait};
+use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap},
+        common_traits::{
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, device,
+        },
         runtime_env::RuntimeEnv,
     },
     table::{
@@ -17,7 +19,8 @@ use phymes_core::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
+        arrow_processor::ArrowProcessorTrait,
+        publish_subscribe::PubSubTrait,
     },
 };
 
@@ -63,7 +66,7 @@ impl CandleDataProcessor {
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe
+            subscribe,
         })
     }
 }
@@ -83,7 +86,8 @@ impl PubSubTrait for CandleDataProcessor {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
@@ -224,7 +228,7 @@ impl Stream for CandleDataStream {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if self.is_finished {
-            return Poll::Ready(None); 
+            return Poll::Ready(None);
         }
 
         // Initialize the metrics
@@ -300,13 +304,14 @@ impl Stream for CandleDataStream {
                     // Extract the input from the config
                     match self.config.as_ref().unwrap().lhs_args.as_ref() {
                         Some(qs) => {
-                            let table = match ArrowTableBuilder::new()
-                                .with_json(qs.as_bytes(), 512) {
-                                Ok(builder) => builder.with_name("")
-                                    .build()?,
+                            let table = match ArrowTableBuilder::new().with_json(qs.as_bytes(), 512)
+                            {
+                                Ok(builder) => builder.with_name("").build()?,
                                 Err(err) => {
                                     self.is_finished = true;
-                                    return Poll::Ready(Some(Ok(make_error_record_batch(err.to_string().as_str()))))
+                                    return Poll::Ready(Some(Ok(make_error_record_batch(
+                                        err.to_string().as_str(),
+                                    ))));
                                 }
                             };
                             table.get_record_batches_own()
@@ -314,7 +319,7 @@ impl Stream for CandleDataStream {
                         None => {
                             self.is_finished = true;
                             return Poll::Ready(Some(Ok(make_error_record_batch(
-                                format!("lhs_name {lhs_name} does not exist. Available options are {:?}", self.messages.keys()).as_str()))))
+                                format!("lhs_name {lhs_name} does not exist. Available options are {:?}", self.messages.keys()).as_str()))));
                         }
                     }
                 }
@@ -341,7 +346,7 @@ impl Stream for CandleDataStream {
                     //     Some(Ok(batch)) => vec![batch],
                     //     _ => return Poll::Ready(None),
                     // }
-                    
+
                     // Poll the input streams and collect/transform the batches
                     let mut batches = Vec::new();
                     while let Some(Ok(batch)) = ready!(rhs.get_message_mut().poll_next_unpin(cx)) {
@@ -353,13 +358,14 @@ impl Stream for CandleDataStream {
                     // Extract the input from the config
                     match self.config.as_ref().unwrap().rhs_args.as_ref() {
                         Some(qs) => {
-                            let table = match ArrowTableBuilder::new()
-                                .with_json(qs.as_bytes(), 512) {
-                                Ok(builder) => builder.with_name("")
-                                    .build()?,
+                            let table = match ArrowTableBuilder::new().with_json(qs.as_bytes(), 512)
+                            {
+                                Ok(builder) => builder.with_name("").build()?,
                                 Err(err) => {
                                     self.is_finished = true;
-                                    return Poll::Ready(Some(Ok(make_error_record_batch(err.to_string().as_str()))))
+                                    return Poll::Ready(Some(Ok(make_error_record_batch(
+                                        err.to_string().as_str(),
+                                    ))));
                                 }
                             };
                             table.get_record_batches_own()
@@ -367,7 +373,7 @@ impl Stream for CandleDataStream {
                         None => {
                             self.is_finished = true;
                             return Poll::Ready(Some(Ok(make_error_record_batch(
-                                format!("rhs_name {rhs_name} does not exist. Available options are {:?}", self.messages.keys()).as_str()))))
+                                format!("rhs_name {rhs_name} does not exist. Available options are {:?}", self.messages.keys()).as_str()))));
                         }
                     }
                 }
@@ -778,7 +784,7 @@ mod tests {
         let lhs_ids_test = vec!["1", "1", "1", "1", "2", "2", "2", "2", "3", "3", "3", "3"];
         let rhs_ids_test = vec!["1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4"];
         let scores_test: Vec<f32> = vec![
-            1.0, 1.0, 1.0, 1.0, 0.70710677, 0.70710677, 0.70710677, 0.70710677, 0.5, 0.5, 0.5, 0.5
+            1.0, 1.0, 1.0, 1.0, 0.70710677, 0.70710677, 0.70710677, 0.70710677, 0.5, 0.5, 0.5, 0.5,
         ];
 
         let lhs_id = result

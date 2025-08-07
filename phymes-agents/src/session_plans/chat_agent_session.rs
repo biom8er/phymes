@@ -18,11 +18,13 @@ use phymes_core::{
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
-#[cfg(feature = "openai_api")]
-use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_asset::openai_which::WhichOpenAIAsset};
 use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor},
+};
+#[cfg(feature = "openai_api")]
+use phymes_ml::{
+    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
 };
 
 pub struct ChatAgentSession<'a> {

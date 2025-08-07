@@ -7,16 +7,16 @@ use crate::table::{
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::{ArrayRef, Int64Array, StringArray}, datatypes::{DataType, Field, Fields, Schema, SchemaRef}, record_batch::RecordBatch
+    array::{ArrayRef, Int64Array, StringArray},
+    datatypes::{DataType, Field, Fields, Schema, SchemaRef},
+    record_batch::RecordBatch,
 };
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use std::sync::Arc;
 use tracing::{Level, event};
 
-use super::chat_completion::{
-    self, ChatCompletionMessage, Content, MessageRole, ToolCall,
-};
+use super::chat_completion::{self, ChatCompletionMessage, Content, MessageRole, ToolCall};
 
 /// Generate a timestamp that can be added to the message table
 pub fn create_timestamp_str() -> String {
@@ -32,18 +32,19 @@ pub fn create_timestamp_micros() -> i64 {
 
 /// Convert timestamp in micro seconds to a formatted string
 pub fn convert_timestamp_micros_to_str(timestamp_micros: i64) -> String {
-// Convert microseconds to seconds and nanoseconds
+    // Convert microseconds to seconds and nanoseconds
     let datetime = DateTime::from_timestamp(
-        timestamp_micros / 1_000_000, // seconds
+        timestamp_micros / 1_000_000,                    // seconds
         ((timestamp_micros % 1_000_000) * 1_000) as u32, // nanoseconds
-    ).unwrap();
+    )
+    .unwrap();
 
     // Format as a string
     datetime.format("%a %b %e %T %Y").to_string()
 }
 
 /// Create message fields
-pub fn create_messages_fields() -> Fields {    
+pub fn create_messages_fields() -> Fields {
     let field_names = ["role", "content"];
     let mut fields_vec = field_names
         .iter()
@@ -53,12 +54,16 @@ pub fn create_messages_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_messages_schema() -> SchemaRef {    
+pub fn create_messages_schema() -> SchemaRef {
     let fields = create_messages_fields();
     Arc::new(Schema::new(fields))
 }
 
-pub fn create_messages_record_batch(role: Vec<String>, content: Vec<String>, timestamp: Vec<i64>) -> Result<RecordBatch> {    
+pub fn create_messages_record_batch(
+    role: Vec<String>,
+    content: Vec<String>,
+    timestamp: Vec<i64>,
+) -> Result<RecordBatch> {
     let role: ArrayRef = Arc::new(StringArray::from(role));
     let content: ArrayRef = Arc::new(StringArray::from(content));
     let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
@@ -70,7 +75,12 @@ pub fn create_messages_record_batch(role: Vec<String>, content: Vec<String>, tim
     Ok(batch)
 }
 
-pub fn create_values_record_batch(names: Vec<String>, publishers: Vec<String>, subjects: Vec<String>, values: Vec<String>) -> Result<RecordBatch> {    
+pub fn create_values_record_batch(
+    names: Vec<String>,
+    publishers: Vec<String>,
+    subjects: Vec<String>,
+    values: Vec<String>,
+) -> Result<RecordBatch> {
     let names: ArrayRef = Arc::new(StringArray::from(names));
     let publishers: ArrayRef = Arc::new(StringArray::from(publishers));
     let subjects: ArrayRef = Arc::new(StringArray::from(subjects));
@@ -207,7 +217,11 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
         // Fill in the system template
 
         // Add the system content to the history (should be the first record batch)
-        let batch = create_messages_record_batch(vec!["system".to_string()], vec![system_prompt.to_string()], vec![create_timestamp_micros()])?;
+        let batch = create_messages_record_batch(
+            vec!["system".to_string()],
+            vec![system_prompt.to_string()],
+            vec![create_timestamp_micros()],
+        )?;
         match self.record_batches {
             Some(ref mut batches) => {
                 batches.insert(0, batch);
@@ -222,7 +236,11 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
     }
 
     fn append_new_user_query_str(mut self, content: &str, role: &str) -> Result<Self> {
-        let batch = create_messages_record_batch(vec![role.to_string()], vec![content.to_string()], vec![create_timestamp_micros()])?;
+        let batch = create_messages_record_batch(
+            vec![role.to_string()],
+            vec![content.to_string()],
+            vec![create_timestamp_micros()],
+        )?;
         match self.record_batches {
             Some(ref mut batches) => {
                 batches.push(batch);
@@ -334,8 +352,12 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
         }
 
         // update the chat history
-        let content_string: String = content.join("");        
-        let batch = create_messages_record_batch(vec![role.to_string()], vec![content_string.to_string()], vec![timestamp])?;
+        let content_string: String = content.join("");
+        let batch = create_messages_record_batch(
+            vec![role.to_string()],
+            vec![content_string.to_string()],
+            vec![timestamp],
+        )?;
         match self.record_batches {
             Some(ref mut batches) => {
                 batches.push(batch);
@@ -356,10 +378,6 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
 
 mod test_message_history {
     use super::*;
-    use anyhow::anyhow;
-    use arrow::datatypes::SchemaRef;
-    use futures::Stream;
-    use parking_lot::Mutex;
     use crate::{
         metrics::{ArrowTaskMetricsSet, HashMap},
         session::{
@@ -376,9 +394,14 @@ mod test_message_history {
                 ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
                 ArrowOutgoingMessageTrait,
             },
-            arrow_processor::ArrowProcessorTrait, publish_subscribe::PubSubTrait,
+            arrow_processor::ArrowProcessorTrait,
+            publish_subscribe::PubSubTrait,
         },
     };
+    use anyhow::anyhow;
+    use arrow::datatypes::SchemaRef;
+    use futures::Stream;
+    use parking_lot::Mutex;
     use std::{
         pin::Pin,
         sync::Arc,
@@ -409,8 +432,13 @@ mod test_message_history {
         fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
             self.subscriptions.iter().collect::<Vec<_>>()
         }
-        fn check_subscriptions(&self, updates: &crate::metrics::HashMap<String, bool>, state: &crate::session::common_traits::StateMap) -> bool {
-            self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+        fn check_subscriptions(
+            &self,
+            updates: &crate::metrics::HashMap<String, bool>,
+            state: &crate::session::common_traits::StateMap,
+        ) -> bool {
+            self.subscribe
+                .check_subscriptions(&self.subscriptions, updates, state)
         }
     }
 
@@ -535,7 +563,11 @@ mod test_message_history {
                 )?;
 
                 // mock generationg of next token
-                let batch = create_messages_record_batch(vec!["assistant".to_string()], vec![prompt], vec![create_timestamp_micros()])?;
+                let batch = create_messages_record_batch(
+                    vec!["assistant".to_string()],
+                    vec![prompt],
+                    vec![create_timestamp_micros()],
+                )?;
 
                 // record the poll
                 self.sample += 1;
@@ -546,7 +578,11 @@ mod test_message_history {
                     true => format!("Function{}", self.sample),
                     false => format!("Response{}", self.sample),
                 };
-                let batch = create_messages_record_batch(vec!["assistant".to_string()], vec![response], vec![create_timestamp_micros()])?;
+                let batch = create_messages_record_batch(
+                    vec!["assistant".to_string()],
+                    vec![response],
+                    vec![create_timestamp_micros()],
+                )?;
 
                 // record the poll
                 self.sample += 1;
@@ -572,8 +608,6 @@ mod test_message_history {
 #[cfg(test)]
 mod tests {
     use super::chat_completion::Tool;
-    use futures::TryStreamExt;
-    use parking_lot::Mutex;
     use crate::{
         metrics::{ArrowTaskMetricsSet, HashMap},
         session::{
@@ -592,6 +626,8 @@ mod tests {
             arrow_processor::ArrowProcessorTrait,
         },
     };
+    use futures::TryStreamExt;
+    use parking_lot::Mutex;
 
     use super::*;
 

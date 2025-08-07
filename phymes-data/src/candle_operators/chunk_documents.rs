@@ -7,14 +7,14 @@ use arrow::{
 use anyhow::{Result, anyhow};
 use candle_core::Device;
 use phymes_core::{
+    schemas::{chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
-    schemas::{chat_completion, types}
 };
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait};
+use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug)]
@@ -72,7 +72,7 @@ impl DataOperatorTrait for ChunkDocuments {
         ) {
             Ok(batch) => Ok(batch),
             Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
-        } 
+        }
     }
     fn get_description() -> String {
         "Chunk documents by splitting the document text".to_string()

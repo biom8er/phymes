@@ -74,7 +74,13 @@ fn benchmark_build_candle_chat_asset(c: &mut Criterion) {
     ));
     config_qwen2p5_3.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
 
-    let config_vec = [config_smollm2_1, config_smollm2_3, config_qwen2p5_1, config_qwen2p5_2, config_qwen2p5_3];
+    let config_vec = [
+        config_smollm2_1,
+        config_smollm2_3,
+        config_qwen2p5_1,
+        config_qwen2p5_2,
+        config_qwen2p5_3,
+    ];
 
     // Get the target and GPU configuration
     let wasm = if cfg!(target_arch = "wasm32") {
@@ -366,12 +372,12 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
     config_qwen2p5_3.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
 
     let config_vec = [
-        config_smollm2_1, 
-        config_smollm2_3, 
-        config_qwen2p5_1, 
-        config_qwen2p5_2, 
-        config_qwen2p5_3
-        ];
+        config_smollm2_1,
+        config_smollm2_3,
+        config_qwen2p5_1,
+        config_qwen2p5_2,
+        config_qwen2p5_3,
+    ];
 
     // Code generation prompt
     let prompt = "\"\"\\n\\n<|im_start|>system\\nYou are a helpful assistant.<|im_end|>\\n\\n\\n\\n\\n\\n<|im_start|>user\\Write a python function to count prime numbers up to N. Please include complete docstrings as well as comments when needed. Please provide an example using the functions in the docstrings.<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\n\\n\\n\"\"";

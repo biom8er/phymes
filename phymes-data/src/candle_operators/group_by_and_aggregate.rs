@@ -12,16 +12,17 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
+use phymes_core::schemas::{chat_completion, types};
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
-use phymes_core::schemas::{chat_completion, types};
 
 use crate::{
     candle_data::data_config::DataAggregator,
     candle_operators::{
-        data_operator::{make_error_record_batch, DataOperatorTrait}, sort_column_and_indices::sort_column_and_indices,
+        data_operator::{DataOperatorTrait, make_error_record_batch},
+        sort_column_and_indices::sort_column_and_indices,
     },
 };
 
@@ -62,7 +63,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
         ) {
             Ok(batch) => Ok(batch),
             Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
-        }  
+        }
     }
     fn new(
         _lhs_pk: &str,

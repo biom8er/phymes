@@ -16,10 +16,13 @@ use crate::{
         arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
-    task::{arrow_message::{
-        ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
-        ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
-    }, publish_subscribe::PubSubTrait},
+    task::{
+        arrow_message::{
+            ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
+            ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
+        },
+        publish_subscribe::PubSubTrait,
+    },
 };
 
 use super::arrow_processor::ArrowProcessorTrait;
@@ -62,7 +65,7 @@ impl ArrowAggregatorProcessor {
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe
+            subscribe,
         })
     }
 }
@@ -81,8 +84,13 @@ impl PubSubTrait for ArrowAggregatorProcessor {
     fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
         self.subscriptions.iter().collect::<Vec<_>>()
     }
-    fn check_subscriptions(&self, updates: &crate::metrics::HashMap<String, bool>, state: &crate::session::common_traits::StateMap) -> bool {
-        self.subscribe.check_subscriptions(&self.subscriptions, updates, state)
+    fn check_subscriptions(
+        &self,
+        updates: &crate::metrics::HashMap<String, bool>,
+        state: &crate::session::common_traits::StateMap,
+    ) -> bool {
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 

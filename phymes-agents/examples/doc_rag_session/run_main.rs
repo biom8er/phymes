@@ -12,7 +12,8 @@ use std::sync::Arc;
 use phymes_agents::session_plans::{
     agent_session_builder::AgentSessionBuilderTrait,
     document_rag_session::{
-        test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query}, DocumentRAGSession
+        DocumentRAGSession,
+        test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query},
     },
 };
 use phymes_core::{
@@ -48,7 +49,7 @@ pub async fn run_main() -> Result<()> {
     ];
     let document_ids = &["Proteins", "DNA", "Lipids", "Cells"];
     let user_query = "What are the four molecules that compose DNA?";
-    
+
     // ----- Query #1 -----
     // Embed the documents
     let session_stream = bench_doc_rag_session_docs(
@@ -72,7 +73,10 @@ pub async fn run_main() -> Result<()> {
     );
     println!(
         "Updates: {:?}",
-        session_stream_state.try_read().unwrap().get_superstep_updates()
+        session_stream_state
+            .try_read()
+            .unwrap()
+            .get_superstep_updates()
     );
     // println!(
     //     "Messages: {:?}",
@@ -101,7 +105,8 @@ pub async fn run_main() -> Result<()> {
         .unwrap()
         .remove(&format!(
             "from_{}_on_{}",
-            doc_rag_session.session_context_name, doc_rag_session.state_assistant_messages_table_name
+            doc_rag_session.session_context_name,
+            doc_rag_session.state_assistant_messages_table_name
         ))
         .unwrap()
         .get_message_own()
