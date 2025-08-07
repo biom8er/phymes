@@ -3,10 +3,10 @@ use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
 use phymes_core::{
-    metrics::ArrowTaskMetricsSet,
+    metrics::{ArrowTaskMetricsSet, HashMap},
     schemas::message_history::create_messages_schema,
     session::{
-        common_traits::BuilderTrait,
+        common_traits::{BuilderTrait, StateMap},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context::SessionContext,
         session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
@@ -48,12 +48,15 @@ pub struct ChatContentSubscribe {
 
 impl SubscribeTrait for ChatContentSubscribe {
     fn check_subscriptions(&self, _subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, _state: &StateMap) -> bool {
-        let user = updates.get(self.user_message_table_name).unwrap_or(&false);
-        let tool = updates.get(self.tool_message_table_name).unwrap_or(&false);
-        tool || user
+        let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
+        let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
+        *tool || *user
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
-        Box::new(Self {})        
+        Box::new(Self {
+            user_message_table_name: "user_messages".to_string(),
+            tool_message_table_name: "tool_messages".to_string(),
+        })        
     }
 }
 
@@ -277,7 +280,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 table_name: self.chat_task_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateFullTable {
+                ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.state_user_messages_table_name.to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
@@ -291,7 +294,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 },
             ],
             &[],
-            AnyTableNameSubscribe::new_box(),
+            ChatContentSubscribe::new_box(),
         ));
         processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
             self.message_aggregator_processor_2_name,
@@ -594,8 +597,8 @@ pub mod test_tool_agent_session {
         // Make the system prompt and add the user query
         let message_builder = ArrowTableBuilder::new()
             .with_name(session.state_user_messages_table_name)
-            .insert_system_template_str("You are a helpful assistant. You are only allowed to call the provided tools. Do not provide a response that does not adhere to the schema of a tool.")
-            .unwrap()
+            // .insert_system_template_str("You are a helpful assistant. You are only allowed to call the provided tools. Do not provide a response that does not adhere to the schema of a tool.")
+            // .unwrap()
             .append_new_user_query_str(user_query, "user")
             .unwrap();
 

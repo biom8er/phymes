@@ -70,6 +70,20 @@ pub fn create_messages_record_batch(role: Vec<String>, content: Vec<String>, tim
     Ok(batch)
 }
 
+pub fn create_values_record_batch(names: Vec<String>, publishers: Vec<String>, subjects: Vec<String>, values: Vec<String>) -> Result<RecordBatch> {    
+    let names: ArrayRef = Arc::new(StringArray::from(names));
+    let publishers: ArrayRef = Arc::new(StringArray::from(publishers));
+    let subjects: ArrayRef = Arc::new(StringArray::from(subjects));
+    let values: ArrayRef = Arc::new(StringArray::from(values));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("name", names),
+        ("publisher", publishers),
+        ("subject", subjects),
+        ("values", values),
+    ])?;
+    Ok(batch)
+}
+
 pub trait MessageHistoryTraitExt: Sized {
     /// Apply a template to build the message
     fn to_chat_prompt(

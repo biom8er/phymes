@@ -353,9 +353,7 @@ impl SessionContext {
         for (task_name, task) in self.tasks.iter() {
             let mut subscriptions = HashMap::<String, bool>::new();
             for subscription in task.get_subscriptions() {
-                if subscription.is_update() {
-                    subscriptions.insert(subscription.get_table_name().to_string(), false);
-                }
+                subscriptions.insert(subscription.get_table_name().to_string(), false);
             }
             init.insert(task_name.to_string(), subscriptions);
         }
