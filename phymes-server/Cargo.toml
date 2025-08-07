@@ -37,7 +37,7 @@ gpu = ["phymes-agents/gpu", "phymes-data/gpu"]
 candle = ["phymes-agents/candle"] # force use of candle models when openai_api is available
 
 [dependencies]
-tokio = { version = "1.45.1", default-features = false, optional = true }
+tokio = { version = "1.47.1", default-features = false, optional = true }
 axum = { version = "0.8.1", default-features = false, features = ["json", "macros"] }
 axum-extra = { version = "0.10.0", default-features = false, features = ["typed-header"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
