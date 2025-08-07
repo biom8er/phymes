@@ -294,7 +294,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
                     table_name: self.state_tool_messages_table_name.to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateFullTable {
+                ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.state_assistant_messages_table_name.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
@@ -525,6 +525,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             lhs_pk: "".to_string(),
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
+            op_kwargs: Some("{\"asc\": true}".to_string()),
             which: WhichCandleOperator::SortColumnAndIndices,
             ..Default::default()
         };
@@ -667,48 +668,64 @@ mod tests {
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
                 session_stream.try_collect().await?;
 
-            println!(
-                "Iters: {}",
-                session_stream_state.try_read().unwrap().get_iter()
-            );
-
-            println!(
-                "Updates: {:?}",
-                session_stream_state.try_read().unwrap().get_superstep_updates()
-            );
-
-            println!(
-                "Messages: {:?}",
-                session_stream_state
-                    .try_read()
-                    .unwrap()
-                    .get_session_context()
-                    .get_states()
-                    .get(tool_agent_session.state_messages_table_name)
-                    .unwrap()
-            );
-
-            println!(
-                "chat: {:?}",
-                session_stream_state
-                    .try_read()
-                    .unwrap()
-                    .get_session_context()
-                    .get_states()
-                    .get(tool_agent_session.chat_task_name)
-                    .unwrap()
-            );
-
-            println!(
-                "parser: {:?}",
-                session_stream_state
-                    .try_read()
-                    .unwrap()
-                    .get_session_context()
-                    .get_states()
-                    .get(tool_agent_session.message_parser_task_name)
-                    .unwrap()
-            );
+            // println!(
+            //     "Iters: {}",
+            //     session_stream_state.try_read().unwrap().get_iter()
+            // );
+            // println!(
+            //     "Updates: {:?}",
+            //     session_stream_state.try_read().unwrap().get_superstep_updates()
+            // );
+            // println!(
+            //     "Messages: {:?}",
+            //     session_stream_state
+            //         .try_read()
+            //         .unwrap()
+            //         .get_session_context()
+            //         .get_states()
+            //         .get(tool_agent_session.state_messages_table_name)
+            //         .unwrap()
+            // );
+            // println!(
+            //     "chat: {:?}",
+            //     session_stream_state
+            //         .try_read()
+            //         .unwrap()
+            //         .get_session_context()
+            //         .get_states()
+            //         .get(tool_agent_session.chat_task_name)
+            //         .unwrap()
+            // );
+            // println!(
+            //     "parser: {:?}",
+            //     session_stream_state
+            //         .try_read()
+            //         .unwrap()
+            //         .get_session_context()
+            //         .get_states()
+            //         .get(tool_agent_session.message_parser_task_name)
+            //         .unwrap()
+            // );
+            // println!(
+            //     "hitl: {:?}",
+            //     session_stream_state
+            //         .try_read()
+            //         .unwrap()
+            //         .get_session_context()
+            //         .get_states()
+            //         .get(tool_agent_session.hitl_task_name)
+            //         .unwrap()
+            // );
+            // println!(
+            //     "tools: {:?}",
+            //     session_stream_state
+            //         .try_read()
+            //         .unwrap()
+            //         .get_session_context()
+            //         .get_states()
+            //         .get(tool_agent_session.tool_task_name)
+            //         .unwrap()
+            // );
 
             // Update the chat history with the response
             let json_data = response
@@ -717,7 +734,7 @@ mod tests {
                 .remove(&format!(
                     "from_{}_on_{}",
                     tool_agent_session.session_context_name,
-                    tool_agent_session.state_messages_table_name
+                    tool_agent_session.state_assistant_messages_table_name
                 ))
                 .unwrap()
                 .get_message_own()

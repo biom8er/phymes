@@ -663,7 +663,6 @@ mod tests {
         assert_eq!(rhs_id.first().unwrap(), &"lhs_values");
 
         // Case 3: LHS and RHS messages from multiple stream batch
-        println!("Case 3: LHS and RHS messages from multiple stream batch");
         let lhs_ids_vec_1 = vec!["1"];
         let lhs_embeddings_vec_1: Vec<Vec<f32>> = vec![vec![1., 1., 1., 1.]];
         let lhs_batch_1 = test_candle_ops_processor::make_embeddings_record_batch_str_f32(

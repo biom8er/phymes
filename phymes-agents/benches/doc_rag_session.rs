@@ -91,8 +91,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
 
                 let mut config = DocumentRAGSession {
                     chat_task_name: &chat_task_name,
-                    message_aggregator_task_name: &message_aggregator_task_name,
-                    message_aggregator_processor_name: &message_aggregator_processor_name,
+                    message_aggregator_task_1_name: &message_aggregator_task_name,
+                    message_aggregator_processor_1_name: &message_aggregator_processor_name,
                     message_aggregator_runtime_env_name: "message_aggregator_rt_1",
                     chat_processor_name: &chat_processor_name,
                     chat_runtime_env_name: "chat_rt_1",

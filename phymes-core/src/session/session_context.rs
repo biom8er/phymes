@@ -483,7 +483,7 @@ impl SessionStreamState {
                 for publisher in publishers.iter() {
                     if publisher != task_name && subjects.contains_key(subject) {
                         // DM: Useful for debugging
-                        println!("extend_superstep_updates: tasks: {}, subject: {}, publisher: {}", task_name, subject, publisher);
+                        // println!("extend_superstep_updates: tasks: {}, subject: {}, publisher: {}", task_name, subject, publisher);
                         *subjects.get_mut(subject).unwrap() = true;
                     }
                 }
@@ -516,7 +516,6 @@ impl SessionStreamState {
     ) -> HashMap<String, Vec<String>> {
         let mut subjects_updated = HashMap::<String, Vec<String>>::new();
         event!(Level::DEBUG, "Message updates {:?}.", &messages.keys());
-        println!("Message updates {:?}.", &messages.keys());
         for (_name, message) in messages.into_iter() {
             // Try to update the state with the new record batches
             if let Some(state) = self
@@ -769,7 +768,6 @@ impl SessionStreamStep {
     /// Join the message streams using JointSet
     async fn join_message_streams(messages: OutgoingMessageMap) -> Result<IncomingMessageMap> {
         event!(Level::DEBUG, "Messages to join: {:?}.", &messages.keys());
-        println!("Messages to join: {:?}.", &messages.keys());
         // Inspect each of the response futures
         let mut response_builder = HashMap::<String, ArrowIncomingMessageBuilder>::new();
         let mut join_set = JoinSet::new();
@@ -899,7 +897,6 @@ impl SessionStreamStep {
                 tasks.push(task_name.to_owned());
             }
             event!(Level::DEBUG, "Superstep for task {}", &task_name);
-            println!("Superstep for task {}", &task_name);
 
             // Run the task and collect the stream responses
             let messages = task.get_subscriptions_from_state(updates, states);
@@ -1788,7 +1785,6 @@ mod tests {
                 .unwrap()
                 .get_superstep_updates()
         );
-        println!("session_stream_state_test.try_write()");
         session_stream_state_test
             .try_write()
             .unwrap()

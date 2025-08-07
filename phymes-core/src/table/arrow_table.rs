@@ -787,8 +787,11 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
     fn with_record_batches(mut self, batches: Vec<RecordBatch>) -> Result<Self> {
         // Handle the case of no schema
         if self.schema.is_none() {
-            let schema = batches.first().unwrap().schema();
-            self.schema = Some(schema);
+            if let Some(batch) = batches.first() {
+                self.schema = Some(batch.schema());
+            } else {
+                return Err(anyhow!("Missing schema and batches!"));
+            }            
         };
 
         // Check the batch schemas are consistent
@@ -1294,10 +1297,10 @@ pub mod test_table {
             "magic!".to_string(),
         ]));
         let timestamap: ArrayRef = Arc::new(Int64Array::from(vec![
-            "2025-08-05T12:34:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
-            "2025-08-05T12:55:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
+            "2025-08-03T12:34:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
+            "2025-08-06T12:55:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
             "2025-08-05T12:50:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
-            "2025-08-05T12:40:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
+            "2025-08-04T12:40:56Z".parse::<DateTime<Utc>>().unwrap().timestamp(),
         ]));
 
         let batch = RecordBatch::try_from_iter(vec![

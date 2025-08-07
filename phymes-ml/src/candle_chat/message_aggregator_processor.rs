@@ -359,6 +359,7 @@ mod tests {
             lhs_pk: "".to_string(),
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
+            op_kwargs: Some("{\"asc\": true}".to_string()),
             which: WhichCandleOperator::SortColumnAndIndices,
             ..Default::default()
         };
@@ -407,30 +408,26 @@ mod tests {
         .with_name("")
         .build()?;
         assert_eq!(partitions.count_rows(), 8);
-        assert_eq!(partitions.get_column_as_vec_str("role"), &["assistant",
-            "assistant",
+        assert_eq!(partitions.get_column_as_vec_str("role"), &[
             "user",
             "user",
             "assistant",
             "assistant",
             "user",
-            "user"]);
-        assert_eq!(partitions.get_column_as_vec_str("content"), &["Hello how can I help?",
-            "Hello how can I help?",
-            "What is Deep Learning?",
-            "What is Deep Learning?",
-            "magic!",
-            "magic!",
+            "user",
+            "assistant",
+            "assistant"]);
+        assert_eq!(partitions.get_column_as_vec_str("content"), &[
             "Hi!",
-            "Hi!"]);
-        assert_eq!(partitions.get_column_as_vec_primitive::<i64>("timestamp").unwrap(), &[1754398556,
-            1754398556,
-            1754398256,
-            1754398256,
-            1754397656,
-            1754397656,
-            1754397296,
-            1754397296]);
+            "Hi!",
+            "magic!",
+            "magic!",
+            "What is Deep Learning?",
+            "What is Deep Learning?",
+            "Hello how can I help?",
+            "Hello how can I help?"]);
+        assert_eq!(partitions.get_column_as_vec_primitive::<i64>("timestamp").unwrap(), &[
+            1754224496, 1754224496, 1754311256, 1754311256, 1754398256, 1754398256, 1754484956, 1754484956]);
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 8);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
 

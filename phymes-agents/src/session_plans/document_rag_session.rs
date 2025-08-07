@@ -61,9 +61,10 @@ pub struct DocumentRAGSession<'a> {
     /// Chat tasks
     pub chat_task_name: &'a str,
     // DM: needed for openai api since we cannot chain streams
-    pub message_aggregator_task_name: &'a str,
-    pub message_aggregator_processor_name: &'a str,
-    pub message_aggregator_runtime_env_name: &'a str,
+    pub message_aggregator_task_1_name: &'a str,
+    pub message_aggregator_processor_1_name: &'a str,
+    pub message_aggregator_task_2_name: &'a str,
+    pub message_aggregator_processor_2_name: &'a str,
     pub chat_processor_name: &'a str,
     pub chat_runtime_env_name: &'a str,
     /// Embed tasks
@@ -93,6 +94,8 @@ pub struct DocumentRAGSession<'a> {
     /// Session and state
     pub session_context_name: &'a str,
     pub state_messages_table_name: &'a str,
+    pub state_user_messages_table_name: &'a str,
+    pub state_assistant_messages_table_name: &'a str,
     pub state_documents_table_name: &'a str,
     pub state_doc_embed_table_name: &'a str,
     pub state_queries_table_name: &'a str,
@@ -110,9 +113,10 @@ impl Default for DocumentRAGSession<'_> {
     fn default() -> Self {
         Self {
             chat_task_name: "chat_task_1",
-            message_aggregator_task_name: "message_aggregator_task_1",
-            message_aggregator_processor_name: "message_aggregator_1",
-            message_aggregator_runtime_env_name: "message_aggregator_rt_1",
+            message_aggregator_task_1_name: "message_aggregator_task_1",
+            message_aggregator_processor_1_name: "message_aggregator_1",
+            message_aggregator_task_2_name: "message_aggregator_task_2",
+            message_aggregator_processor_2_name: "message_aggregator_2",
             chat_processor_name: "chat_processor_1",
             chat_runtime_env_name: "chat_rt_1",
             embed_query_task_name: "embed_query_task_1",
@@ -132,6 +136,8 @@ impl Default for DocumentRAGSession<'_> {
             vector_search_runtime_env_name: "vs_rt_1",
             session_context_name: "session_context_1",
             state_messages_table_name: "messages",
+            state_user_messages_table_name: "user_messages",
+            state_assistant_messages_table_name: "assistant_messages",
             state_documents_table_name: "documents",
             state_doc_embed_table_name: "doc_embeddings",
             state_queries_table_name: "queries",
@@ -153,6 +159,13 @@ impl<'a> DocumentRAGSession<'a> {
             ..Default::default()
         }
     }
+    pub fn make_chat_table(&self) -> Result<ArrowTable> {
+        ArrowTableBuilder::new()
+            .with_name(self.chat_task_name)
+            .with_schema(create_messages_schema())
+            .with_record_batches(Vec::new())?
+            .build()
+    }
     pub fn make_messages_table(&self) -> Result<ArrowTable> {
         ArrowTableBuilder::new()
             .with_name(self.state_messages_table_name)
@@ -160,9 +173,16 @@ impl<'a> DocumentRAGSession<'a> {
             .with_record_batches(Vec::new())?
             .build()
     }
-    pub fn make_message_aggregator_table(&self) -> Result<ArrowTable> {
+    pub fn make_user_messages_table(&self) -> Result<ArrowTable> {
         ArrowTableBuilder::new()
-            .with_name(self.message_aggregator_task_name)
+            .with_name(self.state_user_messages_table_name)
+            .with_schema(create_messages_schema())
+            .with_record_batches(Vec::new())?
+            .build()
+    }
+    pub fn make_assistant_messages_table(&self) -> Result<ArrowTable> {
+        ArrowTableBuilder::new()
+            .with_name(self.state_assistant_messages_table_name)
             .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()
@@ -272,31 +292,22 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         let mut tasks = Vec::new();
 
         // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
-        //  when chained or nested within other streams
-        // DM: another tool agent session publish/subscribe network needs to be
-        //  made for openai_api access that breaks down the chat and document embed tasks into seperate
-        //  tasks for each processor...
-        if cfg!(not(feature = "candle")) {
-            tasks.push(TaskPlan {
-                task_name: self.message_aggregator_task_name.to_string(),
-                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
-                processor_names: vec![self.message_aggregator_processor_name.to_string()],
-            });
-            tasks.push(TaskPlan {
-                task_name: self.chat_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
-                processor_names: vec![self.chat_processor_name.to_string()],
-            });
-        } else {
-            tasks.push(TaskPlan {
-                task_name: self.chat_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.message_aggregator_processor_name.to_string(),
-                    self.chat_processor_name.to_string(),
-                ],
-            });
-        }
+        //  when chained or nested within other streams.
+        tasks.push(TaskPlan {
+            task_name: self.message_aggregator_task_1_name.to_string(),
+            runtime_env_name: self.vector_search_runtime_env_name.to_string(),
+            processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
+        });
+        tasks.push(TaskPlan {
+            task_name: self.message_aggregator_task_2_name.to_string(),
+            runtime_env_name: self.vector_search_runtime_env_name.to_string(),
+            processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
+        });
+        tasks.push(TaskPlan {
+            task_name: self.chat_task_name.to_string(),
+            runtime_env_name: self.chat_runtime_env_name.to_string(),
+            processor_names: vec![self.chat_processor_name.to_string()],
+        });
 
         if cfg!(not(feature = "candle")) {
             tasks.push(TaskPlan {
@@ -349,37 +360,58 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
 
+        processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
+            self.message_aggregator_processor_1_name,
+            &[ArrowTablePublish::Replace {
+                table_name: self.chat_task_name.to_string()
+            }],
+            &[
+                ArrowTableSubscribe::OnUpdateFullTable {
+                    table_name: self.state_user_messages_table_name.to_string(),
+                },
+                ArrowTableSubscribe::OnUpdateFullTable {
+                    table_name: self.state_top_k_docs_table_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.state_assistant_messages_table_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.message_aggregator_processor_1_name.to_string(),
+                },
+            ],
+            &[],
+            AllTableNamesSubscribe::new_box(),
+        ));
+        processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
+            self.message_aggregator_processor_2_name,
+            &[ArrowTablePublish::Extend {
+                table_name: self.state_messages_table_name.to_string()
+            }],
+            &[
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: self.state_user_messages_table_name.to_string(),
+                },
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: self.state_assistant_messages_table_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.message_aggregator_processor_2_name.to_string(),
+                },
+            ],
+            &[],
+            AllTableNamesSubscribe::new_box(),
+        ));
         if cfg!(not(feature = "candle")) {
-            processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
-                self.message_aggregator_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
-                    table_name: self.state_messages_table_name.to_string(),
-                    col_name: "content".to_string(),
-                }],
-                &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: self.message_aggregator_task_name.to_string(),
-                    },
-                    ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: self.state_top_k_docs_table_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysLastRecordBatch {
-                        table_name: self.message_aggregator_processor_name.to_string(),
-                    },
-                ],
-                &[],
-                AllTableNamesSubscribe::new_box(),
-            ));
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIChatProcessor::new_with_pub_sub_for(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
-                    table_name: self.state_messages_table_name.to_string(),
+                    table_name: self.state_assistant_messages_table_name.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
                     ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: self.state_messages_table_name.to_string(),
+                        table_name: self.chat_task_name.to_string(),
                     },
                     ArrowTableSubscribe::None,
                     ArrowTableSubscribe::AlwaysFullTable {
@@ -390,35 +422,15 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                 AllTableNamesSubscribe::new_box(),
             ));
         } else {
-            processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
-                self.message_aggregator_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
-                    table_name: self.state_messages_table_name.to_string(),
-                    col_name: "content".to_string(),
-                }],
-                &[
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.message_aggregator_task_name.to_string(),
-                    },
-                    ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: self.state_top_k_docs_table_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysLastRecordBatch {
-                        table_name: self.message_aggregator_processor_name.to_string(),
-                    },
-                ],
-                &[],
-                AllTableNamesSubscribe::new_box(),
-            ));
             processors.push(CandleChatProcessor::new_with_pub_sub_for(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
-                    table_name: self.state_messages_table_name.to_string(),
+                    table_name: self.state_assistant_messages_table_name.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.state_messages_table_name.to_string(),
+                    ArrowTableSubscribe::OnUpdateFullTable {
+                        table_name: self.chat_task_name.to_string(),
                     },
                     ArrowTableSubscribe::None,
                     ArrowTableSubscribe::AlwaysFullTable {
@@ -609,7 +621,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             self.session_context_name,
             &[
                 ArrowTablePublish::Extend {
-                    table_name: self.state_messages_table_name.to_string(),
+                    table_name: self.state_user_messages_table_name.to_string(),
                 },
                 ArrowTablePublish::Extend {
                     table_name: self.state_documents_table_name.to_string(),
@@ -619,7 +631,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                 },
             ],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                table_name: self.state_messages_table_name.to_string(),
+                table_name: self.state_assistant_messages_table_name.to_string(),
             }],
             &[],
             AllTableNamesSubscribe::new_box(),
@@ -630,7 +642,6 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
 
     fn make_runtime_envs(&self) -> Result<Vec<RuntimeEnv>> {
         Ok(vec![
-            RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
             RuntimeEnv::new().with_name(self.chat_runtime_env_name),
             RuntimeEnv::new().with_name(self.embed_documents_runtime_env_name),
             RuntimeEnv::new().with_name(self.embed_query_runtime_env_name),
@@ -784,12 +795,17 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: "".to_string(),
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
+            op_kwargs: Some("{\"asc\": true}".to_string()),
             which: WhichCandleOperator::SortColumnAndIndices,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config)?;
-        let aggregator_state = ArrowTableBuilder::new()
-            .with_name(self.message_aggregator_processor_name)
+        let aggregator_1_state = ArrowTableBuilder::new()
+            .with_name(self.message_aggregator_processor_1_name)
+            .with_json(&aggregator_config_json.clone(), 1)?
+            .build()?;
+        let aggregator_2_state = ArrowTableBuilder::new()
+            .with_name(self.message_aggregator_processor_2_name)
             .with_json(&aggregator_config_json, 1)?
             .build()?;
 
@@ -881,15 +897,18 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             candle_chat_state,
             candle_doc_embed_state,
             candle_query_embed_state,
-            aggregator_state,
+            aggregator_1_state,
+            aggregator_2_state,
             chunk_document_1_state,
             rel_sim_state,
             sort_scores_state,
             chunk_document_2_state,
             join_chunks_state,
             top_k_state,
+            self.make_chat_table()?,
             self.make_messages_table()?,
-            self.make_message_aggregator_table()?,
+            self.make_user_messages_table()?,
+            self.make_assistant_messages_table()?,
             self.make_documents_table()?,
             self.make_document_chunk_table()?,
             self.make_queries_table()?,
@@ -1043,12 +1062,12 @@ pub mod test_doc_rag_session {
 
         // Build the current message state
         let incoming_message = ArrowIncomingMessageBuilder::new()
-            .with_name(doc_rag_session.message_aggregator_task_name)
-            .with_subject(doc_rag_session.message_aggregator_task_name)
+            .with_name(doc_rag_session.state_user_messages_table_name)
+            .with_subject(doc_rag_session.state_user_messages_table_name)
             .with_publisher(doc_rag_session.session_context_name)
             .with_message(message_builder.clone().build().unwrap())
             .with_update(&ArrowTablePublish::Extend {
-                table_name: doc_rag_session.message_aggregator_task_name.to_string(),
+                table_name: doc_rag_session.state_user_messages_table_name.to_string(),
             })
             .build()
             .unwrap();
