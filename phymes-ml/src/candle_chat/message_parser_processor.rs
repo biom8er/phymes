@@ -339,10 +339,11 @@ impl Stream for MessageParserStream {
                             role_vec.push(message.get_column_as_vec_str("role").first().unwrap().to_string());
                             content_vec.push(content);
 
-                            // Mock Tool content
-                            timestamp_vec.push(create_timestamp_micros());
-                            role_vec.push("user".to_string());
-                            content_vec.push(format!("Reformat your response to follow the tool schemas. If trying to respond to the user, use the human-in-the-loop tool."));
+                            // // Mock user content
+                            // DM: accuracy of SLMs is such that many will not use the HITL template to respond
+                            // timestamp_vec.push(create_timestamp_micros());
+                            // role_vec.push("user".to_string());
+                            // content_vec.push(format!("Reformat your response to follow the tool schemas. If trying to respond to the user, use the human-in-the-loop tool."));
                             create_messages_record_batch(role_vec, content_vec, timestamp_vec)?
                         }
                     }

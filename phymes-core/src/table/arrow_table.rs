@@ -882,13 +882,23 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
     fn with_json(mut self, bytes: &[u8], batch_size: usize) -> Result<Self> {
         let mut cursor = Cursor::new(bytes);
         // Potentially remove the need to define a schema first...
-        let schema = self.schema.clone().unwrap_or_else(|| {
-            let (schema, _) = infer_json_schema(&mut cursor, None).unwrap();
-            cursor.rewind().unwrap();
-            let schema = Arc::new(schema);
-            self.schema = Some(schema.clone());
-            schema
-        });
+        let schema = match self.schema.as_ref() {
+            Some(schema) => schema.clone(),
+            None => {
+                let (schema, _) = infer_json_schema(&mut cursor, None)?;
+                cursor.rewind().unwrap();
+                let schema = Arc::new(schema);
+                self.schema = Some(schema.clone());
+                schema
+            }            
+        };
+        // let schema = self.schema.clone().unwrap_or_else(|| {
+        //     let (schema, _) = infer_json_schema(&mut cursor, None).unwrap();
+        //     cursor.rewind().unwrap();
+        //     let schema = Arc::new(schema);
+        //     self.schema = Some(schema.clone());
+        //     schema
+        // });
         let mut reader = ReaderBuilder::new(schema)
             .with_batch_size(batch_size)
             .build(cursor)?;

@@ -79,9 +79,10 @@ pub struct ToolAgentSession<'a> {
     pub tool_task_name: &'a str,
     pub tool_processor_name: &'a str,
     pub tool_runtime_env_name: &'a str,
-    pub summary_processor_name: &'a str,
+    pub summary_processor_1_name: &'a str,
     pub hitl_task_name: &'a str,
     pub hitl_processor_name: &'a str,
+    pub summary_processor_2_name: &'a str,
     /// Session and state
     pub session_context_name: &'a str,
     pub state_messages_table_name: &'a str,
@@ -103,9 +104,10 @@ impl Default for ToolAgentSession<'_> {
             tool_task_name: WhichCandleOperator::SortColumnAndIndices.get_name(),
             tool_processor_name: WhichCandleOperator::SortColumnAndIndices.get_name(),
             tool_runtime_env_name: "tool_rt_1",
-            summary_processor_name: "summary_processor_1",
+            summary_processor_1_name: "summary_processor_1",
             hitl_task_name: WhichCandleOperator::HumanInTheLoop.get_name(),
             hitl_processor_name: WhichCandleOperator::HumanInTheLoop.get_name(),
+            summary_processor_2_name: "summary_processor_2",
             message_parser_task_name: "message_parser_task_1",
             message_parser_processor_name: "message_parser_processor_1",
             message_aggregator_task_1_name: "message_aggregator_task_1",
@@ -251,15 +253,15 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             runtime_env_name: self.tool_runtime_env_name.to_string(),
             processor_names: vec![
                 self.tool_processor_name.to_string(),
-                self.summary_processor_name.to_string(),
+                self.summary_processor_1_name.to_string(),
             ],
         });
         tasks.push(TaskPlan {
             task_name: self.hitl_task_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
+            runtime_env_name: self.tool_runtime_env_name.to_string(),
             processor_names: vec![
                 self.hitl_task_name.to_string(),
-                // self.summary_processor_name.to_string(),
+                self.summary_processor_2_name.to_string(),
             ],
         });
         tasks.push(TaskPlan {
@@ -362,7 +364,8 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             &[
                 ArrowTablePublish::Extend {
                     // The first publication is the default publish target
-                    table_name: self.chat_task_name.to_string(),
+                    // table_name: self.chat_task_name.to_string(),
+                    table_name: self.state_assistant_messages_table_name.to_string(),
                 },
                 ArrowTablePublish::Extend {
                     table_name: self.tool_task_name.to_string(),
@@ -395,7 +398,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     table_name: self.state_scores_table_name.to_string(),
                 },
             ],
-            &[self.summary_processor_name],
+            &[self.summary_processor_1_name],
             AllTableNamesSubscribe::new_box(),
         ));
         processors.push(CandleDataProcessor::new_with_pub_sub_for(
@@ -406,16 +409,27 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.hitl_task_name.to_string(),
             }],
-            &[],
+            &[self.summary_processor_2_name],
             AllTableNamesSubscribe::new_box(),
         ));
         processors.push(DataSummaryProcessor::new_with_pub_sub_for(
-            self.summary_processor_name,
+            self.summary_processor_1_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.state_tool_messages_table_name.to_string(),
             }],
             &[ArrowTableSubscribe::AlwaysLastRecordBatch {
-                table_name: self.summary_processor_name.to_string(),
+                table_name: self.summary_processor_1_name.to_string(),
+            }],
+            &[],
+            AllTableNamesSubscribe::new_box(),
+        ));
+        processors.push(DataSummaryProcessor::new_with_pub_sub_for(
+            self.summary_processor_2_name,
+            &[ArrowTablePublish::Extend {
+                table_name: self.state_assistant_messages_table_name.to_string(),
+            }],
+            &[ArrowTableSubscribe::AlwaysLastRecordBatch {
+                table_name: self.summary_processor_2_name.to_string(),
             }],
             &[],
             AllTableNamesSubscribe::new_box(),
@@ -536,8 +550,12 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config)?;
-        let summary_state = ArrowTableBuilder::new()
-            .with_name(self.summary_processor_name)
+        let summary_state_1 = ArrowTableBuilder::new()
+            .with_name(self.summary_processor_1_name)
+            .with_json(&summary_config_json.clone(), 1)?
+            .build()?;
+        let summary_state_2 = ArrowTableBuilder::new()
+            .with_name(self.summary_processor_2_name)
             .with_json(&summary_config_json, 1)?
             .build()?;
 
@@ -546,7 +564,8 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             candle_message_parser_state,
             aggregator_1_state,
             aggregator_2_state,
-            summary_state,
+            summary_state_1,
+            summary_state_2,
             self.make_scores_table()?,
             self.make_messages_table()?,
             self.make_user_messages_table()?,
@@ -757,7 +776,7 @@ mod tests {
                     assert_eq!(metric.value().as_usize(), 3);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == tool_agent_session.summary_processor_name
+                    && metric.task().as_ref().unwrap() == tool_agent_session.summary_processor_1_name
                 {
                     assert_eq!(metric.value().as_usize(), 1);
                 }
