@@ -5,22 +5,30 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
-use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray},
-    datatypes::{DataType, Field, Schema, SchemaRef},
-};
+use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    schemas::{
+        chat_completion::{
+            ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType,
+        },
+        message_history::{
+            MessageHistoryTraitExt, create_messages_record_batch, create_messages_schema,
+            create_timestamp_micros,
+        },
+    },
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+        common_traits::{
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
+        },
         runtime_env::RuntimeEnv,
     },
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{
@@ -29,30 +37,21 @@ use phymes_core::{
             ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
+        publish_subscribe::PubSubTrait,
     },
 };
 use reqwest::{Client, header::CONTENT_TYPE};
 use tracing::{Level, event};
 
-use crate::{
-    candle_chat::{
-        chat_config::CandleChatConfig,
-        message_history::{MessageHistoryTraitExt, create_timestamp},
-    },
-    openai_asset::{
-        OpenAIRequestState,
-        chat_completion::{
-            ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType,
-        },
-    },
-};
+use crate::{candle_chat::chat_config::CandleChatConfig, openai_asset::OpenAIRequestState};
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct OpenAIChatProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl OpenAIChatProcessor {
@@ -61,12 +60,14 @@ impl OpenAIChatProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe,
         })
     }
 }
@@ -77,6 +78,20 @@ impl MappableTrait for OpenAIChatProcessor {
     }
 }
 
+impl PubSubTrait for OpenAIChatProcessor {
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        self.publications.iter().collect()
+    }
+
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        self.subscriptions.iter().collect()
+    }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
+    }
+}
+
 impl ArrowProcessorTrait for OpenAIChatProcessor {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
@@ -84,15 +99,8 @@ impl ArrowProcessorTrait for OpenAIChatProcessor {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
-    }
-
-    fn get_publications(&self) -> &[ArrowTablePublish] {
-        &self.publications
-    }
-
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-        &self.subscriptions
     }
 
     fn get_forward_subscriptions(&self) -> &[String] {
@@ -167,14 +175,8 @@ impl OpenAIChatStream {
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
-        // Default schema
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
-
         Ok(Self {
-            schema,
+            schema: create_messages_schema(),
             message_stream,
             tools_stream,
             baseline_metrics,
@@ -226,7 +228,7 @@ impl OpenAIChatStream {
 
         // Tool arguments
         if let Some(tools) = tools {
-            req = req.tools(tools).tool_choice(ToolChoiceType::Auto);
+            req = req.tools(tools).tool_choice(ToolChoiceType::Required);
         }
         req
     }
@@ -348,18 +350,18 @@ impl Stream for OpenAIChatStream {
                         Some(s) => s,
                         _ => "".to_string(),
                     };
+                    event!(
+                        Level::INFO,
+                        "Generated the next token {}.",
+                        content.as_str()
+                    );
 
                     // Wrap into a record batch
-                    let role_arr: ArrayRef =
-                        Arc::new(StringArray::from(vec!["assistant".to_string()]));
-                    let content_arr: ArrayRef = Arc::new(StringArray::from(vec![content]));
-                    let timestamp_arr: ArrayRef =
-                        Arc::new(StringArray::from(vec![create_timestamp()]));
-                    let batch = RecordBatch::try_from_iter(vec![
-                        ("role", role_arr),
-                        ("content", content_arr),
-                        ("timestamp", timestamp_arr),
-                    ])?;
+                    let batch = create_messages_record_batch(
+                        vec!["assistant".to_string()],
+                        vec![content.to_string()],
+                        vec![create_timestamp_micros()],
+                    )?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -391,11 +393,9 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
     #[allow(unused_imports)]
-    use crate::candle_chat::message_history::MessageHistoryBuilderTraitExt;
-    #[allow(unused_imports)]
     use phymes_core::{
-        metrics::HashMap, session::runtime_env::RuntimeEnvTrait,
-        table::arrow_table::ArrowTableBuilder,
+        metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt,
+        session::runtime_env::RuntimeEnvTrait, table::arrow_table::ArrowTableBuilder,
     };
 
     #[cfg(not(feature = "candle"))]
@@ -475,6 +475,7 @@ mod tests {
                 },
             ],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = chat_processor.process(
             message,

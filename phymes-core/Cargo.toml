@@ -9,7 +9,7 @@ repository = "https://github.com/biom8er/phymes"
 documentation = "https://docs.rs/phymes-core"
 
 [features]
-default = ["wsl","candle"]
+default = ["wsl"]
 wasip2 = ["tokenizers/unstable_wasm",
     "tokio/sync",
     "tokio/macros",

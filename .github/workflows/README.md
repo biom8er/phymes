@@ -19,7 +19,7 @@ mkdir -p ~/.cache/hf
 cp -a $GITHUB_WORKSPACE/.cache/hf/. ~/.cache/hf/
 curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/model.safetensors https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/model.safetensors?download=true -sSf
 curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/pytorch_model.bin https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/pytorch_model.bin?download=true -sSf
-curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf https://huggingface.co/sudomoniker/all-MiniLM-L6-v2-Q8_0-GGUF/resolve/main/all-minilm-l6-v2-q8_0.gguf?download=true -sSfv
+curl -L -o ~/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf https://huggingface.co/sudomoniker/all-MiniLM-L6-v2-Q8_0-GGUF/resolve/main/all-minilm-l6-v2-q8_0.gguf?download=true -sSf
 curl -L -o ~/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true -sSf
 curl -L -o ~/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf https://huggingface.co/Segilmez06/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf?download=true -sSf
 curl -L -o ~/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf https://huggingface.co/tensorblock/gte-Qwen2-1.5B-instruct-GGUF/resolve/main/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf?download=true -sSf
@@ -36,22 +36,17 @@ cargo test --features wsl,gpu,candle
 cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
 cargo check --all-targets
-cargo check -p phymes-core --all-targets --features wsl
-cargo check -p phymes-core --all-targets --features wasip2
-cargo check -p phymes-data --all-targets --features wsl
-cargo check -p phymes-data --all-targets --features wasip2
-cargo check -p phymes-ml --all-targets --features wsl
-cargo check -p phymes-ml --all-targets --features wsl,hf_hub,candle
-cargo check -p phymes-ml --all-targets --features wsl,openai_api
-cargo check -p phymes-ml --all-targets --features wasip2
-cargo check -p phymes-agents --all-targets --features wsl
-cargo check -p phymes-agents --all-targets --features wsl,hf_hub,candle
-cargo check -p phymes-agents --all-targets --features wsl,openai_api
-cargo check -p phymes-agents --all-targets --features wasip2
-cargo check -p phymes-server --all-targets --features wsl
-cargo check -p phymes-server --all-targets --features wsl,hf_hub,candle
-cargo check -p phymes-server --all-targets --features wsl,openai_api
-cargo check -p phymes-server --all-targets --features wasip2
+cargo check -p phymes-core --all-targets --no-default-features --features wsl
+cargo check -p phymes-data --all-targets --no-default-features --features wsl
+cargo check -p phymes-ml --all-targets --no-default-features --features wsl
+cargo check -p phymes-ml --all-targets --no-default-features --features wsl,hf_hub,candle
+cargo check -p phymes-ml --all-targets --no-default-features --features wsl,openai_api
+cargo check -p phymes-agents --all-targets --no-default-features --features wsl
+cargo check -p phymes-agents --all-targets --no-default-features --features wsl,hf_hub,candle
+cargo check -p phymes-agents --all-targets --no-default-features --features wsl,openai_api
+cargo check -p phymes-server --all-targets --no-default-features --features wsl
+cargo check -p phymes-server --all-targets --no-default-features --features wsl,hf_hub,candle
+cargo check -p phymes-server --all-targets --no-default-features --features wsl,openai_api
 cargo check -p phymes-app --all-targets --features mobile
 cargo check -p phymes-app --all-targets --features desktop
 cargo clippy --all-targets -- -D warnings
@@ -99,6 +94,7 @@ curl -L -o ~/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m
 curl -L -o ~/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-3b-instruct-q5_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q5_k_m.gguf?download=true -sSf
 curl -L -o ~/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-0.5b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true -sSf
 mkdir ~/.cache/metrics
+mkdir ./target/criterion/metrics
 ```
 
 ## Benchmarks

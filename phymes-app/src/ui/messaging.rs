@@ -9,7 +9,10 @@ use serde_json::{self, Map, Value};
 use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
-use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+use phymes_core::{
+    schemas::message_history::{convert_timestamp_micros_to_str, create_timestamp_str},
+    table::arrow_table_publish::ArrowTablePublish,
+};
 use phymes_server::handlers::{
     session_info::{SessionResponse, SessionResponseFormat},
     sign_in::create_session_name,
@@ -34,7 +37,7 @@ use phymes_server::server::{
 use crate::{
     state::{
         messaging::{
-            clear_current_message_state, create_timestamp, sync_current_message_content_state,
+            clear_current_message_state, sync_current_message_content_state,
             sync_current_message_state, ClearCurrentMessageState, SyncCurrentMessageContentState,
             SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
         },
@@ -99,12 +102,9 @@ pub fn messaging_interface_view() -> Element {
                             sync_current_message_state.send(SyncCurrentMessageState {
                                 role: row.get("role").unwrap().as_str().unwrap().to_string(),
                                 content: row.get("content").unwrap().as_str().unwrap().to_string(),
-                                timestamp: row
-                                    .get("timestamp")
-                                    .unwrap()
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string(),
+                                timestamp: convert_timestamp_micros_to_str(
+                                    row.get("timestamp").unwrap().as_i64().unwrap(),
+                                ),
                             });
                         }
                     }
@@ -161,7 +161,7 @@ pub fn messaging_interface_view() -> Element {
         sync_message.send(SyncCurrentMessageState {
             role: "assistant".to_string(), 
             content: "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊".to_string(),
-            timestamp: create_timestamp(),
+            timestamp: create_timestamp_str(),
         });
     }
 
@@ -259,14 +259,14 @@ pub fn messaging_interface_footer() -> Element {
                             sync_message.send(SyncCurrentMessageState {
                                 role: "user".to_string(),
                                 content: prompt.to_string(),
-                                timestamp: create_timestamp()
+                                timestamp: create_timestamp_str()
                             });
 
                             // let the user know that the response is being prepared
                             sync_message.send(SyncCurrentMessageState {
                                 role: "assistant".to_string(),
                                 content: "Preparing response...".to_string(),
-                                timestamp: create_timestamp()
+                                timestamp: create_timestamp_str()
                             });
 
                             // create the message
@@ -305,19 +305,21 @@ pub fn messaging_interface_footer() -> Element {
                                         let json_rows: Vec<Map<String, Value>> = serde_json::from_str(json_str.trim_end_matches(char::from(0)))
                                             .unwrap_or_else(|e| {
                                                 let mut m = Map::new();
-                                                m.insert("content".to_string(), format!("Error: {e:?}").into());
+                                                m.insert("content".to_string(), format!("{e:?} caused by {json_str}").into());
                                                 vec![m]
                                             });
                                         for row in json_rows.iter() {
-                                            sync_message_content.send(SyncCurrentMessageContentState {
-                                                content: row.get("content").unwrap().as_str().unwrap().to_string(),
-                                                replace_last: false
-                                            });
+                                            if row.get("role").unwrap().as_str().unwrap() == "assistant" {
+                                                sync_message_content.send(SyncCurrentMessageContentState {
+                                                    content: row.get("content").unwrap().as_str().unwrap().to_string(),
+                                                    replace_last: false
+                                                });
+                                            }
                                         }
                                     }
                                 },
                                 Err(e) => {
-                                    sync_message_content.send(SyncCurrentMessageContentState {content: format!("Error: {e:?}"), replace_last: true});
+                                    sync_message_content.send(SyncCurrentMessageContentState {content: format!("{e:?}"), replace_last: true});
                                 }
                             }
 

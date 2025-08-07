@@ -5,15 +5,23 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    schemas::{
+        chat_completion::ToolCall,
+        message_history::{
+            create_messages_record_batch, create_timestamp_micros, create_values_record_batch,
+        },
+    },
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+        common_traits::{
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
+        },
         runtime_env::RuntimeEnv,
     },
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{
@@ -22,12 +30,13 @@ use phymes_core::{
             ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
+        publish_subscribe::PubSubTrait,
     },
 };
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray},
+    array::RecordBatch,
     datatypes::{DataType, Field, Schema, SchemaRef},
 };
 use futures::{Stream, StreamExt};
@@ -35,10 +44,7 @@ use parking_lot::Mutex;
 use serde_json::json;
 use tracing::{Level, event, instrument};
 
-use crate::{
-    candle_chat::{chat_config::CandleChatConfig, tool_parser::format_tool_calls_str},
-    openai_asset::chat_completion::ToolCall,
-};
+use crate::candle_chat::{chat_config::CandleChatConfig, tool_parser::format_tool_calls_str};
 
 use super::tool_parser::extract_tool_calls_str;
 
@@ -57,12 +63,13 @@ use super::tool_parser::extract_tool_calls_str;
 /// - There needs to be a subject called `Error` that any
 ///   message content that cannot be parsed can be sent to
 ///   for a retry
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct MessageParserProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl MessageParserProcessor {
@@ -71,12 +78,14 @@ impl MessageParserProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe,
         })
     }
 }
@@ -87,6 +96,19 @@ impl MappableTrait for MessageParserProcessor {
     }
 }
 
+impl PubSubTrait for MessageParserProcessor {
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        self.publications.iter().collect()
+    }
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        self.subscriptions.iter().collect()
+    }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
+    }
+}
+
 impl ArrowProcessorTrait for MessageParserProcessor {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
@@ -94,15 +116,8 @@ impl ArrowProcessorTrait for MessageParserProcessor {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
-    }
-
-    fn get_publications(&self) -> &[ArrowTablePublish] {
-        &self.publications
-    }
-
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-        &self.subscriptions
     }
 
     fn get_forward_subscriptions(&self) -> &[String] {
@@ -258,9 +273,25 @@ impl Stream for MessageParserStream {
                     let mut subjects_vec = Vec::new();
                     let mut values_vec = Vec::new();
                     for tool_call in tool_calls.iter() {
-                        names_vec.push(tool_call.function.name.as_ref().unwrap().as_str());
-                        publishers_vec.push("message_parser_processor");
-                        subjects_vec.push(tool_call.function.name.as_ref().unwrap().as_str());
+                        names_vec.push(
+                            tool_call
+                                .function
+                                .name
+                                .as_ref()
+                                .unwrap()
+                                .as_str()
+                                .to_string(),
+                        );
+                        publishers_vec.push("message_parser_processor".to_string());
+                        subjects_vec.push(
+                            tool_call
+                                .function
+                                .name
+                                .as_ref()
+                                .unwrap()
+                                .as_str()
+                                .to_string(),
+                        );
 
                         // Parse the arguments and rebuild the as a `serde_json::Value`
                         let arguments = serde_json::from_str::<serde_json::Value>(
@@ -272,16 +303,7 @@ impl Stream for MessageParserStream {
                         });
                         values_vec.push(serde_json::to_string(&values)?);
                     }
-                    let names: ArrayRef = Arc::new(StringArray::from(names_vec));
-                    let publishers: ArrayRef = Arc::new(StringArray::from(publishers_vec));
-                    let subjects: ArrayRef = Arc::new(StringArray::from(subjects_vec));
-                    let values: ArrayRef = Arc::new(StringArray::from(values_vec));
-                    RecordBatch::try_from_iter(vec![
-                        ("name", names),
-                        ("publisher", publishers),
-                        ("subject", subjects),
-                        ("values", values),
-                    ])?
+                    create_values_record_batch(names_vec, publishers_vec, subjects_vec, values_vec)?
                 }
                 Err(_e) => {
                     // Parse for Qwen
@@ -296,7 +318,8 @@ impl Stream for MessageParserStream {
                         .replace("}}<|python_tag|>{", "}},{")
                         .replace("<|python_tag|>", "")
                         .replace("|>", "")
-                        .replace("\"parameters\":", "\"arguments\":");
+                        .replace("\"parameters\":", "\"arguments\":")
+                        .replace("\"function\":", "\"name\":");
 
                     // Clean up into a proper JSON list
                     let content = format_tool_calls_str(content.as_str());
@@ -317,7 +340,7 @@ impl Stream for MessageParserStream {
                                         .unwrap()
                                         .to_string(),
                                 );
-                                publishers_vec.push("message_parser_processor");
+                                publishers_vec.push("message_parser_processor".to_string());
                                 subjects_vec.push(
                                     json_value
                                         .get("name")
@@ -328,55 +351,40 @@ impl Stream for MessageParserStream {
                                 );
                                 values_vec.push(serde_json::to_string(&json_value)?);
                             }
-                            let names: ArrayRef = Arc::new(StringArray::from(names_vec));
-                            let publishers: ArrayRef = Arc::new(StringArray::from(publishers_vec));
-                            let subjects: ArrayRef = Arc::new(StringArray::from(subjects_vec));
-                            let values: ArrayRef = Arc::new(StringArray::from(values_vec));
-                            RecordBatch::try_from_iter(vec![
-                                ("name", names),
-                                ("publisher", publishers),
-                                ("subject", subjects),
-                                ("values", values),
-                            ])?
+                            create_values_record_batch(
+                                names_vec,
+                                publishers_vec,
+                                subjects_vec,
+                                values_vec,
+                            )?
                         }
                         Err(e) => {
-                            // Cannot be parsed, fallback to message schema
+                            // Cannot be parsed, send back to publisher
                             event!(Level::ERROR, "Unparsable content: {}", e.to_string());
                             self.schema = message.get_schema();
-                            message.get_record_batches_own().remove(0)
-                            // // and append error message for next try
-                            // let mut role_vec = message.get_column_as_vec_str("role");
-                            // role_vec.push("assistant");
-                            // let mut content_vec = message.get_column_as_vec_str("content");
-                            // let e_str = e.to_string();
-                            // content_vec.push(e_str.as_str());
-                            // let role_arr: ArrayRef = Arc::new(StringArray::from(role_vec));
-                            // let content_arr: ArrayRef = Arc::new(StringArray::from(content_vec));
 
-                            // // Convert to a values string
-                            // let batch = RecordBatch::try_from_iter(vec![("role", role_arr), ("content", content_arr)])?;
-                            // let json_value = ArrowTable::get_builder()
-                            //     .with_name("")
-                            //     .with_record_batches(vec![batch])?
-                            //     .build()?
-                            //     .to_json_object()?;
-                            // let values_str = serde_json::to_string(&json_value)?;
+                            // and append error message for next try
+                            let mut timestamp_vec = Vec::new();
+                            let mut role_vec = Vec::new();
+                            let mut content_vec = Vec::new();
 
-                            // // Wrap the parsed content into a record batch
-                            // let names_vec = vec!["messages"];
-                            // let publishers_vec = vec!["message_parser_processor"];
-                            // let subjects_vec = vec!["messages"];
-                            // let values_vec = vec![values_str.as_str()];
-                            // let names: ArrayRef = Arc::new(StringArray::from(names_vec));
-                            // let publishers: ArrayRef = Arc::new(StringArray::from(publishers_vec));
-                            // let subjects: ArrayRef = Arc::new(StringArray::from(subjects_vec));
-                            // let values: ArrayRef = Arc::new(StringArray::from(values_vec));
-                            // RecordBatch::try_from_iter(vec![
-                            //     ("name", names),
-                            //     ("publisher", publishers),
-                            //     ("subject", subjects),
-                            //     ("values", values),
-                            // ])?
+                            // Assistant content
+                            timestamp_vec.push(create_timestamp_micros());
+                            role_vec.push(
+                                message
+                                    .get_column_as_vec_str("role")
+                                    .first()
+                                    .unwrap()
+                                    .to_string(),
+                            );
+                            content_vec.push(content);
+
+                            // // Mock user content
+                            // DM: accuracy of SLMs is such that many will not use the HITL template to respond
+                            // timestamp_vec.push(create_timestamp_micros());
+                            // role_vec.push("user".to_string());
+                            // content_vec.push(format!("Reformat your response to follow the tool schemas. If trying to respond to the user, use the human-in-the-loop tool."));
+                            create_messages_record_batch(role_vec, content_vec, timestamp_vec)?
                         }
                     }
                 }
@@ -401,6 +409,7 @@ impl RecordBatchStream for MessageParserStream {
 
 #[cfg(test)]
 mod tests {
+    use arrow::array::{ArrayRef, StringArray};
     use phymes_core::{
         metrics::HashMap,
         table::{arrow_table::ArrowTableBuilder, arrow_table_publish::ArrowTablePublish},
@@ -482,6 +491,7 @@ mod tests {
                 table_name: "messages".to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
 
@@ -586,6 +596,7 @@ mod tests {
                 table_name: "messages".to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
 
@@ -690,6 +701,7 @@ mod tests {
                 table_name: "messages".to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
 

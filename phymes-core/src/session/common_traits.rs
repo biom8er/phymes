@@ -1,9 +1,6 @@
 use crate::metrics::HashMap;
 use crate::session::runtime_env::RuntimeEnv;
-use crate::table::{
-    arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish,
-    arrow_table_subscribe::ArrowTableSubscribe,
-};
+use crate::table::arrow_table::ArrowTable;
 use crate::task::{
     arrow_message::{ArrowIncomingIPCMessage, ArrowIncomingMessage, ArrowOutgoingMessage},
     arrow_processor::ArrowProcessorTrait,
@@ -18,8 +15,34 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 /// Imports from Candle
-use candle_core::{Device, Tensor};
+use candle_core::{
+    utils::{cuda_is_available, metal_is_available},
+    {Device, Tensor},
+};
 use tokenizers::Tokenizer;
+
+/// From https://github.com/huggingface/candle/blob/main/candle-examples/src/lib.rs
+pub fn device(cpu: bool) -> candle_core::Result<Device> {
+    if cpu {
+        candle_core::Result::Ok(Device::Cpu)
+    } else if cuda_is_available() {
+        candle_core::Result::Ok(Device::new_cuda(0)?)
+    } else if metal_is_available() {
+        candle_core::Result::Ok(Device::new_metal(0)?)
+    } else {
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        {
+            println!(
+                "Running on CPU, to run on GPU(metal), build this example with `--features metal`"
+            );
+        }
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        {
+            println!("Running on CPU, to run on GPU, build this example with `--features cuda`");
+        }
+        candle_core::Result::Ok(Device::Cpu)
+    }
+}
 
 /// Runtime environment HashMap with Arc/Mutex for thread-safe mutability
 pub type RuntimeEnvMap = HashMap<String, Arc<Mutex<RuntimeEnv>>>;
@@ -91,16 +114,6 @@ pub trait BuilderTrait {
     {
         self.build().map(Arc::new)
     }
-}
-
-/// For task or processor objects that publish and
-/// subscribe to messages
-pub trait PubSubTrait {
-    /// Get an immutable list of subscription subject names
-    fn get_subscriptions(&self) -> &Vec<ArrowTableSubscribe>;
-
-    /// Get an immutable list of publication subject names
-    fn get_publications(&self) -> &Vec<ArrowTablePublish>;
 }
 
 /// For task objects that run computation and send/recieve

@@ -13,7 +13,6 @@ use std::task::{Context, Poll, ready};
 use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
 
-use super::common_traits::PubSubTrait;
 use super::{
     common_traits::{
         BuildableTrait, BuilderTrait, IncomingMessageMap, MappableTrait, OutgoingMessageMap,
@@ -35,6 +34,7 @@ use crate::task::{
         ArrowOutgoingMessage, ArrowOutgoingMessageTrait,
     },
     arrow_task::ArrowTaskTrait,
+    publish_subscribe::PubSubTrait,
 };
 
 /// Get the metrics for multiple sessions as a table
@@ -353,9 +353,7 @@ impl SessionContext {
         for (task_name, task) in self.tasks.iter() {
             let mut subscriptions = HashMap::<String, bool>::new();
             for subscription in task.get_subscriptions() {
-                if subscription.is_update() {
-                    subscriptions.insert(subscription.get_table_name().to_string(), false);
-                }
+                subscriptions.insert(subscription.get_table_name().to_string(), false);
             }
             init.insert(task_name.to_string(), subscriptions);
         }
@@ -466,33 +464,13 @@ impl SessionStreamState {
         &self.superstep_updates
     }
 
-    /// Get all tasks whose subscribed subjects have all been updated
-    pub fn get_tasks_with_all_subjects_updated(&self) -> Vec<String> {
-        let mut task_names = Vec::new();
-        for (task_name, v) in self.superstep_updates.iter() {
-            let mut updated = true;
-            for (_subject, is_updated) in v.iter() {
-                if !*is_updated {
-                    // DM: useful for debugging
-                    //println!("get_tasks_with_all_subjects_updated: tasks: {}, subject: {}, is_updated: {}", task_name, _subject, is_updated);
-                    updated = false;
-                    break;
-                }
-            }
-            if updated {
-                task_names.push(task_name.to_string());
-            }
-        }
-        task_names.sort();
-        task_names
-    }
-
     /// Extend the superstep update
     ///
     /// # Notes
     ///
-    /// We assume that all tasks available have already been added
+    /// * We assume that all tasks available have already been added
     ///   upon initialization of `superstep_updates`
+    /// * Subject updates where the executing task and publisher are the same are ignored
     ///
     /// # Arguments
     ///
@@ -503,7 +481,7 @@ impl SessionStreamState {
                 for publisher in publishers.iter() {
                     if publisher != task_name && subjects.contains_key(subject) {
                         // DM: Useful for debugging
-                        //println!("extend_superstep_updates: tasks: {}, subject: {}, publisher: {}", task_name, subject, publisher);
+                        // println!("extend_superstep_updates: tasks: {}, subject: {}, publisher: {}", task_name, subject, publisher);
                         *subjects.get_mut(subject).unwrap() = true;
                     }
                 }
@@ -830,6 +808,7 @@ impl SessionStreamStep {
                     response_batches.extend(message_map);
                 }
                 Err(e) => {
+                    event!(Level::ERROR, "Error joining message streams: {e:?}");
                     if e.is_panic() {
                         std::panic::resume_unwind(e.into_panic());
                     } else {
@@ -887,7 +866,7 @@ impl SessionStreamStep {
     /// in parallel according to which subscriptions were updated.
     /// The computation continues in a series of super-steps until a termination condition is met.
     ///
-    /// Returns:
+    /// # Returns
     ///
     /// `OutgoingMessageMap` streams if the the `Session` subsject was updated and None otherwise.
     #[instrument(skip(state, messages))]
@@ -905,27 +884,32 @@ impl SessionStreamStep {
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, ArrowOutgoingMessage>::new();
         let mut response_streams = HashMap::<String, ArrowOutgoingMessage>::new();
-        let tasks_update = state
-            .try_read()
-            .unwrap()
-            .get_tasks_with_all_subjects_updated();
+        let mut tasks = Vec::new();
         for (task_name, task) in state.try_read().unwrap().session_context.get_tasks().iter() {
             // Continue to the next task all subscribed subjects are not updated
-            if !tasks_update.contains(task_name) {
+            let state_rwlock = state.try_read().unwrap();
+            let updates = state_rwlock.get_superstep_updates().get(task_name).unwrap();
+            let states = state_rwlock.session_context.get_states();
+            if !task.check_subscriptions(updates, states) {
                 continue;
+            } else {
+                tasks.push(task_name.to_owned());
             }
-            event!(Level::DEBUG, "Superstep for task {}", &task_name);
+            event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Run the task and collect the stream responses
-            let messages = task.get_subscriptions_from_state(
-                state.try_read().unwrap().session_context.get_states(),
-            );
-            for (resp_name, resp) in task.run(messages)?.into_iter() {
-                if task_name == state.try_read().unwrap().session_context.get_name() {
-                    session_streams.insert(resp_name, resp);
-                } else {
-                    response_streams.insert(resp_name, resp);
+            let messages = task.get_subscriptions_from_state(updates, states);
+            match task.run(messages) {
+                Ok(result) => {
+                    for (resp_name, resp) in result.into_iter() {
+                        if task_name == state.try_read().unwrap().session_context.get_name() {
+                            session_streams.insert(resp_name, resp);
+                        } else {
+                            response_streams.insert(resp_name, resp);
+                        }
+                    }
                 }
+                Err(err) => event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name),
             }
         }
 
@@ -935,7 +919,7 @@ impl SessionStreamStep {
         }
 
         // Remove the ran tasks from the update
-        for task_name in tasks_update.iter() {
+        for task_name in tasks.iter() {
             state
                 .try_write()
                 .unwrap()
@@ -1027,6 +1011,7 @@ impl Stream for SessionStream {
                 return Poll::Ready(Some(Ok(res)));
             }
         }
+        event!(Level::DEBUG, "Maximum iterations {} exeeded.", max_iter);
         Poll::Ready(None)
     }
 
@@ -1651,36 +1636,36 @@ mod tests {
                 .into_iter()
                 .collect::<HashSet<_>>()
         );
-        assert_eq!(
-            init.get("task_1")
-                .unwrap()
-                .keys()
-                .map(|k| k.as_str())
-                .collect::<Vec<_>>(),
-            &["state_1"]
-        );
+        let mut subscriptions = init
+            .get("task_1")
+            .unwrap()
+            .keys()
+            .map(|k| k.as_str())
+            .collect::<Vec<_>>();
+        subscriptions.sort();
+        assert_eq!(subscriptions, &["config_1", "state_1"]);
         for (_k, v) in init.get("task_1").unwrap() {
             assert!(!v);
         }
-        assert_eq!(
-            init.get("task_2")
-                .unwrap()
-                .keys()
-                .map(|k| k.as_str())
-                .collect::<Vec<_>>(),
-            &["state_2"]
-        );
+        let mut subscriptions = init
+            .get("task_2")
+            .unwrap()
+            .keys()
+            .map(|k| k.as_str())
+            .collect::<Vec<_>>();
+        subscriptions.sort();
+        assert_eq!(subscriptions, &["config_2", "state_2"]);
         for (_k, v) in init.get("task_2").unwrap() {
             assert!(!v);
         }
-        assert_eq!(
-            init.get("task_3")
-                .unwrap()
-                .keys()
-                .map(|k| k.as_str())
-                .collect::<Vec<_>>(),
-            &["state_3"]
-        );
+        let mut subscriptions = init
+            .get("task_3")
+            .unwrap()
+            .keys()
+            .map(|k| k.as_str())
+            .collect::<Vec<_>>();
+        subscriptions.sort();
+        assert_eq!(subscriptions, &["config_3", "state_3"]);
         for (_k, v) in init.get("task_3").unwrap() {
             assert!(!v);
         }
@@ -1805,7 +1790,6 @@ mod tests {
                 .unwrap()
                 .get_superstep_updates()
         );
-        println!("session_stream_state_test.try_write()");
         session_stream_state_test
             .try_write()
             .unwrap()
@@ -1849,13 +1833,7 @@ mod tests {
 
         // check the session and state
         assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 0);
-        assert!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_tasks_with_all_subjects_updated()
-                .is_empty()
-        );
+
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -1956,13 +1934,6 @@ mod tests {
                 .len(),
             4
         );
-        assert!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_tasks_with_all_subjects_updated()
-                .is_empty()
-        );
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -2062,13 +2033,6 @@ mod tests {
                 .get_superstep_updates()
                 .len(),
             4
-        );
-        assert!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_tasks_with_all_subjects_updated()
-                .is_empty()
         );
         assert_eq!(
             session_stream_state
@@ -2186,13 +2150,6 @@ mod tests {
                 .get_superstep_updates()
                 .len(),
             4
-        );
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_tasks_with_all_subjects_updated(),
-            ["session_1"]
         );
         assert_eq!(
             session_stream_state
@@ -2421,13 +2378,6 @@ mod tests {
                 .len(),
             4
         );
-        assert!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_tasks_with_all_subjects_updated()
-                .is_empty()
-        );
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -2563,13 +2513,6 @@ mod tests {
             session_stream_state
                 .try_read()
                 .unwrap()
-                .get_tasks_with_all_subjects_updated(),
-            ["session_1", "task_1", "task_2", "task_3"]
-        );
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
                 .get_session_context()
                 .get_states()
                 .get("state_1")
@@ -2614,13 +2557,6 @@ mod tests {
                 .len(),
             4
         );
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_tasks_with_all_subjects_updated(),
-            ["session_1", "task_1", "task_2", "task_3"]
-        );
         let _ = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
             HashMap::<String, ArrowIncomingMessage>::new(),
@@ -2634,13 +2570,6 @@ mod tests {
                 .get_superstep_updates()
                 .len(),
             4
-        );
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_tasks_with_all_subjects_updated(),
-            ["session_1", "task_1", "task_2", "task_3"]
         );
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
@@ -2698,13 +2627,6 @@ mod tests {
                 .get_superstep_updates()
                 .len(),
             4
-        );
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_tasks_with_all_subjects_updated(),
-            ["session_1", "task_1", "task_2", "task_3"]
         );
         assert_eq!(
             session_stream_state

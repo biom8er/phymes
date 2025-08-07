@@ -6,14 +6,19 @@ use std::{
 
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    schemas::message_history::{
+        create_messages_record_batch, create_messages_schema, create_timestamp_micros,
+    },
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+        common_traits::{
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
+        },
         runtime_env::RuntimeEnv,
     },
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{
@@ -22,19 +27,18 @@ use phymes_core::{
             ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
+        publish_subscribe::PubSubTrait,
     },
 };
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray},
-    datatypes::{DataType, Field, Schema, SchemaRef},
+    array::RecordBatch,
+    datatypes::{Schema, SchemaRef},
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
-
-use phymes_ml::candle_chat::message_history::create_timestamp;
 
 use super::summary_config::DataSummaryConfig;
 
@@ -44,12 +48,13 @@ use super::summary_config::DataSummaryConfig;
 /// # Notes
 ///
 /// - The default role is `tool`
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct DataSummaryProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl DataSummaryProcessor {
@@ -58,12 +63,14 @@ impl DataSummaryProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe,
         })
     }
 }
@@ -74,6 +81,20 @@ impl MappableTrait for DataSummaryProcessor {
     }
 }
 
+impl PubSubTrait for DataSummaryProcessor {
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        self.publications.iter().collect()
+    }
+
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        self.subscriptions.iter().collect()
+    }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
+    }
+}
+
 impl ArrowProcessorTrait for DataSummaryProcessor {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
@@ -81,15 +102,8 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
-    }
-
-    fn get_publications(&self) -> &[ArrowTablePublish] {
-        &self.publications
-    }
-
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-        &self.subscriptions
     }
 
     fn get_forward_subscriptions(&self) -> &[String] {
@@ -162,16 +176,8 @@ impl DataSummaryStream {
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
-        // Output schema
-        let field_names = ["role", "content", "timestamp"];
-        let fields_vec = field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Utf8, false))
-            .collect::<Vec<_>>();
-        let schema = Arc::new(Schema::new(fields_vec));
-
         Ok(Self {
-            schema,
+            schema: create_messages_schema(),
             message_stream,
             config_stream,
             runtime_env,
@@ -305,14 +311,11 @@ impl Stream for DataSummaryStream {
             // Wrap into a record batch
             // DM: Change when upgrading to Qwen 3
             // let role: ArrayRef = Arc::new(StringArray::from(vec!["function"]));
-            let role: ArrayRef = Arc::new(StringArray::from(vec!["tool"]));
-            let content: ArrayRef = Arc::new(StringArray::from(vec![content]));
-            let timestamp: ArrayRef = Arc::new(StringArray::from(vec![create_timestamp()]));
-            let batch = RecordBatch::try_from_iter(vec![
-                ("role", role),
-                ("content", content),
-                ("timestamp", timestamp),
-            ])?;
+            let batch = create_messages_record_batch(
+                vec!["tool".to_string()],
+                vec![content.to_string()],
+                vec![create_timestamp_micros()],
+            )?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -408,6 +411,7 @@ mod tests {
             }],
             &[],
             &[],
+            AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(messages, metrics.clone(), runtime_env)?;
 

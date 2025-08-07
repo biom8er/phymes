@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{BuildableTrait, BuilderTrait},
+        common_traits::{BuildableTrait, BuilderTrait, device},
         runtime_env::RuntimeEnv,
         session_context::get_metrics_as_pivot_table,
     },
@@ -15,6 +15,7 @@ use phymes_core::{
             ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait, test_table::TestTableSizes,
         },
         arrow_table_publish::ArrowTablePublish,
+        arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
     },
     task::arrow_message::{
         ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
@@ -29,7 +30,6 @@ use phymes_data::{
     },
     candle_operators::which_operator::WhichCandleOperator,
 };
-use phymes_ml::candle_assets::device::device;
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for dataset sizes
@@ -65,7 +65,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: WhichCandleOperator::SortScoresAndIndices,
+            which: WhichCandleOperator::SortColumnAndIndices,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "score".to_string(),
@@ -240,6 +240,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 }],
                                 &[],
                                 &[],
+                                AllTableNamesSubscribe::new_box(),
                             );
                             let mut ops_stream = ops_processor
                                 .process(messages, metrics.clone(), runtime_env.clone())

@@ -787,8 +787,11 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
     fn with_record_batches(mut self, batches: Vec<RecordBatch>) -> Result<Self> {
         // Handle the case of no schema
         if self.schema.is_none() {
-            let schema = batches.first().unwrap().schema();
-            self.schema = Some(schema);
+            if let Some(batch) = batches.first() {
+                self.schema = Some(batch.schema());
+            } else {
+                return Err(anyhow!("Missing schema and batches!"));
+            }
         };
 
         // Check the batch schemas are consistent
@@ -879,13 +882,23 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
     fn with_json(mut self, bytes: &[u8], batch_size: usize) -> Result<Self> {
         let mut cursor = Cursor::new(bytes);
         // Potentially remove the need to define a schema first...
-        let schema = self.schema.clone().unwrap_or_else(|| {
-            let (schema, _) = infer_json_schema(&mut cursor, None).unwrap();
-            cursor.rewind().unwrap();
-            let schema = Arc::new(schema);
-            self.schema = Some(schema.clone());
-            schema
-        });
+        let schema = match self.schema.as_ref() {
+            Some(schema) => schema.clone(),
+            None => {
+                let (schema, _) = infer_json_schema(&mut cursor, None)?;
+                cursor.rewind().unwrap();
+                let schema = Arc::new(schema);
+                self.schema = Some(schema.clone());
+                schema
+            }
+        };
+        // let schema = self.schema.clone().unwrap_or_else(|| {
+        //     let (schema, _) = infer_json_schema(&mut cursor, None).unwrap();
+        //     cursor.rewind().unwrap();
+        //     let schema = Arc::new(schema);
+        //     self.schema = Some(schema.clone());
+        //     schema
+        // });
         let mut reader = ReaderBuilder::new(schema)
             .with_batch_size(batch_size)
             .build(cursor)?;
@@ -1092,6 +1105,7 @@ pub mod test_table {
         datatypes::{DataType, Field, Schema, SchemaRef},
         record_batch::RecordBatch,
     };
+    use chrono::{DateTime, Utc};
 
     /// Make a test record batch schema with fields for id, title, text, metadata, score, and embeddings
     pub fn make_test_table_schema(embed_end: u32) -> Result<SchemaRef> {
@@ -1292,11 +1306,23 @@ pub mod test_table {
             "What is Deep Learning?".to_string(),
             "magic!".to_string(),
         ]));
-        let timestamap: ArrayRef = Arc::new(StringArray::from(vec![
-            "Fri Jul 11 09:16:02 2025".to_string(),
-            "Fri Jul 11 09:16:20 2025".to_string(),
-            "Fri Jul 11 09:16:20 2025".to_string(),
-            "Fri Jul 11 09:16:21 2025".to_string(),
+        let timestamap: ArrayRef = Arc::new(Int64Array::from(vec![
+            "2025-08-03T12:34:56Z"
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+                .timestamp(),
+            "2025-08-06T12:55:56Z"
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+                .timestamp(),
+            "2025-08-05T12:50:56Z"
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+                .timestamp(),
+            "2025-08-04T12:40:56Z"
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+                .timestamp(),
         ]));
 
         let batch = RecordBatch::try_from_iter(vec![

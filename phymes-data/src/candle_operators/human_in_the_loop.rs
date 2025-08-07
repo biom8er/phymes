@@ -1,12 +1,22 @@
 use arrow::record_batch::RecordBatch;
 
+use crate::candle_operators::data_operator::make_error_record_batch;
+
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
 use candle_core::Device;
-use phymes_ml::openai_asset::{chat_completion, types};
+use phymes_core::{
+    schemas::{
+        chat_completion,
+        message_history::{create_messages_record_batch, create_timestamp_micros},
+        types,
+    },
+    session::common_traits::{BuildableTrait, BuilderTrait},
+    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+};
 use std::collections::HashMap;
 
-/// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
+/// Redirect a tool call to the user for intervention
 #[derive(Debug)]
 pub struct HumanInTheLoop;
 
@@ -23,10 +33,10 @@ impl DataOperatorTrait for HumanInTheLoop {
         _rhs_values: Option<&str>,
         _kwargs: Option<&str>,
     ) -> Self {
-        HumanInTheLoop
+        HumanInTheLoop {}
     }
     fn get_description() -> String {
-        "Ask a question to clarify the user's query, ask a questionn to get additional information that the user did not provide, confirm a choice of tool, confirm arguments for a tool before answering the user's query or calling a tool, or provide the answer to the user's query.".to_string()
+        "The response to the user.".to_string()
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
@@ -34,7 +44,7 @@ impl DataOperatorTrait for HumanInTheLoop {
             "lhs_args".to_string(),
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
-                description: Some("The question or answer for the user. Format lhs_arg value as JSON according to the schema {\"role\": \"assistant\", \"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your question or answer for the user".to_string()),
+                description: Some("Format lhs_args value according to the schema {\"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your response for the user".to_string()),
                 ..Default::default()
             }),
         );
@@ -59,6 +69,25 @@ impl DataOperatorTrait for HumanInTheLoop {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        Ok(lhs_args.first().unwrap().clone())
+        match create_hitl_record_batch(lhs_args) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }
     }
+}
+
+fn create_hitl_record_batch(lhs_args: &[RecordBatch]) -> Result<RecordBatch> {
+    let content = ArrowTable::get_builder()
+        .with_record_batches(lhs_args.to_vec())?
+        .with_name("")
+        .build()?
+        .get_column_as_vec_str("content")
+        .first()
+        .unwrap()
+        .to_string();
+    create_messages_record_batch(
+        vec!["assistant".to_string()],
+        vec![content],
+        vec![create_timestamp_micros()],
+    )
 }

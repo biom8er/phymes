@@ -7,14 +7,14 @@ use arrow::{
 use anyhow::{Result, anyhow};
 use candle_core::Device;
 use phymes_core::{
+    schemas::{chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
-use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::candle_operators::data_operator::DataOperatorTrait;
+use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug)]
@@ -62,14 +62,17 @@ impl DataOperatorTrait for ChunkDocuments {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        chunk_documents(
+        match chunk_documents(
             &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
             self.chunk_size,
             self.chunk_overlap,
             device,
-        )
+        ) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }
     }
     fn get_description() -> String {
         "Chunk documents by splitting the document text".to_string()
@@ -608,7 +611,7 @@ pub fn chunk_str(text: &str, chunk_size: usize, chunk_overlap: usize) -> Vec<Str
 
 #[cfg(test)]
 mod tests {
-    use phymes_ml::candle_assets::device::device;
+    use phymes_core::session::common_traits::device;
 
     use super::*;
 

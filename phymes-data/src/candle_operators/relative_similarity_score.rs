@@ -10,10 +10,12 @@ use phymes_core::{
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
 
+use crate::candle_operators::data_operator::make_error_record_batch;
+
 use super::data_operator::DataOperatorTrait;
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
-use phymes_ml::openai_asset::{chat_completion, types};
+use phymes_core::schemas::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -60,7 +62,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        relative_similarity_score(
+        match relative_similarity_score(
             &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
@@ -68,7 +70,10 @@ impl DataOperatorTrait for RelativeSimilarityScore {
             &self.rhs_values,
             rhs_args.unwrap_or(&[]),
             device,
-        )
+        ) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
@@ -482,7 +487,7 @@ pub fn relative_similarity_scores_tensor(lhs: &Tensor, rhs: &Tensor) -> Result<T
 
 #[cfg(test)]
 mod tests {
-    use phymes_ml::candle_assets::device::device;
+    use phymes_core::session::common_traits::device;
 
     use crate::candle_data::data_processor::test_candle_ops_processor::{
         make_embeddings_record_batch_str_f32, make_embeddings_record_batch_u32_f32,

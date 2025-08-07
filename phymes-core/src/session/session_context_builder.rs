@@ -61,7 +61,7 @@ impl SessionContextBuilder {
     pub fn get_task_sub_pub(
         &self,
         task_name: &str,
-    ) -> (Vec<ArrowTableSubscribe>, Vec<ArrowTablePublish>) {
+    ) -> (Vec<&ArrowTableSubscribe>, Vec<&ArrowTablePublish>) {
         // Get the processor name
         let processors = self
             .tasks
@@ -88,12 +88,12 @@ impl SessionContextBuilder {
             .filter(|p| processors.contains(&p.get_name()))
             .for_each(|p| {
                 p.get_subscriptions().iter().for_each(|s| {
-                    if *s != ArrowTableSubscribe::None {
+                    if **s != ArrowTableSubscribe::None {
                         subscriptons_set.insert(s.to_owned());
                     }
                 });
                 p.get_publications().iter().for_each(|s| {
-                    if *s != ArrowTablePublish::None {
+                    if **s != ArrowTablePublish::None {
                         publications_set.insert(s.to_owned());
                     }
                 });
@@ -244,8 +244,8 @@ impl BuilderTrait for SessionContextBuilder {
                 r
             ));
         }
+
         // ...then build
-        // DM: Refactor remove the need for the copy
         let runtime_env_map = self
             .runtime_envs
             .take()
@@ -279,8 +279,8 @@ impl BuilderTrait for SessionContextBuilder {
                 r
             ));
         }
+
         // ...then build
-        // DM: Refactor remove the need for the copy
         let state_map = self
             .state
             .take()
@@ -311,12 +311,8 @@ impl BuilderTrait for SessionContextBuilder {
                     .filter(|p| processor_names.contains(&p.get_name().to_string()))
                     .map(Arc::clone)
                     .collect::<Vec<_>>();
-                //println!("processor names: {}", p.iter().map(|p| p.get_name()).collect::<Vec<_>>().join(", "));
-                let (subscriptions, publications) = self.get_task_sub_pub(&t.task_name);
                 let task = ArrowTask::get_builder()
                     .with_name(&t.task_name)
-                    .with_publications(publications)
-                    .with_subscriptions(subscriptions)
                     .with_metrics(metrics.clone())
                     .with_runtime_env(Arc::clone(
                         runtime_env_map.get(t.runtime_env_name.as_str()).unwrap(),
@@ -369,9 +365,12 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
-    use crate::task::{
-        arrow_processor::{ArrowProcessorEcho, test_processor::ArrowProcessorMock},
-        arrow_task::test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
+    use crate::{
+        table::arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
+        task::{
+            arrow_processor::{ArrowProcessorEcho, test_processor::ArrowProcessorMock},
+            arrow_task::test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
+        },
     };
 
     use super::*;
@@ -418,6 +417,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "processor_2",
@@ -433,6 +433,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "processor_3",
@@ -448,6 +449,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "session_1",
@@ -474,6 +476,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ),
         ];
 
@@ -500,6 +503,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "processor_2",
@@ -515,6 +519,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "processor_3",
@@ -530,6 +535,7 @@ pub mod test_session_context_builder {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ),
             ArrowProcessorMock::new_with_pub_sub_for(
                 "session_1",
@@ -540,6 +546,7 @@ pub mod test_session_context_builder {
                     table_name: "state_1".to_string(),
                 }],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ),
         ];
 
@@ -639,16 +646,16 @@ mod tests {
         let plan = test_session_context_builder::make_test_session_builder_parallel_task();
         let (subscriptions, publications) = plan.get_task_sub_pub("task_1");
         assert!(
-            subscriptions.contains(&ArrowTableSubscribe::AlwaysFullTable {
+            subscriptions.contains(&&ArrowTableSubscribe::AlwaysFullTable {
                 table_name: "config_1".to_string()
             })
         );
         assert!(
-            subscriptions.contains(&ArrowTableSubscribe::OnUpdateFullTable {
+            subscriptions.contains(&&ArrowTableSubscribe::OnUpdateFullTable {
                 table_name: "state_1".to_string()
             })
         );
-        assert!(publications.contains(&ArrowTablePublish::Extend {
+        assert!(publications.contains(&&ArrowTablePublish::Extend {
             table_name: "state_1".to_string()
         }));
     }

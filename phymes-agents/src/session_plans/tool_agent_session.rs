@@ -3,9 +3,10 @@ use std::sync::Arc;
 
 use super::agent_session_builder::AgentSessionBuilderTrait;
 use phymes_core::{
-    metrics::ArrowTaskMetricsSet,
+    metrics::{ArrowTaskMetricsSet, HashMap},
+    schemas::message_history::create_messages_schema,
     session::{
-        common_traits::BuilderTrait,
+        common_traits::{BuilderTrait, StateMap},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context::SessionContext,
         session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
@@ -13,19 +14,19 @@ use phymes_core::{
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{
+            AllTableNamesSubscribe, AnyTableNameSubscribe, ArrowTableSubscribe, SubscribeTrait,
+        },
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
 use phymes_data::{
     candle_data::{
-        data_processor::CandleDataProcessor, summary_config::DataSummaryConfig,
-        summary_processor::DataSummaryProcessor,
+        data_config::DataConfig, data_processor::CandleDataProcessor,
+        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
     },
     candle_operators::which_operator::WhichCandleOperator,
 };
-#[cfg(feature = "openai_api")]
-use phymes_ml::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{
@@ -34,6 +35,10 @@ use phymes_ml::{
         message_parser_processor::MessageParserProcessor,
     },
 };
+#[cfg(feature = "openai_api")]
+use phymes_ml::{
+    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
+};
 
 use arrow::{
     array::{ArrayRef, Float32Array, StringArray},
@@ -41,59 +46,61 @@ use arrow::{
     record_batch::RecordBatch,
 };
 
+/// Custom subscription to pull in all of the relevant content for the chat
+#[derive(Default, Debug)]
+pub struct ChatContentSubscribe {
+    user_message_table_name: String,
+    tool_message_table_name: String,
+}
+
+impl SubscribeTrait for ChatContentSubscribe {
+    fn check_subscriptions(
+        &self,
+        _subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        _state: &StateMap,
+    ) -> bool {
+        let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
+        let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
+        *tool || *user
+    }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(Self {
+            user_message_table_name: "user_messages".to_string(),
+            tool_message_table_name: "tool_messages".to_string(),
+        })
+    }
+}
+
 /// Tool agent node with human-in-the-loop
-///
-/// # Supersteps
-///
-/// 1. Tool call: session -> chat_task (message_aggregator, chat_processor, message_parser)
-/// 2. Tool invoke: -> tool_task (config_processor, ops_processor, summary_processor)
-///    or human-in-the-loop_task (config_processor, ops_processor)
-/// 3. if tool_task: -> chat_task (message_aggregator, chat_processor, message_parser)
-///    else if human-in-the-loop_task: End
-/// 4. End
-///
-/// ## Chat Task
-///
-/// chat_task is composed of chained processors:
-/// message_aggregator -> chat_processor -> message_parser
-/// where message_aggregator combines multiple messages
-///   i.e., from parallel tool calls,
-/// chat_processor does the text generation using an LLM,
-/// and message_parser parses the LLM structured output to
-///   determine 1) the destination of the messsage(s) and
-///   2) split the messages into seperate tool calls
-///
-/// ## Tool Task
-///
-/// tool_task is composed of a chained processor:
-/// config_processor -> ops_processor -> summary_processor
-/// where config_processor parses the tool call and
-///   creates the ops_config
-/// where ops_processor performs the computation
-///   according to the ops_config,
-/// and summary_processor formats computation result
-///   into a message for the chat_task
 pub struct ToolAgentSession<'a> {
     /// Text generation inference capabilities (i.e, the agent)
     pub chat_task_name: &'a str,
     pub chat_processor_name: &'a str, // also used as the config name
     pub chat_runtime_env_name: &'a str,
     /// Structured text generation inference parser
-    pub message_parser_task_name: &'a str, // needed for openai api
+    pub message_parser_task_name: &'a str,
     pub message_parser_processor_name: &'a str,
-    pub message_aggregator_task_name: &'a str, // needed for openai api
-    pub message_aggregator_processor_name: &'a str,
-    pub message_runtime_env_name: &'a str,
+    /// Message aggregators for the chat task and another for the UI
+    pub message_aggregator_task_1_name: &'a str,
+    pub message_aggregator_processor_1_name: &'a str,
+    pub message_aggregator_task_2_name: &'a str,
+    pub message_aggregator_processor_2_name: &'a str,
+    pub message_aggregator_runtime_env_name: &'a str, // sometimes there are locks with the other aggregator
     /// The tool node (one of the CandleOps i.e., sort op)
     pub tool_task_name: &'a str,
     pub tool_processor_name: &'a str,
     pub tool_runtime_env_name: &'a str,
-    pub summary_processor_name: &'a str,
+    pub summary_processor_1_name: &'a str,
     pub hitl_task_name: &'a str,
     pub hitl_processor_name: &'a str,
+    pub summary_processor_2_name: &'a str,
     /// Session and state
     pub session_context_name: &'a str,
     pub state_messages_table_name: &'a str,
+    pub state_user_messages_table_name: &'a str,
+    pub state_assistant_messages_table_name: &'a str,
+    pub state_tool_messages_table_name: &'a str,
     pub state_tools_table_name: &'a str,
     pub state_scores_table_name: &'a str,
     pub chat_api_url: Option<&'a str>,
@@ -106,18 +113,24 @@ impl Default for ToolAgentSession<'_> {
             chat_processor_name: "chat_processor_1",
             chat_task_name: "chat_task_1",
             chat_runtime_env_name: "chat_rt_1",
-            tool_task_name: WhichCandleOperator::SortScoresAndIndices.get_name(),
-            tool_processor_name: WhichCandleOperator::SortScoresAndIndices.get_name(),
+            tool_task_name: WhichCandleOperator::SortColumnAndIndices.get_name(),
+            tool_processor_name: WhichCandleOperator::SortColumnAndIndices.get_name(),
             tool_runtime_env_name: "tool_rt_1",
-            summary_processor_name: "summary_processor_1",
+            summary_processor_1_name: "summary_processor_1",
             hitl_task_name: WhichCandleOperator::HumanInTheLoop.get_name(),
             hitl_processor_name: WhichCandleOperator::HumanInTheLoop.get_name(),
+            summary_processor_2_name: "summary_processor_2",
             message_parser_task_name: "message_parser_task_1",
             message_parser_processor_name: "message_parser_processor_1",
-            message_aggregator_task_name: "message_aggregator_task_1",
-            message_aggregator_processor_name: "message_aggregator_processor_1",
-            message_runtime_env_name: "message_rt_1",
+            message_aggregator_task_1_name: "message_aggregator_task_1",
+            message_aggregator_processor_1_name: "message_aggregator_processor_1",
+            message_aggregator_task_2_name: "message_aggregator_task_2",
+            message_aggregator_processor_2_name: "message_aggregator_processor_2",
+            message_aggregator_runtime_env_name: "message_aggregator_rt_1",
             state_messages_table_name: "messages",
+            state_user_messages_table_name: "user_messages",
+            state_assistant_messages_table_name: "assistant_messages",
+            state_tool_messages_table_name: "tool_messages",
             state_scores_table_name: "available_data_1",
             state_tools_table_name: "tools",
             chat_api_url: Some("http://0.0.0.0:8000/v1"),
@@ -134,11 +147,11 @@ impl<'a> ToolAgentSession<'a> {
     }
     pub fn make_tools_table(&self) -> Result<ArrowTable> {
         let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
-            WhichCandleOperator::SortScoresAndIndices.get_name(),
+            WhichCandleOperator::SortColumnAndIndices.get_name(),
             WhichCandleOperator::HumanInTheLoop.get_name(),
         ]));
         let tool: ArrayRef = Arc::new(StringArray::from(vec![
-            WhichCandleOperator::SortScoresAndIndices.get_json_tool_schema(),
+            WhichCandleOperator::SortColumnAndIndices.get_json_tool_schema(),
             WhichCandleOperator::HumanInTheLoop.get_json_tool_schema(),
         ]));
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)])?;
@@ -156,36 +169,45 @@ impl<'a> ToolAgentSession<'a> {
             .with_record_batches(vec![batch])?
             .build()
     }
-    pub fn make_messages_table(&self) -> Result<ArrowTable> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
+    pub fn make_chat_table(&self) -> Result<ArrowTable> {
         ArrowTableBuilder::new()
-            .with_name(self.state_messages_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_message_aggregator_table(&self) -> Result<ArrowTable> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
-        ArrowTableBuilder::new()
-            .with_name(self.message_aggregator_task_name)
-            .with_schema(schema)
+            .with_name(self.chat_task_name)
+            .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()
     }
     pub fn make_message_parser_table(&self) -> Result<ArrowTable> {
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         ArrowTableBuilder::new()
             .with_name(self.message_parser_task_name)
-            .with_schema(schema)
+            .with_schema(create_messages_schema())
+            .with_record_batches(Vec::new())?
+            .build()
+    }
+    pub fn make_messages_table(&self) -> Result<ArrowTable> {
+        ArrowTableBuilder::new()
+            .with_name(self.state_messages_table_name)
+            .with_schema(create_messages_schema())
+            .with_record_batches(Vec::new())?
+            .build()
+    }
+    pub fn make_user_messages_table(&self) -> Result<ArrowTable> {
+        ArrowTableBuilder::new()
+            .with_name(self.state_user_messages_table_name)
+            .with_schema(create_messages_schema())
+            .with_record_batches(Vec::new())?
+            .build()
+    }
+    pub fn make_assistant_messages_table(&self) -> Result<ArrowTable> {
+        ArrowTableBuilder::new()
+            .with_name(self.state_assistant_messages_table_name)
+            .with_schema(create_messages_schema())
+            .with_record_batches(Vec::new())?
+            .build()
+    }
+    pub fn make_tool_messages_table(&self) -> Result<ArrowTable> {
+        ArrowTableBuilder::new()
+            .with_name(self.state_tool_messages_table_name)
+            .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()
     }
@@ -211,95 +233,110 @@ impl<'a> ToolAgentSession<'a> {
 
 impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
     fn make_task_plan(&self) -> Vec<TaskPlan> {
-        let mut tasks = Vec::new();
-
-        // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
-        //  when chained or nested within other streams
-        // DM: another tool agent session publish/subscribe network needs to be
-        //  made for openai_api access that breaks down the chat task into seperate
-        //  tasks for each processor...
-        if cfg!(not(feature = "candle")) {
-            tasks.push(TaskPlan {
-                task_name: self.message_aggregator_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
-                processor_names: vec![self.message_aggregator_processor_name.to_string()],
-            });
-            tasks.push(TaskPlan {
+        vec![
+            // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
+            //  when chained or nested within other streams
+            // DM: another tool agent session publish/subscribe network needs to be
+            //  made for openai_api access that breaks down the chat task into seperate
+            //  tasks for each processor...
+            TaskPlan {
+                task_name: self.message_aggregator_task_1_name.to_string(),
+                runtime_env_name: self.tool_runtime_env_name.to_string(),
+                processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.message_aggregator_task_2_name.to_string(),
+                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
+                processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
+            },
+            TaskPlan {
                 task_name: self.chat_task_name.to_string(),
                 runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.chat_processor_name.to_string()],
-            });
-            tasks.push(TaskPlan {
+            },
+            TaskPlan {
                 task_name: self.message_parser_task_name.to_string(),
                 runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.message_parser_processor_name.to_string()],
-            });
-        } else {
-            tasks.push(TaskPlan {
-                task_name: self.chat_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
+            },
+            TaskPlan {
+                task_name: self.tool_task_name.to_string(),
+                runtime_env_name: self.tool_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.message_aggregator_processor_name.to_string(),
-                    self.chat_processor_name.to_string(),
-                    self.message_parser_processor_name.to_string(),
+                    self.tool_processor_name.to_string(),
+                    self.summary_processor_1_name.to_string(),
                 ],
-            });
-        }
-        tasks.push(TaskPlan {
-            task_name: self.tool_task_name.to_string(),
-            runtime_env_name: self.tool_runtime_env_name.to_string(),
-            processor_names: vec![
-                self.tool_processor_name.to_string(),
-                self.summary_processor_name.to_string(),
-            ],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.hitl_task_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
-            processor_names: vec![
-                self.hitl_task_name.to_string(),
-                self.summary_processor_name.to_string(),
-            ],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.session_context_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
-            processor_names: vec![self.session_context_name.to_string()],
-        });
-
-        tasks
+            },
+            TaskPlan {
+                task_name: self.hitl_task_name.to_string(),
+                runtime_env_name: self.tool_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.hitl_task_name.to_string(),
+                    self.summary_processor_2_name.to_string(),
+                ],
+            },
+            TaskPlan {
+                task_name: self.session_context_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![self.session_context_name.to_string()],
+            },
+        ]
     }
 
     fn make_processors(&self) -> Vec<Arc<dyn ArrowProcessorTrait>> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
-
+        processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
+            self.message_aggregator_processor_1_name,
+            &[ArrowTablePublish::Replace {
+                table_name: self.chat_task_name.to_string(),
+            }],
+            &[
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.state_user_messages_table_name.to_string(),
+                },
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: self.state_tool_messages_table_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.state_assistant_messages_table_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.message_aggregator_processor_1_name.to_string(),
+                },
+            ],
+            &[],
+            ChatContentSubscribe::new_box(),
+        ));
+        processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
+            self.message_aggregator_processor_2_name,
+            &[ArrowTablePublish::Extend {
+                table_name: self.state_messages_table_name.to_string(),
+            }],
+            &[
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: self.state_user_messages_table_name.to_string(),
+                },
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: self.state_assistant_messages_table_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.message_aggregator_processor_2_name.to_string(),
+                },
+            ],
+            &[],
+            AnyTableNameSubscribe::new_box(),
+        ));
         if cfg!(not(feature = "candle")) {
-            processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
-                self.message_aggregator_processor_name,
-                &[ArrowTablePublish::Replace {
-                    table_name: self.state_messages_table_name.to_string(),
-                }],
-                &[
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: self.message_aggregator_task_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysLastRecordBatch {
-                        table_name: self.state_messages_table_name.to_string(),
-                    },
-                ],
-                &[],
-            ));
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIChatProcessor::new_with_pub_sub_for(
                 self.chat_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
+                &[ArrowTablePublish::Replace {
                     table_name: self.message_parser_task_name.to_string(),
-                    col_name: "content".to_string(),
                 }],
                 &[
                     ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: self.state_messages_table_name.to_string(),
+                        table_name: self.chat_task_name.to_string(),
                     },
                     ArrowTableSubscribe::AlwaysFullTable {
                         table_name: self.state_tools_table_name.to_string(),
@@ -309,54 +346,17 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     },
                 ],
                 &[],
-            ));
-            processors.push(MessageParserProcessor::new_with_pub_sub_for(
-                self.message_parser_processor_name,
-                &[
-                    ArrowTablePublish::ExtendChunks {
-                        // The first publication is the default publish target
-                        table_name: self.state_messages_table_name.to_string(),
-                        col_name: "content".to_string(),
-                    },
-                    ArrowTablePublish::Extend {
-                        table_name: self.tool_task_name.to_string(),
-                    },
-                    ArrowTablePublish::Extend {
-                        table_name: self.hitl_task_name.to_string(),
-                    },
-                ],
-                &[
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: self.message_parser_task_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.message_parser_processor_name.to_string(),
-                    },
-                ],
-                &[],
+                AllTableNamesSubscribe::new_box(),
             ));
         } else {
-            processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
-                self.message_aggregator_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
-                    table_name: self.state_messages_table_name.to_string(),
-                    col_name: "content".to_string(),
-                }],
-                &[ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: self.message_aggregator_task_name.to_string(),
-                }],
-                &[],
-            ));
             processors.push(CandleChatProcessor::new_with_pub_sub_for(
                 self.chat_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
+                &[ArrowTablePublish::Replace {
                     table_name: self.message_parser_task_name.to_string(),
-                    col_name: "content".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        // We only want to trigger on aggregator table
-                        table_name: self.state_messages_table_name.to_string(),
+                    ArrowTableSubscribe::OnUpdateFullTable {
+                        table_name: self.chat_task_name.to_string(),
                     },
                     ArrowTableSubscribe::AlwaysFullTable {
                         table_name: self.state_tools_table_name.to_string(),
@@ -366,34 +366,35 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     },
                 ],
                 &[],
-            ));
-            processors.push(MessageParserProcessor::new_with_pub_sub_for(
-                self.message_parser_processor_name,
-                &[
-                    ArrowTablePublish::ExtendChunks {
-                        // The first publication is the default publish target
-                        table_name: self.state_messages_table_name.to_string(),
-                        col_name: "content".to_string(),
-                    },
-                    ArrowTablePublish::Extend {
-                        table_name: self.tool_task_name.to_string(),
-                    },
-                    ArrowTablePublish::Extend {
-                        table_name: self.hitl_task_name.to_string(),
-                    },
-                ],
-                &[
-                    ArrowTableSubscribe::AlwaysLastRecordBatch {
-                        // We only want to trigger an update on aggregator table
-                        table_name: self.message_parser_task_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.message_parser_processor_name.to_string(),
-                    },
-                ],
-                &[],
+                AllTableNamesSubscribe::new_box(),
             ));
         }
+        processors.push(MessageParserProcessor::new_with_pub_sub_for(
+            self.message_parser_processor_name,
+            &[
+                ArrowTablePublish::Extend {
+                    // The first publication is the default publish target
+                    // table_name: self.chat_task_name.to_string(),
+                    table_name: self.state_assistant_messages_table_name.to_string(),
+                },
+                ArrowTablePublish::Extend {
+                    table_name: self.tool_task_name.to_string(),
+                },
+                ArrowTablePublish::Extend {
+                    table_name: self.hitl_task_name.to_string(),
+                },
+            ],
+            &[
+                ArrowTableSubscribe::OnUpdateFullTable {
+                    table_name: self.message_parser_task_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.message_parser_processor_name.to_string(),
+                },
+            ],
+            &[],
+            AllTableNamesSubscribe::new_box(),
+        ));
         processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.tool_processor_name,
             &[ArrowTablePublish::Replace {
@@ -407,43 +408,64 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     table_name: self.state_scores_table_name.to_string(),
                 },
             ],
-            &[self.summary_processor_name],
+            &[self.summary_processor_1_name],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors.push(CandleDataProcessor::new_with_pub_sub_for(
             self.hitl_processor_name,
             &[ArrowTablePublish::Extend {
-                table_name: self.state_messages_table_name.to_string(),
+                table_name: self.state_assistant_messages_table_name.to_string(),
             }],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.hitl_task_name.to_string(),
             }],
-            &[],
+            &[self.summary_processor_2_name],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors.push(DataSummaryProcessor::new_with_pub_sub_for(
-            self.summary_processor_name,
+            self.summary_processor_1_name,
             &[ArrowTablePublish::Extend {
-                table_name: self.message_aggregator_task_name.to_string(),
+                table_name: self.state_tool_messages_table_name.to_string(),
             }],
             &[ArrowTableSubscribe::AlwaysLastRecordBatch {
-                table_name: self.summary_processor_name.to_string(),
+                table_name: self.summary_processor_1_name.to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
+        ));
+        processors.push(DataSummaryProcessor::new_with_pub_sub_for(
+            self.summary_processor_2_name,
+            &[ArrowTablePublish::Extend {
+                table_name: self.state_assistant_messages_table_name.to_string(),
+            }],
+            &[ArrowTableSubscribe::AlwaysLastRecordBatch {
+                table_name: self.summary_processor_2_name.to_string(),
+            }],
+            &[],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors.push(ArrowProcessorEcho::new_with_pub_sub_for(
             self.session_context_name,
-            &[ArrowTablePublish::Extend {
-                table_name: self.state_messages_table_name.to_string(),
-            }],
+            &[
+                ArrowTablePublish::Extend {
+                    table_name: self.state_user_messages_table_name.to_string(),
+                },
+                ArrowTablePublish::Extend {
+                    table_name: self.state_assistant_messages_table_name.to_string(),
+                },
+            ],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                table_name: self.state_messages_table_name.to_string(),
+                table_name: self.state_assistant_messages_table_name.to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors
     }
 
     fn make_runtime_envs(&self) -> Result<Vec<RuntimeEnv>> {
         Ok(vec![
+            RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
             RuntimeEnv::new().with_name(self.chat_runtime_env_name),
             RuntimeEnv::new().with_name(self.tool_runtime_env_name),
             RuntimeEnv::new().with_name("rt_default"),
@@ -461,22 +483,22 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             repeat_last_n: 64,
             // All files need to be local for WASM testing
             weights_config_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             weights_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             tokenizer_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             tokenizer_config_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(WhichCandleAsset::SmolLM2_135MChat),
+            candle_asset: Some(WhichCandleAsset::QwenV2p5_1p5bChat),
             ..Default::default()
         };
 
@@ -516,23 +538,53 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
+        // Message aggregator config
+        let aggregator_config = DataConfig {
+            lhs_name: "".to_string(),
+            lhs_pk: "".to_string(),
+            lhs_fk: "".to_string(),
+            lhs_values: "timestamp".to_string(),
+            op_kwargs: Some("{\"asc\": true}".to_string()),
+            which: WhichCandleOperator::SortColumnAndIndices,
+            ..Default::default()
+        };
+        let aggregator_config_json = serde_json::to_vec(&aggregator_config)?;
+        let aggregator_1_state = ArrowTableBuilder::new()
+            .with_name(self.message_aggregator_processor_1_name)
+            .with_json(&aggregator_config_json.clone(), 1)?
+            .build()?;
+        let aggregator_2_state = ArrowTableBuilder::new()
+            .with_name(self.message_aggregator_processor_2_name)
+            .with_json(&aggregator_config_json, 1)?
+            .build()?;
+
         // Summary config
         let summary_config = DataSummaryConfig {
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config)?;
-        let summary_state = ArrowTableBuilder::new()
-            .with_name(self.summary_processor_name)
+        let summary_state_1 = ArrowTableBuilder::new()
+            .with_name(self.summary_processor_1_name)
+            .with_json(&summary_config_json.clone(), 1)?
+            .build()?;
+        let summary_state_2 = ArrowTableBuilder::new()
+            .with_name(self.summary_processor_2_name)
             .with_json(&summary_config_json, 1)?
             .build()?;
 
         Ok(vec![
             candle_chat_state,
             candle_message_parser_state,
-            summary_state,
+            aggregator_1_state,
+            aggregator_2_state,
+            summary_state_1,
+            summary_state_2,
             self.make_scores_table()?,
             self.make_messages_table()?,
-            self.make_message_aggregator_table()?,
+            self.make_user_messages_table()?,
+            self.make_assistant_messages_table()?,
+            self.make_tool_messages_table()?,
+            self.make_chat_table()?,
             self.make_message_parser_table()?,
             self.make_tools_table()?,
             self.make_tool_config_table()?,
@@ -548,7 +600,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             .with_runtime_envs(self.make_runtime_envs()?)
             .with_state(self.make_state_tables()?)
             .with_processors(self.make_processors())
-            .with_max_iter(8)
+            .with_max_iter(25)
             .build()
     }
 }
@@ -556,6 +608,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
 pub mod test_tool_agent_session {
     use super::*;
     use parking_lot::RwLock;
+    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
     use phymes_core::{
         metrics::HashMap,
         session::{
@@ -567,7 +620,6 @@ pub mod test_tool_agent_session {
             ArrowMessageBuilderTrait,
         },
     };
-    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
 
     pub fn bench_tool_agent_session<'a>(
         session_stream_state: Arc<RwLock<SessionStreamState>>,
@@ -576,18 +628,20 @@ pub mod test_tool_agent_session {
     ) -> SessionStream {
         // Make the system prompt and add the user query
         let message_builder = ArrowTableBuilder::new()
-            .with_name(session.message_aggregator_task_name)
+            .with_name(session.state_user_messages_table_name)
+            // .insert_system_template_str("You are a helpful assistant. You are only allowed to call the provided tools. Do not provide a response that does not adhere to the schema of a tool.")
+            // .unwrap()
             .append_new_user_query_str(user_query, "user")
             .unwrap();
 
         // Build the current message state
         let incoming_message = ArrowIncomingMessageBuilder::new()
-            .with_name(session.message_aggregator_task_name)
-            .with_subject(session.message_aggregator_task_name)
+            .with_name(session.state_user_messages_table_name)
+            .with_subject(session.state_user_messages_table_name)
             .with_publisher(session.session_context_name)
             .with_message(message_builder.build().unwrap())
             .with_update(&ArrowTablePublish::Extend {
-                table_name: session.message_aggregator_task_name.to_string(),
+                table_name: session.state_user_messages_table_name.to_string(),
             })
             .build()
             .unwrap();
@@ -624,7 +678,7 @@ mod tests {
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Make the user query
-        let user_query = "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`. Do not call a function if you are able to answer the questions with information from previous tool_response";
+        let user_query = "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`. Respond using human-in-the-loop when you have the answer.";
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -640,32 +694,64 @@ mod tests {
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
                 session_stream.try_collect().await?;
 
-            println!(
-                "Iters: {}",
-                session_stream_state.try_read().unwrap().get_iter()
-            );
-
-            println!(
-                "Messages: {:?}",
-                session_stream_state
-                    .try_read()
-                    .unwrap()
-                    .get_session_context()
-                    .get_states()
-                    .get(tool_agent_session.state_messages_table_name)
-                    .unwrap()
-            );
-
-            println!(
-                "Message Aggregator: {:?}",
-                session_stream_state
-                    .try_read()
-                    .unwrap()
-                    .get_session_context()
-                    .get_states()
-                    .get(tool_agent_session.message_aggregator_task_name)
-                    .unwrap()
-            );
+            // println!(
+            //     "Iters: {}",
+            //     session_stream_state.try_read().unwrap().get_iter()
+            // );
+            // println!(
+            //     "Updates: {:?}",
+            //     session_stream_state.try_read().unwrap().get_superstep_updates()
+            // );
+            // println!(
+            //     "Messages: {:?}",
+            //     session_stream_state
+            //         .try_read()
+            //         .unwrap()
+            //         .get_session_context()
+            //         .get_states()
+            //         .get(tool_agent_session.state_messages_table_name)
+            //         .unwrap()
+            // );
+            // println!(
+            //     "chat: {:?}",
+            //     session_stream_state
+            //         .try_read()
+            //         .unwrap()
+            //         .get_session_context()
+            //         .get_states()
+            //         .get(tool_agent_session.chat_task_name)
+            //         .unwrap()
+            // );
+            // println!(
+            //     "parser: {:?}",
+            //     session_stream_state
+            //         .try_read()
+            //         .unwrap()
+            //         .get_session_context()
+            //         .get_states()
+            //         .get(tool_agent_session.message_parser_task_name)
+            //         .unwrap()
+            // );
+            // println!(
+            //     "hitl: {:?}",
+            //     session_stream_state
+            //         .try_read()
+            //         .unwrap()
+            //         .get_session_context()
+            //         .get_states()
+            //         .get(tool_agent_session.hitl_task_name)
+            //         .unwrap()
+            // );
+            // println!(
+            //     "tools: {:?}",
+            //     session_stream_state
+            //         .try_read()
+            //         .unwrap()
+            //         .get_session_context()
+            //         .get_states()
+            //         .get(tool_agent_session.tool_task_name)
+            //         .unwrap()
+            // );
 
             // Update the chat history with the response
             let json_data = response
@@ -674,7 +760,7 @@ mod tests {
                 .remove(&format!(
                     "from_{}_on_{}",
                     tool_agent_session.session_context_name,
-                    tool_agent_session.state_messages_table_name
+                    tool_agent_session.state_assistant_messages_table_name
                 ))
                 .unwrap()
                 .get_message_own()
@@ -703,16 +789,26 @@ mod tests {
                     assert_eq!(metric.value().as_usize(), 3);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == tool_agent_session.summary_processor_name
+                    && metric.task().as_ref().unwrap()
+                        == tool_agent_session.summary_processor_1_name
                 {
                     assert_eq!(metric.value().as_usize(), 1);
                 }
             }
 
             // DM: Bug in Llama model system template that requires it to only call tools instead of respond...
-            if cfg!(feature = "candle") {
-                assert_eq!(json_data.first().unwrap().get("role").unwrap(), "assistant");
-            }
+            let roles = ["assistant", "tool"];
+            assert!(
+                roles.contains(
+                    &json_data
+                        .first()
+                        .unwrap()
+                        .get("role")
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                )
+            );
             assert!(json_data.first().unwrap().get("content").is_some());
         }
 

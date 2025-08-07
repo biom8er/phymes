@@ -1,4 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+
+use crate::{metrics::HashMap, session::common_traits::StateMap};
 
 use super::{
     arrow_table::{ArrowTable, ArrowTableTrait},
@@ -49,14 +52,24 @@ impl ArrowTableSubscribe {
 
 /// Subscribe to an arrow table
 pub trait ArrowTableSubscribeTrait: ArrowTableTrait {
-    fn subscribe_table(&self, subscribe: &ArrowTableSubscribe)
-    -> Option<SendableRecordBatchStream>;
+    /// Implement the subscription
+    ///
+    /// # Arguments
+    ///
+    /// * `updated` - whether the table has been updated or not
+    /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
+    fn subscribe_table(
+        &self,
+        subscribe: &ArrowTableSubscribe,
+        updated: bool,
+    ) -> Option<SendableRecordBatchStream>;
 }
 
 impl ArrowTableSubscribeTrait for ArrowTable {
     fn subscribe_table(
         &self,
         subscribe: &ArrowTableSubscribe,
+        updated: bool,
     ) -> Option<SendableRecordBatchStream> {
         match subscribe {
             ArrowTableSubscribe::AlwaysFullTable { table_name: _ } => {
@@ -66,13 +79,317 @@ impl ArrowTableSubscribeTrait for ArrowTable {
                 Some(self.to_record_batch_stream_last_record_batch())
             }
             ArrowTableSubscribe::OnUpdateFullTable { table_name: _ } => {
-                Some(self.to_record_batch_stream())
+                if updated {
+                    Some(self.to_record_batch_stream())
+                } else {
+                    None
+                }
             }
             ArrowTableSubscribe::OnUpdateLastRecordBatch { table_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch())
+                if updated {
+                    Some(self.to_record_batch_stream_last_record_batch())
+                } else {
+                    None
+                }
             }
             ArrowTableSubscribe::None => None,
             ArrowTableSubscribe::Custom(_) => None,
         }
+    }
+}
+
+/// Determine when all subscriptions are ready
+pub trait SubscribeTrait: Debug + Send + Sync {
+    fn check_subscriptions(
+        &self,
+        subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        state: &StateMap,
+    ) -> bool;
+    fn new_box() -> Box<dyn SubscribeTrait>
+    where
+        Self: Sized;
+}
+
+/// Always subscribe (dummy subscription check for testing)
+#[derive(Default, Debug)]
+pub struct AlwaysSubscribe;
+
+impl SubscribeTrait for AlwaysSubscribe {
+    fn check_subscriptions(
+        &self,
+        _subscriptions: &[ArrowTableSubscribe],
+        _updates: &HashMap<String, bool>,
+        _state: &StateMap,
+    ) -> bool {
+        true
+    }
+    fn new_box() -> Box<dyn SubscribeTrait>
+    where
+        Self: Sized,
+    {
+        Box::new(Self)
+    }
+}
+
+/// Subscribe when any matching table name has been updated
+#[derive(Default, Debug)]
+pub struct AnyTableNameSubscribe;
+
+impl SubscribeTrait for AnyTableNameSubscribe {
+    fn check_subscriptions(
+        &self,
+        subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        _state: &StateMap,
+    ) -> bool {
+        let mut is_update_count: usize = 0;
+        for subscription in subscriptions.iter() {
+            if subscription.is_update() {
+                is_update_count += 1;
+                if *updates.get(subscription.get_table_name()).unwrap_or(&false) {
+                    return true;
+                }
+            }
+        }
+        is_update_count == 0
+    }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(Self {})
+    }
+}
+
+/// Subscribe when all matching table names has been updated
+#[derive(Default, Debug)]
+pub struct AllTableNamesSubscribe;
+
+impl SubscribeTrait for AllTableNamesSubscribe {
+    fn check_subscriptions(
+        &self,
+        subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        _state: &StateMap,
+    ) -> bool {
+        for subscription in subscriptions.iter() {
+            if subscription.is_update()
+                & !updates.get(subscription.get_table_name()).unwrap_or(&true)
+            {
+                return false;
+            }
+        }
+        true
+    }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(Self {})
+    }
+}
+
+/// Subscribe when any matching table schema has been updated
+#[derive(Default, Debug)]
+pub struct AnyTableSchemaSubscribe;
+
+impl SubscribeTrait for AnyTableSchemaSubscribe {
+    fn check_subscriptions(
+        &self,
+        subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        state: &StateMap,
+    ) -> bool {
+        let mut is_update_count: usize = 0;
+        for subscription in subscriptions.iter() {
+            if subscription.is_update() {
+                is_update_count += 1;
+                for (table_name, update) in updates {
+                    if state
+                        .get(subscription.get_table_name())
+                        .unwrap()
+                        .try_read()
+                        .unwrap()
+                        .get_schema()
+                        .eq(&state
+                            .get(table_name)
+                            .unwrap()
+                            .try_read()
+                            .unwrap()
+                            .get_schema())
+                        & *update
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        is_update_count == 0
+    }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(Self {})
+    }
+}
+
+/// Subscribe when all matching table schemas has been updated
+#[derive(Default, Debug)]
+pub struct AllTableSchemasSubscribe;
+
+impl SubscribeTrait for AllTableSchemasSubscribe {
+    fn check_subscriptions(
+        &self,
+        subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        state: &StateMap,
+    ) -> bool {
+        for subscription in subscriptions.iter() {
+            if subscription.is_update() {
+                for (table_name, update) in updates {
+                    if state
+                        .get(subscription.get_table_name())
+                        .unwrap()
+                        .try_read()
+                        .unwrap()
+                        .get_schema()
+                        .eq(&state
+                            .get(table_name)
+                            .unwrap()
+                            .try_read()
+                            .unwrap()
+                            .get_schema())
+                        & !*update
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(Self {})
+    }
+}
+
+mod test_subscribe {
+    use std::sync::Arc;
+
+    use parking_lot::RwLock;
+
+    use crate::table::arrow_table::test_table::make_test_table;
+
+    use super::*;
+
+    #[allow(dead_code)]
+    pub fn make_test_state() -> StateMap {
+        let mut state = HashMap::<String, Arc<RwLock<ArrowTable>>>::new();
+        state.insert(
+            "t1".to_string(),
+            Arc::new(RwLock::new(make_test_table("t1", 1, 0, 1).unwrap())),
+        );
+        state.insert(
+            "t2".to_string(),
+            Arc::new(RwLock::new(make_test_table("t2", 1, 0, 1).unwrap())),
+        );
+        state.insert(
+            "t3".to_string(),
+            Arc::new(RwLock::new(make_test_table("t3", 1, 0, 1).unwrap())),
+        );
+        state
+    }
+
+    #[allow(dead_code)]
+    pub fn make_test_subscriptions(use_table_name: bool) -> Vec<ArrowTableSubscribe> {
+        if use_table_name {
+            vec![
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: "t1".to_string(),
+                },
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: "t2".to_string(),
+                },
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: "t3".to_string(),
+                },
+            ]
+        } else {
+            vec![
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: "t3".to_string(),
+                },
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: "t3".to_string(),
+                },
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: "t3".to_string(),
+                },
+            ]
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn make_test_updates(is_any: bool) -> HashMap<String, bool> {
+        let mut updates = HashMap::<String, bool>::new();
+        updates.insert("t1".to_string(), true);
+        if is_any {
+            updates.insert("t2".to_string(), false);
+        } else {
+            updates.insert("t2".to_string(), true);
+        }
+        updates.insert("t3".to_string(), false);
+        updates
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_always_subscribe() {
+        let state = test_subscribe::make_test_state();
+        let subscriptions = test_subscribe::make_test_subscriptions(true);
+        let updates = test_subscribe::make_test_updates(true);
+        let sub = AlwaysSubscribe::new_box();
+        assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
+    }
+
+    #[test]
+    fn test_any_tablename_subscribe() {
+        let state = test_subscribe::make_test_state();
+        let subscriptions = test_subscribe::make_test_subscriptions(true);
+        let updates = test_subscribe::make_test_updates(true);
+        let sub = AnyTableNameSubscribe::new_box();
+        assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
+        let updates = test_subscribe::make_test_updates(false);
+        assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
+    }
+
+    #[test]
+    fn test_all_tablename_subscribe() {
+        let state = test_subscribe::make_test_state();
+        let subscriptions = test_subscribe::make_test_subscriptions(true);
+        let updates = test_subscribe::make_test_updates(true);
+        let sub = AllTableNamesSubscribe::new_box();
+        assert!(!sub.check_subscriptions(&subscriptions, &updates, &state));
+        let updates = test_subscribe::make_test_updates(false);
+        assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
+    }
+
+    #[test]
+    fn test_any_schema_subscribe() {
+        let state = test_subscribe::make_test_state();
+        let subscriptions = test_subscribe::make_test_subscriptions(false);
+        let updates = test_subscribe::make_test_updates(true);
+        let sub = AnyTableSchemaSubscribe::new_box();
+        assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
+        let updates = test_subscribe::make_test_updates(false);
+        assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
+    }
+
+    #[test]
+    fn test_all_schema_subscribe() {
+        let state = test_subscribe::make_test_state();
+        let subscriptions = test_subscribe::make_test_subscriptions(false);
+        let updates = test_subscribe::make_test_updates(true);
+        let sub = AllTableSchemasSubscribe::new_box();
+        assert!(!sub.check_subscriptions(&subscriptions, &updates, &state));
+        let updates = test_subscribe::make_test_updates(false);
+        assert!(!sub.check_subscriptions(&subscriptions, &updates, &state));
     }
 }

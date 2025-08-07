@@ -4,6 +4,7 @@ use std::sync::Arc;
 use super::agent_session_builder::AgentSessionBuilderTrait;
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
+    schemas::message_history::create_messages_schema,
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
@@ -13,18 +14,18 @@ use phymes_core::{
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
-#[cfg(feature = "openai_api")]
-use phymes_ml::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_ml::{
     candle_assets::candle_which::WhichCandleAsset,
     candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor},
 };
-
-use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(feature = "openai_api")]
+use phymes_ml::{
+    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
+};
 
 pub struct ChatAgentSession<'a> {
     pub chat_task_name: &'a str,
@@ -94,6 +95,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ));
         } else {
             processors.push(CandleChatProcessor::new_with_pub_sub_for(
@@ -112,6 +114,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                     },
                 ],
                 &[],
+                AllTableNamesSubscribe::new_box(),
             ));
         }
         processors.push(ArrowProcessorEcho::new_with_pub_sub_for(
@@ -123,6 +126,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                 table_name: self.chat_subscription_name.to_string(),
             }],
             &[],
+            AllTableNamesSubscribe::new_box(),
         ));
         processors
     }
@@ -192,13 +196,9 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
-        let role = Field::new("role", DataType::Utf8, false);
-        let content = Field::new("content", DataType::Utf8, false);
-        let timestamp = Field::new("timestamp", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![role, content, timestamp]));
         let messages = ArrowTableBuilder::new()
             .with_name(self.chat_subscription_name)
-            .with_schema(schema)
+            .with_schema(create_messages_schema())
             .with_record_batches(Vec::new())?
             .build()?;
         Ok(vec![config, messages])
@@ -232,7 +232,7 @@ pub mod test_chat_agent_session {
 
     use super::*;
 
-    use phymes_ml::candle_chat::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
 
     /// Run the first query for the chat agent session and return the response
     pub fn bench_chat_agent_session_1<'a>(

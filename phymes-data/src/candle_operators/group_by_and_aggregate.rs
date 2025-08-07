@@ -12,16 +12,17 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
+use phymes_core::schemas::{chat_completion, types};
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
-use phymes_ml::openai_asset::{chat_completion, types};
 
 use crate::{
     candle_data::data_config::DataAggregator,
     candle_operators::{
-        data_operator::DataOperatorTrait, sort_scores_and_indices::sort_column_and_indices,
+        data_operator::{DataOperatorTrait, make_error_record_batch},
+        sort_column_and_indices::sort_column_and_indices,
     },
 };
 
@@ -53,13 +54,16 @@ impl DataOperatorTrait for GroupByAndAggregate {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        group_by_and_aggregate(
+        match group_by_and_aggregate(
             &lhs_values,
             lhs_args,
             &agg_columns,
             &self.agg_operators,
             device,
-        )
+        ) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }
     }
     fn new(
         _lhs_pk: &str,
@@ -788,7 +792,7 @@ pub fn group_by_and_aggregate(
 
 #[cfg(test)]
 mod tests {
-    use phymes_ml::candle_assets::device::device;
+    use phymes_core::session::common_traits::device;
 
     use super::*;
 

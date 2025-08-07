@@ -65,10 +65,14 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
             b.iter(|| {
                 // Create the session configuration
                 let chat_task_name = format!("chat_task_1_{tag}_{iter}");
-                let message_aggregator_task_name =
+                let message_aggregator_task_1_name =
                     format!("message_aggregator_task_1_{tag}_{iter}");
-                let message_aggregator_processor_name =
+                let message_aggregator_processor_1_name =
                     format!("message_aggregator_processor_1_{tag}_{iter}");
+                let message_aggregator_task_2_name =
+                    format!("message_aggregator_task_2_{tag}_{iter}");
+                let message_aggregator_processor_2_name =
+                    format!("message_aggregator_processor_2_{tag}_{iter}");
                 let chat_processor_name = format!("chat_processor_1_{tag}_{iter}");
                 let embed_query_task_name = format!("embed_query_task_1_{tag}_{iter}");
                 let embed_documents_task_name = format!("embed_documents_task_1_{tag}_{iter}");
@@ -91,8 +95,10 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
 
                 let mut config = DocumentRAGSession {
                     chat_task_name: &chat_task_name,
-                    message_aggregator_task_name: &message_aggregator_task_name,
-                    message_aggregator_processor_name: &message_aggregator_processor_name,
+                    message_aggregator_task_1_name: &message_aggregator_task_1_name,
+                    message_aggregator_processor_1_name: &message_aggregator_processor_1_name,
+                    message_aggregator_task_2_name: &message_aggregator_task_2_name,
+                    message_aggregator_processor_2_name: &message_aggregator_processor_2_name,
                     chat_processor_name: &chat_processor_name,
                     chat_runtime_env_name: "chat_rt_1",
                     embed_query_task_name: &embed_query_task_name,
@@ -112,6 +118,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     vector_search_runtime_env_name: "vs_rt_1",
                     session_context_name: &session_context_name,
                     state_messages_table_name: "messages",
+                    state_user_messages_table_name: "user_messages",
+                    state_assistant_messages_table_name: "assistant_messages",
                     state_documents_table_name: "documents",
                     state_doc_embed_table_name: "doc_embeddings",
                     state_queries_table_name: "queries",

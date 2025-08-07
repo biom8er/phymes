@@ -6,17 +6,17 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor, op::CmpOp};
+use phymes_core::schemas::{chat_completion, types};
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
-use phymes_ml::openai_asset::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::candle_operators::{
-    data_operator::DataOperatorTrait,
-    sort_scores_and_indices::{sort_column_and_indices, take_columns_by_indices},
+    data_operator::{DataOperatorTrait, make_error_record_batch},
+    sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
@@ -54,13 +54,16 @@ impl DataOperatorTrait for JoinInner {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        join_inner(
+        match join_inner(
             &self.lhs_fk,
             lhs_args,
             &self.rhs_fk,
             rhs_args.unwrap(),
             device,
-        )
+        ) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }
     }
     fn get_description() -> String {
         "Join two tables on their foreign keys".to_string()
@@ -393,7 +396,7 @@ pub fn join_inner(
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt8Array, UInt32Array};
-    use phymes_ml::candle_assets::device::device;
+    use phymes_core::session::common_traits::device;
 
     use super::*;
 

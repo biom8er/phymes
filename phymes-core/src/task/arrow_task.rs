@@ -1,11 +1,17 @@
 use std::sync::Arc;
 
+use anyhow::{Result, anyhow};
+use arrow::record_batch::RecordBatch;
+use parking_lot::{Mutex, RwLock};
+use tracing::{Level, event};
+
 use super::{
     arrow_message::{
         ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
         ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
     },
     arrow_processor::ArrowProcessorTrait,
+    publish_subscribe::PubSubTrait,
 };
 
 // Required for documentation
@@ -16,23 +22,17 @@ use super::test_exec::{collect_partitions_runs, collect_task_runs};
 #[allow(unused_imports)]
 use crate::metrics::Metric;
 
-use crate::metrics::{ArrowTaskMetricsSet, HashMap, MetricsSet};
-use crate::session::{
-    common_traits::{
-        BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, PubSubTrait,
-        RunnableTrait, StateMap,
+use crate::{
+    metrics::{ArrowTaskMetricsSet, HashMap, MetricsSet},
+    session::{
+        common_traits::{
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, RunnableTrait,
+            StateMap,
+        },
+        runtime_env::RuntimeEnv,
     },
-    runtime_env::RuntimeEnv,
+    table::{arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::ArrowTableSubscribe},
 };
-use crate::table::{
-    arrow_table_publish::ArrowTablePublish,
-    arrow_table_subscribe::{ArrowTableSubscribe, ArrowTableSubscribeTrait},
-};
-
-use anyhow::{Result, anyhow};
-use arrow::record_batch::RecordBatch;
-use parking_lot::{Mutex, RwLock};
-use tracing::{Level, event};
 
 /// Trait to implement the actual task which could involve one or
 ///   more operators over [`RecordBatch`]s often originating from
@@ -87,35 +87,6 @@ pub trait ArrowTaskTrait:
         }
     }
 
-    /// Get subscriptions from the state
-    fn get_subscriptions_from_state(&self, state: &StateMap) -> OutgoingMessageMap {
-        let mut map = HashMap::<String, ArrowOutgoingMessage>::new();
-        for subscription in self.get_subscriptions().iter() {
-            let table = state.get(subscription.get_table_name()).unwrap();
-            if let Some(message) = table.try_read().unwrap().subscribe_table(subscription) {
-                let update = self
-                    .get_publications()
-                    .iter()
-                    .filter(|p| p.get_table_name() == subscription.get_table_name())
-                    .collect::<Vec<_>>();
-                let update = match update.first() {
-                    Some(u) => u,
-                    None => &ArrowTablePublish::None,
-                };
-                let out = ArrowOutgoingMessage::get_builder()
-                    .with_name(subscription.get_table_name())
-                    .with_publisher("State")
-                    .with_subject(subscription.get_table_name())
-                    .with_update(update)
-                    .with_message(message)
-                    .build()
-                    .unwrap();
-                let _ = map.insert(subscription.get_table_name().to_string(), out);
-            }
-        }
-        map
-    }
-
     /// Make the outbox
     ///
     /// # Note
@@ -124,15 +95,22 @@ pub trait ArrowTaskTrait:
     ///   the final message map
     fn make_outbox(&self, outbox: OutgoingMessageMap) -> OutgoingMessageMap {
         let mut map = HashMap::<String, ArrowOutgoingMessage>::new();
-        for (_name, message) in outbox.into_iter() {
-            let update = self
-                .get_publications()
+        for (name, message) in outbox.into_iter() {
+            let publications = self.get_publications();
+            let update = publications
                 .iter()
                 .filter(|p| p.get_table_name() == message.get_subject())
                 .collect::<Vec<_>>();
 
             // Skip messages that are not in the publications
             if update.is_empty() {
+                event!(
+                    Level::ERROR,
+                    "No publications found for message {} on {} from {}",
+                    &name,
+                    message.get_subject(),
+                    message.get_publisher()
+                );
                 continue;
             }
 
@@ -186,10 +164,6 @@ pub struct ArrowTask {
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Entry processor
     processor: Vec<Arc<dyn ArrowProcessorTrait>>,
-    /// Cached subscriptions to listen to
-    subscriptions: Vec<ArrowTableSubscribe>,
-    /// Cached subjects to publish on
-    publications: Vec<ArrowTablePublish>,
 }
 
 impl MappableTrait for ArrowTask {
@@ -237,19 +211,31 @@ impl ArrowTaskTrait for ArrowTask {
 }
 
 impl PubSubTrait for ArrowTask {
-    fn get_subscriptions(&self) -> &Vec<ArrowTableSubscribe> {
-        &self.subscriptions
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        self.get_processors()
+            .iter()
+            .flat_map(|p| p.get_subscriptions())
+            .collect::<Vec<&ArrowTableSubscribe>>()
     }
-    fn get_publications(&self) -> &Vec<ArrowTablePublish> {
-        &self.publications
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        self.get_processors()
+            .iter()
+            .flat_map(|p| p.get_publications())
+            .collect::<Vec<&ArrowTablePublish>>()
+    }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        for processor in self.get_processors() {
+            if !processor.check_subscriptions(updates, state) {
+                return false;
+            }
+        }
+        true
     }
 }
 
 pub trait ArrowTaskBuilderTrait: BuilderTrait {
     fn with_metrics(self, metrics: ArrowTaskMetricsSet) -> Self;
     fn with_runtime_env(self, runtime_env: Arc<Mutex<RuntimeEnv>>) -> Self;
-    fn with_subscriptions(self, subscriptions: Vec<ArrowTableSubscribe>) -> Self;
-    fn with_publications(self, publications: Vec<ArrowTablePublish>) -> Self;
     fn with_processor(self, processor: Vec<Arc<dyn ArrowProcessorTrait>>) -> Self;
 }
 
@@ -261,10 +247,6 @@ pub struct ArrowTaskBuilder {
     pub metrics: Option<ArrowTaskMetricsSet>,
     /// Runtime environment for the task
     pub runtime_env: Option<Arc<Mutex<RuntimeEnv>>>,
-    /// Subscriptions to listen to
-    pub subscriptions: Option<Vec<ArrowTableSubscribe>>,
-    /// Subjects to publish on
-    pub publications: Option<Vec<ArrowTablePublish>>,
     /// Function that implements the logic
     pub processor: Option<Vec<Arc<dyn ArrowProcessorTrait>>>,
 }
@@ -276,8 +258,6 @@ impl BuilderTrait for ArrowTaskBuilder {
             name: None,
             metrics: None,
             runtime_env: None,
-            subscriptions: None,
-            publications: None,
             processor: None,
         }
     }
@@ -293,8 +273,6 @@ impl BuilderTrait for ArrowTaskBuilder {
             name: self.name.unwrap_or_default(),
             metrics: self.metrics.unwrap_or_default(),
             runtime_env: self.runtime_env.unwrap(),
-            subscriptions: self.subscriptions.unwrap_or_default(),
-            publications: self.publications.unwrap_or_default(),
             processor: self.processor.unwrap(),
         })
     }
@@ -307,14 +285,6 @@ impl ArrowTaskBuilderTrait for ArrowTaskBuilder {
     }
     fn with_runtime_env(mut self, runtime_env: Arc<Mutex<RuntimeEnv>>) -> Self {
         self.runtime_env = Some(runtime_env);
-        self
-    }
-    fn with_subscriptions(mut self, subscriptions: Vec<ArrowTableSubscribe>) -> Self {
-        self.subscriptions = Some(subscriptions);
-        self
-    }
-    fn with_publications(mut self, publications: Vec<ArrowTablePublish>) -> Self {
-        self.publications = Some(publications);
         self
     }
     fn with_processor(mut self, processor: Vec<Arc<dyn ArrowProcessorTrait>>) -> Self {
@@ -381,6 +351,7 @@ pub mod test_task {
                 ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, test_table::make_test_table,
             },
             arrow_table_publish::ArrowTablePublish,
+            arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
         },
         task::{
             arrow_message::{
@@ -437,6 +408,14 @@ pub mod test_task {
         Ok(state)
     }
 
+    pub fn make_state_updates(table_names: &[&str], updates: &[bool]) -> HashMap<String, bool> {
+        let mut updated = HashMap::<String, bool>::new();
+        for (i, table_name) in table_names.iter().enumerate() {
+            let _ = updated.insert(table_name.to_string(), *updates.get(i).unwrap());
+        }
+        updated
+    }
+
     pub fn make_runtime_env(name: &str) -> Result<RuntimeEnv> {
         let rt = RuntimeEnv::new().with_name(name);
         Ok(rt)
@@ -450,24 +429,26 @@ pub mod test_task {
         metrics: ArrowTaskMetricsSet,
     ) -> Result<ArrowTask> {
         let processor_name = format!("{name}_processor");
-        let subscriptions = vec![
-            ArrowTableSubscribe::OnUpdateFullTable {
-                table_name: table_name.to_string(),
-            },
-            ArrowTableSubscribe::AlwaysFullTable {
-                table_name: config_name.to_string(),
-            },
-        ];
-        let publications = vec![ArrowTablePublish::Extend {
-            table_name: table_name.to_string(),
-        }];
         ArrowTask::get_builder()
             .with_name(name)
             .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_subscriptions(subscriptions)
-            .with_publications(publications)
-            .with_processor(vec![ArrowProcessorMock::new_arc(processor_name.as_str())])
+            .with_processor(vec![ArrowProcessorMock::new_with_pub_sub_for(
+                processor_name.as_str(),
+                &[ArrowTablePublish::Extend {
+                    table_name: table_name.to_string(),
+                }],
+                &[
+                    ArrowTableSubscribe::OnUpdateFullTable {
+                        table_name: table_name.to_string(),
+                    },
+                    ArrowTableSubscribe::AlwaysFullTable {
+                        table_name: config_name.to_string(),
+                    },
+                ],
+                &[],
+                AllTableNamesSubscribe::new_box(),
+            )])
             .build()
     }
 
@@ -480,27 +461,29 @@ pub mod test_task {
         metrics: ArrowTaskMetricsSet,
     ) -> Result<ArrowTask> {
         let processor_name = format!("{name}_processor");
-        let subscriptions = vec![
-            ArrowTableSubscribe::OnUpdateFullTable {
-                table_name: table_name_1.to_string(),
-            },
-            ArrowTableSubscribe::OnUpdateFullTable {
-                table_name: table_name_2.to_string(),
-            },
-            ArrowTableSubscribe::AlwaysFullTable {
-                table_name: config_name.to_string(),
-            },
-        ];
-        let publications = vec![ArrowTablePublish::Extend {
-            table_name: table_name_1.to_string(),
-        }];
         ArrowTask::get_builder()
             .with_name(name)
             .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_subscriptions(subscriptions)
-            .with_publications(publications)
-            .with_processor(vec![ArrowProcessorMock::new_arc(processor_name.as_str())])
+            .with_processor(vec![ArrowProcessorMock::new_with_pub_sub_for(
+                processor_name.as_str(),
+                &[ArrowTablePublish::Extend {
+                    table_name: table_name_1.to_string(),
+                }],
+                &[
+                    ArrowTableSubscribe::OnUpdateFullTable {
+                        table_name: table_name_1.to_string(),
+                    },
+                    ArrowTableSubscribe::OnUpdateFullTable {
+                        table_name: table_name_2.to_string(),
+                    },
+                    ArrowTableSubscribe::AlwaysFullTable {
+                        table_name: config_name.to_string(),
+                    },
+                ],
+                &[],
+                AllTableNamesSubscribe::new_box(),
+            )])
             .build()
     }
 
@@ -514,25 +497,27 @@ pub mod test_task {
         let processor_name_1 = format!("{name}_processor_1");
         let processor_name_2 = format!("{name}_processor_2");
         let processor_name_3 = format!("{name}_processor_3");
-        let subscriptions = vec![
-            ArrowTableSubscribe::OnUpdateFullTable {
-                table_name: table_name.to_string(),
-            },
-            ArrowTableSubscribe::AlwaysFullTable {
-                table_name: config_name.to_string(),
-            },
-        ];
-        let publications = vec![ArrowTablePublish::Extend {
-            table_name: table_name.to_string(),
-        }];
         ArrowTask::get_builder()
             .with_name(name)
             .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_subscriptions(subscriptions)
-            .with_publications(publications)
             .with_processor(vec![
-                ArrowProcessorMock::new_arc(processor_name_1.as_str()),
+                ArrowProcessorMock::new_with_pub_sub_for(
+                    processor_name_1.as_str(),
+                    &[ArrowTablePublish::Extend {
+                        table_name: table_name.to_string(),
+                    }],
+                    &[
+                        ArrowTableSubscribe::OnUpdateFullTable {
+                            table_name: table_name.to_string(),
+                        },
+                        ArrowTableSubscribe::AlwaysFullTable {
+                            table_name: config_name.to_string(),
+                        },
+                    ],
+                    &[],
+                    AllTableNamesSubscribe::new_box(),
+                ),
                 ArrowProcessorMock::new_arc(processor_name_2.as_str()),
                 ArrowProcessorMock::new_arc(processor_name_3.as_str()),
             ])
@@ -710,6 +695,8 @@ mod tests {
     #[test]
     fn test_get_subscriptions_from_state() -> Result<()> {
         let metrics = ArrowTaskMetricsSet::new();
+
+        // Single processor with All logic
         let test_task = test_task::make_test_task_single_processor(
             "test_task",
             "test_rt",
@@ -717,8 +704,55 @@ mod tests {
             "test_config",
             metrics.clone(),
         )?;
-        let test_state = test_task::make_state("test_table", "test_config")?;
-        let messages = test_task.get_subscriptions_from_state(&test_state);
+        let messages = test_task.get_subscriptions_from_state(
+            &test_task::make_state_updates(&["test_table"], &[true]),
+            &test_task::make_state("test_table", "test_config")?,
+        );
+        assert_eq!(messages.len(), 2);
+        assert!(messages.get("test_table").is_some());
+        assert_eq!(
+            messages.get("test_table").unwrap().get_subject(),
+            "test_table"
+        );
+        assert!(messages.get("test_config").is_some());
+        assert_eq!(
+            messages.get("test_config").unwrap().get_subject(),
+            "test_config"
+        );
+
+        // Multiple processors with no OnUpdates
+        let test_task = test_task::make_test_task_multiple_subscriptions(
+            "test_task",
+            "test_rt",
+            "test_table",
+            "test_table_2",
+            "test_config",
+            metrics.clone(),
+        )?;
+        let messages = test_task.get_subscriptions_from_state(
+            &test_task::make_state_updates(&["test_table"], &[false]),
+            &test_task::make_state("test_table", "test_config")?,
+        );
+        assert_eq!(messages.len(), 1);
+        assert!(messages.get("test_config").is_some());
+        assert_eq!(
+            messages.get("test_config").unwrap().get_subject(),
+            "test_config"
+        );
+
+        // Multiple processors with one OnUpdates
+        let test_task = test_task::make_test_task_multiple_subscriptions(
+            "test_task",
+            "test_rt",
+            "test_table",
+            "test_table_2",
+            "test_config",
+            metrics.clone(),
+        )?;
+        let messages = test_task.get_subscriptions_from_state(
+            &test_task::make_state_updates(&["test_table"], &[true]),
+            &test_task::make_state("test_table", "test_config")?,
+        );
         assert_eq!(messages.len(), 2);
         assert!(messages.get("test_table").is_some());
         assert_eq!(
@@ -820,8 +854,10 @@ mod tests {
             "test_config",
             metrics.clone(),
         )?;
-        let test_state = test_task::make_state("test_table", "test_config")?;
-        let input = test_task.get_subscriptions_from_state(&test_state);
+        let input = test_task.get_subscriptions_from_state(
+            &test_task::make_state_updates(&["test_table"], &[true]),
+            &test_task::make_state("test_table", "test_config")?,
+        );
         let mut response = test_task.run(input)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
@@ -869,8 +905,10 @@ mod tests {
             "test_config",
             metrics.clone(),
         )?;
-        let test_state = test_task::make_state("test_table", "test_config")?;
-        let input = test_task.get_subscriptions_from_state(&test_state);
+        let input = test_task.get_subscriptions_from_state(
+            &test_task::make_state_updates(&["test_table"], &[true]),
+            &test_task::make_state("test_table", "test_config")?,
+        );
         let mut response = test_task.run(input)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());

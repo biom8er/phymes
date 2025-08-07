@@ -2,24 +2,24 @@ use crate::{
     candle_embed::{
         embed_config::CandleEmbedConfig, embed_processor::convert_embedding_vector_to_record_batch,
     },
-    openai_asset::{
-        OpenAIRequestState,
-        embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat},
-    },
+    openai_asset::OpenAIRequestState,
 };
 
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    schemas::embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat},
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+        common_traits::{
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
+        },
         runtime_env::RuntimeEnv,
     },
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{
@@ -28,6 +28,7 @@ use phymes_core::{
             ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
+        publish_subscribe::PubSubTrait,
     },
 };
 
@@ -46,12 +47,13 @@ use std::{
 };
 use tracing::{Level, event};
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct OpenAIEmbedProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
     forward: Vec<String>,
+    subscribe: Box<dyn SubscribeTrait>,
 }
 
 impl OpenAIEmbedProcessor {
@@ -60,12 +62,14 @@ impl OpenAIEmbedProcessor {
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
         forward: &[&str],
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             forward: forward.iter().map(|s| s.to_string()).collect(),
+            subscribe,
         })
     }
 }
@@ -76,6 +80,20 @@ impl MappableTrait for OpenAIEmbedProcessor {
     }
 }
 
+impl PubSubTrait for OpenAIEmbedProcessor {
+    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        self.publications.iter().collect()
+    }
+
+    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        self.subscriptions.iter().collect()
+    }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe
+            .check_subscriptions(&self.subscriptions, updates, state)
+    }
+}
+
 impl ArrowProcessorTrait for OpenAIEmbedProcessor {
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
@@ -83,15 +101,8 @@ impl ArrowProcessorTrait for OpenAIEmbedProcessor {
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
             forward: Vec::new(),
+            subscribe: AllTableNamesSubscribe::new_box(),
         })
-    }
-
-    fn get_publications(&self) -> &[ArrowTablePublish] {
-        &self.publications
-    }
-
-    fn get_subscriptions(&self) -> &[ArrowTableSubscribe] {
-        &self.subscriptions
     }
 
     fn get_forward_subscriptions(&self) -> &[String] {
