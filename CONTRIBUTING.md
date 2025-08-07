@@ -769,7 +769,7 @@ cargo run -p phymes-server --features wsl,gpu,candle
 RUST_LOG=phymes_server=INFO cargo run -p phymes-server --features wsl,gpu,candle
 
 # DEBUG and INFO level logs for phymes-server, phymes-core, and phymes-ml with BACKTRACE level 1
-RUST_BACKTRACE=1 RUST_LOG=phymes_server=DEBUG,INFO,phymes_core=DEBUG,INFO,phymes_ml=DEBUG,INFO cargo run -p phymes-server --features wsl,gpu,candle,hf_hub
+RUST_BACKTRACE=1 RUST_LOG=phymes_server=DEBUG,INFO,ERROR,phymes_data=DEBUG,INFO,ERROR,phymes_core=DEBUG,INFO,ERROR,phymes_ml=DEBUG,INFO,ERROR cargo run -p phymes-server --features wsl,gpu,candle,hf_hub
 ```
 
 <!--- ANCHOR_END: deploying --->

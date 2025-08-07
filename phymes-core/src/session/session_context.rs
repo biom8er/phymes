@@ -897,7 +897,7 @@ impl SessionStreamStep {
             } else {
                 tasks.push(task_name.to_owned());
             }
-            event!(Level::DEBUG, "Superstep for task {}", &task_name);
+            event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Run the task and collect the stream responses
             let messages = task.get_subscriptions_from_state(updates, states);
@@ -1013,6 +1013,7 @@ impl Stream for SessionStream {
                 return Poll::Ready(Some(Ok(res)));
             }
         }
+        event!(Level::DEBUG, "Maximum iterations {} exeeded.", max_iter);
         Poll::Ready(None)
     }
 

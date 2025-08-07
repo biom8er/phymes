@@ -5,7 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::chat_completion::ToolCall, session::{
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::{chat_completion::ToolCall, message_history::{create_messages_record_batch, create_timestamp_micros}}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap},
         runtime_env::RuntimeEnv,
     }, table::{
@@ -346,40 +346,23 @@ impl Stream for MessageParserStream {
                             // Cannot be parsed, fallback to message schema
                             event!(Level::ERROR, "Unparsable content: {}", e.to_string());
                             self.schema = message.get_schema();
-                            message.get_record_batches_own().remove(0)
-                            // // and append error message for next try
-                            // let mut role_vec = message.get_column_as_vec_str("role");
-                            // role_vec.push("assistant");
-                            // let mut content_vec = message.get_column_as_vec_str("content");
-                            // let e_str = e.to_string();
-                            // content_vec.push(e_str.as_str());
-                            // let role_arr: ArrayRef = Arc::new(StringArray::from(role_vec));
-                            // let content_arr: ArrayRef = Arc::new(StringArray::from(content_vec));
 
-                            // // Convert to a values string
-                            // let batch = RecordBatch::try_from_iter(vec![("role", role_arr), ("content", content_arr)])?;
-                            // let json_value = ArrowTable::get_builder()
-                            //     .with_name("")
-                            //     .with_record_batches(vec![batch])?
-                            //     .build()?
-                            //     .to_json_object()?;
-                            // let values_str = serde_json::to_string(&json_value)?;
+                            // and append error message for next try
+                            let mut timestamp_vec = Vec::new();
+                            let mut role_vec = Vec::new();
+                            let mut content_vec = Vec::new();
 
-                            // // Wrap the parsed content into a record batch
-                            // let names_vec = vec!["messages"];
-                            // let publishers_vec = vec!["message_parser_processor"];
-                            // let subjects_vec = vec!["messages"];
-                            // let values_vec = vec![values_str.as_str()];
-                            // let names: ArrayRef = Arc::new(StringArray::from(names_vec));
-                            // let publishers: ArrayRef = Arc::new(StringArray::from(publishers_vec));
-                            // let subjects: ArrayRef = Arc::new(StringArray::from(subjects_vec));
-                            // let values: ArrayRef = Arc::new(StringArray::from(values_vec));
-                            // RecordBatch::try_from_iter(vec![
-                            //     ("name", names),
-                            //     ("publisher", publishers),
-                            //     ("subject", subjects),
-                            //     ("values", values),
-                            // ])?
+                            // Assistant content
+                            timestamp_vec.push(create_timestamp_micros());
+                            role_vec.push(message.get_column_as_vec_str("role").first().unwrap().to_string());
+                            content_vec.push(content);
+
+                            // Mock Tool content
+                            timestamp_vec.push(create_timestamp_micros());
+                            //role_vec.push("function".to_string());
+                            role_vec.push("tool".to_string());
+                            content_vec.push(format!("There was an error attempting to parse the last message {e:?}. Ensure your response follows the schema of a tool."));
+                            create_messages_record_batch(role_vec, content_vec, timestamp_vec)?
                         }
                     }
                 }

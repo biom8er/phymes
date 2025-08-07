@@ -26,7 +26,7 @@ impl DataOperatorTrait for HumanInTheLoop {
         HumanInTheLoop {}
     }
     fn get_description() -> String {
-        "1. Ask a question to clarify the query from the user if information is missing or if you are uncertain about your response; or 2. provide the answer to the user if you are certain about your response.".to_string()
+        "The response to the user.".to_string()
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
@@ -34,7 +34,7 @@ impl DataOperatorTrait for HumanInTheLoop {
             "lhs_args".to_string(),
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
-                description: Some("The question or answer for the user. Format lhs_arg value as JSON according to the schema {\"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your question or answer for the user".to_string()),
+                description: Some("Format lhs_arg value as JSON according to the schema {\"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your response for the user".to_string()),
                 ..Default::default()
             }),
         );

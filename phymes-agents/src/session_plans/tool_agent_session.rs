@@ -39,6 +39,24 @@ use arrow::{
     record_batch::RecordBatch,
 };
 
+/// Custom subscription to pull in all of the relevant content for the chat
+#[derive(Default, Debug)]
+pub struct ChatContentSubscribe {
+    user_message_table_name: String,
+    tool_message_table_name: String,
+}
+
+impl SubscribeTrait for ChatContentSubscribe {
+    fn check_subscriptions(&self, _subscriptions: &[ArrowTableSubscribe], updates: &HashMap<String, bool>, _state: &StateMap) -> bool {
+        let user = updates.get(self.user_message_table_name).unwrap_or(&false);
+        let tool = updates.get(self.tool_message_table_name).unwrap_or(&false);
+        tool || user
+    }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(Self {})        
+    }
+}
+
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
     /// Text generation inference capabilities (i.e, the agent)
@@ -298,9 +316,8 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIChatProcessor::new_with_pub_sub_for(
                 self.chat_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
+                &[ArrowTablePublish::Replace {
                     table_name: self.message_parser_task_name.to_string(),
-                    col_name: "content".to_string(),
                 }],
                 &[
                     ArrowTableSubscribe::OnUpdateFullTable {
@@ -319,9 +336,8 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
         } else {
             processors.push(CandleChatProcessor::new_with_pub_sub_for(
                 self.chat_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
+                &[ArrowTablePublish::Replace {
                     table_name: self.message_parser_task_name.to_string(),
-                    col_name: "content".to_string(),
                 }],
                 &[
                     ArrowTableSubscribe::OnUpdateFullTable {
@@ -341,10 +357,9 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
         processors.push(MessageParserProcessor::new_with_pub_sub_for(
             self.message_parser_processor_name,
             &[
-                ArrowTablePublish::ExtendChunks {
+                ArrowTablePublish::Extend {
                     // The first publication is the default publish target
                     table_name: self.chat_task_name.to_string(),
-                    col_name: "content".to_string(),
                 },
                 ArrowTablePublish::Extend {
                     table_name: self.tool_task_name.to_string(),
@@ -354,7 +369,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 },
             ],
             &[
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                ArrowTableSubscribe::OnUpdateFullTable {
                     table_name: self.message_parser_task_name.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
@@ -579,6 +594,8 @@ pub mod test_tool_agent_session {
         // Make the system prompt and add the user query
         let message_builder = ArrowTableBuilder::new()
             .with_name(session.state_user_messages_table_name)
+            .insert_system_template_str("You are a helpful assistant. You are only allowed to call the provided tools. Do not provide a response that does not adhere to the schema of a tool.")
+            .unwrap()
             .append_new_user_query_str(user_query, "user")
             .unwrap();
 
