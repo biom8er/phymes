@@ -53,13 +53,16 @@ impl DataOperatorTrait for GroupByAndAggregate {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        group_by_and_aggregate(
+        match group_by_and_aggregate(
             &lhs_values,
             lhs_args,
             &agg_columns,
             &self.agg_operators,
             device,
-        )
+        ) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }  
     }
     fn new(
         _lhs_pk: &str,

@@ -50,7 +50,10 @@ impl DataOperatorTrait for ExtractPDFText {
         _device: &Device,
     ) -> Result<RecordBatch> {
         let docs = prepare_pdf_documents(&self.lhs_pk, &self.lhs_values, lhs_args);
-        extract_pdf_text(&docs)
+        match extract_pdf_text(&docs) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }        
     }
     fn get_description() -> String {
         "Extract text from PDF documents".to_string()

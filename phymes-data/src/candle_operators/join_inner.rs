@@ -54,13 +54,16 @@ impl DataOperatorTrait for JoinInner {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        join_inner(
+        match join_inner(
             &self.lhs_fk,
             lhs_args,
             &self.rhs_fk,
             rhs_args.unwrap(),
             device,
-        )
+        ) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        } 
     }
     fn get_description() -> String {
         "Join two tables on their foreign keys".to_string()

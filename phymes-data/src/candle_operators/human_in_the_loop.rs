@@ -59,14 +59,21 @@ impl DataOperatorTrait for HumanInTheLoop {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        let content = ArrowTable::get_builder()
-            .with_record_batches(lhs_args.to_vec())?
-            .with_name("")
-            .build()?
-            .get_column_as_vec_str("content")
-            .first()
-            .unwrap()
-            .to_string();
-        create_messages_record_batch(vec!["assistant".to_string()], vec![content], vec![create_timestamp_micros()])
+        match create_hitl_record_batch(lhs_args) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }
     }
+}
+
+fn create_hitl_record_batch(lhs_args: &[RecordBatch]) -> Result<RecordBatch> {
+    let content = ArrowTable::get_builder()
+        .with_record_batches(lhs_args.to_vec())?
+        .with_name("")
+        .build()?
+        .get_column_as_vec_str("content")
+        .first()
+        .unwrap()
+        .to_string();
+    create_messages_record_batch(vec!["assistant".to_string()], vec![content], vec![create_timestamp_micros()])
 }

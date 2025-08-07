@@ -10,6 +10,8 @@ use phymes_core::{
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
 
+use crate::candle_operators::data_operator::make_error_record_batch;
+
 use super::data_operator::DataOperatorTrait;
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
@@ -60,7 +62,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        relative_similarity_score(
+        match relative_similarity_score(
             &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
@@ -68,7 +70,10 @@ impl DataOperatorTrait for RelativeSimilarityScore {
             &self.rhs_values,
             rhs_args.unwrap_or(&[]),
             device,
-        )
+        ) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }        
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();

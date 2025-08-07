@@ -62,14 +62,17 @@ impl DataOperatorTrait for ChunkDocuments {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        chunk_documents(
+        match chunk_documents(
             &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
             self.chunk_size,
             self.chunk_overlap,
             device,
-        )
+        ) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        } 
     }
     fn get_description() -> String {
         "Chunk documents by splitting the document text".to_string()

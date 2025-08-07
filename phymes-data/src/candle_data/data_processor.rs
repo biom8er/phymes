@@ -660,7 +660,7 @@ mod tests {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        assert_eq!(rhs_id.first().unwrap(), &"lhs_values");
+        assert_eq!(rhs_id.first().unwrap(), &"RESPONSE");
 
         // Case 3: LHS and RHS messages from multiple stream batch
         let lhs_ids_vec_1 = vec!["1"];
