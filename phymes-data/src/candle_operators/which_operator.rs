@@ -274,7 +274,7 @@ mod tests {
                 .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
         );
 
-        assert!(functions.get(4).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"human-in-the-loop\",\"description\":\"1. Ask a question to clarify the query from the user if information is missing or if you are uncertain about your response; or 2. provide the answer to the user if you are certain about your response.\"")
+        assert!(functions.get(4).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"human-in-the-loop\",\"description\":\"The response to the user.\"")
         );
         assert!(
             functions
@@ -282,7 +282,7 @@ mod tests {
                 .unwrap()
                 .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
         );
-        assert!(functions.get(4).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The content for the user\"")
+        assert!(functions.get(4).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"Format lhs_arg value as JSON according to the schema {\"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your response for the user\"")
         );
         assert!(
             functions

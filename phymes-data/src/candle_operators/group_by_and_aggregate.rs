@@ -21,7 +21,7 @@ use phymes_core::schemas::{chat_completion, types};
 use crate::{
     candle_data::data_config::DataAggregator,
     candle_operators::{
-        data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices,
+        data_operator::{make_error_record_batch, DataOperatorTrait}, sort_column_and_indices::sort_column_and_indices,
     },
 };
 

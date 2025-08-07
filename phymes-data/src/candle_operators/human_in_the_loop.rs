@@ -1,5 +1,7 @@
 use arrow::record_batch::RecordBatch;
 
+use crate::candle_operators::data_operator::make_error_record_batch;
+
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
 use candle_core::Device;

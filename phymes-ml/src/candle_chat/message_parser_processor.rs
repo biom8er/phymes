@@ -342,7 +342,7 @@ impl Stream for MessageParserStream {
                             // Mock Tool content
                             timestamp_vec.push(create_timestamp_micros());
                             role_vec.push("user".to_string());
-                            content_vec.push(format!("Reformat your response to follow the tool schemas."));
+                            content_vec.push(format!("Reformat your response to follow the tool schemas. If trying to respond to the user, use the human-in-the-loop tool."));
                             create_messages_record_batch(role_vec, content_vec, timestamp_vec)?
                         }
                     }
@@ -368,6 +368,7 @@ impl RecordBatchStream for MessageParserStream {
 
 #[cfg(test)]
 mod tests {
+    use arrow::array::{ArrayRef, StringArray};
     use phymes_core::{
         metrics::HashMap,
         table::{arrow_table::ArrowTableBuilder, arrow_table_publish::ArrowTablePublish},

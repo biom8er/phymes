@@ -15,7 +15,7 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::candle_operators::{
-    data_operator::DataOperatorTrait,
+    data_operator::{make_error_record_batch, DataOperatorTrait},
     sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
 };
 

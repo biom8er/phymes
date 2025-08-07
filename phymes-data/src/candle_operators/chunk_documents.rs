@@ -14,7 +14,7 @@ use phymes_core::{
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::candle_operators::data_operator::DataOperatorTrait;
+use crate::candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug)]
