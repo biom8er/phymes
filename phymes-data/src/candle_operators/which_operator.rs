@@ -214,11 +214,17 @@ mod tests {
         );
         assert!(functions.first().unwrap().contains("\"lhs_pk\":{\"type\":\"string\",\"description\":\"The primary key column identifier for the left hand side table\"")
         );
+        assert!(functions.first().unwrap().contains("\"rhs_name\":{\"type\":\"string\",\"description\":\"The name of the right hand side table\"")
+        );
+        assert!(functions.first().unwrap().contains("\"rhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the right hand side table\"")
+        );
+        assert!(functions.first().unwrap().contains("\"rhs_pk\":{\"type\":\"string\",\"description\":\"The primary key column identifier for the right hand side table\"")
+        );
         assert!(
             functions
                 .first()
                 .unwrap()
-                .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
+                .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\",\"rhs_name\",\"rhs_pk\",\"rhs_values\"]}}}")
         );
 
         assert!(functions.get(1).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"sort-column-and-indices\",\"description\":\"Sort the the list of computed scores in ascending order\"")
@@ -273,15 +279,17 @@ mod tests {
         );
         assert!(functions.get(3).unwrap().contains("\"lhs_name\":{\"type\":\"string\",\"description\":\"The name of the left hand side table\"")
         );
-        assert!(functions.get(3).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the left hand side table\"")
+        assert!(functions.get(3).unwrap().contains("\"rhs_name\":{\"type\":\"string\",\"description\":\"The name of the right hand side table\"")
         );
-        assert!(functions.get(3).unwrap().contains("\"lhs_pk\":{\"type\":\"string\",\"description\":\"The primary key column identifier for the left hand side table\"")
+        assert!(functions.get(3).unwrap().contains("\"lhs_fk\":{\"type\":\"string\",\"description\":\"The foriegn key column identifier for the left hand side table\"")
+        );
+        assert!(functions.get(3).unwrap().contains("\"rhs_fk\":{\"type\":\"string\",\"description\":\"The foriegn key column identifier for the right hand side table\"")
         );
         assert!(
             functions
                 .get(3)
                 .unwrap()
-                .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
+                .contains("\"required\":[\"lhs_name\",\"rhs_name\",\"lhs_fk\",\"rhs_fk\"]}}}")
         );
 
         assert!(functions.get(4).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"human-in-the-loop\",\"description\":\"The response to the user.\"")
