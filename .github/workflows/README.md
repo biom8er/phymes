@@ -24,6 +24,7 @@ curl -L -o ~/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q
 curl -L -o ~/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf https://huggingface.co/Segilmez06/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf?download=true -sSf
 curl -L -o ~/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf https://huggingface.co/tensorblock/gte-Qwen2-1.5B-instruct-GGUF/resolve/main/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf?download=true -sSf
 ```
+
 ## Tests
 
 The following runs all tests with all CPU, GPU, and WASM features and targets
@@ -123,4 +124,14 @@ cargo bench --bench candle_ops -p phymes-data --no-default-features --features w
 cargo bench --bench candle_ops -p phymes-data --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
 for file in target/wasm32-wasip2/release/deps/candle_ops-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
 mv ~/.cache/metrics/* ./target/criterion/metrics/
+```
+
+# Semantic versioning
+
+The following will change the version of all `Cargo.toml` and `Cargo.lock` files
+
+```bash
+export RELEASE_VERSION="0.2.0"
+export PACKAGES="phymes-app phymes-agents phymes-ml phymes-data phymes-core phymes-server"
+for p in $PACKAGES; do cd $p;  awk -v ver="$RELEASE_VERSION" '/^version = / {sub(/= "[^"]*"/, "= \""ver"\""); print; next} {print}' Cargo.toml > Cargo.toml.new;  mv Cargo.toml.new Cargo.toml; cd ..; awk -v ver="$RELEASE_VERSION" -v package="$p" '"^name = \"\"package\"\"$" {print; getline; sub(/version = "[^"]*"/, "version = \""ver"\""); print; next} {print}' Cargo.lock > Cargo.lock.new; mv Cargo.lock.new Cargo.lock; done
 ```

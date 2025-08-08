@@ -105,6 +105,16 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ),
             ..Default::default()
         },
+        DataConfig {
+            which: WhichCandleOperator::FilterColumnsAndIndices,
+            lhs_pk: "id".to_string(),
+            lhs_values: "[\"title\",\"id\"]".to_string(),
+            op_kwargs: Some(
+                "{\"cmp_columns\": [title, id], \"cmp_operators\": [Like, Equals], \"cmp_comparator\": \"All\"}"
+                    .to_string(),
+            ),
+            ..Default::default()
+        },
     ];
 
     // Get the target and GPU configuration

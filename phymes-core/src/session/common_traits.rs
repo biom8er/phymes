@@ -21,7 +21,7 @@ use candle_core::{
 };
 use tokenizers::Tokenizer;
 
-/// From https://github.com/huggingface/candle/blob/main/candle-examples/src/lib.rs
+/// From <https://github.com/huggingface/candle/blob/main/candle-examples/src/lib.rs>
 pub fn device(cpu: bool) -> candle_core::Result<Device> {
     if cpu {
         candle_core::Result::Ok(Device::Cpu)

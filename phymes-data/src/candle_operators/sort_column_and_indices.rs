@@ -368,7 +368,12 @@ pub fn sort_column_and_indices(
             let asort_arr: ArrayRef = Arc::new(UInt32Array::from(sorted_indices));
             (asort_arr, asort_tensor, lhs_sorted)
         }
-        _ => return Err(anyhow!("Unsupported data type for column {}", lhs_values)),
+        _ => {
+            return Err(anyhow!(
+                "Unsupported data type {} for column {lhs_values}",
+                lhs_table.get_column_data_type(lhs_values)?.to_string()
+            ));
+        }
     };
 
     // Sort the rest of the columns according to the sorted indices

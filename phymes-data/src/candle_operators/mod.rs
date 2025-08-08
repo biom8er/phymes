@@ -1,6 +1,7 @@
 pub mod chunk_documents;
 pub mod data_operator;
 pub mod extract_pdf_text;
+pub mod filter_columns_and_indices;
 pub mod group_by_and_aggregate;
 pub mod human_in_the_loop;
 pub mod join_inner;

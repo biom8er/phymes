@@ -78,14 +78,14 @@ impl DataOperatorTrait for JoinInner {
                 ..Default::default()
             }),
         );
-        // properties.insert(
-        //     "rhs_name".to_string(),
-        //     Box::new(types::JSONSchemaDefine {
-        //         schema_type: Some(types::JSONSchemaType::String),
-        //         description: Some("The name of the right hand side table".to_string()),
-        //         ..Default::default()
-        //     }),
-        // );
+        properties.insert(
+            "rhs_name".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some("The name of the right hand side table".to_string()),
+                ..Default::default()
+            }),
+        );
         properties.insert(
             "lhs_pk".to_string(),
             Box::new(types::JSONSchemaDefine {
@@ -96,48 +96,36 @@ impl DataOperatorTrait for JoinInner {
                 ..Default::default()
             }),
         );
-        // properties.insert(
-        //     "rhs_pk".to_string(),
-        //     Box::new(types::JSONSchemaDefine {
-        //         schema_type: Some(types::JSONSchemaType::String),
-        //         description: Some("The primary key column identifier for the right hand side table".to_string()),
-        //         ..Default::default()
-        //     }),
-        // );
-        // properties.insert(
-        //     "lhs_fk".to_string(),
-        //     Box::new(types::JSONSchemaDefine {
-        //         schema_type: Some(types::JSONSchemaType::String),
-        //         description: Some("The foriegn key column identifier for the left hand side table".to_string()),
-        //         ..Default::default()
-        //     }),
-        // );
-        // properties.insert(
-        //     "rhs_fk".to_string(),
-        //     Box::new(types::JSONSchemaDefine {
-        //         schema_type: Some(types::JSONSchemaType::String),
-        //         description: Some("The foriegn key column identifier for the right hand side table".to_string()),
-        //         ..Default::default()
-        //     }),
-        // );
         properties.insert(
-            "lhs_values".to_string(),
+            "rhs_pk".to_string(),
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
                 description: Some(
-                    "The values column identifier for the left hand side table".to_string(),
+                    "The primary key column identifier for the right hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        // properties.insert(
-        //     "rhs_values".to_string(),
-        //     Box::new(types::JSONSchemaDefine {
-        //         schema_type: Some(types::JSONSchemaType::String),
-        //         description: Some("The values column identifier for the right hand side table".to_string()),
-        //         ..Default::default()
-        //     }),
-        // );
+        properties.insert(
+            "lhs_fk".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The foriegn key column identifier for the left hand side table".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_fk".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The foriegn key column identifier for the right hand side table".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
         let function = types::Function {
             name: Self::get_name(),
             description: Some(Self::get_description()),
@@ -146,8 +134,9 @@ impl DataOperatorTrait for JoinInner {
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
-                    "lhs_pk".to_string(),
-                    "lhs_values".to_string(),
+                    "rhs_name".to_string(),
+                    "lhs_fk".to_string(),
+                    "rhs_fk".to_string(),
                 ]),
             },
         };
