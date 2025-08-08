@@ -107,7 +107,9 @@ impl DataOperatorTrait for RelativeSimilarityScore {
             "rhs_pk".to_string(),
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
-                description: Some("The primary key column identifier for the right hand side table".to_string()),
+                description: Some(
+                    "The primary key column identifier for the right hand side table".to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -125,7 +127,9 @@ impl DataOperatorTrait for RelativeSimilarityScore {
             "rhs_values".to_string(),
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
-                description: Some("The values column identifier for the right hand side table".to_string()),
+                description: Some(
+                    "The values column identifier for the right hand side table".to_string(),
+                ),
                 ..Default::default()
             }),
         );

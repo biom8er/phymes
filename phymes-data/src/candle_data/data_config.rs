@@ -99,7 +99,7 @@ impl DataComparatorOperator {
             Self::CaseInsensitiveNotLike => "CaseInsensitiveNotLike",
             Self::NotLike => "NotLike",
             Self::InList => "InList",
-            Self::InListUtf8  => "InListUtf8",
+            Self::InListUtf8 => "InListUtf8",
             Self::RegExpIsMatch => "RegExpIsMatch",
             Self::StartsWith => "StartsWith",
         }
@@ -110,7 +110,7 @@ impl DataComparatorOperator {
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataComparatorPredicate {
     All,
-    Any
+    Any,
 }
 
 impl DataComparatorPredicate {

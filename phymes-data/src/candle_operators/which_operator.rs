@@ -11,7 +11,11 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::candle_operators::{
-    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, sort_column_and_indices::SortColumnAndIndices
+    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait,
+    extract_pdf_text::ExtractPDFText, filter_columns_and_indices::FilterColumnsAndIndices,
+    group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop,
+    join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore,
+    sort_column_and_indices::SortColumnAndIndices,
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -195,7 +199,7 @@ mod tests {
                 "chunk-documents",
                 "join-inner",
                 "human-in-the-loop",
-                "group-by-and-aggregate", 
+                "group-by-and-aggregate",
                 "filter-columns-and-indices"
             ]
         );

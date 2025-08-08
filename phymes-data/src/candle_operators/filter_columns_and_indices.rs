@@ -1,22 +1,42 @@
 use std::{collections::HashMap, sync::Arc};
 
-use arrow::{array::{ArrayRef, ListArray, PrimitiveArray, RecordBatch, StringArray, UInt32Array}, compute::{contains, ends_with, filter, ilike, in_list, in_list_utf8, like, nilike, nlike, regexp_is_match, starts_with}, datatypes::{DataType, UInt8Type}};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
+use arrow::{
+    array::{
+        ArrayRef, Float32Array, Float64Array, Int64Array, ListArray, RecordBatch, StringArray,
+        UInt8Array, UInt32Array,
+    },
+    compute::{
+        contains, ends_with, ilike, in_list, like, nilike, nlike, regexp_is_match, starts_with,
+    },
+    datatypes::DataType,
+};
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
-use phymes_core::{schemas::{chat_completion, types}, session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
+use phymes_core::{
+    schemas::{chat_completion, types},
+    session::common_traits::{BuildableTrait, BuilderTrait},
+    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+};
 use tracing::instrument;
 
-use crate::{candle_data::data_config::{DataComparatorOperator, DataComparatorPredicate}, candle_operators::{data_operator::{make_error_record_batch, DataOperatorTrait}, group_by_and_aggregate::build_aggregator_column_list, sort_column_and_indices::take_columns_by_indices}};
+use crate::{
+    candle_data::data_config::{DataComparatorOperator, DataComparatorPredicate},
+    candle_operators::{
+        data_operator::{DataOperatorTrait, make_error_record_batch},
+        group_by_and_aggregate::build_aggregator_column_list,
+        sort_column_and_indices::take_columns_by_indices,
+    },
+};
 
-/// Filter the [RecordBatch]es against the `cmp_columns` based on the [DataComparatorOperator], merge the predicate arrays 
+/// Filter the [RecordBatch]es against the `cmp_columns` based on the [DataComparatorOperator], merge the predicate arrays
 ///   according to the [DataComparatorPredicate]
 #[derive(Debug)]
 pub struct FilterColumnsAndIndices {
     lhs_values: Vec<String>,
     cmp_columns: Vec<String>,
     cmp_operators: Vec<DataComparatorOperator>,
-    cmp_predicate: DataComparatorPredicate
+    cmp_predicate: DataComparatorPredicate,
 }
 
 impl DataOperatorTrait for FilterColumnsAndIndices {
@@ -64,7 +84,8 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
         let lhs_values: Vec<String> = serde_json::from_str(lhs_values).unwrap_or_default();
 
         // Attempt to parse the op_kwargs
-        let ops_kwargs_default = "{\"cmp_columns\": [], \"cmp_operators\": [], \"cmp_comparator\": \"All\"}";
+        let ops_kwargs_default =
+            "{\"cmp_columns\": [], \"cmp_operators\": [], \"cmp_comparator\": \"All\"}";
         let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
         let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
             .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
@@ -84,21 +105,22 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
             .iter()
             .map(|v| serde_json::from_value::<DataComparatorOperator>(v.clone()).unwrap())
             .collect::<Vec<_>>();
-        let cmp_predicate = serde_json::from_value::<DataComparatorPredicate>(ops_kwargs
-            .get("cmp_comparator")
-            .unwrap().clone())
-            .unwrap();
+        let cmp_predicate = serde_json::from_value::<DataComparatorPredicate>(
+            ops_kwargs.get("cmp_comparator").unwrap().clone(),
+        )
+        .unwrap();
 
         // Make the object
         FilterColumnsAndIndices {
             lhs_values,
             cmp_columns,
             cmp_operators,
-            cmp_predicate
+            cmp_predicate,
         }
     }
     fn get_description() -> String {
-        "Filter by specified columns using a specified comparator operator over specified columns.".to_string()
+        "Filter by specified columns using a specified comparator operator over specified columns."
+            .to_string()
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
@@ -156,10 +178,10 @@ fn comparator_operator_tensor<T>(
     column_name: &str,
     index: usize,
     cmp_columns: &[&str],
-    cmp_operator: &[DataComparatorOperator],
+    cmp_operators: &[DataComparatorOperator],
     lhs_table: &ArrowTable,
-    device: &Device
-) -> Result<Tensor> 
+    device: &Device,
+) -> Result<Tensor>
 where
     T: Num + Bounded + NumCast + Send + Sync + Clone + WithDType + 'static,
 {
@@ -167,16 +189,20 @@ where
     let values_tensor = Tensor::from_iter(values_vec, device)?;
     let cmp_vec = lhs_table.get_column_as_vec_primitive::<T>(cmp_columns.get(index).unwrap())?;
     let cmp_tensor = Tensor::from_iter(cmp_vec, device)?;
-    let tensor = match cmp_operator.get(index).unwrap() {
+    let tensor = match cmp_operators.get(index).unwrap() {
         DataComparatorOperator::Equals => values_tensor.eq(&cmp_tensor)?,
         DataComparatorOperator::NotEquals => values_tensor.ne(&cmp_tensor)?,
         DataComparatorOperator::LessThanOrEqualTo => values_tensor.le(&cmp_tensor)?,
         DataComparatorOperator::GreaterThanOrEqualTo => values_tensor.ge(&cmp_tensor)?,
         DataComparatorOperator::LessThan => values_tensor.lt(&cmp_tensor)?,
         DataComparatorOperator::GreaterThan => values_tensor.gt(&cmp_tensor)?,
-        _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}", 
-            lhs_table.get_column_data_type(column_name)?.to_string(), 
-            cmp_operator.get(index).unwrap().get_name())),
+        _ => {
+            return Err(anyhow!(
+                "Unsupported data type {} and comparator {} for column {column_name}",
+                lhs_table.get_column_data_type(column_name)?.to_string(),
+                cmp_operators.get(index).unwrap().get_name()
+            ));
+        }
     };
     // Ensure all tensors are u32 for subsequent operations
     let tensor = tensor.to_dtype(candle_core::DType::U32)?;
@@ -184,7 +210,7 @@ where
 }
 
 /// Filter by specified columns using a specified comparator operator over specified columns
-/// 
+///
 /// # Notes
 /// * An SQL equivalent would be the following, e.g., where COL1 < COL2 AND ...
 ///   `lhs_values` = ["COL1", ...]
@@ -200,7 +226,14 @@ where
 /// * `cmp_operators` - Slice of [DataComparatorOperator]s specifying the comparator operator to apply to each cmp_column
 /// * `cmp_predicate` - [DataComparatorPredicate]
 /// * `device` - The compute device
-#[instrument(skip(lhs_values, lhs_args, cmp_columns, cmp_operators, cmp_predicate, device))]
+#[instrument(skip(
+    lhs_values,
+    lhs_args,
+    cmp_columns,
+    cmp_operators,
+    cmp_predicate,
+    device
+))]
 pub fn filter_columns_and_indices(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
@@ -211,9 +244,17 @@ pub fn filter_columns_and_indices(
 ) -> Result<RecordBatch> {
     // Ensure that the array lengths for values, columns, and operators match
     if lhs_values.len() != cmp_columns.len() {
-        return Err(anyhow!("lhs_values length {} is not equal to the cmp_columns length {}", lhs_values.len(), cmp_columns.len()));
+        return Err(anyhow!(
+            "lhs_values length {} is not equal to the cmp_columns length {}",
+            lhs_values.len(),
+            cmp_columns.len()
+        ));
     } else if lhs_values.len() != cmp_operators.len() {
-        return Err(anyhow!("lhs_values length {} is not equal to the cmp_operators length {}", lhs_values.len(), cmp_operators.len()));
+        return Err(anyhow!(
+            "lhs_values length {} is not equal to the cmp_operators length {}",
+            lhs_values.len(),
+            cmp_operators.len()
+        ));
     }
 
     // Wrap the lhs into an ArrowTable
@@ -226,48 +267,209 @@ pub fn filter_columns_and_indices(
     let mut predicate_tensors = Vec::new();
     for (index, column_name) in lhs_values.iter().enumerate() {
         let predicate_tensor = match lhs_table.get_column_data_type(column_name)? {
-            DataType::UInt8 => comparator_operator_tensor::<u8>(&column_name, index, cmp_columns, cmp_operators, &lhs_table, device)?,
-            DataType::UInt32 => comparator_operator_tensor::<u32>(&column_name, index, cmp_columns, cmp_operators, &lhs_table, device)?,
-            DataType::Int64 => comparator_operator_tensor::<i64>(&column_name, index, cmp_columns, cmp_operators, &lhs_table, device)?,
-            DataType::Float32 => comparator_operator_tensor::<f32>(&column_name, index, cmp_columns, cmp_operators, &lhs_table, device)?,
-            DataType::Float64 => comparator_operator_tensor::<f64>(&column_name, index, cmp_columns, cmp_operators, &lhs_table, device)?,
+            DataType::UInt8 => comparator_operator_tensor::<u8>(
+                column_name,
+                index,
+                cmp_columns,
+                cmp_operators,
+                &lhs_table,
+                device,
+            )?,
+            DataType::UInt32 => comparator_operator_tensor::<u32>(
+                column_name,
+                index,
+                cmp_columns,
+                cmp_operators,
+                &lhs_table,
+                device,
+            )?,
+            DataType::Int64 => comparator_operator_tensor::<i64>(
+                column_name,
+                index,
+                cmp_columns,
+                cmp_operators,
+                &lhs_table,
+                device,
+            )?,
+            DataType::Float32 => comparator_operator_tensor::<f32>(
+                column_name,
+                index,
+                cmp_columns,
+                cmp_operators,
+                &lhs_table,
+                device,
+            )?,
+            DataType::Float64 => comparator_operator_tensor::<f64>(
+                column_name,
+                index,
+                cmp_columns,
+                cmp_operators,
+                &lhs_table,
+                device,
+            )?,
             DataType::Utf8 => {
                 // StringArray must be sorted on the CPU
                 let values_arr = StringArray::from(lhs_table.get_column_as_vec_str(column_name));
-                let cmp_arr = StringArray::from(lhs_table.get_column_as_vec_str(cmp_columns.get(index).unwrap()));
+                let cmp_arr = StringArray::from(
+                    lhs_table.get_column_as_vec_str(cmp_columns.get(index).unwrap()),
+                );
                 let flags_array: Option<&StringArray> = None;
                 let predicate_arr = match cmp_operators.get(index).unwrap() {
                     DataComparatorOperator::Like => like(&values_arr, &cmp_arr)?,
                     DataComparatorOperator::NotLike => nlike(&values_arr, &cmp_arr)?,
                     DataComparatorOperator::CaseInsensitiveLike => ilike(&values_arr, &cmp_arr)?,
-                    DataComparatorOperator::CaseInsensitiveNotLike => nilike(&values_arr, &cmp_arr)?,
+                    DataComparatorOperator::CaseInsensitiveNotLike => {
+                        nilike(&values_arr, &cmp_arr)?
+                    }
                     DataComparatorOperator::Contains => contains(&values_arr, &cmp_arr)?,
                     DataComparatorOperator::EndsWith => ends_with(&values_arr, &cmp_arr)?,
                     DataComparatorOperator::StartsWith => starts_with(&values_arr, &cmp_arr)?,
-                    DataComparatorOperator::RegExpIsMatch => regexp_is_match(&values_arr, &cmp_arr, flags_array)?,
-                    _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}", 
-                        lhs_table.get_column_data_type(column_name)?.to_string(), 
-                        cmp_operators.get(index).unwrap().get_name())),
+                    DataComparatorOperator::RegExpIsMatch => {
+                        regexp_is_match(&values_arr, &cmp_arr, flags_array)?
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported data type {} and comparator {} for column {column_name}",
+                            lhs_table.get_column_data_type(column_name)?.to_string(),
+                            cmp_operators.get(index).unwrap().get_name()
+                        ));
+                    }
                 };
-                let predicate_vec = predicate_arr.into_iter().map(|s| s.unwrap_or_default() as u32).collect::<Vec<_>>();
+                let predicate_vec = predicate_arr
+                    .into_iter()
+                    .map(|s| s.unwrap_or_default() as u32)
+                    .collect::<Vec<_>>();
                 Tensor::from_iter(predicate_vec, device)?
             }
             DataType::FixedSizeList(f, _) | DataType::List(f) => match f.data_type() {
                 DataType::UInt8 => {
                     let values_arr = build_aggregator_column_list::<u8>(
                         lhs_table.get_column_as_vec_nested_primitive::<u8>(column_name)?,
-                        DataType::UInt8);
-                    let values_arr = values_arr.as_any()
-                        .downcast_ref::<ListArray>()
-                        .unwrap();
-                    let cmp_arr: PrimitiveArray<UInt8Type> = PrimitiveArray::from_iter_values(lhs_table.get_column_as_vec_primitive::<u8>(cmp_columns.get(index).unwrap())?);
+                        DataType::UInt8,
+                    );
+                    let values_arr = values_arr.as_any().downcast_ref::<ListArray>().unwrap();
+                    let cmp_arr = UInt8Array::from_iter_values(
+                        lhs_table
+                            .get_column_as_vec_primitive::<u8>(cmp_columns.get(index).unwrap())?,
+                    );
                     let predicate_arr = match cmp_operators.get(index).unwrap() {
                         DataComparatorOperator::InList => in_list(&cmp_arr, values_arr)?,
-                        _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}", 
-                            lhs_table.get_column_data_type(column_name)?.to_string(), 
-                            cmp_operators.get(index).unwrap().get_name())),
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {} and comparator {} for column {column_name}",
+                                lhs_table.get_column_data_type(column_name)?.to_string(),
+                                cmp_operators.get(index).unwrap().get_name()
+                            ));
+                        }
                     };
-                    let predicate_vec = predicate_arr.into_iter().map(|s| s.unwrap_or_default() as u32).collect::<Vec<_>>();
+                    let predicate_vec = predicate_arr
+                        .into_iter()
+                        .map(|s| s.unwrap_or_default() as u32)
+                        .collect::<Vec<_>>();
+                    Tensor::from_iter(predicate_vec, device)?
+                }
+                DataType::UInt32 => {
+                    let values_arr = build_aggregator_column_list::<u32>(
+                        lhs_table.get_column_as_vec_nested_primitive::<u32>(column_name)?,
+                        DataType::UInt32,
+                    );
+                    let values_arr = values_arr.as_any().downcast_ref::<ListArray>().unwrap();
+                    let cmp_arr = UInt32Array::from_iter_values(
+                        lhs_table
+                            .get_column_as_vec_primitive::<u32>(cmp_columns.get(index).unwrap())?,
+                    );
+                    let predicate_arr = match cmp_operators.get(index).unwrap() {
+                        DataComparatorOperator::InList => in_list(&cmp_arr, values_arr)?,
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {} and comparator {} for column {column_name}",
+                                lhs_table.get_column_data_type(column_name)?.to_string(),
+                                cmp_operators.get(index).unwrap().get_name()
+                            ));
+                        }
+                    };
+                    let predicate_vec = predicate_arr
+                        .into_iter()
+                        .map(|s| s.unwrap_or_default() as u32)
+                        .collect::<Vec<_>>();
+                    Tensor::from_iter(predicate_vec, device)?
+                }
+                DataType::Int64 => {
+                    let values_arr = build_aggregator_column_list::<i64>(
+                        lhs_table.get_column_as_vec_nested_primitive::<i64>(column_name)?,
+                        DataType::Int64,
+                    );
+                    let values_arr = values_arr.as_any().downcast_ref::<ListArray>().unwrap();
+                    let cmp_arr = Int64Array::from_iter_values(
+                        lhs_table
+                            .get_column_as_vec_primitive::<i64>(cmp_columns.get(index).unwrap())?,
+                    );
+                    let predicate_arr = match cmp_operators.get(index).unwrap() {
+                        DataComparatorOperator::InList => in_list(&cmp_arr, values_arr)?,
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {} and comparator {} for column {column_name}",
+                                lhs_table.get_column_data_type(column_name)?.to_string(),
+                                cmp_operators.get(index).unwrap().get_name()
+                            ));
+                        }
+                    };
+                    let predicate_vec = predicate_arr
+                        .into_iter()
+                        .map(|s| s.unwrap_or_default() as u32)
+                        .collect::<Vec<_>>();
+                    Tensor::from_iter(predicate_vec, device)?
+                }
+                DataType::Float32 => {
+                    let values_arr = build_aggregator_column_list::<f32>(
+                        lhs_table.get_column_as_vec_nested_primitive::<f32>(column_name)?,
+                        DataType::Float32,
+                    );
+                    let values_arr = values_arr.as_any().downcast_ref::<ListArray>().unwrap();
+                    let cmp_arr = Float32Array::from_iter_values(
+                        lhs_table
+                            .get_column_as_vec_primitive::<f32>(cmp_columns.get(index).unwrap())?,
+                    );
+                    let predicate_arr = match cmp_operators.get(index).unwrap() {
+                        DataComparatorOperator::InList => in_list(&cmp_arr, values_arr)?,
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {} and comparator {} for column {column_name}",
+                                lhs_table.get_column_data_type(column_name)?.to_string(),
+                                cmp_operators.get(index).unwrap().get_name()
+                            ));
+                        }
+                    };
+                    let predicate_vec = predicate_arr
+                        .into_iter()
+                        .map(|s| s.unwrap_or_default() as u32)
+                        .collect::<Vec<_>>();
+                    Tensor::from_iter(predicate_vec, device)?
+                }
+                DataType::Float64 => {
+                    let values_arr = build_aggregator_column_list::<f64>(
+                        lhs_table.get_column_as_vec_nested_primitive::<f64>(column_name)?,
+                        DataType::Float64,
+                    );
+                    let values_arr = values_arr.as_any().downcast_ref::<ListArray>().unwrap();
+                    let cmp_arr = Float64Array::from_iter_values(
+                        lhs_table
+                            .get_column_as_vec_primitive::<f64>(cmp_columns.get(index).unwrap())?,
+                    );
+                    let predicate_arr = match cmp_operators.get(index).unwrap() {
+                        DataComparatorOperator::InList => in_list(&cmp_arr, values_arr)?,
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {} and comparator {} for column {column_name}",
+                                lhs_table.get_column_data_type(column_name)?.to_string(),
+                                cmp_operators.get(index).unwrap().get_name()
+                            ));
+                        }
+                    };
+                    let predicate_vec = predicate_arr
+                        .into_iter()
+                        .map(|s| s.unwrap_or_default() as u32)
+                        .collect::<Vec<_>>();
                     Tensor::from_iter(predicate_vec, device)?
                 }
                 // DM: and the rest...
@@ -279,16 +481,26 @@ pub fn filter_columns_and_indices(
                 //     let cmp_arr = StringArray::from_iter_values(lhs_table.get_column_as_vec_str(cmp_columns.get(index).unwrap()));
                 //     let predicate_arr = match cmp_operator.get(index).unwrap() {
                 //         DataComparatorOperator::InListUtf8 => in_list_utf8(&cmp_arr, &values_arr)?,
-                //         _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}", 
-                //             lhs_table.get_column_data_type(column_name)?.to_string(), 
+                //         _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}",
+                //             lhs_table.get_column_data_type(column_name)?.to_string(),
                 //             cmp_operator.get(index).unwrap().get_name())),
                 //     };
                 //     let predicate_vec = predicate_arr.into_iter().map(|s| s.unwrap_or_default() as u8).collect::<Vec<_>>();
                 //     Tensor::from_iter(predicate_vec, device)?
                 // }
-                _ => return Err(anyhow!("Unsupported data type {} for column {column_name}", lhs_table.get_column_data_type(column_name)?.to_string())),
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {} for column {column_name}",
+                        lhs_table.get_column_data_type(column_name)?.to_string()
+                    ));
+                }
+            },
+            _ => {
+                return Err(anyhow!(
+                    "Unsupported data type {} for column {column_name}",
+                    lhs_table.get_column_data_type(column_name)?.to_string()
+                ));
             }
-            _ => return Err(anyhow!("Unsupported data type {} for column {column_name}", lhs_table.get_column_data_type(column_name)?.to_string())),
         };
         predicate_tensors.push(predicate_tensor);
     }
@@ -299,7 +511,8 @@ pub fn filter_columns_and_indices(
     } else {
         match cmp_predicate {
             DataComparatorPredicate::All => {
-                let mut predicate_tensor = (predicate_tensors.first().unwrap() * predicate_tensors.get(1).unwrap())?;
+                let mut predicate_tensor =
+                    (predicate_tensors.first().unwrap() * predicate_tensors.get(1).unwrap())?;
                 for (index, tensor) in predicate_tensors.iter().enumerate() {
                     if index >= 2 {
                         predicate_tensor = (predicate_tensor * tensor)?;
@@ -308,7 +521,8 @@ pub fn filter_columns_and_indices(
                 predicate_tensor
             }
             DataComparatorPredicate::Any => {
-                let mut predicate_tensor = (predicate_tensors.first().unwrap() + predicate_tensors.get(1).unwrap())?;
+                let mut predicate_tensor =
+                    (predicate_tensors.first().unwrap() + predicate_tensors.get(1).unwrap())?;
                 for (index, tensor) in predicate_tensors.iter().enumerate() {
                     if index >= 2 {
                         predicate_tensor = (predicate_tensor + tensor)?;
@@ -322,18 +536,16 @@ pub fn filter_columns_and_indices(
     };
 
     // Convert the predicate to a take vec based on it's indices (CPU,GPU with Candle)
-    let indices_tensor = Tensor::arange(1 as u32, (predicate_tensor.dims1()? + 1) as u32, device)?;
+    let indices_tensor = Tensor::arange(1_u32, (predicate_tensor.dims1()? + 1) as u32, device)?;
     let zeros = indices_tensor.zeros_like()?;
-    let (sorted, _asort) = predicate_tensor.where_cond(&indices_tensor, &zeros)?.sort_last_dim(true)?;
-    let take_vec = sorted.to_vec1::<u32>()?
+    let (sorted, _asort) = predicate_tensor
+        .where_cond(&indices_tensor, &zeros)?
+        .sort_last_dim(true)?;
+    let take_vec = sorted
+        .to_vec1::<u32>()?
         .into_iter()
-        .filter_map(|v| {
-            if v > 0 {
-                Some(v - 1)
-            } else {
-                None
-            }
-        }).collect::<Vec<u32>>();
+        .filter_map(|v| if v > 0 { Some(v - 1) } else { None })
+        .collect::<Vec<u32>>();
     let take_tensor = Tensor::from_iter(take_vec.clone(), device)?;
     let take_arr: ArrayRef = Arc::new(UInt32Array::from_iter(take_vec));
 
@@ -410,10 +622,7 @@ mod tests {
             &["lhs_pk", "lhs_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["lhs_pk", "lhs_metadata"],
-            &[
-                DataComparatorOperator::Like,
-                DataComparatorOperator::Equals,
-            ],
+            &[DataComparatorOperator::Like, DataComparatorOperator::Equals],
             &DataComparatorPredicate::All,
             &device,
         )?;
@@ -423,7 +632,7 @@ mod tests {
             .build()?;
 
         let lhs_text = result_table.get_column_as_vec_str("lhs_text");
-        assert_eq!(lhs_text, vec!["left","1","left","3"]);
+        assert_eq!(lhs_text, vec!["left", "1", "left", "3"]);
         let lhs_id = result_table.get_column_as_vec_str("lhs_pk");
         assert_eq!(lhs_id, vec!["0", "1", "2", "3"]);
         let metadata = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata")?;
@@ -448,7 +657,7 @@ mod tests {
             .build()?;
 
         let lhs_text = result_table.get_column_as_vec_str("lhs_text");
-        assert_eq!(lhs_text, vec!["left","1","left","3"]);
+        assert_eq!(lhs_text, vec!["left", "1", "left", "3"]);
         let lhs_id = result_table.get_column_as_vec_str("lhs_pk");
         assert_eq!(lhs_id, vec!["0", "1", "2", "3"]);
         let metadata = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata")?;
@@ -460,9 +669,7 @@ mod tests {
             &["lhs_pk"],
             &[lhs_batch_1, lhs_batch_2],
             &["lhs_text"],
-            &[
-                DataComparatorOperator::Like,
-            ],
+            &[DataComparatorOperator::Like],
             &DataComparatorPredicate::Any,
             &device,
         )?;

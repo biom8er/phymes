@@ -352,7 +352,7 @@ where
 /// * `lhs_values` - Slice of Strings for the columns to group by
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `agg_columns` - Slice of Strings for the aggregation columns
-/// * `agg_operators` - Slice of [DataAggregator]s specifying the aggregator operator to apply to each agg_column
+/// * `agg_operators` - Slice of [DataAggregatorOperator]s specifying the aggregator operator to apply to each agg_column
 /// * `device` - The compute device
 pub fn group_by_and_aggregate(
     lhs_values: &[&str],
@@ -363,7 +363,11 @@ pub fn group_by_and_aggregate(
 ) -> Result<RecordBatch> {
     // Ensure that the array lengths for columns and operators match
     if agg_columns.len() != agg_operators.len() {
-        return Err(anyhow!("agg_columns length {} is not equal to the agg_operators length {}", agg_columns.len(), agg_operators.len()));
+        return Err(anyhow!(
+            "agg_columns length {} is not equal to the agg_operators length {}",
+            agg_columns.len(),
+            agg_operators.len()
+        ));
     }
 
     // Presort the lhs group by columns

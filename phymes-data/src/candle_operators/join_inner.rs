@@ -100,7 +100,9 @@ impl DataOperatorTrait for JoinInner {
             "rhs_pk".to_string(),
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
-                description: Some("The primary key column identifier for the right hand side table".to_string()),
+                description: Some(
+                    "The primary key column identifier for the right hand side table".to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -108,7 +110,9 @@ impl DataOperatorTrait for JoinInner {
             "lhs_fk".to_string(),
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
-                description: Some("The foriegn key column identifier for the left hand side table".to_string()),
+                description: Some(
+                    "The foriegn key column identifier for the left hand side table".to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -116,7 +120,9 @@ impl DataOperatorTrait for JoinInner {
             "rhs_fk".to_string(),
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
-                description: Some("The foriegn key column identifier for the right hand side table".to_string()),
+                description: Some(
+                    "The foriegn key column identifier for the right hand side table".to_string(),
+                ),
                 ..Default::default()
             }),
         );
