@@ -19,7 +19,7 @@ use phymes_core::{
 };
 
 use crate::{
-    candle_data::data_config::DataAggregator,
+    candle_data::data_config::DataAggregatorOperator,
     candle_operators::{
         data_operator::{DataOperatorTrait, make_error_record_batch},
         sort_column_and_indices::sort_column_and_indices,
@@ -31,7 +31,7 @@ use crate::{
 pub struct GroupByAndAggregate {
     lhs_values: Vec<String>,
     agg_columns: Vec<String>,
-    agg_operators: Vec<DataAggregator>,
+    agg_operators: Vec<DataAggregatorOperator>,
 }
 
 impl DataOperatorTrait for GroupByAndAggregate {
@@ -96,7 +96,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
             .as_array()
             .unwrap()
             .iter()
-            .map(|v| serde_json::from_value::<DataAggregator>(v.clone()).unwrap())
+            .map(|v| serde_json::from_value::<DataAggregatorOperator>(v.clone()).unwrap())
             .collect::<Vec<_>>();
 
         // Make the object
@@ -216,7 +216,7 @@ fn partition_record_batches(
 /// Helper function to compute the aggregation operator for tensors
 fn aggregator_operator_tensor(
     agg_column: &str,
-    agg_operator: &DataAggregator,
+    agg_operator: &DataAggregatorOperator,
     lhs_table: &ArrowTable,
     tensor: &Tensor,
     range: &Range<usize>,
@@ -224,19 +224,19 @@ fn aggregator_operator_tensor(
 ) -> Result<Tensor> {
     let gather_tensor = Tensor::arange(range.start as u8, range.end as u8, device)?;
     let agg_tensor = match agg_operator {
-        DataAggregator::Sum => tensor
+        DataAggregatorOperator::Sum => tensor
             .gather(&gather_tensor, candle_core::D::Minus1)?
             .sum(candle_core::D::Minus1)?,
-        DataAggregator::Max => tensor
+        DataAggregatorOperator::Max => tensor
             .gather(&gather_tensor, candle_core::D::Minus1)?
             .max(candle_core::D::Minus1)?,
-        DataAggregator::Min => tensor
+        DataAggregatorOperator::Min => tensor
             .gather(&gather_tensor, candle_core::D::Minus1)?
             .min(candle_core::D::Minus1)?,
-        DataAggregator::Mean => tensor
+        DataAggregatorOperator::Mean => tensor
             .gather(&gather_tensor, candle_core::D::Minus1)?
             .mean(candle_core::D::Minus1)?,
-        DataAggregator::Var => tensor
+        DataAggregatorOperator::Var => tensor
             .gather(&gather_tensor, candle_core::D::Minus1)?
             .var(candle_core::D::Minus1)?,
         _ => {
@@ -360,7 +360,7 @@ where
 /// Helper function to build the aggregation column
 fn build_aggregation_column_primitive<T>(
     agg_column: &str,
-    agg_operator: &DataAggregator,
+    agg_operator: &DataAggregatorOperator,
     lhs_table: &ArrowTable,
     ranges: &[Range<usize>],
     device: &Device,
@@ -398,7 +398,7 @@ pub fn group_by_and_aggregate(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
     agg_columns: &[&str],
-    agg_operators: &[DataAggregator],
+    agg_operators: &[DataAggregatorOperator],
     device: &Device,
 ) -> Result<RecordBatch> {
     // Presort the lhs group by columns
@@ -629,8 +629,8 @@ pub fn group_by_and_aggregate(
                     ));
                     let taken_arr = arrow::compute::take(&array_ref, &gather_arr, None)?;
                     let agg_value = match agg_operator {
-                        DataAggregator::Count => format!("{}", taken_arr.len()),
-                        DataAggregator::Concat => taken_arr
+                        DataAggregatorOperator::Count => format!("{}", taken_arr.len()),
+                        DataAggregatorOperator::Concat => taken_arr
                             .as_any()
                             .downcast_ref::<StringArray>()
                             .unwrap()
@@ -655,7 +655,7 @@ pub fn group_by_and_aggregate(
                 let mut agg_vec = Vec::new();
                 for range in ranges.iter() {
                     let agg_value = match agg_operator {
-                        DataAggregator::Count => vec![range.end - range.start],
+                        DataAggregatorOperator::Count => vec![range.end - range.start],
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
@@ -716,7 +716,7 @@ pub fn group_by_and_aggregate(
                 let mut agg_vec = Vec::new();
                 for range in ranges.iter() {
                     let agg_value = match agg_operator {
-                        DataAggregator::Count => vec![range.end - range.start],
+                        DataAggregatorOperator::Count => vec![range.end - range.start],
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
@@ -832,10 +832,10 @@ mod tests {
             &[lhs_batch_1, lhs_batch_2],
             &["lhs_pk", "lhs_pk", "lhs_metadata", "lhs_metadata"],
             &[
-                DataAggregator::Concat,
-                DataAggregator::Count,
-                DataAggregator::Sum,
-                DataAggregator::Max,
+                DataAggregatorOperator::Concat,
+                DataAggregatorOperator::Count,
+                DataAggregatorOperator::Sum,
+                DataAggregatorOperator::Max,
             ],
             &device,
         )?;
@@ -885,7 +885,7 @@ mod tests {
             &["lhs_pk", "lhs_metadata"],
             &[lhs_batch_1, lhs_batch_2],
             &["lhs_text"],
-            &[DataAggregator::Count],
+            &[DataAggregatorOperator::Count],
             &device,
         )?;
         let result_table = ArrowTable::get_builder()

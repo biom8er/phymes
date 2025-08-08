@@ -36,7 +36,7 @@ impl DataStreamManager {
 
 /// Data Aggregation (Reduction) operators
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
-pub enum DataAggregator {
+pub enum DataAggregatorOperator {
     Max,
     Min,
     Sum,
@@ -46,7 +46,7 @@ pub enum DataAggregator {
     Concat,
 }
 
-impl DataAggregator {
+impl DataAggregatorOperator {
     pub fn get_name(&self) -> &str {
         match self {
             Self::Max => "Max",
@@ -62,7 +62,7 @@ impl DataAggregator {
 
 /// Data Comparison operators
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
-pub enum DataComparator {
+pub enum DataComparatorOperator {
     /// Primitive
     Equals,
     NotEquals,
@@ -70,7 +70,6 @@ pub enum DataComparator {
     GreaterThanOrEqualTo,
     LessThan,
     GreaterThan,
-    Between,
     /// Nested and non-primitive
     Contains,
     EndsWith,
@@ -82,6 +81,45 @@ pub enum DataComparator {
     InListUtf8,
     RegExpIsMatch,
     StartsWith,
+}
+
+impl DataComparatorOperator {
+    pub fn get_name(&self) -> &str {
+        match self {
+            Self::Equals => "Equals",
+            Self::NotEquals => "NotEquals",
+            Self::LessThanOrEqualTo => "LessThanOrEqualTo",
+            Self::GreaterThanOrEqualTo => "GreaterThanOrEqualTo",
+            Self::LessThan => "LessThan",
+            Self::GreaterThan => "GreaterThan",
+            Self::Contains => "Contains",
+            Self::EndsWith => "EndsWith",
+            Self::CaseInsensitiveLike => "CaseInsensitiveLike",
+            Self::Like => "Like",
+            Self::CaseInsensitiveNotLike => "CaseInsensitiveNotLike",
+            Self::NotLike => "NotLike",
+            Self::InList => "InList",
+            Self::InListUtf8  => "InListUtf8",
+            Self::RegExpIsMatch => "RegExpIsMatch",
+            Self::StartsWith => "StartsWith",
+        }
+    }
+}
+
+/// Data Comparison predicates to evaluate parenthetic groups
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+pub enum DataComparatorPredicate {
+    All,
+    Any
+}
+
+impl DataComparatorPredicate {
+    pub fn get_name(&self) -> &str {
+        match self {
+            Self::All => "All",
+            Self::Any => "Any",
+        }
+    }
 }
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]

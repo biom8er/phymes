@@ -280,6 +280,22 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
         }
         use std::any::TypeId;
         match data_type {
+            DataType::Boolean => {
+            //     if TypeId::of::<T>() != TypeId::of::<bool>() {
+            //         return Err(anyhow!(
+            //             "Expected bool data type for column {}",
+            //             column_name
+            //         ));
+            //     }
+            //     let arr_vec = arr
+            //         .as_any()
+            //         .downcast_ref::<BooleanArray>()
+            //         .unwrap()
+            //         .iter()
+            //         .filter_map(|s| NumCast::from(s.unwrap_or_default() as bool))
+            //         .collect::<Vec<_>>();
+            //     Ok(arr_vec)
+            // }
             DataType::Int8 => {
                 if TypeId::of::<T>() != TypeId::of::<i8>() {
                     return Err(anyhow!(
