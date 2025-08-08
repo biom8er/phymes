@@ -131,7 +131,7 @@ mv ~/.cache/metrics/* ./target/criterion/metrics/
 The following will change the version of all `Cargo.toml` and `Cargo.lock` files
 
 ```bash
-export RELEASE_VERSION="0.1.1"
+export RELEASE_VERSION="0.2.0"
 export PACKAGES="phymes-app phymes-agents phymes-ml phymes-data phymes-core phymes-server"
 for p in $PACKAGES; do cd $p;  awk -v ver="$RELEASE_VERSION" '/^version = / {sub(/= "[^"]*"/, "= \""ver"\""); print; next} {print}' Cargo.toml > Cargo.toml.new;  mv Cargo.toml.new Cargo.toml; cd ..; awk -v ver="$RELEASE_VERSION" -v package="$p" '"^name = \"\"package\"\"$" {print; getline; sub(/version = "[^"]*"/, "version = \""ver"\""); print; next} {print}' Cargo.lock > Cargo.lock.new; mv Cargo.lock.new Cargo.lock; done
 ```
