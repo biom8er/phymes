@@ -11,11 +11,7 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::candle_operators::{
-    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait,
-    extract_pdf_text::ExtractPDFText, group_by_and_aggregate::GroupByAndAggregate,
-    human_in_the_loop::HumanInTheLoop, join_inner::JoinInner,
-    relative_similarity_score::RelativeSimilarityScore,
-    sort_column_and_indices::SortColumnAndIndices,
+    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, sort_column_and_indices::SortColumnAndIndices
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -41,6 +37,9 @@ pub enum WhichCandleOperator {
     #[value(name = "group-by-and-aggregate")]
     #[serde(alias = "group-by-and-aggregate")]
     GroupByAndAggregate,
+    #[value(name = "filter-columns-and-indices")]
+    #[serde(alias = "filter-columns-and-indices")]
+    FilterColumnsAndIndices,
 }
 
 impl Default for WhichCandleOperator {
@@ -60,6 +59,7 @@ impl WhichCandleOperator {
             Self::JoinInner => JoinInner::get_static_name(),
             Self::ExtractPDFText => ExtractPDFText::get_static_name(),
             Self::GroupByAndAggregate => GroupByAndAggregate::get_static_name(),
+            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_static_name(),
         }
     }
 
@@ -73,6 +73,7 @@ impl WhichCandleOperator {
             Self::JoinInner => JoinInner::get_json_tool_schema(),
             Self::ExtractPDFText => ExtractPDFText::get_json_tool_schema(),
             Self::GroupByAndAggregate => GroupByAndAggregate::get_json_tool_schema(),
+            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_json_tool_schema(),
         }
     }
 
@@ -92,6 +93,8 @@ impl WhichCandleOperator {
             Some(Self::ExtractPDFText)
         } else if name == GroupByAndAggregate::get_name() {
             Some(Self::GroupByAndAggregate)
+        } else if name == FilterColumnsAndIndices::get_name() {
+            Some(Self::FilterColumnsAndIndices)
         } else {
             None
         }
@@ -129,6 +132,9 @@ impl WhichCandleOperator {
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
             Self::GroupByAndAggregate => Box::new(GroupByAndAggregate::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
+            Self::FilterColumnsAndIndices => Box::new(FilterColumnsAndIndices::new(
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
         }
@@ -176,6 +182,8 @@ mod tests {
                 "chunk-documents".to_string(),
                 "join-inner".to_string(),
                 "human-in-the-loop".to_string(),
+                "group-by-and-aggregate".to_string(),
+                "filter-columns-and-indices".to_string(),
             ],
         )
         .unwrap();
@@ -187,6 +195,8 @@ mod tests {
                 "chunk-documents",
                 "join-inner",
                 "human-in-the-loop",
+                "group-by-and-aggregate", 
+                "filter-columns-and-indices"
             ]
         );
         let functions = result.get_column_as_vec_str("tool");
@@ -289,6 +299,40 @@ mod tests {
                 .get(4)
                 .unwrap()
                 .contains("\"required\":[\"lhs_args\"]}}}")
+        );
+
+        assert!(functions.get(5).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"group-by-and-aggregate\",\"description\":\"Group by user specified columns and aggregate user specified aggregation columns using the user specified aggregation operators.\"")
+        );
+        assert!(
+            functions
+                .get(5)
+                .unwrap()
+                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
+        );
+        assert!(functions.get(5).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the left hand side table in the form of a JSON list of strings\"")
+        );
+        assert!(
+            functions
+                .get(5)
+                .unwrap()
+                .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
+        );
+
+        assert!(functions.get(6).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"filter-columns-and-indices\",\"description\":\"Filter by specified columns using a specified comparator operator over specified columns.\"")
+        );
+        assert!(
+            functions
+                .get(6)
+                .unwrap()
+                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
+        );
+        assert!(functions.get(6).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the left hand side table in the form of a JSON list of strings\"")
+        );
+        assert!(
+            functions
+                .get(6)
+                .unwrap()
+                .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
         );
     }
 

@@ -1,13 +1,155 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use arrow::{array::{ArrayRef, ListArray, PrimitiveArray, RecordBatch, StringArray, UInt32Array}, compute::{contains, ends_with, filter, ilike, in_list, in_list_utf8, like, nilike, nlike, regexp_is_match, starts_with}, datatypes::{DataType, UInt8Type}};
 use anyhow::{anyhow, Result};
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
-use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
+use phymes_core::{schemas::{chat_completion, types}, session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
 use tracing::instrument;
 
-use crate::{candle_data::data_config::{DataComparatorOperator, DataComparatorPredicate}, candle_operators::{group_by_and_aggregate::build_aggregator_column_list, sort_column_and_indices::take_columns_by_indices}};
+use crate::{candle_data::data_config::{DataComparatorOperator, DataComparatorPredicate}, candle_operators::{data_operator::{make_error_record_batch, DataOperatorTrait}, group_by_and_aggregate::build_aggregator_column_list, sort_column_and_indices::take_columns_by_indices}};
+
+/// Filter the [RecordBatch]es against the `cmp_columns` based on the [DataComparatorOperator], merge the predicate arrays 
+///   according to the [DataComparatorPredicate]
+#[derive(Debug)]
+pub struct FilterColumnsAndIndices {
+    lhs_values: Vec<String>,
+    cmp_columns: Vec<String>,
+    cmp_operators: Vec<DataComparatorOperator>,
+    cmp_predicate: DataComparatorPredicate
+}
+
+impl DataOperatorTrait for FilterColumnsAndIndices {
+    fn get_static_name() -> &'static str {
+        "filter-columns-and-indices"
+    }
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        let lhs_values = self
+            .lhs_values
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let cmp_columns = self
+            .cmp_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        match filter_columns_and_indices(
+            &lhs_values,
+            lhs_args,
+            &cmp_columns,
+            &self.cmp_operators,
+            &self.cmp_predicate,
+            device,
+        ) {
+            Ok(batch) => Ok(batch),
+            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+        }
+    }
+    fn new(
+        _lhs_pk: &str,
+        _lhs_fk: &str,
+        lhs_values: &str,
+        _rhs_pk: Option<&str>,
+        _rhs_fk: Option<&str>,
+        _rhs_values: Option<&str>,
+        kwargs: Option<&str>,
+    ) -> Self {
+        // Attempt to parse the lhs_values
+        let lhs_values: Vec<String> = serde_json::from_str(lhs_values).unwrap_or_default();
+
+        // Attempt to parse the op_kwargs
+        let ops_kwargs_default = "{\"cmp_columns\": [], \"cmp_operators\": [], \"cmp_comparator\": \"All\"}";
+        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
+        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
+            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
+        let cmp_columns = ops_kwargs
+            .get("cmp_columns")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>();
+        let cmp_operators = ops_kwargs
+            .get("cmp_operators")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| serde_json::from_value::<DataComparatorOperator>(v.clone()).unwrap())
+            .collect::<Vec<_>>();
+        let cmp_predicate = serde_json::from_value::<DataComparatorPredicate>(ops_kwargs
+            .get("cmp_comparator")
+            .unwrap().clone())
+            .unwrap();
+
+        // Make the object
+        FilterColumnsAndIndices {
+            lhs_values,
+            cmp_columns,
+            cmp_operators,
+            cmp_predicate
+        }
+    }
+    fn get_description() -> String {
+        "Filter by specified columns using a specified comparator operator over specified columns.".to_string()
+    }
+    fn get_json_tool_schema() -> String {
+        let mut properties = HashMap::new();
+        properties.insert(
+            "lhs_name".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some("The name of the left hand side table".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_pk".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The primary key column identifier for the left hand side table".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_values".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "The values column identifier for the left hand side table in the form of a JSON list of strings".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        let function = types::Function {
+            name: Self::get_name(),
+            description: Some(Self::get_description()),
+            parameters: types::FunctionParameters {
+                schema_type: types::JSONSchemaType::Object,
+                properties: Some(properties),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "lhs_pk".to_string(),
+                    "lhs_values".to_string(),
+                ]),
+            },
+        };
+        let tool = chat_completion::Tool {
+            r#type: chat_completion::ToolType::Function,
+            function,
+        };
+        serde_json::to_string(&tool).unwrap()
+    }
+}
 
 /// Helper function to compute the comparator operator for tensors
 fn comparator_operator_tensor<T>(
@@ -64,7 +206,7 @@ pub fn filter_columns_and_indices(
     lhs_args: &[RecordBatch],
     cmp_columns: &[&str],
     cmp_operators: &[DataComparatorOperator],
-    cmp_predicate: DataComparatorPredicate,
+    cmp_predicate: &DataComparatorPredicate,
     device: &Device,
 ) -> Result<RecordBatch> {
     // Ensure that the array lengths for values, columns, and operators match
@@ -272,7 +414,7 @@ mod tests {
                 DataComparatorOperator::Like,
                 DataComparatorOperator::Equals,
             ],
-            DataComparatorPredicate::All,
+            &DataComparatorPredicate::All,
             &device,
         )?;
         let result_table = ArrowTable::get_builder()
@@ -297,7 +439,7 @@ mod tests {
                 DataComparatorOperator::Like,
                 DataComparatorOperator::NotEquals,
             ],
-            DataComparatorPredicate::Any,
+            &DataComparatorPredicate::Any,
             &device,
         )?;
         let result_table = ArrowTable::get_builder()
@@ -321,7 +463,7 @@ mod tests {
             &[
                 DataComparatorOperator::Like,
             ],
-            DataComparatorPredicate::Any,
+            &DataComparatorPredicate::Any,
             &device,
         )?;
         let result_table = ArrowTable::get_builder()
