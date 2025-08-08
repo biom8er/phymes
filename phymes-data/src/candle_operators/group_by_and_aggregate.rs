@@ -337,7 +337,7 @@ where
 }
 
 /// Helper function to build a list primitive type
-fn build_aggregator_column_list<T>(agg_vec: Vec<Vec<T>>, data_type: DataType) -> ArrayRef
+pub fn build_aggregator_column_list<T>(agg_vec: Vec<Vec<T>>, data_type: DataType) -> ArrayRef
 where
     T: ArrowNativeType + 'static,
 {

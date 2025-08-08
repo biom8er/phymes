@@ -280,7 +280,7 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
         }
         use std::any::TypeId;
         match data_type {
-            DataType::Boolean => {
+            // DataType::Boolean => {
             //     if TypeId::of::<T>() != TypeId::of::<bool>() {
             //         return Err(anyhow!(
             //             "Expected bool data type for column {}",
