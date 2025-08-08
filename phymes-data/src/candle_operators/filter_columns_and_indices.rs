@@ -55,18 +55,25 @@ where
 /// * `lhs_values` - Slice of Strings for the columns to filter by
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `cmp_columns` - Slice of Strings for the comparator columns
-/// * `cmp_operator` - Slice of [DataComparatorOperator]s specifying the comparator operator to apply to each cmp_column
+/// * `cmp_operators` - Slice of [DataComparatorOperator]s specifying the comparator operator to apply to each cmp_column
 /// * `cmp_predicate` - [DataComparatorPredicate]
 /// * `device` - The compute device
-#[instrument(skip(lhs_values, lhs_args, cmp_columns, cmp_operator, cmp_predicate, device))]
+#[instrument(skip(lhs_values, lhs_args, cmp_columns, cmp_operators, cmp_predicate, device))]
 pub fn filter_columns_and_indices(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
     cmp_columns: &[&str],
-    cmp_operator: &[DataComparatorOperator],
+    cmp_operators: &[DataComparatorOperator],
     cmp_predicate: DataComparatorPredicate,
     device: &Device,
 ) -> Result<RecordBatch> {
+    // Ensure that the array lengths for values, columns, and operators match
+    if lhs_values.len() != cmp_columns.len() {
+        return Err(anyhow!("lhs_values length {} is not equal to the cmp_columns length {}", lhs_values.len(), cmp_columns.len()));
+    } else if lhs_values.len() != cmp_operators.len() {
+        return Err(anyhow!("lhs_values length {} is not equal to the cmp_operators length {}", lhs_values.len(), cmp_operators.len()));
+    }
+
     // Wrap the lhs into an ArrowTable
     let lhs_table = ArrowTable::get_builder()
         .with_record_batches(lhs_args.to_vec())?
@@ -77,17 +84,17 @@ pub fn filter_columns_and_indices(
     let mut predicate_tensors = Vec::new();
     for (index, column_name) in lhs_values.iter().enumerate() {
         let predicate_tensor = match lhs_table.get_column_data_type(column_name)? {
-            DataType::UInt8 => comparator_operator_tensor::<u8>(&column_name, index, cmp_columns, cmp_operator, &lhs_table, device)?,
-            DataType::UInt32 => comparator_operator_tensor::<u32>(&column_name, index, cmp_columns, cmp_operator, &lhs_table, device)?,
-            DataType::Int64 => comparator_operator_tensor::<i64>(&column_name, index, cmp_columns, cmp_operator, &lhs_table, device)?,
-            DataType::Float32 => comparator_operator_tensor::<f32>(&column_name, index, cmp_columns, cmp_operator, &lhs_table, device)?,
-            DataType::Float64 => comparator_operator_tensor::<f64>(&column_name, index, cmp_columns, cmp_operator, &lhs_table, device)?,
+            DataType::UInt8 => comparator_operator_tensor::<u8>(&column_name, index, cmp_columns, cmp_operators, &lhs_table, device)?,
+            DataType::UInt32 => comparator_operator_tensor::<u32>(&column_name, index, cmp_columns, cmp_operators, &lhs_table, device)?,
+            DataType::Int64 => comparator_operator_tensor::<i64>(&column_name, index, cmp_columns, cmp_operators, &lhs_table, device)?,
+            DataType::Float32 => comparator_operator_tensor::<f32>(&column_name, index, cmp_columns, cmp_operators, &lhs_table, device)?,
+            DataType::Float64 => comparator_operator_tensor::<f64>(&column_name, index, cmp_columns, cmp_operators, &lhs_table, device)?,
             DataType::Utf8 => {
                 // StringArray must be sorted on the CPU
                 let values_arr = StringArray::from(lhs_table.get_column_as_vec_str(column_name));
                 let cmp_arr = StringArray::from(lhs_table.get_column_as_vec_str(cmp_columns.get(index).unwrap()));
                 let flags_array: Option<&StringArray> = None;
-                let predicate_arr = match cmp_operator.get(index).unwrap() {
+                let predicate_arr = match cmp_operators.get(index).unwrap() {
                     DataComparatorOperator::Like => like(&values_arr, &cmp_arr)?,
                     DataComparatorOperator::NotLike => nlike(&values_arr, &cmp_arr)?,
                     DataComparatorOperator::CaseInsensitiveLike => ilike(&values_arr, &cmp_arr)?,
@@ -98,7 +105,7 @@ pub fn filter_columns_and_indices(
                     DataComparatorOperator::RegExpIsMatch => regexp_is_match(&values_arr, &cmp_arr, flags_array)?,
                     _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}", 
                         lhs_table.get_column_data_type(column_name)?.to_string(), 
-                        cmp_operator.get(index).unwrap().get_name())),
+                        cmp_operators.get(index).unwrap().get_name())),
                 };
                 let predicate_vec = predicate_arr.into_iter().map(|s| s.unwrap_or_default() as u32).collect::<Vec<_>>();
                 Tensor::from_iter(predicate_vec, device)?
@@ -112,11 +119,11 @@ pub fn filter_columns_and_indices(
                         .downcast_ref::<ListArray>()
                         .unwrap();
                     let cmp_arr: PrimitiveArray<UInt8Type> = PrimitiveArray::from_iter_values(lhs_table.get_column_as_vec_primitive::<u8>(cmp_columns.get(index).unwrap())?);
-                    let predicate_arr = match cmp_operator.get(index).unwrap() {
+                    let predicate_arr = match cmp_operators.get(index).unwrap() {
                         DataComparatorOperator::InList => in_list(&cmp_arr, values_arr)?,
                         _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}", 
                             lhs_table.get_column_data_type(column_name)?.to_string(), 
-                            cmp_operator.get(index).unwrap().get_name())),
+                            cmp_operators.get(index).unwrap().get_name())),
                     };
                     let predicate_vec = predicate_arr.into_iter().map(|s| s.unwrap_or_default() as u32).collect::<Vec<_>>();
                     Tensor::from_iter(predicate_vec, device)?
@@ -228,13 +235,12 @@ mod tests {
 
     #[test]
     fn test_filter_column_and_indices() -> Result<()> {
-        // ------ String, UInt32, All ------
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
         let lhs_metadata_vec_1: Vec<u32> = vec![1, 2];
         let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_1));
-        let lhs_text_vec_1 = vec!["left", "left"];
+        let lhs_text_vec_1 = vec!["left", "1"];
         let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_1));
         let lhs_batch_1 = RecordBatch::try_from_iter(vec![
             ("lhs_pk", lhs_ids_array),
@@ -245,7 +251,7 @@ mod tests {
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_2));
         let lhs_metadata_vec_2: Vec<u32> = vec![3, 4];
         let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_2));
-        let lhs_text_vec_2 = vec!["left", "left"];
+        let lhs_text_vec_2 = vec!["left", "3"];
         let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_2));
         let lhs_batch_2 = RecordBatch::try_from_iter(vec![
             ("lhs_pk", lhs_ids_array),
@@ -256,10 +262,11 @@ mod tests {
         // Make the device
         let device = device(false)?;
 
+        // ------ String, UInt32, All ------
         // Group the text
         let result = filter_columns_and_indices(
             &["lhs_pk", "lhs_metadata"],
-            &[lhs_batch_1, lhs_batch_2],
+            &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["lhs_pk", "lhs_metadata"],
             &[
                 DataComparatorOperator::Like,
@@ -274,11 +281,60 @@ mod tests {
             .build()?;
 
         let lhs_text = result_table.get_column_as_vec_str("lhs_text");
-        assert_eq!(lhs_text, vec!["left","left","left","left"]);
+        assert_eq!(lhs_text, vec!["left","1","left","3"]);
         let lhs_id = result_table.get_column_as_vec_str("lhs_pk");
         assert_eq!(lhs_id, vec!["0", "1", "2", "3"]);
         let metadata = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata")?;
         assert_eq!(metadata, vec![1, 2, 3, 4]);
+
+        // ------ String, UInt32, Any ------
+        // Group the text
+        let result = filter_columns_and_indices(
+            &["lhs_pk", "lhs_metadata"],
+            &[lhs_batch_1.clone(), lhs_batch_2.clone()],
+            &["lhs_pk", "lhs_metadata"],
+            &[
+                DataComparatorOperator::Like,
+                DataComparatorOperator::NotEquals,
+            ],
+            DataComparatorPredicate::Any,
+            &device,
+        )?;
+        let result_table = ArrowTable::get_builder()
+            .with_record_batches(vec![result])?
+            .with_name("")
+            .build()?;
+
+        let lhs_text = result_table.get_column_as_vec_str("lhs_text");
+        assert_eq!(lhs_text, vec!["left","1","left","3"]);
+        let lhs_id = result_table.get_column_as_vec_str("lhs_pk");
+        assert_eq!(lhs_id, vec!["0", "1", "2", "3"]);
+        let metadata = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata")?;
+        assert_eq!(metadata, vec![1, 2, 3, 4]);
+
+        // ------ String, Any ------
+        // Group the text
+        let result = filter_columns_and_indices(
+            &["lhs_pk"],
+            &[lhs_batch_1, lhs_batch_2],
+            &["lhs_text"],
+            &[
+                DataComparatorOperator::Like,
+            ],
+            DataComparatorPredicate::Any,
+            &device,
+        )?;
+        let result_table = ArrowTable::get_builder()
+            .with_record_batches(vec![result])?
+            .with_name("")
+            .build()?;
+
+        let lhs_text = result_table.get_column_as_vec_str("lhs_text");
+        assert_eq!(lhs_text, vec!["1", "3"]);
+        let lhs_id = result_table.get_column_as_vec_str("lhs_pk");
+        assert_eq!(lhs_id, vec!["1", "3"]);
+        let metadata = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata")?;
+        assert_eq!(metadata, vec![2, 4]);
 
         Ok(())
     }
