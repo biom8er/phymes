@@ -638,7 +638,7 @@ Second, build the server with the desired features.
 
 ```bash
 # GPU support and Candle token service
-cargo build --package phymes-server --features wsl,gpu,candle --release
+cargo build --package phymes-server --features wsl,gpu,candle,hf_hub --release
 
 # Or OpenAI API
 cargo build --package phymes-server --no-default-features --features wsl,openai_api --release

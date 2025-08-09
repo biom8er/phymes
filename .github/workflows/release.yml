@@ -33,10 +33,10 @@ jobs:
             --notes-file ${notes_file} \
             --verify-tag
 
-  bundle-candle:
+  bundle-web-candle:
     if: false
     needs: release
-    name: Bundle the application for candle
+    name: Bundle the web application for candle
     runs-on: self-hosted #ubuntu-latest
     strategy:
       matrix:
@@ -57,18 +57,18 @@ jobs:
       - name: Install Dioxus
         shell: bash
         run: |
-          cargo install dioxus-cli --forced
+          cargo install dioxus-cli
       - name: Build the application
         run: |
           dx bundle -p phymes-app --release
       - name: Bundle the application
         run: |
           mv target/release/phymes-server target/dx/phymes-app/release/web/public/phymes-server
-          tar -czf phymes-candle-cuda${{ matrix.version }}-${{ matrix.os }}.tar.gz -C target/dx/phymes-app/release/web/public .
-          gh release upload ${GITHUB_REF_NAME} phymes-candle-cuda${{ matrix.version }}-${{ matrix.os }}.tar.gz
+          tar -czf phymes-web-candle-cuda${{ matrix.version }}-${{ matrix.os }}.tar.gz -C target/dx/phymes-app/release/web/public .
+          gh release upload ${GITHUB_REF_NAME} phymes-web-candle-cuda${{ matrix.version }}-${{ matrix.os }}.tar.gz
 
-  bundle-openai:
-    name: Bundle the application for openai api
+  bundle-web-openai:
+    name: Bundle the web application for openai api
     needs: release
     runs-on: self-hosted #ubuntu-latest
     strategy:
@@ -84,7 +84,7 @@ jobs:
           target: x86_64-unknown-linux-gnu
       - name: Build the server
         run: |
-          cargo build -p phymes-server --features wsl --release
+          cargo build -p phymes-server --features wsl,openai_api --release
       - name: Install Dioxus
         shell: bash
         run: |
@@ -95,8 +95,8 @@ jobs:
       - name: Bundle the application
         run: |
           mv target/release/phymes-server target/dx/phymes-app/release/web/public/phymes-server
-          tar -czf phymes-openai-${{ matrix.os }}.tar.gz -C target/dx/phymes-app/release/web/public .
-          gh release upload ${GITHUB_REF_NAME} phymes-openai-${{ matrix.os }}.tar.gz
+          tar -czf phymes-web-openai-${{ matrix.os }}.tar.gz -C target/dx/phymes-app/release/web/public .
+          gh release upload ${GITHUB_REF_NAME} phymes-web-openai-${{ matrix.os }}.tar.gz
 
   bundle-wasm:
     name: Bundle the application for wasm
