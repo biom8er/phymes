@@ -5,6 +5,20 @@ use dioxus::prelude::*;
 #[cfg(any(feature = "plotly_embed_js", feature = "plotly_cdn_js"))]
 use plotly::{color::Rgb, image::ColorModel, Image, Plot};
 
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = mermaid)]
+    fn parse(code: &str) -> bool;
+    #[wasm_bindgen(js_namespace = mermaid)]
+    fn init();
+    #[wasm_bindgen(js_namespace = mermaid)]
+    fn run();
+    #[wasm_bindgen(js_namespace = mermaid, catch)]
+    async fn render(id: &str, code: &str) -> Result<JsValue, JsValue>;
+}
+
 use super::messaging::{messaging_interface_footer, messaging_interface_view};
 use super::metrics::metrics_modal;
 use super::settings::settings_modal;
@@ -244,11 +258,44 @@ pub fn about_text_modal() -> Element {
         }
     }
 
+    let mut diagram_code = use_signal(|| String::from("graph TB\na-->b"));
+    let mut rendered_html = use_signal(|| String::new());
+
+    let _ = use_resource(move || async move {
+        let code = diagram_code.read();
+        match render("graphDiv", &code).await {
+            Ok(svg) => rendered_html.set(svg.as_string().unwrap_or("svg is not a string".to_string())),
+            Err(err) => rendered_html.set(err.as_string().unwrap_or("err".to_string()))
+        }        
+        // run();
+    });
+
+    // use_effect(move || async move {
+    //     let code = diagram_code.read();
+    //     match render("graphDiv", &code).await {
+    //         Ok(svg) => rendered_html.set(svg),
+    //         Err(err) => rendered_html.set(err.as_string().unwrap_or("err".to_string()))
+    //     }
+    // });
+
     #[cfg(not(any(feature = "plotly_embed_js", feature = "plotly_cdn_js")))]
     rsx! {
         div {
             class: "messaging_list",
             p { "Welcome to PHYMES by Biom🤖er" },
+            textarea {
+                rows: "10",
+                cols: "40",
+                value: "{diagram_code}",
+                oninput: move |evt| diagram_code.set(evt.value()),
+            }      
+            div {
+                id: "graphDiv",
+                class: "mermaid",
+                dangerous_inner_html: "{rendered_html.read()}",                
+                p { "{rendered_html.read()}" },
+                // "{diagram_code.read()}"
+            }
         }
     }
 }
