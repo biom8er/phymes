@@ -5,18 +5,36 @@ use dioxus::prelude::*;
 #[cfg(any(feature = "plotly_embed_js", feature = "plotly_cdn_js"))]
 use plotly::{color::Rgb, image::ColorModel, Image, Plot};
 
+#[cfg(feature = "mermaid_js")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "mermaid_js")]
 use wasm_bindgen::prelude::*;
+#[cfg(feature = "mermaid_js")]
+use wasm_bindgen_futures::spawn_local;
 
+#[cfg(feature = "mermaid_js")]
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = mermaid)]
     fn parse(code: &str) -> bool;
     #[wasm_bindgen(js_namespace = mermaid)]
-    fn init();
-    #[wasm_bindgen(js_namespace = mermaid)]
     fn run();
     #[wasm_bindgen(js_namespace = mermaid, catch)]
     async fn render(id: &str, code: &str) -> Result<JsValue, JsValue>;
+}
+
+#[cfg(feature = "mermaid_js")]
+#[derive(Serialize, Deserialize)]
+pub struct MermaidSvgObject {
+    svg: String
+}
+
+#[cfg(feature = "mermaid_js")]
+#[derive(Debug, Deserialize)]
+struct JsError {
+    message: String,
+    name: Option<String>,
+    stack: Option<String>,
 }
 
 use super::messaging::{messaging_interface_footer, messaging_interface_view};
@@ -258,25 +276,34 @@ pub fn about_text_modal() -> Element {
         }
     }
 
-    let mut diagram_code = use_signal(|| String::from("graph TB\na-->b"));
+    let mut diagram_code = use_signal(|| String::from(r#"graph TB
+    a-->b"#));
     let mut rendered_html = use_signal(|| String::new());
 
-    let _ = use_resource(move || async move {
-        let code = diagram_code.read();
-        match render("graphDiv", &code).await {
-            Ok(svg) => rendered_html.set(svg.as_string().unwrap_or("svg is not a string".to_string())),
-            Err(err) => rendered_html.set(err.as_string().unwrap_or("err".to_string()))
-        }        
-        // run();
+    #[cfg(feature = "mermaid_js")]
+    use_effect( move || {
+        let code = diagram_code.read().clone();        
+        spawn_local(async move {
+            match render("graphDiv", &code).await{
+                Ok(svg) => {
+                    let obj_str = match serde_wasm_bindgen::from_value::<MermaidSvgObject>(svg) {
+                        Ok(obj) => obj,
+                        Err(err) => MermaidSvgObject { svg: err.to_string()},
+                    };
+                    let escaped_str = format!("'{0}'", obj_str.svg);
+                    rendered_html.set(escaped_str);
+                }
+                Err(err) => {
+                    let obj_str = match serde_wasm_bindgen::from_value::<JsError>(err) {
+                        Ok(obj) => obj,
+                        Err(err) => JsError { message: err.to_string(), name: None, stack: None },
+                    };
+                    rendered_html.set(obj_str.message);
+                }
+            }
+        });
+        // run(); // render all "mermaid" classes (cannot be dynamically updated)
     });
-
-    // use_effect(move || async move {
-    //     let code = diagram_code.read();
-    //     match render("graphDiv", &code).await {
-    //         Ok(svg) => rendered_html.set(svg),
-    //         Err(err) => rendered_html.set(err.as_string().unwrap_or("err".to_string()))
-    //     }
-    // });
 
     #[cfg(not(any(feature = "plotly_embed_js", feature = "plotly_cdn_js")))]
     rsx! {
@@ -288,13 +315,15 @@ pub fn about_text_modal() -> Element {
                 cols: "40",
                 value: "{diagram_code}",
                 oninput: move |evt| diagram_code.set(evt.value()),
-            }      
+            }            
             div {
                 id: "graphDiv",
                 class: "mermaid",
-                dangerous_inner_html: "{rendered_html.read()}",                
-                p { "{rendered_html.read()}" },
+                svg { dangerous_inner_html: rendered_html.read().to_string() },
                 // "{diagram_code.read()}"
+            }
+            div {
+                p { "{rendered_html.read()}" },
             }
         }
     }

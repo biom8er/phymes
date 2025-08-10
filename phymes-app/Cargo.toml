@@ -23,21 +23,26 @@ chrono = "0.4.41"
 bytes = "1.10.0"
 serde_json = "1.0.140"
 plotly = { version = "0.13.3", default-features = false, optional = true}
+plotters = { version = "0.3.7", default-features = false, features = ["svg_backend"], optional = true }
+plotters-svg = { version = "0.3.7", optional = true }
 phymes-core = { path = "../phymes-core", default-features = false }
 phymes-server = { path = "../phymes-server", default-features = false }
 clap = {version = "4.5.40", optional = true}
 tokio = { version = "1.45.1", default-features = false, optional = true }
 tracing = "0.1.41"
 tracing-subscriber = "0.3.7"
-wasm-bindgen = "0.2.100"
-wasm-bindgen-futures = "0.4.50"
+wasm-bindgen = { version = "0.2.100", optional = true }
+wasm-bindgen-futures = { version = "0.4.50", optional = true }
+serde-wasm-bindgen = { version = "0.6.5", optional = true }
 
 [features]
-default = ["web"]
+default = ["web", "mermaid_js"]
 
 # Frontend options for plotting
 plotly_cdn_js = ["dep:plotly"]
 plotly_embed_js = ["plotly/plotly_embed_js"]
+mermaid_js = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:serde-wasm-bindgen"]
+plotters = ["dep:plotters", "dep:plotters-svg"]
 
 # Serverside options for gpu and token/tensor services
 wasip2 = ["phymes-server/wasip2", "phymes-core/wasip2"]
