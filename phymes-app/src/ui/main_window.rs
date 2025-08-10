@@ -249,7 +249,6 @@ pub fn about_text_modal() -> Element {
         // run(); // render all "mermaid" classes (cannot be dynamically updated)
     });
 
-    #[cfg(not(any(feature = "plotly_embed_js", feature = "plotly_cdn_js")))]
     rsx! {
         div {
             class: "messaging_list",
