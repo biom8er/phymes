@@ -8,6 +8,7 @@ use ui::main_window::main_window;
 
 // CSS
 static MAIN_CSS: Asset = asset!("/assets/main.css");
+static MERMAID_JS: Asset = asset!("/assets/mermaid.esm.min.mjs");
 
 fn main() {
     // DM: Uncomment for full stack
@@ -37,6 +38,7 @@ fn app() -> Element {
     // render the UI
     rsx! {
         document::Link { rel: "stylesheet", href: MAIN_CSS },
+        document::Script { src: MERMAID_JS },
         div {
             id: "container",
             main_window {}

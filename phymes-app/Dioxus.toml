@@ -29,7 +29,7 @@ script = []
 reload_html = true
 
 # which files or dirs will be watcher monitoring
-watch_path = ["src", "public"]
+watch_path = ["src", "assets"]
 
 [bundle]
 identifier = "com.biom8er.app"

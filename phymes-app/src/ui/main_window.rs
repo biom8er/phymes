@@ -222,31 +222,30 @@ pub fn main_window() -> Element {
 pub fn about_text_modal() -> Element {
     let mut diagram_code = use_signal(|| String::from(r#"graph TB
     a-->b"#));
-    let mut rendered_html = use_signal(|| String::new());
+
+    let rendered_html = use_resource(move || async move {
+        let code = diagram_code.read().clone();
+        match render("graphDiv", &code).await{
+            Ok(svg) => {
+                let obj_str = match serde_wasm_bindgen::from_value::<MermaidSvgObject>(svg) {
+                    Ok(obj) => obj,
+                    Err(err) => MermaidSvgObject { svg: err.to_string()},
+                };
+                format!("'{0}'", obj_str.svg)
+            }
+            Err(err) => {
+                let obj_str = match serde_wasm_bindgen::from_value::<JsError>(err) {
+                    Ok(obj) => obj,
+                    Err(err) => JsError { message: err.to_string(), name: None, stack: None },
+                };
+                obj_str.message
+            }
+        }
+    });
 
     #[cfg(feature = "mermaid_js")]
     use_effect( move || {
-        let code = diagram_code.read().clone();        
-        spawn_local(async move {
-            match render("graphDiv", &code).await{
-                Ok(svg) => {
-                    let obj_str = match serde_wasm_bindgen::from_value::<MermaidSvgObject>(svg) {
-                        Ok(obj) => obj,
-                        Err(err) => MermaidSvgObject { svg: err.to_string()},
-                    };
-                    let escaped_str = format!("'{0}'", obj_str.svg);
-                    rendered_html.set(escaped_str);
-                }
-                Err(err) => {
-                    let obj_str = match serde_wasm_bindgen::from_value::<JsError>(err) {
-                        Ok(obj) => obj,
-                        Err(err) => JsError { message: err.to_string(), name: None, stack: None },
-                    };
-                    rendered_html.set(obj_str.message);
-                }
-            }
-        });
-        // run(); // render all "mermaid" classes (cannot be dynamically updated)
+        run(); // render all "mermaid" classes (cannot be dynamically updated)
     });
 
     rsx! {
@@ -262,11 +261,16 @@ pub fn about_text_modal() -> Element {
             div {
                 id: "graphDiv",
                 class: "mermaid",
-                svg { dangerous_inner_html: rendered_html.read().to_string() },
-                // "{diagram_code.read()}"
+                // if let Some(svg_str) = &*rendered_html.read() {
+                //    svg { dangerous_inner_html: svg_str.to_string() },
+                // }
+                "{diagram_code.read()}"
             }
             div {
-                p { "{rendered_html.read()}" },
+                if let Some(svg_str) = &*rendered_html.read() {
+                   p { "{svg_str}" },
+                }
+                
             }
         }
     }
