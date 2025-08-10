@@ -22,9 +22,6 @@ serde = { version = "1.0.219", features = ["derive"] }
 chrono = "0.4.41"
 bytes = "1.10.0"
 serde_json = "1.0.140"
-plotly = { version = "0.13.3", default-features = false, optional = true}
-plotters = { version = "0.3.7", default-features = false, features = ["svg_backend"], optional = true }
-plotters-svg = { version = "0.3.7", optional = true }
 phymes-core = { path = "../phymes-core", default-features = false }
 phymes-server = { path = "../phymes-server", default-features = false }
 clap = {version = "4.5.40", optional = true}
@@ -39,10 +36,7 @@ serde-wasm-bindgen = { version = "0.6.5", optional = true }
 default = ["web", "mermaid_js"]
 
 # Frontend options for plotting
-plotly_cdn_js = ["dep:plotly"]
-plotly_embed_js = ["plotly/plotly_embed_js"]
 mermaid_js = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:serde-wasm-bindgen"]
-plotters = ["dep:plotters", "dep:plotters-svg"]
 
 # Serverside options for gpu and token/tensor services
 wasip2 = ["phymes-server/wasip2", "phymes-core/wasip2"]
@@ -57,8 +51,8 @@ serverless = [] # Switch to use the serverless application
 
 # Dioxus platform options
 web = ["dioxus/web", "wasip2"]
-desktop = ["dioxus/desktop", "dioxus/launch", "plotly_embed_js", "wasip2"]
-mobile = ["dioxus/mobile", "plotly_embed_js", "wasip2"]
+desktop = ["dioxus/desktop", "dioxus/launch", "wasip2"]
+mobile = ["dioxus/mobile", "wasip2"]
 # DM: Dioxus builds the server for native and not for the "target" platform e.g., mobile, desktop, etc.
 # see https://dioxuslabs.com/learn/0.6/guide/bundle/
 server = ["wsl", "candle", "clap/derive", "tokio/full"]
