@@ -223,7 +223,8 @@ pub fn about_text_modal() -> Element {
     let mut diagram_code = use_signal(|| String::from(r#"graph TB
     a-->b"#));
 
-    let rendered_html = use_resource(move || async move {
+    #[cfg(feature = "mermaid_js")]
+    let rendered_html: Resource<(Option<String>, Option<String>)> = use_resource(move || async move {
         let code = diagram_code.read().clone();
         match render("graphDiv", &code).await{
             Ok(svg) => {
@@ -231,47 +232,83 @@ pub fn about_text_modal() -> Element {
                     Ok(obj) => obj,
                     Err(err) => MermaidSvgObject { svg: err.to_string()},
                 };
-                format!("'{0}'", obj_str.svg)
+                // format!("'{0}'", obj_str.svg)
+                (Some(obj_str.svg), None)
             }
             Err(err) => {
                 let obj_str = match serde_wasm_bindgen::from_value::<JsError>(err) {
                     Ok(obj) => obj,
                     Err(err) => JsError { message: err.to_string(), name: None, stack: None },
                 };
-                obj_str.message
+                (None, Some(format!("<p>{}</p>", obj_str.message)))
             }
         }
     });
-
-    #[cfg(feature = "mermaid_js")]
-    use_effect( move || {
-        run(); // render all "mermaid" classes (cannot be dynamically updated)
-    });
-
-    rsx! {
-        div {
-            class: "messaging_list",
-            p { "Welcome to PHYMES by Biom🤖er" },
-            textarea {
-                rows: "10",
-                cols: "40",
-                value: "{diagram_code}",
-                oninput: move |evt| diagram_code.set(evt.value()),
-            }            
-            div {
-                id: "graphDiv",
-                class: "mermaid",
-                // if let Some(svg_str) = &*rendered_html.read() {
-                //    svg { dangerous_inner_html: svg_str.to_string() },
-                // }
-                "{diagram_code.read()}"
-            }
-            div {
-                if let Some(svg_str) = &*rendered_html.read() {
-                   p { "{svg_str}" },
+    
+    let out = if let Some(result) = &*rendered_html.read() {
+        match result {
+            (Some(svg), None) => {
+                rsx! {
+                    div {
+                        class: "messaging_list",
+                        p { "Welcome to PHYMES by Biom🤖er" },
+                        textarea {
+                            rows: "10",
+                            cols: "40",
+                            value: "{diagram_code}",
+                            oninput: move |evt| diagram_code.set(evt.value()),
+                        }            
+                        div {
+                            id: "graphDiv",
+                            class: "mermaid",
+                            svg { dangerous_inner_html: svg.to_string() }
+                        }
+                    }
                 }
-                
+            }
+            (None, Some(error)) => {
+                rsx! {
+                    div {
+                        class: "messaging_list",
+                        p { "Welcome to PHYMES by Biom🤖er" },
+                        textarea {
+                            rows: "10",
+                            cols: "40",
+                            value: "{diagram_code}",
+                            oninput: move |evt| diagram_code.set(evt.value()),
+                        }
+                        p { "{error}" },
+                    }            
+                }
+            }
+            (_, _) => {
+                rsx! {
+                    div {
+                        class: "messaging_list",
+                        p { "Welcome to PHYMES by Biom🤖er" },
+                        textarea {
+                            rows: "10",
+                            cols: "40",
+                            value: "{diagram_code}",
+                            oninput: move |evt| diagram_code.set(evt.value()),
+                        }
+                    }            
+                }
             }
         }
-    }
+    } else {
+        rsx! {
+            div {
+                class: "messaging_list",
+                p { "Welcome to PHYMES by Biom🤖er" },
+                textarea {
+                    rows: "10",
+                    cols: "40",
+                    value: "{diagram_code}",
+                    oninput: move |evt| diagram_code.set(evt.value()),
+                }
+            }            
+        }
+    };
+    out
 }
