@@ -44,7 +44,7 @@ use crate::{
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
     },
-    ui::svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg},
+    ui::svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg, media_icon_svg},
 };
 
 /// View for messaging between the user and AI assistant
@@ -361,7 +361,12 @@ pub fn messaging_interface_footer() -> Element {
                                 }
                             }
                         },
-                        svg { dangerous_inner_html: send_icon_svg() }
+                        if !prompt.read().is_empty() {
+                            svg { dangerous_inner_html: send_icon_svg() }
+                        } else {
+                            // svg { dangerous_inner_html: media_icon_svg() }
+                        }
+                        
                     }
                 }
             }
