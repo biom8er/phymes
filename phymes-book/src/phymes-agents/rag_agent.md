@@ -30,7 +30,7 @@ config:
 flowchart TD
     user@{ shape: circle, label: user } --> documents@{ shape: doc, label: documents }
     user@{ shape: circle, label: user } --> query@{ shape: doc, label: query }
-    user@{ shape: circle, label: user } --> messages@{ shape: doc, label: messages }
+    user@{ shape: circle, label: user } --> user_messages@{ shape: doc, label: user_messages }
     subgraph embed
         documents@{ shape: doc, label: documents } --> chunker@{ shape: subproc, label: chunker }
         chunker@{ shape: subproc, label: chunker } --> document_chunks@{ shape: doc, label: document_chunks }
@@ -48,14 +48,14 @@ flowchart TD
     end
     subgraph chat
         top_k_docs@{ shape: doc, label: top_k_docs } --> aggregator@{ shape: subproc, label: aggregator }
-        messages@{ shape: doc, label: messages } --> aggregator@{ shape: subproc, label: aggregator }
+        user_messages@{ shape: doc, label: user_messages } --> aggregator@{ shape: subproc, label: aggregator }
         aggregator@{ shape: subproc, label: aggregator } --> c@{ shape: doc, label: chat }
         c@{ shape: doc, label: chat } --> TGI@{ shape: lin-rect, label: TGI }
         TGI@{ shape: lin-rect, label: TGI } --> parse@{ shape: doc, label: parse }
         parse@{ shape: doc, label: parse } --> parser@{ shape: subproc, label: parser }
-        parser@{ shape: subproc, label: parser } --> messages@{ shape: doc, label: messages }
+        parser@{ shape: subproc, label: parser } --> assistant_messages@{ shape: doc, label: assistant_messages }
     end
-    messages@{ shape: doc, label: messages } --> HITL@{ shape: dbl-circ, label: HITL }
+    assistant_messages@{ shape: doc, label: assistant_messages } --> HITL@{ shape: dbl-circ, label: HITL }
 ```
 
 ```mermaid
