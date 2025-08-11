@@ -23,6 +23,42 @@ The session starts with an upload of documents to the embed_task to chunk and em
 Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the user, embed_task, vs_task, and chat_agent.
 
 ```mermaid
+---
+config:
+      theme: redux
+---
+flowchart TD
+    user@{ shape: circle, label: user } --> documents@{ shape: doc, label: documents }
+    user@{ shape: circle, label: user } --> query@{ shape: doc, label: query }
+    user@{ shape: circle, label: user } --> messages@{ shape: doc, label: messages }
+    subgraph embed
+        documents@{ shape: doc, label: documents } --> chunker@{ shape: subproc, label: chunker }
+        chunker@{ shape: subproc, label: chunker } --> document_chunks@{ shape: doc, label: document_chunks }
+        document_chunks@{ shape: doc, label: document_chunks } --> TEI@{ shape: lin-rect, label: TEI }
+        TEI@{ shape: lin-rect, label: TEI } --> embedded_docs@{ shape: doc, label: embedded_docs }
+        query@{ shape: doc, label: query } --> TEI@{ shape: lin-rect, label: TEI }
+        TEI@{ shape: lin-rect, label: TEI } --> embedded_query@{ shape: doc, label: embedded_query }
+    end
+    subgraph vs
+        embedded_docs@{ shape: doc, label: embedded_docs } --> similarity@{ shape: subproc, label: similarity }
+        embedded_query@{ shape: doc, label: embedded_query } --> similarity@{ shape: subproc, label: similarity }
+        similarity@{ shape: subproc, label: similarity } --> similarity_scores@{ shape: doc, label: similarity_scores }
+        similarity_scores@{ shape: doc, label: similarity_scores } --> ranker@{ shape: subproc, label: ranker }
+        ranker@{ shape: subproc, label: ranker } --> top_k_docs@{ shape: doc, label: top_k_docs }
+    end
+    subgraph chat
+        top_k_docs@{ shape: doc, label: top_k_docs } --> aggregator@{ shape: subproc, label: aggregator }
+        messages@{ shape: doc, label: messages } --> aggregator@{ shape: subproc, label: aggregator }
+        aggregator@{ shape: subproc, label: aggregator } --> c@{ shape: doc, label: chat }
+        c@{ shape: doc, label: chat } --> TGI@{ shape: lin-rect, label: TGI }
+        TGI@{ shape: lin-rect, label: TGI } --> parse@{ shape: doc, label: parse }
+        parse@{ shape: doc, label: parse } --> parser@{ shape: subproc, label: parser }
+        parser@{ shape: subproc, label: parser } --> messages@{ shape: doc, label: messages }
+    end
+    messages@{ shape: doc, label: messages } --> HITL@{ shape: dbl-circ, label: HITL }
+```
+
+```mermaid
 sequenceDiagram
     user->>documents: 1
     user->>query: 2a
