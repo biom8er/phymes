@@ -5,8 +5,6 @@ use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "mermaid_js")]
 use wasm_bindgen::prelude::*;
-#[cfg(feature = "mermaid_js")]
-use wasm_bindgen_futures::spawn_local;
 
 #[cfg(feature = "mermaid_js")]
 #[wasm_bindgen]
@@ -233,7 +231,7 @@ pub fn about_text_modal() -> Element {
                     Err(err) => MermaidSvgObject { svg: err.to_string()},
                 };
                 // format!("'{0}'", obj_str.svg)
-                (Some(obj_str.svg), None)
+                (Some(obj_str.svg.replace("'", "\'").replace('"', "\"")), None)
             }
             Err(err) => {
                 let obj_str = match serde_wasm_bindgen::from_value::<JsError>(err) {

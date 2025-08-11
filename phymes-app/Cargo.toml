@@ -33,10 +33,12 @@ wasm-bindgen-futures = { version = "0.4.50", optional = true }
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
 
 [features]
-default = ["web", "mermaid_js"]
+default = ["web"]
 
 # Frontend options for plotting
 mermaid_js = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:serde-wasm-bindgen"]
+mermaid_js_cdn = ["mermaid_js"] # use the mjs loaded from CDN server
+mermaid_js_embed = ["mermaid_js"] # use the js (~3 MB) from local filesystem
 
 # Serverside options for gpu and token/tensor services
 wasip2 = ["phymes-server/wasip2", "phymes-core/wasip2"]
@@ -50,9 +52,9 @@ openai_api = ["phymes-server/openai_api"]
 serverless = [] # Switch to use the serverless application
 
 # Dioxus platform options
-web = ["dioxus/web", "wasip2"]
-desktop = ["dioxus/desktop", "dioxus/launch", "wasip2"]
-mobile = ["dioxus/mobile", "wasip2"]
+web = ["dioxus/web", "wasip2", "mermaid_js_cdn"]
+desktop = ["dioxus/desktop", "dioxus/launch", "wasip2", "mermaid_js_embed"]
+mobile = ["dioxus/mobile", "wasip2", "mermaid_js_embed"]
 # DM: Dioxus builds the server for native and not for the "target" platform e.g., mobile, desktop, etc.
 # see https://dioxuslabs.com/learn/0.6/guide/bundle/
 server = ["wsl", "candle", "clap/derive", "tokio/full"]
