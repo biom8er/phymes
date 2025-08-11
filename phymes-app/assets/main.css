@@ -418,6 +418,24 @@ main footer .text_input #message_form textarea {
 main footer .text_input #message_form textarea::placeholder{
 	color:#fff;
 }
+main footer .attach_button{
+    width: 64px;
+    height: 48px;
+    float: left;
+}
+main footer .attach_button button{
+    width: auto;
+    height: auto;
+	border: none;
+	color:#fff;
+	background-color:black;
+	cursor: pointer;
+}
+main footer .attach_button svg {
+    max-width: 48px; /* based on viewBox attributes in svg */
+    max-height: 48px;
+    vertical-align: middle;
+}
 main footer .submit_button{
     width: 64px;
     height: 48px;
@@ -432,7 +450,6 @@ main footer .submit_button button{
 	cursor: pointer;
 }
 main footer .submit_button svg {
-    transform: scale(1.25);
 	translate: 2 2px;
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
