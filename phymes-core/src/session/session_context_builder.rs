@@ -403,7 +403,7 @@ pub mod test_session_context_builder {
     /// Tasks subscribe and publish to state_1, state_2, and state_3
     pub fn make_test_session_builder_parallel_task() -> SessionContextBuilder {
         let processor_plans = vec![
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_1".to_string(),
@@ -416,10 +416,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_2",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_2".to_string(),
@@ -432,10 +431,9 @@ pub mod test_session_context_builder {
                         table_name: "config_2".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_3",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_3".to_string(),
@@ -448,10 +446,9 @@ pub mod test_session_context_builder {
                         table_name: "config_3".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "session_1",
                 &[
                     ArrowTablePublish::Extend {
@@ -475,7 +472,6 @@ pub mod test_session_context_builder {
                         table_name: "state_3".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
         ];
@@ -489,7 +485,7 @@ pub mod test_session_context_builder {
     /// Tasks subscribe and publish to state_1
     pub fn make_test_session_builder_sequential_task() -> SessionContextBuilder {
         let processor_plans = vec![
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_1".to_string(),
@@ -502,10 +498,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_2",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_1".to_string(),
@@ -518,10 +513,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_3",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_1".to_string(),
@@ -534,10 +528,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "session_1",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_1".to_string(),
@@ -545,7 +538,6 @@ pub mod test_session_context_builder {
                 &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                     table_name: "state_1".to_string(),
                 }],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
         ];

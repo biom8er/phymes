@@ -79,7 +79,7 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
         // The order is the order in which the processors are called in the task
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
-            processors.push(OpenAIChatProcessor::new_with_pub_sub_for(
+            processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
                     table_name: self.chat_subscription_name.to_string(),
@@ -94,11 +94,10 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
         } else {
-            processors.push(CandleChatProcessor::new_with_pub_sub_for(
+            processors.push(CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
                     table_name: self.chat_subscription_name.to_string(),
@@ -113,11 +112,10 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
         }
-        processors.push(ArrowProcessorEcho::new_with_pub_sub_for(
+        processors.push(ArrowProcessorEcho::new_arc_with_pub_sub(
             self.session_context_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.chat_subscription_name.to_string(),
@@ -125,7 +123,6 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.chat_subscription_name.to_string(),
             }],
-            &[],
             AllTableNamesSubscribe::new_box(),
         ));
         processors

@@ -33,34 +33,36 @@ The session ends when there are no further updates to the subjects. If the user 
 
 ```mermaid
 flowchart TD
-    user@{ shape: circle, label: user } --> documents@{ shape: doc, label: documents }
-    user@{ shape: circle, label: user } --> query@{ shape: doc, label: query }
-    user@{ shape: circle, label: user } --> user_messages@{ shape: doc, label: user_messages }
+    subgraph "👷 user"
+        user@{ shape: circle, label: user } --> documents@{ shape: doc, label: documents }
+        user@{ shape: circle, label: user } --> query@{ shape: doc, label: query }
+        user@{ shape: circle, label: user } --> user_messages@{ shape: doc, label: user_messages }
+    end
     subgraph "🤖 embed"
-        documents@{ shape: doc, label: documents } --> chunker@{ shape: subproc, label: 🔨 chunker }
-        chunker@{ shape: subproc, label: 🔨 chunker } --> document_chunks@{ shape: doc, label: document_chunks }
-        document_chunks@{ shape: doc, label: document_chunks } --> TEI@{ shape: subproc, label: 🧠 TEI }
-        TEI@{ shape: subproc, label: 🧠 TEI } --> embedded_docs@{ shape: doc, label: embedded_docs }
-        query@{ shape: doc, label: query } --> TEI@{ shape: subproc, label: 🧠 TEI }
-        TEI@{ shape: subproc, label: 🧠 TEI } --> embedded_query@{ shape: doc, label: embedded_query }
+        documents@{ shape: doc, label: documents } --> chunker@{ shape: rect, label: 🔨 chunker }
+        chunker@{ shape: rect, label: 🔨 chunker } --> document_chunks@{ shape: doc, label: document_chunks }
+        document_chunks@{ shape: doc, label: document_chunks } --> TEI@{ shape: rect, label: 🧠 TEI }
+        TEI@{ shape: rect, label: 🧠 TEI } --> embedded_docs@{ shape: doc, label: embedded_docs }
+        query@{ shape: doc, label: query } --> TEI@{ shape: rect, label: 🧠 TEI }
+        TEI@{ shape: rect, label: 🧠 TEI } --> embedded_query@{ shape: doc, label: embedded_query }
     end
     subgraph "🤖 vector search"
-        embedded_docs@{ shape: doc, label: embedded_docs } --> similarity@{ shape: subproc, label: 🔨 similarity }
-        embedded_query@{ shape: doc, label: embedded_query } --> similarity@{ shape: subproc, label: 🔨 similarity }
-        similarity@{ shape: subproc, label: 🔨 similarity } --> similarity_scores@{ shape: doc, label: similarity_scores }
-        similarity_scores@{ shape: doc, label: similarity_scores } --> ranker@{ shape: subproc, label: 🔨 ranker }
-        ranker@{ shape: subproc, label: 🔨 ranker } --> top_k_docs@{ shape: doc, label: top_k_docs }
+        embedded_docs@{ shape: doc, label: embedded_docs } --> similarity@{ shape: rect, label: 🔨 similarity }
+        embedded_query@{ shape: doc, label: embedded_query } --> similarity@{ shape: rect, label: 🔨 similarity }
+        similarity@{ shape: rect, label: 🔨 similarity } --> similarity_scores@{ shape: doc, label: similarity_scores }
+        similarity_scores@{ shape: doc, label: similarity_scores } --> ranker@{ shape: rect, label: 🔨 ranker }
+        ranker@{ shape: rect, label: 🔨 ranker } --> top_k_docs@{ shape: doc, label: top_k_docs }
     end
     subgraph "🤖 chat"
-        top_k_docs@{ shape: doc, label: top_k_docs } --> aggregator@{ shape: subproc, label: 🔨 aggregator }
-        user_messages@{ shape: doc, label: user_messages } --> aggregator@{ shape: subproc, label: 🔨 aggregator }
-        aggregator@{ shape: subproc, label: 🔨 aggregator } --> c@{ shape: doc, label: chat }
-        c@{ shape: doc, label: chat } --> TGI@{ shape: subproc, label: 🧠 TGI }
-        TGI@{ shape: subproc, label: 🧠 TGI } --> parse@{ shape: doc, label: parse }
-        parse@{ shape: doc, label: parse } --> parser@{ shape: subproc, label: 🔨 parser }
-        parser@{ shape: subproc, label: 🔨 parser } --> assistant_messages@{ shape: doc, label: assistant_messages }
+        top_k_docs@{ shape: doc, label: top_k_docs } --> aggregator@{ shape: rect, label: 🔨 aggregator }
+        user_messages@{ shape: doc, label: user_messages } --> aggregator@{ shape: rect, label: 🔨 aggregator }
+        aggregator@{ shape: rect, label: 🔨 aggregator } --> c@{ shape: doc, label: chat }
+        c@{ shape: doc, label: chat } --> TGI@{ shape: rect, label: 🧠 TGI }
+        TGI@{ shape: rect, label: 🧠 TGI } --> parse@{ shape: doc, label: parse }
+        parse@{ shape: doc, label: parse } --> parser@{ shape: rect, label: 🔨 parser }
+        parser@{ shape: rect, label: 🔨 parser } --> assistant_messages@{ shape: doc, label: assistant_messages }
+        assistant_messages@{ shape: doc, label: assistant_messages } --> user@{ shape: circle, label: user }
     end
-    assistant_messages@{ shape: doc, label: assistant_messages } --> HITL@{ shape: dbl-circ, label: 👤 HITL }
 ```
 
 Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the User, TEI, Retrieval, and TGI tasks. Each task is composed of one or more processes that are chained together to execute the task. Each processor listens for changes on their subscribed subjects and publishes their results to subjects. Each task runs once the subscription criteria for all of its child processors are satisfied.

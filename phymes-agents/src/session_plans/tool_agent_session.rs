@@ -286,7 +286,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
     fn make_processors(&self) -> Vec<Arc<dyn ArrowProcessorTrait>> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
-        processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
+        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_1_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.chat_task_name.to_string(),
@@ -305,10 +305,9 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     table_name: self.message_aggregator_processor_1_name.to_string(),
                 },
             ],
-            &[],
             ChatContentSubscribe::new_box(),
         ));
-        processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
+        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_2_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.state_messages_table_name.to_string(),
@@ -324,12 +323,11 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
                 },
             ],
-            &[],
             AnyTableNameSubscribe::new_box(),
         ));
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
-            processors.push(OpenAIChatProcessor::new_with_pub_sub_for(
+            processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::Replace {
                     table_name: self.message_parser_task_name.to_string(),
@@ -345,11 +343,10 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
         } else {
-            processors.push(CandleChatProcessor::new_with_pub_sub_for(
+            processors.push(CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::Replace {
                     table_name: self.message_parser_task_name.to_string(),
@@ -365,11 +362,10 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
         }
-        processors.push(MessageParserProcessor::new_with_pub_sub_for(
+        processors.push(MessageParserProcessor::new_arc_with_pub_sub(
             self.message_parser_processor_name,
             &[
                 ArrowTablePublish::Extend {
@@ -392,10 +388,9 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     table_name: self.message_parser_processor_name.to_string(),
                 },
             ],
-            &[],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(CandleDataProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.tool_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
@@ -408,10 +403,9 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                     table_name: self.state_scores_table_name.to_string(),
                 },
             ],
-            &[self.summary_processor_1_name],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(CandleDataProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.hitl_processor_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.state_assistant_messages_table_name.to_string(),
@@ -419,10 +413,9 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.hitl_task_name.to_string(),
             }],
-            &[self.summary_processor_2_name],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(DataSummaryProcessor::new_with_pub_sub_for(
+        processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.summary_processor_1_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.state_tool_messages_table_name.to_string(),
@@ -430,10 +423,9 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             &[ArrowTableSubscribe::AlwaysLastRecordBatch {
                 table_name: self.summary_processor_1_name.to_string(),
             }],
-            &[],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(DataSummaryProcessor::new_with_pub_sub_for(
+        processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.summary_processor_2_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.state_assistant_messages_table_name.to_string(),
@@ -441,10 +433,9 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             &[ArrowTableSubscribe::AlwaysLastRecordBatch {
                 table_name: self.summary_processor_2_name.to_string(),
             }],
-            &[],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(ArrowProcessorEcho::new_with_pub_sub_for(
+        processors.push(ArrowProcessorEcho::new_arc_with_pub_sub(
             self.session_context_name,
             &[
                 ArrowTablePublish::Extend {
@@ -457,7 +448,6 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.state_assistant_messages_table_name.to_string(),
             }],
-            &[],
             AllTableNamesSubscribe::new_box(),
         ));
         processors

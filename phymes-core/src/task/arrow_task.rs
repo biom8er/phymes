@@ -433,7 +433,7 @@ pub mod test_task {
             .with_name(name)
             .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ArrowProcessorMock::new_with_pub_sub_for(
+            .with_processor(vec![ArrowProcessorMock::new_arc_with_pub_sub(
                 processor_name.as_str(),
                 &[ArrowTablePublish::Extend {
                     table_name: table_name.to_string(),
@@ -446,7 +446,6 @@ pub mod test_task {
                         table_name: config_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             )])
             .build()
@@ -465,7 +464,7 @@ pub mod test_task {
             .with_name(name)
             .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ArrowProcessorMock::new_with_pub_sub_for(
+            .with_processor(vec![ArrowProcessorMock::new_arc_with_pub_sub(
                 processor_name.as_str(),
                 &[ArrowTablePublish::Extend {
                     table_name: table_name_1.to_string(),
@@ -481,7 +480,6 @@ pub mod test_task {
                         table_name: config_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             )])
             .build()
@@ -502,7 +500,7 @@ pub mod test_task {
             .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![
-                ArrowProcessorMock::new_with_pub_sub_for(
+                ArrowProcessorMock::new_arc_with_pub_sub(
                     processor_name_1.as_str(),
                     &[ArrowTablePublish::Extend {
                         table_name: table_name.to_string(),
@@ -515,7 +513,6 @@ pub mod test_task {
                             table_name: config_name.to_string(),
                         },
                     ],
-                    &[],
                     AllTableNamesSubscribe::new_box(),
                 ),
                 ArrowProcessorMock::new_arc(processor_name_2.as_str()),

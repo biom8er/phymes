@@ -49,26 +49,7 @@ pub struct CandleDataProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
-    forward: Vec<String>,
     subscribe: Box<dyn SubscribeTrait>,
-}
-
-impl CandleDataProcessor {
-    pub fn new_with_pub_sub_for(
-        name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
-        forward: &[&str],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe,
-        })
-    }
 }
 
 impl MappableTrait for CandleDataProcessor {
@@ -92,18 +73,27 @@ impl PubSubTrait for CandleDataProcessor {
 }
 
 impl ArrowProcessorTrait for CandleDataProcessor {
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait> {
+        Arc::new(Self {
+            name: name.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe,
+        })
+    }
+
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
-            forward: Vec::new(),
             subscribe: AllTableNamesSubscribe::new_box(),
         })
-    }
-
-    fn get_forward_subscriptions(&self) -> &[String] {
-        self.forward.as_slice()
     }
 
     #[instrument(skip(self, message, metrics, runtime_env))]
@@ -937,13 +927,12 @@ mod tests {
         let runtime_env = Arc::new(Mutex::new(runtime_env));
 
         // Make the stream and run
-        let ops_processor = CandleDataProcessor::new_with_pub_sub_for(
+        let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
             "candle_ops_processor",
             &[ArrowTablePublish::Replace {
                 table_name: "results".to_string(),
             }],
             &[ArrowTableSubscribe::AlwaysFullTable { table_name: "lhs_name".to_string() }, ArrowTableSubscribe::AlwaysFullTable { table_name: "rhs_name".to_string() }],
-            &[],
             AllTableNamesSubscribe::new_box(),
         );
         let mut ops_stream = ops_processor.process(messages, metrics, runtime_env)?;

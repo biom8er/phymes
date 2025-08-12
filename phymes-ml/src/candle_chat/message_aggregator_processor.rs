@@ -72,27 +72,9 @@ pub struct MessageAggregatorProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
-    forward: Vec<String>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
-impl MessageAggregatorProcessor {
-    pub fn new_with_pub_sub_for(
-        name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
-        forward: &[&str],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe,
-        })
-    }
-}
 
 impl MappableTrait for MessageAggregatorProcessor {
     fn get_name(&self) -> &str {
@@ -114,6 +96,20 @@ impl PubSubTrait for MessageAggregatorProcessor {
 }
 
 impl ArrowProcessorTrait for MessageAggregatorProcessor {
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait> {
+        Arc::new(Self {
+            name: name.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe,
+        })
+    }
+
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
@@ -121,13 +117,8 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
                 table_name: "messages".to_string(),
             }],
             subscriptions: vec![ArrowTableSubscribe::None],
-            forward: Vec::new(),
             subscribe: AllTableNamesSubscribe::new_box(),
         })
-    }
-
-    fn get_forward_subscriptions(&self) -> &[String] {
-        self.forward.as_slice()
     }
 
     #[instrument(skip(self, message, metrics, runtime_env))]

@@ -6,21 +6,21 @@ use parking_lot::Mutex;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, device},
+        common_traits::{device, BuildableTrait, BuilderTrait},
         runtime_env::RuntimeEnv,
         session_context::get_metrics_as_pivot_table,
     },
     table::{
         arrow_table::{
-            ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait, test_table::TestTableSizes,
+            test_table::TestTableSizes, ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait
         },
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
     },
-    task::arrow_message::{
+    task::{arrow_message::{
         ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
         ArrowOutgoingMessageTrait,
-    },
+    }, arrow_processor::ArrowProcessorTrait},
 };
 use phymes_data::{
     candle_data::{
@@ -243,13 +243,12 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
                         // Make the stream and run
                         let _result = rt.block_on(async {
-                            let ops_processor = CandleDataProcessor::new_with_pub_sub_for(
+                            let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
                                 name.as_str(),
                                 &[ArrowTablePublish::Replace {
                                     table_name: "results".to_string(),
                                 }],
-                                &[],
-                                &[],
+                                &[ArrowTableSubscribe::AlwaysFullTable { table_name: lhs_name.clone() }, ArrowTableSubscribe::AlwaysFullTable { table_name: rhs_name.clone() }],
                                 AllTableNamesSubscribe::new_box(),
                             );
                             let mut ops_stream = ops_processor

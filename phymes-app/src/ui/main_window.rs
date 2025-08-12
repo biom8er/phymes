@@ -24,6 +24,7 @@ pub struct MermaidSvgObject {
 }
 
 #[cfg(feature = "mermaid_js")]
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct JsError {
     message: String,

@@ -53,26 +53,7 @@ pub struct DataSummaryProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
-    forward: Vec<String>,
     subscribe: Box<dyn SubscribeTrait>,
-}
-
-impl DataSummaryProcessor {
-    pub fn new_with_pub_sub_for(
-        name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
-        forward: &[&str],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe,
-        })
-    }
 }
 
 impl MappableTrait for DataSummaryProcessor {
@@ -96,18 +77,27 @@ impl PubSubTrait for DataSummaryProcessor {
 }
 
 impl ArrowProcessorTrait for DataSummaryProcessor {
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait> {
+        Arc::new(Self {
+            name: name.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe,
+        })
+    }
+
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
-            forward: Vec::new(),
             subscribe: AllTableNamesSubscribe::new_box(),
         })
-    }
-
-    fn get_forward_subscriptions(&self) -> &[String] {
-        self.forward.as_slice()
     }
 
     #[instrument(skip(self, message, metrics, runtime_env))]
@@ -404,12 +394,11 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = DataSummaryProcessor::new_with_pub_sub_for(
+        let processor = DataSummaryProcessor::new_arc_with_pub_sub(
             "summary_processor",
             &[ArrowTablePublish::Extend {
                 table_name: "messages".to_string(),
             }],
-            &[],
             &[],
             AllTableNamesSubscribe::new_box(),
         );
