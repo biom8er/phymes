@@ -53,7 +53,7 @@ fn mermaid_js() -> Element {
     
     #[cfg(feature = "mermaid_js_cdn")]
     rsx! {
-        script { r#type: "module", crossorigin: true, onload: move |_| {
+        script { src: "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs", onload: move |_| {
             document::eval(r#"
                 import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
                     window.mermaid = mermaid;
@@ -81,7 +81,7 @@ fn mermaid_js() -> Element {
             );
         } }
         // // DM: This code does not yet work for loading the mjs file
-        // script { src: MERMAID_MJS, r#type: "module", crossorigin: true, onload: move |_| {
+        // script { src: MERMAID_MJS, crossorigin: true, onload: move |_| {
         //     let path = MERMAID_MJS.bundled().bundled_path();
         //     document::eval(format!(r#"
         //         import("{path}").then(({{ default: mermaid }}) => {{

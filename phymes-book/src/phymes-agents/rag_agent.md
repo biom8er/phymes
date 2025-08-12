@@ -8,103 +8,69 @@ This tutorial describes how the [Document RAG Agent Session Plan](https://github
 The document RAG agent adds a complex document parsing, embedding, and retrieval Data pipeline to the agentic AI architecture of the chat agent.
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> embed_task: Documents
-    [*] --> embed_task: Query
-    [*] --> chat_agent: Query
-    embed_task --> vs_task: Search docs
-    vs_task --> chat_agent: Top docs
-    chat_agent --> [*]: Response
+sequenceDiagram
+    autonumber
+    user ->> TEI: documents
+    user ->> TEI: query 
+    user ->> TGI: user_message
+    TEI ->> retrieval: embedded_docs
+    TEI ->> retrieval: embedded_query
+    retrieval ->> TGI: top_k_docs
+    TGI ->> user: assistant_message
 ```
 
-The session starts with an upload of documents to the embed_task to chunk and embed the documents, an upload of the query to the embed_task to embed the query, and a query to the chat_agent from the user. Next, a vector search is performed over the embedded documents to find the top K documents matching the query. Finally, the top K documents are provided to the chat_agent to ground the text generation inference to respond back to the user.
+The session is composed of 4 tasks: 1. the user, 2. Text embedding inference (TEI), 3. Retrieval, and 4. Text generation inference (TGI). 
 
-Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the user, embed_task, vs_task, and chat_agent.
+The session starts when the user upload documents documents (1), and their query (2 and 3) to the session.
+
+![documents](../assets/2025-07-05_phymes-app_docchat-documents_subjects.png)
+
+The TEI task then chunks the documents, and embeds the chunks and query (4 and 5). The Retrieval task finds the document chunks that best match the query and returns the top K chunks (6). The TGI task generates a response for the user based on the top K chunks and the query (7).
+
+![doc-rag-response](../assets/2025-07-05_phymes-app_docchat_messaging.png)
+
+The session ends when there are no further updates to the subjects. If the user publishes a follow-up message or uploads new documents, the session will pick-up where it left off.
 
 ```mermaid
----
-config:
-      theme: redux
----
 flowchart TD
     user@{ shape: circle, label: user } --> documents@{ shape: doc, label: documents }
     user@{ shape: circle, label: user } --> query@{ shape: doc, label: query }
     user@{ shape: circle, label: user } --> user_messages@{ shape: doc, label: user_messages }
-    subgraph embed
-        documents@{ shape: doc, label: documents } --> chunker@{ shape: subproc, label: chunker }
-        chunker@{ shape: subproc, label: chunker } --> document_chunks@{ shape: doc, label: document_chunks }
-        document_chunks@{ shape: doc, label: document_chunks } --> TEI@{ shape: lin-rect, label: TEI }
-        TEI@{ shape: lin-rect, label: TEI } --> embedded_docs@{ shape: doc, label: embedded_docs }
-        query@{ shape: doc, label: query } --> TEI@{ shape: lin-rect, label: TEI }
-        TEI@{ shape: lin-rect, label: TEI } --> embedded_query@{ shape: doc, label: embedded_query }
+    subgraph "🤖 embed"
+        documents@{ shape: doc, label: documents } --> chunker@{ shape: subproc, label: 🔨 chunker }
+        chunker@{ shape: subproc, label: 🔨 chunker } --> document_chunks@{ shape: doc, label: document_chunks }
+        document_chunks@{ shape: doc, label: document_chunks } --> TEI@{ shape: subproc, label: 🧠 TEI }
+        TEI@{ shape: subproc, label: 🧠 TEI } --> embedded_docs@{ shape: doc, label: embedded_docs }
+        query@{ shape: doc, label: query } --> TEI@{ shape: subproc, label: 🧠 TEI }
+        TEI@{ shape: subproc, label: 🧠 TEI } --> embedded_query@{ shape: doc, label: embedded_query }
     end
-    subgraph vs
-        embedded_docs@{ shape: doc, label: embedded_docs } --> similarity@{ shape: subproc, label: similarity }
-        embedded_query@{ shape: doc, label: embedded_query } --> similarity@{ shape: subproc, label: similarity }
-        similarity@{ shape: subproc, label: similarity } --> similarity_scores@{ shape: doc, label: similarity_scores }
-        similarity_scores@{ shape: doc, label: similarity_scores } --> ranker@{ shape: subproc, label: ranker }
-        ranker@{ shape: subproc, label: ranker } --> top_k_docs@{ shape: doc, label: top_k_docs }
+    subgraph "🤖 vector search"
+        embedded_docs@{ shape: doc, label: embedded_docs } --> similarity@{ shape: subproc, label: 🔨 similarity }
+        embedded_query@{ shape: doc, label: embedded_query } --> similarity@{ shape: subproc, label: 🔨 similarity }
+        similarity@{ shape: subproc, label: 🔨 similarity } --> similarity_scores@{ shape: doc, label: similarity_scores }
+        similarity_scores@{ shape: doc, label: similarity_scores } --> ranker@{ shape: subproc, label: 🔨 ranker }
+        ranker@{ shape: subproc, label: 🔨 ranker } --> top_k_docs@{ shape: doc, label: top_k_docs }
     end
-    subgraph chat
-        top_k_docs@{ shape: doc, label: top_k_docs } --> aggregator@{ shape: subproc, label: aggregator }
-        user_messages@{ shape: doc, label: user_messages } --> aggregator@{ shape: subproc, label: aggregator }
-        aggregator@{ shape: subproc, label: aggregator } --> c@{ shape: doc, label: chat }
-        c@{ shape: doc, label: chat } --> TGI@{ shape: lin-rect, label: TGI }
-        TGI@{ shape: lin-rect, label: TGI } --> parse@{ shape: doc, label: parse }
-        parse@{ shape: doc, label: parse } --> parser@{ shape: subproc, label: parser }
-        parser@{ shape: subproc, label: parser } --> assistant_messages@{ shape: doc, label: assistant_messages }
+    subgraph "🤖 chat"
+        top_k_docs@{ shape: doc, label: top_k_docs } --> aggregator@{ shape: subproc, label: 🔨 aggregator }
+        user_messages@{ shape: doc, label: user_messages } --> aggregator@{ shape: subproc, label: 🔨 aggregator }
+        aggregator@{ shape: subproc, label: 🔨 aggregator } --> c@{ shape: doc, label: chat }
+        c@{ shape: doc, label: chat } --> TGI@{ shape: subproc, label: 🧠 TGI }
+        TGI@{ shape: subproc, label: 🧠 TGI } --> parse@{ shape: doc, label: parse }
+        parse@{ shape: doc, label: parse } --> parser@{ shape: subproc, label: 🔨 parser }
+        parser@{ shape: subproc, label: 🔨 parser } --> assistant_messages@{ shape: doc, label: assistant_messages }
     end
-    assistant_messages@{ shape: doc, label: assistant_messages } --> HITL@{ shape: dbl-circ, label: HITL }
+    assistant_messages@{ shape: doc, label: assistant_messages } --> HITL@{ shape: dbl-circ, label: 👤 HITL }
 ```
 
-```mermaid
-sequenceDiagram
-    user->>documents: 1
-    user->>query: 2a
-    user->>messages: 2b
-    documents --> embed_doc_task: 3
-    doc_embed_config --> embed_doc_task: 4
-    embed_doc_task --> embedded_documents: 5
-    query --> embed_query_task: 6
-    query_embed_config --> embed_query_task: 7
-    embed_query_task --> embedded_queries: 8
-    embedded_documents --> vs_task: 9a
-    embedded_queries --> vs_task: 9b
-    vs_config --> vs_task: 10
-    vs_task -> top_k_docs: 11
-    messages-->>chat_agent: 12a
-    top_k_docs-->>chat_agent: 12b
-    config->>chat_agent: 13
-    chat_agent->>messages: 14
-    messages->>user: 15
-```
+Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the User, TEI, Retrieval, and TGI tasks. Each task is composed of one or more processes that are chained together to execute the task. Each processor listens for changes on their subscribed subjects and publishes their results to subjects. Each task runs once the subscription criteria for all of its child processors are satisfied.
 
-The sequence of actions are the following:
+At each superstep of the session, subscribed subjects are allocated to tasks, tasks are ran in parallel, and the subjects for which tasks publish on are updated sequentially.
 
-1. The user publishes to documents subject
+While not shown in the flowchart above, each processor subscribes to a special subject usually called the config which specifies all of the parameters for the processor. And like any other subject, the config can also be updated dynamically during the execution of the session.
 
-![documents](../assets/2025-07-05_phymes-app_docchat-documents_subjects.png)
-
-2. The user publishes to query subject and messages subject
-3. The embed_doc_task subscribes to the documents subject when there is a change to the documents subject table
-4. The embed_doc_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
-5. The embed_doc_task chunks the documents, embeds the chunks, and publishes the results to the embedded_documents subject.
-6. The embed_query_task subscribes to the documents subject when there is a change to the documents subject table
-7. The embed_query_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
-8. The embed_query_task embeds the query and publishes the results to the embedded_queries subject.
-9. The vs_task subscribes to the embedded_documents and embedded_queries subjects when there is a change to the embedded_documents and embedded_queries subject tables
-10. The vs_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
-11. The vs_task computes the relative similarity between the query and document embeddings, sorts the scores in descending order, retrieves the chunk text, formats the results for RAG, and publishes the results to the top_k_docs subject.
-12. The chat_agent subscribes to messages and top_k_docs subjects when there is a change to the messages and top_k_docs subject tables.
-13. The chat_agent subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chat_agent.
-14. The chat_agent performs text generation inference based on the messages subject content and retrieved Top K document chunks, and publishes the results to the messages subject.
-15. The user subscribes to messages subject where there is a change to the messages subject table.
-
-![doc-rag-response](../assets/2025-07-05_phymes-app_docchat_messaging.png)
-
-The session ends because there are no further updates to the subjects. If the user publishes a follow-up message or uploads new documents, the session will pick-up where it left off with the chat_agent responding to the updated message and top k document chunk content.
+The decision to chain multiple processors into a single task or to allocated each processor to its own task is up to the needs of the user. Chaining multple processors can be more performant and efficient because fewer subscription and publishing copies and updates, respectively are needed. However, allocating each processor to its own task is easier to debug since the output of each task can be easily verified. Also, any processor that requires an external API call has to be allocated to its own task as chaining of streams breaks the poll on the external API call.
 
 ## Next steps
 
-The [Document RAG Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-agents/src/session_plans/document_rag_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user. For production use cases, we recommend the NVIDIA RAG [Blue Print](https://github.com/NVIDIA-AI-Blueprints/rag).
+The [Document RAG Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-agents/src/session_plans/document_rag_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user. The session plan can be used with embedded Candle models or OpenAI API endpoints for token services.
