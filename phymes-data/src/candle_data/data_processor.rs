@@ -121,17 +121,18 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Make the outbox and move forwarded messages
-        let mut outbox = HashMap::<String, ArrowOutgoingMessage>::new();
-        for f in self.forward.iter() {
-            if let Some(m) = message.remove(f) {
-                let _ = outbox.insert(f.to_string(), m);
+        // Remove subscriptions
+        let mut subscriptions = HashMap::<String, ArrowOutgoingMessage>::new();
+        for subs in self.subscriptions.iter() {
+            match message.remove(subs.get_table_name()) {
+                Some(m) => { subscriptions.insert(m.get_name().to_string(), m); }
+                None  => return Err(anyhow!("Subscription {} not provided for {}.", subs.get_table_name(), self.get_name())),
             }
         }
 
         // Run the ops
         let out = Box::pin(CandleDataStream::new(
-            message,
+            subscriptions,
             config,
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),
@@ -143,8 +144,8 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             .with_message(out)
             .with_update(self.publications.first().unwrap())
             .build()?;
-        let _ = outbox.insert(out_m.get_name().to_string(), out_m);
-        Ok(outbox)
+        let _ = message.insert(out_m.get_name().to_string(), out_m);
+        Ok(message)
     }
 }
 
@@ -941,7 +942,7 @@ mod tests {
             &[ArrowTablePublish::Replace {
                 table_name: "results".to_string(),
             }],
-            &[],
+            &[ArrowTableSubscribe::AlwaysFullTable { table_name: "lhs_name".to_string() }, ArrowTableSubscribe::AlwaysFullTable { table_name: "rhs_name".to_string() }],
             &[],
             AllTableNamesSubscribe::new_box(),
         );
