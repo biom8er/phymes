@@ -18,6 +18,7 @@ use phymes_server::handlers::{
     sign_in::create_session_name,
 };
 
+/// DM: we need to find a better way to synchronize this between the front-end and server...
 const MESSAGES_SUBJECT_NAME: &str = "messages";
 
 #[cfg(not(feature = "serverless"))]

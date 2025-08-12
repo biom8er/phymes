@@ -59,7 +59,7 @@ impl<'a> ChatAgentSession<'a> {
 }
 
 impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
-    fn make_task_plan(&self) -> Vec<TaskPlan> {
+    fn make_task_plans(&self) -> Vec<TaskPlan> {
         vec![
             TaskPlan {
                 task_name: self.chat_task_name.to_string(),
@@ -204,10 +204,10 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
         Ok(vec![config, messages])
     }
 
-    fn make_session_context(&self, metrics: ArrowTaskMetricsSet) -> Result<SessionContext> {
+    fn build(&self, metrics: ArrowTaskMetricsSet) -> Result<SessionContext> {
         SessionContextBuilder::new()
             .with_name(self.session_context_name)
-            .with_tasks(self.make_task_plan())
+            .with_tasks(self.make_task_plans())
             .with_metrics(metrics)
             .with_runtime_envs(self.make_runtime_envs()?)
             .with_state(self.make_state_tables()?)
@@ -319,7 +319,7 @@ mod tests {
 
         // initialize the session
         let chat_agent_session = ChatAgentSession::default();
-        let session_ctx = chat_agent_session.make_session_context(metrics.clone())?;
+        let session_ctx = chat_agent_session.build(metrics.clone())?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Skip actually running the session as it takes too long on the CPU

@@ -37,7 +37,7 @@ pub async fn run_main() -> Result<()> {
         doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
         doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
     }
-    let session_ctx = doc_rag_session.make_session_context(metrics.clone())?;
+    let session_ctx = doc_rag_session.build(metrics.clone())?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // Create the document message

@@ -55,17 +55,17 @@ impl AvailableSessionPlans {
         match self {
             Self::Chat => {
                 let session = ChatAgentSession::new_with_session_name(session_name);
-                let session_ctx = session.make_session_context(metrics).unwrap();
+                let session_ctx = session.build(metrics).unwrap();
                 Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
             }
             Self::DocChat => {
                 let session = DocumentRAGSession::new_with_session_name(session_name);
-                let session_ctx = session.make_session_context(metrics.clone()).unwrap();
+                let session_ctx = session.build(metrics.clone()).unwrap();
                 Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
             }
             Self::ToolChat => {
                 let session = ToolAgentSession::new_with_session_name(session_name);
-                let session_ctx = session.make_session_context(metrics.clone()).unwrap();
+                let session_ctx = session.build(metrics.clone()).unwrap();
                 Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
             }
         }

@@ -12,11 +12,11 @@ use phymes_core::{
 use anyhow::Result;
 
 pub trait AgentSessionBuilderTrait {
-    fn make_task_plan(&self) -> Vec<TaskPlan>;
+    fn make_task_plans(&self) -> Vec<TaskPlan>;
     fn make_processors(&self) -> Vec<Arc<dyn ArrowProcessorTrait>>;
     fn make_runtime_envs(&self) -> Result<Vec<RuntimeEnv>>;
     fn make_state_tables(&self) -> Result<Vec<ArrowTable>>;
-    fn make_session_context(&self, metrics: ArrowTaskMetricsSet) -> Result<SessionContext>;
+    fn build(&self, metrics: ArrowTaskMetricsSet) -> Result<SessionContext>;
 }
 
 // pub mod agent_session_schemas {

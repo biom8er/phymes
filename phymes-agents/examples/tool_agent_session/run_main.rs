@@ -26,7 +26,7 @@ pub async fn run_main() -> Result<()> {
 
     // initialize the session
     let tool_agent_session = ToolAgentSession::default();
-    let session_ctx = tool_agent_session.make_session_context(metrics.clone())?;
+    let session_ctx = tool_agent_session.build(metrics.clone())?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // Make the user query

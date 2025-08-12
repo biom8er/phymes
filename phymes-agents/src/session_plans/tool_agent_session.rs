@@ -232,7 +232,7 @@ impl<'a> ToolAgentSession<'a> {
 }
 
 impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
-    fn make_task_plan(&self) -> Vec<TaskPlan> {
+    fn make_task_plans(&self) -> Vec<TaskPlan> {
         vec![
             // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
             //  when chained or nested within other streams
@@ -592,10 +592,10 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
         ])
     }
 
-    fn make_session_context(&self, metrics: ArrowTaskMetricsSet) -> Result<SessionContext> {
+    fn build(&self, metrics: ArrowTaskMetricsSet) -> Result<SessionContext> {
         SessionContextBuilder::new()
             .with_name(self.session_context_name)
-            .with_tasks(self.make_task_plan())
+            .with_tasks(self.make_task_plans())
             .with_metrics(metrics)
             .with_runtime_envs(self.make_runtime_envs()?)
             .with_state(self.make_state_tables()?)
@@ -674,7 +674,7 @@ mod tests {
 
         // initialize the session
         let tool_agent_session = ToolAgentSession::default();
-        let session_ctx = tool_agent_session.make_session_context(metrics.clone())?;
+        let session_ctx = tool_agent_session.build(metrics.clone())?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Make the user query

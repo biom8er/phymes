@@ -36,7 +36,7 @@ pub async fn run_main() -> Result<()> {
         chat_subscription_name: "messages",
         chat_api_url: Some("http://0.0.0.0:8000/v1"),
     };
-    let session_ctx = chat_agent_session.make_session_context(metrics.clone())?;
+    let session_ctx = chat_agent_session.build(metrics.clone())?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // ----- Query #1 -----

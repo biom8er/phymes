@@ -139,7 +139,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
 
                 // Create the session stream state
                 let metrics = ArrowTaskMetricsSet::new();
-                let session_ctx = config.make_session_context(metrics.clone()).unwrap();
+                let session_ctx = config.build(metrics.clone()).unwrap();
                 let session_stream_state =
                     Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
                 let sample_id = format!("{id}_{iter}");
