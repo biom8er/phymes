@@ -60,6 +60,9 @@ pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug
     where
         Self: Sized;
 
+    /// Get the subscription policy
+    fn get_subscribe(&self) -> &Box<dyn SubscribeTrait>;
+
     /// Begin execution of `task`, returning a [`Stream`] of
     /// [`RecordBatch`]es.
     ///
@@ -286,6 +289,10 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
+    
+    fn get_subscribe(&self) -> &Box<dyn SubscribeTrait> {
+        &self.subscribe
+    }
 
     fn process(
         &self,
@@ -378,6 +385,10 @@ pub mod test_processor {
                 subscriptions: vec![ArrowTableSubscribe::None],
                 subscribe: AllTableNamesSubscribe::new_box(),
             })
+        }
+    
+        fn get_subscribe(&self) -> &Box<dyn SubscribeTrait> {
+            &self.subscribe
         }
 
         fn process(

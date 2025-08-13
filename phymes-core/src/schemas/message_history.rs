@@ -465,6 +465,10 @@ mod test_message_history {
             })
         }
 
+        fn get_subscribe(&self) -> &Box<dyn SubscribeTrait> {
+            &self.subscribe
+        }
+
         fn process(
             &self,
             mut message: OutgoingMessageMap,

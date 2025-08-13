@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::{metrics::HashMap, session::common_traits::StateMap};
+use crate::{metrics::HashMap, session::common_traits::{MappableTrait, StateMap}};
 
 use super::{
     arrow_table::{ArrowTable, ArrowTableTrait},
@@ -46,6 +46,30 @@ impl ArrowTableSubscribe {
             | Self::AlwaysLastRecordBatch { table_name: _tn } => false,
             Self::None => false,
             Self::Custom(_name) => false,
+        }
+    }
+
+    pub fn get_short_name(&self) -> &str {        
+        match self {
+            Self::OnUpdateFullTable { table_name: _tn } => "FullTable",
+            Self::OnUpdateLastRecordBatch { table_name: _tn } => "LastRecordBatch",
+            Self::AlwaysFullTable { table_name: _tn } => "FullTable",
+            Self::AlwaysLastRecordBatch { table_name: _tn } => "LastRecordBatch",
+            Self::None => "None",
+            Self::Custom(name) => name,
+        }
+    }
+}
+
+impl MappableTrait for ArrowTableSubscribe {
+    fn get_name(&self) -> &str {        
+        match self {
+            Self::OnUpdateFullTable { table_name: _tn } => "OnUpdateFullTable",
+            Self::OnUpdateLastRecordBatch { table_name: _tn } => "OnUpdateLastRecordBatch",
+            Self::AlwaysFullTable { table_name: _tn } => "AlwaysFullTable",
+            Self::AlwaysLastRecordBatch { table_name: _tn } => "AlwaysLastRecordBatch",
+            Self::None => "None",
+            Self::Custom(name) => name,
         }
     }
 }
@@ -99,7 +123,7 @@ impl ArrowTableSubscribeTrait for ArrowTable {
 }
 
 /// Determine when all subscriptions are ready
-pub trait SubscribeTrait: Debug + Send + Sync {
+pub trait SubscribeTrait: MappableTrait + Debug + Send + Sync {
     fn check_subscriptions(
         &self,
         subscriptions: &[ArrowTableSubscribe],
@@ -132,6 +156,12 @@ impl SubscribeTrait for AlwaysSubscribe {
     }
 }
 
+impl MappableTrait for AlwaysSubscribe {    
+    fn get_name(&self) -> &str {
+        "Always"
+    }
+}
+
 /// Subscribe when any matching table name has been updated
 #[derive(Default, Debug)]
 pub struct AnyTableNameSubscribe;
@@ -159,6 +189,12 @@ impl SubscribeTrait for AnyTableNameSubscribe {
     }
 }
 
+impl MappableTrait for AnyTableNameSubscribe {    
+    fn get_name(&self) -> &str {
+        "Any"
+    }
+}
+
 /// Subscribe when all matching table names has been updated
 #[derive(Default, Debug)]
 pub struct AllTableNamesSubscribe;
@@ -181,6 +217,12 @@ impl SubscribeTrait for AllTableNamesSubscribe {
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
+    }
+}
+
+impl MappableTrait for AllTableNamesSubscribe {    
+    fn get_name(&self) -> &str {
+        "All"
     }
 }
 
@@ -226,6 +268,12 @@ impl SubscribeTrait for AnyTableSchemaSubscribe {
     }
 }
 
+impl MappableTrait for AnyTableSchemaSubscribe {    
+    fn get_name(&self) -> &str {
+        "AnySchema"
+    }
+}
+
 /// Subscribe when all matching table schemas has been updated
 #[derive(Default, Debug)]
 pub struct AllTableSchemasSubscribe;
@@ -263,6 +311,12 @@ impl SubscribeTrait for AllTableSchemasSubscribe {
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
+    }
+}
+
+impl MappableTrait for AllTableSchemasSubscribe {    
+    fn get_name(&self) -> &str {
+        "AllSchema"
     }
 }
 

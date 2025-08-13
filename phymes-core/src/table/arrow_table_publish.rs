@@ -36,6 +36,20 @@ pub enum ArrowTablePublish {
 }
 
 impl ArrowTablePublish {
+    pub fn get_short_name(&self) -> String {
+        match self {
+            Self::Extend { table_name: _tn } => format!("Extend"),
+            Self::ExtendChunks {
+                table_name: _tn,
+                col_name: _cn,
+            } => format!("ExtendChunks"),
+            Self::Replace { table_name: _tn } => format!("Replace"),
+            Self::ReplaceLast { table_name: _tn } => format!("ReplaceLast"),
+            Self::None => "None".to_string(),
+            Self::Custom(name) => name.to_string(),
+        }
+    }
+
     pub fn get_name(&self) -> String {
         match self {
             Self::Extend { table_name: tn } => format!("extend-{tn}"),

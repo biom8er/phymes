@@ -98,6 +98,10 @@ impl ArrowProcessorTrait for ArrowAggregatorProcessor {
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
+    
+    fn get_subscribe(&self) -> &Box<dyn SubscribeTrait> {
+        &self.subscribe
+    }
 
     fn process(
         &self,
