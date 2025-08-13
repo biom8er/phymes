@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
+use arrow::datatypes::DataType;
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
     table::{
-        arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish,
+        arrow_table::{ArrowTable, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::ArrowTableSubscribe,
     },
     task::{
@@ -168,35 +169,41 @@ impl SessionContextBuilder {
     }
 
     /// Make a mermaid.js flowchart of the session
-    pub fn make_mermaid_flowchart(&self) -> Result<String> {
+    pub fn to_mermaid_flowchart(&self) -> Result<String> {
         // Check if there are members
         if self.tasks.is_none() {
-            return Err(anyhow!("Add task plans before making the mermaid flowchart."));
+            return Err(anyhow!("Add task plans before making the Mermaid Flowchart."));
         }
         if self.processors.is_none() {
-            return Err(anyhow!("Add processors before making the mermaid flowchart."));
+            return Err(anyhow!("Add processors before making the Mermaid Flowchart."));
         }
         if self.runtime_envs.is_none() {
-            return Err(anyhow!("Add runtime environments before making the mermaid flowchart."));
+            return Err(anyhow!("Add runtime environments before making the Mermaid Flowchart."));
         }
         if self.state.is_none() {
-            return Err(anyhow!("Add state subjects before making the mermaid flowchart."));
+            return Err(anyhow!("Add state subjects before making the Mermaid Flowchart."));
         }        
 
         // Entities with expanded shape/label attributes that will be appended to flowchart
         let mut processors_vec = Vec::new();
-        for processor_name in self.get_processor_names() {
-            processors_vec.push(format!("\t{processor_name}-processor@{{ shape: rect, label: {processor_name} }}"));
+        let mut sorted_processor_names = self.get_processor_names().into_iter().collect::<Vec<_>>();
+        sorted_processor_names.sort();
+        for processor_name in sorted_processor_names {
+            processors_vec.push(format!("\t{processor_name}-processor@{{shape:rect,label:{processor_name}}}"));
         }
 
         let mut subjects_vec = Vec::new();
-        for subject_name in self.get_subject_names() {
-            subjects_vec.push(format!("\t{subject_name}-subject@{{ shape: doc, label: {subject_name} }}"));
+        let mut sorted_subject_names = self.get_subject_names().into_iter().collect::<Vec<_>>();
+        sorted_subject_names.sort();
+        for subject_name in sorted_subject_names {
+            subjects_vec.push(format!("\t{subject_name}-subject@{{shape:doc,label:{subject_name}}}"));
         }
 
         let mut runtime_envs_vec = Vec::new();
-        for runtime_env_name in self.get_runtime_env_names() {
-            runtime_envs_vec.push(format!("\t{runtime_env_name}-rt@{{ shape: subproc, label: {runtime_env_name} }}"));
+        let mut sorted_runtime_env_names = self.get_runtime_env_names().into_iter().collect::<Vec<_>>();
+        sorted_runtime_env_names.sort();
+        for runtime_env_name in sorted_runtime_env_names {
+            runtime_envs_vec.push(format!("\t{runtime_env_name}-rt@{{shape:subproc,label:{runtime_env_name}}}"));
         }
 
         // Subgraphs
@@ -206,7 +213,7 @@ impl SessionContextBuilder {
         let mut runtime_envs_to_tasks_vec = Vec::new();
         for task in self.tasks.as_ref().unwrap().iter() {
             tasks_vec.push(format!("\tsubgraph {}", task.task_name));
-            runtime_envs_to_tasks_vec.push(format!("\t{}-rt --> {}", task.runtime_env_name, task.task_name));
+            runtime_envs_to_tasks_vec.push(format!("\t{}-rt-->{}", task.runtime_env_name, task.task_name));
 
             // Iterate through each processor
             for processor_name in task.processor_names.iter() {
@@ -215,21 +222,21 @@ impl SessionContextBuilder {
 
                         // Subscriptions
                         let subscribe = processor.get_subscribe().get_name();
-                        subscriptions_vec.push(format!("\t{processor_name}-subscribe@{{ shape: diamond, label: {subscribe} }}"));
+                        subscriptions_vec.push(format!("\t{processor_name}-subscribe@{{shape:diamond,label:{subscribe}}}"));
                         for subscription in processor.get_subscriptions().iter() {
                             if subscription.is_update() {
-                                tasks_vec.push(format!("\t\t{}-subject -. {} .-> {processor_name}-subscribe", subscription.get_table_name(), subscription.get_short_name()));
+                                tasks_vec.push(format!("\t\t{}-subject-.{}.->{processor_name}-subscribe", subscription.get_table_name(), subscription.get_short_name()));
                             } else {
-                                tasks_vec.push(format!("\t\t{}-subject -- {} --> {processor_name}-subscribe", subscription.get_table_name(), subscription.get_short_name()));
+                                tasks_vec.push(format!("\t\t{}-subject--{}-->{processor_name}-subscribe", subscription.get_table_name(), subscription.get_short_name()));
                             }                            
                         }
-                        tasks_vec.push(format!("\t\t{processor_name}-subscribe --> {processor_name}-processor"));
+                        tasks_vec.push(format!("\t\t{processor_name}-subscribe-->{processor_name}-processor"));
 
                         // Publications
-                        publications_vec.push(format!("\t{processor_name}-publish@{{ shape: fork }}"));
-                        tasks_vec.push(format!("\t\t{processor_name}-processor --> {processor_name}-publish"));
+                        publications_vec.push(format!("\t{processor_name}-publish@{{shape:fork}}"));
+                        tasks_vec.push(format!("\t\t{processor_name}-processor-->{processor_name}-publish"));
                         for publication in processor.get_publications().iter() {
-                            tasks_vec.push(format!("\t\t{processor_name}-publish -- {} --> {}-subject", publication.get_short_name(), publication.get_table_name()));
+                            tasks_vec.push(format!("\t\t{processor_name}-publish--{}-->{}-subject", publication.get_short_name(), publication.get_table_name()));
                         }
 
                         break;
@@ -238,6 +245,8 @@ impl SessionContextBuilder {
             }
             tasks_vec.push(format!("\tend"));
         }
+        subscriptions_vec.sort();
+        publications_vec.sort();
 
         // Create the final mermaid.js flowchart script
         let mut mermaid_js = vec!["flowchart TD".to_string()];
@@ -250,6 +259,43 @@ impl SessionContextBuilder {
         mermaid_js.extend(subscriptions_vec);
         Ok(mermaid_js.join("\n"))
     }
+
+    pub fn to_mermaid_erdiagram(&self) -> Result<String> {
+        if self.state.is_none() {
+            return Err(anyhow!("Add state subjects before making the Mermaid ER Diagram."));
+        }
+
+        // Extract the subjects
+        let mut subjects = Vec::new();
+        let mut sorted_map = self.state.as_ref().unwrap().iter().collect::<Vec<_>>();
+        sorted_map.sort_by(|a, b| a.get_name().cmp(b.get_name()));
+        for subject in sorted_map {
+            subjects.push(format!("\t{}{{", subject.get_name()));
+            for field in subject.get_schema().fields().iter() {
+                match field.data_type() {
+                    DataType::FixedSizeList(f, s) => {
+                        subjects.push(format!("\t\tFixedSizeList-{}-{}\t{}", f.data_type(), s, field.name()));
+                    }
+                    DataType::List(f) => {
+                        subjects.push(format!("\t\tList-{}\t{}", f.data_type(), field.name()));
+                    }
+                    _ => {
+                        subjects.push(format!("\t\t{}\t{}", field.data_type(), field.name()));
+                    }
+                }
+            }
+            subjects.push("\t}".to_string());
+        }        
+
+        // Create the final mermaid.js flowchart script
+        let mut mermaid_js = vec!["erDiagram".to_string()];
+        mermaid_js.extend(subjects);
+        Ok(mermaid_js.join("\n"))
+    }
+
+    // pub fn from_mermaid_flowchart(mermaid_js: &str) -> SessionContextBuilder {
+
+    // }
 }
 
 impl BuilderTrait for SessionContextBuilder {
@@ -952,8 +998,30 @@ mod tests {
             .with_state(state);
 
         // Test the flowchart
-        let mermaid_js_str = builder.make_mermaid_flowchart()?;
-        assert_eq!(mermaid_js_str, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject -. FullTable .-> processor_1-subscribe\n\t\tconfig_1-subject -- FullTable --> processor_1-subscribe\n\t\tprocessor_1-subscribe --> processor_1-processor\n\t\tprocessor_1-processor --> processor_1-publish\n\t\tprocessor_1-publish -- Extend --> state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject -. FullTable .-> processor_2-subscribe\n\t\tconfig_2-subject -- FullTable --> processor_2-subscribe\n\t\tprocessor_2-subscribe --> processor_2-processor\n\t\tprocessor_2-processor --> processor_2-publish\n\t\tprocessor_2-publish -- Extend --> state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject -. FullTable .-> processor_3-subscribe\n\t\tconfig_3-subject -- FullTable --> processor_3-subscribe\n\t\tprocessor_3-subscribe --> processor_3-processor\n\t\tprocessor_3-processor --> processor_3-publish\n\t\tprocessor_3-publish -- Extend --> state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject -. LastRecordBatch .-> session_1-subscribe\n\t\tstate_2-subject -. LastRecordBatch .-> session_1-subscribe\n\t\tstate_3-subject -. LastRecordBatch .-> session_1-subscribe\n\t\tsession_1-subscribe --> session_1-processor\n\t\tsession_1-processor --> session_1-publish\n\t\tsession_1-publish -- Extend --> state_1-subject\n\t\tsession_1-publish -- Extend --> state_2-subject\n\t\tsession_1-publish -- Extend --> state_3-subject\n\tend\n\trt_1-rt --> task_1\n\trt_1-rt --> task_2\n\trt_1-rt --> task_3\n\trt_1-rt --> session_1\n\tprocessor_2-processor@{ shape: rect, label: processor_2 }\n\tprocessor_1-processor@{ shape: rect, label: processor_1 }\n\tsession_1-processor@{ shape: rect, label: session_1 }\n\tprocessor_3-processor@{ shape: rect, label: processor_3 }\n\trt_1-rt@{ shape: subproc, label: rt_1 }\n\tconfig_3-subject@{ shape: doc, label: config_3 }\n\tconfig_1-subject@{ shape: doc, label: config_1 }\n\tstate_1-subject@{ shape: doc, label: state_1 }\n\tstate_3-subject@{ shape: doc, label: state_3 }\n\tconfig_2-subject@{ shape: doc, label: config_2 }\n\tstate_2-subject@{ shape: doc, label: state_2 }\n\tprocessor_1-publish@{ shape: fork }\n\tprocessor_2-publish@{ shape: fork }\n\tprocessor_3-publish@{ shape: fork }\n\tsession_1-publish@{ shape: fork }\n\tprocessor_1-subscribe@{ shape: diamond, label: All }\n\tprocessor_2-subscribe@{ shape: diamond, label: All }\n\tprocessor_3-subscribe@{ shape: diamond, label: All }\n\tsession_1-subscribe@{ shape: diamond, label: All }".to_string());
+        let mermaid_js = builder.to_mermaid_flowchart()?;
+        // println!("{mermaid_js}");
+        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tconfig_1-subject--FullTable-->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tconfig_2-subject--FullTable-->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tconfig_3-subject--FullTable-->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_3-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_1-subject\n\t\tsession_1-publish--Extend-->state_2-subject\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape:rect,label:processor_1}\n\tsession_1-processor@{shape:rect,label:session_1}\n\tprocessor_3-processor@{shape:rect,label:processor_3}\n\tprocessor_2-processor@{shape:rect,label:processor_2}\n\trt_1-rt@{shape:subproc,label:rt_1}\n\tconfig_2-subject@{shape:doc,label:config_2}\n\tstate_3-subject@{shape:doc,label:state_3}\n\tstate_2-subject@{shape:doc,label:state_2}\n\tconfig_3-subject@{shape:doc,label:config_3}\n\tconfig_1-subject@{shape:doc,label:config_1}\n\tstate_1-subject@{shape:doc,label:state_1}\n\tprocessor_1-publish@{shape:fork}\n\tprocessor_2-publish@{shape:fork}\n\tprocessor_3-publish@{shape:fork}\n\tsession_1-publish@{shape:fork}\n\tprocessor_1-subscribe@{shape:diamond,label:All}\n\tprocessor_2-subscribe@{shape:diamond,label:All}\n\tprocessor_3-subscribe@{shape:diamond,label:All}\n\tsession_1-subscribe@{shape:diamond,label:All}".to_string());
+        Ok(())
+    }
+
+    #[test]
+    fn test_make_mermaid_erdiagram() -> Result<()> {
+        // Init runtime env
+        let runtime_envs = vec![make_runtime_env("rt_1")?];
+
+        // Init state
+        let mut state = make_state_tables("state_1", "config_1")?;
+        state.extend(make_state_tables("state_2", "config_2")?);
+        state.extend(make_state_tables("state_3", "config_3")?);
+
+        // Make the builder
+        let builder = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_runtime_envs(runtime_envs)
+            .with_state(state);
+
+        // Test the flowchart
+        let mermaid_js = builder.to_mermaid_erdiagram()?;
+        assert_eq!(mermaid_js, "erDiagram\n\tconfig_1{\n\t\tUtf8\ta\n\t\tUInt32\tb\n\t\tUInt16\tc\n\t}\n\tstate_1{\n\t\tUInt32\tid\n\t\tUtf8\tcollection\n\t\tUtf8\ttitle\n\t\tUtf8\ttext\n\t\tUtf8\tmetadata\n\t\tFloat32\tscore\n\t\tFixedSizeList-Float32-8\tembedding\n\t}\n\tconfig_2{\n\t\tUtf8\ta\n\t\tUInt32\tb\n\t\tUInt16\tc\n\t}\n\tstate_2{\n\t\tUInt32\tid\n\t\tUtf8\tcollection\n\t\tUtf8\ttitle\n\t\tUtf8\ttext\n\t\tUtf8\tmetadata\n\t\tFloat32\tscore\n\t\tFixedSizeList-Float32-8\tembedding\n\t}\n\tconfig_3{\n\t\tUtf8\ta\n\t\tUInt32\tb\n\t\tUInt16\tc\n\t}\n\tstate_3{\n\t\tUInt32\tid\n\t\tUtf8\tcollection\n\t\tUtf8\ttitle\n\t\tUtf8\ttext\n\t\tUtf8\tmetadata\n\t\tFloat32\tscore\n\t\tFixedSizeList-Float32-8\tembedding\n\t}".to_string());
         Ok(())
     }
 }
