@@ -4,6 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
+use tokio::runtime;
 
 use crate::{
     metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
@@ -293,9 +294,69 @@ impl SessionContextBuilder {
         Ok(mermaid_js.join("\n"))
     }
 
-    // pub fn from_mermaid_flowchart(mermaid_js: &str) -> SessionContextBuilder {
+    /// Create a session builder from a mermaid flowchart
+    pub fn from_mermaid_flowchart(flowchart: &str) -> Result<Self> {
+        // The members that we will build
+        let task_plans = Vec::new();
+        let processors = Vec::new();
+        let runtime_envs = Vec::new();
 
-    // }
+        // Closures to create the subscriptions and publications
+        sub_from_str(|line: &str, subject: &str| -> Result<ArrowTableSubscribe> {
+            if line.contains("-.") & line.contains(".->") & line.contains("FullTable") {
+                ArrowTableSubscribe::OnUpdateFullTable { table_name: subject.to_string() }
+            } else if line.contains("--") & line.contains("-->") & line.contains("FullTable") {
+                ArrowTableSubscribe::AlwaysFullTable { table_name: subject.to_string() }
+            } else if line.contains("-.") & line.contains(".->") & line.contains("LastRecordBatch") {
+                ArrowTableSubscribe::OnUpdateLastRecordBatch { table_name: subject.to_string() }
+            } else if line.contains("--") & line.contains("-->") & line.contains("LastRecordBatch") {
+                ArrowTableSubscribe::AlwaysLastRecordBatch { table_name: subject.to_string() }
+            } else if line.contains("None") {
+                ArrowTableSubscribe::None {}
+            } else {
+                Err(anyhow!("Variant for ArrowTableSubscribe with subject {} for task {} was not recognized."))
+            }
+        });
+
+        // 
+        let flowchart_lines = flowchart.split("\n").collect::<Vec<_>>();
+        let mut iter = 0;
+        while iter < flowchart_lines.len() {
+
+            // Task section
+            if flowchart_lines.get(iter).unwrap().contains("subgraph") {
+                let task_name = flowchart_lines.get(iter).unwrap().split("subgraph").last().unwrap().trim().to_string();
+                let publications = Vec::new();
+                let subscriptions = Vec::new();
+                let subscribe = Vec::new();
+                iter += 1;
+                while !flowchart_lines.get(iter).unwrap().contains("end") {
+                    if flowchart_lines.get(iter).unwrap().contains("-subject") && flowchart_lines.get(iter).unwrap().contains("-subscribe") {
+                        let split_line = flowchart_lines.get(iter).unwrap().split("-subject").collect::<Vec<_>>();
+                        let subject = split_line.first().unwrap().trim().to_string();
+                        
+                        iter += 1;
+                    } else if flowchart_lines.get(iter).unwrap().contains("-subscribe") && flowchart_lines.get(iter).unwrap().contains("-processor") {
+                        iter += 1;
+                    } else if flowchart_lines.get(iter).unwrap().contains("-processor") && flowchart_lines.get(iter).unwrap().contains("-publish") {
+                        iter += 1;
+                    } else if flowchart_lines.get(iter).unwrap().contains("-publish") && flowchart_lines.get(iter).unwrap().contains("-subject") {
+                        iter += 1;
+                    } else {
+                        return Err(anyhow!("Unrecognized line after subgraph for {}", task_name));
+                    }
+                }
+            }
+
+        }
+    }
+
+    /// Create a session builder from a mermaid flowchart
+    pub fn with_state_from_mermaid_erdiagram(mut self, erdiagram: &str) -> Result<Self> {
+
+        let state = Vec::new();
+        Ok(self)
+    }
 }
 
 impl BuilderTrait for SessionContextBuilder {
