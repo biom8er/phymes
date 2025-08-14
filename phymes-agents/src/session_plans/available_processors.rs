@@ -1,7 +1,5 @@
 use phymes_core::task::arrow_processor::ArrowProcessorTrait;
 
-
-
 /// The available session plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum AvailableProcessors {
