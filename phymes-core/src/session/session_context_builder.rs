@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::runtime;
 
 use crate::{
-    metrics::{ArrowTaskMetricsSet, HashMap, HashSet}, session::runtime_env::{self, RuntimeEnvTrait}, table::{
+    metrics::{ArrowTaskMetricsSet, HashMap, HashSet}, session::runtime_env::RuntimeEnvTrait, table::{
         arrow_table::{ArrowTable, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe, AnyTableSchemaSubscribe, ArrowTableSubscribe, SubscribeTrait},
     }, task::{
@@ -413,8 +413,11 @@ impl SessionContextBuilder {
         let mut iter = 0;
         while iter < flowchart_lines.len() {
 
+            // Check the chart type
+            if flowchart_lines.get(iter).unwrap().contains("flowchart") {
+
             // Task section
-            if flowchart_lines.get(iter).unwrap().contains("subgraph") {
+            } else if flowchart_lines.get(iter).unwrap().contains("subgraph") {
 
                 // Start building the task plan
                 let task_name = flowchart_lines.get(iter).unwrap().split("subgraph").last().unwrap().trim().to_string();
@@ -450,14 +453,6 @@ impl SessionContextBuilder {
                             processor_builders.insert(processor.to_owned(), builder);
                         }
                         processor_builders.get_mut(&processor).unwrap().subscriptions.as_mut().unwrap().push(subscription);
-
-                        // // Extract out the subscribe
-                        // let subscribe = subscribe_from_str(split_line.last().unwrap(), &subject, &task_name)?;
-                        // if processor_builders.get(&processor).unwrap().subscribe.as_ref().is_some() && processor_builders.get(&processor).unwrap().subscribe.as_ref().unwrap().get_name() != subscribe.get_name() {
-                        //     return Err(anyhow!("Subscribe policy name {} does not match processor name {} on line {} in task {}", processor_builders.get(&processor).unwrap().subscribe.as_ref().unwrap().get_name(), processor, iter, task_name));
-                        // } else if processor_builders.get(&processor).unwrap().subscribe.as_ref().is_none() {
-                        //     processor_builders.get(&processor).unwrap().subscribe.replace(subscribe); 
-                        // }
                         
                         // Update
                         task_plan_builders.get_mut(&task_name).unwrap().processor_names.as_mut().unwrap().push(processor.to_owned());
@@ -573,8 +568,12 @@ impl SessionContextBuilder {
                         return Err(anyhow!("Unsupported processor or subject qualifier on line {} in subgraph {}. Only -subject, -subscribe, -processor, and -publish qualifiers are supported in PHYMES.", iter, task_name));
 
                     // Any others
-                    } else {
-                        return Err(anyhow!("Unrecognized line {} in subgraph {}", iter, task_name));
+                    } else {                        
+                        if iter == 0 && !flowchart_lines.get(iter).unwrap().contains("flowchart") {
+                            return Err(anyhow!("Unrecognized mermaid.js flowchart type on line {}", iter));
+                        } else {
+                            return Err(anyhow!("Unrecognized line {} in subgraph {}", iter, task_name));
+                        }                        
                     }
                 }
                 iter += 1;
@@ -683,7 +682,7 @@ impl SessionContextBuilder {
                 processor_names.insert(processor_name);
 
             } else {
-                return Err(anyhow!("Unrecognized line {}", iter));
+                return Err(anyhow!("Unrecognized line {} on line {}", flowchart_lines.get(iter).unwrap(), iter));
             }
             iter += 1;   
         }
@@ -1423,7 +1422,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_mermaid_flowchart() -> Result<()> {
+    fn test_to_mermaid_flowchart() -> Result<()> {
         // Init runtime env
         let runtime_envs = vec![make_runtime_env("rt_1")?];
 
@@ -1437,14 +1436,19 @@ mod tests {
             .with_runtime_envs(runtime_envs)
             .with_state(state);
 
-        // Test the flowchart
+        // Test to flowchart
         let mermaid_js = builder.to_mermaid_flowchart()?;
         assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tconfig_1-subject--FullTable-->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tconfig_2-subject--FullTable-->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tconfig_3-subject--FullTable-->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_3-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_1-subject\n\t\tsession_1-publish--Extend-->state_2-subject\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape:rect,label:processor_1}\n\tprocessor_2-processor@{shape:rect,label:processor_2}\n\tprocessor_3-processor@{shape:rect,label:processor_3}\n\tsession_1-processor@{shape:rect,label:session_1}\n\trt_1-rt@{shape:subproc,label:rt_1}\n\tconfig_1-subject@{shape:doc,label:config_1}\n\tconfig_2-subject@{shape:doc,label:config_2}\n\tconfig_3-subject@{shape:doc,label:config_3}\n\tstate_1-subject@{shape:doc,label:state_1}\n\tstate_2-subject@{shape:doc,label:state_2}\n\tstate_3-subject@{shape:doc,label:state_3}\n\tprocessor_1-publish@{shape:fork}\n\tprocessor_2-publish@{shape:fork}\n\tprocessor_3-publish@{shape:fork}\n\tsession_1-publish@{shape:fork}\n\tprocessor_1-subscribe@{shape:diamond,label:All}\n\tprocessor_2-subscribe@{shape:diamond,label:All}\n\tprocessor_3-subscribe@{shape:diamond,label:All}\n\tsession_1-subscribe@{shape:diamond,label:All}".to_string());
+        
+        // Test from flowchart
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&mermaid_js)?;
+        // assert_eq!(builder_test, builder);
+        
         Ok(())
     }
 
     #[test]
-    fn test_make_mermaid_erdiagram() -> Result<()> {
+    fn test_to_mermaid_erdiagram() -> Result<()> {
         // Init runtime env
         let runtime_envs = vec![make_runtime_env("rt_1")?];
 
