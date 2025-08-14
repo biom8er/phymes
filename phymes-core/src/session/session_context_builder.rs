@@ -7,15 +7,13 @@ use serde::{Deserialize, Serialize};
 use tokio::runtime;
 
 use crate::{
-    metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
-    table::{
+    metrics::{ArrowTaskMetricsSet, HashMap, HashSet}, session::runtime_env::{self, RuntimeEnvTrait}, table::{
         arrow_table::{ArrowTable, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe, AnyTableSchemaSubscribe, ArrowTableSubscribe, SubscribeTrait},
-    },
-    task::{
-        arrow_processor::ArrowProcessorTrait,
+    }, task::{
+        arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
         arrow_task::{ArrowTask, ArrowTaskBuilderTrait},
-    },
+    }
 };
 
 use super::{
@@ -302,7 +300,24 @@ impl SessionContextBuilder {
             pub task_name: Option<String>,
             pub runtime_env_name: Option<String>,
             pub processor_names: Option<Vec<String>>,
-            pub subscribe: Option<Box<dyn SubscribeTrait>>,
+        }
+        impl TaskPlanBuilder {
+            pub fn build(mut self) -> Result<TaskPlan> {
+                if self.task_name.is_none() {
+                    return Err(anyhow!("Missing task name"));
+                } else if self.runtime_env_name.as_ref().is_none() {
+                    return Err(anyhow!("Missing runtime_env_name for task {}", self.task_name.as_ref().unwrap()));
+                } else if self.processor_names.as_ref().is_none() {
+                    return Err(anyhow!("Missing processor_names for task {}", self.task_name.as_ref().unwrap()));
+                }
+
+                let task_plan = TaskPlan {
+                    task_name: self.task_name.take().unwrap(),
+                    runtime_env_name: self.runtime_env_name.take().unwrap(),
+                    processor_names: self.processor_names.take().unwrap(),
+                };
+                Ok(task_plan)
+            }
         }
         #[derive(Default)]
         struct ProcessorBuilder {
@@ -311,19 +326,45 @@ impl SessionContextBuilder {
             pub subscribe: Option<Box<dyn SubscribeTrait>>,
             pub processor_name: Option<String>,
         }
+        impl ProcessorBuilder {
+            pub fn build(mut self) -> Result<Arc<dyn ArrowProcessorTrait>> {                
+                if self.processor_name.as_ref().is_none() {
+                    return Err(anyhow!("Missing processor name"));
+                } else if self.publications.as_ref().is_none() {
+                    return Err(anyhow!("Missing publications for processor {}", self.processor_name.as_ref().unwrap()));
+                } else if self.subscriptions.as_ref().is_none() {
+                    return Err(anyhow!("Missing subscriptions for processor {}", self.processor_name.as_ref().unwrap()));
+                } else if self.subscribe.as_ref().is_none() {
+                    return Err(anyhow!("Missing subscribe for processor {}", self.processor_name.as_ref().unwrap()));
+                }
+                
+                let processor = ArrowProcessorEcho::new_arc_with_pub_sub(
+                    &self.processor_name.take().unwrap(), 
+                    &self.publications.take().unwrap(), 
+                    &self.subscriptions.take().unwrap(), 
+                    self.subscribe.take().unwrap());
+                Ok(processor)
+            }
+        }
 
         // The members that we will build
         let mut task_plan_builders = HashMap::<String, TaskPlanBuilder>::new();
         let mut processor_builders = HashMap::<String, ProcessorBuilder>::new();
-        let mut runtime_envs = Vec::new();
 
         // Track consistency of subjects and processors between subgraphs and labels
         let mut task_names = HashSet::new();
         let mut subject_names = HashSet::new();
         let mut processor_names = HashSet::new();
+        let mut runtime_envs_names = HashSet::new();
+
+        // Track the order of processors
+        let mut processor_names_vec = Vec::new();
+        let mut subject_names_vec = Vec::new();
+        let mut runtime_env_names_vec = Vec::new();
+        let mut task_names_vec = Vec::new();
 
         // Closures to create the subscriptions and publications
-        let subscription_from_str = |line: &str, subject: &str, task: &str| -> Result<ArrowTableSubscribe> {
+        let subscription_from_str = |line: &str, iter: usize, subject: &str, task: &str| -> Result<ArrowTableSubscribe> {
             if line.contains("-.") & line.contains(".->") & line.contains("FullTable") {
                 Ok(ArrowTableSubscribe::OnUpdateFullTable { table_name: subject.to_string() })
             } else if line.contains("--") & line.contains("-->") & line.contains("FullTable") {
@@ -335,10 +376,10 @@ impl SessionContextBuilder {
             } else if line.contains("None") {
                 Ok(ArrowTableSubscribe::None {})
             } else {
-                Err(anyhow!("Variant for ArrowTableSubscribe with subject {} for task {} was not recognized.", subject, task))
+                Err(anyhow!("Variant for ArrowTableSubscribe on line {} with subject {} for task {} was not recognized.", iter, subject, task))
             }
         };
-        let publication_from_str = |line: &str, subject: &str, task: &str| -> Result<ArrowTablePublish> {
+        let publication_from_str = |line: &str, iter: usize, subject: &str, task: &str| -> Result<ArrowTablePublish> {
             if line.contains("--") & line.contains("-->") & line.contains("Extend") {
                 Ok(ArrowTablePublish::Extend { table_name: subject.to_string() })
             } else if line.contains("--") & line.contains("-->") & line.contains("Replace") {
@@ -348,10 +389,10 @@ impl SessionContextBuilder {
             } else if line.contains("None") {
                 Ok(ArrowTablePublish::None {})
             } else {
-                Err(anyhow!("Variant for ArrowTablePublish with subject {} for task {} was not recognized.", subject, task))
+                Err(anyhow!("Variant for ArrowTablePublish on line {} with subject {} for task {} was not recognized.", iter, subject, task))
             }
         };
-        let subscribe_from_str = |line: &str, subject: &str, task: &str| -> Result<Box<dyn SubscribeTrait>> {
+        let subscribe_from_str = |line: &str, iter: usize, processor: &str| -> Result<Box<dyn SubscribeTrait>> {
             if line.contains("All") {
                 Ok(AllTableNamesSubscribe::new_box())
             } else if line.contains("Any") {
@@ -363,7 +404,7 @@ impl SessionContextBuilder {
             } else if line.contains("Always") {
                 Ok(AlwaysSubscribe::new_box())
             } else {
-                Err(anyhow!("Subscribe policy with subject {} for task {} was not recognized.", subject, task))
+                Err(anyhow!("Subscribe policy on line {} for processor {} was not recognized.", iter, processor))
             }
         };
 
@@ -376,13 +417,13 @@ impl SessionContextBuilder {
             if flowchart_lines.get(iter).unwrap().contains("subgraph") {
 
                 // Start building the task plan
-                let task_name = flowchart_lines.get(iter).unwrap().split("subgraph").last().unwrap().trim().to_string();                
+                let task_name = flowchart_lines.get(iter).unwrap().split("subgraph").last().unwrap().trim().to_string();
                 if !task_plan_builders.contains_key(&task_name) {
                     let mut builder = TaskPlanBuilder::default();
                     builder.task_name.replace(task_name.to_owned());
                     task_plan_builders.insert(task_name.to_owned(), builder);
                 }
-                task_names.insert(task_name);
+                task_names_vec.push(task_name.to_owned());
 
                 iter += 1;
                 while !flowchart_lines.get(iter).unwrap().contains("end") {
@@ -398,7 +439,7 @@ impl SessionContextBuilder {
                             return Err(anyhow!("There are two subjects on line {} in task {}", iter, task_name));
                         }
                         let subject = split_line.first().unwrap().trim().to_string();
-                        let subscription = subscription_from_str(split_line.last().unwrap(), &subject, &task_name)?;
+                        let subscription = subscription_from_str(split_line.last().unwrap(), iter, &subject, &task_name)?;
 
                         // Check the processor name
                         let split_line = split_line.last().unwrap().split("->").next().unwrap().split("-subscribe").collect::<Vec<_>>();
@@ -422,7 +463,6 @@ impl SessionContextBuilder {
                         task_plan_builders.get_mut(&task_name).unwrap().processor_names.as_mut().unwrap().push(processor.to_owned());
                         processor_names.insert(processor);
                         subject_names.insert(subject);
-                        iter += 1;
 
                     // Subscribe, Processor triple
                     // e.g., processor_1-subscribe-->processor_1-processor
@@ -452,7 +492,6 @@ impl SessionContextBuilder {
                         // Update
                         task_plan_builders.get_mut(&task_name).unwrap().processor_names.as_mut().unwrap().push(processor_1.to_owned());
                         processor_names.insert(processor_1);
-                        iter += 1;
 
                     // Processor, Publish triple
                     // e.g., processor_1-processor-->processor_1-publish
@@ -482,7 +521,6 @@ impl SessionContextBuilder {
                         // Update
                         task_plan_builders.get_mut(&task_name).unwrap().processor_names.as_mut().unwrap().push(processor_1.to_owned());
                         processor_names.insert(processor_1);
-                        iter += 1;
 
                     // Publish, Publication, Subject triple
                     // e.g., processor_1-publish--Extend-->state_1-subject
@@ -505,14 +543,13 @@ impl SessionContextBuilder {
                         // Extract the publication
                         let split_line = split_line.last().unwrap().split("-->").collect::<Vec<_>>();
                         let subject = split_line.last().unwrap().split("-subject").collect::<Vec<_>>().first().unwrap().trim().to_string();
-                        let publication = publication_from_str(split_line.first().unwrap(), &subject, &task_name)?;
+                        let publication = publication_from_str(split_line.first().unwrap(), iter, &subject, &task_name)?;
                         processor_builders.get_mut(&processor).unwrap().publications.as_mut().unwrap().push(publication);
 
                         // Update
                         task_plan_builders.get_mut(&task_name).unwrap().processor_names.as_mut().unwrap().push(processor.to_owned());
                         processor_names.insert(processor);
                         subject_names.insert(subject);
-                        iter += 1;
 
                     // Unrecognized arrows
                     } else if flowchart_lines.get(iter).unwrap().contains("---")
@@ -540,53 +577,156 @@ impl SessionContextBuilder {
                         return Err(anyhow!("Unrecognized line {} in subgraph {}", iter, task_name));
                     }
                 }
-
-                // Add the processors to the tasks
-                let mut task_processor_names = Vec::new();
-                for (name, processor_builder) in processor_builders.into_iter() {
-
-                    // Check for completeness of each processor
-                    if processor_builder.processor_name.as_ref().is_none() {
-                        return Err(anyhow!("Missing processor name in subgraph {}", task_name));
-                    } else if processor_builder.publications.as_ref().is_none() {
-                        return Err(anyhow!("Missing publications in subgraph {}", task_name));
-                    } else if processor_builder.subscriptions.as_ref().is_none() {
-                        return Err(anyhow!("Missing subscriptions in subgraph {}", task_name));
-                    } else if processor_builder.subscribe.as_ref().is_none() {
-                        return Err(anyhow!("Missing subscribe in subgraph {}", task_name));
-                    }
-
-                    // Build the processor
-                    let processor = 
-
-                    task_processor_names.push(name);
-                }
-            }
-            
+                iter += 1;
+                
             // Extract out the task runtime environments
-            if flowchart_lines.get(iter).unwrap().contains("-rt-->") {
-            }
-            
-            // Extract out the runtime environments
-            if flowchart_lines.get(iter).unwrap().contains("-rt@{shape:subproc,") {
-            }
+            } else if flowchart_lines.get(iter).unwrap().contains("-rt-->") {
 
+                // Extract the runtime and task names
+                let split_line = flowchart_lines.get(iter).unwrap().split("-rt-->").collect::<Vec<_>>();
+                if split_line.len() > 2 {
+                    return Err(anyhow!("There are two runtime environments on line {}", iter));
+                }
+                let runtime_env_name = split_line.first().unwrap().trim().to_string();
+                let task_name = split_line.last().unwrap().trim().to_string();
+                if !task_plan_builders.contains_key(&task_name) {
+                    let mut builder = TaskPlanBuilder::default();
+                    builder.task_name.replace(task_name.to_owned());
+                    task_plan_builders.insert(task_name.to_owned(), builder);
+                }
+                
+                // Update
+                if task_plan_builders.get(&task_name).unwrap().runtime_env_name.as_ref().is_some()
+                    && task_plan_builders.get(&task_name).unwrap().runtime_env_name.as_ref().unwrap() != &runtime_env_name
+                {
+                    return Err(anyhow!("Runtime environment {} does not match task {} runtime environment {} on line {}.", 
+                        runtime_env_name,
+                        task_name,
+                        task_plan_builders.get(&task_name).unwrap().runtime_env_name.as_ref().unwrap(),
+                        iter));
+                } else if task_plan_builders.get(&task_name).unwrap().runtime_env_name.as_ref().is_none() {
+                    task_plan_builders.get_mut(&task_name).unwrap().task_name.replace(runtime_env_name.to_owned());
+                }
+                task_names.insert(task_name);
+                runtime_envs_names.insert(runtime_env_name);
+
+            // Extract out the runtime environments
+            } else if flowchart_lines.get(iter).unwrap().contains("-rt@{shape:subproc,") {
+
+                // Extract the runtime and task names
+                let split_line = flowchart_lines.get(iter).unwrap().split("-rt@{shape:subproc,").collect::<Vec<_>>();
+                let runtime_env_name = split_line.first().unwrap().trim().to_string();
+                
+                // Update
+                runtime_env_names_vec.push(runtime_env_name.to_owned());
+                
             // Extract out the processors
-            if flowchart_lines.get(iter).unwrap().contains("-processor@{shape:rect,") {
-            }
+            } else if flowchart_lines.get(iter).unwrap().contains("-processor@{shape:rect,") {
+
+                // Extract the processor name
+                let split_line = flowchart_lines.get(iter).unwrap().split("-processor@{shape:rect,").collect::<Vec<_>>();
+                let processor_name = split_line.first().unwrap().trim().to_string();
+                
+                // Update
+                processor_names_vec.push(processor_name.to_owned());
 
             // Extract out the subjects
-            if flowchart_lines.get(iter).unwrap().contains("-subject@{shape:doc") {
-            }
+            } else if flowchart_lines.get(iter).unwrap().contains("-subject@{shape:doc") {
+
+                // Extract the subject name
+                let split_line = flowchart_lines.get(iter).unwrap().split("-subject@{shape:doc").collect::<Vec<_>>();
+                let subject_name = split_line.first().unwrap().trim().to_string();
+                
+                // Update
+                subject_names_vec.push(subject_name.to_owned());
 
             // Extract out the subscribe
-            if flowchart_lines.get(iter).unwrap().contains("-subscribe@{shape:diamond,label:") {
-            }        
-        }       
+            } else if flowchart_lines.get(iter).unwrap().contains("-subscribe@{shape:diamond,label:") {
 
-        // Reorder the processors
+                // Extract the processor name
+                let split_line = flowchart_lines.get(iter).unwrap().split("-subscribe@{shape:diamond,label:").collect::<Vec<_>>();
+                let processor_name = split_line.first().unwrap().trim().to_string();
+                let subscribe = subscribe_from_str(split_line.last().unwrap(), iter, &processor_name)?;
+                if !processor_builders.contains_key(&processor_name) {
+                    let mut builder = ProcessorBuilder::default();
+                    builder.processor_name.replace(processor_name.to_owned());
+                    processor_builders.insert(processor_name.to_owned(), builder);
+                }
+                
+                // Update
+                if processor_builders.get(&processor_name).unwrap().subscribe.as_ref().is_some()
+                    && processor_builders.get(&processor_name).unwrap().subscribe.as_ref().unwrap().get_name() != subscribe.get_name()
+                {
+                    return Err(anyhow!("Subscribe {} does not match processor {} subscribe {} on line {}.", 
+                        subscribe.get_name(),
+                        processor_name,
+                        processor_builders.get(&processor_name).unwrap().subscribe.as_ref().unwrap().get_name(),
+                        iter));
+                } else if processor_builders.get(&processor_name).unwrap().subscribe.as_ref().is_none() {
+                    processor_builders.get_mut(&processor_name).unwrap().subscribe.replace(subscribe);
+                }
+                processor_names.insert(processor_name);
 
-        let builder = Self::new().with_tasks(task_plans).with_processors(processors).with_runtime_envs(runtime_envs);
+            // Extract out the publish
+            } else if flowchart_lines.get(iter).unwrap().contains("-publish@{shape:fork}") {
+
+                // Extract the processor name
+                let split_line = flowchart_lines.get(iter).unwrap().split("-subscribe@{shape:diamond,label:").collect::<Vec<_>>();
+                let processor_name = split_line.first().unwrap().trim().to_string();
+                if !processor_builders.contains_key(&processor_name) {
+                    let mut builder = ProcessorBuilder::default();
+                    builder.processor_name.replace(processor_name.to_owned());
+                    processor_builders.insert(processor_name.to_owned(), builder);
+                }
+
+                // Update
+                processor_names.insert(processor_name);
+
+            } else {
+                return Err(anyhow!("Unrecognized line {}", iter));
+            }
+            iter += 1;   
+        }
+
+        // Build the task plans in order
+        let mut task_plans = Vec::new();
+        if task_names_vec.len() != task_names.len() {
+            return Err(anyhow!("There is an inconsistency in the task labels {:?} and task mentions {:?}", task_names_vec, task_names));
+        }
+        for name in task_names_vec {
+            let task_plan = task_plan_builders.remove(&name).unwrap().build()?;
+            task_plans.push(task_plan);
+        }
+
+        // Build the runtime environments in order
+        let mut runtime_envs = Vec::new();
+        if runtime_env_names_vec.len() != runtime_envs_names.len() {
+            return Err(anyhow!("There is an inconsistency in the runtime environment labels {:?} and runtime environment mentions {:?}", runtime_env_names_vec, runtime_envs_names));
+        }
+        for name in runtime_env_names_vec {            
+            let runtime_env = RuntimeEnv::new().with_name(&name);
+            runtime_envs.push(runtime_env);
+        }
+
+        // Build the processors in order
+        let mut processors = Vec::new();
+        if processor_names_vec.len() != processor_names.len() {
+            return Err(anyhow!("There is an inconsistency in the processor labels {:?} and processor mentions {:?}", processor_names_vec, processor_names));
+        }
+        for name in processor_names_vec {
+            let processor = processor_builders.remove(&name).unwrap().build()?;
+            processors.push(processor);
+        }
+
+        // Check the subjects
+        if subject_names_vec.len() != subject_names.len() {
+            return Err(anyhow!("There is an inconsistency in the subject labels {:?} and subject mentions {:?}", subject_names_vec, subject_names));
+        }
+
+        let builder = Self::new()
+            .with_tasks(task_plans)
+            .with_processors(processors)
+            .with_runtime_envs(runtime_envs);
         Ok(builder)
     }
 
