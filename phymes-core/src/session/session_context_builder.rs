@@ -10,7 +10,7 @@ use crate::{
     metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
     table::{
         arrow_table::{ArrowTable, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        arrow_table_subscribe::{AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe, AnyTableSchemaSubscribe, ArrowTableSubscribe, SubscribeTrait},
     },
     task::{
         arrow_processor::ArrowProcessorTrait,
@@ -296,66 +296,305 @@ impl SessionContextBuilder {
 
     /// Create a session builder from a mermaid flowchart
     pub fn from_mermaid_flowchart(flowchart: &str) -> Result<Self> {
+        // Builders for tasks and processors
+        #[derive(Default)]
+        struct TaskPlanBuilder {
+            pub task_name: Option<String>,
+            pub runtime_env_name: Option<String>,
+            pub processor_names: Option<Vec<String>>,
+            pub subscribe: Option<Box<dyn SubscribeTrait>>,
+        }
+        #[derive(Default)]
+        struct ProcessorBuilder {
+            pub publications: Option<Vec<ArrowTablePublish>>,
+            pub subscriptions: Option<Vec<ArrowTableSubscribe>>,
+            pub subscribe: Option<Box<dyn SubscribeTrait>>,
+            pub processor_name: Option<String>,
+        }
+
         // The members that we will build
-        let task_plans = Vec::new();
-        let processors = Vec::new();
-        let runtime_envs = Vec::new();
+        let mut task_plan_builders = HashMap::<String, TaskPlanBuilder>::new();
+        let mut processor_builders = HashMap::<String, ProcessorBuilder>::new();
+        let mut runtime_envs = Vec::new();
+
+        // Track consistency of subjects and processors between subgraphs and labels
+        let mut task_names = HashSet::new();
+        let mut subject_names = HashSet::new();
+        let mut processor_names = HashSet::new();
 
         // Closures to create the subscriptions and publications
-        sub_from_str(|line: &str, subject: &str| -> Result<ArrowTableSubscribe> {
+        let subscription_from_str = |line: &str, subject: &str, task: &str| -> Result<ArrowTableSubscribe> {
             if line.contains("-.") & line.contains(".->") & line.contains("FullTable") {
-                ArrowTableSubscribe::OnUpdateFullTable { table_name: subject.to_string() }
+                Ok(ArrowTableSubscribe::OnUpdateFullTable { table_name: subject.to_string() })
             } else if line.contains("--") & line.contains("-->") & line.contains("FullTable") {
-                ArrowTableSubscribe::AlwaysFullTable { table_name: subject.to_string() }
+                Ok(ArrowTableSubscribe::AlwaysFullTable { table_name: subject.to_string() })
             } else if line.contains("-.") & line.contains(".->") & line.contains("LastRecordBatch") {
-                ArrowTableSubscribe::OnUpdateLastRecordBatch { table_name: subject.to_string() }
+                Ok(ArrowTableSubscribe::OnUpdateLastRecordBatch { table_name: subject.to_string() })
             } else if line.contains("--") & line.contains("-->") & line.contains("LastRecordBatch") {
-                ArrowTableSubscribe::AlwaysLastRecordBatch { table_name: subject.to_string() }
+                Ok(ArrowTableSubscribe::AlwaysLastRecordBatch { table_name: subject.to_string() })
             } else if line.contains("None") {
-                ArrowTableSubscribe::None {}
+                Ok(ArrowTableSubscribe::None {})
             } else {
-                Err(anyhow!("Variant for ArrowTableSubscribe with subject {} for task {} was not recognized."))
+                Err(anyhow!("Variant for ArrowTableSubscribe with subject {} for task {} was not recognized.", subject, task))
             }
-        });
+        };
+        let publication_from_str = |line: &str, subject: &str, task: &str| -> Result<ArrowTablePublish> {
+            if line.contains("--") & line.contains("-->") & line.contains("Extend") {
+                Ok(ArrowTablePublish::Extend { table_name: subject.to_string() })
+            } else if line.contains("--") & line.contains("-->") & line.contains("Replace") {
+                Ok(ArrowTablePublish::Replace { table_name: subject.to_string() })
+            } else if line.contains("--") & line.contains("-->") & line.contains("ReplaceLast") {
+                Ok(ArrowTablePublish::ReplaceLast { table_name: subject.to_string() })
+            } else if line.contains("None") {
+                Ok(ArrowTablePublish::None {})
+            } else {
+                Err(anyhow!("Variant for ArrowTablePublish with subject {} for task {} was not recognized.", subject, task))
+            }
+        };
+        let subscribe_from_str = |line: &str, subject: &str, task: &str| -> Result<Box<dyn SubscribeTrait>> {
+            if line.contains("All") {
+                Ok(AllTableNamesSubscribe::new_box())
+            } else if line.contains("Any") {
+                Ok(AnyTableNameSubscribe::new_box())
+            } else if line.contains("AllSchemas") {
+                Ok(AllTableSchemasSubscribe::new_box())
+            } else if line.contains("AnySchema") {
+                Ok(AnyTableSchemaSubscribe::new_box())
+            } else if line.contains("Always") {
+                Ok(AlwaysSubscribe::new_box())
+            } else {
+                Err(anyhow!("Subscribe policy with subject {} for task {} was not recognized.", subject, task))
+            }
+        };
 
-        // 
+        // Parse the mermaid.js flowchart string
         let flowchart_lines = flowchart.split("\n").collect::<Vec<_>>();
         let mut iter = 0;
         while iter < flowchart_lines.len() {
 
             // Task section
             if flowchart_lines.get(iter).unwrap().contains("subgraph") {
-                let task_name = flowchart_lines.get(iter).unwrap().split("subgraph").last().unwrap().trim().to_string();
-                let publications = Vec::new();
-                let subscriptions = Vec::new();
-                let subscribe = Vec::new();
+
+                // Start building the task plan
+                let task_name = flowchart_lines.get(iter).unwrap().split("subgraph").last().unwrap().trim().to_string();                
+                if !task_plan_builders.contains_key(&task_name) {
+                    let mut builder = TaskPlanBuilder::default();
+                    builder.task_name.replace(task_name.to_owned());
+                    task_plan_builders.insert(task_name.to_owned(), builder);
+                }
+                task_names.insert(task_name);
+
                 iter += 1;
                 while !flowchart_lines.get(iter).unwrap().contains("end") {
-                    if flowchart_lines.get(iter).unwrap().contains("-subject") && flowchart_lines.get(iter).unwrap().contains("-subscribe") {
+                    // Subject, Subscription, Subscribe triple
+                    // e.g., state_1-subject-.FullTable.->processor_1-subscribe
+                    if flowchart_lines.get(iter).unwrap().contains("-subject")
+                        & flowchart_lines.get(iter).unwrap().contains("->")
+                        & flowchart_lines.get(iter).unwrap().contains("-subscribe")
+                    {
+                        // Extract out the subscription
                         let split_line = flowchart_lines.get(iter).unwrap().split("-subject").collect::<Vec<_>>();
+                        if split_line.len() > 2 {
+                            return Err(anyhow!("There are two subjects on line {} in task {}", iter, task_name));
+                        }
                         let subject = split_line.first().unwrap().trim().to_string();
+                        let subscription = subscription_from_str(split_line.last().unwrap(), &subject, &task_name)?;
+
+                        // Check the processor name
+                        let split_line = split_line.last().unwrap().split("->").next().unwrap().split("-subscribe").collect::<Vec<_>>();
+                        let processor = split_line.first().unwrap().trim().to_string();
+                        if !processor_builders.contains_key(&processor) {
+                            let mut builder = ProcessorBuilder::default();
+                            builder.processor_name.replace(processor.to_owned());
+                            processor_builders.insert(processor.to_owned(), builder);
+                        }
+                        processor_builders.get_mut(&processor).unwrap().subscriptions.as_mut().unwrap().push(subscription);
+
+                        // // Extract out the subscribe
+                        // let subscribe = subscribe_from_str(split_line.last().unwrap(), &subject, &task_name)?;
+                        // if processor_builders.get(&processor).unwrap().subscribe.as_ref().is_some() && processor_builders.get(&processor).unwrap().subscribe.as_ref().unwrap().get_name() != subscribe.get_name() {
+                        //     return Err(anyhow!("Subscribe policy name {} does not match processor name {} on line {} in task {}", processor_builders.get(&processor).unwrap().subscribe.as_ref().unwrap().get_name(), processor, iter, task_name));
+                        // } else if processor_builders.get(&processor).unwrap().subscribe.as_ref().is_none() {
+                        //     processor_builders.get(&processor).unwrap().subscribe.replace(subscribe); 
+                        // }
                         
+                        // Update
+                        task_plan_builders.get_mut(&task_name).unwrap().processor_names.as_mut().unwrap().push(processor.to_owned());
+                        processor_names.insert(processor);
+                        subject_names.insert(subject);
                         iter += 1;
-                    } else if flowchart_lines.get(iter).unwrap().contains("-subscribe") && flowchart_lines.get(iter).unwrap().contains("-processor") {
+
+                    // Subscribe, Processor triple
+                    // e.g., processor_1-subscribe-->processor_1-processor
+                    } else if flowchart_lines.get(iter).unwrap().contains("-subscribe")
+                        & flowchart_lines.get(iter).unwrap().contains("-->")
+                        & flowchart_lines.get(iter).unwrap().contains("-processor")
+                    {
+                        // Check the processor name
+                        let split_line = flowchart_lines.get(iter).unwrap().split("-subscribe").collect::<Vec<_>>();
+                        if split_line.len() > 2 {
+                            return Err(anyhow!("There are two subscribes on line {} in task {}", iter, task_name));
+                        }
+                        let processor_1 = split_line.first().unwrap().trim().to_string();
+                        if !processor_builders.contains_key(&processor_1) {
+                            let mut builder = ProcessorBuilder::default();
+                            builder.processor_name.replace(processor_1.to_owned());
+                            processor_builders.insert(processor_1.to_owned(), builder);
+                        }
+
+                        // Check the processor name
+                        let split_line = split_line.last().unwrap().split("-->").next().unwrap().split("-processor").collect::<Vec<_>>();
+                        let processor_2 = split_line.first().unwrap().trim().to_string();
+                        if processor_1 != processor_2 {
+                            return Err(anyhow!("Processor name {} does not match processor name {} on line {} in task {}", processor_1, processor_2, iter, task_name));
+                        }
+
+                        // Update
+                        task_plan_builders.get_mut(&task_name).unwrap().processor_names.as_mut().unwrap().push(processor_1.to_owned());
+                        processor_names.insert(processor_1);
                         iter += 1;
-                    } else if flowchart_lines.get(iter).unwrap().contains("-processor") && flowchart_lines.get(iter).unwrap().contains("-publish") {
+
+                    // Processor, Publish triple
+                    // e.g., processor_1-processor-->processor_1-publish
+                    } else if flowchart_lines.get(iter).unwrap().contains("-processor")
+                        & flowchart_lines.get(iter).unwrap().contains("-->")
+                        & flowchart_lines.get(iter).unwrap().contains("-publish")
+                    {
+                        // Check the processor name
+                        let split_line = flowchart_lines.get(iter).unwrap().split("-processor").collect::<Vec<_>>();
+                        if split_line.len() > 2 {
+                            return Err(anyhow!("There are two subscribes on line {} in task {}", iter, task_name));
+                        }
+                        let processor_1 = split_line.first().unwrap().trim().to_string();
+                        if !processor_builders.contains_key(&processor_1) {
+                            let mut builder = ProcessorBuilder::default();
+                            builder.processor_name.replace(processor_1.to_owned());
+                            processor_builders.insert(processor_1.to_owned(), builder);
+                        }
+                        
+                        // Check the processor name
+                        let split_line = split_line.last().unwrap().split("-->").next().unwrap().split("-publish").collect::<Vec<_>>();
+                        let processor_2 = split_line.first().unwrap().trim().to_string();
+                        if processor_1 != processor_2 {
+                            return Err(anyhow!("Processor name {} does not match processor name {} on line {} in task {}", processor_1, processor_2, iter, task_name));
+                        }
+
+                        // Update
+                        task_plan_builders.get_mut(&task_name).unwrap().processor_names.as_mut().unwrap().push(processor_1.to_owned());
+                        processor_names.insert(processor_1);
                         iter += 1;
-                    } else if flowchart_lines.get(iter).unwrap().contains("-publish") && flowchart_lines.get(iter).unwrap().contains("-subject") {
+
+                    // Publish, Publication, Subject triple
+                    // e.g., processor_1-publish--Extend-->state_1-subject
+                    } else if flowchart_lines.get(iter).unwrap().contains("-publish")
+                        & flowchart_lines.get(iter).unwrap().contains("-->")
+                        & flowchart_lines.get(iter).unwrap().contains("-subject")
+                    {
+                        // Check the processor name
+                        let split_line = flowchart_lines.get(iter).unwrap().split("-publish").collect::<Vec<_>>();
+                        if split_line.len() > 2 {
+                            return Err(anyhow!("There are two subscribes on line {} in task {}", iter, task_name));
+                        }
+                        let processor = split_line.first().unwrap().trim().to_string();
+                        if !processor_builders.contains_key(&processor) {
+                            let mut builder = ProcessorBuilder::default();
+                            builder.processor_name.replace(processor.to_owned());
+                            processor_builders.insert(processor.to_owned(), builder);
+                        }
+
+                        // Extract the publication
+                        let split_line = split_line.last().unwrap().split("-->").collect::<Vec<_>>();
+                        let subject = split_line.last().unwrap().split("-subject").collect::<Vec<_>>().first().unwrap().trim().to_string();
+                        let publication = publication_from_str(split_line.first().unwrap(), &subject, &task_name)?;
+                        processor_builders.get_mut(&processor).unwrap().publications.as_mut().unwrap().push(publication);
+
+                        // Update
+                        task_plan_builders.get_mut(&task_name).unwrap().processor_names.as_mut().unwrap().push(processor.to_owned());
+                        processor_names.insert(processor);
+                        subject_names.insert(subject);
                         iter += 1;
+
+                    // Unrecognized arrows
+                    } else if flowchart_lines.get(iter).unwrap().contains("---")
+                        | flowchart_lines.get(iter).unwrap().contains("-.-")
+                        | flowchart_lines.get(iter).unwrap().contains("==")
+                        | flowchart_lines.get(iter).unwrap().contains("~~")
+                        | flowchart_lines.get(iter).unwrap().contains("--o")
+                        | flowchart_lines.get(iter).unwrap().contains("--x")
+                        | flowchart_lines.get(iter).unwrap().contains("<--")
+                        | flowchart_lines.get(iter).unwrap().contains("o--")
+                        | flowchart_lines.get(iter).unwrap().contains("x--")
+                    {
+                        return Err(anyhow!("Unsupported arrow type on line {} in subgraph {}. Only --> and .-> arrows are supported in PHYMES.", iter, task_name));
+
+                    // Unrecognized qualifier
+                    } else if !flowchart_lines.get(iter).unwrap().contains("subject")
+                        | !flowchart_lines.get(iter).unwrap().contains("subscribe")
+                        | !flowchart_lines.get(iter).unwrap().contains("processor")
+                        | !flowchart_lines.get(iter).unwrap().contains("publish")
+                    {
+                        return Err(anyhow!("Unsupported processor or subject qualifier on line {} in subgraph {}. Only -subject, -subscribe, -processor, and -publish qualifiers are supported in PHYMES.", iter, task_name));
+
+                    // Any others
                     } else {
-                        return Err(anyhow!("Unrecognized line after subgraph for {}", task_name));
+                        return Err(anyhow!("Unrecognized line {} in subgraph {}", iter, task_name));
                     }
                 }
+
+                // Add the processors to the tasks
+                let mut task_processor_names = Vec::new();
+                for (name, processor_builder) in processor_builders.into_iter() {
+
+                    // Check for completeness of each processor
+                    if processor_builder.processor_name.as_ref().is_none() {
+                        return Err(anyhow!("Missing processor name in subgraph {}", task_name));
+                    } else if processor_builder.publications.as_ref().is_none() {
+                        return Err(anyhow!("Missing publications in subgraph {}", task_name));
+                    } else if processor_builder.subscriptions.as_ref().is_none() {
+                        return Err(anyhow!("Missing subscriptions in subgraph {}", task_name));
+                    } else if processor_builder.subscribe.as_ref().is_none() {
+                        return Err(anyhow!("Missing subscribe in subgraph {}", task_name));
+                    }
+
+                    // Build the processor
+                    let processor = 
+
+                    task_processor_names.push(name);
+                }
+            }
+            
+            // Extract out the task runtime environments
+            if flowchart_lines.get(iter).unwrap().contains("-rt-->") {
+            }
+            
+            // Extract out the runtime environments
+            if flowchart_lines.get(iter).unwrap().contains("-rt@{shape:subproc,") {
             }
 
-        }
+            // Extract out the processors
+            if flowchart_lines.get(iter).unwrap().contains("-processor@{shape:rect,") {
+            }
+
+            // Extract out the subjects
+            if flowchart_lines.get(iter).unwrap().contains("-subject@{shape:doc") {
+            }
+
+            // Extract out the subscribe
+            if flowchart_lines.get(iter).unwrap().contains("-subscribe@{shape:diamond,label:") {
+            }        
+        }       
+
+        // Reorder the processors
+
+        let builder = Self::new().with_tasks(task_plans).with_processors(processors).with_runtime_envs(runtime_envs);
+        Ok(builder)
     }
 
     /// Create a session builder from a mermaid flowchart
     pub fn with_state_from_mermaid_erdiagram(mut self, erdiagram: &str) -> Result<Self> {
 
         let state = Vec::new();
-        Ok(self)
+        Ok(self.with_state(state))
     }
 }
 
