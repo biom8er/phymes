@@ -578,7 +578,7 @@ mod tests {
     use candle_core::Device;
     use futures::TryStreamExt;
 
-    use crate::candle_assets::candle_which::{load_model_asset_path, load_tokenizer};
+    use crate::candle_assets::available_candle_assets::{load_model_asset_path, load_tokenizer};
 
     use super::*;
 
@@ -638,7 +638,7 @@ mod tests {
             )),
             candle_asset: Some(
                 // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
-                crate::candle_assets::candle_which::WhichCandleAsset::QuantizedBertEmbed,
+                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QuantizedBertEmbed,
             ),
             ..Default::default()
         };
@@ -734,7 +734,7 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::QwenV2_1p5bEmbed,
+                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QwenV2_1p5bEmbed,
             ),
             ..Default::default()
         };
@@ -954,7 +954,7 @@ mod tests {
             )),
             candle_asset: Some(
                 // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
-                crate::candle_assets::candle_which::WhichCandleAsset::QuantizedBertEmbed,
+                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QuantizedBertEmbed,
             ),
             ..Default::default()
         };

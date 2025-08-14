@@ -22,10 +22,10 @@ use phymes_data::{
         data_config::DataConfig, data_processor::CandleDataProcessor,
         summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
     },
-    candle_operators::which_operator::WhichCandleOperator,
+    candle_operators::available_candle_operators::AvailableCandleOperators,
 };
 use phymes_ml::{
-    candle_assets::candle_which::WhichCandleAsset,
+    candle_assets::available_candle_assets::AvailableCandleAssets,
     candle_chat::{
         chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
         message_aggregator_processor::MessageAggregatorProcessor,
@@ -34,7 +34,7 @@ use phymes_ml::{
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{
-    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_asset::available_openai_assets::AvailableOpenAIAssets, openai_chat::chat_processor::OpenAIChatProcessor,
     openai_embed::embed_processor::OpenAIEmbedProcessor,
 };
 
@@ -640,14 +640,14 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                 "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(WhichCandleAsset::QwenV2p5_1p5bChat),
+            candle_asset: Some(AvailableCandleAssets::QwenV2p5_1p5bChat),
             ..Default::default()
         };
 
         // Add hf_hub if available
         #[cfg(feature = "hf_hub")]
         {
-            candle_chat_config.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
+            candle_chat_config.candle_asset = Some(AvailableCandleAssets::QwenV2p5_3bChat);
             candle_chat_config.openai_asset = None;
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
@@ -697,7 +697,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             )),
             candle_asset: Some(
                 // WhichCandleAsset::BertEmbed,
-                WhichCandleAsset::QuantizedBertEmbed,
+                AvailableCandleAssets::QuantizedBertEmbed,
             ),
             // weights_config_file: Some(format!(
             //     "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/config.json",
@@ -728,7 +728,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             candle_embed_config.weights_file = None;
             candle_embed_config.tokenizer_file = None;
             candle_embed_config.tokenizer_config_file = None;
-            candle_embed_config.candle_asset = Some(WhichCandleAsset::QwenV2_1p5bEmbed);
+            candle_embed_config.candle_asset = Some(AvailableCandleAssets::QwenV2_1p5bEmbed);
         }
 
         // Add openAI_api if available
@@ -760,7 +760,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            which: WhichCandleOperator::SortColumnAndIndices,
+            which: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config)?;
@@ -779,7 +779,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: "document_id".to_string(),
             lhs_fk: "document_id".to_string(),
             lhs_values: "text".to_string(),
-            which: WhichCandleOperator::ChunkDocuments,
+            which: AvailableCandleOperators::ChunkDocuments,
             ..Default::default()
         };
         let chunk_document_config_json = serde_json::to_vec(&chunk_document_config)?;
@@ -802,7 +802,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
         let rel_sim_config_json = serde_json::to_vec(&rel_sim_config)?;
@@ -817,7 +817,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: "chunk_id".to_string(),
             lhs_fk: "chunk_id".to_string(),
             lhs_values: "score".to_string(),
-            which: WhichCandleOperator::SortColumnAndIndices,
+            which: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let sort_scores_config_json = serde_json::to_vec(&sort_scores_config)?;
@@ -836,7 +836,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some("text".to_string()),
-            which: WhichCandleOperator::JoinInner,
+            which: AvailableCandleOperators::JoinInner,
             ..Default::default()
         };
         let join_chunks_config_json = serde_json::to_vec(&join_chunks_config)?;

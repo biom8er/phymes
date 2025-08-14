@@ -7,4 +7,4 @@ pub mod human_in_the_loop;
 pub mod join_inner;
 pub mod relative_similarity_score;
 pub mod sort_column_and_indices;
-pub mod which_operator;
+pub mod available_candle_operators;

@@ -25,10 +25,10 @@ use phymes_data::{
         data_config::DataConfig, data_processor::CandleDataProcessor,
         summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
     },
-    candle_operators::which_operator::WhichCandleOperator,
+    candle_operators::available_candle_operators::AvailableCandleOperators,
 };
 use phymes_ml::{
-    candle_assets::candle_which::WhichCandleAsset,
+    candle_assets::available_candle_assets::AvailableCandleAssets,
     candle_chat::{
         chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
         message_aggregator_processor::MessageAggregatorProcessor,
@@ -37,7 +37,7 @@ use phymes_ml::{
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{
-    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_asset::available_openai_assets::AvailableOpenAIAssets, openai_chat::chat_processor::OpenAIChatProcessor,
 };
 
 use arrow::{
@@ -119,12 +119,12 @@ impl Default for ToolAgentSession<'_> {
             chat_processor_name: "chat_processor_1",
             chat_task_name: "chat_task_1",
             chat_runtime_env_name: "chat_rt_1",
-            tool_task_name: WhichCandleOperator::SortColumnAndIndices.get_name(),
-            tool_processor_name: WhichCandleOperator::SortColumnAndIndices.get_name(),
+            tool_task_name: AvailableCandleOperators::SortColumnAndIndices.get_name(),
+            tool_processor_name: AvailableCandleOperators::SortColumnAndIndices.get_name(),
             tool_runtime_env_name: "tool_rt_1",
             summary_processor_1_name: "summary_processor_1",
-            hitl_task_name: WhichCandleOperator::HumanInTheLoop.get_name(),
-            hitl_processor_name: WhichCandleOperator::HumanInTheLoop.get_name(),
+            hitl_task_name: AvailableCandleOperators::HumanInTheLoop.get_name(),
+            hitl_processor_name: AvailableCandleOperators::HumanInTheLoop.get_name(),
             summary_processor_2_name: "summary_processor_2",
             message_parser_task_name: "message_parser_task_1",
             message_parser_processor_name: "message_parser_processor_1",
@@ -153,12 +153,12 @@ impl<'a> ToolAgentSession<'a> {
     }
     pub fn make_tools_table(&self) -> Result<ArrowTable> {
         let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
-            WhichCandleOperator::SortColumnAndIndices.get_name(),
-            WhichCandleOperator::HumanInTheLoop.get_name(),
+            AvailableCandleOperators::SortColumnAndIndices.get_name(),
+            AvailableCandleOperators::HumanInTheLoop.get_name(),
         ]));
         let tool: ArrayRef = Arc::new(StringArray::from(vec![
-            WhichCandleOperator::SortColumnAndIndices.get_json_tool_schema(),
-            WhichCandleOperator::HumanInTheLoop.get_json_tool_schema(),
+            AvailableCandleOperators::SortColumnAndIndices.get_json_tool_schema(),
+            AvailableCandleOperators::HumanInTheLoop.get_json_tool_schema(),
         ]));
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)])?;
         ArrowTableBuilder::new()
@@ -494,14 +494,14 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(WhichCandleAsset::QwenV2p5_1p5bChat),
+            candle_asset: Some(AvailableCandleAssets::QwenV2p5_1p5bChat),
             ..Default::default()
         };
 
         // Add hf_hub if available
         #[cfg(feature = "hf_hub")]
         {
-            candle_chat_config.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
+            candle_chat_config.candle_asset = Some(AvailableCandleAssets::QwenV2p5_3bChat);
             candle_chat_config.openai_asset = None;
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
@@ -541,7 +541,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            which: WhichCandleOperator::SortColumnAndIndices,
+            which: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config)?;

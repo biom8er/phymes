@@ -2,7 +2,7 @@ use candle_core::DType;
 use criterion::{Criterion, criterion_group, criterion_main};
 use phymes_core::session::common_traits::{TokenProcessorTrait, TokenWrapper, device};
 use phymes_ml::{
-    candle_assets::candle_which::{WhichCandleAsset, load_model_asset_path, load_tokenizer},
+    candle_assets::available_candle_assets::{AvailableCandleAssets, load_model_asset_path, load_tokenizer},
     candle_chat::{
         chat_config::CandleChatConfig,
         chat_processor::{process_logits_sampler, process_prompt_chat},
@@ -37,7 +37,7 @@ fn benchmark_build_candle_chat_asset(c: &mut Criterion) {
         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_smollm2_1.candle_asset = Some(WhichCandleAsset::SmolLM2_135MChat);
+    config_smollm2_1.candle_asset = Some(AvailableCandleAssets::SmolLM2_135MChat);
     let mut config_smollm2_3 = config_smollm2_1.clone();
     config_smollm2_3.weights_file = Some(format!(
         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-f16.gguf",
@@ -60,19 +60,19 @@ fn benchmark_build_candle_chat_asset(c: &mut Criterion) {
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_qwen2p5_1.candle_asset = Some(WhichCandleAsset::QwenV2p5_0p5bChat);
+    config_qwen2p5_1.candle_asset = Some(AvailableCandleAssets::QwenV2p5_0p5bChat);
     let mut config_qwen2p5_2 = config_qwen2p5_1.clone();
     config_qwen2p5_2.weights_file = Some(format!(
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
+    config_qwen2p5_2.candle_asset = Some(AvailableCandleAssets::QwenV2p5_3bChat);
     let mut config_qwen2p5_3 = config_qwen2p5_1.clone();
     config_qwen2p5_3.weights_file = Some(format!(
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-3b-instruct-q5_k_m.gguf",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_qwen2p5_3.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
+    config_qwen2p5_3.candle_asset = Some(AvailableCandleAssets::QwenV2p5_3bChat);
 
     let config_vec = [
         config_smollm2_1,
@@ -162,7 +162,7 @@ fn benchmark_build_candle_embed_asset(c: &mut Criterion) {
         )),
         candle_asset: Some(
             // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
-            WhichCandleAsset::QuantizedBertEmbed,
+            AvailableCandleAssets::QuantizedBertEmbed,
         ),
         ..Default::default()
     };
@@ -183,7 +183,7 @@ fn benchmark_build_candle_embed_asset(c: &mut Criterion) {
             "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer_config.json",
             std::env::var("HOME").unwrap_or("".to_string())
         )),
-        candle_asset: Some(WhichCandleAsset::QwenV2_1p5bEmbed),
+        candle_asset: Some(AvailableCandleAssets::QwenV2_1p5bEmbed),
         ..Default::default()
     };
 
@@ -334,7 +334,7 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_smollm2_1.candle_asset = Some(WhichCandleAsset::SmolLM2_135MChat);
+    config_smollm2_1.candle_asset = Some(AvailableCandleAssets::SmolLM2_135MChat);
     let mut config_smollm2_3 = config_smollm2_1.clone();
     config_smollm2_3.weights_file = Some(format!(
         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-f16.gguf",
@@ -357,19 +357,19 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_qwen2p5_1.candle_asset = Some(WhichCandleAsset::QwenV2p5_0p5bChat);
+    config_qwen2p5_1.candle_asset = Some(AvailableCandleAssets::QwenV2p5_0p5bChat);
     let mut config_qwen2p5_2 = config_qwen2p5_1.clone();
     config_qwen2p5_2.weights_file = Some(format!(
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
+    config_qwen2p5_2.candle_asset = Some(AvailableCandleAssets::QwenV2p5_3bChat);
     let mut config_qwen2p5_3 = config_qwen2p5_1.clone();
     config_qwen2p5_3.weights_file = Some(format!(
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-3b-instruct-q5_k_m.gguf",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_qwen2p5_3.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
+    config_qwen2p5_3.candle_asset = Some(AvailableCandleAssets::QwenV2p5_3bChat);
 
     let config_vec = [
         config_smollm2_1,

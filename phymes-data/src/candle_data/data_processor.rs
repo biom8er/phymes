@@ -481,7 +481,7 @@ pub mod test_candle_ops_processor {
 
 #[cfg(test)]
 mod tests {
-    use crate::candle_operators::which_operator::WhichCandleOperator;
+    use crate::candle_operators::available_candle_operators::AvailableCandleOperators;
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
     use phymes_core::table::{arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish};
@@ -556,7 +556,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
         let config_table = ArrowTable::get_builder()
@@ -647,7 +647,7 @@ mod tests {
 
         // Make the config
         let config_args = DataConfig {
-            which: WhichCandleOperator::HumanInTheLoop,
+            which: AvailableCandleOperators::HumanInTheLoop,
             lhs_args: Some("{\"role\": \"assistant\", \"content\": \"RESPONSE\"}".to_string()),
             rhs_args: None,
             ..Default::default()
@@ -897,7 +897,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

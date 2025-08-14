@@ -766,7 +766,7 @@ mod tests {
         session::runtime_env::RuntimeEnvTrait,
     };
 
-    use crate::candle_assets::candle_which::{load_model_asset_path, load_tokenizer};
+    use crate::candle_assets::available_candle_assets::{load_model_asset_path, load_tokenizer};
 
     use super::*;
 
@@ -847,7 +847,7 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::SmolLM2_135MChat,
+                crate::candle_assets::available_candle_assets::AvailableCandleAssets::SmolLM2_135MChat,
             ),
             ..Default::default()
         };
@@ -905,7 +905,7 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::SmolLM2_135MChat,
+                crate::candle_assets::available_candle_assets::AvailableCandleAssets::SmolLM2_135MChat,
             ),
             ..Default::default()
         };

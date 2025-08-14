@@ -8,7 +8,7 @@ use phymes_core::session::common_traits::{
     TensorProcessorTrait, TokenProcessorTrait, TokenWrapper, TokenizerConfig,
 };
 
-use super::candle_which::CandleModelWeights;
+use super::available_candle_assets::CandleModelWeights;
 
 /// The actual asset struct
 #[derive(Debug)]

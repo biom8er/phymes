@@ -2,8 +2,8 @@ use anyhow::Result;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 
-use crate::candle_assets::candle_which::WhichCandleAsset;
-use crate::openai_asset::openai_which::WhichOpenAIAsset;
+use crate::candle_assets::available_candle_assets::AvailableCandleAssets;
+use crate::openai_asset::available_openai_assets::AvailableOpenAIAssets;
 
 /// Configuration for chat completion
 ///
@@ -82,11 +82,11 @@ pub struct CandleChatConfig {
 
     /// The model to use.
     #[arg(long)]
-    pub candle_asset: Option<WhichCandleAsset>,
+    pub candle_asset: Option<AvailableCandleAssets>,
 
     /// The model to use.
     #[arg(long)]
-    pub openai_asset: Option<WhichOpenAIAsset>,
+    pub openai_asset: Option<AvailableOpenAIAssets>,
 }
 
 impl CandleChatConfig {

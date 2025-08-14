@@ -19,12 +19,12 @@ use phymes_core::{
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
 use phymes_ml::{
-    candle_assets::candle_which::WhichCandleAsset,
+    candle_assets::available_candle_assets::AvailableCandleAssets,
     candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor},
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{
-    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_asset::available_openai_assets::AvailableOpenAIAssets, openai_chat::chat_processor::OpenAIChatProcessor,
 };
 
 pub struct ChatAgentSession<'a> {
@@ -161,14 +161,14 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                 "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(WhichCandleAsset::SmolLM2_135MChat),
+            candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
             ..Default::default()
         };
 
         // Add hf_hub if available
         #[cfg(feature = "hf_hub")]
         {
-            candle_chat_config.candle_asset = Some(WhichCandleAsset::QwenV2p5_1p5bChat);
+            candle_chat_config.candle_asset = Some(AvailableCandleAssets::QwenV2p5_1p5bChat);
             candle_chat_config.openai_asset = None;
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;

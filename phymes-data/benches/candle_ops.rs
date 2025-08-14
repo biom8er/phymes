@@ -28,7 +28,7 @@ use phymes_data::{
         data_processor::CandleDataProcessor,
         tensor_service::CandleTensorService,
     },
-    candle_operators::which_operator::WhichCandleOperator,
+    candle_operators::available_candle_operators::AvailableCandleOperators,
 };
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
@@ -55,7 +55,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for the ops functions
     let ops_configs_vec = [
         DataConfig {
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: AvailableCandleOperators::RelativeSimilarityScore,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "embedding".to_string(),
@@ -65,7 +65,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: WhichCandleOperator::SortColumnAndIndices,
+            which: AvailableCandleOperators::SortColumnAndIndices,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "score".to_string(),
@@ -87,7 +87,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         //     ..Default::default()
         // },
         DataConfig {
-            which: WhichCandleOperator::JoinInner,
+            which: AvailableCandleOperators::JoinInner,
             lhs_pk: "title".to_string(),
             lhs_fk: "id".to_string(),
             rhs_pk: Some("title".to_string()),
@@ -95,7 +95,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: WhichCandleOperator::GroupByAndAggregate,
+            which: AvailableCandleOperators::GroupByAndAggregate,
             lhs_pk: "id".to_string(),
             lhs_fk: "id".to_string(),
             lhs_values: "[\"title\",\"collection\"]".to_string(),
@@ -106,7 +106,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: WhichCandleOperator::FilterColumnsAndIndices,
+            which: AvailableCandleOperators::FilterColumnsAndIndices,
             lhs_pk: "id".to_string(),
             lhs_values: "[\"title\",\"id\"]".to_string(),
             op_kwargs: Some(

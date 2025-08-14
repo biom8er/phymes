@@ -6,7 +6,7 @@ use tracing::{Level, event};
 use std::env;
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
-pub enum WhichOpenAIAsset {
+pub enum AvailableOpenAIAssets {
     #[value(name = "o3")]
     O3,
     #[value(name = "o3-mini")]
@@ -25,13 +25,13 @@ pub enum WhichOpenAIAsset {
     NvidiaLlamaV3p2NvEmbedQA1BV2,
 }
 
-impl Default for WhichOpenAIAsset {
+impl Default for AvailableOpenAIAssets {
     fn default() -> Self {
         Self::GPT4OMini
     }
 }
 
-impl WhichOpenAIAsset {
+impl AvailableOpenAIAssets {
     /// The name of the asset
     pub fn get_name(&self) -> &str {
         match self {

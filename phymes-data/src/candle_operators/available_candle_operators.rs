@@ -19,7 +19,7 @@ use crate::candle_operators::{
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
-pub enum WhichCandleOperator {
+pub enum AvailableCandleOperators {
     #[value(name = "relative-similarity-score")]
     #[serde(alias = "relative-similarity-score")]
     RelativeSimilarityScore,
@@ -46,13 +46,13 @@ pub enum WhichCandleOperator {
     FilterColumnsAndIndices,
 }
 
-impl Default for WhichCandleOperator {
+impl Default for AvailableCandleOperators {
     fn default() -> Self {
         Self::RelativeSimilarityScore
     }
 }
 
-impl WhichCandleOperator {
+impl AvailableCandleOperators {
     /// Wrapper to return the name of any SortColumnAndIndices
     pub fn get_name(&self) -> &str {
         match self {
@@ -149,7 +149,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
     let mut tool_id_vec = Vec::new();
     let mut tool_vec = Vec::new();
     for destination in destinations.iter() {
-        if let Some(ops) = WhichCandleOperator::new_from_name(destination) {
+        if let Some(ops) = AvailableCandleOperators::new_from_name(destination) {
             tool_id_vec.push(ops.get_name().to_string());
             tool_vec.push(ops.get_json_tool_schema());
         }

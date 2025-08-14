@@ -324,7 +324,7 @@ mod tests {
             test_table::{make_test_table, make_test_table_chat},
         },
     };
-    use phymes_data::candle_operators::which_operator::WhichCandleOperator;
+    use phymes_data::candle_operators::available_candle_operators::AvailableCandleOperators;
 
     use super::*;
 
@@ -370,7 +370,7 @@ mod tests {
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            which: WhichCandleOperator::SortColumnAndIndices,
+            which: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
