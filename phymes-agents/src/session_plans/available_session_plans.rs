@@ -5,7 +5,7 @@ use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
-    session::session_context::{SessionStream, SessionStreamState},
+    session::{common_traits::MappableTrait, session_context::{SessionStream, SessionStreamState}},
 };
 use serde::{Deserialize, Serialize};
 
@@ -27,6 +27,16 @@ pub enum AvailableSessionPlans {
     ToolChat,
 }
 
+impl MappableTrait for AvailableSessionPlans {
+    fn get_name(&self) -> &str {
+        match self {
+            Self::Chat => "Chat",
+            Self::DocChat => "DocChat",
+            Self::ToolChat => "ToolChat",
+        }
+    }
+}
+
 impl AvailableSessionPlans {
     /// Get all available session plans
     pub fn get_all_session_plan_names() -> Vec<String> {
@@ -35,15 +45,6 @@ impl AvailableSessionPlans {
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>()
-    }
-
-    /// Get the session plan name
-    pub fn get_session_plan_name(&self) -> &str {
-        match self {
-            Self::Chat => "Chat",
-            Self::DocChat => "DocChat",
-            Self::ToolChat => "ToolChat",
-        }
     }
 
     /// Get the session stream state
@@ -76,11 +77,11 @@ impl AvailableSessionPlans {
         session_plan_name: &str,
         session_name: &str,
     ) -> Result<Arc<RwLock<SessionStreamState>>> {
-        if session_plan_name == Self::Chat.get_session_plan_name() {
+        if session_plan_name == Self::Chat.get_name() {
             Ok(Self::Chat.get_session_stream_state(session_name))
-        } else if session_plan_name == Self::DocChat.get_session_plan_name() {
+        } else if session_plan_name == Self::DocChat.get_name() {
             Ok(Self::DocChat.get_session_stream_state(session_name))
-        } else if session_plan_name == Self::ToolChat.get_session_plan_name() {
+        } else if session_plan_name == Self::ToolChat.get_name() {
             Ok(Self::ToolChat.get_session_stream_state(session_name))
         } else {
             Err(anyhow!(
@@ -96,21 +97,21 @@ impl AvailableSessionPlans {
         session_stream_state: Arc<RwLock<SessionStreamState>>,
         user_query: &str,
     ) -> Result<SessionStream> {
-        if session_plan_name == Self::Chat.get_session_plan_name() {
+        if session_plan_name == Self::Chat.get_name() {
             let session = ChatAgentSession::new_with_session_name(session_name);
             Ok(bench_chat_agent_session_2(
                 Arc::clone(&session_stream_state),
                 &session,
                 user_query,
             ))
-        } else if session_plan_name == Self::DocChat.get_session_plan_name() {
+        } else if session_plan_name == Self::DocChat.get_name() {
             let session = DocumentRAGSession::new_with_session_name(session_name);
             Ok(bench_doc_rag_session_query(
                 Arc::clone(&session_stream_state),
                 &session,
                 user_query,
             ))
-        } else if session_plan_name == Self::ToolChat.get_session_plan_name() {
+        } else if session_plan_name == Self::ToolChat.get_name() {
             let session = ToolAgentSession::new_with_session_name(session_name);
             Ok(bench_tool_agent_session(
                 Arc::clone(&session_stream_state),
