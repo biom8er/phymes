@@ -104,6 +104,10 @@ impl ArrowProcessorTrait for CandleChatProcessor {
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
+    
+    fn get_subscribe(&self) -> &Box<dyn SubscribeTrait> {
+        &self.subscribe
+    }
 
     #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(

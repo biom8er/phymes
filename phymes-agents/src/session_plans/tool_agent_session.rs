@@ -6,7 +6,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap},
     schemas::message_history::create_messages_schema,
     session::{
-        common_traits::{BuilderTrait, StateMap},
+        common_traits::{BuilderTrait, MappableTrait, StateMap},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context::SessionContext,
         session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
@@ -69,6 +69,12 @@ impl SubscribeTrait for ChatContentSubscribe {
             user_message_table_name: "user_messages".to_string(),
             tool_message_table_name: "tool_messages".to_string(),
         })
+    }
+}
+
+impl MappableTrait for ChatContentSubscribe {
+    fn get_name(&self) -> &str {
+        "ChatContentSubscribe"
     }
 }
 
