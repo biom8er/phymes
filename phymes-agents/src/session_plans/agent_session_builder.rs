@@ -8,7 +8,6 @@ use phymes_core::{
     table::arrow_table::ArrowTable,
     task::arrow_processor::ArrowProcessorTrait,
 };
-
 use anyhow::Result;
 
 pub trait AgentSessionBuilderTrait {
