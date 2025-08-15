@@ -73,20 +73,6 @@ use crate::{
 pub trait ArrowTaskTrait:
     MappableTrait + BuildableTrait + RunnableTrait + PubSubTrait + Sync + Send
 {
-    /// Short name for the ArrowTask, such as 'AddRows'.
-    /// Like [`get_name`](ArrowTask::get_name) but can be called without an instance.
-    fn get_static_name() -> &'static str
-    where
-        Self: Sized,
-    {
-        let full_name = std::any::type_name::<Self>();
-        let maybe_start_idx = full_name.rfind(':');
-        match maybe_start_idx {
-            Some(start_idx) => &full_name[start_idx + 1..],
-            None => "UNKNOWN",
-        }
-    }
-
     /// Make the outbox
     ///
     /// # Note

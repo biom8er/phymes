@@ -2,7 +2,16 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use arrow::{array::RecordBatch, datatypes::{DataType, Field, Schema}};
-use phymes_core::{metrics::{HashMap, HashSet}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, runtime_env::{RuntimeEnv, RuntimeEnvTrait}, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan}}, table::{arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe, AnyTableSchemaSubscribe, ArrowTableSubscribe, SubscribeTrait}}, task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait}};
+use phymes_core::{
+    metrics::{HashMap, HashSet}, 
+    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, runtime_env::{RuntimeEnv, RuntimeEnvTrait}, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder}},
+    table::{arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe, AnyTableSchemaSubscribe, ArrowTableSubscribe, SubscribeTrait}}, 
+    task::arrow_processor::{test_processor::ArrowProcessorMock, ArrowProcessorBuilder, ArrowProcessorEcho}};
+use phymes_data::candle_data::{data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor};
+use phymes_ml::{candle_chat::{chat_processor::CandleChatProcessor, message_aggregator_processor::MessageAggregatorProcessor, message_parser_processor::MessageParserProcessor}, candle_embed::embed_processor::CandleEmbedProcessor};
+#[cfg(feature = "openai_api")]
+use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_embed::embed_processor::OpenAIEmbedProcessor};
+use crate::session_plans::available_processors::AvailableProcessors;
 
 pub trait SessionContextBuilderMermaidTrait {
     /// Make a mermaid.js flowchart of the session
@@ -18,7 +27,7 @@ pub trait SessionContextBuilderMermaidTrait {
     fn with_state_from_mermaid_erdiagram(self, erdiagram: &str) -> Result<Self> where Self: Sized;
 }
 
-impl SessionContextBuilderMermaidTrait for SessionContextBuilder { 
+impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
     fn to_mermaid_flowchart(&self) -> Result<String> {
         // Check if there are members
         if self.tasks.is_none() {
@@ -35,25 +44,23 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }        
 
         // Entities with expanded shape/label attributes that will be appended to flowchart
-        let mut processors_vec = Vec::new();
-        let mut sorted_processor_names = self.get_processor_names().into_iter().collect::<Vec<_>>();
-        sorted_processor_names.sort();
-        for processor_name in sorted_processor_names {
-            processors_vec.push(format!("\t{processor_name}-processor@{{shape:rect,label:{processor_name}}}"));
+        let mut processors_vec = Vec::new();        
+        for processor in self.processors.as_ref().unwrap().iter() {
+            processors_vec.push(format!("\t{}-processor@{{shape: rect, label: {}}}", processor.get_name(), processor.get_type()));
         }
 
         let mut subjects_vec = Vec::new();
         let mut sorted_subject_names = self.get_subject_names().into_iter().collect::<Vec<_>>();
         sorted_subject_names.sort();
         for subject_name in sorted_subject_names {
-            subjects_vec.push(format!("\t{subject_name}-subject@{{shape:doc,label:{subject_name}}}"));
+            subjects_vec.push(format!("\t{subject_name}-subject@{{shape: doc, label: {subject_name}}}"));
         }
 
         let mut runtime_envs_vec = Vec::new();
         let mut sorted_runtime_env_names = self.get_runtime_env_names().into_iter().collect::<Vec<_>>();
         sorted_runtime_env_names.sort();
         for runtime_env_name in sorted_runtime_env_names {
-            runtime_envs_vec.push(format!("\t{runtime_env_name}-rt@{{shape:subproc,label:{runtime_env_name}}}"));
+            runtime_envs_vec.push(format!("\t{runtime_env_name}-rt@{{shape: subproc, label: {runtime_env_name}}}"));
         }
 
         // Subgraphs
@@ -71,8 +78,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     if processor_name == processor.get_name() {
 
                         // Subscriptions
-                        let subscribe = processor.get_subscribe().get_name();
-                        subscriptions_vec.push(format!("\t{processor_name}-subscribe@{{shape:diamond,label:{subscribe}}}"));
+                        subscriptions_vec.push(format!("\t{processor_name}-subscribe@{{shape: diamond, label: {}}}", processor.get_subscribe().get_name()));
                         for subscription in processor.get_subscriptions().iter() {
                             if subscription.is_update() {
                                 tasks_vec.push(format!("\t\t{}-subject-.{}.->{processor_name}-subscribe", subscription.get_table_name(), subscription.get_short_name()));
@@ -83,7 +89,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         tasks_vec.push(format!("\t\t{processor_name}-subscribe-->{processor_name}-processor"));
 
                         // Publications
-                        publications_vec.push(format!("\t{processor_name}-publish@{{shape:fork}}"));
+                        publications_vec.push(format!("\t{processor_name}-publish@{{shape: fork}}"));
                         tasks_vec.push(format!("\t\t{processor_name}-processor-->{processor_name}-publish"));
                         for publication in processor.get_publications().iter() {
                             tasks_vec.push(format!("\t\t{processor_name}-publish--{}-->{}-subject", publication.get_short_name(), publication.get_table_name()));
@@ -144,62 +150,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
     }
 
     fn from_mermaid_flowchart(flowchart: &str) -> Result<Self> {
-        // Builders for tasks and processors
-        #[derive(Default)]
-        struct TaskPlanBuilder {
-            pub task_name: Option<String>,
-            pub runtime_env_name: Option<String>,
-            pub processor_names: Option<Vec<String>>,
-        }
-        impl TaskPlanBuilder {
-            pub fn build(mut self) -> Result<TaskPlan> {
-                if self.task_name.is_none() {
-                    return Err(anyhow!("Missing task name"));
-                } else if self.runtime_env_name.as_ref().is_none() {
-                    return Err(anyhow!("Missing runtime_env_name for task {}", self.task_name.as_ref().unwrap()));
-                } else if self.processor_names.as_ref().is_none() {
-                    return Err(anyhow!("Missing processor_names for task {}", self.task_name.as_ref().unwrap()));
-                }
-
-                let task_plan = TaskPlan {
-                    task_name: self.task_name.take().unwrap(),
-                    runtime_env_name: self.runtime_env_name.take().unwrap(),
-                    processor_names: self.processor_names.take().unwrap(),
-                };
-                Ok(task_plan)
-            }
-        }
-        #[derive(Default)]
-        struct ProcessorBuilder {
-            pub publications: Option<Vec<ArrowTablePublish>>,
-            pub subscriptions: Option<Vec<ArrowTableSubscribe>>,
-            pub subscribe: Option<Box<dyn SubscribeTrait>>,
-            pub processor_name: Option<String>,
-        }
-        impl ProcessorBuilder {
-            pub fn build(mut self) -> Result<Arc<dyn ArrowProcessorTrait>> {                
-                if self.processor_name.as_ref().is_none() {
-                    return Err(anyhow!("Missing processor name"));
-                } else if self.publications.as_ref().is_none() {
-                    return Err(anyhow!("Missing publications for processor {}", self.processor_name.as_ref().unwrap()));
-                } else if self.subscriptions.as_ref().is_none() {
-                    return Err(anyhow!("Missing subscriptions for processor {}", self.processor_name.as_ref().unwrap()));
-                } else if self.subscribe.as_ref().is_none() {
-                    return Err(anyhow!("Missing subscribe for processor {}", self.processor_name.as_ref().unwrap()));
-                }
-                
-                let processor = ArrowProcessorEcho::new_arc_with_pub_sub(
-                    &self.processor_name.take().unwrap(), 
-                    &self.publications.take().unwrap(), 
-                    &self.subscriptions.take().unwrap(), 
-                    self.subscribe.take().unwrap());
-                Ok(processor)
-            }
-        }
-
         // The members that we will build
         let mut task_plan_builders = HashMap::<String, TaskPlanBuilder>::new();
-        let mut processor_builders = HashMap::<String, ProcessorBuilder>::new();
+        let mut processor_builders = HashMap::<String, ArrowProcessorBuilder>::new();
 
         // Track consistency of subjects and processors between subgraphs and labels
         let mut task_names = HashSet::new();
@@ -257,6 +210,33 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 Err(anyhow!("Parsing Error on line {iter}: {line}. Subscribe policy for processor {processor} was not recognized."))
             }
         };
+        let processor_from_str = |line: &str, iter: usize, processor: &str| -> Result<String> {
+            if line.contains(ArrowProcessorMock::get_static_name()) {
+                Ok(ArrowProcessorMock::get_static_name().to_string())
+            } else if line.contains(ArrowProcessorEcho::get_static_name()) {
+                Ok(ArrowProcessorEcho::get_static_name().to_string())
+            } else if line.contains(ArrowProcessorEcho::get_static_name()) {
+                Ok(CandleDataProcessor::get_static_name().to_string())
+            } else if line.contains(DataSummaryProcessor::get_static_name()) {
+                Ok(DataSummaryProcessor::get_static_name().to_string())
+            } else if line.contains(CandleChatProcessor::get_static_name()) {
+                Ok(CandleChatProcessor::get_static_name().to_string())
+            } else if line.contains(MessageAggregatorProcessor::get_static_name()) {
+                Ok(MessageAggregatorProcessor::get_static_name().to_string())
+            } else if line.contains(MessageParserProcessor::get_static_name()) {
+                Ok(MessageParserProcessor::get_static_name().to_string())
+            } else if line.contains(CandleEmbedProcessor::get_static_name()) {
+                Ok(CandleEmbedProcessor::get_static_name().to_string())
+            } else {
+                #[cfg(feature = "openai_api")]
+                if line.contains(OpenAIChatProcessor::get_static_name()) {
+                    Ok(OpenAIChatProcessor::get_static_name())
+                } else if line.contains(OpenAIEmbedProcessor::get_static_name()) {
+                    Ok(OpenAIEmbedProcessor::get_static_name())
+                }
+                Err(anyhow!("Parsing Error on line {iter}: {line}. Processor type for processor {processor} was not recognized."))
+            }
+        };
 
         // Parse the mermaid.js flowchart string
         let flowchart_lines = flowchart.split("\n").collect::<Vec<_>>();
@@ -304,7 +284,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         let split_line = split_line.last().unwrap().split("->").collect::<Vec<_>>().last().unwrap().split("-subscribe").collect::<Vec<_>>();
                         let processor = split_line.first().unwrap().trim().to_string();
                         if !processor_builders.contains_key(&processor) {
-                            let mut builder = ProcessorBuilder::default();
+                            let mut builder = ArrowProcessorBuilder::default();
                             builder.processor_name.replace(processor.to_owned());
                             builder.subscriptions.replace(vec![subscription]);
                             processor_builders.insert(processor.to_owned(), builder);
@@ -336,7 +316,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         }
                         let processor_1 = split_line.first().unwrap().trim().to_string();
                         if !processor_builders.contains_key(&processor_1) {
-                            let mut builder = ProcessorBuilder::default();
+                            let mut builder = ArrowProcessorBuilder::default();
                             builder.processor_name.replace(processor_1.to_owned());
                             processor_builders.insert(processor_1.to_owned(), builder);
                         }
@@ -365,7 +345,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         }
                         let processor_1 = split_line.first().unwrap().trim().to_string();
                         if !processor_builders.contains_key(&processor_1) {
-                            let mut builder = ProcessorBuilder::default();
+                            let mut builder = ArrowProcessorBuilder::default();
                             builder.processor_name.replace(processor_1.to_owned());
                             processor_builders.insert(processor_1.to_owned(), builder);
                         }
@@ -398,9 +378,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         let subject = split_line.last().unwrap().split("-->").collect::<Vec<_>>()
                             .last().unwrap().split("-subject").collect::<Vec<_>>()
                             .first().unwrap().trim().to_string();
-                        let publication = publication_from_str(split_line.last().unwrap(), iter, &subject, &task_name)?;                        
+                        let publication = publication_from_str(split_line.last().unwrap(), iter, &subject, &task_name)?;
                         if !processor_builders.contains_key(&processor) {
-                            let mut builder = ProcessorBuilder::default();
+                            let mut builder = ArrowProcessorBuilder::default();
                             builder.processor_name.replace(processor.to_owned());
                             builder.publications.replace(vec![publication]);
                             processor_builders.insert(processor.to_owned(), builder);
@@ -475,44 +455,53 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 runtime_envs_names.insert(runtime_env_name);
 
             // Extract out the runtime environments
-            } else if flowchart_lines.get(iter).unwrap().contains("-rt@{shape:subproc,") {
+            } else if flowchart_lines.get(iter).unwrap().contains("-rt@{shape: subproc,") {
 
                 // Extract the runtime and task names
-                let split_line = flowchart_lines.get(iter).unwrap().split("-rt@{shape:subproc,").collect::<Vec<_>>();
+                let split_line = flowchart_lines.get(iter).unwrap().split("-rt@{shape: subproc,").collect::<Vec<_>>();
                 let runtime_env_name = split_line.first().unwrap().trim().to_string();
                 
                 // Update
                 runtime_env_names_vec.push(runtime_env_name.to_owned());
                 
             // Extract out the processors
-            } else if flowchart_lines.get(iter).unwrap().contains("-processor@{shape:rect,") {
+            } else if flowchart_lines.get(iter).unwrap().contains("-processor@{shape: rect,") {
 
                 // Extract the processor name
-                let split_line = flowchart_lines.get(iter).unwrap().split("-processor@{shape:rect,").collect::<Vec<_>>();
+                let split_line = flowchart_lines.get(iter).unwrap().split("-processor@{shape: rect,").collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
+                let processor_type = processor_from_str(split_line.last().unwrap(), iter, &processor_name)?;
                 
                 // Update
+                if !processor_builders.contains_key(&processor_name) {
+                    let mut builder = ArrowProcessorBuilder::default();
+                    builder.processor_name.replace(processor_name.to_owned());
+                    builder.processor_type.replace(processor_type);
+                    processor_builders.insert(processor_name.to_owned(), builder);
+                } else if processor_builders.get(&processor_name).unwrap().processor_type.is_none() {
+                    processor_builders.get_mut(&processor_name).unwrap().processor_type.replace(processor_type);
+                }
                 processor_names_vec.push(processor_name.to_owned());
 
             // Extract out the subjects
-            } else if flowchart_lines.get(iter).unwrap().contains("-subject@{shape:doc") {
+            } else if flowchart_lines.get(iter).unwrap().contains("-subject@{shape: doc") {
 
                 // Extract the subject name
-                let split_line = flowchart_lines.get(iter).unwrap().split("-subject@{shape:doc").collect::<Vec<_>>();
+                let split_line = flowchart_lines.get(iter).unwrap().split("-subject@{shape: doc").collect::<Vec<_>>();
                 let subject_name = split_line.first().unwrap().trim().to_string();
                 
                 // Update
                 subject_names_vec.push(subject_name.to_owned());
 
             // Extract out the subscribe
-            } else if flowchart_lines.get(iter).unwrap().contains("-subscribe@{shape:diamond,label:") {
+            } else if flowchart_lines.get(iter).unwrap().contains("-subscribe@{shape: diamond, label:") {
 
                 // Extract the processor name
-                let split_line = flowchart_lines.get(iter).unwrap().split("-subscribe@{shape:diamond,label:").collect::<Vec<_>>();
+                let split_line = flowchart_lines.get(iter).unwrap().split("-subscribe@{shape: diamond, label:").collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
                 let subscribe = subscribe_from_str(split_line.last().unwrap(), iter, &processor_name)?;
                 if !processor_builders.contains_key(&processor_name) {
-                    let mut builder = ProcessorBuilder::default();
+                    let mut builder = ArrowProcessorBuilder::default();
                     builder.processor_name.replace(processor_name.to_owned());
                     processor_builders.insert(processor_name.to_owned(), builder);
                 }
@@ -532,13 +521,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 processor_names.insert(processor_name);
 
             // Extract out the publish
-            } else if flowchart_lines.get(iter).unwrap().contains("-publish@{shape:fork}") {
+            } else if flowchart_lines.get(iter).unwrap().contains("-publish@{shape: fork}") {
 
                 // Extract the processor name
-                let split_line = flowchart_lines.get(iter).unwrap().split("-publish@{shape:fork}").collect::<Vec<_>>();
+                let split_line = flowchart_lines.get(iter).unwrap().split("-publish@{shape: fork}").collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
                 if !processor_builders.contains_key(&processor_name) {
-                    let mut builder = ProcessorBuilder::default();
+                    let mut builder = ArrowProcessorBuilder::default();
                     builder.processor_name.replace(processor_name.to_owned());
                     processor_builders.insert(processor_name.to_owned(), builder);
                 }
@@ -578,7 +567,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             return Err(anyhow!("There is an inconsistency in the processor labels {:?} and processor mentions {:?}", processor_names_vec, processor_names));
         }
         for name in processor_names_vec {
-            let processor = processor_builders.remove(&name).unwrap().build()?;
+            let builder = processor_builders.remove(&name).unwrap();
+            let available_processor = AvailableProcessors::new_from_name(builder.processor_type.as_ref().unwrap().as_str()).unwrap();
+            let processor = available_processor.build_with_builder(builder)?;
             processors.push(processor);
         }
 
@@ -785,11 +776,7 @@ mod tests {
 
         // Test to flowchart
         let mermaid_js = builder.to_mermaid_flowchart()?;
-        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tconfig_1-subject--FullTable-->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tconfig_2-subject--FullTable-->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tconfig_3-subject--FullTable-->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_3-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_1-subject\n\t\tsession_1-publish--Extend-->state_2-subject\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape:rect,label:processor_1}\n\tprocessor_2-processor@{shape:rect,label:processor_2}\n\tprocessor_3-processor@{shape:rect,label:processor_3}\n\tsession_1-processor@{shape:rect,label:session_1}\n\trt_1-rt@{shape:subproc,label:rt_1}\n\tconfig_1-subject@{shape:doc,label:config_1}\n\tconfig_2-subject@{shape:doc,label:config_2}\n\tconfig_3-subject@{shape:doc,label:config_3}\n\tstate_1-subject@{shape:doc,label:state_1}\n\tstate_2-subject@{shape:doc,label:state_2}\n\tstate_3-subject@{shape:doc,label:state_3}\n\tprocessor_1-publish@{shape:fork}\n\tprocessor_2-publish@{shape:fork}\n\tprocessor_3-publish@{shape:fork}\n\tsession_1-publish@{shape:fork}\n\tprocessor_1-subscribe@{shape:diamond,label:All}\n\tprocessor_2-subscribe@{shape:diamond,label:All}\n\tprocessor_3-subscribe@{shape:diamond,label:All}\n\tsession_1-subscribe@{shape:diamond,label:All}".to_string());
-        
-        // Test from flowchart
-        let _builder_test = SessionContextBuilder::from_mermaid_flowchart(&mermaid_js)?;
-        
+        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tconfig_1-subject--FullTable-->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tconfig_2-subject--FullTable-->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tconfig_3-subject--FullTable-->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_3-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_1-subject\n\t\tsession_1-publish--Extend-->state_2-subject\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ArrowProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ArrowProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: ArrowProcessorMock}\n\tsession_1-processor@{shape: rect, label: ArrowProcessorMock}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tconfig_1-subject@{shape: doc, label: config_1}\n\tconfig_2-subject@{shape: doc, label: config_2}\n\tconfig_3-subject@{shape: doc, label: config_3}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: All}".to_string());
         Ok(())
     }
 
@@ -811,9 +798,56 @@ mod tests {
         // Make the ER Diagram
         let mermaid_js = builder.to_mermaid_erdiagram()?;
         assert_eq!(mermaid_js, "erDiagram\n\tconfig_1{\n\t\tUtf8\ta\n\t\tUInt32\tb\n\t\tUInt16\tc\n\t}\n\tconfig_2{\n\t\tUtf8\ta\n\t\tUInt32\tb\n\t\tUInt16\tc\n\t}\n\tconfig_3{\n\t\tUtf8\ta\n\t\tUInt32\tb\n\t\tUInt16\tc\n\t}\n\tstate_1{\n\t\tUInt32\tid\n\t\tUtf8\tcollection\n\t\tUtf8\ttitle\n\t\tUtf8\ttext\n\t\tUtf8\tmetadata\n\t\tFloat32\tscore\n\t\tFixedSizeList-Float32-8\tembedding\n\t}\n\tstate_2{\n\t\tUInt32\tid\n\t\tUtf8\tcollection\n\t\tUtf8\ttitle\n\t\tUtf8\ttext\n\t\tUtf8\tmetadata\n\t\tFloat32\tscore\n\t\tFixedSizeList-Float32-8\tembedding\n\t}\n\tstate_3{\n\t\tUInt32\tid\n\t\tUtf8\tcollection\n\t\tUtf8\ttitle\n\t\tUtf8\ttext\n\t\tUtf8\tmetadata\n\t\tFloat32\tscore\n\t\tFixedSizeList-Float32-8\tembedding\n\t}".to_string());
+        Ok(())
+    }
 
-        // Make the builder from the ER Diagram
-        let _builder_test = SessionContextBuilder::new().with_state_from_mermaid_erdiagram(&mermaid_js)?;
+    #[test]
+    fn test_from_mermaid() -> Result<()> {
+        // Init runtime env
+        let runtime_envs = vec![make_runtime_env("rt_1")?];
+
+        // Init state
+        let mut state = make_state_tables("state_1", "config_1")?;
+        state.extend(make_state_tables("state_2", "config_2")?);
+        state.extend(make_state_tables("state_3", "config_3")?);
+
+        // Make the builder
+        let builder = make_test_session_builder_parallel_task()
+            .with_runtime_envs(runtime_envs)
+            .with_state(state);
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart()?;
+        let erdiagram = builder.to_mermaid_erdiagram()?;
+
+        // Remake the builder
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart)?.with_state_from_mermaid_erdiagram(&erdiagram)?;
+
+        // Test that the names match
+        let mut test = builder_test.get_processor_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_processor_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test.get_runtime_env_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_runtime_env_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test.get_subject_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_subject_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test.processors.as_ref().unwrap().iter().map(|p| p.get_name()).collect::<Vec<_>>();
+        let expected = builder.processors.as_ref().unwrap().iter().map(|p| p.get_name()).collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the session
+        let _ = builder_test.build()?;
+
         Ok(())
     }
 }

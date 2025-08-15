@@ -68,8 +68,24 @@ pub type IPCMessageMap = HashMap<String, ArrowIncomingIPCMessage>;
 /// For all objects that can be inserted into a HashMap
 /// based on their `name` attribute
 pub trait MappableTrait {
-    /// name of the object
+    /// Short name for the Task, Processor, or any other struct, such as 'AddRows'.
+    /// Like [`get_name`](ArrowTask::get_name) but can be called without an instance.
+    fn get_static_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        let full_name = std::any::type_name::<Self>();
+        let maybe_start_idx = full_name.rfind(':');
+        match maybe_start_idx {
+            Some(start_idx) => &full_name[start_idx + 1..],
+            None => "UNKNOWN",
+        }
+    }
+
+    /// Name of the object
+    /// defaults to the static name
     fn get_name(&self) -> &str;
+
     /// send the object to a HashMap
     /// only works with concrete types and not traits!
     fn to_map(self, map: &mut HashMap<String, Arc<Self>>) -> Option<Arc<Self>>

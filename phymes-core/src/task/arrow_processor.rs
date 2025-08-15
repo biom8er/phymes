@@ -11,7 +11,7 @@ use crate::{
     },
     task::publish_subscribe::PubSubTrait,
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use parking_lot::Mutex;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -62,6 +62,9 @@ pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug
 
     /// Get the subscription policy
     fn get_subscribe(&self) -> &Box<dyn SubscribeTrait>;
+
+    /// Alias for `get_static_name`
+    fn get_type(&self) -> &str;
 
     /// Begin execution of `task`, returning a [`Stream`] of
     /// [`RecordBatch`]es.
@@ -278,10 +281,7 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait>
-    where
-        Self: Sized,
-    {
+    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: vec![ArrowTablePublish::None],
@@ -294,6 +294,10 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
         &self.subscribe
     }
 
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
+    }
+
     fn process(
         &self,
         message: OutgoingMessageMap,
@@ -302,6 +306,39 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
     ) -> Result<OutgoingMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
         Ok(message)
+    }
+}
+
+/// A lightweight builder for structures implementing the [ArrowProcessorTrait]
+/// 
+/// # Notes
+/// * A full `ArrowProcessorBuilderTrait` will be provided in the future
+///   once the API stabilizes
+#[derive(Default)]
+pub struct ArrowProcessorBuilder {
+    pub publications: Option<Vec<ArrowTablePublish>>,
+    pub subscriptions: Option<Vec<ArrowTableSubscribe>>,
+    pub subscribe: Option<Box<dyn SubscribeTrait>>,
+    pub processor_name: Option<String>,
+    pub processor_type: Option<String>,
+}
+
+impl ArrowProcessorBuilder {
+    pub fn take(mut self) -> Result<(String, Vec<ArrowTablePublish>, Vec<ArrowTableSubscribe>, Box<dyn SubscribeTrait>)> {                
+        if self.processor_name.as_ref().is_none() {
+            return Err(anyhow!("Missing processor name"));
+        } else if self.publications.as_ref().is_none() {
+            return Err(anyhow!("Missing publications for processor {}", self.processor_name.as_ref().unwrap()));
+        } else if self.subscriptions.as_ref().is_none() {
+            return Err(anyhow!("Missing subscriptions for processor {}", self.processor_name.as_ref().unwrap()));
+        } else if self.subscribe.as_ref().is_none() {
+            return Err(anyhow!("Missing subscribe for processor {}", self.processor_name.as_ref().unwrap()));
+        }
+
+        Ok((self.processor_name.take().unwrap(),
+            self.publications.take().unwrap(),
+            self.subscriptions.take().unwrap(),
+            self.subscribe.take().unwrap()))
     }
 }
 
@@ -375,10 +412,7 @@ pub mod test_processor {
             })
         }
         
-        fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait>
-        where
-            Self: Sized,
-        {
+        fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
                 publications: vec![ArrowTablePublish::None],
@@ -389,6 +423,10 @@ pub mod test_processor {
     
         fn get_subscribe(&self) -> &Box<dyn SubscribeTrait> {
             &self.subscribe
+        }
+
+        fn get_type(&self) -> &str {
+            Self::get_static_name()
         }
 
         fn process(

@@ -156,9 +156,12 @@ impl SubscribeTrait for AlwaysSubscribe {
     }
 }
 
-impl MappableTrait for AlwaysSubscribe {    
-    fn get_name(&self) -> &str {
+impl MappableTrait for AlwaysSubscribe {
+    fn get_static_name() -> &'static str {
         "Always"
+    }
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }
 
@@ -189,9 +192,12 @@ impl SubscribeTrait for AnyTableNameSubscribe {
     }
 }
 
-impl MappableTrait for AnyTableNameSubscribe {    
-    fn get_name(&self) -> &str {
+impl MappableTrait for AnyTableNameSubscribe {
+    fn get_static_name() -> &'static str {
         "Any"
+    }  
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }
 
@@ -220,9 +226,12 @@ impl SubscribeTrait for AllTableNamesSubscribe {
     }
 }
 
-impl MappableTrait for AllTableNamesSubscribe {    
-    fn get_name(&self) -> &str {
+impl MappableTrait for AllTableNamesSubscribe {
+    fn get_static_name() -> &'static str {
         "All"
+    }
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }
 
@@ -268,9 +277,12 @@ impl SubscribeTrait for AnyTableSchemaSubscribe {
     }
 }
 
-impl MappableTrait for AnyTableSchemaSubscribe {    
-    fn get_name(&self) -> &str {
+impl MappableTrait for AnyTableSchemaSubscribe {
+    fn get_static_name() -> &'static str {
         "AnySchema"
+    }
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }
 
@@ -314,9 +326,12 @@ impl SubscribeTrait for AllTableSchemasSubscribe {
     }
 }
 
-impl MappableTrait for AllTableSchemasSubscribe {    
-    fn get_name(&self) -> &str {
+impl MappableTrait for AllTableSchemasSubscribe {
+    fn get_static_name() -> &'static str {
         "AllSchema"
+    }
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }
 

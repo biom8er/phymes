@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::{array::RecordBatch, datatypes::{DataType, Field, Schema}};
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    metrics::{ArrowTaskMetricsSet, HashMap, HashSet}, session::runtime_env::RuntimeEnvTrait, table::{
-        arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe, AnyTableSchemaSubscribe, ArrowTableSubscribe, SubscribeTrait},
+    metrics::{ArrowTaskMetricsSet, HashMap, HashSet}, 
+    table::{
+        arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish,
+        arrow_table_subscribe::ArrowTableSubscribe,
     }, task::{
-        arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
+        arrow_processor::ArrowProcessorTrait,
         arrow_task::{ArrowTask, ArrowTaskBuilderTrait},
     }
 };
@@ -34,6 +34,33 @@ pub struct TaskPlan {
     //   The name of the queue group the task belongs to
     //   subscriptions are randomly assigned to a task in the queue group
     //   pub queue_gorup_name
+}
+
+/// The builder for the `TaskPlan`
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct TaskPlanBuilder {
+    pub task_name: Option<String>,
+    pub runtime_env_name: Option<String>,
+    pub processor_names: Option<Vec<String>>,
+}
+
+impl TaskPlanBuilder {
+    pub fn build(mut self) -> Result<TaskPlan> {
+        if self.task_name.is_none() {
+            return Err(anyhow!("Missing task name"));
+        } else if self.runtime_env_name.as_ref().is_none() {
+            return Err(anyhow!("Missing runtime_env_name for task {}", self.task_name.as_ref().unwrap()));
+        } else if self.processor_names.as_ref().is_none() {
+            return Err(anyhow!("Missing processor_names for task {}", self.task_name.as_ref().unwrap()));
+        }
+
+        let task_plan = TaskPlan {
+            task_name: self.task_name.take().unwrap(),
+            runtime_env_name: self.runtime_env_name.take().unwrap(),
+            processor_names: self.processor_names.take().unwrap(),
+        };
+        Ok(task_plan)
+    }
 }
 pub trait SessionContextBuilderTrait: BuilderTrait {
     fn with_processors(self, processors: Vec<Arc<dyn ArrowProcessorTrait>>) -> Self;

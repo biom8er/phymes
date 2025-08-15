@@ -103,6 +103,10 @@ impl ArrowProcessorTrait for ArrowAggregatorProcessor {
         &self.subscribe
     }
 
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
+    }
+
     fn process(
         &self,
         message: OutgoingMessageMap,

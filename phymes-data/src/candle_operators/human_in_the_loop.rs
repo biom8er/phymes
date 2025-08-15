@@ -11,7 +11,7 @@ use phymes_core::{
         message_history::{create_messages_record_batch, create_timestamp_micros},
         types,
     },
-    session::common_traits::{BuildableTrait, BuilderTrait},
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
 use std::collections::HashMap;
@@ -20,10 +20,13 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct HumanInTheLoop;
 
-impl DataOperatorTrait for HumanInTheLoop {
-    fn get_static_name() -> &'static str {
-        "human-in-the-loop"
+impl MappableTrait for HumanInTheLoop {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
+}
+
+impl DataOperatorTrait for HumanInTheLoop {
     fn new(
         _lhs_pk: &str,
         _lhs_fk: &str,
@@ -49,7 +52,7 @@ impl DataOperatorTrait for HumanInTheLoop {
             }),
         );
         let function = types::Function {
-            name: Self::get_name(),
+            name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,

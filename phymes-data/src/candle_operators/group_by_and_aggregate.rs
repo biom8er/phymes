@@ -12,7 +12,7 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
-use phymes_core::schemas::{chat_completion, types};
+use phymes_core::{schemas::{chat_completion, types}, session::common_traits::MappableTrait};
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
@@ -34,10 +34,13 @@ pub struct GroupByAndAggregate {
     agg_operators: Vec<DataAggregatorOperator>,
 }
 
-impl DataOperatorTrait for GroupByAndAggregate {
-    fn get_static_name() -> &'static str {
-        "group-by-and-aggregate"
+impl MappableTrait for GroupByAndAggregate {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
+}
+
+impl DataOperatorTrait for GroupByAndAggregate {
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
@@ -140,7 +143,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
             }),
         );
         let function = types::Function {
-            name: Self::get_name(),
+            name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,

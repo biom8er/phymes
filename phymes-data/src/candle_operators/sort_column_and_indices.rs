@@ -9,7 +9,7 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
-use phymes_core::schemas::{chat_completion, types};
+use phymes_core::{schemas::{chat_completion, types}, session::common_traits::MappableTrait};
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
@@ -26,10 +26,13 @@ pub struct SortColumnAndIndices {
     asc: bool,
 }
 
-impl DataOperatorTrait for SortColumnAndIndices {
-    fn get_static_name() -> &'static str {
-        "sort-column-and-indices"
+impl MappableTrait for SortColumnAndIndices {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
+}
+
+impl DataOperatorTrait for SortColumnAndIndices {
     fn new(
         _lhs_pk: &str,
         _lhs_fk: &str,
@@ -137,7 +140,7 @@ impl DataOperatorTrait for SortColumnAndIndices {
         //     }),
         // );
         let function = types::Function {
-            name: Self::get_name(),
+            name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,

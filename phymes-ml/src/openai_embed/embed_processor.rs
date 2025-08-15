@@ -102,6 +102,10 @@ impl ArrowProcessorTrait for OpenAIEmbedProcessor {
         &self.subscribe
     }
 
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
+    }
+
     fn process(
         &self,
         mut message: OutgoingMessageMap,

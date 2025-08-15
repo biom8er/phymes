@@ -125,6 +125,10 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
         &self.subscribe
     }
 
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
+    }
+
     #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
