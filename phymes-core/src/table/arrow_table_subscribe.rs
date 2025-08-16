@@ -37,6 +37,16 @@ impl ArrowTableSubscribe {
             Self::Custom(_name) => "",
         }
     }
+    fn get_full_name(&self) -> String {        
+        match self {
+            Self::OnUpdateFullTable { table_name: tn } => format!("OnUpdateFullTable-{tn}"),
+            Self::OnUpdateLastRecordBatch { table_name: tn } => format!("OnUpdateLastRecordBatch-{tn}"),
+            Self::AlwaysFullTable { table_name: tn } => format!("AlwaysFullTable-{tn}"),
+            Self::AlwaysLastRecordBatch { table_name: tn } => format!("AlwaysLastRecordBatch-{tn}"),
+            Self::None => "None".to_string(),
+            Self::Custom(name) => name.to_string(),
+        }
+    }
 
     pub fn is_update(&self) -> bool {
         match self {
