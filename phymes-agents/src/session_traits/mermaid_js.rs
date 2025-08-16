@@ -13,6 +13,91 @@ use phymes_ml::{candle_chat::{chat_processor::CandleChatProcessor, message_aggre
 use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_embed::embed_processor::OpenAIEmbedProcessor};
 use crate::session_plans::available_processors::AvailableProcessors;
 
+/// Helper function to convert an arrow [DataType] to a [String]
+pub fn from_data_type_to_str(data_type: &DataType) -> String {
+    match field.data_type() {
+        DataType::FixedSizeList(f, s) => {
+            format!("FixedSizeList-{}-{}", f.data_type(), s)
+        }
+        DataType::List(f) => {
+            format!("List-{}", f.data_type())
+        }
+        _ => {
+            field.data_type()
+        }
+    }
+}
+
+/// Helper function to convert a [String] to an arrow [DataType]
+pub fn from_str_to_data_type(data_type: &str) -> Result<DataType> {
+    let data_type = if *data_type == &DataType::UInt8.to_string() {
+        DataType::UInt8
+    } else if *data_type == &DataType::UInt16.to_string() {
+        DataType::UInt16
+    } else if *data_type == &DataType::UInt32.to_string() {
+        DataType::UInt32
+    } else if *data_type == &DataType::Int64.to_string() {
+        DataType::Int64
+    } else if *data_type == &DataType::Float32.to_string() {
+        DataType::Float32
+    } else if *data_type == &DataType::Float64.to_string() {
+        DataType::Float64
+    } else if *data_type == &DataType::Utf8.to_string() {
+        DataType::Utf8
+    } else if data_type.contains("FixedSizeList-UInt8-") {
+        let size = data_type.split("FixedSizeList-UInt8-").last().unwrap().trim().parse::<i32>().unwrap();                       
+        DataType::FixedSizeList(
+            Arc::new(Field::new_list_field(DataType::UInt8, false)),
+            size,
+        )
+    } else if data_type.contains("FixedSizeList-UInt32-") {
+        let size = data_type.split("FixedSizeList-UInt32-").last().unwrap().trim().parse::<i32>().unwrap();                       
+         DataType::FixedSizeList(
+            Arc::new(Field::new_list_field(DataType::UInt32, false)),
+            size,
+        )
+    } else if data_type.contains("FixedSizeList-Int64-") {
+        let size = data_type.split("FixedSizeList-Int64-").last().unwrap().trim().parse::<i32>().unwrap();                       
+        DataType::FixedSizeList(
+            Arc::new(Field::new_list_field(DataType::Int64, false)),
+            size,
+        )
+    } else if data_type.contains("FixedSizeList-Float32-") {
+        let size = data_type.split("FixedSizeList-Float32-").last().unwrap().trim().parse::<i32>().unwrap();                       
+        DataType::FixedSizeList(
+            Arc::new(Field::new_list_field(DataType::Float32, false)),
+            size,
+        )
+    } else if data_type.contains("FixedSizeList-Float64-") {
+        let size = data_type.split("FixedSizeList-Float64-").last().unwrap().trim().parse::<i32>().unwrap();                       
+        DataType::FixedSizeList(
+            Arc::new(Field::new_list_field(DataType::Float64, false)),
+            size,
+        )
+    } else if data_type.contains("FixedSizeList-Utf8-") {
+        let size = data_type.split("FixedSizeList-Utf8-").last().unwrap().trim().parse::<i32>().unwrap();                       
+        DataType::FixedSizeList(
+            Arc::new(Field::new_list_field(DataType::Utf8, false)),
+            size,
+        )
+    } else if data_type.contains("List-UInt8") {                      
+        DataType::List(Arc::new(Field::new_list_field(DataType::UInt8, false)))
+    } else if data_type.contains("List-UInt32") {                     
+        DataType::List(Arc::new(Field::new_list_field(DataType::UInt32, false)))
+    } else if data_type.contains("List-Int64") {                      
+        DataType::List(Arc::new(Field::new_list_field(DataType::Int64, false)))
+    } else if data_type.contains("List-Float32") {                      
+        DataType::List(Arc::new(Field::new_list_field(DataType::Float32, false)))
+    } else if data_type.contains("List-Float64") {                      
+        DataType::List(Arc::new(Field::new_list_field(DataType::Float64, false)))
+    } else if data_type.contains("List-Utf8") {                       
+        DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)))
+    } else {
+        return Err(anyhow!("Unrecognized data type {data_type}"));
+    };
+    Ok(data_type)
+}
+
 pub trait SessionContextBuilderMermaidTrait {
     /// Make a mermaid.js flowchart of the session
     fn to_mermaid_flowchart(&self) -> Result<String>;
@@ -128,17 +213,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         for subject in sorted_map {
             subjects.push(format!("\t{}{{", subject.get_name()));
             for field in subject.get_schema().fields().iter() {
-                match field.data_type() {
-                    DataType::FixedSizeList(f, s) => {
-                        subjects.push(format!("\t\tFixedSizeList-{}-{}\t{}", f.data_type(), s, field.name()));
-                    }
-                    DataType::List(f) => {
-                        subjects.push(format!("\t\tList-{}\t{}", f.data_type(), field.name()));
-                    }
-                    _ => {
-                        subjects.push(format!("\t\t{}\t{}", field.data_type(), field.name()));
-                    }
-                }
+                let data_type = from_data_type_to_str(&field.data_type());
+                subjects.push(format!("\t\t{data_type}\t{}", field.name()));
             }
             subjects.push("\t}".to_string());
         }        
@@ -636,103 +712,12 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
                         // Match the DataType
                         let field_name = split_line.last().unwrap().to_string();
-                        let data_type = split_line.first().unwrap();
-                        if *data_type == &DataType::UInt8.to_string() {
-                            let field = Field::new(field_name, DataType::UInt8, false);
-                            fields.push(field);
-                        } else if *data_type == &DataType::UInt16.to_string() {
-                            let field = Field::new(field_name, DataType::UInt16, false);
-                            fields.push(field);
-                        } else if *data_type == &DataType::UInt32.to_string() {
-                            let field = Field::new(field_name, DataType::UInt32, false);
-                            fields.push(field);
-                        } else if *data_type == &DataType::Int64.to_string() {
-                            let field = Field::new(field_name, DataType::Int64, false);
-                            fields.push(field);
-                        } else if *data_type == &DataType::Float32.to_string() {
-                            let field = Field::new(field_name, DataType::Float32, false);
-                            fields.push(field);
-                        } else if *data_type == &DataType::Float64.to_string() {
-                            let field = Field::new(field_name, DataType::Float64, false);
-                            fields.push(field);
-                        } else if *data_type == &DataType::Utf8.to_string() {
-                            let field = Field::new(field_name, DataType::Utf8, false);
-                            fields.push(field);
-                        } else if data_type.contains("FixedSizeList-UInt8-") {
-                            let size = data_type.split("FixedSizeList-UInt8-").last().unwrap().trim().parse::<i32>().unwrap();                       
-                            let list_data_type = DataType::FixedSizeList(
-                                Arc::new(Field::new_list_field(DataType::UInt8, false)),
-                                size,
-                            );
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("FixedSizeList-UInt32-") {
-                            let size = data_type.split("FixedSizeList-UInt32-").last().unwrap().trim().parse::<i32>().unwrap();                       
-                            let list_data_type = DataType::FixedSizeList(
-                                Arc::new(Field::new_list_field(DataType::UInt32, false)),
-                                size,
-                            );
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("FixedSizeList-Int64-") {
-                            let size = data_type.split("FixedSizeList-Int64-").last().unwrap().trim().parse::<i32>().unwrap();                       
-                            let list_data_type = DataType::FixedSizeList(
-                                Arc::new(Field::new_list_field(DataType::Int64, false)),
-                                size,
-                            );
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("FixedSizeList-Float32-") {
-                            let size = data_type.split("FixedSizeList-Float32-").last().unwrap().trim().parse::<i32>().unwrap();                       
-                            let list_data_type = DataType::FixedSizeList(
-                                Arc::new(Field::new_list_field(DataType::Float32, false)),
-                                size,
-                            );
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("FixedSizeList-Float64-") {
-                            let size = data_type.split("FixedSizeList-Float64-").last().unwrap().trim().parse::<i32>().unwrap();                       
-                            let list_data_type = DataType::FixedSizeList(
-                                Arc::new(Field::new_list_field(DataType::Float64, false)),
-                                size,
-                            );
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("FixedSizeList-Utf8-") {
-                            let size = data_type.split("FixedSizeList-Utf8-").last().unwrap().trim().parse::<i32>().unwrap();                       
-                            let list_data_type = DataType::FixedSizeList(
-                                Arc::new(Field::new_list_field(DataType::Utf8, false)),
-                                size,
-                            );
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("List-UInt8") {                      
-                            let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::UInt8, false)));
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("List-UInt32") {                     
-                            let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::UInt32, false)));
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("List-Int64") {                      
-                            let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Int64, false)));
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("List-Float32") {                      
-                            let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Float32, false)));
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("List-Float64") {                      
-                            let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Float64, false)));
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else if data_type.contains("List-Utf8") {                       
-                            let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
-                            let field = Field::new(field_name, list_data_type, false);
-                            fields.push(field);
-                        } else {
-                            return Err(anyhow!("Parsing Error on line {iter}: {}. Unrecognized data type {data_type} in subject {subject_name} for field {field_name}. Supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, FixedSizeList, and List, ", erdiagram_lines.get(iter).unwrap()));
-                        }
+                        let data_type = match from_str_to_data_type(split_line.first().unwrap()) {
+                            Ok(data_type) => data_type,
+                            Err(_e) => return Err(anyhow!("Parsing Error on line {iter}: {}. Unrecognized data type {} in subject {subject_name} for field {field_name}. Supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, FixedSizeList, and List, ", erdiagram_lines.get(iter).unwrap(), split_line.first().unwrap())),
+                        };
+                        let field = Field::new(field_name, data_type, false);
+                        fields.push(field);
                     }
                     
                     iter += 1; 

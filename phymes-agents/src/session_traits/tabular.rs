@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
-use phymes_core::{session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait}}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
+use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt32Array}, datatypes::{DataType, Field, Schema}};
+use phymes_core::{metrics::HashSet, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder}}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
 
-use crate::session_traits::mermaid_js::SessionContextBuilderMermaidTrait;
+use crate::session_traits::mermaid_js::{from_data_type_to_str, from_str_to_data_type, SessionContextBuilderMermaidTrait};
 
 /// Reserved table names for the [SessionContext]
 pub enum SessionContextTableNames {
@@ -115,7 +115,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // extract the schema
         let mut state = Vec::new();
         for table in tables.into_iter() {
-            if table.get_name() == SessionContextTableNames::Subjects.get_name() & make_subjects {
+            if table.get_name() == SessionContextTableNames::Subjects.get_name() && make_subjects {
                 builder = builder.with_subjects_as_tables(table)?;
             } else if table.get_name() == SessionContextTableNames::Tasks.get_name() {
                 builder = builder.with_tasks_as_tables(table)?;
@@ -129,7 +129,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // assume the rest is state
-        if !state.is_empty() & !make_subjects {
+        if !state.is_empty() && !make_subjects {
             Ok(builder.with_state(state))
         } else {
             Ok(builder)
@@ -151,10 +151,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         sorted_state.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         for subject in sorted_state.iter() {
             let fields = subject.get_schema().fields().clone();
-            for field in fields.iter() {
+            for field in fields.iter() {                
+                let type_name = from_data_type_to_str(&field.data_type());
                 subject_names.push(subject.get_name().to_string());
                 cols_names.push(field.name().to_string());
-                type_names.push(field.data_type().to_string());
+                type_names.push(type_name);
             }
         }
 
@@ -324,18 +325,76 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
     }
 
     fn with_subjects_as_tables(self, subjects: ArrowTable) -> Result<Self> where Self: Sized {
-        todo!()
+        // extract arrays
+        let subjects_vec_str = subjects.get_column_as_vec_str("subject_name");
+        let columns_vec_str = subjects.get_column_as_vec_str("column_name");
+        let types_vec_str = subjects.get_column_as_vec_str("type_name");
+
+        // get unique subjects
+        let subjects_unique = subjects_vec_str.iter().collect::<HashSet<_>>();
+        let combined = subjects_vec_str.iter()
+            .zip(columns_vec_str.iter())
+            .zip(types_vec_str.iter())
+            .map(|((x, y), z)| (x, y, z))
+            .collect::<Vec<_>>();
+        
+        // build the state tables
+        let mut state = Vec::new();
+        for subject in subjects_unique {
+            let mut fields = Vec::new();
+            for (s, c, t) in combined.iter() {
+                if s == &subject {
+                    let data_type = from_str_to_data_type(t)?;
+                    fields.push(Field::new(**c, data_type, false));
+                }
+            }
+            let batch = RecordBatch::new_empty(Arc::new(Schema::new(fields)));
+            let table = ArrowTable::get_builder().with_record_batches(vec![batch])?.with_name(&subject).build()?;
+            state.push(table);
+        }
+
+        Ok(self.with_state(state))
     }
 
     fn with_tasks_as_tables(self, subjects: ArrowTable) -> Result<Self> where Self: Sized {
-        todo!()
+        // extract arrays
+        let tasks_vec_str = subjects.get_column_as_vec_str("task_name");
+        let processors_vec_str = subjects.get_column_as_vec_str("processor_name");
+        let runtime_envs_vec_str = subjects.get_column_as_vec_str("runtime_env_name");
+
+        // get unique subjects
+        let tasks_unique = tasks_vec_str.iter().collect::<HashSet<_>>();
+        let combined = tasks_vec_str.iter()
+            .zip(processors_vec_str.iter())
+            .zip(runtime_envs_vec_str.iter())
+            .map(|((x, y), z)| (x, y, z))
+            .collect::<Vec<_>>();
+        
+        // build the task plans
+        let mut tasks = Vec::new();
+        for task in tasks_unique {
+            let mut builder = TaskPlanBuilder::default();
+            builder.task_name.replace(task.to_string());
+            builder.processor_names.replace(Vec::new());
+            for (t, p, r) in combined.iter() {
+                if t == &task {
+                    builder.processor_names.as_mut().unwrap().push(p.to_string());
+                    builder.runtime_env_name.replace(r.to_string());
+                }
+            }
+            tasks.push(builder.build()?);
+        }
+
+        Ok(self.with_tasks(tasks))
     }
 
     fn with_processors_as_tables(self, subjects: ArrowTable) -> Result<Self> where Self: Sized {
+        let _ = subjects;
         todo!()
     }
 
     fn with_runtime_envs_as_tables(self, subjects: ArrowTable) -> Result<Self> where Self: Sized {
+        let _ = subjects;
         todo!()
     }
 }
