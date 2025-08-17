@@ -5,12 +5,13 @@ use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
-    session::{common_traits::MappableTrait, session_context::{SessionStream, SessionStreamState}},
+    session::{common_traits::MappableTrait, session_context::{SessionStream, SessionStreamState}, session_context_builder::SessionContextBuilderTrait},
 };
 use serde::{Deserialize, Serialize};
 
+use crate::session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
+
 use super::{
-    agent_session_builder::AgentSessionBuilderTrait,
     chat_agent_session::{ChatAgentSession, test_chat_agent_session::bench_chat_agent_session_2},
     document_rag_session::{DocumentRAGSession, test_doc_rag_session::bench_doc_rag_session_query},
     tool_agent_session::{ToolAgentSession, test_tool_agent_session::bench_tool_agent_session},
@@ -56,17 +57,17 @@ impl AvailableSessionPlans {
         match self {
             Self::Chat => {
                 let session = ChatAgentSession::new_with_session_name(session_name);
-                let session_ctx = session.build(metrics).unwrap();
+                let session_ctx = session.build().with_metrics(metrics.clone()).build_with_tables().unwrap();
                 Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
             }
             Self::DocChat => {
                 let session = DocumentRAGSession::new_with_session_name(session_name);
-                let session_ctx = session.build(metrics.clone()).unwrap();
+                let session_ctx = session.build().with_metrics(metrics.clone()).build_with_tables().unwrap();
                 Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
             }
             Self::ToolChat => {
                 let session = ToolAgentSession::new_with_session_name(session_name);
-                let session_ctx = session.build(metrics.clone()).unwrap();
+                let session_ctx = session.build().with_metrics(metrics.clone()).build_with_tables().unwrap();
                 Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
             }
         }

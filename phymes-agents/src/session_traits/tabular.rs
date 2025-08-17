@@ -30,6 +30,7 @@ impl MappableTrait for SessionContextTableNames {
     }
 }
 
+/// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
 pub trait SessionContextBuilderTabularTrait {
     /// Convert the session into tables
     /// 
@@ -495,6 +496,9 @@ mod tests {
     use phymes_core::{session::session_context_builder::test_session_context_builder::make_test_session_builder_parallel_task, task::arrow_task::test_task::{make_runtime_env, make_state_tables}};
 
     use super::*;
+
+    // DM: need to check for table values in the first test section
+    // DM: need to test with state
     #[test]
     fn test_to_from_arrow_tables() -> Result<()> {
         // Init runtime env
@@ -531,8 +535,8 @@ mod tests {
         // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("subscribe_type"), [""]);
         assert_eq!(tables.get(3).unwrap().get_name(), SessionContextTableNames::RuntimeEnvironments.get_name());
         // assert_eq!(tables.get(3).unwrap().get_column_as_vec_str("runtime_env_name"), [""]);
-        // assert_eq!(tables.get(3).unwrap().get_column_as_vec_str("memory_limit"), [""]);
-        // assert_eq!(tables.get(3).unwrap().get_column_as_vec_str("time_limit"), [""]);
+        // assert_eq!(tables.get(3).unwrap().get_column_as_vec_primitive::<u32>("memory_limit")?, [""]);
+        // assert_eq!(tables.get(3).unwrap().get_column_as_vec_primitive::<u32>("time_limit")?, [""]);
         assert_eq!(tables.get(4).unwrap().get_name(), SessionContextTableNames::MermaidJS.get_name());
         // assert_eq!(tables.get(4).unwrap().get_column_as_vec_str("mermaid_js_flowchart"), [""]);
         // assert_eq!(tables.get(4).unwrap().get_column_as_vec_str("mermaid_js_erdiagram"), [""]);

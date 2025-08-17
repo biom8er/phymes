@@ -1,15 +1,13 @@
 use anyhow::Result;
 use std::sync::Arc;
 
-use super::agent_session_builder::AgentSessionBuilderTrait;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap},
+    metrics::HashMap,
     schemas::message_history::create_messages_schema,
     session::{
         common_traits::{BuilderTrait, MappableTrait, StateMap},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context::SessionContext,
-        session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
+        session_context_builder::TaskPlan,
     },
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
@@ -45,6 +43,8 @@ use arrow::{
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
+
+use crate::session_traits::agents::CustomAgentsBuilderTrait;
 
 /// Custom subscription to pull in all of the relevant content for the chat
 #[derive(Default, Debug)]
@@ -237,9 +237,9 @@ impl<'a> ToolAgentSession<'a> {
     }
 }
 
-impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
-    fn make_task_plans(&self) -> Vec<TaskPlan> {
-        vec![
+impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
+    fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
+        Some(vec![
             // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
             //  when chained or nested within other streams
             // DM: another tool agent session publish/subscribe network needs to be
@@ -286,10 +286,10 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
                 runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![self.session_context_name.to_string()],
             },
-        ]
+        ])
     }
 
-    fn make_processors(&self) -> Vec<Arc<dyn ArrowProcessorTrait>> {
+    fn make_processors(&self) -> Option<Vec<Arc<dyn ArrowProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
@@ -456,11 +456,11 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             }],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors
+        Some(processors)
     }
 
-    fn make_runtime_envs(&self) -> Result<Vec<RuntimeEnv>> {
-        Ok(vec![
+    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
+        Some(vec![
             RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
             RuntimeEnv::new().with_name(self.chat_runtime_env_name),
             RuntimeEnv::new().with_name(self.tool_runtime_env_name),
@@ -468,7 +468,7 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
         ])
     }
 
-    fn make_state_tables(&self) -> Result<Vec<ArrowTable>> {
+    fn make_state_tables(&self) -> Option<Vec<ArrowTable>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -524,15 +524,15 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             candle_chat_config.api_url = self.chat_api_url.map(|s| s.to_string());
         }
 
-        let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;
+        let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
         let candle_chat_state = ArrowTableBuilder::new()
             .with_name(self.chat_processor_name)
-            .with_json(&candle_chat_config_json.clone(), 1)?
-            .build()?;
+            .with_json(&candle_chat_config_json.clone(), 1).unwrap()
+            .build().unwrap();
         let candle_message_parser_state = ArrowTableBuilder::new()
             .with_name(self.message_parser_processor_name)
-            .with_json(&candle_chat_config_json, 1)?
-            .build()?;
+            .with_json(&candle_chat_config_json, 1).unwrap()
+            .build().unwrap();
 
         // Message aggregator config
         let aggregator_config = DataConfig {
@@ -544,60 +544,48 @@ impl AgentSessionBuilderTrait for ToolAgentSession<'_> {
             which: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
-        let aggregator_config_json = serde_json::to_vec(&aggregator_config)?;
+        let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
         let aggregator_1_state = ArrowTableBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
-            .with_json(&aggregator_config_json.clone(), 1)?
-            .build()?;
+            .with_json(&aggregator_config_json.clone(), 1).unwrap()
+            .build().unwrap();
         let aggregator_2_state = ArrowTableBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
-            .with_json(&aggregator_config_json, 1)?
-            .build()?;
+            .with_json(&aggregator_config_json, 1).unwrap()
+            .build().unwrap();
 
         // Summary config
         let summary_config = DataSummaryConfig {
             ..Default::default()
         };
-        let summary_config_json = serde_json::to_vec(&summary_config)?;
+        let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
         let summary_state_1 = ArrowTableBuilder::new()
             .with_name(self.summary_processor_1_name)
-            .with_json(&summary_config_json.clone(), 1)?
-            .build()?;
+            .with_json(&summary_config_json.clone(), 1).unwrap()
+            .build().unwrap();
         let summary_state_2 = ArrowTableBuilder::new()
             .with_name(self.summary_processor_2_name)
-            .with_json(&summary_config_json, 1)?
-            .build()?;
+            .with_json(&summary_config_json, 1).unwrap()
+            .build().unwrap();
 
-        Ok(vec![
+        Some(vec![
             candle_chat_state,
             candle_message_parser_state,
             aggregator_1_state,
             aggregator_2_state,
             summary_state_1,
             summary_state_2,
-            self.make_scores_table()?,
-            self.make_messages_table()?,
-            self.make_user_messages_table()?,
-            self.make_assistant_messages_table()?,
-            self.make_tool_messages_table()?,
-            self.make_chat_table()?,
-            self.make_message_parser_table()?,
-            self.make_tools_table()?,
-            self.make_tool_config_table()?,
-            self.make_hitl_config_table()?,
+            self.make_scores_table().unwrap(),
+            self.make_messages_table().unwrap(),
+            self.make_user_messages_table().unwrap(),
+            self.make_assistant_messages_table().unwrap(),
+            self.make_tool_messages_table().unwrap(),
+            self.make_chat_table().unwrap(),
+            self.make_message_parser_table().unwrap(),
+            self.make_tools_table().unwrap(),
+            self.make_tool_config_table().unwrap(),
+            self.make_hitl_config_table().unwrap(),
         ])
-    }
-
-    fn build(&self, metrics: ArrowTaskMetricsSet) -> Result<SessionContext> {
-        SessionContextBuilder::new()
-            .with_name(self.session_context_name)
-            .with_tasks(self.make_task_plans())
-            .with_metrics(metrics)
-            .with_runtime_envs(self.make_runtime_envs()?)
-            .with_state(self.make_state_tables()?)
-            .with_processors(self.make_processors())
-            .with_max_iter(25)
-            .build()
     }
 }
 
@@ -654,11 +642,13 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::HashMap,
-        session::session_context::SessionStreamState,
+        metrics::{ArrowTaskMetricsSet, HashMap},
+        session::{session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
         table::arrow_table::ArrowTableTrait,
         task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
+
+    use crate::session_traits::agents::SessionContextBuilderAgentsTrait;
 
     use super::*;
     use test_tool_agent_session::bench_tool_agent_session;
@@ -670,7 +660,7 @@ mod tests {
 
         // initialize the session
         let tool_agent_session = ToolAgentSession::default();
-        let session_ctx = tool_agent_session.build(metrics.clone())?;
+        let session_ctx = tool_agent_session.build().with_metrics(metrics.clone()).build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Make the user query

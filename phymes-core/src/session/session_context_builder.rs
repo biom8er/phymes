@@ -5,8 +5,7 @@ use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    metrics::{ArrowTaskMetricsSet, HashMap, HashSet}, 
-    table::{
+    metrics::{ArrowTaskMetricsSet, HashMap, HashSet}, session::common_traits::{StateMap, TaskMap}, table::{
         arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::ArrowTableSubscribe,
     }, task::{
@@ -192,26 +191,9 @@ impl SessionContextBuilder {
             })
             .collect::<Vec<_>>()
     }
-}
 
-impl BuilderTrait for SessionContextBuilder {
-    type T = SessionContext;
-    fn new() -> Self {
-        Self {
-            name: None,
-            processors: None,
-            state: None,
-            metrics: None,
-            runtime_envs: None,
-            tasks: None,
-            max_iter: None,
-        }
-    }
-    fn with_name(mut self, name: &str) -> Self {
-        self.name = Some(name.to_string());
-        self
-    }
-    fn build(mut self) -> Result<Self::T> {
+    /// Build the [SessionContext] members
+    pub fn build_inner(mut self) -> Result<(String, TaskMap, StateMap, ArrowTaskMetricsSet, HashMap<String, Arc<Mutex<RuntimeEnv>>>, usize)> {
         if self.tasks.is_none() {
             return Err(anyhow!(
                 "Please add a plan before attempting to build the session."
@@ -349,15 +331,44 @@ impl BuilderTrait for SessionContextBuilder {
                 (t.task_name.to_owned(), Arc::new(task))
             })
             .collect::<HashMap<_, _>>();
+        
+        let name = self.name.unwrap_or_default();
+        let max_iter = self.max_iter.unwrap_or(25);
+        Ok((name, task_map, state_map, metrics, runtime_env_map, max_iter))
+    }
+}
+
+impl BuilderTrait for SessionContextBuilder {
+    type T = SessionContext;
+    fn new() -> Self {
+        Self {
+            name: None,
+            processors: None,
+            state: None,
+            metrics: None,
+            runtime_envs: None,
+            tasks: None,
+            max_iter: None,
+        }
+    }
+
+    fn with_name(mut self, name: &str) -> Self {
+        self.name = Some(name.to_string());
+        self
+    }
+
+    fn build(self) -> Result<Self::T> {
+        // build the tasks, state, metrics, and runtime objects
+        let (name, tasks, state, metrics, runtime_envs, max_iter) = self.build_inner()?;
 
         // ready to build the session
         Ok(Self::T {
-            name: self.name.unwrap_or_default(),
-            tasks: task_map,
-            state: state_map,
+            name,
+            tasks,
+            state,
             metrics,
-            runtime_envs: runtime_env_map,
-            max_iter: self.max_iter.unwrap_or(25),
+            runtime_envs,
+            max_iter,
         })
     }
 }

@@ -207,6 +207,10 @@ pub struct SessionContext {
 }
 
 impl SessionContext {
+    pub fn new(name: String, tasks: TaskMap, state: StateMap, metrics: ArrowTaskMetricsSet, runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>, max_iter: usize) -> SessionContext {
+        Self {name, tasks, state, metrics, runtime_envs, max_iter}
+    }
+
     /// Get a task
     pub(crate) fn get_tasks(&self) -> &TaskMap {
         &self.tasks

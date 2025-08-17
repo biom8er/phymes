@@ -38,6 +38,8 @@ impl ArrowTableSubscribe {
             Self::Custom(_name) => "",
         }
     }
+
+    #[allow(dead_code)]
     fn get_full_name(&self) -> String {        
         match self {
             Self::OnUpdateFullTable { table_name: tn } => format!("OnUpdateFullTable-{tn}"),

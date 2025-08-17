@@ -9,16 +9,12 @@ use futures::TryStreamExt;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-use phymes_agents::session_plans::{
-    agent_session_builder::AgentSessionBuilderTrait,
-    chat_agent_session::{
-        ChatAgentSession,
-        test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2},
-    },
-};
+use phymes_agents::{session_plans::chat_agent_session::{
+        test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2}, ChatAgentSession
+    }, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap},
-    session::session_context::SessionStreamState,
+    session::{session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
     table::arrow_table::ArrowTableTrait,
     task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
 };
@@ -36,7 +32,7 @@ pub async fn run_main() -> Result<()> {
         chat_subscription_name: "messages",
         chat_api_url: Some("http://0.0.0.0:8000/v1"),
     };
-    let session_ctx = chat_agent_session.build(metrics.clone())?;
+    let session_ctx = chat_agent_session.build().with_metrics(metrics.clone()).build_with_tables()?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // ----- Query #1 -----

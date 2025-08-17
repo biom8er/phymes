@@ -98,6 +98,7 @@ pub fn from_str_to_data_type(data_type: &str) -> Result<DataType> {
     Ok(data_type)
 }
 
+/// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from mermaid.js
 pub trait SessionContextBuilderMermaidTrait {
     /// Make a mermaid.js flowchart of the session
     fn to_mermaid_flowchart(&self) -> Result<String>;

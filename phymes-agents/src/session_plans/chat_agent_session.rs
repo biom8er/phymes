@@ -1,15 +1,11 @@
-use anyhow::Result;
 use std::sync::Arc;
 
-use super::agent_session_builder::AgentSessionBuilderTrait;
 use phymes_core::{
-    metrics::ArrowTaskMetricsSet,
     schemas::message_history::create_messages_schema,
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context::SessionContext,
-        session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
+        session_context_builder::TaskPlan,
     },
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
@@ -26,6 +22,8 @@ use phymes_ml::{
 use phymes_ml::{
     openai_asset::available_openai_assets::AvailableOpenAIAssets, openai_chat::chat_processor::OpenAIChatProcessor,
 };
+
+use crate::session_traits::agents::CustomAgentsBuilderTrait;
 
 pub struct ChatAgentSession<'a> {
     pub chat_task_name: &'a str,
@@ -58,9 +56,9 @@ impl<'a> ChatAgentSession<'a> {
     }
 }
 
-impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
-    fn make_task_plans(&self) -> Vec<TaskPlan> {
-        vec![
+impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
+    fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
+        Some(vec![
             TaskPlan {
                 task_name: self.chat_task_name.to_string(),
                 runtime_env_name: self.runtime_env_name.to_string(),
@@ -71,10 +69,10 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                 runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![self.session_context_name.to_string()],
             },
-        ]
+        ])
     }
 
-    fn make_processors(&self) -> Vec<Arc<dyn ArrowProcessorTrait>> {
+    fn make_processors(&self) -> Option<Vec<Arc<dyn ArrowProcessorTrait>>> {
         let mut processors = Vec::new();
         // The order is the order in which the processors are called in the task
         if cfg!(not(feature = "candle")) {
@@ -125,17 +123,17 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
             }],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors
+        Some(processors)
     }
 
-    fn make_runtime_envs(&self) -> Result<Vec<RuntimeEnv>> {
-        Ok(vec![
+    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
+        Some(vec![
             RuntimeEnv::new().with_name(self.runtime_env_name),
             RuntimeEnv::new().with_name("rt_default"),
         ])
     }
 
-    fn make_state_tables(&self) -> Result<Vec<ArrowTable>> {
+    fn make_state_tables(&self) -> Option<Vec<ArrowTable>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -187,29 +185,18 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
             candle_chat_config.tokenizer_config_file = None;
             candle_chat_config.api_url = self.chat_api_url.map(|s| s.to_string());
         }
-        let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;
+        let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
         let config = ArrowTableBuilder::new()
             .with_name(self.chat_processor_name)
-            .with_json(&candle_chat_config_json, 1)?
-            .build()?;
+            .with_json(&candle_chat_config_json, 1).unwrap()
+            .build().unwrap();
 
         let messages = ArrowTableBuilder::new()
             .with_name(self.chat_subscription_name)
             .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()?;
-        Ok(vec![config, messages])
-    }
-
-    fn build(&self, metrics: ArrowTaskMetricsSet) -> Result<SessionContext> {
-        SessionContextBuilder::new()
-            .with_name(self.session_context_name)
-            .with_tasks(self.make_task_plans())
-            .with_metrics(metrics)
-            .with_runtime_envs(self.make_runtime_envs()?)
-            .with_state(self.make_state_tables()?)
-            .with_processors(self.make_processors())
-            .build()
+            .with_record_batches(Vec::new()).unwrap()
+            .build().unwrap();
+        Some(vec![config, messages])
     }
 }
 
@@ -297,14 +284,17 @@ pub mod test_chat_agent_session {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::HashMap,
-        session::session_context::SessionStreamState,
+        metrics::{ArrowTaskMetricsSet, HashMap},
+        session::{session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
         table::arrow_table::ArrowTableTrait,
         task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
+
+    use crate::session_traits::agents::SessionContextBuilderAgentsTrait;
 
     use super::*;
     use test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2};
@@ -316,7 +306,7 @@ mod tests {
 
         // initialize the session
         let chat_agent_session = ChatAgentSession::default();
-        let session_ctx = chat_agent_session.build(metrics.clone())?;
+        let session_ctx = chat_agent_session.build().with_metrics(metrics.clone()).build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Skip actually running the session as it takes too long on the CPU
