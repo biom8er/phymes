@@ -5,7 +5,7 @@ use arrow::{array::RecordBatch, datatypes::{DataType, Field, Schema}};
 use phymes_core::{
     metrics::{HashMap, HashSet}, 
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, runtime_env::{RuntimeEnv, RuntimeEnvTrait}, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder}},
-    table::{arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe, AnyTableSchemaSubscribe, ArrowTableSubscribe, SubscribeTrait}}, 
+    table::{arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{from_str_to_subscribe, ArrowTableSubscribe}}, 
     task::arrow_processor::{test_processor::ArrowProcessorMock, ArrowProcessorBuilder, ArrowProcessorEcho}};
 use phymes_data::candle_data::{data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor};
 use phymes_ml::{candle_chat::{chat_processor::CandleChatProcessor, message_aggregator_processor::MessageAggregatorProcessor, message_parser_processor::MessageParserProcessor}, candle_embed::embed_processor::CandleEmbedProcessor};
@@ -15,7 +15,7 @@ use crate::session_plans::available_processors::AvailableProcessors;
 
 /// Helper function to convert an arrow [DataType] to a [String]
 pub fn from_data_type_to_str(data_type: &DataType) -> String {
-    match field.data_type() {
+    match data_type {
         DataType::FixedSizeList(f, s) => {
             format!("FixedSizeList-{}-{}", f.data_type(), s)
         }
@@ -23,26 +23,26 @@ pub fn from_data_type_to_str(data_type: &DataType) -> String {
             format!("List-{}", f.data_type())
         }
         _ => {
-            field.data_type()
+            data_type.to_string()
         }
     }
 }
 
 /// Helper function to convert a [String] to an arrow [DataType]
 pub fn from_str_to_data_type(data_type: &str) -> Result<DataType> {
-    let data_type = if *data_type == &DataType::UInt8.to_string() {
+    let data_type = if data_type == &DataType::UInt8.to_string() {
         DataType::UInt8
-    } else if *data_type == &DataType::UInt16.to_string() {
+    } else if data_type == &DataType::UInt16.to_string() {
         DataType::UInt16
-    } else if *data_type == &DataType::UInt32.to_string() {
+    } else if data_type == &DataType::UInt32.to_string() {
         DataType::UInt32
-    } else if *data_type == &DataType::Int64.to_string() {
+    } else if data_type == &DataType::Int64.to_string() {
         DataType::Int64
-    } else if *data_type == &DataType::Float32.to_string() {
+    } else if data_type == &DataType::Float32.to_string() {
         DataType::Float32
-    } else if *data_type == &DataType::Float64.to_string() {
+    } else if data_type == &DataType::Float64.to_string() {
         DataType::Float64
-    } else if *data_type == &DataType::Utf8.to_string() {
+    } else if data_type == &DataType::Utf8.to_string() {
         DataType::Utf8
     } else if data_type.contains("FixedSizeList-UInt8-") {
         let size = data_type.split("FixedSizeList-UInt8-").last().unwrap().trim().parse::<i32>().unwrap();                       
@@ -269,21 +269,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 Ok(ArrowTablePublish::None {})
             } else {
                 Err(anyhow!("Parsing Error on line {iter}: {line}. Variant for ArrowTablePublish with subject {subject} for task {task} was not recognized."))
-            }
-        };
-        let subscribe_from_str = |line: &str, iter: usize, processor: &str| -> Result<Box<dyn SubscribeTrait>> {
-            if line.contains("All") {
-                Ok(AllTableNamesSubscribe::new_box())
-            } else if line.contains("Any") {
-                Ok(AnyTableNameSubscribe::new_box())
-            } else if line.contains("AllSchemas") {
-                Ok(AllTableSchemasSubscribe::new_box())
-            } else if line.contains("AnySchema") {
-                Ok(AnyTableSchemaSubscribe::new_box())
-            } else if line.contains("Always") {
-                Ok(AlwaysSubscribe::new_box())
-            } else {
-                Err(anyhow!("Parsing Error on line {iter}: {line}. Subscribe policy for processor {processor} was not recognized."))
             }
         };
         let processor_from_str = |line: &str, iter: usize, processor: &str| -> Result<String> {
@@ -575,7 +560,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 // Extract the processor name
                 let split_line = flowchart_lines.get(iter).unwrap().split("-subscribe@{shape: diamond, label:").collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
-                let subscribe = subscribe_from_str(split_line.last().unwrap(), iter, &processor_name)?;
+                let subscribe = match from_str_to_subscribe(split_line.last().unwrap()) {
+                    Ok(subscribe) => subscribe,
+                    Err(_e) => return Err(anyhow!("Parsing Error on line {iter}: {}. Subscribe policy for processor {processor_name} was not recognized.", split_line.last().unwrap())),
+                };
                 if !processor_builders.contains_key(&processor_name) {
                     let mut builder = ArrowProcessorBuilder::default();
                     builder.processor_name.replace(processor_name.to_owned());

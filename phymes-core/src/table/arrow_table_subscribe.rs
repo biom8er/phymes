@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -69,6 +70,23 @@ impl ArrowTableSubscribe {
             Self::Custom(name) => name,
         }
     }
+
+    pub fn from_str(name: &str, subject: &str) -> Result<ArrowTableSubscribe> {
+        let subscription = if name.contains("OnUpdateFullTable") {
+            ArrowTableSubscribe::OnUpdateFullTable { table_name: subject.to_string() }
+        } else if name.contains("AlwaysFullTable") {
+            ArrowTableSubscribe::AlwaysFullTable { table_name: subject.to_string() }
+        } else if name.contains("OnUpdateLastRecordBatch") {
+            ArrowTableSubscribe::OnUpdateLastRecordBatch { table_name: subject.to_string() }
+        } else if name.contains("AlwaysLastRecordBatch") {
+            ArrowTableSubscribe::AlwaysLastRecordBatch { table_name: subject.to_string() }
+        } else if name.contains("None") {
+            ArrowTableSubscribe::None {}
+        } else {
+            return Err(anyhow!("Variant for ArrowTableSubscribe {name} with subject {subject} was not recognized."))
+        };
+        Ok(subscription)
+    }
 }
 
 impl MappableTrait for ArrowTableSubscribe {
@@ -130,6 +148,29 @@ impl ArrowTableSubscribeTrait for ArrowTable {
             ArrowTableSubscribe::Custom(_) => None,
         }
     }
+}
+
+/// Helper function to convert a [String] to a [SubscribeTrait]
+/// 
+/// # Notes
+/// * This method will eventually be on an enum of all concrete
+///   [SubscribeTrait] implementations
+/// * Comparison by `contains` can be dangerous so order matters
+pub fn from_str_to_subscribe(line: &str) -> Result<Box<dyn SubscribeTrait>> {
+    let subscribe = if line.contains(AllTableSchemasSubscribe::get_static_name()) {
+        AllTableSchemasSubscribe::new_box()
+    } else if line.contains(AnyTableSchemaSubscribe::get_static_name()) {
+        AnyTableSchemaSubscribe::new_box()
+    } else if line.contains(AllTableNamesSubscribe::get_static_name()) {
+        AllTableNamesSubscribe::new_box()
+    } else if line.contains(AnyTableNameSubscribe::get_static_name()) {
+        AnyTableNameSubscribe::new_box()
+    } else if line.contains(AlwaysSubscribe::get_static_name()) {
+        AlwaysSubscribe::new_box()
+    } else {
+        return Err(anyhow!("Subscribe policy {line} was not recognized."))
+    };
+    Ok(subscribe)
 }
 
 /// Determine when all subscriptions are ready
