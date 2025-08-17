@@ -572,9 +572,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             &[ArrowTablePublish::Replace {
                 table_name: self.state_top_k_docs_table_name.to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable {
-                table_name: self.top_k_processor_name.to_string().to_string(),
-            }],
+            &[
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.top_k_processor_name.to_string().to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.state_scores_chunks_join_table_name.to_string().to_string(),
+                }
+            ],
             AllTableNamesSubscribe::new_box(),
         ));
         processors.push(ArrowProcessorEcho::new_arc_with_pub_sub(
@@ -1061,7 +1066,10 @@ mod tests {
             doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
             doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
         }
-        let session_ctx = doc_rag_session.build().with_metrics(metrics.clone()).build_with_tables()?;
+        let session_ctx = doc_rag_session.build()
+            .with_metrics(metrics.clone())
+            .with_name(doc_rag_session.session_context_name)
+            .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Create the document message

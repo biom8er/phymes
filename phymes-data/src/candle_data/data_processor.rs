@@ -4,7 +4,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, device,
+            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap
         },
         runtime_env::RuntimeEnv,
     },
@@ -16,8 +16,7 @@ use phymes_core::{
     },
     task::{
         arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
+            ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait
         },
         arrow_processor::ArrowProcessorTrait,
         publish_subscribe::PubSubTrait,
@@ -122,9 +121,12 @@ impl ArrowProcessorTrait for CandleDataProcessor {
         // Remove subscriptions
         let mut subscriptions = HashMap::<String, ArrowOutgoingMessage>::new();
         for subs in self.subscriptions.iter() {
-            match message.remove(subs.get_table_name()) {
-                Some(m) => { subscriptions.insert(m.get_name().to_string(), m); }
-                None  => return Err(anyhow!("Subscription {} not provided for {}.", subs.get_table_name(), self.get_name())),
+            if subs.get_table_name() != self.get_name() {
+                match message.remove(subs.get_table_name()) {
+                    // DM: need to migrate this to `make_random_name` to avoid hash collisions
+                    Some(m) => { subscriptions.insert(m.get_subject().to_string(), m); }
+                    None  => return Err(anyhow!("Subscription {} not provided for {}.", subs.get_table_name(), self.get_name())),
+                }
             }
         }
 
@@ -235,7 +237,7 @@ impl Stream for CandleDataStream {
         let _timer = metrics.elapsed_compute().timer();
 
         // Intialize the config
-        event!(Level::DEBUG, "Initializing OpsProcessor config.");
+        event!(Level::DEBUG, "Initializing config.");
         if self.config.is_none() {
             let mut batches = Vec::new();
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
@@ -287,7 +289,7 @@ impl Stream for CandleDataStream {
         }
 
         // Collect the LHS queries
-        event!(Level::DEBUG, "Collecting OpsProcessor LHS.");
+        event!(Level::DEBUG, "Collecting LHS.");
         if self.lhs_inbox.is_empty() {
             let lhs_name = self.config.as_ref().unwrap().lhs_name.clone();
             let lhs = match self.messages.get_mut(lhs_name.as_str()) {
@@ -308,6 +310,7 @@ impl Stream for CandleDataStream {
                                 Ok(builder) => builder.with_name("").build()?,
                                 Err(err) => {
                                     self.is_finished = true;
+                                    event!(Level::ERROR, "{}", err.to_string().as_str());
                                     return Poll::Ready(Some(Ok(make_error_record_batch(
                                         err.to_string().as_str(),
                                     ))));
@@ -317,8 +320,9 @@ impl Stream for CandleDataStream {
                         }
                         None => {
                             self.is_finished = true;
-                            return Poll::Ready(Some(Ok(make_error_record_batch(
-                                format!("lhs_name {lhs_name} does not exist. Available options are {:?}", self.messages.keys()).as_str()))));
+                            let error_str = format!("lhs_name {lhs_name} does not exist. Available options are {:?}", self.messages.keys());
+                            event!(Level::ERROR, error_str);
+                            return Poll::Ready(Some(Ok(make_error_record_batch(error_str.as_str()))));
                         }
                     }
                 }
@@ -327,7 +331,7 @@ impl Stream for CandleDataStream {
         };
 
         // Collect the RHS document chunks
-        event!(Level::DEBUG, "Collecting OpsProcessor RHS.");
+        event!(Level::DEBUG, "Collecting RHS.");
         if self.rhs_inbox.is_empty() && self.config.as_ref().unwrap().rhs_name.is_some() {
             let rhs_name = self
                 .config
@@ -362,6 +366,7 @@ impl Stream for CandleDataStream {
                                 Ok(builder) => builder.with_name("").build()?,
                                 Err(err) => {
                                     self.is_finished = true;
+                                    event!(Level::ERROR, "{}", err.to_string().as_str());
                                     return Poll::Ready(Some(Ok(make_error_record_batch(
                                         err.to_string().as_str(),
                                     ))));
@@ -371,8 +376,9 @@ impl Stream for CandleDataStream {
                         }
                         None => {
                             self.is_finished = true;
-                            return Poll::Ready(Some(Ok(make_error_record_batch(
-                                format!("rhs_name {rhs_name} does not exist. Available options are {:?}", self.messages.keys()).as_str()))));
+                            let error_str = format!("rhs_name {rhs_name} does not exist. Available options are {:?}", self.messages.keys());
+                            event!(Level::ERROR, error_str);
+                            return Poll::Ready(Some(Ok(make_error_record_batch(error_str.as_str()))));
                         }
                     }
                 }
@@ -383,7 +389,7 @@ impl Stream for CandleDataStream {
         // Compute the data operator
         event!(
             Level::DEBUG,
-            "Executing Ops {}.",
+            "Executing {}.",
             self.config.as_ref().unwrap().which.get_name()
         );
         self.init_tensor_service()?;

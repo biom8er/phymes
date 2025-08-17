@@ -124,16 +124,22 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
         };
 
         // Extract out the messages to be summarized
-        // DM: we need to assume that there is only one message left to summarize
-        assert_eq!(message.len(), 1);
-        let messages = match message.into_iter().next() {
-            Some((_k, v)) => v.get_message_own(),
-            None => return Err(anyhow!("Messages not provided for {}.", self.get_name())),
-        };
+        let mut subscriptions = Vec::new();
+        for subs in self.subscriptions.iter() {
+            if subs.get_table_name() != self.get_name() {
+                match message.remove(subs.get_table_name()) {
+                    Some(m) => { subscriptions.push(m); }
+                    None  => return Err(anyhow!("Subscription {} not provided for {}.", subs.get_table_name(), self.get_name())),
+                }
+            }
+        }
+        if subscriptions.len() > 1 {
+            return Err(anyhow!("More than one subscription was found."));
+        }
 
         // Make the outbox and send
         let out = Box::pin(DataSummaryStream::new(
-            messages,
+            subscriptions.swap_remove(0).get_message_own(),
             config,
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),

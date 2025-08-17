@@ -277,7 +277,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 task_name: self.hitl_task_name.to_string(),
                 runtime_env_name: self.tool_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.hitl_task_name.to_string(),
+                    self.hitl_processor_name.to_string(),
                     self.summary_processor_2_name.to_string(),
                 ],
             },
@@ -660,7 +660,10 @@ mod tests {
 
         // initialize the session
         let tool_agent_session = ToolAgentSession::default();
-        let session_ctx = tool_agent_session.build().with_metrics(metrics.clone()).build_with_tables()?;
+        let session_ctx = tool_agent_session.build()
+            .with_metrics(metrics.clone())
+            .with_name(tool_agent_session.session_context_name)
+            .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Make the user query

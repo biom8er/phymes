@@ -44,9 +44,9 @@ pub trait PubSubTrait {
         let mut map = HashMap::<String, ArrowOutgoingMessage>::new();
         for subscription in self.get_subscriptions().iter() {
             let updated = updates.get(subscription.get_table_name()).unwrap_or(&false);
-            // DM: default or dummy tables may not be found in the state so we just ignore them
+            // default or dummy tables may not be found in the state so we just ignore them
             if let Some(table) = state.get(subscription.get_table_name()) {
-                // DM: OnUpdate... tables may not be subscribed to if they have not been updated
+                // OnUpdate... tables are not subscribed to if they have not been updated
                 if let Some(message) = table
                     .try_read()
                     .unwrap()
@@ -70,6 +70,8 @@ pub trait PubSubTrait {
                         .unwrap()
                         .build()
                         .unwrap();
+                    // DM: need to migrate map key to `make_random_name` to prevent hash collisions
+                    //  when the same table is subscribed to by multiple processors in the chain...
                     let _ = map.insert(subscription.get_table_name().to_string(), out);
                 }
             }

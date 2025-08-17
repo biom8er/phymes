@@ -8,7 +8,7 @@ use phymes_agents::{session_plans::document_rag_session::{
     }, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::{session_context::{get_metrics_as_pivot_table, SessionStreamState}, session_context_builder::SessionContextBuilderTrait},
+    session::{common_traits::BuilderTrait, session_context::{get_metrics_as_pivot_table, SessionStreamState}, session_context_builder::SessionContextBuilderTrait},
     table::arrow_table::ArrowTableTrait,
     task::arrow_message::ArrowIncomingMessage,
 };
@@ -135,7 +135,10 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
 
                 // Create the session stream state
                 let metrics = ArrowTaskMetricsSet::new();
-                let session_ctx = config.build().with_metrics(metrics.clone()).build_with_tables().unwrap();
+                let session_ctx = config.build()
+                    .with_metrics(metrics.clone())
+                    .with_name(session_context_name.as_str())
+                    .build_with_tables().unwrap();
                 let session_stream_state =
                     Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
                 let sample_id = format!("{id}_{iter}");

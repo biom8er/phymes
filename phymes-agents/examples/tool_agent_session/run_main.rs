@@ -12,7 +12,7 @@ use std::sync::Arc;
 use phymes_agents::{session_plans::tool_agent_session::{test_tool_agent_session::bench_tool_agent_session, ToolAgentSession}, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap},
-    session::{session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
+    session::{common_traits::BuilderTrait, session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
     table::arrow_table::ArrowTableTrait,
     task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
 };
@@ -23,7 +23,10 @@ pub async fn run_main() -> Result<()> {
 
     // initialize the session
     let tool_agent_session = ToolAgentSession::default();
-    let session_ctx = tool_agent_session.build().with_metrics(metrics.clone()).build_with_tables()?;
+    let session_ctx = tool_agent_session.build()
+        .with_metrics(metrics.clone())
+        .with_name(tool_agent_session.session_context_name)
+        .build_with_tables()?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // Make the user query

@@ -306,7 +306,10 @@ mod tests {
 
         // initialize the session
         let chat_agent_session = ChatAgentSession::default();
-        let session_ctx = chat_agent_session.build().with_metrics(metrics.clone()).build_with_tables()?;
+        let session_ctx = chat_agent_session.build()
+            .with_metrics(metrics.clone())
+            .with_name(chat_agent_session.session_context_name)
+            .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Skip actually running the session as it takes too long on the CPU
