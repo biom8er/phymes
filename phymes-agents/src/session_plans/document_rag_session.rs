@@ -532,9 +532,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             &[ArrowTablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable {
-                table_name: self.sort_scores_processor_name.to_string(),
-            }],
+            &[
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.sort_scores_processor_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.state_scores_table_name.to_string(),
+                }
+            ],
             AllTableNamesSubscribe::new_box(),
         ));
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
@@ -548,7 +553,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.document_chunk_processor_2_name.to_string(),
-                },
+                }
             ],
             AllTableNamesSubscribe::new_box(),
         ));
@@ -560,6 +565,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             &[
                 ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.state_documents_table_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.state_scores_table_name.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.join_chunks_processor_name.to_string().to_string(),

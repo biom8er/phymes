@@ -66,38 +66,6 @@ pub async fn run_main() -> Result<()> {
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
         session_stream.try_collect().await?;
 
-    println!(
-        "Iters: {}",
-        session_stream_state.try_read().unwrap().get_iter()
-    );
-    println!(
-        "Updates: {:?}",
-        session_stream_state
-            .try_read()
-            .unwrap()
-            .get_superstep_updates()
-    );
-    // println!(
-    //     "Messages: {:?}",
-    //     session_stream_state
-    //         .try_read()
-    //         .unwrap()
-    //         .get_session_context()
-    //         .get_states()
-    //         .get(doc_rag_session.state_messages_table_name)
-    //         .unwrap()
-    // );
-    println!(
-        "Assistant: {:?}",
-        session_stream_state
-            .try_read()
-            .unwrap()
-            .get_session_context()
-            .get_states()
-            .get(doc_rag_session.state_assistant_messages_table_name)
-            .unwrap()
-    );
-
     // Update the chat history with the response
     let json_data = response
         .last_mut()
