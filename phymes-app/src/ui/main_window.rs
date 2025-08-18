@@ -243,6 +243,15 @@ pub fn about_text_modal() -> Element {
             }
         }
     });
+
+    use_effect(move || {
+        let _ = rendered_html.read();
+        document::eval(r#"
+            var element = document.getElementById("graphDiv");
+            panzoom(element)
+            "#
+        );
+    });
     
     let out = if let Some(result) = &*rendered_html.read() {
         match result {

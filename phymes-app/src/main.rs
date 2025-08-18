@@ -48,7 +48,6 @@ fn app() -> Element {
     }
 }
 
-
 fn mermaid_js() -> Element {
     
     #[cfg(feature = "mermaid_js_cdn")]
@@ -66,6 +65,7 @@ fn mermaid_js() -> Element {
                 "#
             );
         }}
+        script { src: "https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js" }
     }
 
     #[cfg(feature = "mermaid_js_embed")]
