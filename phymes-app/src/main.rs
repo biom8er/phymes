@@ -11,6 +11,8 @@ static MAIN_CSS: Asset = asset!("/assets/main.css");
 #[cfg(feature = "mermaid_js_embed")]
 static MERMAID_JS: Asset = asset!("/assets/mermaid.min.js");
 // static MERMAID_MJS: Asset = asset!("/assets/mermaid.esm.min.mjs");
+#[cfg(feature = "mermaid_js_embed")]
+static PANZOOM_JS: Asset = asset!("/assets/panzoom.min.js");
 
 fn main() {
     // DM: Uncomment for full stack
@@ -65,7 +67,7 @@ fn mermaid_js() -> Element {
                 "#
             );
         }}
-        script { src: "https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js" }
+        script { src: "https://unpkg.com/@panzoom/panzoom@4.6.0/dist/panzoom.min.js" }
     }
 
     #[cfg(feature = "mermaid_js_embed")]
@@ -95,5 +97,6 @@ fn mermaid_js() -> Element {
         //         "#).as_str()
         //     );
         // } }
+        script { src: PANZOOM_JS, crossorigin: true }
     }
 }

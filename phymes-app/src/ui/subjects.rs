@@ -307,8 +307,6 @@ pub fn subjects_modal() -> Element {
                 .collect::<Vec<_>>(),
         )
     });
-    #[allow(clippy::redundant_closure)]
-    let mut content = use_signal(|| String::new());
 
     let read_files = move |file_engine: Arc<dyn FileEngine>, publish: ArrowTablePublish| async move {
         let files = file_engine.files();
@@ -316,9 +314,7 @@ pub fn subjects_modal() -> Element {
             // Determine the file type
             let file_path = std::path::Path::new(file_name);
             match file_path.extension() {
-                None => content
-                    .write()
-                    .push_str(format!("File {file_name} has no extension.").as_str()),
+                None => tracing::error!("File {file_name} has no extension."),
                 Some(ext) => match ext.to_str() {
                     Some("csv") => {
                         // Read the file as CSV
@@ -382,9 +378,7 @@ pub fn subjects_modal() -> Element {
                             });
                         }
                     }
-                    _ => content.write().push_str(
-                        format!("File {file_name} has unsupported extension {ext:?}.").as_str(),
-                    ),
+                    _ => tracing::error!("File {file_name} has unsupported extension {ext:?}."),
                 },
             }
         }
@@ -602,7 +596,7 @@ pub fn subjects_modal() -> Element {
                                                 };
                                                 files_downloaded.write().push(data);
                                             },
-                                            Err(err) => content.write().push_str(format!("There was a error downloading subject {err}.").as_str()),
+                                            Err(err) => tracing::error!("There was a error downloading subject {err}."),
                                         }
 
                                         #[cfg(feature = "serverless")]
@@ -633,7 +627,7 @@ pub fn subjects_modal() -> Element {
                                                 };
                                                 files_downloaded.write().push(data);
                                             }
-                                            Err(err) => content.write().push_str(format!("There was a error downloading subject {err}.").as_str()),
+                                            Err(err) => tracing::error!("There was a error downloading subject {err}."),
                                         }
                                     },
                                     svg { dangerous_inner_html: arrow_down_icon_svg() },
@@ -686,9 +680,9 @@ pub fn subjects_modal() -> Element {
                                         Ok(response) => match response.text().await {
                                             // DM: Find a better way to give feedback to the user on success and error
                                             Ok(text) => tracing::debug!("Put response {text}"),
-                                            Err(err) => tracing::debug!("Put err {err:?}"),
+                                            Err(err) => tracing::error!("Put err {err:?}"),
                                         },
-                                        Err(err) => tracing::debug!("Put err {err:?}"),
+                                        Err(err) => tracing::error!("Put err {err:?}"),
                                     }
 
                                     #[cfg(feature = "serverless")]
@@ -711,7 +705,7 @@ pub fn subjects_modal() -> Element {
                                                 .unwrap();
                                             let _text = String::from_utf8_lossy(bytes.first().unwrap()).into_owned();
                                         }
-                                        Err(_err) => (),
+                                        Err(err) => tracing::error!("{err:?}"),
                                     }
                                 }
 

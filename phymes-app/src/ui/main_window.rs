@@ -32,6 +32,15 @@ struct JsError {
     stack: Option<String>,
 }
 
+#[cfg(feature = "mermaid_js")]
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct MermaidJsObject {
+    svg: Option<String>,
+    error: Option<String>,
+}
+
+
 use super::messaging::{messaging_interface_footer, messaging_interface_view};
 use super::metrics::metrics_modal;
 use super::settings::settings_modal;
@@ -219,27 +228,28 @@ pub fn main_window() -> Element {
 
 #[component]
 pub fn about_text_modal() -> Element {
-    let mut diagram_code = use_signal(|| String::from(r#"graph TB
-    a-->b"#));
+    let mut diagram_code = use_signal(|| String::from("graph TB\n\ta-->b"));
 
     #[cfg(feature = "mermaid_js")]
     let rendered_html: Resource<(Option<String>, Option<String>)> = use_resource(move || async move {
-        let code = diagram_code.read().clone();
-        match render("graphDiv", &code).await{
-            Ok(svg) => {
-                let obj_str = match serde_wasm_bindgen::from_value::<MermaidSvgObject>(svg) {
-                    Ok(obj) => obj,
-                    Err(err) => MermaidSvgObject { svg: err.to_string()},
-                };
-                // format!("'{0}'", obj_str.svg)
-                (Some(obj_str.svg.replace("'", "\'").replace('"', "\"")), None)
-            }
+        let mut eval = document::eval(r#"
+            try {
+                let code = await dioxus.recv();
+                const { svg } = await mermaid.render("graphDiv", code);
+                return { svg: svg, error: null };
+            } catch (error) {
+                return { svg: null, error: error.message };
+            }"#
+        );
+        eval.send(diagram_code.read().to_string()).unwrap();
+        match eval.await {
+            Ok(res) => {
+                let res: MermaidJsObject = serde_json::from_value(res).unwrap();
+                (res.svg, res.error)
+            },
             Err(err) => {
-                let obj_str = match serde_wasm_bindgen::from_value::<JsError>(err) {
-                    Ok(obj) => obj,
-                    Err(err) => JsError { message: err.to_string(), name: None, stack: None },
-                };
-                (None, Some(obj_str.message))
+                tracing::error!("Mermaid.js err {err:?}");
+                (None, Some(err.to_string()))
             }
         }
     });
@@ -247,8 +257,20 @@ pub fn about_text_modal() -> Element {
     use_effect(move || {
         let _ = rendered_html.read();
         document::eval(r#"
-            var element = document.getElementById("graphDiv");
-            panzoom(element)
+            const container = document.getElementById("graphDiv");
+            const svgElement = container.querySelector("svg");
+
+            // Initialize Panzoom
+            const panzoomInstance = Panzoom(svgElement, {
+                maxScale: 5,
+                minScale: 0.5,
+                step: 0.1,
+            });
+
+            // Add mouse wheel zoom
+            container.addEventListener("wheel", (event) => {
+                panzoomInstance.zoomWithWheel(event);
+            });
             "#
         );
     });

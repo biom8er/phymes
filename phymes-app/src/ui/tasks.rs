@@ -140,7 +140,7 @@ pub fn tasks_modal() -> Element {
                     }
                 }
             }
-            Err(_err) => (), //content.write().push_str(format!("There was a error getting tasks info {err}.").as_str()),
+            Err(err) => tracing::error!("{err:?}"),
         }
 
         #[cfg(feature = "serverless")]
@@ -194,7 +194,7 @@ pub fn tasks_modal() -> Element {
                     }
                 }
             }
-            Err(_err) => (),
+            Err(err) => tracing::error!("{err:?}"),
         }
     });
 

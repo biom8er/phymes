@@ -111,7 +111,7 @@ pub fn metrics_modal() -> Element {
                     }
                 }
             }
-            Err(_err) => (), //content.write().push_str(format!("There was a error getting metrics info {err}.").as_str()),
+            Err(err) => tracing::error!("There was a error getting metrics info {err}."),
         }
 
         #[cfg(feature = "serverless")]
@@ -161,7 +161,7 @@ pub fn metrics_modal() -> Element {
                     }
                 }
             }
-            Err(_err) => (),
+            Err(err) => tracing::error!("{err}"),
         }
     });
 
