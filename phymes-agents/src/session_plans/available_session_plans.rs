@@ -5,7 +5,7 @@ use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
-    session::{common_traits::MappableTrait, session_context::{SessionStream, SessionStreamState}, session_context_builder::SessionContextBuilderTrait},
+    session::{common_traits::{BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState}, session_context_builder::SessionContextBuilderTrait},
 };
 use serde::{Deserialize, Serialize};
 
@@ -57,17 +57,17 @@ impl AvailableSessionPlans {
         match self {
             Self::Chat => {
                 let session = ChatAgentSession::new_with_session_name(session_name);
-                let session_ctx = session.build().with_metrics(metrics.clone()).build_with_tables().unwrap();
+                let session_ctx = session.build().with_metrics(metrics.clone()).with_name(session_name).build_with_tables().unwrap();
                 Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
             }
             Self::DocChat => {
                 let session = DocumentRAGSession::new_with_session_name(session_name);
-                let session_ctx = session.build().with_metrics(metrics.clone()).build_with_tables().unwrap();
+                let session_ctx = session.build().with_metrics(metrics.clone()).with_name(session_name).build_with_tables().unwrap();
                 Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
             }
             Self::ToolChat => {
                 let session = ToolAgentSession::new_with_session_name(session_name);
-                let session_ctx = session.build().with_metrics(metrics.clone()).build_with_tables().unwrap();
+                let session_ctx = session.build().with_metrics(metrics.clone()).with_name(session_name).build_with_tables().unwrap();
                 Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
             }
         }

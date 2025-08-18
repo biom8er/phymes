@@ -194,6 +194,12 @@ impl SessionContextBuilder {
 
     /// Build the [SessionContext] members
     pub fn build_inner(mut self) -> Result<(String, TaskMap, StateMap, ArrowTaskMetricsSet, HashMap<String, Arc<Mutex<RuntimeEnv>>>, usize)> {
+        if self.name.is_none() {
+            return Err(anyhow!(
+                "Please give the session a name before attempting to build the session."
+            ));
+        }
+
         if self.tasks.is_none() {
             return Err(anyhow!(
                 "Please add a plan before attempting to build the session."
@@ -332,7 +338,7 @@ impl SessionContextBuilder {
             })
             .collect::<HashMap<_, _>>();
         
-        let name = self.name.unwrap_or_default();
+        let name = self.name.unwrap();
         let max_iter = self.max_iter.unwrap_or(25);
         Ok((name, task_map, state_map, metrics, runtime_env_map, max_iter))
     }
@@ -741,8 +747,21 @@ mod tests {
     }
 
     #[test]
-    fn test_session_build_fail_missing_plan() -> Result<()> {
+    fn test_session_build_fail_missing_name() -> Result<()> {
         let result = SessionContextBuilder::new().build();
+        match result {
+            Ok(_) => panic!("Should have failed"),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Please give the session a name before attempting to build the session."
+            ),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_session_build_fail_missing_plan() -> Result<()> {
+        let result = SessionContextBuilder::new().with_name("session_1").build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -757,6 +776,7 @@ mod tests {
     fn test_session_build_fail_missing_processor() -> Result<()> {
         // No tasks
         let result = SessionContextBuilder::new()
+            .with_name("session_1")
             .with_tasks(test_session_context_builder::make_test_session_builder_tasks())
             .build();
         match result {
@@ -773,6 +793,7 @@ mod tests {
             ArrowProcessorMock::new_arc("processor_2"),
         ];
         let result = SessionContextBuilder::new()
+            .with_name("session_1")
             .with_tasks(test_session_context_builder::make_test_session_builder_tasks())
             .with_processors(processors)
             .build();
@@ -792,6 +813,7 @@ mod tests {
             ArrowProcessorMock::new_arc("not_found"),
         ];
         let result = SessionContextBuilder::new()
+            .with_name("session_1")
             .with_tasks(test_session_context_builder::make_test_session_builder_tasks())
             .with_processors(processors)
             .build();
@@ -809,7 +831,7 @@ mod tests {
     fn test_session_build_fail_missing_runtime_env() -> Result<()> {
         // No runtime env
         let result =
-            test_session_context_builder::make_test_session_builder_parallel_task().build();
+            test_session_context_builder::make_test_session_builder_parallel_task().with_name("session_1").build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -820,6 +842,7 @@ mod tests {
 
         // Missing runtime env
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
             .with_runtime_envs(Vec::new())
             .build();
         match result {
@@ -832,6 +855,7 @@ mod tests {
 
         // Runtime env not found in plan
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("not_found")?])
             .build();
         match result {
@@ -848,6 +872,7 @@ mod tests {
     fn test_session_build_fail_missing_state() -> Result<()> {
         // No state
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .build();
         match result {
@@ -860,6 +885,7 @@ mod tests {
 
         // Missing state
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(make_state_tables("state_1", "config_1")?)
             .build();
@@ -876,6 +902,7 @@ mod tests {
         state.extend(make_state_tables("state_2", "config_2")?);
         state.extend(make_state_tables("not_found", "config_3")?);
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
             .build();

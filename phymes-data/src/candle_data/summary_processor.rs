@@ -135,6 +135,8 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
         }
         if subscriptions.len() > 1 {
             return Err(anyhow!("More than one subscription was found."));
+        } else if subscriptions.is_empty() {
+            return Err(anyhow!("No subscriptions were found."));
         }
 
         // Make the outbox and send
@@ -369,7 +371,7 @@ mod tests {
             ArrowOutgoingMessage::get_builder()
                 .with_name("lhs_name")
                 .with_publisher("")
-                .with_subject("")
+                .with_subject("lhs_name")
                 .with_update(&ArrowTablePublish::None)
                 .with_message(lhs_table.to_record_batch_stream())
                 .build()?,
@@ -391,7 +393,7 @@ mod tests {
             ArrowOutgoingMessage::get_builder()
                 .with_name("summary_processor")
                 .with_publisher("")
-                .with_subject("")
+                .with_subject("summary_processor")
                 .with_update(&ArrowTablePublish::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
@@ -413,7 +415,7 @@ mod tests {
             &[ArrowTablePublish::Extend {
                 table_name: "messages".to_string(),
             }],
-            &[],
+            &[ArrowTableSubscribe::AlwaysFullTable { table_name: "lhs_name".to_string() }],
             AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(messages, metrics.clone(), runtime_env)?;

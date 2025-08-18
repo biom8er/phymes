@@ -239,7 +239,7 @@ pub fn about_text_modal() -> Element {
                     Ok(obj) => obj,
                     Err(err) => JsError { message: err.to_string(), name: None, stack: None },
                 };
-                (None, Some(format!("<p>{}</p>", obj_str.message)))
+                (None, Some(obj_str.message))
             }
         }
     });

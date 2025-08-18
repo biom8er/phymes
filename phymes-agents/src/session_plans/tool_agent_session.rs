@@ -426,9 +426,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             &[ArrowTablePublish::Extend {
                 table_name: self.state_tool_messages_table_name.to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysLastRecordBatch {
-                table_name: self.summary_processor_1_name.to_string(),
-            }],
+            &[
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.summary_processor_1_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.state_scores_table_name.to_string(),
+                }
+            ],
             AllTableNamesSubscribe::new_box(),
         ));
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
@@ -436,9 +441,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             &[ArrowTablePublish::Extend {
                 table_name: self.state_assistant_messages_table_name.to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysLastRecordBatch {
-                table_name: self.summary_processor_2_name.to_string(),
-            }],
+            &[
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.summary_processor_2_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.state_assistant_messages_table_name.to_string(),
+                }
+            ],
             AllTableNamesSubscribe::new_box(),
         ));
         processors.push(ArrowProcessorEcho::new_arc_with_pub_sub(

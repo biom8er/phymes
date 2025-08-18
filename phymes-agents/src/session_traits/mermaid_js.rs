@@ -820,7 +820,7 @@ mod tests {
         assert_eq!(test, expected);
 
         // Test that we can build the session
-        let _ = builder_test.build()?;
+        let _ = builder_test.with_name("session_1").build()?;
 
         Ok(())
     }

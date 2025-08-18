@@ -865,7 +865,7 @@ mod tests {
             ArrowOutgoingMessage::get_builder()
                 .with_name("lhs_name")
                 .with_publisher("")
-                .with_subject("")
+                .with_subject("lhs_name")
                 .with_update(&ArrowTablePublish::None)
                 .with_message(lhs_table.to_record_batch_stream())
                 .build()?,
@@ -891,7 +891,7 @@ mod tests {
             ArrowOutgoingMessage::get_builder()
                 .with_name("rhs_name")
                 .with_publisher("")
-                .with_subject("")
+                .with_subject("rhs_name")
                 .with_update(&ArrowTablePublish::None)
                 .with_message(rhs_table.to_record_batch_stream())
                 .build()?,
