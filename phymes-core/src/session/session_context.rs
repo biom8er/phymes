@@ -249,7 +249,7 @@ impl SessionContext {
         let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
         let num_rows: ArrayRef = Arc::new(UInt64Array::from(num_rows));
         let batch = RecordBatch::try_from_iter(vec![
-            ("subject_names", subject_names),
+            ("subject_name", subject_names),
             ("num_rows", num_rows),
         ])?;
 
@@ -1396,7 +1396,7 @@ mod tests {
         let info = session_context.get_subject_num_rows_as_table("table")?;
         assert_eq!(info.get_name(), "table");
         assert_eq!(
-            info.get_column_as_vec_str("subject_names"),
+            info.get_column_as_vec_str("subject_name"),
             [
                 "config_1", "config_2", "config_3",
                 "state_1", "state_2", "state_3",

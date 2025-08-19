@@ -1,4 +1,4 @@
-use crate::state::sign_in::{sync_jwt_state, SyncJWTState, EMAIL};
+use crate::state::{settings::{sync_current_active_session_state, SyncCurrentActiveSessionState}, sign_in::{sync_jwt_state, SyncJWTState, EMAIL}};
 use dioxus::prelude::*;
 
 #[cfg(not(feature = "serverless"))]
@@ -30,6 +30,7 @@ pub fn sign_in_modal() -> Element {
 
     // intialize state and coroutines
     use_coroutine(sync_jwt_state);
+    use_coroutine(sync_current_active_session_state);
 
     rsx! {
         // Sign-in modal
@@ -88,6 +89,11 @@ pub fn sign_in_modal() -> Element {
                             Ok(response) => match response.json::<SyncJWTState>()
                                 .await {
                                     Ok(jwt_json) => {
+                                        // Set the active session
+                                        let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
+                                        sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_plans.first().unwrap().to_string() });
+
+                                        // Set the sign-in credentials
                                         sync_jwt.send(jwt_json);
                                     }
                                     Err(err) => {
@@ -120,6 +126,12 @@ pub fn sign_in_modal() -> Element {
                                     .await
                                     .unwrap();
                                 let jwt_json: SyncJWTState = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+                                
+                                // Set the active session
+                                let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
+                                sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_plans.first().unwrap().to_string() });
+
+                                // Set the sign-in credentials
                                 sync_jwt.send(jwt_json);
                             }
                             Err(err) =>  {

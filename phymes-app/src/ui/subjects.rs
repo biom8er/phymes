@@ -181,19 +181,19 @@ pub fn subjects_modal() -> Element {
                     for row in json_rows.iter() {
                         sync_current_subjects_schema_state.send(SyncCurrentSubjectSchemaState {
                             subject_schema_name: row
-                                .get("subject_names")
+                                .get("subject_name")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
                                 .to_string(),
                             subject_schema_column: row
-                                .get("column_names")
+                                .get("column_name")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
                                 .to_string(),
                             subject_schema_type: row
-                                .get("type_names")
+                                .get("type_name")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
@@ -229,19 +229,19 @@ pub fn subjects_modal() -> Element {
                     for row in json_rows.iter() {
                         sync_current_subjects_schema_state.send(SyncCurrentSubjectSchemaState {
                             subject_schema_name: row
-                                .get("subject_names")
+                                .get("subject_name")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
                                 .to_string(),
                             subject_schema_column: row
-                                .get("column_names")
+                                .get("column_name")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
                                 .to_string(),
                             subject_schema_type: row
-                                .get("type_names")
+                                .get("type_name")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
@@ -291,7 +291,7 @@ pub fn subjects_modal() -> Element {
                         };
                         sync_current_subjects_rows_state.send(SyncCurrentSubjectNumRowsState {
                             subject_name: row
-                                .get("subject_names")
+                                .get("subject_name")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
@@ -333,7 +333,7 @@ pub fn subjects_modal() -> Element {
                         };
                         sync_current_subjects_rows_state.send(SyncCurrentSubjectNumRowsState {
                             subject_name: row
-                                .get("subject_names")
+                                .get("subject_name")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()

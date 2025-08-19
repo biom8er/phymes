@@ -17,7 +17,7 @@ struct MermaidJsObject {
 
 use super::messaging::{messaging_interface_footer, messaging_interface_view};
 use super::metrics::metrics_modal;
-use super::settings::settings_modal;
+use super::settings::{settings_interface_view, settings_interface_footer};
 use super::sign_in::sign_in_modal;
 use super::subjects::subjects_modal;
 use super::svg_icons::{
@@ -38,7 +38,6 @@ pub enum HeaderMenu {
     Account,
     Settings,
     Subjects,
-    Tasks,
     Message,
     Metrics,
 }
@@ -50,7 +49,6 @@ impl HeaderMenu {
             Self::Account => "Account",
             Self::Settings => "Settings",
             Self::Subjects => "Subjects",
-            Self::Tasks => "Tasks",
             Self::Message => "Message",
             Self::Metrics => "Metrics",
         }
@@ -161,12 +159,6 @@ pub fn main_window() -> Element {
                 }
                 button {
                     onclick: move |_| async move {
-                        header_menu.set(HeaderMenu::Tasks);
-                    },
-                    svg { dangerous_inner_html: tools_icon_svg() }
-                }
-                button {
-                    onclick: move |_| async move {
                         header_menu.set(HeaderMenu::Message);
                     },
                     svg { dangerous_inner_html: message_icon_svg() }
@@ -185,11 +177,10 @@ pub fn main_window() -> Element {
             } else if header_menu.read().as_str() == "Account" {
                 sign_in_modal {},
             } else if header_menu.read().as_str() == "Settings" {
-                settings_modal {},
+                settings_interface_view {},
+                settings_interface_footer {},
             } else if header_menu.read().as_str() == "Subjects" {
                 subjects_modal {},
-            } else if header_menu.read().as_str() == "Tasks" {
-                tasks_modal {},
             } else if header_menu.read().as_str() == "Message" {
                 messaging_interface_view {},
                 messaging_interface_footer {},
@@ -200,63 +191,75 @@ pub fn main_window() -> Element {
     }
 }
 
-#[component]
-pub fn about_text_modal() -> Element {
-    let mut diagram_code = use_signal(|| String::from("graph TB\n\ta-->b"));
+#[cfg(feature = "mermaid_js")]
+pub fn render_mermaid_svg(diagram_code: Signal<String>, id: &str) -> Resource<(Option<String>,Option<String>,Option<String>)> {
+    let div_id = id.to_string();
+    let rendered_html: Resource<(Option<String>,Option<String>,Option<String>)> = use_resource(move || {
+        let div_id = div_id.clone();
+        async move {
+            // Render the mermaid.js diagram
+            let eval = document::eval(format!(r#"
+                try {{
+                    let code = await dioxus.recv();
+                    const {{ svg }} = await mermaid.render("{}", code);
+                    return {{ svg: svg, error: null }};
+                }} catch (error) {{
+                    return {{ svg: null, error: error.message }};
+                }}"#, div_id).as_str()
+            );
+            eval.send(diagram_code.read().to_string()).unwrap();
+            let mermaid_js_object = match eval.await {
+                Ok(res) => {
+                    let res: MermaidJsObject = serde_json::from_value(res).unwrap();
+                    res
+                },
+                Err(err) => {
+                    tracing::error!("Mermaid.js err {err:?}");
+                    MermaidJsObject { svg: None, error: Some(err.to_string())}
+                }
+            };
 
-    #[cfg(feature = "mermaid_js")]
-    let rendered_html: Resource<(Option<String>,Option<String>,Option<String>)> = use_resource(move || async move {
-        // Render the mermaid.js diagram
-        let eval = document::eval(r#"
-            try {
-                let code = await dioxus.recv();
-                const { svg } = await mermaid.render("graphDiv", code);
-                return { svg: svg, error: null };
-            } catch (error) {
-                return { svg: null, error: error.message };
-            }"#
-        );
-        eval.send(diagram_code.read().to_string()).unwrap();
-        let mermaid_js_object = match eval.await {
-            Ok(res) => {
-                let res: MermaidJsObject = serde_json::from_value(res).unwrap();
-                res
-            },
-            Err(err) => {
-                tracing::error!("Mermaid.js err {err:?}");
-                MermaidJsObject { svg: None, error: Some(err.to_string())}
-            }
-        };
+            // Build the preliminary session context
+            let builder_error =  match SessionContextBuilder::from_mermaid_flowchart(&diagram_code.read().to_string()) {
+                Ok(_res) => None,
+                Err(err) => Some(err.to_string()),
+            };
 
-        // Build the preliminary session context
-        let builder_error =  match SessionContextBuilder::from_mermaid_flowchart(&diagram_code.read().to_string()) {
-            Ok(_res) => None,
-            Err(err) => Some(err.to_string()),
-        };
-
-        (mermaid_js_object.svg, mermaid_js_object.error, builder_error)
+            (mermaid_js_object.svg, mermaid_js_object.error, builder_error)
+        }
     });
 
+    // add pan and zoom
+    let div_id = id.to_string();
     use_effect(move || {
+        let div_id = div_id.clone();
         let _ = rendered_html.read();
-        document::eval(r#"
-            const container = document.getElementById("graphDiv");
+        document::eval(format!(r#"
+            const container = document.getElementById("{}");
             const svgElement = container.querySelector("svg");
 
             // Initialize Panzoom
-            const panzoomInstance = Panzoom(svgElement, {
+            const panzoomInstance = Panzoom(svgElement, {{
                 maxScale: 5,
                 minScale: 0.5,
                 step: 0.1,
-            });
+            }});
 
             // Add mouse wheel zoom
-            container.addEventListener("wheel", (event) => {
+            container.addEventListener("wheel", (event) => {{
                 panzoomInstance.zoomWithWheel(event);
-            });
-            "#
+            }});
+            "#, div_id).as_str()
         );
     });
+
+    rendered_html
+}
+
+#[component]
+pub fn about_text_modal() -> Element {
+    let mut diagram_code = use_signal(|| String::from("graph TB\n\ta-->b"));
+    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv");
     
     let out = if let Some(result) = &*rendered_html.read() {
         match result {
