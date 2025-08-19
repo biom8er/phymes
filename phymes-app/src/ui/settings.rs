@@ -380,7 +380,7 @@ pub fn diagram_view() -> Element {
 /// Diagram code editor
 #[component]
 pub fn settings_interface_footer() -> Element {
-    let diagram_code: Memo<String> = use_memo(move || SESSION_MERMAID_FLOWCHART.read().to_string());
+    let diagram_code_m: Memo<String> = use_memo(move || SESSION_MERMAID_FLOWCHART.read().to_string());
     let mut diagram_code = use_signal(|| String::new());
 
     rsx! {
@@ -391,7 +391,8 @@ pub fn settings_interface_footer() -> Element {
                     form {
                         id: "diagram_code_form",
                         textarea {
-                            value: "{diagram_code}",
+                            placeholder: "{diagram_code_m()}",
+                            value: "{diagram_code.to_string()}",
                             oninput: move |event| async move {
                                 // Update the textarea
                                 diagram_code.set(event.value());
