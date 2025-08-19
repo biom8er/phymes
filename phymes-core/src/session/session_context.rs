@@ -222,7 +222,7 @@ impl SessionContext {
     }
 
     /// Get the metrics for the session
-    pub fn get_metrics_info_as_table(&self, table_name: &str) -> Result<ArrowTable> {
+    pub fn get_metrics_as_table(&self, table_name: &str) -> Result<ArrowTable> {
         get_metrics_as_table(self.metrics.clone(), table_name)
     }
 
@@ -232,86 +232,26 @@ impl SessionContext {
     }
 
     /// Get the subject schema
-    pub fn get_subjects_info_as_table(&self, table_name: &str) -> Result<ArrowTable> {
+    pub fn get_subject_num_rows_as_table(&self, table_name: &str) -> Result<ArrowTable> {
         let mut subject_names = Vec::new();
-        let mut cols_names = Vec::new();
-        let mut type_names = Vec::new();
         let mut num_rows = Vec::new();
 
         // Sort the hashmap
         let mut sorted_map = self.state.iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.0.cmp(b.0));
         for (_name, state) in sorted_map.iter() {
-            let fields = state.try_read().unwrap().get_schema().fields().clone();
             let name = state.try_read().unwrap().get_name().to_string();
             let num_row = state.try_read().unwrap().count_rows() as u64;
-            for field in fields.iter() {
-                subject_names.push(name.clone());
-                cols_names.push(field.name().to_string());
-                type_names.push(field.data_type().to_string());
-                num_rows.push(num_row);
-            }
+            subject_names.push(name.clone());
+            num_rows.push(num_row);
         }
 
         // create the record batch
         let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
-        let cols_names: ArrayRef = Arc::new(StringArray::from(cols_names));
-        let type_names: ArrayRef = Arc::new(StringArray::from(type_names));
         let num_rows: ArrayRef = Arc::new(UInt64Array::from(num_rows));
         let batch = RecordBatch::try_from_iter(vec![
             ("subject_names", subject_names),
-            ("column_names", cols_names),
-            ("type_names", type_names),
             ("num_rows", num_rows),
-        ])?;
-
-        // create the table
-        ArrowTable::get_builder()
-            .with_name(table_name)
-            .with_record_batches(vec![batch])?
-            .build()
-    }
-
-    /// Get the session tasks information
-    /// as a list of task_names, processor_names, subject_names, and pub_or_sub
-    ///   where publications are + and subscriptions are -
-    pub fn get_tasks_info_as_table(&self, table_name: &str) -> Result<ArrowTable> {
-        let mut task_names = Vec::new();
-        let mut processor_names = Vec::new();
-        let mut subject_names = Vec::new();
-        let mut pub_or_sub = Vec::new();
-
-        // Sort the hashmap
-        let mut sorted_map = self.tasks.iter().collect::<Vec<_>>();
-        sorted_map.sort_by(|a, b| a.0.cmp(b.0));
-        for (name, task) in sorted_map.iter() {
-            for p in task.get_processors().iter() {
-                // Get the sub and pub
-                for sub in p.get_subscriptions().iter() {
-                    subject_names.push(sub.get_table_name().to_string());
-                    pub_or_sub.push("-".to_string());
-                    task_names.push(name.to_string());
-                    processor_names.push(p.get_name().to_string());
-                }
-                for publications in p.get_publications().iter() {
-                    subject_names.push(publications.get_table_name().to_string());
-                    pub_or_sub.push("+".to_string());
-                    task_names.push(name.to_string());
-                    processor_names.push(p.get_name().to_string());
-                }
-            }
-        }
-
-        // create the record batch
-        let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
-        let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
-        let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
-        let pub_or_sub: ArrayRef = Arc::new(StringArray::from(pub_or_sub));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("task_names", task_names),
-            ("processor_names", processor_names),
-            ("subject_names", subject_names),
-            ("pub_or_sub", pub_or_sub),
         ])?;
 
         // create the table
@@ -1450,155 +1390,17 @@ mod tests {
     }
 
     #[test]
-    fn test_session_get_tasks_info_as_table() -> Result<()> {
+    fn test_session_get_subject_num_rows_as_table() -> Result<()> {
         let metrics = ArrowTaskMetricsSet::new();
         let session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
-        let info = session_context.get_tasks_info_as_table("table")?;
-        assert_eq!(info.get_name(), "table");
-        assert_eq!(
-            info.get_column_as_vec_str("task_names"),
-            [
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "task_1",
-                "task_1",
-                "task_1",
-                "task_2",
-                "task_2",
-                "task_2",
-                "task_3",
-                "task_3",
-                "task_3"
-            ]
-        );
-        assert_eq!(
-            info.get_column_as_vec_str("processor_names"),
-            [
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "processor_1",
-                "processor_1",
-                "processor_1",
-                "processor_2",
-                "processor_2",
-                "processor_2",
-                "processor_3",
-                "processor_3",
-                "processor_3"
-            ]
-        );
-        assert_eq!(
-            info.get_column_as_vec_str("subject_names"),
-            [
-                "state_1", "state_2", "state_3", "state_1", "state_2", "state_3", "state_1",
-                "config_1", "state_1", "state_2", "config_2", "state_2", "state_3", "config_3",
-                "state_3"
-            ]
-        );
-        assert_eq!(
-            info.get_column_as_vec_str("pub_or_sub"),
-            [
-                "-", "-", "-", "+", "+", "+", "-", "-", "+", "-", "-", "+", "-", "-", "+"
-            ]
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_session_get_subjects_info_as_table() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
-        let session_context =
-            make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
-        let info = session_context.get_subjects_info_as_table("table")?;
+        let info = session_context.get_subject_num_rows_as_table("table")?;
         assert_eq!(info.get_name(), "table");
         assert_eq!(
             info.get_column_as_vec_str("subject_names"),
             [
-                "config_1", "config_1", "config_1", "config_2", "config_2", "config_2", "config_3",
-                "config_3", "config_3", "state_1", "state_1", "state_1", "state_1", "state_1",
-                "state_1", "state_1", "state_2", "state_2", "state_2", "state_2", "state_2",
-                "state_2", "state_2", "state_3", "state_3", "state_3", "state_3", "state_3",
-                "state_3", "state_3",
-            ]
-        );
-        assert_eq!(
-            info.get_column_as_vec_str("column_names"),
-            [
-                "a",
-                "b",
-                "c",
-                "a",
-                "b",
-                "c",
-                "a",
-                "b",
-                "c",
-                "id",
-                "collection",
-                "title",
-                "text",
-                "metadata",
-                "score",
-                "embedding",
-                "id",
-                "collection",
-                "title",
-                "text",
-                "metadata",
-                "score",
-                "embedding",
-                "id",
-                "collection",
-                "title",
-                "text",
-                "metadata",
-                "score",
-                "embedding"
-            ]
-        );
-        assert_eq!(
-            info.get_column_as_vec_str("type_names"),
-            [
-                "Utf8",
-                "UInt32",
-                "UInt16",
-                "Utf8",
-                "UInt32",
-                "UInt16",
-                "Utf8",
-                "UInt32",
-                "UInt16",
-                "UInt32",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Float32",
-                "FixedSizeList(Field { name: \"item\", data_type: Float32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)",
-                "UInt32",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Float32",
-                "FixedSizeList(Field { name: \"item\", data_type: Float32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)",
-                "UInt32",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Float32",
-                "FixedSizeList(Field { name: \"item\", data_type: Float32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)"
+                "config_1", "config_2", "config_3",
+                "state_1", "state_2", "state_3",
             ]
         );
         let num_rows = info
@@ -1616,13 +1418,7 @@ mod tests {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        assert_eq!(
-            num_rows,
-            [
-                1, 1, 1, 1, 1, 1, 1, 1, 1, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
-                12, 12, 12, 12, 12, 12, 12
-            ]
-        );
+        assert_eq!(num_rows, [1, 1, 1, 12, 12, 12]);
 
         Ok(())
     }
@@ -2750,7 +2546,7 @@ mod tests {
             .try_read()
             .unwrap()
             .get_session_context()
-            .get_metrics_info_as_table("")?;
+            .get_metrics_as_table("")?;
 
         // DM: seperate test
         let _pivot_table = get_metrics_as_pivot_table(&[metrics], "")?;

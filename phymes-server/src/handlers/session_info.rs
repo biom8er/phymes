@@ -104,7 +104,7 @@ pub async fn session_subjects_info(
                         .try_read()
                         .unwrap()
                         .get_session_context()
-                        .get_subjects_info_as_table("")
+                        .get_subject_num_rows_as_table("")
                         .unwrap();
 
                     // DM: Reqwest `byte_stream` will automatically chunk the stream sent to it
@@ -294,7 +294,7 @@ pub async fn session_metrics_info(
                         .try_read()
                         .unwrap()
                         .get_session_context()
-                        .get_metrics_info_as_table("")
+                        .get_metrics_as_table("")
                         .unwrap();
 
                     // DM: Reqwest `byte_stream` will automatically chunk the stream sent to it
