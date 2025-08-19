@@ -33,7 +33,6 @@ use crate::task::{
         ArrowIncomingMessageTrait, ArrowMessageBuilderTrait, ArrowMessageTrait,
         ArrowOutgoingMessage, ArrowOutgoingMessageTrait,
     },
-    arrow_task::ArrowTaskTrait,
     publish_subscribe::PubSubTrait,
 };
 

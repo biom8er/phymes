@@ -12,6 +12,7 @@ use anyhow::Result;
 use bytes::Bytes;
 use phymes_agents::session_traits::tabular::SessionContextTableNames;
 use phymes_core::table::{arrow_table::ArrowTableTrait, arrow_table_publish::ArrowTablePublish};
+use phymes_core::session::common_traits::MappableTrait;
 use serde::{Deserialize, Serialize};
 
 // Library imports

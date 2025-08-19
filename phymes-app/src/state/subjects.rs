@@ -36,7 +36,7 @@ pub async fn clear_subject_schema_state(mut _rx: UnboundedReceiver<ClearSubjectS
 }
 
 #[allow(clippy::redundant_closure)]
-pub static SUBJECT_NAMES: GlobalSignal<Vec<usize>> = Signal::global(|| Vec::new());
+pub static SUBJECT_NAMES: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 #[allow(clippy::redundant_closure)]
 pub static SUBJECT_NUM_ROWS: GlobalSignal<Vec<usize>> = Signal::global(|| Vec::new());
 

@@ -230,7 +230,7 @@ pub fn about_text_modal() -> Element {
 
         // Build the preliminary session context
         let builder_error =  match SessionContextBuilder::from_mermaid_flowchart(&diagram_code.read().to_string()) {
-            Ok(res) => None,
+            Ok(_res) => None,
             Err(err) => Some(err.to_string()),
         };
 

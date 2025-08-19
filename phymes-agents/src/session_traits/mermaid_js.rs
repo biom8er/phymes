@@ -743,7 +743,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 mod tests {
     use phymes_core::{session::session_context_builder::test_session_context_builder::make_test_session_builder_parallel_task, task::arrow_task::test_task::{make_runtime_env, make_state_tables}};
 
-    use crate::{session_plans::{chat_agent_session::{self, ChatAgentSession}, document_rag_session::DocumentRAGSession, tool_agent_session::ToolAgentSession}, session_traits::agents::CustomAgentsBuilderTrait};
+    use crate::{session_plans::{chat_agent_session::ChatAgentSession, document_rag_session::DocumentRAGSession, tool_agent_session::ToolAgentSession}, session_traits::agents::CustomAgentsBuilderTrait};
 
     use super::*;
     #[test]
