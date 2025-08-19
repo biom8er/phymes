@@ -33,9 +33,12 @@ use crate::{
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
         subjects::{
-            clear_subject_info_state, sync_current_subject_info_state, ClearSubjectInfoState,
-            SyncCurrentSubjectInfoState, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_NAMES,
-            SUBJECT_SCHEMA_ROWS, SUBJECT_SCHEMA_TYPES,
+            clear_subject_schema_state, sync_current_subject_schema_state,
+            clear_subject_num_rows_state, sync_current_subject_num_rows_state, 
+            ClearSubjectSchemaState, SyncCurrentSubjectSchemaState, 
+            ClearSubjectNumRowsState, SyncCurrentSubjectNumRowsState,
+            SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES, 
+            SUBJECT_NAMES, SUBJECT_NUM_ROWS
         },
     },
     ui::{
@@ -47,7 +50,7 @@ use crate::{
     },
 };
 
-const SUBJECT_SCHEMA_HEADERS: [&str; 3] = ["Column", "Type", "Rows"];
+const SUBJECT_SCHEMA_HEADERS: [&str; 2] = ["Column", "Type"];
 
 /// File download
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -78,13 +81,12 @@ fn chunk_document(mut doc: String, chunk_size: usize) -> Vec<String> {
     chunks
 }
 
-fn get_subject_schema_col_type_rows_by_subject_name(
+fn get_subject_schema_col_type_by_subject_name(
     active_subject: &str,
     subject_schema_names: &[&str],
     subject_schema_columns: &[&str],
     subject_schema_types: &[&str],
-    subject_schema_rows: &[&usize],
-) -> (Vec<String>, Vec<String>, Vec<usize>) {
+) -> (Vec<String>, Vec<String>) {
     let indices = subject_schema_names
         .iter()
         .enumerate()
@@ -103,13 +105,26 @@ fn get_subject_schema_col_type_rows_by_subject_name(
         .filter(|(i, _s)| indices.contains(i))
         .map(|(_i, s)| s.to_string())
         .collect::<Vec<_>>();
-    let rows = subject_schema_rows
+    (columns, types)
+}
+
+fn get_subject_num_rows_by_subject_name(
+    active_subject: &str,
+    subject_names: &[&str],
+    subject_num_rows: &[&usize],
+) -> Vec<usize> {
+    let indices = subject_names
+        .iter()
+        .enumerate()
+        .filter(|(_i, s)| **s == active_subject)
+        .map(|(i, _s)| i)
+        .collect::<Vec<_>>();
+    subject_num_rows
         .iter()
         .enumerate()
         .filter(|(i, _s)| indices.contains(i))
         .map(|(_i, s)| s.to_owned().to_owned())
-        .collect::<Vec<_>>();
-    (columns, types, rows)
+        .collect::<Vec<_>>()
 }
 
 /// View to display the subject tables for the session
@@ -117,8 +132,10 @@ fn get_subject_schema_col_type_rows_by_subject_name(
 #[component]
 pub fn subjects_modal() -> Element {
     // Intialize state and coroutines
-    use_coroutine(sync_current_subject_info_state);
-    use_coroutine(clear_subject_info_state);
+    use_coroutine(sync_current_subject_schema_state);
+    use_coroutine(clear_subject_schema_state);
+    use_coroutine(sync_current_subject_num_rows_state);
+    use_coroutine(clear_subject_num_rows_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
@@ -132,13 +149,118 @@ pub fn subjects_modal() -> Element {
         stream: false,
     });
 
-    // Get the active session info for the subject view
-    let clear_subjects_info_state = use_coroutine_handle::<ClearSubjectInfoState>();
-    let sync_current_subjects_info_state = use_coroutine_handle::<SyncCurrentSubjectInfoState>();
+    // Get the active session schema for the subject view
+    let clear_subjects_schema_state = use_coroutine_handle::<ClearSubjectSchemaState>();
+    let sync_current_subjects_schema_state = use_coroutine_handle::<SyncCurrentSubjectSchemaState>();
     let _ = use_resource(move || async move {
         let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
-        clear_subjects_info_state.send(ClearSubjectInfoState {});
-        let route = "/app/v1/subjects_info";
+        clear_subjects_schema_state.send(ClearSubjectSchemaState {});
+        let route = "/app/v1/subjects_schema";
+
+        #[cfg(not(feature = "serverless"))]
+        let addr = format!("{ADDR_BACKEND}{route}");
+        #[cfg(not(feature = "serverless"))]
+        match reqwest::Client::new()
+            .post(addr)
+            .bearer_auth(JWT().to_string())
+            .header(CONTENT_TYPE, "application/json")
+            .body(data_serialized)
+            .send()
+            .await
+        {
+            Ok(stream) => {
+                let mut stream = stream.bytes_stream();
+                while let Some(Ok(bytes)) = stream.next().await {
+                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+                    let json_rows: Vec<Map<String, Value>> =
+                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|_err| {
+                            // DM: find a better way to give feedback to the user
+                            // content.write().push_str(format!("There was a error parsing SyncCurrentSubjectInfoState {err}.").as_str());
+                            Vec::new()
+                        });
+                    for row in json_rows.iter() {
+                        sync_current_subjects_schema_state.send(SyncCurrentSubjectSchemaState {
+                            subject_schema_name: row
+                                .get("subject_names")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            subject_schema_column: row
+                                .get("column_names")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            subject_schema_type: row
+                                .get("type_names")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        });
+                    }
+                }
+            }
+            Err(err) => tracing::error!("{err:?}"),
+        }
+
+        #[cfg(feature = "serverless")]
+        let config = ServerlessConfig {
+            route: route.to_string(),
+            basic_auth: None,
+            bearer_auth: Some(JWT().to_string()),
+            data: Some(data_serialized),
+        };
+        #[cfg(feature = "serverless")]
+        let mut serverless = Serverless::new();
+        #[cfg(feature = "serverless")]
+        match serverless_app(config, &mut serverless).await {
+            Ok(response) => {
+                let bytes: Vec<Bytes> = response
+                    .into_body()
+                    .into_data_stream()
+                    .try_collect()
+                    .await
+                    .unwrap();
+                for byte in bytes.iter() {
+                    let json_rows: Vec<Map<String, Value>> =
+                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
+                    for row in json_rows.iter() {
+                        sync_current_subjects_schema_state.send(SyncCurrentSubjectSchemaState {
+                            subject_schema_name: row
+                                .get("subject_names")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            subject_schema_column: row
+                                .get("column_names")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            subject_schema_type: row
+                                .get("type_names")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        });
+                    }
+                }
+            }
+            Err(err) => tracing::error!("{err:?}"),
+        }
+    });    
+
+    // Get the active session row counts for the subject view
+    let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
+    let sync_current_subjects_rows_state = use_coroutine_handle::<SyncCurrentSubjectNumRowsState>();
+    let _ = use_resource(move || async move {
+        let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
+        clear_subjects_num_rows_state.send(ClearSubjectNumRowsState {});
+        let route = "/app/v1/subjects_num_rows";
 
         #[cfg(not(feature = "serverless"))]
         let addr = format!("{ADDR_BACKEND}{route}");
@@ -167,31 +289,19 @@ pub fn subjects_modal() -> Element {
                         } else {
                             0
                         };
-                        sync_current_subjects_info_state.send(SyncCurrentSubjectInfoState {
-                            subject_schema_name: row
+                        sync_current_subjects_rows_state.send(SyncCurrentSubjectNumRowsState {
+                            subject_name: row
                                 .get("subject_names")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
                                 .to_string(),
-                            subject_schema_column: row
-                                .get("column_names")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            subject_schema_type: row
-                                .get("type_names")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            subject_schema_row: num_rows,
+                            subject_num_row: num_rows,
                         });
                     }
                 }
             }
-            Err(_err) => (), //content.write().push_str(format!("There was a error getting subjects info {err}.").as_str()),
+            Err(err) => tracing::error!("{err:?}"),
         }
 
         #[cfg(feature = "serverless")]
@@ -221,31 +331,19 @@ pub fn subjects_modal() -> Element {
                         } else {
                             0
                         };
-                        sync_current_subjects_info_state.send(SyncCurrentSubjectInfoState {
-                            subject_schema_name: row
+                        sync_current_subjects_rows_state.send(SyncCurrentSubjectNumRowsState {
+                            subject_name: row
                                 .get("subject_names")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
                                 .to_string(),
-                            subject_schema_column: row
-                                .get("column_names")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            subject_schema_type: row
-                                .get("type_names")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            subject_schema_row: num_rows,
+                            subject_num_row: num_rows,
                         });
                     }
                 }
             }
-            Err(_err) => (),
+            Err(err) => tracing::error!("{err:?}"),
         }
     });
 
@@ -270,10 +368,9 @@ pub fn subjects_modal() -> Element {
 
     let mut schema_columns = Vec::new();
     let mut schema_types = Vec::new();
-    let mut schema_rows = Vec::new();
     if schema_columns.is_empty() {
-        (schema_columns, schema_types, schema_rows) =
-            get_subject_schema_col_type_rows_by_subject_name(
+        (schema_columns, schema_types) =
+            get_subject_schema_col_type_by_subject_name(
                 subject_shown.read().as_str(),
                 &SUBJECT_SCHEMA_NAMES
                     .read()
@@ -290,8 +387,19 @@ pub fn subjects_modal() -> Element {
                     .iter()
                     .map(|s| s.as_str())
                     .collect::<Vec<_>>(),
-                &SUBJECT_SCHEMA_ROWS.read().iter().collect::<Vec<_>>(),
             );
+    }
+    let mut num_rows = Vec::new();
+    if num_rows.is_empty() {
+        num_rows = get_subject_num_rows_by_subject_name(
+            subject_shown.read().as_str(),
+            &SUBJECT_NAMES
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &SUBJECT_NUM_ROWS.read().iter().collect::<Vec<_>>(),
+        );
     }
 
     // File upload signals
@@ -487,7 +595,7 @@ pub fn subjects_modal() -> Element {
                 div {
                     class: "output_table",
                     table {
-                        caption { "Schema for subject {subject_shown.to_string()}."},
+                        caption { "Schema for {subject_shown.to_string()}: {num_rows.first().unwrap()} rows." },
                         tr {
                             {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {
                                 rsx! {
@@ -498,12 +606,10 @@ pub fn subjects_modal() -> Element {
                         {(0..schema_columns.len()).map(|i| {
                             let subject_col = schema_columns.get(i).unwrap().to_string();
                             let subject_type = schema_types.get(i).unwrap().to_string();
-                            let subject_rows = schema_rows.get(i).unwrap().to_string();
                             rsx! {
                                 tr {
                                     td { "{subject_col}" },
                                     td { "{subject_type}" },
-                                    td { "{subject_rows}" },
                                 }
                             }
                         })}
