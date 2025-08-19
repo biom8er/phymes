@@ -9,10 +9,10 @@ use futures::TryStreamExt;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-use phymes_agents::{session_plans::tool_agent_session::{test_tool_agent_session::bench_tool_agent_session, ToolAgentSession}, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
+use phymes_agents::{session_plans::tool_agent_session::{test_tool_agent_session::bench_tool_agent_session, ToolAgentSession}, session_traits::{agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}, tabular::SessionContextTableNames}};
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap},
-    session::{common_traits::BuilderTrait, session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
+    session::{common_traits::{BuilderTrait, MappableTrait}, session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
     table::arrow_table::ArrowTableTrait,
     task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
 };
@@ -57,6 +57,27 @@ pub async fn run_main() -> Result<()> {
             println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
         }
     }
+
+    println!(
+        "number of rows {}",
+        metrics.clone_inner().output_rows().unwrap()
+    );
+    println!(
+        "elasped compute {}",
+        metrics.clone_inner().elapsed_compute().unwrap()
+    );
+
+    // println!("{:?}", session_stream_state
+    //     .try_read()
+    //     .unwrap()
+    //     .get_session_context()
+    //     .get_states()
+    //     .get(SessionContextTableNames::MermaidJS.get_name())
+    //     .unwrap()
+    //     .try_read()
+    //     .unwrap()
+    //     .get_column_as_vec_str("mermaid_js_flowchart")
+    //     .join(""));
 
     Ok(())
 }

@@ -40,6 +40,36 @@ The sequence of actions are the following:
 
 The session ends because there are no further updates to the subjects. If the user publishes a follow-up message, the session will pick-up where it left off with the chat_agent responding to the updated message content.
 
+```mermaid
+flowchart TD
+	subgraph chat_task_1
+		messages-subject-.FullTable.->chat_processor_1-subscribe
+		-subject--None-->chat_processor_1-subscribe
+		chat_processor_1-subject--FullTable-->chat_processor_1-subscribe
+		chat_processor_1-subscribe-->chat_processor_1-processor
+		chat_processor_1-processor-->chat_processor_1-publish
+		chat_processor_1-publish--ExtendChunks-->messages-subject
+	end
+	subgraph session_1
+		messages-subject-.LastRecordBatch.->session_1-subscribe
+		session_1-subscribe-->session_1-processor
+		session_1-processor-->session_1-publish
+		session_1-publish--Extend-->messages-subject
+	end
+	rt_1-rt-->chat_task_1
+	rt_default-rt-->session_1
+	chat_processor_1-processor@{shape: rect, label: CandleChatProcessor}
+	session_1-processor@{shape: rect, label: ArrowProcessorEcho}
+	rt_1-rt@{shape: subproc, label: rt_1}
+	rt_default-rt@{shape: subproc, label: rt_default}
+	chat_processor_1-subject@{shape: doc, label: chat_processor_1}
+	messages-subject@{shape: doc, label: messages}
+	chat_processor_1-publish@{shape: fork}
+	session_1-publish@{shape: fork}
+	chat_processor_1-subscribe@{shape: diamond, label: All}
+	session_1-subscribe@{shape: diamond, label: All}
+```
+
 ## Next steps
 
 The [Chat Agent Session Plan](https://github.com/biom8er/phymes/phymes-agents/src/session_plans/chat_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user.

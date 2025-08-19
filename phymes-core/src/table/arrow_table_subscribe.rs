@@ -169,6 +169,8 @@ pub fn from_str_to_subscribe(line: &str) -> Result<Box<dyn SubscribeTrait>> {
         AnyTableNameSubscribe::new_box()
     } else if line.contains(AlwaysSubscribe::get_static_name()) {
         AlwaysSubscribe::new_box()
+    } else if line.contains(ChatContentSubscribe::get_static_name()) {
+        ChatContentSubscribe::new_box()
     } else {
         return Err(anyhow!("Subscribe policy {line} was not recognized."))
     };
@@ -385,6 +387,38 @@ impl MappableTrait for AllTableSchemasSubscribe {
     }
     fn get_name(&self) -> &str {
         Self::get_static_name()
+    }
+}
+
+/// Custom subscription to pull in all of the relevant content for the chat
+#[derive(Default, Debug)]
+pub struct ChatContentSubscribe {
+    user_message_table_name: String,
+    tool_message_table_name: String,
+}
+
+impl SubscribeTrait for ChatContentSubscribe {
+    fn check_subscriptions(
+        &self,
+        _subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        _state: &StateMap,
+    ) -> bool {
+        let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
+        let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
+        *tool || *user
+    }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(Self {
+            user_message_table_name: "user_messages".to_string(),
+            tool_message_table_name: "tool_messages".to_string(),
+        })
+    }
+}
+
+impl MappableTrait for ChatContentSubscribe {
+    fn get_name(&self) -> &str {
+        "ChatContentSubscribe"
     }
 }
 

@@ -4,42 +4,16 @@ use dioxus::prelude::*;
 #[cfg(feature = "mermaid_js")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "mermaid_js")]
-use wasm_bindgen::prelude::*;
+use phymes_core::session::session_context_builder::SessionContextBuilder;
+#[cfg(feature = "mermaid_js")]
+use phymes_agents::session_traits::mermaid_js::SessionContextBuilderMermaidTrait;
 
 #[cfg(feature = "mermaid_js")]
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = mermaid)]
-    fn parse(code: &str) -> bool;
-    #[wasm_bindgen(js_namespace = mermaid)]
-    fn run();
-    #[wasm_bindgen(js_namespace = mermaid, catch)]
-    async fn render(id: &str, code: &str) -> Result<JsValue, JsValue>;
-}
-
-#[cfg(feature = "mermaid_js")]
-#[derive(Serialize, Deserialize)]
-pub struct MermaidSvgObject {
-    svg: String
-}
-
-#[cfg(feature = "mermaid_js")]
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct JsError {
-    message: String,
-    name: Option<String>,
-    stack: Option<String>,
-}
-
-#[cfg(feature = "mermaid_js")]
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct MermaidJsObject {
     svg: Option<String>,
     error: Option<String>,
 }
-
 
 use super::messaging::{messaging_interface_footer, messaging_interface_view};
 use super::metrics::metrics_modal;
@@ -231,8 +205,9 @@ pub fn about_text_modal() -> Element {
     let mut diagram_code = use_signal(|| String::from("graph TB\n\ta-->b"));
 
     #[cfg(feature = "mermaid_js")]
-    let rendered_html: Resource<(Option<String>, Option<String>)> = use_resource(move || async move {
-        let mut eval = document::eval(r#"
+    let rendered_html: Resource<(Option<String>,Option<String>,Option<String>)> = use_resource(move || async move {
+        // Render the mermaid.js diagram
+        let eval = document::eval(r#"
             try {
                 let code = await dioxus.recv();
                 const { svg } = await mermaid.render("graphDiv", code);
@@ -242,16 +217,24 @@ pub fn about_text_modal() -> Element {
             }"#
         );
         eval.send(diagram_code.read().to_string()).unwrap();
-        match eval.await {
+        let mermaid_js_object = match eval.await {
             Ok(res) => {
                 let res: MermaidJsObject = serde_json::from_value(res).unwrap();
-                (res.svg, res.error)
+                res
             },
             Err(err) => {
                 tracing::error!("Mermaid.js err {err:?}");
-                (None, Some(err.to_string()))
+                MermaidJsObject { svg: None, error: Some(err.to_string())}
             }
-        }
+        };
+
+        // Build the preliminary session context
+        let builder_error =  match SessionContextBuilder::from_mermaid_flowchart(&diagram_code.read().to_string()) {
+            Ok(res) => None,
+            Err(err) => Some(err.to_string()),
+        };
+
+        (mermaid_js_object.svg, mermaid_js_object.error, builder_error)
     });
 
     use_effect(move || {
@@ -277,17 +260,87 @@ pub fn about_text_modal() -> Element {
     
     let out = if let Some(result) = &*rendered_html.read() {
         match result {
-            (Some(svg), None) => {
+            // Mermaid.js error
+            (_, Some(error), None) => {
                 rsx! {
                     div {
                         class: "messaging_list",
-                        p { "Welcome to PHYMES by Biom🤖er" },
-                        textarea {
-                            rows: "10",
-                            cols: "40",
-                            value: "{diagram_code}",
-                            oninput: move |evt| diagram_code.set(evt.value()),
-                        }            
+                        p { "Welcome to PHYMES by Biom🤖er" }
+                        div {
+                            class: "text_input",
+                            form {
+                                textarea {
+                                    rows: "10",
+                                    cols: "40",
+                                    value: "{diagram_code}",
+                                    oninput: move |evt| diagram_code.set(evt.value()),
+                                }
+                            }
+                        }
+                        p { "{error}" },
+                    }            
+                }
+            }
+            // SessionContextBuilder error
+            (_, None, Some(error)) => {
+                rsx! {
+                    div {
+                        class: "messaging_list",
+                        p { "Welcome to PHYMES by Biom🤖er" }
+                        div {
+                            class: "text_input",
+                            form {
+                                textarea {
+                                    rows: "10",
+                                    cols: "40",
+                                    value: "{diagram_code}",
+                                    oninput: move |evt| diagram_code.set(evt.value()),
+                                }
+                            }
+                        }
+                        p { "{error}" },
+                    }            
+                }
+            }
+            // Mermaid.js and SessionContextBuilder error
+            (_, Some(error_mjs), Some(error_ctxb)) => {
+                rsx! {
+                    div {
+                        class: "messaging_list",
+                        p { "Welcome to PHYMES by Biom🤖er" }
+                        div {
+                            class: "text_input",
+                            form {
+                                textarea {
+                                    rows: "10",
+                                    cols: "40",
+                                    value: "{diagram_code}",
+                                    oninput: move |evt| diagram_code.set(evt.value()),
+                                }
+                            }
+                        }
+                        p { "{error_mjs}" },
+                        p { "{error_ctxb}" },
+                    }            
+                }
+            }
+            // Valid SVG with no errors
+            (Some(svg), _, _) => {
+                rsx! {
+                    div {
+                        class: "messaging_list",
+                        p { "Welcome to PHYMES by Biom🤖er" }
+                        div {
+                            class: "text_input",
+                            form {
+                                textarea {
+                                    rows: "10",
+                                    cols: "40",
+                                    value: "{diagram_code}",
+                                    oninput: move |evt| diagram_code.set(evt.value()),
+                                }
+                            }
+                        }
                         div {
                             id: "graphDiv",
                             class: "mermaid",
@@ -296,31 +349,22 @@ pub fn about_text_modal() -> Element {
                     }
                 }
             }
-            (None, Some(error)) => {
+            // All other cases
+            (_, _, _) => {
                 rsx! {
                     div {
                         class: "messaging_list",
                         p { "Welcome to PHYMES by Biom🤖er" },
-                        textarea {
-                            rows: "10",
-                            cols: "40",
-                            value: "{diagram_code}",
-                            oninput: move |evt| diagram_code.set(evt.value()),
-                        }
-                        p { "{error}" },
-                    }            
-                }
-            }
-            (_, _) => {
-                rsx! {
-                    div {
-                        class: "messaging_list",
-                        p { "Welcome to PHYMES by Biom🤖er" },
-                        textarea {
-                            rows: "10",
-                            cols: "40",
-                            value: "{diagram_code}",
-                            oninput: move |evt| diagram_code.set(evt.value()),
+                        div {
+                            class: "text_input",
+                            form {
+                                textarea {
+                                    rows: "10",
+                                    cols: "40",
+                                    value: "{diagram_code}",
+                                    oninput: move |evt| diagram_code.set(evt.value()),
+                                }
+                            }
                         }
                     }            
                 }
@@ -331,11 +375,16 @@ pub fn about_text_modal() -> Element {
             div {
                 class: "messaging_list",
                 p { "Welcome to PHYMES by Biom🤖er" },
-                textarea {
-                    rows: "10",
-                    cols: "40",
-                    value: "{diagram_code}",
-                    oninput: move |evt| diagram_code.set(evt.value()),
+                div {
+                    class: "text_input",
+                    form {
+                        textarea {
+                            rows: "10",
+                            cols: "40",
+                            value: "{diagram_code}",
+                            oninput: move |evt| diagram_code.set(evt.value()),
+                        }
+                    }
                 }
             }            
         }

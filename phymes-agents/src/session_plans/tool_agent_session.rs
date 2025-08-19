@@ -2,10 +2,9 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    metrics::HashMap,
     schemas::message_history::create_messages_schema,
     session::{
-        common_traits::{BuilderTrait, MappableTrait, StateMap},
+        common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     },
@@ -13,7 +12,7 @@ use phymes_core::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{
-            AllTableNamesSubscribe, AnyTableNameSubscribe, ArrowTableSubscribe, SubscribeTrait,
+            AllTableNamesSubscribe, AnyTableNameSubscribe, ArrowTableSubscribe, ChatContentSubscribe, SubscribeTrait
         },
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
@@ -45,38 +44,6 @@ use arrow::{
 };
 
 use crate::session_traits::agents::CustomAgentsBuilderTrait;
-
-/// Custom subscription to pull in all of the relevant content for the chat
-#[derive(Default, Debug)]
-pub struct ChatContentSubscribe {
-    user_message_table_name: String,
-    tool_message_table_name: String,
-}
-
-impl SubscribeTrait for ChatContentSubscribe {
-    fn check_subscriptions(
-        &self,
-        _subscriptions: &[ArrowTableSubscribe],
-        updates: &HashMap<String, bool>,
-        _state: &StateMap,
-    ) -> bool {
-        let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
-        let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
-        *tool || *user
-    }
-    fn new_box() -> Box<dyn SubscribeTrait> {
-        Box::new(Self {
-            user_message_table_name: "user_messages".to_string(),
-            tool_message_table_name: "tool_messages".to_string(),
-        })
-    }
-}
-
-impl MappableTrait for ChatContentSubscribe {
-    fn get_name(&self) -> &str {
-        "ChatContentSubscribe"
-    }
-}
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {

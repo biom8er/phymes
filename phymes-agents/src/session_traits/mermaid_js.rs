@@ -44,6 +44,10 @@ pub fn from_str_to_data_type(data_type: &str) -> Result<DataType> {
         DataType::Float64
     } else if data_type == &DataType::Utf8.to_string() {
         DataType::Utf8
+    } else if data_type == &DataType::Null.to_string() {
+        DataType::Null
+    } else if data_type == &DataType::Boolean.to_string() {
+        DataType::Boolean
     } else if data_type.contains("FixedSizeList-UInt8-") {
         let size = data_type.split("FixedSizeList-UInt8-").last().unwrap().trim().parse::<i32>().unwrap();                       
         DataType::FixedSizeList(
@@ -260,12 +264,14 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             }
         };
         let publication_from_str = |line: &str, iter: usize, subject: &str, task: &str| -> Result<ArrowTablePublish> {
-            if line.contains("--") & line.contains("-->") & line.contains("Extend") {
+            if line.contains("--") & line.contains("-->") & line.contains("ExtendChunks") {
+                Ok(ArrowTablePublish::ExtendChunks { table_name: subject.to_string(), col_name: "content".to_string() })
+            } else if line.contains("--") & line.contains("-->") & line.contains("Extend") {
                 Ok(ArrowTablePublish::Extend { table_name: subject.to_string() })
-            } else if line.contains("--") & line.contains("-->") & line.contains("Replace") {
-                Ok(ArrowTablePublish::Replace { table_name: subject.to_string() })
             } else if line.contains("--") & line.contains("-->") & line.contains("ReplaceLast") {
                 Ok(ArrowTablePublish::ReplaceLast { table_name: subject.to_string() })
+            } else if line.contains("--") & line.contains("-->") & line.contains("Replace") {
+                Ok(ArrowTablePublish::Replace { table_name: subject.to_string() })
             } else if line.contains("None") {
                 Ok(ArrowTablePublish::None {})
             } else {
@@ -278,6 +284,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             } else if line.contains(ArrowProcessorEcho::get_static_name()) {
                 Ok(ArrowProcessorEcho::get_static_name().to_string())
             } else if line.contains(ArrowProcessorEcho::get_static_name()) {
+                Ok(CandleDataProcessor::get_static_name().to_string())
+            } else if line.contains(CandleDataProcessor::get_static_name()) {
                 Ok(CandleDataProcessor::get_static_name().to_string())
             } else if line.contains(DataSummaryProcessor::get_static_name()) {
                 Ok(DataSummaryProcessor::get_static_name().to_string())
@@ -363,7 +371,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             task_plan_builders.get_mut(&task_name).unwrap().processor_names.as_mut().unwrap().push(processor.to_owned());
                         }                        
                         processor_names.insert(processor);
-                        subject_names.insert(subject);
+                        // ArrowTableSubscribe::None will not have a subject
+                        if !subject.is_empty() {
+                            subject_names.insert(subject);
+                        }                         
 
                     // Subscribe, Processor triple
                     // e.g., processor_1-subscribe-->processor_1-processor
@@ -732,6 +743,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 mod tests {
     use phymes_core::{session::session_context_builder::test_session_context_builder::make_test_session_builder_parallel_task, task::arrow_task::test_task::{make_runtime_env, make_state_tables}};
 
+    use crate::{session_plans::{chat_agent_session::{self, ChatAgentSession}, document_rag_session::DocumentRAGSession, tool_agent_session::ToolAgentSession}, session_traits::agents::CustomAgentsBuilderTrait};
+
     use super::*;
     #[test]
     fn test_to_mermaid_flowchart() -> Result<()> {
@@ -776,7 +789,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid() -> Result<()> {
+    fn test_from_mermaid_parallel_task() -> Result<()> {
         // Init runtime env
         let runtime_envs = vec![make_runtime_env("rt_1")?];
 
@@ -789,6 +802,126 @@ mod tests {
         let builder = make_test_session_builder_parallel_task()
             .with_runtime_envs(runtime_envs)
             .with_state(state);
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart()?;
+        let erdiagram = builder.to_mermaid_erdiagram()?;
+
+        // Remake the builder
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart)?.with_state_from_mermaid_erdiagram(&erdiagram)?;
+
+        // Test that the names match
+        let mut test = builder_test.get_processor_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_processor_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test.get_runtime_env_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_runtime_env_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test.get_subject_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_subject_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test.processors.as_ref().unwrap().iter().map(|p| p.get_name()).collect::<Vec<_>>();
+        let expected = builder.processors.as_ref().unwrap().iter().map(|p| p.get_name()).collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the session
+        let _ = builder_test.with_name("session_1").build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_chat_agent_session() -> Result<()> {
+        // initialize the session
+        let builder = ChatAgentSession::new_with_session_name("session_1").build();
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart()?;
+        let erdiagram = builder.to_mermaid_erdiagram()?;
+
+        // Remake the builder
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart)?.with_state_from_mermaid_erdiagram(&erdiagram)?;
+
+        // Test that the names match
+        let mut test = builder_test.get_processor_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_processor_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test.get_runtime_env_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_runtime_env_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test.get_subject_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_subject_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test.processors.as_ref().unwrap().iter().map(|p| p.get_name()).collect::<Vec<_>>();
+        let expected = builder.processors.as_ref().unwrap().iter().map(|p| p.get_name()).collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the session
+        let _ = builder_test.with_name("session_1").build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_doc_rag_session() -> Result<()> {
+        // initialize the session
+        let builder = DocumentRAGSession::new_with_session_name("session_1").build();
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart()?;
+        let erdiagram = builder.to_mermaid_erdiagram()?;
+
+        // Remake the builder
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart)?.with_state_from_mermaid_erdiagram(&erdiagram)?;
+
+        // Test that the names match
+        let mut test = builder_test.get_processor_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_processor_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test.get_runtime_env_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_runtime_env_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test.get_subject_names().into_iter().collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_subject_names().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test.processors.as_ref().unwrap().iter().map(|p| p.get_name()).collect::<Vec<_>>();
+        let expected = builder.processors.as_ref().unwrap().iter().map(|p| p.get_name()).collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the session
+        let _ = builder_test.with_name("session_1").build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_tool_agent_session() -> Result<()> {
+        // initialize the session
+        let builder = ToolAgentSession::new_with_session_name("session_1").build();
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart()?;

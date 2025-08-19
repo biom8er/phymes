@@ -11,10 +11,10 @@ use std::sync::Arc;
 
 use phymes_agents::{session_plans::chat_agent_session::{
         test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2}, ChatAgentSession
-    }, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
+    }, session_traits::{agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}, tabular::SessionContextTableNames}};
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap},
-    session::{common_traits::BuilderTrait, session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
+    session::{common_traits::{BuilderTrait, MappableTrait}, session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
     table::arrow_table::ArrowTableTrait,
     task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
 };

@@ -11,10 +11,10 @@ use std::sync::Arc;
 
 use phymes_agents::{session_plans::document_rag_session::{
         test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query}, DocumentRAGSession
-    }, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
+    }, session_traits::{agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}, tabular::SessionContextTableNames}};
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap},
-    session::{common_traits::BuilderTrait, session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
+    session::{common_traits::{BuilderTrait, MappableTrait}, session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
     table::arrow_table::ArrowTableTrait,
     task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
 };
@@ -83,6 +83,15 @@ pub async fn run_main() -> Result<()> {
             println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
         }
     }
+
+    println!(
+        "number of rows {}",
+        metrics.clone_inner().output_rows().unwrap()
+    );
+    println!(
+        "elasped compute {}",
+        metrics.clone_inner().elapsed_compute().unwrap()
+    );
 
     Ok(())
 }

@@ -395,12 +395,12 @@ main footer .text_input{
 	height: 100%;
 	float: left;
 }
-main footer .text_input #message_form {
+main footer .text_input form {
     width: 100%;
     height: 100%;
 	color:#fff;
 }
-main footer .text_input #message_form textarea {
+main footer .text_input form textarea {
 	border:none;
     width: 100%;
     height: 100%;
@@ -415,7 +415,7 @@ main footer .text_input #message_form textarea {
 	color:#fff;
 	background-color:#333333ff;
 }
-main footer .text_input #message_form textarea::placeholder{
+main footer .text_input form textarea::placeholder{
 	color:#fff;
 }
 main footer .attach_button{
