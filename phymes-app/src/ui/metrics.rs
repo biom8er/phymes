@@ -7,6 +7,13 @@ use phymes_server::handlers::{
 };
 use serde_json::{Map, Value};
 
+#[cfg(feature = "mermaid_js")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "mermaid_js")]
+use phymes_core::session::session_context_builder::SessionContextBuilder;
+#[cfg(feature = "mermaid_js")]
+use phymes_agents::session_traits::mermaid_js::SessionContextBuilderMermaidTrait;
+
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
@@ -26,23 +33,20 @@ use phymes_server::server::{
 use crate::{
     state::{
         metrics::{
-            clear_metrics_info_state, sync_current_filtered_metrics_state, sync_current_metrics_info_state, ClearMetricsInfoState, SyncCurrentFilteredMetricsState, SyncCurrentMetricsInfoState, FILTERED_METRICS, METRIC_NAMES, METRIC_TASK_NAMES, METRIC_VALUES
+            sync_current_active_metric_state, sync_current_metrics_mermaid_state, SyncCurrentActiveMetricState, SyncCurrentMetricsMermaidJSState, ACTIVE_METRIC, MERMAID_ELAPSED_COMPUTE, MERMAID_OUTPUT_ROWS, MERMAID_PROCESSOR_TRACES
         },
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
     },
-    ui::{settings::get_non_duplicated_sorted_subjects, svg_icons::search_icon_svg},
+    ui::{settings::render_mermaid_svg, svg_icons::search_icon_svg},
 };
 
-const SESSION_METRICS_HEADERS: [&str; 3] = ["Task", "Metric", "Value"];
+const SESSION_METRICS_HEADERS: [&str; 3] = ["processor_traces", "elapsed_compute", "output_rows"];
 
-/// View to display the subject tables for the session
-/// and to allow for easier upload by the user
 #[component]
 pub fn metrics_modal() -> Element {
     // Intialize state and coroutines
-    use_coroutine(sync_current_metrics_info_state);
-    use_coroutine(clear_metrics_info_state);
+    use_coroutine(sync_current_metrics_mermaid_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
@@ -57,11 +61,9 @@ pub fn metrics_modal() -> Element {
     });
 
     // Get the active session info for the metrics view
-    let clear_metrics_info_state = use_coroutine_handle::<ClearMetricsInfoState>();
-    let sync_current_metrics_info_state = use_coroutine_handle::<SyncCurrentMetricsInfoState>();
+    let sync_current_metrics_mermaid_state = use_coroutine_handle::<SyncCurrentMetricsMermaidJSState>();
     let _ = use_resource(move || async move {
         let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
-        clear_metrics_info_state.send(ClearMetricsInfoState {});
         let route = "/app/v1/metrics_info";
 
         #[cfg(not(feature = "serverless"))]
@@ -80,32 +82,30 @@ pub fn metrics_modal() -> Element {
                 while let Some(Ok(bytes)) = stream.next().await {
                     let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                     let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|_err| {
-                            // content.write().push_str(format!("There was a error parsing SyncCurrentMetricsInfoState {err}.").as_str());
+                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
+                            tracing::error!("There was a error parsing SyncCurrentMetricsMermaidJSState {err}.");
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        let metric_value = if let Some(Value::Number(val)) = row.get("metric_value")
-                        {
-                            val.as_u64().unwrap()
-                        } else {
-                            0
-                        };
-                        let metric_task_name =
-                            if let Some(Value::String(val)) = row.get("task_name") {
-                                val.to_owned()
-                            } else {
-                                "".to_string()
-                            };
-                        let metric_name = if let Some(Value::String(val)) = row.get("metric_name") {
-                            val.to_owned()
-                        } else {
-                            "".to_string()
-                        };
-                        sync_current_metrics_info_state.send(SyncCurrentMetricsInfoState {
-                            metric_task_name,
-                            metric_name,
-                            metric_value,
+                        sync_current_metrics_mermaid_state.send(SyncCurrentMetricsMermaidJSState {
+                            processor_traces: row
+                                .get("processor_traces")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            elapsed_compute: row
+                                .get("elapsed_compute")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            output_rows: row
+                                .get("output_rows")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
                         });
                     }
                 }
@@ -133,29 +133,30 @@ pub fn metrics_modal() -> Element {
                     .unwrap();
                 for byte in bytes.iter() {
                     let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
+                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
+                            tracing::error!("There was a error parsing SyncCurrentMetricMermaidJSState {err}.");
+                            Vec::new()
+                        });
                     for row in json_rows.iter() {
-                        let metric_value = if let Some(Value::Number(val)) = row.get("metric_value")
-                        {
-                            val.as_u64().unwrap()
-                        } else {
-                            0
-                        };
-                        let metric_task_name =
-                            if let Some(Value::String(val)) = row.get("task_name") {
-                                val.to_owned()
-                            } else {
-                                "".to_string()
-                            };
-                        let metric_name = if let Some(Value::String(val)) = row.get("metric_name") {
-                            val.to_owned()
-                        } else {
-                            "".to_string()
-                        };
-                        sync_current_metrics_info_state.send(SyncCurrentMetricsInfoState {
-                            metric_task_name,
-                            metric_name,
-                            metric_value,
+                        sync_current_metrics_mermaid_state.send(SyncCurrentMetricMermaidJSState {
+                            processor_traces: row
+                                .get("processor_traces")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            elapsed_compute: row
+                                .get("elapsed_compute")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            output_rows: row
+                                .get("output_rows")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
                         });
                     }
                 }
@@ -164,255 +165,226 @@ pub fn metrics_modal() -> Element {
         }
     });
 
-    rsx! {
-        // Check for sign-in
-        if JWT.read().is_empty() {
-            div {
-                class: "messaging_list",
-                p { "Please sign-in before searching metrics." },
-            }
-        } else if ACTIVE_SESSION_NAME.read().is_empty() {
-            div {
-                class: "messaging_list",
-                p { "Please activate a session before searching metrics." },
-            }
-        } else if METRIC_TASK_NAMES.read().is_empty() {
-            div {
-                class: "messaging_list",
-                p { "Waiting to retrieve session plan metrics..." },
-            }
+    
+    
+    // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
+    let diagram_code: Memo<String> = use_memo(move || {
+        if &ACTIVE_METRIC.read().to_string() == SESSION_METRICS_HEADERS.first().unwrap() {
+            MERMAID_PROCESSOR_TRACES.read().to_string()
+        } else if &ACTIVE_METRIC.read().to_string() == SESSION_METRICS_HEADERS.get(1).unwrap() {
+            MERMAID_ELAPSED_COMPUTE.read().to_string()
+        } else if &ACTIVE_METRIC.read().to_string() == SESSION_METRICS_HEADERS.get(2).unwrap() {
+            MERMAID_OUTPUT_ROWS.read().to_string()
         } else {
-            div {
-                class: "messaging_list",
-                metrics_dropdown {},
-                metrics_table {}
+            String::new()
+        }
+    });
+    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv");
+    let out = if let Some(result) = &*rendered_html.read() {
+        match result {
+            // Mermaid.js or SessionContextBuilder error
+            (_, Some(error), None) | (_, None, Some(error)) => {
+                rsx! {
+                    if JWT.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please sign-in before searching metrics." },
+                        }
+                    } else if ACTIVE_SESSION_NAME.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please activate a session before searching metrics." },
+                        }
+                    } else if MERMAID_ELAPSED_COMPUTE.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Waiting to retrieve session plan metrics..." },
+                        }
+                    } else {
+                        div {
+                            class: "messaging_list",
+                            metrics_dropdown {}
+                            p { "{error}" },
+                        }
+                    }
+                }
+            }
+            // Mermaid.js and SessionContextBuilder error
+            (_, Some(error_mjs), Some(error_ctxb)) => {
+                rsx! {
+                    if JWT.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please sign-in before searching metrics." },
+                        }
+                    } else if ACTIVE_SESSION_NAME.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please activate a session before searching metrics." },
+                        }
+                    } else if MERMAID_ELAPSED_COMPUTE.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Waiting to retrieve session plan metrics..." },
+                        }
+                    } else {
+                        div {
+                            class: "messaging_list",
+                            metrics_dropdown {}
+                            p { "{error_mjs}" },
+                            p { "{error_ctxb}" },
+                        }
+                    }
+                }
+            }
+            // Valid SVG with no errors
+            (Some(svg), _, _) => {
+                rsx! {
+                    if JWT.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please sign-in before searching metrics." },
+                        }
+                    } else if ACTIVE_SESSION_NAME.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please activate a session before searching metrics." },
+                        }
+                    } else if MERMAID_ELAPSED_COMPUTE.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Waiting to retrieve session plan metrics..." },
+                        }
+                    } else {
+                        div {
+                            class: "messaging_list",
+                            metrics_dropdown {}
+                            div {
+                                id: "graphDiv",
+                                class: "mermaid",
+                                svg { dangerous_inner_html: svg.to_string() }
+                            }
+                        }
+                    }
+                }
+            }
+            // All other cases
+            (_, _, _) => {
+                rsx! {
+                    if JWT.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please sign-in before searching metrics." },
+                        }
+                    } else if ACTIVE_SESSION_NAME.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please activate a session before searching metrics." },
+                        }
+                    } else if MERMAID_ELAPSED_COMPUTE.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Waiting to retrieve session plan metrics..." },
+                        }
+                    } else {
+                        div {
+                            class: "messaging_list",
+                            metrics_dropdown {},
+                        }
+                    }
+                }
             }
         }
-    }
+    } else {
+        rsx! {
+            if JWT.read().is_empty() {
+                div {
+                    class: "messaging_list",
+                    p { "Please sign-in before searching metrics." },
+                }
+            } else if ACTIVE_SESSION_NAME.read().is_empty() {
+                div {
+                    class: "messaging_list",
+                    p { "Please activate a session before searching metrics." },
+                }
+            } else if MERMAID_ELAPSED_COMPUTE.read().is_empty() {
+                div {
+                    class: "messaging_list",
+                    p { "Waiting to retrieve session plan metrics..." },
+                }
+            } else {
+                div {
+                    class: "messaging_list",
+                    metrics_dropdown {},
+                }
+            }
+        }
+    };
+    out
 }
 
-/// Dropdown and filtering options for metrics
+/// Metrics dropdown
 #[component]
 pub fn metrics_dropdown() -> Element {
     // Intialize state and coroutines
-    use_coroutine(sync_current_filtered_metrics_state);
+    use_coroutine(sync_current_active_metric_state);
 
     // Dropdown signals
     let mut show_metric_dropdown = use_signal(|| false);
     #[allow(clippy::redundant_closure)]
     let mut metric_dropdown = use_signal(|| String::new());
     #[allow(clippy::redundant_closure)]
-    let mut metrics_shown: Signal<Vec<String>> = use_signal(|| Vec::new());
-    let metrics_vec = use_memo(move || {
-        get_non_duplicated_sorted_subjects(
-            &METRIC_NAMES
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-        )
-    });
-    #[allow(clippy::redundant_closure)]
     let mut metrics_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
-
-    let mut show_tasks_dropdown = use_signal(|| false);
-    #[allow(clippy::redundant_closure)]
-    let mut tasks_dropdown = use_signal(|| String::new());
-    #[allow(clippy::redundant_closure)]
-    let mut tasks_shown: Signal<Vec<String>> = use_signal(|| Vec::new());
-    let tasks_vec = use_memo(move || {
-        get_non_duplicated_sorted_subjects(
-            &METRIC_TASK_NAMES
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-        )
-    });
-    #[allow(clippy::redundant_closure)]
-    let mut tasks_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
-
-    let _ = use_resource(move || async move {
-        let filtered_indices = (0..METRIC_TASK_NAMES.len())
-            .filter(|i| {
-                metrics_shown().contains(METRIC_NAMES().get(*i).unwrap())
-                    && tasks_shown().contains(METRIC_TASK_NAMES().get(*i).unwrap())
-            })
-            .collect::<Vec<_>>();
-        
-        let sync_current_filtered_metrics_state = use_coroutine_handle::<SyncCurrentFilteredMetricsState>();
-        sync_current_filtered_metrics_state.send(SyncCurrentFilteredMetricsState { filtered_indices });
-    });
 
     rsx! {
         div {
             class: "dropdown_form",
             form {
-                id: "i_search_metrics_form",
+                class: "dropdown_form_input",
                 input {
                     r#type: "text",
-                    placeholder: "search metrics",
+                    placeholder: "search session",
                     value: "{metric_dropdown}",
                     onclick: move |_| show_metric_dropdown.set(true),
                     onfocusout: move |_| show_metric_dropdown.set(false),
                     oninput: move |evt| metric_dropdown.set(evt.value()),
                     onkeyup: move |_| {
-                        metrics_filtered.set(metrics_vec().iter()
+                        metrics_filtered.set(SESSION_METRICS_HEADERS.iter()
                             .filter(|s| !s.contains(metric_dropdown.read().as_str()))
-                            .cloned()
+                            .map(|s| s.to_string())
                             .collect::<Vec<_>>());
                     }
                 },
             },
             button {
-                onclick: move |_evt| {
-                    if !metric_dropdown.read().is_empty() {
-                        metrics_shown.write().push(metric_dropdown.to_string());
-                        metric_dropdown.set(String::new());
-                    }
+                class: "dropdown_form_button",
+                onclick: move |_evt| async move {
+                    // Reset the dropdown
+                    let active_metric = metric_dropdown.try_read().unwrap().to_string();
+                    metric_dropdown.set(String::new());
+
+                    // Set the active session
+                    let sync_current_active_metric_state = use_coroutine_handle::<SyncCurrentActiveMetricState>();
+                    sync_current_active_metric_state.send(SyncCurrentActiveMetricState { name: active_metric.clone() });
                 },
                 svg { dangerous_inner_html: search_icon_svg() },
             },
-            button {
-                id: "i_metrics_all",
-                onclick: move |_| {
-                    metrics_shown.write().clear();
-                    for sub in metrics_vec().iter() {
-                        metrics_shown.write().push(sub.to_string());
-                    }
-                },
-                "All"
-            },
-            button {
-                id: "i_metrics_one",
-                onclick: move |_| {
-                    metrics_shown.write().clear();
-                },
-                "None"
-            }
         }
 
-        // Dynamic dropdown for metrics
+        // Dynamic dropdown
         if show_metric_dropdown() {
             div {
                 class: "dropdown_list",
                 ul {
-                    id: "i_search_metrics_dropdown",
-                    {metrics_vec().iter().filter(|s| !metrics_shown.read().contains(*s) && !metrics_filtered.read().contains(*s)).enumerate().map(|(i, sub)| {
-                        let sub = sub.clone();
+                    id: "sessions_dropdown_list",
+                    {SESSION_METRICS_HEADERS.iter().filter(|s| ACTIVE_METRIC.read().to_string()!=**s && !metrics_filtered.read().contains(&s.to_string())).enumerate().map(|(i, sub)|  {
                         rsx! {
                             li {
                                 key: "{i}",
                                 div {
-                                    class: "i_search_metrics_dropdown_metric",
-                                    onmouseover: move |_evt| metric_dropdown.set(sub.clone()),
-                                    h3 { "{sub}" },
+                                    onmouseover: move |_evt| metric_dropdown.set(sub.to_string()),
+                                    p { "{sub}" },
                                 }
-                            }
-                        }
-                    })}
-                }
-            }
-        }
-
-        // Search tasks
-        div {
-            class: "dropdown_form",
-            form {
-                id: "i_search_tasks_form",
-                input {
-                    r#type: "text",
-                    placeholder: "search tasks",
-                    value: "{tasks_dropdown}",
-                    onclick: move |_| show_tasks_dropdown.set(true),
-                    onfocusout: move |_| show_tasks_dropdown.set(false),
-                    oninput: move |evt| tasks_dropdown.set(evt.value()),
-                    onkeyup: move |_| {
-                        tasks_filtered.set(tasks_vec().iter()
-                            .filter(|s| !s.contains(tasks_dropdown.read().as_str()))
-                            .cloned()
-                            .collect::<Vec<_>>());
-                    }
-                },
-            },
-            button {
-                onclick: move |_evt| {
-                    if !tasks_dropdown.read().is_empty(){
-                        tasks_shown.write().push(tasks_dropdown.to_string());
-                        tasks_dropdown.set(String::new());
-                    }
-                },
-                svg { dangerous_inner_html: search_icon_svg() },
-            },
-            button {
-                id: "i_tasks_all",
-                onclick: move |_| {
-                    tasks_shown.write().clear();
-                    for task in tasks_vec().iter() {
-                        tasks_shown.write().push(task.to_string());
-                    }
-                },
-                "All"
-            },
-            button {
-                id: "i_tasks_one",
-                onclick: move |_| {
-                    tasks_shown.write().clear();
-                },
-                "None"
-            }
-        }
-
-        // Dynamic dropdown for tasks
-        if show_tasks_dropdown() {
-            div {
-                class: "dropdown_list",
-                ul {
-                    id: "i_search_tasks_dropdown",
-                    {tasks_vec().iter().filter(|s| !tasks_shown.read().contains(*s) && !tasks_filtered.read().contains(*s)).enumerate().map(|(i, task)| {
-                        let task = task.clone();
-                        rsx! {
-                            li {
-                                key: "{i}",
-                                div {
-                                    class: "i_search_tasks_dropdown_metric",
-                                    onmouseover: move |_evt| tasks_dropdown.set(task.clone()),
-                                    h3 { "{task}" },
-                                }
-                            }
-                        }
-                    })}
-                }
-            }
-        }
-    }
-}
-
-
-#[component]
-pub fn metrics_table() -> Element {
-    rsx! {
-        if !METRIC_TASK_NAMES.read().is_empty() {
-            div {
-                class: "output_table",
-                table {
-                    caption { "Metrics for session plan {ACTIVE_SESSION_NAME.read().to_string()}."},
-                    tr {
-                        {SESSION_METRICS_HEADERS.iter().map(|header| {
-                            rsx! {
-                                th { "{header}" }
-                            }
-                        })}
-                    },
-                    {FILTERED_METRICS().iter().map(|i| {
-                        let c1 = METRIC_TASK_NAMES.get(*i).unwrap().to_string();
-                        let c2 = METRIC_NAMES.get(*i).unwrap().to_string();
-                        let c3 = METRIC_VALUES.get(*i).unwrap().to_string();
-                        rsx! {
-                            tr {
-                                td { "{c1}" },
-                                td { "{c2}" },
-                                td { "{c3}" },
                             }
                         }
                     })}

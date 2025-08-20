@@ -18,18 +18,11 @@ use crate::{
 };
 
 #[cfg(feature = "mermaid_js")]
-use serde::{Deserialize, Serialize};
+use crate::state::settings::MermaidJsObject;
 #[cfg(feature = "mermaid_js")]
 use phymes_core::session::session_context_builder::SessionContextBuilder;
 #[cfg(feature = "mermaid_js")]
 use phymes_agents::session_traits::mermaid_js::SessionContextBuilderMermaidTrait;
-
-#[cfg(feature = "mermaid_js")]
-#[derive(Debug, Deserialize, Serialize)]
-struct MermaidJsObject {
-    svg: Option<String>,
-    error: Option<String>,
-}
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};

@@ -40,3 +40,10 @@ pub async fn sync_current_session_mermaid_state(
         (*SESSION_MERMAID_ERDIAGRAM.write()).push_str(updated_state.erdiagram.as_str());
     }
 }
+
+#[cfg(feature = "mermaid_js")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MermaidJsObject {
+    pub svg: Option<String>,
+    pub error: Option<String>,
+}

@@ -27,7 +27,7 @@ use crate::{
     state::{
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
-        tasks::{
+        tasks_v1::{
             clear_task_info_state, sync_current_task_info_state, ClearTaskInfoState,
             SyncCurrentTaskInfoState, TASK_PROCESSOR_NAMES, TASK_PUB_OR_SUB, TASK_SUBJECT_NAMES,
             TASK_TASK_NAMES,

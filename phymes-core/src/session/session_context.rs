@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use arrow::array::{ArrayRef, UInt64Array};
 use arrow::array::{BooleanArray, StringArray};
 use arrow::datatypes::SchemaRef;
@@ -119,9 +119,13 @@ impl SessionContext {
     }
 
     /// Get the metrics as a gantt for the session
-    pub fn get_metrics_as_mermaid_gantt(&self, table_name: &str) -> Result<ArrowTable> {
-        let pivot_table = get_metrics_as_gantt_table(&[self.metrics.clone()], table_name)?;
-        get_metrics_as_mermaid_gantt(pivot_table)
+    pub fn get_metrics_as_mermaid_gantt(&self) -> Result<ArrowTable> {
+        if let Some(pivot_table) = self.state.get(SessionContextTableNames::Metrics.get_name()) {
+            let pivot_table = get_metrics_as_gantt_table(pivot_table.try_read().unwrap().clone())?;
+            get_metrics_as_mermaid_gantt(pivot_table)
+        } else {
+            Err(anyhow!("Metrics table not in state. Run `update_metrics_table` first."))
+        }
     }
 
     /// Get the max iterations
@@ -835,8 +839,6 @@ impl Stream for SessionStream {
                     _ => HashMap::<String, ArrowIncomingMessage>::new(),
                 }
             } else {
-                // Add the metrics to the state
-                self.state.try_write().unwrap().get_session_context_mut().update_metrics_table().unwrap();
                 return Poll::Ready(None);
             };
 
@@ -856,7 +858,6 @@ impl Stream for SessionStream {
             }
         }
         event!(Level::DEBUG, "Maximum iterations {} exeeded.", max_iter);
-        self.state.try_write().unwrap().get_session_context_mut().update_metrics_table().unwrap();
         Poll::Ready(None)
     }
 
@@ -2439,12 +2440,19 @@ mod tests {
         assert_eq!(n_rows, 6);
 
         // Check the metrics
+        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 5385);
+        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
+        
+        // Add the metrics to the state
+        session_stream_state.try_write().unwrap().get_session_context_mut().update_metrics_table()?;
+
+        // Check the metrics tables
         assert!(metrics.clone_inner().output_rows().is_none());
         assert!(metrics.clone_inner().elapsed_compute().is_none());
-        let metrics_table = session_stream_state
+        let sss = session_stream_state
             .try_read()
             .unwrap();
-        let metrics_table = metrics_table
+        let metrics_table = sss
             .get_session_context()
             .get_states()
             .get(SessionContextTableNames::Metrics.get_name())
@@ -2459,6 +2467,9 @@ mod tests {
         let output_rows_sum = output_rows.iter().sum::<u64>();
         let output_rows_sum_test = [15, 0, 69, 0, 0, 312, 0, 1392, 15, 0, 69, 0, 312, 0, 1392, 0, 15, 0, 69, 0, 312, 0, 1392, 0, 6, 7, 8].iter().sum::<u64>();
         assert_eq!(output_rows_sum, output_rows_sum_test);
+
+        // Check pivot
+        let _ = sss.get_session_context().get_metrics_as_mermaid_gantt();
 
         Ok(())
     }

@@ -154,14 +154,9 @@ pub fn get_metrics_as_table(metrics: ArrowTaskMetricsSet, table_name: &str) -> R
 }
 
 /// Add normalized start and end time for use in gantt or barplot visualizations
-pub fn get_metrics_as_gantt_table(
-    metrics_vec: &[ArrowTaskMetricsSet],
-    table_name: &str,
-) -> Result<ArrowTable> {
-    let pivot_table = get_metrics_as_pivot_table(metrics_vec, table_name)?;
-
+pub fn get_metrics_as_gantt_table(pivot_table: ArrowTable) -> Result<ArrowTable> {
     // determine the minimum start time
-    let start_time_arr: ArrayRef = pivot_table.get_column_as_array("start_time");
+    let start_time_arr: ArrayRef = pivot_table.get_column_as_array("start_timestamp");
     let start_time_arr_prim = start_time_arr
         .as_any().downcast_ref::<UInt64Array>()
         .unwrap();
@@ -172,7 +167,7 @@ pub fn get_metrics_as_gantt_table(
     let normalized_start_time_arr = sub(&start_time_arr, &min_start_time_arr).unwrap();
 
     // normalize the end time
-    let end_time_arr: ArrayRef = pivot_table.get_column_as_array("end_time");
+    let end_time_arr: ArrayRef = pivot_table.get_column_as_array("end_timestamp");
     let duration_arr = sub(&end_time_arr, &start_time_arr).unwrap();
     let normalized_end_time_arr = add(&normalized_start_time_arr, &duration_arr).unwrap();
 
@@ -206,7 +201,7 @@ pub fn get_metrics_as_mermaid_gantt(pivot_table: ArrowTable) -> Result<ArrowTabl
     let mut output_rows_vec = vec![header_str.to_string(), "Row count\n\n\tsection Counts\n".to_string()];
 
     // extract the gantt data
-    let task_name = pivot_table.get_column_as_vec_primitive::<u64>("task_name")?;
+    let task_name = pivot_table.get_column_as_vec_str("task_name");
     let replicate_count = pivot_table.get_column_as_vec_primitive::<u64>("replicate_count")?;
     let start_time_norm = pivot_table.get_column_as_vec_primitive::<u64>("start_time_norm")?;
     let end_time_norm = pivot_table.get_column_as_vec_primitive::<u64>("end_time_norm")?;

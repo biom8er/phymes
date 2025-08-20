@@ -380,7 +380,7 @@ pub async fn session_metrics_info(
                         .try_read()
                         .unwrap()
                         .get_session_context()
-                        .get_metrics_as_mermaid_gantt("")
+                        .get_metrics_as_mermaid_gantt()
                         .unwrap();
 
                     // DM: Reqwest `byte_stream` will automatically chunk the stream sent to it
