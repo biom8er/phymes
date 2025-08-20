@@ -4,11 +4,10 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap, get_metrics_as_pivot_table},
     session::{
         common_traits::{device, BuildableTrait, BuilderTrait},
         runtime_env::RuntimeEnv,
-        session_context::get_metrics_as_pivot_table,
     },
     table::{
         arrow_table::{

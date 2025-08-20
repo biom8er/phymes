@@ -22,9 +22,8 @@ use super::sign_in::sign_in_modal;
 use super::subjects::subjects_modal;
 use super::svg_icons::{
     database_icon_svg, help_icon_svg, logo_icon_svg, menu_icon_svg, message_icon_svg,
-    person_icon_svg, settings_icon_svg, tools_icon_svg, top_speed_icon_svg,
+    person_icon_svg, settings_icon_svg, top_speed_icon_svg,
 };
-use super::tasks::tasks_modal;
 
 #[component]
 pub fn title() -> Element {

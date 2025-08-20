@@ -192,12 +192,17 @@ pub async fn session_subjects_num_rows(
                 .get(payload.session_name.as_str())
             {
                 Some(session_stream_state) => {
-                    let object = session_stream_state
-                        .try_read().unwrap()
+                    let info = session_stream_state
+                        .try_read()
+                        .unwrap()
                         .get_session_context()
-                        .get_states().get(SessionContextTableNames::Subjects.get_name()).unwrap()
-                        .try_read().unwrap()
-                        .to_json_object().unwrap();
+                        .get_subject_num_rows_as_table("")
+                        .unwrap();
+
+                    // DM: Reqwest `byte_stream` will automatically chunk the stream sent to it
+                    //  therefore we need to use the serde_json object to ensure the chunks are broken
+                    //  and formatted properly for decoding on the app side
+                    let object = info.to_json_object().unwrap();
                     let content = serde_json::to_string(&object).unwrap();
                     let buf = Bytes::from(content);
                     Body::from(buf).into_response()
@@ -282,17 +287,12 @@ pub async fn session_subjects_schema(
                 .get(payload.session_name.as_str())
             {
                 Some(session_stream_state) => {
-                    let info = session_stream_state
-                        .try_read()
-                        .unwrap()
+                    let object = session_stream_state
+                        .try_read().unwrap()
                         .get_session_context()
-                        .get_subject_num_rows_as_table("")
-                        .unwrap();
-
-                    // DM: Reqwest `byte_stream` will automatically chunk the stream sent to it
-                    //  therefore we need to use the serde_json object to ensure the chunks are broken
-                    //  and formatted properly for decoding on the app side
-                    let object = info.to_json_object().unwrap();
+                        .get_states().get(SessionContextTableNames::Subjects.get_name()).unwrap()
+                        .try_read().unwrap()
+                        .to_json_object().unwrap();
                     let content = serde_json::to_string(&object).unwrap();
                     let buf = Bytes::from(content);
                     Body::from(buf).into_response()

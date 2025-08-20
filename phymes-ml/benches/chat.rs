@@ -1,7 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
-    session::session_context::get_metrics_as_pivot_table,
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, get_metrics_as_pivot_table},
     table::arrow_table::ArrowTableTrait,
 };
 use phymes_ml::{

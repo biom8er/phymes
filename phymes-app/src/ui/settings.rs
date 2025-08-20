@@ -14,7 +14,7 @@ use crate::{
         },
         sign_in::{EMAIL, JWT, SESSION_NAMES},
     },
-    ui::svg_icons::search_icon_svg,
+    ui::svg_icons::{search_icon_svg, send_icon_svg},
 };
 
 #[cfg(feature = "mermaid_js")]
@@ -62,25 +62,7 @@ pub fn get_non_duplicated_sorted_subjects(subjects: &[&str]) -> Vec<String> {
 #[component]
 pub fn settings_interface_view() -> Element {
     // Intialize state and coroutines
-    use_coroutine(sync_current_active_session_state);
-    use_coroutine(clear_current_message_state);
     use_coroutine(sync_current_session_mermaid_state);
-
-    // Dropdown signals
-    let mut show_subject_dropdown = use_signal(|| false);
-    #[allow(clippy::redundant_closure)]
-    let mut subject_dropdown = use_signal(|| String::new());
-    let subjects_vec = use_memo(move || {
-        get_non_duplicated_sorted_subjects(
-            &SESSION_NAMES
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-        )
-    });
-    #[allow(clippy::redundant_closure)]
-    let mut subjects_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
@@ -182,90 +164,216 @@ pub fn settings_interface_view() -> Element {
             }
             Err(err) => tracing::error!("{err:?}"),
         }
-    });  
-
-    rsx! {
-        // Check for sign-in
-        if JWT.read().is_empty() {
-            div {
-                class: "messaging_list",
-                p { "Please sign-in before activating a session." },
-            }
-        } else if SESSION_NAMES.is_empty(){
-            div {
-                class: "messaging_list",
-                p { "Waiting to retrieve available session plans..." },
-            }
-        } else  {
-            div {
-                class: "messaging_list",
-                // Active session manager
-                div {
-                    class: "dropdown_form",
-                    form {
-                        class: "dropdown_form_input",
-                        input {
-                            r#type: "text",
-                            placeholder: "search session",
-                            value: "{subject_dropdown}",
-                            onclick: move |_| show_subject_dropdown.set(true),
-                            onfocusout: move |_| show_subject_dropdown.set(false),
-                            oninput: move |evt| subject_dropdown.set(evt.value()),
-                            onkeyup: move |_| {
-                                subjects_filtered.set(subjects_vec().iter()
-                                    .filter(|s| !s.contains(subject_dropdown.read().as_str()))
-                                    .cloned()
-                                    .collect::<Vec<_>>());
-                            }
-                        },
-                    },
-                    button {
-                        class: "dropdown_form_button",
-                        onclick: move |_evt| async move {
-                            // Reset the dropdown
-                            let active_session = subject_dropdown.try_read().unwrap().to_string();
-                            subject_dropdown.set(String::new());
-
-                            // Set the active session
-                            let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
-                            sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
-
-                            // Reset the current session messaging
-                            let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
-                            clear_current_message_state.send(ClearCurrentMessageState {});
-                        },
-                        svg { dangerous_inner_html: search_icon_svg() },
-                    },
-                }
-
-                // Dynamic dropdown
-                if show_subject_dropdown() {
-                    div {
-                        class: "dropdown_list",
-                        ul {
-                            id: "sessions_dropdown_list",
-                            {subjects_vec().iter().filter(|s| ACTIVE_SESSION_NAME.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
-                                let sub = sub.clone();
-                                rsx! {
-                                    li {
-                                        key: "{i}",
-                                        div {
-                                            onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
-                                            p { "{sub}" },
-                                        }
-                                    }
-                                }
-                            })}
+    });
+    
+    // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
+    let diagram_code: Memo<String> = use_memo(move || SESSION_MERMAID_FLOWCHART.read().to_string());
+    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv");
+    let out = if let Some(result) = &*rendered_html.read() {
+        match result {
+            // Mermaid.js or SessionContextBuilder error
+            (_, Some(error), None) | (_, None, Some(error)) => {
+                rsx! {
+                    if JWT.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please sign-in before activating a session." },
+                        }
+                    } else if SESSION_NAMES.is_empty(){
+                        div {
+                            class: "messaging_list",
+                            p { "Waiting to retrieve available session plans..." },
+                        }
+                    } else {
+                        div {
+                            class: "messaging_list",
+                            settings_dropdown_view {}
+                            p { "{error}" },
                         }
                     }
                 }
-
-                if !ACTIVE_SESSION_NAME().is_empty() {
-                    div {
-                        p { "Active session {ACTIVE_SESSION_NAME().to_string()}" },
+            }
+            // Mermaid.js and SessionContextBuilder error
+            (_, Some(error_mjs), Some(error_ctxb)) => {
+                rsx! {
+                    if JWT.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please sign-in before activating a session." },
+                        }
+                    } else if SESSION_NAMES.is_empty(){
+                        div {
+                            class: "messaging_list",
+                            p { "Waiting to retrieve available session plans..." },
+                        }
+                    } else {
+                        div {
+                            class: "messaging_list",
+                            settings_dropdown_view {}
+                            p { "{error_mjs}" },
+                            p { "{error_ctxb}" },
+                        }
                     }
-                    diagram_view {}
                 }
+            }
+            // Valid SVG with no errors
+            (Some(svg), _, _) => {
+                rsx! {
+                    if JWT.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please sign-in before activating a session." },
+                        }
+                    } else if SESSION_NAMES.is_empty(){
+                        div {
+                            class: "messaging_list",
+                            p { "Waiting to retrieve available session plans..." },
+                        }
+                    } else {
+                        div {
+                            class: "messaging_list",
+                            settings_dropdown_view {}
+                            div {
+                                id: "graphDiv",
+                                class: "mermaid",
+                                svg { dangerous_inner_html: svg.to_string() }
+                            }
+                        }
+                    }
+                }
+            }
+            // All other cases
+            (_, _, _) => {
+                rsx! {
+                    if JWT.read().is_empty() {
+                        div {
+                            class: "messaging_list",
+                            p { "Please sign-in before activating a session." },
+                        }
+                    } else if SESSION_NAMES.is_empty(){
+                        div {
+                            class: "messaging_list",
+                            p { "Waiting to retrieve available session plans..." },
+                        }
+                    } else {
+                        div {
+                            class: "messaging_list",
+                            settings_dropdown_view {}
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        rsx! {
+            if JWT.read().is_empty() {
+                div {
+                    class: "messaging_list",
+                    p { "Please sign-in before activating a session." },
+                }
+            } else if SESSION_NAMES.is_empty(){
+                div {
+                    class: "messaging_list",
+                    p { "Waiting to retrieve available session plans..." },
+                }
+            } else {
+                div {
+                    class: "messaging_list",
+                    settings_dropdown_view {}
+                }
+            }
+        }
+    };
+    out
+}
+
+/// View for the per runtime settings
+#[component]
+pub fn settings_dropdown_view() -> Element {
+    // Intialize state and coroutines
+    use_coroutine(sync_current_active_session_state);
+    use_coroutine(clear_current_message_state);
+
+    // Dropdown signals
+    let mut show_subject_dropdown = use_signal(|| false);
+    #[allow(clippy::redundant_closure)]
+    let mut subject_dropdown = use_signal(|| String::new());
+    let subjects_vec = use_memo(move || {
+        get_non_duplicated_sorted_subjects(
+            &SESSION_NAMES
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+        )
+    });
+    #[allow(clippy::redundant_closure)]
+    let mut subjects_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
+
+    rsx! {
+        div {
+            class: "dropdown_form",
+            form {
+                class: "dropdown_form_input",
+                input {
+                    r#type: "text",
+                    placeholder: "search session",
+                    value: "{subject_dropdown}",
+                    onclick: move |_| show_subject_dropdown.set(true),
+                    onfocusout: move |_| show_subject_dropdown.set(false),
+                    oninput: move |evt| subject_dropdown.set(evt.value()),
+                    onkeyup: move |_| {
+                        subjects_filtered.set(subjects_vec().iter()
+                            .filter(|s| !s.contains(subject_dropdown.read().as_str()))
+                            .cloned()
+                            .collect::<Vec<_>>());
+                    }
+                },
+            },
+            button {
+                class: "dropdown_form_button",
+                onclick: move |_evt| async move {
+                    // Reset the dropdown
+                    let active_session = subject_dropdown.try_read().unwrap().to_string();
+                    subject_dropdown.set(String::new());
+
+                    // Set the active session
+                    let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
+                    sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
+
+                    // Reset the current session messaging
+                    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
+                    clear_current_message_state.send(ClearCurrentMessageState {});
+                },
+                svg { dangerous_inner_html: search_icon_svg() },
+            },
+        }
+
+        // Dynamic dropdown
+        if show_subject_dropdown() {
+            div {
+                class: "dropdown_list",
+                ul {
+                    id: "sessions_dropdown_list",
+                    {subjects_vec().iter().filter(|s| ACTIVE_SESSION_NAME.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
+                        let sub = sub.clone();
+                        rsx! {
+                            li {
+                                key: "{i}",
+                                div {
+                                    onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
+                                    p { "{sub}" },
+                                }
+                            }
+                        }
+                    })}
+                }
+            }
+        }
+
+        if !ACTIVE_SESSION_NAME().is_empty() {
+            div {
+                p { "Active session {ACTIVE_SESSION_NAME().to_string()}" },
             }
         }
     }
@@ -320,8 +428,8 @@ pub fn render_mermaid_svg(diagram_code: Memo<String>, id: &str) -> Resource<(Opt
 
             // Initialize Panzoom
             const panzoomInstance = Panzoom(svgElement, {{
-                maxScale: 5,
-                minScale: 0.5,
+                maxScale: 100,
+                minScale: 0.1,
                 step: 0.1,
             }});
 
@@ -336,52 +444,11 @@ pub fn render_mermaid_svg(diagram_code: Memo<String>, id: &str) -> Resource<(Opt
     rendered_html
 }
 
-#[component]
-pub fn diagram_view() -> Element {
-    let diagram_code: Memo<String> = use_memo(move || SESSION_MERMAID_FLOWCHART.read().to_string());
-    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv");
-    
-    let out = if let Some(result) = &*rendered_html.read() {
-        match result {
-            // Mermaid.js or SessionContextBuilder error
-            (_, Some(error), None) | (_, None, Some(error)) => {
-                rsx! {
-                    p { "{error}" },            
-                }
-            }
-            // Mermaid.js and SessionContextBuilder error
-            (_, Some(error_mjs), Some(error_ctxb)) => {
-                rsx! {
-                    p { "{error_mjs}" },
-                    p { "{error_ctxb}" },           
-                }
-            }
-            // Valid SVG with no errors
-            (Some(svg), _, _) => {
-                rsx! {
-                    div {
-                        id: "graphDiv",
-                        class: "mermaid",
-                        svg { dangerous_inner_html: svg.to_string() }
-                    }
-                }
-            }
-            // All other cases
-            (_, _, _) => {
-                rsx! { }
-            }
-        }
-    } else {
-        rsx! { }
-    };
-    out
-}
-
 /// Diagram code editor
 #[component]
 pub fn settings_interface_footer() -> Element {
-    let diagram_code_m: Memo<String> = use_memo(move || SESSION_MERMAID_FLOWCHART.read().to_string());
-    let mut diagram_code = use_signal(|| String::new());
+    use_coroutine(sync_current_session_mermaid_state);
+    let diagram_code: Memo<String> = use_memo(move || SESSION_MERMAID_FLOWCHART.read().to_string());
 
     rsx! {
         if !JWT.read().is_empty() && !ACTIVE_SESSION_NAME.read().is_empty() {
@@ -391,16 +458,30 @@ pub fn settings_interface_footer() -> Element {
                     form {
                         id: "diagram_code_form",
                         textarea {
-                            placeholder: "{diagram_code_m()}",
                             value: "{diagram_code.to_string()}",
                             oninput: move |event| async move {
-                                // Update the textarea
-                                diagram_code.set(event.value());
+                                let sync_current_session_mermaid_state = use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
+                                sync_current_session_mermaid_state.send(SyncCurrentSessionMermaidJSState {
+                                    flowchart: event.value(),
+                                    erdiagram: "".to_string(),
+                                });
                             },
                         }
                     }
-                }
+                }                
 
+                div {
+                    class: "submit_button",
+                    // This must be outside the form or it will be refreshed on each submit
+                    button {
+                        onclick: move |_| async move {
+                            // TODO: create new session
+                        },
+                        if !diagram_code().is_empty() {
+                            svg { dangerous_inner_html: send_icon_svg() }
+                        }            
+                    }
+                }
             }
         }
     }

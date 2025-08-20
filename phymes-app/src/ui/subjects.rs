@@ -173,9 +173,8 @@ pub fn subjects_modal() -> Element {
                 while let Some(Ok(bytes)) = stream.next().await {
                     let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                     let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|_err| {
-                            // DM: find a better way to give feedback to the user
-                            // content.write().push_str(format!("There was a error parsing SyncCurrentSubjectInfoState {err}.").as_str());
+                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
+                            tracing::error!("There was a error parsing SyncCurrentSubjectSchemaState {err}.");
                             Vec::new()
                         });
                     for row in json_rows.iter() {
@@ -595,7 +594,13 @@ pub fn subjects_modal() -> Element {
                 div {
                     class: "output_table",
                     table {
-                        caption { "Schema for {subject_shown.to_string()}: {num_rows.first().unwrap()} rows." },
+                        if subject_shown().is_empty() {
+                            caption { "No subject selected." },
+                        } else if num_rows.is_empty() {
+                            caption { "Schema for {subject_shown.to_string()}." },
+                        } else {
+                            caption { "{subject_shown.to_string()}: {num_rows.first().unwrap()} rows." },
+                        }
                         tr {
                             {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {
                                 rsx! {

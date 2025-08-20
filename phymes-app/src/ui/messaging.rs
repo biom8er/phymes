@@ -377,8 +377,7 @@ pub fn messaging_interface_footer() -> Element {
                             svg { dangerous_inner_html: send_icon_svg() }
                         } else {
                             // TODO: add support for audio
-                        }
-                        
+                        }                        
                     }
                 }
             }

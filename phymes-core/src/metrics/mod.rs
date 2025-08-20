@@ -5,6 +5,7 @@ mod builder;
 mod common;
 mod instant;
 mod value;
+mod table;
 
 use parking_lot::Mutex;
 use std::{
@@ -19,6 +20,7 @@ pub use common::{HashMap, HashSet};
 pub use baseline::{BaselineMetrics, RecordOutput};
 pub use builder::MetricBuilder;
 pub use value::{Count, Gauge, MetricValue, ScopedTimerGuard, Time, Timestamp};
+pub use table::{get_metrics_as_table, get_metrics_as_pivot_table};
 
 /// Something that tracks a value of interest (metric) of a phymes-core
 /// [`ArrowTask`] execution.

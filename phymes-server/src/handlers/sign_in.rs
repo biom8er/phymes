@@ -101,6 +101,7 @@ pub fn decode_jwt(jwt: String) -> Result<TokenData<Cliams>, StatusCode> {
     result
 }
 
+/// Information of the user
 #[derive(Clone)]
 pub struct CurrentUser {
     pub email: String,
@@ -109,10 +110,18 @@ pub struct CurrentUser {
     pub password_hash: String,
 }
 
+/// Remove all non alphanumeric characters
+pub fn remove_nonalphanumeric(email: &str) -> String {
+    let mut input = String::from(email);
+    input.retain(|c| c.is_alphanumeric() || c.is_whitespace());
+    input
+}
+
 /// Create the session name by combining the user ID
 /// with the session plan
 pub fn create_session_name(email: &str, session_plan: &str) -> String {
-    let session_name = format!("{email}{session_plan}");
+    let sanitized_email = remove_nonalphanumeric(email);
+    let session_name = format!("{sanitized_email}{session_plan}");
     session_name
 }
 
