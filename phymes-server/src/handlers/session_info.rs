@@ -10,8 +10,7 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_agents::session_traits::tabular::SessionContextTableNames;
-use phymes_core::table::{arrow_table::ArrowTableTrait, arrow_table_publish::ArrowTablePublish};
+use phymes_core::{session::session_context::SessionContextTableNames, table::{arrow_table::ArrowTableTrait, arrow_table_publish::ArrowTablePublish}};
 use phymes_core::session::common_traits::MappableTrait;
 use serde::{Deserialize, Serialize};
 
@@ -381,7 +380,7 @@ pub async fn session_metrics_info(
                         .try_read()
                         .unwrap()
                         .get_session_context()
-                        .get_metrics_as_table("")
+                        .get_metrics_as_mermaid_gantt("")
                         .unwrap();
 
                     // DM: Reqwest `byte_stream` will automatically chunk the stream sent to it

@@ -21,7 +21,7 @@ use super::{
     runtime_env::RuntimeEnv,
     session_context_builder::SessionContextBuilder,
 };
-use crate::metrics::{get_metrics_as_table, ArrowTaskMetricsSet, HashMap};
+use crate::metrics::{get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, get_metrics_as_pivot_table, ArrowTaskMetricsSet, HashMap};
 use crate::table::arrow_table_publish::ArrowTablePublish;
 use crate::table::{
     arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
@@ -35,6 +35,30 @@ use crate::task::{
     },
     publish_subscribe::PubSubTrait,
 };
+
+/// Reserved table names for the [SessionContext]
+#[derive(Debug)]
+pub enum SessionContextTableNames {
+    Metrics,
+    Tasks,
+    Processors,
+    Subjects,
+    RuntimeEnvironments,
+    MermaidJS,
+}
+
+impl MappableTrait for SessionContextTableNames {
+    fn get_name(&self) -> &str {
+        match self {
+            Self::Metrics => "METRICS",
+            Self::Tasks => "TASKS",
+            Self::Processors => "PROCESSORS",
+            Self::Subjects => "SUBJECTS",
+            Self::RuntimeEnvironments => "RUNTIME_ENVIRONMENTS",
+            Self::MermaidJS => "MERMAID_JS"
+        }
+    }
+}
 
 /// The `SessionContext` creates an execution graph based on a
 /// `SessionPlan` and manages the running of individual tasks
@@ -71,9 +95,33 @@ impl SessionContext {
         &self.state
     }
 
-    /// Get the metrics for the session
-    pub fn get_metrics_as_table(&self, table_name: &str) -> Result<ArrowTable> {
-        get_metrics_as_table(self.metrics.clone(), table_name)
+    /// Create the metrics table if it does not exist or update with the new metrics
+    pub fn update_metrics_table(&mut self) -> Result<bool> {
+        // create the pivot table and clear the metrics
+        let pivot_table = get_metrics_as_pivot_table(&[self.metrics.clone()], SessionContextTableNames::Metrics.get_name())?;
+        self.metrics.clear();
+
+        // update the state with the metrics
+        if pivot_table.count_rows() > 0 {
+            if self.state.contains_key(SessionContextTableNames::Metrics.get_name()) {
+                self.state.get_mut(SessionContextTableNames::Metrics.get_name())
+                    .unwrap()
+                    .try_write()
+                    .unwrap()
+                    .update_table(pivot_table.get_record_batches_own(), ArrowTablePublish::Extend { table_name: SessionContextTableNames::Metrics.get_name().to_string() })?;
+            } else {
+                self.state.insert(SessionContextTableNames::Metrics.get_name().to_string(), Arc::new(RwLock::new(pivot_table)));
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        }        
+    }
+
+    /// Get the metrics as a gantt for the session
+    pub fn get_metrics_as_mermaid_gantt(&self, table_name: &str) -> Result<ArrowTable> {
+        let pivot_table = get_metrics_as_gantt_table(&[self.metrics.clone()], table_name)?;
+        get_metrics_as_mermaid_gantt(pivot_table)
     }
 
     /// Get the max iterations
@@ -787,6 +835,8 @@ impl Stream for SessionStream {
                     _ => HashMap::<String, ArrowIncomingMessage>::new(),
                 }
             } else {
+                // Add the metrics to the state
+                self.state.try_write().unwrap().get_session_context_mut().update_metrics_table().unwrap();
                 return Poll::Ready(None);
             };
 
@@ -806,6 +856,7 @@ impl Stream for SessionStream {
             }
         }
         event!(Level::DEBUG, "Maximum iterations {} exeeded.", max_iter);
+        self.state.try_write().unwrap().get_session_context_mut().update_metrics_table().unwrap();
         Poll::Ready(None)
     }
 
@@ -2378,8 +2429,6 @@ mod tests {
                 table_name: "state_1".to_string()
             }
         );
-
-        // Check the metrics
         let partitions = response
             .get_mut(0)
             .unwrap()
@@ -2388,18 +2437,28 @@ mod tests {
             .get_message_own();
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 6);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 5385);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
 
-        // DM: seperate test
-        let _info = session_stream_state
+        // Check the metrics
+        assert!(metrics.clone_inner().output_rows().is_none());
+        assert!(metrics.clone_inner().elapsed_compute().is_none());
+        let metrics_table = session_stream_state
             .try_read()
-            .unwrap()
+            .unwrap();
+        let metrics_table = metrics_table
             .get_session_context()
-            .get_metrics_as_table("")?;
-
-        // DM: seperate test
-        let _pivot_table = get_metrics_as_pivot_table(&[metrics], "")?;
+            .get_states()
+            .get(SessionContextTableNames::Metrics.get_name())
+            .unwrap()
+            .try_read()
+            .unwrap();
+        let task_names = metrics_table.get_column_as_vec_str("task_name");
+        assert_eq!(task_names, ["processor_1", "processor_1", "processor_1", "processor_1", "processor_1", "processor_1", "processor_1", "processor_1", "processor_2", "processor_2", "processor_2", "processor_2", "processor_2", "processor_2", "processor_2", "processor_2", "processor_3", "processor_3", "processor_3", "processor_3", "processor_3", "processor_3", "processor_3", "processor_3", "session_1", "session_1", "session_1"]);
+        let replicate_counts = metrics_table.get_column_as_vec_primitive::<u64>("replicate_count")?;
+        assert_eq!(replicate_counts, [1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3]);
+        let output_rows = metrics_table.get_column_as_vec_primitive::<u64>("output_rows")?;
+        let output_rows_sum = output_rows.iter().sum::<u64>();
+        let output_rows_sum_test = [15, 0, 69, 0, 0, 312, 0, 1392, 15, 0, 69, 0, 312, 0, 1392, 0, 15, 0, 69, 0, 312, 0, 1392, 0, 6, 7, 8].iter().sum::<u64>();
+        assert_eq!(output_rows_sum, output_rows_sum_test);
 
         Ok(())
     }

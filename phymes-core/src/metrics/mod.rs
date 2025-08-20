@@ -20,7 +20,7 @@ pub use common::{HashMap, HashSet};
 pub use baseline::{BaselineMetrics, RecordOutput};
 pub use builder::MetricBuilder;
 pub use value::{Count, Gauge, MetricValue, ScopedTimerGuard, Time, Timestamp};
-pub use table::{get_metrics_as_table, get_metrics_as_pivot_table};
+pub use table::{get_metrics_as_table, get_metrics_as_pivot_table, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt};
 
 /// Something that tracks a value of interest (metric) of a phymes-core
 /// [`ArrowTask`] execution.
@@ -356,6 +356,11 @@ impl ArrowTaskMetricsSet {
     pub fn clone_inner(&self) -> MetricsSet {
         let guard = self.inner.lock();
         (*guard).clone()
+    }
+
+    /// Clear the metrics
+    pub fn clear(&mut self) {
+        self.inner.try_lock().unwrap().metrics.clear();
     }
 }
 

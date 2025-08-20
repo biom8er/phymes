@@ -195,8 +195,57 @@ pub fn get_metrics_as_gantt_table(
 /// export the metrics as a mermaid gantt chart
 /// 
 /// # Notes
-/// * chart 1: Processor activity based on normalized start and end times
-/// * chart 2: Elapsed compute and row counts
-pub fn get_metrics_as_mermaid_gantt(pivot_table: ArrowTable) -> Result<String> {
-    Ok(String)
+/// 
+/// * chart 1: Processor traces based on normalized start and end times
+/// * chart 2 and 3: Elapsed compute and output rows, respectively, as barcharts
+pub fn get_metrics_as_mermaid_gantt(pivot_table: ArrowTable) -> Result<ArrowTable> {
+    // initialize the diagram headers and vecs
+    let header_str = "gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\t".to_string();
+    let mut processor_traces_vec = vec![header_str.to_string(), "Processor Traces\n\n\tsection Traces[ns]\n".to_string()];
+    let mut elapsed_compute_vec = vec![header_str.to_string(), "Elapsed compute\n\n\tsection Time[ns]\n".to_string()];
+    let mut output_rows_vec = vec![header_str.to_string(), "Row count\n\n\tsection Counts\n".to_string()];
+
+    // extract the gantt data
+    let task_name = pivot_table.get_column_as_vec_primitive::<u64>("task_name")?;
+    let replicate_count = pivot_table.get_column_as_vec_primitive::<u64>("replicate_count")?;
+    let start_time_norm = pivot_table.get_column_as_vec_primitive::<u64>("start_time_norm")?;
+    let end_time_norm = pivot_table.get_column_as_vec_primitive::<u64>("end_time_norm")?;
+    let elapsed_compute = pivot_table.get_column_as_vec_primitive::<u64>("elapsed_compute")?;
+    let output_rows = pivot_table.get_column_as_vec_primitive::<u64>("output_rows")?;
+    let combined = task_name.iter()
+        .zip(replicate_count.iter())
+        .zip(start_time_norm.iter())
+        .zip(end_time_norm.iter())
+        .zip(elapsed_compute.iter())
+        .zip(output_rows.iter())
+        .map(|(((((a, b), c), d), e), f)| (a, b, c, d, e, f))
+        .collect::<Vec<_>>();
+
+    // create the gantt script lines
+    for (tn, rc, stn, etn, ec, or) in combined {
+        processor_traces_vec.push(format!("\t{tn}-{rc}:{stn}\t{etn}\n"));
+        elapsed_compute_vec.push(format!("\t{tn}-{rc}:0\t{ec}\n"));
+        output_rows_vec.push(format!("\t{tn}-{rc}:0\t{or}\n"));
+    }
+
+    // make the final strings
+    let processor_traces = processor_traces_vec.join("");
+    let elapsed_compute = elapsed_compute_vec.join("");
+    let output_rows = output_rows_vec.join("");
+
+    // create the record batch
+    let processor_traces: ArrayRef = Arc::new(StringArray::from(vec![processor_traces]));
+    let elapsed_compute: ArrayRef = Arc::new(StringArray::from(vec![elapsed_compute]));
+    let output_rows: ArrayRef = Arc::new(StringArray::from(vec![output_rows]));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("processor_traces", processor_traces),
+        ("elapsed_compute", elapsed_compute),
+        ("output_rows", output_rows),
+    ])?;
+
+    // create the table
+    ArrowTable::get_builder()
+        .with_name(pivot_table.get_name())
+        .with_record_batches(vec![batch])?
+        .build()
 }

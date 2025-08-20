@@ -2,33 +2,9 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt32Array, UInt8Array}, datatypes::{Field, Schema}};
-use phymes_core::{metrics::HashSet, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, runtime_env::{RuntimeEnv, RuntimeEnvTrait}, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder}}, table::{arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{from_str_to_subscribe, ArrowTableSubscribe}}, task::arrow_processor::ArrowProcessorBuilder};
+use phymes_core::{metrics::HashSet, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, runtime_env::{RuntimeEnv, RuntimeEnvTrait}, session_context::SessionContextTableNames, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder}}, table::{arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{from_str_to_subscribe, ArrowTableSubscribe}}, task::arrow_processor::ArrowProcessorBuilder};
 
 use crate::{session_plans::available_processors::AvailableProcessors, session_traits::mermaid_js::{from_data_type_to_str, from_str_to_data_type, SessionContextBuilderMermaidTrait}};
-
-/// Reserved table names for the [SessionContext]
-#[derive(Debug)]
-pub enum SessionContextTableNames {
-    Metrics,
-    Tasks,
-    Processors,
-    Subjects,
-    RuntimeEnvironments,
-    MermaidJS,
-}
-
-impl MappableTrait for SessionContextTableNames {
-    fn get_name(&self) -> &str {
-        match self {
-            Self::Metrics => "METRICS",
-            Self::Tasks => "TASKS",
-            Self::Processors => "PROCESSORS",
-            Self::Subjects => "SUBJECTS",
-            Self::RuntimeEnvironments => "RUNTIME_ENVIRONMENTS",
-            Self::MermaidJS => "MERMAID_JS"
-        }
-    }
-}
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
 pub trait SessionContextBuilderTabularTrait {
