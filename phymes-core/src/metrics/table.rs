@@ -218,9 +218,9 @@ pub fn get_metrics_as_mermaid_gantt(pivot_table: ArrowTable) -> Result<ArrowTabl
 
     // create the gantt script lines
     for (tn, rc, stn, etn, ec, or) in combined {
-        processor_traces_vec.push(format!("\t{tn}-{rc}:{stn}\t{etn}\n"));
-        elapsed_compute_vec.push(format!("\t{tn}-{rc}:0\t{ec}\n"));
-        output_rows_vec.push(format!("\t{tn}-{rc}:0\t{or}\n"));
+        processor_traces_vec.push(format!("\t{tn}-{rc}:{stn},\t{etn}\n"));
+        elapsed_compute_vec.push(format!("\t{tn}-{rc}:0,\t{ec}\n"));
+        output_rows_vec.push(format!("\t{tn}-{rc}:0,\t{or}\n"));
     }
 
     // make the final strings

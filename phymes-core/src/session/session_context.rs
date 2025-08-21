@@ -2468,8 +2468,11 @@ mod tests {
         let output_rows_sum_test = [15, 0, 69, 0, 0, 312, 0, 1392, 15, 0, 69, 0, 312, 0, 1392, 0, 15, 0, 69, 0, 312, 0, 1392, 0, 6, 7, 8].iter().sum::<u64>();
         assert_eq!(output_rows_sum, output_rows_sum_test);
 
-        // Check pivot
-        let _ = sss.get_session_context().get_metrics_as_mermaid_gantt();
+        // Check pivot and gantt
+        let gantt = sss.get_session_context().get_metrics_as_mermaid_gantt()?;
+        assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\tprocessor_1-1:0,\t"));
+        assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\tprocessor_1-1:0,\t"));
+        assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\tprocessor_1-1:0,\t"));
 
         Ok(())
     }
