@@ -7,13 +7,6 @@ use phymes_server::handlers::{
 };
 use serde_json::{Map, Value};
 
-#[cfg(feature = "mermaid_js")]
-use serde::{Deserialize, Serialize};
-#[cfg(feature = "mermaid_js")]
-use phymes_core::session::session_context_builder::SessionContextBuilder;
-#[cfg(feature = "mermaid_js")]
-use phymes_agents::session_traits::mermaid_js::SessionContextBuilderMermaidTrait;
-
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
@@ -176,14 +169,14 @@ pub fn metrics_modal() -> Element {
         } else if &ACTIVE_METRIC.read().to_string() == SESSION_METRICS_HEADERS.get(2).unwrap() {
             MERMAID_OUTPUT_ROWS.read().to_string()
         } else {
-            String::new()
+            "gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tWaiting to retrieve session plan metrics...".to_string()
         }
     });
-    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv");
+    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv", false);
     let out = if let Some(result) = &*rendered_html.read() {
         match result {
             // Mermaid.js or SessionContextBuilder error
-            (_, Some(error), None) | (_, None, Some(error)) => {
+            (_, Some(error), _) => {
                 rsx! {
                     if JWT.read().is_empty() {
                         div {
@@ -205,34 +198,6 @@ pub fn metrics_modal() -> Element {
                             class: "messaging_list",
                             metrics_dropdown {}
                             p { "{error}" },
-                        }
-                    }
-                }
-            }
-            // Mermaid.js and SessionContextBuilder error
-            (_, Some(error_mjs), Some(error_ctxb)) => {
-                rsx! {
-                    if JWT.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please sign-in before searching metrics." },
-                        }
-                    } else if ACTIVE_SESSION_NAME.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please activate a session before searching metrics." },
-                        }
-                    } else if MERMAID_ELAPSED_COMPUTE.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Waiting to retrieve session plan metrics..." },
-                        }
-                    } else {
-                        div {
-                            class: "messaging_list",
-                            metrics_dropdown {}
-                            p { "{error_mjs}" },
-                            p { "{error_ctxb}" },
                         }
                     }
                 }

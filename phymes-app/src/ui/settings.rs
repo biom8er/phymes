@@ -161,7 +161,7 @@ pub fn settings_interface_view() -> Element {
     
     // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
     let diagram_code: Memo<String> = use_memo(move || SESSION_MERMAID_FLOWCHART.read().to_string());
-    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv");
+    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv", true);
     let out = if let Some(result) = &*rendered_html.read() {
         match result {
             // Mermaid.js or SessionContextBuilder error
@@ -373,7 +373,7 @@ pub fn settings_dropdown_view() -> Element {
 }
 
 #[cfg(feature = "mermaid_js")]
-pub fn render_mermaid_svg(diagram_code: Memo<String>, id: &str) -> Resource<(Option<String>,Option<String>,Option<String>)> {
+pub fn render_mermaid_svg(diagram_code: Memo<String>, id: &str, check_build: bool) -> Resource<(Option<String>,Option<String>,Option<String>)> {
     let div_id = id.to_string();
     let rendered_html: Resource<(Option<String>,Option<String>,Option<String>)> = use_resource(move || {
         let div_id = div_id.clone();
@@ -401,12 +401,15 @@ pub fn render_mermaid_svg(diagram_code: Memo<String>, id: &str) -> Resource<(Opt
             };
 
             // Build the preliminary session context
-            let builder_error =  match SessionContextBuilder::from_mermaid_flowchart(&diagram_code()) {
-                Ok(_res) => None,
-                Err(err) => Some(err.to_string()),
-            };
-
-            (mermaid_js_object.svg, mermaid_js_object.error, builder_error)
+            if check_build {
+                let builder_error =  match SessionContextBuilder::from_mermaid_flowchart(&diagram_code()) {
+                    Ok(_res) => None,
+                    Err(err) => Some(err.to_string()),
+                };
+                (mermaid_js_object.svg, mermaid_js_object.error, builder_error)
+            } else {
+                (mermaid_js_object.svg, mermaid_js_object.error, None)
+            }
         }
     });
 
