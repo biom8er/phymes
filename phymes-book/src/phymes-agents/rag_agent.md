@@ -21,7 +21,7 @@ sequenceDiagram
 
 The session is composed of 4 tasks: 1. the user, 2. Text embedding inference (TEI), 3. Retrieval, and 4. Text generation inference (TGI). 
 
-The session starts when the user upload documents documents (1), and their query (2 and 3) to the session.
+The session starts when the user publishes documents (1), and a query (2 and 3) to the session.
 
 ![documents](../assets/2025-07-05_phymes-app_docchat-documents_subjects.png)
 
@@ -30,40 +30,6 @@ The TEI task then chunks the documents, and embeds the chunks and query (4 and 5
 ![doc-rag-response](../assets/2025-07-05_phymes-app_docchat_messaging.png)
 
 The session ends when there are no further updates to the subjects. If the user publishes a follow-up message or uploads new documents, the session will pick-up where it left off.
-
-```mermaid
-flowchart TD
-    subgraph "👷 user"
-        user@{ shape: circle, label: user } --> documents@{ shape: doc, label: documents }
-        user@{ shape: circle, label: user } --> query@{ shape: doc, label: query }
-        user@{ shape: circle, label: user } --> user_messages@{ shape: doc, label: user_messages }
-    end
-    subgraph "🤖 embed"
-        documents@{ shape: doc, label: documents } --> chunker@{ shape: rect, label: 🔨 chunker }
-        chunker@{ shape: rect, label: 🔨 chunker } --> document_chunks@{ shape: doc, label: document_chunks }
-        document_chunks@{ shape: doc, label: document_chunks } --> TEI@{ shape: rect, label: 🧠 TEI }
-        TEI@{ shape: rect, label: 🧠 TEI } --> embedded_docs@{ shape: doc, label: embedded_docs }
-        query@{ shape: doc, label: query } --> TEI@{ shape: rect, label: 🧠 TEI }
-        TEI@{ shape: rect, label: 🧠 TEI } --> embedded_query@{ shape: doc, label: embedded_query }
-    end
-    subgraph "🤖 vector search"
-        embedded_docs@{ shape: doc, label: embedded_docs } --> similarity@{ shape: rect, label: 🔨 similarity }
-        embedded_query@{ shape: doc, label: embedded_query } --> similarity@{ shape: rect, label: 🔨 similarity }
-        similarity@{ shape: rect, label: 🔨 similarity } --> similarity_scores@{ shape: doc, label: similarity_scores }
-        similarity_scores@{ shape: doc, label: similarity_scores } --> ranker@{ shape: rect, label: 🔨 ranker }
-        ranker@{ shape: rect, label: 🔨 ranker } --> top_k_docs@{ shape: doc, label: top_k_docs }
-    end
-    subgraph "🤖 chat"
-        top_k_docs@{ shape: doc, label: top_k_docs } --> aggregator@{ shape: rect, label: 🔨 aggregator }
-        user_messages@{ shape: doc, label: user_messages } --> aggregator@{ shape: rect, label: 🔨 aggregator }
-        aggregator@{ shape: rect, label: 🔨 aggregator } --> c@{ shape: doc, label: chat }
-        c@{ shape: doc, label: chat } --> TGI@{ shape: rect, label: 🧠 TGI }
-        TGI@{ shape: rect, label: 🧠 TGI } --> parse@{ shape: doc, label: parse }
-        parse@{ shape: doc, label: parse } --> parser@{ shape: rect, label: 🔨 parser }
-        parser@{ shape: rect, label: 🔨 parser } --> assistant_messages@{ shape: doc, label: assistant_messages }
-        assistant_messages@{ shape: doc, label: assistant_messages } --> user@{ shape: circle, label: user }
-    end
-```
 
 ```mermaid
 flowchart TD

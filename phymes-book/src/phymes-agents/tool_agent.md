@@ -8,50 +8,17 @@ This tutorial describes how the [Tool Agent Session Plan](https://github.com/bio
 The tool agent adds stochasticity to the agentic AI architecture of the chat agent by conditionally calling an external tool if needed, which can be modeled as a conditional directed cyclic graph.
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> chat_agent: Query
-    chat_agent --> [*]: Response
-    chat_agent --> tool_task: Invoke tool
-    tool_task --> chat_agent: Tool call
-```
-
-The session starts with a query to the chat_agent from the user. Next, the chat_agent may call one or more tools to answer the user query. Next, the tool calls are executed in parallel by the tool_task. Finally, the results of the tool calls are provided to the chat_agent to ground the text generation inference to respond back to the user.
-
-Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the user, tool_task and chat_agent.
-
-```mermaid
 sequenceDiagram
-    user->>messages: 1
-    messages-->>chat_agent: 2
-    tools-->>chat_agent: 3a
-    config->>chat_agent: 3b
-    chat_agent->>tool_calls: 4
-    tool_calls->>tool_task: 5
-    data->>tool_task: 6
-    tool_task->>messages: 7
-    messages-->>chat_agent: 8
-    tools-->>chat_agent: 9a
-    config->>chat_agent: 9b
-    chat_agent->>messages: 10
-    messages->>user: 11
+    autonumber
+    user ->> TGI: user_messages
+    TGI ->> tool: tool_call
+	tool ->> TGI: tool_messages
+    TGI ->> user: assistant_messages
 ```
 
-The sequence of actions are the following:
+The session is composed of 4 tasks: 1. the user, 2. Text embedding inference (TEI), 3. Retrieval, and 4. Text generation inference (TGI). 
 
-1. The user publishes to messages subject
-2. The chat_agent subscribes to messages subject when there is a change to the messages subject table.
-3. The chat_agent subscribes to configs and tools subjects no matter if there is a change or not because the configs provide the parameters for running the chat_agent and the tools describes the schema for the tool calls.
-4. The chat_agent performs text generation inference based on the messages subject content and tool schemas, and publishes the results to either messages or tool_calls subject.
-5. The tool_task subscribes to the tool_calls subject when there is a change to the tool_calls subject table
-6. The tool_task subscribes to the data subject (one or more data tables needed to execute the tool call) no matter if there is a change or not because the data subjects provide the data tables needed for running the tool_task.
-7. The tool_task retrieves the needed data tables to execute the tool_calls, executes the tool_calls, and publishes the results to the messages subject.
-8. The chat_agent subscribes to messages subject when there is a change to the messages subject table, which has now been updated with the results of the tool_calls.
-9. The chat_agent subscribes to configs and tools subjects no matter if there is a change or not because the configs provide the parameters for running the chat_agent and the tools describes the schema for the tool calls.
-10. The chat_agent performs text generation inference based on the messages subject content, tool schemas, and results of the tool_calls, and publishes the results to either messages or tool_calls subject.
-11. The user subscribes to messages subject where there is a change to the messages subject table.
-
-The session ends because there are no further updates to the subjects. If the user publishes a follow-up message the session will pick-up where it left off with the chat_agent responding to the updated message and tool_calls content.
+The session starts when the user publishes a query (1) to the session. The TGI task either generates one or more structured tool_call response (2) or an unstructured response for the user (4) based on the query and available tools. The tool task executes all tool_call messages and publishes their results in parallel (3). The TGI and tool tasks (2 and 3) are repeated until the TGI task decides to respond to the user. The session ends when there are no further updates to the subjects. If the user publishes a follow-up message, the session will pick-up where it left off.
 
 ```mermaid
 flowchart TD
@@ -174,6 +141,14 @@ flowchart TD
 	summary_processor_1-subscribe@{shape: diamond, label: All}
 	summary_processor_2-subscribe@{shape: diamond, label: All}
 ```
+
+Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the User, Tool, and TGI tasks. Each task is composed of one or more processes that are chained together to execute the task. Each processor listens for changes on their subscribed subjects and publishes their results to subjects. Each task runs once the subscription criteria for all of its child processors are satisfied.
+
+At each superstep of the session, subscribed subjects are allocated to tasks, tasks are ran in parallel, and the subjects for which tasks publish on are updated sequentially.
+
+While not shown in the flowchart above, each processor subscribes to a special subject usually called the config which specifies all of the parameters for the processor. And like any other subject, the config can also be updated dynamically during the execution of the session.
+
+The decision to chain multiple processors into a single task or to allocated each processor to its own task is up to the needs of the user. Chaining multple processors can be more performant and efficient because fewer subscription and publishing copies and updates, respectively are needed. However, allocating each processor to its own task is easier to debug since the output of each task can be easily verified. Also, any processor that requires an external API call has to be allocated to its own task as chaining of streams breaks the poll on the external API call.
 
 ## Next steps
 
