@@ -81,6 +81,8 @@ pub struct SessionContextBuilder {
     pub max_iter: Option<usize>,
 }
 
+type SessionContextInput = (String, TaskMap, StateMap, ArrowTaskMetricsSet, HashMap<String, Arc<Mutex<RuntimeEnv>>>, usize);
+
 impl SessionContextBuilder {
     // Get a list of subscriptions and publications for a specific task
     pub fn get_task_sub_pub(
@@ -193,7 +195,7 @@ impl SessionContextBuilder {
     }
 
     /// Build the [SessionContext] members
-    pub fn build_inner(mut self) -> Result<(String, TaskMap, StateMap, ArrowTaskMetricsSet, HashMap<String, Arc<Mutex<RuntimeEnv>>>, usize)> {
+    pub fn build_inner(mut self) -> Result<SessionContextInput> {
         if self.name.is_none() {
             return Err(anyhow!(
                 "Please give the session a name before attempting to build the session."

@@ -375,7 +375,11 @@ pub async fn session_metrics_info(
                 .unwrap()
                 .get(payload.session_name.as_str())
             {
-                Some(session_stream_state) => {
+                Some(session_stream_state) => {        
+                    // Add the metrics to the state just in case...
+                    session_stream_state.try_write().unwrap().get_session_context_mut().update_metrics_table().unwrap();
+
+                    // Get the mermaid string
                     let info = session_stream_state
                         .try_read()
                         .unwrap()

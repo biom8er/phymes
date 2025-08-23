@@ -98,7 +98,7 @@ impl SessionContext {
     /// Create the metrics table if it does not exist or update with the new metrics
     pub fn update_metrics_table(&mut self) -> Result<bool> {
         // create the pivot table and clear the metrics
-        let pivot_table = get_metrics_as_pivot_table(&[self.metrics.clone()], SessionContextTableNames::Metrics.get_name())?;
+        let pivot_table = get_metrics_as_pivot_table(std::slice::from_ref(&self.metrics), SessionContextTableNames::Metrics.get_name())?;
         self.metrics.clear();
 
         // update the state with the metrics
@@ -2470,9 +2470,9 @@ mod tests {
 
         // Check pivot and gantt
         let gantt = sss.get_session_context().get_metrics_as_mermaid_gantt()?;
-        assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\tprocessor_1-1:0,\t"));
-        assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\tprocessor_1-1:0,\t"));
-        assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\tprocessor_1-1:0,\t"));
+        assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
+        assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
+        assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));
 
         Ok(())
     }

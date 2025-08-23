@@ -61,7 +61,7 @@ pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug
         Self: Sized;
 
     /// Get the subscription policy
-    fn get_subscribe(&self) -> &Box<dyn SubscribeTrait>;
+    fn get_subscribe(&self) -> &dyn SubscribeTrait;
 
     /// Alias for `get_static_name`
     fn get_type(&self) -> &str;
@@ -323,8 +323,10 @@ pub struct ArrowProcessorBuilder {
     pub processor_type: Option<String>,
 }
 
+type ProcessorInput = (String, Vec<ArrowTablePublish>, Vec<ArrowTableSubscribe>, Box<dyn SubscribeTrait>);
+
 impl ArrowProcessorBuilder {
-    pub fn take(mut self) -> Result<(String, Vec<ArrowTablePublish>, Vec<ArrowTableSubscribe>, Box<dyn SubscribeTrait>)> {                
+    pub fn take(mut self) -> Result<ProcessorInput> {                
         if self.processor_name.as_ref().is_none() {
             return Err(anyhow!("Missing processor name"));
         } else if self.publications.as_ref().is_none() {

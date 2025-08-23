@@ -10,7 +10,7 @@ use crate::{
     state::{
         messaging::{clear_current_message_state, ClearCurrentMessageState},
         settings::{
-            sync_current_active_session_state, sync_current_session_mermaid_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, ACTIVE_SESSION_NAME, SESSION_MERMAID_ERDIAGRAM, SESSION_MERMAID_FLOWCHART
+            sync_current_active_session_state, sync_current_session_mermaid_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, ACTIVE_SESSION_NAME, SESSION_MERMAID_FLOWCHART
         },
         sign_in::{EMAIL, JWT, SESSION_NAMES},
     },
