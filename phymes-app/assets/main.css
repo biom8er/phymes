@@ -55,7 +55,6 @@ main header .navbar .checkbtn {
 	cursor: pointer;
 }
 main header .navbar svg {
-    transform: scale(1.5);
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;

@@ -391,7 +391,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             let batch = RecordBatch::new_empty(Arc::new(Schema::new(fields)));
             let table = ArrowTable::get_builder()
                 .with_record_batches(vec![batch])?
-                .with_name(&subject)
+                .with_name(subject)
                 .build()?;
             state.push(table);
         }

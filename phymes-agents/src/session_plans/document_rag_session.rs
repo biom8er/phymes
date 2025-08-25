@@ -752,7 +752,8 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_embed_config.candle_asset = None;
-            candle_embed_config.openai_asset = Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2);
+            candle_embed_config.openai_asset =
+                Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2);
             candle_embed_config.weights_config_file = None;
             candle_embed_config.weights_file = None;
             candle_embed_config.tokenizer_file = None;

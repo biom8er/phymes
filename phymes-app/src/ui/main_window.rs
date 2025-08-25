@@ -177,7 +177,7 @@ pub fn main_window() -> Element {
 }
 
 /// About text view with information on using the application
-/// 
+///
 /// # Notes
 /// * all of the text should match /phymes-book/src/phymes-app/ui.md
 #[component]
@@ -192,18 +192,12 @@ pub fn about_text_modal() -> Element {
                         class: "help_li_item",
                         h2 { "{HeaderMenu::Help.as_str()}" }
                         svg { dangerous_inner_html: help_icon_svg() }
-                        span { "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHub" }                        
-                        a {
-                            href: "https://github.com/biom8er/phymes/issues",
-                            target: "_blank",
-                            rel: "noopener noreferrer",
-                        }
-                        span { " if you run into problems." }
+                        p { "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHubp https://github.com/biom8er/phymes/issues if you run into problems." }
                     }
                 }
                 li {
                     div {
-                        class: "help_li_item",  
+                        class: "help_li_item",
                         h2 { "Menu" }
                         svg { dangerous_inner_html: menu_icon_svg() }
                         p { "Hide or show the menu items below." }
@@ -211,7 +205,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item", 
+                        class: "help_li_item",
                         h2 { "{HeaderMenu::Settings.as_str()}" }
                         svg { dangerous_inner_html: settings_icon_svg() }
                         p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
@@ -219,7 +213,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item", 
+                        class: "help_li_item",
                         h2 { "{HeaderMenu::Subjects.as_str()}" }
                         svg { dangerous_inner_html: database_icon_svg() }
                         p { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
@@ -227,7 +221,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item", 
+                        class: "help_li_item",
                         h2 { "{HeaderMenu::Message.as_str()}" }
                         svg { dangerous_inner_html: message_icon_svg() }
                         p { "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated." }
@@ -235,7 +229,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item", 
+                        class: "help_li_item",
                         h2 { "{HeaderMenu::Metrics.as_str()}" }
                         svg { dangerous_inner_html: top_speed_icon_svg() }
                         p { "A list of metrics associated with the active session plan. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest." }

@@ -325,7 +325,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         for subject in sorted_map {
             subjects.push(format!("\t{}{{", subject.get_name()));
             for field in subject.get_schema().fields().iter() {
-                let data_type = from_data_type_to_str(&field.data_type());
+                let data_type = from_data_type_to_str(field.data_type());
                 subjects.push(format!("\t\t{data_type}\t{}", field.name()));
             }
             subjects.push("\t}".to_string());
@@ -441,7 +441,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     Ok(OpenAIChatProcessor::get_static_name().to_string())
                 } else if line.contains(OpenAIEmbedProcessor::get_static_name()) {
                     Ok(OpenAIEmbedProcessor::get_static_name().to_string())
-                } else {                    
+                } else {
                     Err(anyhow!(
                         "Parsing Error on line {iter}: {line}. Processor type for processor {processor} was not recognized."
                     ))
