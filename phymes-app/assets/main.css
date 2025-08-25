@@ -14,6 +14,8 @@ body{
 	font-size:0;
 	border-radius:5px;
 	overflow:hidden;
+	display: flex;
+	flex-direction: column;
 }
 h2,h3,p,th,td,caption,canvas{
 	margin: 2px;
@@ -126,8 +128,11 @@ main .messaging_list{
 	margin-left: 64px;
 	padding: 2px 2px 2px 2px;
 	list-style-type:none;
-	overflow-y:scroll;
 	height:77%;
+	min-height: 50%;
+	max-height: 77%;
+	overflow: auto;
+	resize: vertical;
 }
 
 /* Hide the sidebar by default on small displays */
@@ -383,9 +388,11 @@ main .messaging_list .user svg {
     vertical-align: middle;
 }
 main footer{
-	height:15%;
+	height: 15%;
+	min-height: 15%;
+	max-height: 50%;
     width:100%;
-	padding:20px 30px 10px 20px;
+	padding:2px 2px 2px 2px;
     align-items: bottom;
     display: flex;
 }
@@ -403,9 +410,6 @@ main footer .text_input form textarea {
 	border:none;
     width: 100%;
     height: 100%;
-	min-width: 100%;
-    min-height: 100%;
-    max-height: 100%;
 	margin-bottom:14px;
 	border-radius:3px;
 	padding: 3px;
@@ -413,6 +417,7 @@ main footer .text_input form textarea {
     font-family: Arial, Helvetica, sans-serif;
 	color:#fff;
 	background-color:#333333ff;
+	resize: none;
 }
 main footer .text_input form textarea::placeholder{
 	color:#fff;

@@ -255,7 +255,7 @@ pub mod test_chat_agent_session {
         SessionStream::new(incoming_message_map, session_stream_state)
     }
 
-    /// Run the second query for the chat agent session and return the response
+    /// Run follow-up queries for the chat agent session and return the response
     pub fn bench_chat_agent_session_2<'a>(
         session_stream_state: Arc<RwLock<SessionStreamState>>,
         chat_agent_session: &ChatAgentSession<'a>,
