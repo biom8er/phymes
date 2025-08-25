@@ -51,7 +51,7 @@ lopdf = { git = "https://github.com/J-F-Liu/lopdf.git", version = "0.37.0", defa
 num-traits = { version = "0.2", default-features = false }
 
 [dev-dependencies]
-criterion = { version = "0.3", default-features = false, features = ["cargo_bench_support"] }
+criterion = { version = "0.7", default-features = false, features = ["cargo_bench_support"] }
 
 [[bench]]
 name = "candle_ops"
