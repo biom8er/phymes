@@ -32,7 +32,8 @@ use phymes_ml::{
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{
-    openai_asset::available_openai_assets::AvailableOpenAIAssets, openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_asset::available_openai_assets::AvailableOpenAIAssets,
+    openai_chat::chat_processor::OpenAIChatProcessor,
     openai_embed::embed_processor::OpenAIEmbedProcessor,
 };
 
@@ -538,7 +539,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.state_scores_table_name.to_string(),
-                }
+                },
             ],
             AllTableNamesSubscribe::new_box(),
         ));
@@ -553,7 +554,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.document_chunk_processor_2_name.to_string(),
-                }
+                },
             ],
             AllTableNamesSubscribe::new_box(),
         ));
@@ -585,8 +586,11 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     table_name: self.top_k_processor_name.to_string().to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.state_scores_chunks_join_table_name.to_string().to_string(),
-                }
+                    table_name: self
+                        .state_scores_chunks_join_table_name
+                        .to_string()
+                        .to_string(),
+                },
             ],
             AllTableNamesSubscribe::new_box(),
         ));
@@ -670,7 +674,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
-            candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
+            candle_chat_config.openai_asset = Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;
@@ -681,8 +685,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
         let candle_chat_state = ArrowTableBuilder::new()
             .with_name(self.chat_processor_name)
-            .with_json(&candle_chat_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&candle_chat_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Default embed config
         #[allow(unused_mut)]
@@ -746,7 +752,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_embed_config.candle_asset = None;
-            candle_embed_config.openai_asset = Some(WhichOpenAIAsset::NvidiaLlamaV3p2NvEmbedQA1BV2);
+            candle_embed_config.openai_asset = Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2);
             candle_embed_config.weights_config_file = None;
             candle_embed_config.weights_file = None;
             candle_embed_config.tokenizer_file = None;
@@ -757,12 +763,16 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let candle_embed_config_json = serde_json::to_vec(&candle_embed_config).unwrap();
         let candle_doc_embed_state = ArrowTableBuilder::new()
             .with_name(self.embed_documents_processor_name)
-            .with_json(&candle_embed_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&candle_embed_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let candle_query_embed_state = ArrowTableBuilder::new()
             .with_name(self.embed_query_processor_name)
-            .with_json(&candle_embed_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&candle_embed_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Message aggregator config
         let aggregator_config = DataConfig {
@@ -777,12 +787,16 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
         let aggregator_1_state = ArrowTableBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
-            .with_json(&aggregator_config_json.clone(), 1).unwrap()
-            .build().unwrap();
+            .with_json(&aggregator_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let aggregator_2_state = ArrowTableBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
-            .with_json(&aggregator_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&aggregator_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Chunk documents config
         let chunk_document_config = DataConfig {
@@ -796,12 +810,16 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let chunk_document_config_json = serde_json::to_vec(&chunk_document_config).unwrap();
         let chunk_document_1_state = ArrowTableBuilder::new()
             .with_name(self.document_chunk_processor_1_name)
-            .with_json(&chunk_document_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&chunk_document_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let chunk_document_2_state = ArrowTableBuilder::new()
             .with_name(self.document_chunk_processor_2_name)
-            .with_json(&chunk_document_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&chunk_document_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Relative similarity config
         let rel_sim_config = DataConfig {
@@ -819,8 +837,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let rel_sim_config_json = serde_json::to_vec(&rel_sim_config).unwrap();
         let rel_sim_state = ArrowTableBuilder::new()
             .with_name(self.relative_similarity_processor_name)
-            .with_json(&rel_sim_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&rel_sim_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Sort scores config
         let sort_scores_config = DataConfig {
@@ -834,8 +854,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let sort_scores_config_json = serde_json::to_vec(&sort_scores_config).unwrap();
         let sort_scores_state = ArrowTableBuilder::new()
             .with_name(self.sort_scores_processor_name)
-            .with_json(&sort_scores_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&sort_scores_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Join chunks scores config
         let join_chunks_config = DataConfig {
@@ -853,8 +875,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let join_chunks_config_json = serde_json::to_vec(&join_chunks_config).unwrap();
         let join_chunks_state = ArrowTableBuilder::new()
             .with_name(self.join_chunks_processor_name)
-            .with_json(&join_chunks_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&join_chunks_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Summary config (to limit the number of documents)
         let top_k_config = DataSummaryConfig {
@@ -865,8 +889,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let top_k_config_json = serde_json::to_vec(&top_k_config).unwrap();
         let top_k_state = ArrowTableBuilder::new()
             .with_name(self.top_k_processor_name)
-            .with_json(&top_k_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&top_k_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         Some(vec![
             candle_chat_state,
@@ -1049,7 +1075,10 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         metrics::{ArrowTaskMetricsSet, HashMap},
-        session::{session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
+        session::{
+            session_context::SessionStreamState,
+            session_context_builder::SessionContextBuilderTrait,
+        },
         table::arrow_table::ArrowTableTrait,
         task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
@@ -1074,7 +1103,8 @@ mod tests {
             doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
             doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
         }
-        let session_ctx = doc_rag_session.build()
+        let session_ctx = doc_rag_session
+            .build()
             .with_metrics(metrics.clone())
             .with_name(doc_rag_session.session_context_name)
             .build_with_tables()?;

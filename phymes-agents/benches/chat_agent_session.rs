@@ -3,12 +3,19 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_agents::{session_plans::chat_agent_session::{
-        test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2}, ChatAgentSession
-    }, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
+use phymes_agents::{
+    session_plans::chat_agent_session::{
+        ChatAgentSession,
+        test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2},
+    },
+    session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
+};
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap, get_metrics_as_pivot_table},
-    session::{common_traits::BuilderTrait, session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
+    session::{
+        common_traits::BuilderTrait, session_context::SessionStreamState,
+        session_context_builder::SessionContextBuilderTrait,
+    },
     table::arrow_table::ArrowTableTrait,
     task::arrow_message::ArrowIncomingMessage,
 };
@@ -67,10 +74,12 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
 
                 // Create the session stream state
                 let metrics = ArrowTaskMetricsSet::new();
-                let session_ctx = config.build()
+                let session_ctx = config
+                    .build()
                     .with_metrics(metrics.clone())
                     .with_name(session_context_name.as_str())
-                    .build_with_tables().unwrap();
+                    .build_with_tables()
+                    .unwrap();
                 let session_stream_state =
                     Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
                 let sample_id = format!("{id}_{iter}");

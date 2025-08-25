@@ -174,7 +174,7 @@ main .messaging_list button{
 	outline: none;
 	cursor: pointer;
 }
-main .messaging_list p{
+main .messaging_list p, main .messaging_list span, main .messaging_list a{
     float: middle;
 	margin: auto;
 	background-color:#333333ff;
@@ -454,6 +454,31 @@ main footer .submit_button svg {
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;
+}
+
+/* Help menu styling */
+main .messaging_list .help_li_item{
+    width: 100%;
+    height: auto;
+	display: flex;
+	align-items: center;
+	padding: 2px;
+}
+main .messaging_list .help_li_item h2{
+    vertical-align: middle;
+	float: left;
+	text-align: left;
+}
+main .messaging_list .help_li_item svg{
+    max-width: 48px; /* based on viewBox attributes in svg */
+    max-height: 48px;
+    vertical-align: middle;
+	float: left;
+}
+main .messaging_list .help_li_item p, main .messaging_list .help_li_item span, main .messaging_list .help_li_item a{
+    vertical-align: middle;
+	float: right;
+	text-align: left;
 }
 
 #graphDiv {

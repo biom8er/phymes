@@ -2,20 +2,42 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use parking_lot::{Mutex, RwLock};
-use phymes_core::{metrics::{ArrowTaskMetricsSet, HashMap}, session::{common_traits::{MappableTrait, StateMap, TaskMap}, runtime_env::RuntimeEnv, session_context::SessionContext, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan}}, table::arrow_table::ArrowTable, task::arrow_processor::ArrowProcessorTrait};
+use phymes_core::{
+    metrics::{ArrowTaskMetricsSet, HashMap},
+    session::{
+        common_traits::{MappableTrait, StateMap, TaskMap},
+        runtime_env::RuntimeEnv,
+        session_context::SessionContext,
+        session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
+    },
+    table::arrow_table::ArrowTable,
+    task::arrow_processor::ArrowProcessorTrait,
+};
 
 use crate::session_traits::tabular::SessionContextBuilderTabularTrait;
 
-type SessionContextInput = (String, TaskMap, StateMap, ArrowTaskMetricsSet, HashMap<String, Arc<Mutex<RuntimeEnv>>>, usize, Vec<ArrowTable>);
+type SessionContextInput = (
+    String,
+    TaskMap,
+    StateMap,
+    ArrowTaskMetricsSet,
+    HashMap<String, Arc<Mutex<RuntimeEnv>>>,
+    usize,
+    Vec<ArrowTable>,
+);
 
 /// Trait extension for [SessionContextBuilderTrait] to facilitate building agentic workflows
 pub trait SessionContextBuilderAgentsTrait {
     /// Build the [SessionContext] objects along with the [SessionContext] schema tables
     fn build_inner_with_tables(self) -> Result<SessionContextInput>;
 
-    fn build_with_tables(self) -> Result<SessionContext> where Self: Sized {
+    fn build_with_tables(self) -> Result<SessionContext>
+    where
+        Self: Sized,
+    {
         // build the tasks, state, metrics, and runtime objects
-        let (name, tasks, mut state, metrics, runtime_envs, max_iter, tables) = self.build_inner_with_tables()?;
+        let (name, tasks, mut state, metrics, runtime_envs, max_iter, tables) =
+            self.build_inner_with_tables()?;
 
         // update the state with the schema tables
         for table in tables.into_iter() {
@@ -23,11 +45,18 @@ pub trait SessionContextBuilderAgentsTrait {
         }
 
         // ready to build the session
-        Ok(SessionContext::new(name, tasks, state, metrics, runtime_envs, max_iter))
+        Ok(SessionContext::new(
+            name,
+            tasks,
+            state,
+            metrics,
+            runtime_envs,
+            max_iter,
+        ))
     }
 }
 
-impl SessionContextBuilderAgentsTrait for SessionContextBuilder {    
+impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
         let (tables, _state) = self.to_arrow_tables(false, true)?;
         let (name, tasks, state, metrics, runtime_envs, max_iter) = self.build_inner()?;
@@ -36,9 +65,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 }
 
 /// Create custom [SessionContextBuilder]
-/// 
+///
 /// # Notes
-/// 
+///
 /// * Intended to be used when implementing custom traits or types not yet supported
 ///   when building from tabular or memermaid.js formats
 /// * Users can mix and match custom types with tabular or mermaid.js formats

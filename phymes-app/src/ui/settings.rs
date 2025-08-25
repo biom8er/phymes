@@ -3,14 +3,19 @@ use std::collections::HashSet;
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::table::arrow_table_publish::ArrowTablePublish;
-use phymes_server::handlers::{session_info::{SessionResponse, SessionResponseFormat}, sign_in::create_session_name};
+use phymes_server::handlers::{
+    session_info::{SessionResponse, SessionResponseFormat},
+    sign_in::create_session_name,
+};
 use serde_json::{Map, Value};
 
 use crate::{
     state::{
         messaging::{clear_current_message_state, ClearCurrentMessageState},
         settings::{
-            sync_current_active_session_state, sync_current_session_mermaid_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, ACTIVE_SESSION_NAME, SESSION_MERMAID_FLOWCHART
+            sync_current_active_session_state, sync_current_session_mermaid_state,
+            SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, ACTIVE_SESSION_NAME,
+            SESSION_MERMAID_FLOWCHART,
         },
         sign_in::{EMAIL, JWT, SESSION_NAMES},
     },
@@ -20,9 +25,9 @@ use crate::{
 #[cfg(feature = "mermaid_js")]
 use crate::state::settings::MermaidJsObject;
 #[cfg(feature = "mermaid_js")]
-use phymes_core::session::session_context_builder::SessionContextBuilder;
-#[cfg(feature = "mermaid_js")]
 use phymes_agents::session_traits::mermaid_js::SessionContextBuilderMermaidTrait;
+#[cfg(feature = "mermaid_js")]
+use phymes_core::session::session_context_builder::SessionContextBuilder;
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -67,10 +72,11 @@ pub fn settings_interface_view() -> Element {
         content: "".to_string().into(),
         metadata: "".to_string(),
         stream: false,
-    });  
+    });
 
     // Get the active mermaid.js diagrams for the settings view
-    let sync_current_session_mermaid_state = use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
+    let sync_current_session_mermaid_state =
+        use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
     let _ = use_resource(move || async move {
         let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
         let route = "/app/v1/mermaid_js";
@@ -92,7 +98,9 @@ pub fn settings_interface_view() -> Element {
                     let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!("There was a error parsing SyncCurrentSubjectInfoState {err}.");
+                            tracing::error!(
+                                "There was a error parsing SyncCurrentSubjectInfoState {err}."
+                            );
                             Vec::new()
                         });
                     for row in json_rows.iter() {
@@ -158,7 +166,7 @@ pub fn settings_interface_view() -> Element {
             Err(err) => tracing::error!("{err:?}"),
         }
     });
-    
+
     // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
     let diagram_code: Memo<String> = use_memo(move || SESSION_MERMAID_FLOWCHART.read().to_string());
     let rendered_html = render_mermaid_svg(diagram_code, "graphDiv", true);
@@ -373,52 +381,71 @@ pub fn settings_dropdown_view() -> Element {
 }
 
 #[cfg(feature = "mermaid_js")]
-pub fn render_mermaid_svg(diagram_code: Memo<String>, id: &str, check_build: bool) -> Resource<(Option<String>,Option<String>,Option<String>)> {
+pub fn render_mermaid_svg(
+    diagram_code: Memo<String>,
+    id: &str,
+    check_build: bool,
+) -> Resource<(Option<String>, Option<String>, Option<String>)> {
     let div_id = id.to_string();
-    let rendered_html: Resource<(Option<String>,Option<String>,Option<String>)> = use_resource(move || {
-        let div_id = div_id.clone();
-        async move {
-            // Render the mermaid.js diagram
-            let eval = document::eval(format!(r#"
+    let rendered_html: Resource<(Option<String>, Option<String>, Option<String>)> =
+        use_resource(move || {
+            let div_id = div_id.clone();
+            async move {
+                // Render the mermaid.js diagram
+                let eval = document::eval(
+                    format!(
+                        r#"
                 try {{
                     let code = await dioxus.recv();
                     const {{ svg }} = await mermaid.render("{div_id}", code);
                     return {{ svg: svg, error: null }};
                 }} catch (error) {{
                     return {{ svg: null, error: error.message }};
-                }}"#).as_str()
-            );
-            eval.send(diagram_code()).unwrap();
-            let mermaid_js_object = match eval.await {
-                Ok(res) => {
-                    let res: MermaidJsObject = serde_json::from_value(res).unwrap();
-                    res
-                },
-                Err(err) => {
-                    tracing::error!("Mermaid.js err {err:?}");
-                    MermaidJsObject { svg: None, error: Some(err.to_string())}
-                }
-            };
-
-            // Build the preliminary session context
-            if check_build {
-                let builder_error =  match SessionContextBuilder::from_mermaid_flowchart(&diagram_code()) {
-                    Ok(_res) => None,
-                    Err(err) => Some(err.to_string()),
+                }}"#
+                    )
+                    .as_str(),
+                );
+                eval.send(diagram_code()).unwrap();
+                let mermaid_js_object = match eval.await {
+                    Ok(res) => {
+                        let res: MermaidJsObject = serde_json::from_value(res).unwrap();
+                        res
+                    }
+                    Err(err) => {
+                        tracing::error!("Mermaid.js err {err:?}");
+                        MermaidJsObject {
+                            svg: None,
+                            error: Some(err.to_string()),
+                        }
+                    }
                 };
-                (mermaid_js_object.svg, mermaid_js_object.error, builder_error)
-            } else {
-                (mermaid_js_object.svg, mermaid_js_object.error, None)
+
+                // Build the preliminary session context
+                if check_build {
+                    let builder_error =
+                        match SessionContextBuilder::from_mermaid_flowchart(&diagram_code()) {
+                            Ok(_res) => None,
+                            Err(err) => Some(err.to_string()),
+                        };
+                    (
+                        mermaid_js_object.svg,
+                        mermaid_js_object.error,
+                        builder_error,
+                    )
+                } else {
+                    (mermaid_js_object.svg, mermaid_js_object.error, None)
+                }
             }
-        }
-    });
+        });
 
     // add pan and zoom
     let div_id = id.to_string();
     use_effect(move || {
         let div_id = div_id.clone();
         let _ = rendered_html.read();
-        document::eval(format!(r#"
+        document::eval(
+            format!(
+                r#"
             const container = document.getElementById("{div_id}");
             const svgElement = container.querySelector("svg");
 
@@ -433,7 +460,9 @@ pub fn render_mermaid_svg(diagram_code: Memo<String>, id: &str, check_build: boo
             container.addEventListener("wheel", (event) => {{
                 panzoomInstance.zoomWithWheel(event);
             }});
-            "#).as_str()
+            "#
+            )
+            .as_str(),
         );
     });
 
@@ -464,7 +493,7 @@ pub fn settings_interface_footer() -> Element {
                             },
                         }
                     }
-                }                
+                }
 
                 div {
                     class: "submit_button",
@@ -475,7 +504,7 @@ pub fn settings_interface_footer() -> Element {
                         },
                         if !diagram_code().is_empty() {
                             svg { dangerous_inner_html: send_icon_svg() }
-                        }            
+                        }
                     }
                 }
             }

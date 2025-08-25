@@ -4,7 +4,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
         common_traits::{
-            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap
+            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, device,
         },
         runtime_env::RuntimeEnv,
     },
@@ -16,7 +16,8 @@ use phymes_core::{
     },
     task::{
         arrow_message::{
-            ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait
+            ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
+            ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
         publish_subscribe::PubSubTrait,
@@ -94,8 +95,8 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
-    
-    fn get_subscribe(&self) -> &dyn SubscribeTrait{
+
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
         self.subscribe.as_ref()
     }
 
@@ -124,8 +125,16 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             if subs.get_table_name() != self.get_name() {
                 match message.remove(subs.get_table_name()) {
                     // DM: need to migrate this to `make_random_name` to avoid hash collisions
-                    Some(m) => { subscriptions.insert(m.get_subject().to_string(), m); }
-                    None  => return Err(anyhow!("Subscription {} not provided for {}.", subs.get_table_name(), self.get_name())),
+                    Some(m) => {
+                        subscriptions.insert(m.get_subject().to_string(), m);
+                    }
+                    None => {
+                        return Err(anyhow!(
+                            "Subscription {} not provided for {}.",
+                            subs.get_table_name(),
+                            self.get_name()
+                        ));
+                    }
                 }
             }
         }
@@ -320,9 +329,14 @@ impl Stream for CandleDataStream {
                         }
                         None => {
                             self.is_finished = true;
-                            let error_str = format!("lhs_name {lhs_name} does not exist. Available options are {:?}", self.messages.keys());
+                            let error_str = format!(
+                                "lhs_name {lhs_name} does not exist. Available options are {:?}",
+                                self.messages.keys()
+                            );
                             event!(Level::ERROR, error_str);
-                            return Poll::Ready(Some(Ok(make_error_record_batch(error_str.as_str()))));
+                            return Poll::Ready(Some(Ok(make_error_record_batch(
+                                error_str.as_str(),
+                            ))));
                         }
                     }
                 }
@@ -376,9 +390,14 @@ impl Stream for CandleDataStream {
                         }
                         None => {
                             self.is_finished = true;
-                            let error_str = format!("rhs_name {rhs_name} does not exist. Available options are {:?}", self.messages.keys());
+                            let error_str = format!(
+                                "rhs_name {rhs_name} does not exist. Available options are {:?}",
+                                self.messages.keys()
+                            );
                             event!(Level::ERROR, error_str);
-                            return Poll::Ready(Some(Ok(make_error_record_batch(error_str.as_str()))));
+                            return Poll::Ready(Some(Ok(make_error_record_batch(
+                                error_str.as_str(),
+                            ))));
                         }
                     }
                 }
@@ -946,7 +965,14 @@ mod tests {
             &[ArrowTablePublish::Replace {
                 table_name: "results".to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable { table_name: "lhs_name".to_string() }, ArrowTableSubscribe::AlwaysFullTable { table_name: "rhs_name".to_string() }],
+            &[
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: "lhs_name".to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: "rhs_name".to_string(),
+                },
+            ],
             AllTableNamesSubscribe::new_box(),
         );
         let mut ops_stream = ops_processor.process(messages, metrics, runtime_env)?;

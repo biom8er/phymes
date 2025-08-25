@@ -51,7 +51,6 @@ fn app() -> Element {
 }
 
 fn mermaid_js() -> Element {
-    
     #[cfg(feature = "mermaid_js_cdn")]
     rsx! {
         script { src: "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs", onload: move |_| {

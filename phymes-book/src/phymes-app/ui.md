@@ -14,7 +14,7 @@ User registration and sign in. Each account corresponds to a single email.
 
 ![session plans](../assets/2025-07-05_phymes-app_session-plans.png)
 
-A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time.
+A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans.
 
 ### Subjects
 
@@ -24,9 +24,9 @@ A list of subject associated with the active session plan. A table shows the sch
 
 ### Tasks
 
-![tasks](../assets/2025-07-05_phymes-app_tasks.png)
-
-A list of tasks and subjects that the tasks subscribe to and publish on associated with the active session plan. The reaction between tasks and subjects are visualized as an incidence matrix where + indicates publish on and - indicates subscribe to. A toggle button is provided to expand the tasks to their individual processors and collapse the individual processors to their tasks.
+> ⚠️ Depricated<br>
+> ![tasks](../assets/2025-07-05_phymes-app_tasks.png)<br>
+> A list of tasks and subjects that the tasks subscribe to and publish on associated with the active session plan. The reaction between tasks and subjects are visualized as an incidence matrix where + indicates publish on and - indicates subscribe to. A toggle button is provided to expand the tasks to their individual processors and collapse the individual processors to their tasks.<br>
 
 ### Messaging
 
@@ -38,4 +38,7 @@ The message history for the active session plan. A chat interface is provided fo
 
 ![metrics](../assets/2025-07-05_phymes-app_metrics.png)
 
-A list of metrics associated with the active session plan. Metrics are tracked per processor. A table in long form displays the values for the tracked metrics. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest. 
+A list of metrics associated with the active session plan. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest.
+
+> ⚠️ Depricated<br>
+> A table in long form displays the values for the tracked metrics.<br>

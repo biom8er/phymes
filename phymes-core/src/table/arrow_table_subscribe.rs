@@ -1,8 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::{metrics::HashMap, session::common_traits::{MappableTrait, StateMap}};
+use crate::{
+    metrics::HashMap,
+    session::common_traits::{MappableTrait, StateMap},
+};
 
 use super::{
     arrow_table::{ArrowTable, ArrowTableTrait},
@@ -40,10 +43,12 @@ impl ArrowTableSubscribe {
     }
 
     #[allow(dead_code)]
-    fn get_full_name(&self) -> String {        
+    fn get_full_name(&self) -> String {
         match self {
             Self::OnUpdateFullTable { table_name: tn } => format!("OnUpdateFullTable-{tn}"),
-            Self::OnUpdateLastRecordBatch { table_name: tn } => format!("OnUpdateLastRecordBatch-{tn}"),
+            Self::OnUpdateLastRecordBatch { table_name: tn } => {
+                format!("OnUpdateLastRecordBatch-{tn}")
+            }
             Self::AlwaysFullTable { table_name: tn } => format!("AlwaysFullTable-{tn}"),
             Self::AlwaysLastRecordBatch { table_name: tn } => format!("AlwaysLastRecordBatch-{tn}"),
             Self::None => "None".to_string(),
@@ -62,7 +67,7 @@ impl ArrowTableSubscribe {
         }
     }
 
-    pub fn get_short_name(&self) -> &str {        
+    pub fn get_short_name(&self) -> &str {
         match self {
             Self::OnUpdateFullTable { table_name: _tn } => "FullTable",
             Self::OnUpdateLastRecordBatch { table_name: _tn } => "LastRecordBatch",
@@ -75,24 +80,34 @@ impl ArrowTableSubscribe {
 
     pub fn from_str(name: &str, subject: &str) -> Result<ArrowTableSubscribe> {
         let subscription = if name.contains("OnUpdateFullTable") {
-            ArrowTableSubscribe::OnUpdateFullTable { table_name: subject.to_string() }
+            ArrowTableSubscribe::OnUpdateFullTable {
+                table_name: subject.to_string(),
+            }
         } else if name.contains("AlwaysFullTable") {
-            ArrowTableSubscribe::AlwaysFullTable { table_name: subject.to_string() }
+            ArrowTableSubscribe::AlwaysFullTable {
+                table_name: subject.to_string(),
+            }
         } else if name.contains("OnUpdateLastRecordBatch") {
-            ArrowTableSubscribe::OnUpdateLastRecordBatch { table_name: subject.to_string() }
+            ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                table_name: subject.to_string(),
+            }
         } else if name.contains("AlwaysLastRecordBatch") {
-            ArrowTableSubscribe::AlwaysLastRecordBatch { table_name: subject.to_string() }
+            ArrowTableSubscribe::AlwaysLastRecordBatch {
+                table_name: subject.to_string(),
+            }
         } else if name.contains("None") {
             ArrowTableSubscribe::None {}
         } else {
-            return Err(anyhow!("Variant for ArrowTableSubscribe {name} with subject {subject} was not recognized."))
+            return Err(anyhow!(
+                "Variant for ArrowTableSubscribe {name} with subject {subject} was not recognized."
+            ));
         };
         Ok(subscription)
     }
 }
 
 impl MappableTrait for ArrowTableSubscribe {
-    fn get_name(&self) -> &str {        
+    fn get_name(&self) -> &str {
         match self {
             Self::OnUpdateFullTable { table_name: _tn } => "OnUpdateFullTable",
             Self::OnUpdateLastRecordBatch { table_name: _tn } => "OnUpdateLastRecordBatch",
@@ -153,7 +168,7 @@ impl ArrowTableSubscribeTrait for ArrowTable {
 }
 
 /// Helper function to convert a [String] to a [SubscribeTrait]
-/// 
+///
 /// # Notes
 /// * This method will eventually be on an enum of all concrete
 ///   [SubscribeTrait] implementations
@@ -172,7 +187,7 @@ pub fn from_str_to_subscribe(line: &str) -> Result<Box<dyn SubscribeTrait>> {
     } else if line.contains(ChatContentSubscribe::get_static_name()) {
         ChatContentSubscribe::new_box()
     } else {
-        return Err(anyhow!("Subscribe policy {line} was not recognized."))
+        return Err(anyhow!("Subscribe policy {line} was not recognized."));
     };
     Ok(subscribe)
 }
@@ -250,7 +265,7 @@ impl SubscribeTrait for AnyTableNameSubscribe {
 impl MappableTrait for AnyTableNameSubscribe {
     fn get_static_name() -> &'static str {
         "Any"
-    }  
+    }
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }

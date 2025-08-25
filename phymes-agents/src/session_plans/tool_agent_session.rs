@@ -12,7 +12,8 @@ use phymes_core::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{
-            AllTableNamesSubscribe, AnyTableNameSubscribe, ArrowTableSubscribe, ChatContentSubscribe, SubscribeTrait
+            AllTableNamesSubscribe, AnyTableNameSubscribe, ArrowTableSubscribe,
+            ChatContentSubscribe, SubscribeTrait,
         },
     },
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
@@ -34,7 +35,8 @@ use phymes_ml::{
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{
-    openai_asset::available_openai_assets::AvailableOpenAIAssets, openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_asset::available_openai_assets::AvailableOpenAIAssets,
+    openai_chat::chat_processor::OpenAIChatProcessor,
 };
 
 use arrow::{
@@ -399,7 +401,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.state_scores_table_name.to_string(),
-                }
+                },
             ],
             AllTableNamesSubscribe::new_box(),
         ));
@@ -414,7 +416,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.state_assistant_messages_table_name.to_string(),
-                }
+                },
             ],
             AllTableNamesSubscribe::new_box(),
         ));
@@ -493,7 +495,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             // DM: Bug in Llama model system template that requires it to only call tools instead of respond...
             // see update template <https://gist.github.com/K-Mistele/820d142b4dab50bd8ef0c7bbcad4515c>
             // see discussion when using vLLM <https://github.com/vllm-project/vllm/issues/9991>
-            candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
+            candle_chat_config.openai_asset = Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;
@@ -504,12 +506,16 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
         let candle_chat_state = ArrowTableBuilder::new()
             .with_name(self.chat_processor_name)
-            .with_json(&candle_chat_config_json.clone(), 1).unwrap()
-            .build().unwrap();
+            .with_json(&candle_chat_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let candle_message_parser_state = ArrowTableBuilder::new()
             .with_name(self.message_parser_processor_name)
-            .with_json(&candle_chat_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&candle_chat_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Message aggregator config
         let aggregator_config = DataConfig {
@@ -524,12 +530,16 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
         let aggregator_1_state = ArrowTableBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
-            .with_json(&aggregator_config_json.clone(), 1).unwrap()
-            .build().unwrap();
+            .with_json(&aggregator_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let aggregator_2_state = ArrowTableBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
-            .with_json(&aggregator_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&aggregator_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Summary config
         let summary_config = DataSummaryConfig {
@@ -538,12 +548,16 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
         let summary_state_1 = ArrowTableBuilder::new()
             .with_name(self.summary_processor_1_name)
-            .with_json(&summary_config_json.clone(), 1).unwrap()
-            .build().unwrap();
+            .with_json(&summary_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let summary_state_2 = ArrowTableBuilder::new()
             .with_name(self.summary_processor_2_name)
-            .with_json(&summary_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&summary_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         Some(vec![
             candle_chat_state,
@@ -620,7 +634,10 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         metrics::{ArrowTaskMetricsSet, HashMap},
-        session::{session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
+        session::{
+            session_context::SessionStreamState,
+            session_context_builder::SessionContextBuilderTrait,
+        },
         table::arrow_table::ArrowTableTrait,
         task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
@@ -637,7 +654,8 @@ mod tests {
 
         // initialize the session
         let tool_agent_session = ToolAgentSession::default();
-        let session_ctx = tool_agent_session.build()
+        let session_ctx = tool_agent_session
+            .build()
             .with_metrics(metrics.clone())
             .with_name(tool_agent_session.session_context_name)
             .build_with_tables()?;

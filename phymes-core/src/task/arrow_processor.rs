@@ -11,7 +11,7 @@ use crate::{
     },
     task::publish_subscribe::PubSubTrait,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -50,7 +50,7 @@ pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug
         name: &str,
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait>
     where
         Self: Sized;
@@ -289,7 +289,7 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
-    
+
     fn get_subscribe(&self) -> &dyn SubscribeTrait {
         self.subscribe.as_ref()
     }
@@ -310,7 +310,7 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
 }
 
 /// A lightweight builder for structures implementing the [ArrowProcessorTrait]
-/// 
+///
 /// # Notes
 /// * A full `ArrowProcessorBuilderTrait` will be provided in the future
 ///   once the API stabilizes
@@ -323,24 +323,40 @@ pub struct ArrowProcessorBuilder {
     pub processor_type: Option<String>,
 }
 
-type ProcessorInput = (String, Vec<ArrowTablePublish>, Vec<ArrowTableSubscribe>, Box<dyn SubscribeTrait>);
+type ProcessorInput = (
+    String,
+    Vec<ArrowTablePublish>,
+    Vec<ArrowTableSubscribe>,
+    Box<dyn SubscribeTrait>,
+);
 
 impl ArrowProcessorBuilder {
-    pub fn take(mut self) -> Result<ProcessorInput> {                
+    pub fn take(mut self) -> Result<ProcessorInput> {
         if self.processor_name.as_ref().is_none() {
             return Err(anyhow!("Missing processor name"));
         } else if self.publications.as_ref().is_none() {
-            return Err(anyhow!("Missing publications for processor {}", self.processor_name.as_ref().unwrap()));
+            return Err(anyhow!(
+                "Missing publications for processor {}",
+                self.processor_name.as_ref().unwrap()
+            ));
         } else if self.subscriptions.as_ref().is_none() {
-            return Err(anyhow!("Missing subscriptions for processor {}", self.processor_name.as_ref().unwrap()));
+            return Err(anyhow!(
+                "Missing subscriptions for processor {}",
+                self.processor_name.as_ref().unwrap()
+            ));
         } else if self.subscribe.as_ref().is_none() {
-            return Err(anyhow!("Missing subscribe for processor {}", self.processor_name.as_ref().unwrap()));
+            return Err(anyhow!(
+                "Missing subscribe for processor {}",
+                self.processor_name.as_ref().unwrap()
+            ));
         }
 
-        Ok((self.processor_name.take().unwrap(),
+        Ok((
+            self.processor_name.take().unwrap(),
             self.publications.take().unwrap(),
             self.subscriptions.take().unwrap(),
-            self.subscribe.take().unwrap()))
+            self.subscribe.take().unwrap(),
+        ))
     }
 }
 
@@ -413,7 +429,7 @@ pub mod test_processor {
                 subscribe,
             })
         }
-        
+
         fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
@@ -422,7 +438,7 @@ pub mod test_processor {
                 subscribe: AllTableNamesSubscribe::new_box(),
             })
         }
-    
+
         fn get_subscribe(&self) -> &dyn SubscribeTrait {
             self.subscribe.as_ref()
         }

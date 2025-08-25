@@ -8,7 +8,10 @@ use lopdf::{
     content::{Content, Operation},
     dictionary,
 };
-use phymes_core::{schemas::{chat_completion, types}, session::common_traits::MappableTrait};
+use phymes_core::{
+    schemas::{chat_completion, types},
+    session::common_traits::MappableTrait,
+};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::{Level, event, instrument};
 

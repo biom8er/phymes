@@ -20,7 +20,8 @@ use phymes_ml::{
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{
-    openai_asset::available_openai_assets::AvailableOpenAIAssets, openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_asset::available_openai_assets::AvailableOpenAIAssets,
+    openai_chat::chat_processor::OpenAIChatProcessor,
 };
 
 use crate::session_traits::agents::CustomAgentsBuilderTrait;
@@ -178,7 +179,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
-            candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
+            candle_chat_config.openai_asset = Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;
@@ -188,14 +189,18 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
         let config = ArrowTableBuilder::new()
             .with_name(self.chat_processor_name)
-            .with_json(&candle_chat_config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&candle_chat_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         let messages = ArrowTableBuilder::new()
             .with_name(self.chat_subscription_name)
             .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new()).unwrap()
-            .build().unwrap();
+            .with_record_batches(Vec::new())
+            .unwrap()
+            .build()
+            .unwrap();
         Some(vec![config, messages])
     }
 }
@@ -289,7 +294,10 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         metrics::{ArrowTaskMetricsSet, HashMap},
-        session::{session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
+        session::{
+            session_context::SessionStreamState,
+            session_context_builder::SessionContextBuilderTrait,
+        },
         table::arrow_table::ArrowTableTrait,
         task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
@@ -306,7 +314,8 @@ mod tests {
 
         // initialize the session
         let chat_agent_session = ChatAgentSession::default();
-        let session_ctx = chat_agent_session.build()
+        let session_ctx = chat_agent_session
+            .build()
             .with_metrics(metrics.clone())
             .with_name(chat_agent_session.session_context_name)
             .build_with_tables()?;

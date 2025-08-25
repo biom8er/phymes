@@ -10,8 +10,11 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_core::{session::session_context::SessionContextTableNames, table::{arrow_table::ArrowTableTrait, arrow_table_publish::ArrowTablePublish}};
 use phymes_core::session::common_traits::MappableTrait;
+use phymes_core::{
+    session::session_context::SessionContextTableNames,
+    table::{arrow_table::ArrowTableTrait, arrow_table_publish::ArrowTablePublish},
+};
 use serde::{Deserialize, Serialize};
 
 // Library imports
@@ -102,11 +105,16 @@ pub async fn session_mermaid_js(
             {
                 Some(session_stream_state) => {
                     let object = session_stream_state
-                        .try_read().unwrap()
+                        .try_read()
+                        .unwrap()
                         .get_session_context()
-                        .get_states().get(SessionContextTableNames::MermaidJS.get_name()).unwrap()
-                        .try_read().unwrap()
-                        .to_json_object().unwrap();
+                        .get_states()
+                        .get(SessionContextTableNames::MermaidJS.get_name())
+                        .unwrap()
+                        .try_read()
+                        .unwrap()
+                        .to_json_object()
+                        .unwrap();
                     let content = serde_json::to_string(&object).unwrap();
                     let buf = Bytes::from(content);
                     Body::from(buf).into_response()
@@ -287,11 +295,16 @@ pub async fn session_subjects_schema(
             {
                 Some(session_stream_state) => {
                     let object = session_stream_state
-                        .try_read().unwrap()
+                        .try_read()
+                        .unwrap()
                         .get_session_context()
-                        .get_states().get(SessionContextTableNames::Subjects.get_name()).unwrap()
-                        .try_read().unwrap()
-                        .to_json_object().unwrap();
+                        .get_states()
+                        .get(SessionContextTableNames::Subjects.get_name())
+                        .unwrap()
+                        .try_read()
+                        .unwrap()
+                        .to_json_object()
+                        .unwrap();
                     let content = serde_json::to_string(&object).unwrap();
                     let buf = Bytes::from(content);
                     Body::from(buf).into_response()
@@ -375,9 +388,14 @@ pub async fn session_metrics_info(
                 .unwrap()
                 .get(payload.session_name.as_str())
             {
-                Some(session_stream_state) => {        
+                Some(session_stream_state) => {
                     // Add the metrics to the state just in case...
-                    session_stream_state.try_write().unwrap().get_session_context_mut().update_metrics_table().unwrap();
+                    session_stream_state
+                        .try_write()
+                        .unwrap()
+                        .get_session_context_mut()
+                        .update_metrics_table()
+                        .unwrap();
 
                     // Get the mermaid string
                     let info = session_stream_state

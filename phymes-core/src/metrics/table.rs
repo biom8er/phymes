@@ -1,8 +1,18 @@
 use std::sync::Arc;
 
+use crate::{
+    metrics::{ArrowTaskMetricsSet, HashMap},
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
+    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+};
 use anyhow::Result;
-use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt64Array}, compute::{kernels::numeric::{add, sub}, min}};
-use crate::{metrics::{ArrowTaskMetricsSet, HashMap}, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}};
+use arrow::{
+    array::{ArrayRef, RecordBatch, StringArray, UInt64Array},
+    compute::{
+        kernels::numeric::{add, sub},
+        min,
+    },
+};
 
 /// Get the metrics for multiple sessions as a table
 pub fn get_metrics_as_pivot_table(
@@ -158,10 +168,14 @@ pub fn get_metrics_as_gantt_table(pivot_table: ArrowTable) -> Result<ArrowTable>
     // determine the minimum start time
     let start_time_arr: ArrayRef = pivot_table.get_column_as_array("start_timestamp");
     let start_time_arr_prim = start_time_arr
-        .as_any().downcast_ref::<UInt64Array>()
+        .as_any()
+        .downcast_ref::<UInt64Array>()
         .unwrap();
     let min_start_time = min(start_time_arr_prim).unwrap();
-    let min_start_time_arr: ArrayRef = Arc::new(UInt64Array::from_value(min_start_time, start_time_arr.len()));
+    let min_start_time_arr: ArrayRef = Arc::new(UInt64Array::from_value(
+        min_start_time,
+        start_time_arr.len(),
+    ));
 
     // normalize the start time
     let normalized_start_time_arr = sub(&start_time_arr, &min_start_time_arr).unwrap();
@@ -188,17 +202,26 @@ pub fn get_metrics_as_gantt_table(pivot_table: ArrowTable) -> Result<ArrowTable>
 }
 
 /// export the metrics as a mermaid gantt chart
-/// 
+///
 /// # Notes
-/// 
+///
 /// * chart 1: Processor traces based on normalized start and end times
 /// * chart 2 and 3: Elapsed compute and output rows, respectively, as barcharts
 pub fn get_metrics_as_mermaid_gantt(pivot_table: ArrowTable) -> Result<ArrowTable> {
     // initialize the diagram headers and vecs
     let header_str = "gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\t".to_string();
-    let mut processor_traces_vec = vec![header_str.to_string(), "Processor Traces\n\n\tsection Traces[ns]\n".to_string()];
-    let mut elapsed_compute_vec = vec![header_str.to_string(), "Elapsed compute\n\n\tsection Time[ns]\n".to_string()];
-    let mut output_rows_vec = vec![header_str.to_string(), "Row count\n\n\tsection Counts\n".to_string()];
+    let mut processor_traces_vec = vec![
+        header_str.to_string(),
+        "Processor Traces\n\n\tsection Traces[ns]\n".to_string(),
+    ];
+    let mut elapsed_compute_vec = vec![
+        header_str.to_string(),
+        "Elapsed compute\n\n\tsection Time[ns]\n".to_string(),
+    ];
+    let mut output_rows_vec = vec![
+        header_str.to_string(),
+        "Row count\n\n\tsection Counts\n".to_string(),
+    ];
 
     // extract the gantt data
     let task_name = pivot_table.get_column_as_vec_str("task_name");
@@ -207,7 +230,8 @@ pub fn get_metrics_as_mermaid_gantt(pivot_table: ArrowTable) -> Result<ArrowTabl
     let end_time_norm = pivot_table.get_column_as_vec_primitive::<u64>("end_time_norm")?;
     let elapsed_compute = pivot_table.get_column_as_vec_primitive::<u64>("elapsed_compute")?;
     let output_rows = pivot_table.get_column_as_vec_primitive::<u64>("output_rows")?;
-    let combined = task_name.iter()
+    let combined = task_name
+        .iter()
         .zip(replicate_count.iter())
         .zip(start_time_norm.iter())
         .zip(end_time_norm.iter())

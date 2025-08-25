@@ -104,8 +104,8 @@ impl ArrowProcessorTrait for CandleChatProcessor {
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
-    
-    fn get_subscribe(&self) -> &dyn SubscribeTrait{
+
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
         self.subscribe.as_ref()
     }
 
@@ -728,7 +728,7 @@ pub mod bench_chat_processor {
             AllTableNamesSubscribe::new_box(),
         );
         #[cfg(all(not(feature = "candle"), feature = "openai_api"))]
-        let chat_processor = OpenAIChatProcessor::new_with_pub_sub_for(
+        let chat_processor = OpenAIChatProcessor::new_arc_with_pub_sub(
             name,
             &[ArrowTablePublish::ExtendChunks {
                 table_name: messages.to_string(),
@@ -743,7 +743,6 @@ pub mod bench_chat_processor {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
-            &[],
             AllTableNamesSubscribe::new_box(),
         );
         let mut stream = chat_processor.process(

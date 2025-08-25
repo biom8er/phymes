@@ -204,7 +204,9 @@ mod tests {
         assert_eq!(
             session_names,
             &[
-                "myemailgmailcomChat", "myemailgmailcomDocChat", "myemailgmailcomToolChat"
+                "myemailgmailcomChat",
+                "myemailgmailcomDocChat",
+                "myemailgmailcomToolChat"
             ]
         );
     }
@@ -224,7 +226,9 @@ mod tests {
                 .map(|s| s.to_string())
                 .collect::<HashSet<_>>(),
             [
-                "myemailgmailcomDocChat", "myemailgmailcomToolChat", "myemailgmailcomChat"
+                "myemailgmailcomDocChat",
+                "myemailgmailcomToolChat",
+                "myemailgmailcomChat"
             ]
             .iter()
             .map(|s| s.to_string())

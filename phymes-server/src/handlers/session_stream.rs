@@ -124,9 +124,14 @@ pub async fn session_stream(
                         .flat_map(|(_k, v)| v.get_message_own().to_json_object().unwrap())
                         .collect::<Vec<_>>();
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
-        
+
                     // Add the metrics to the state
-                    session_stream_state.try_write().unwrap().get_session_context_mut().update_metrics_table().unwrap();
+                    session_stream_state
+                        .try_write()
+                        .unwrap()
+                        .get_session_context_mut()
+                        .update_metrics_table()
+                        .unwrap();
 
                     // Write the updates to disk
                     if let Err(e) = state.write_state_by_email(
@@ -164,9 +169,14 @@ pub async fn session_stream(
                         .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
                         .flat_map(|(_k, v)| v.get_message_own().to_ipc_stream().unwrap())
                         .collect::<Vec<_>>();
-        
+
                     // Add the metrics to the state
-                    session_stream_state.try_write().unwrap().get_session_context_mut().update_metrics_table().unwrap();
+                    session_stream_state
+                        .try_write()
+                        .unwrap()
+                        .get_session_context_mut()
+                        .update_metrics_table()
+                        .unwrap();
 
                     // Write the updates to disk
                     if let Err(e) = state.write_state_by_email(

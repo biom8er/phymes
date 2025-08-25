@@ -5,7 +5,7 @@ use arrow::array::{ArrayRef, RecordBatch, StringArray};
 /// General dependencies
 use clap::ValueEnum;
 use phymes_core::{
-    session::common_traits::{BuilderTrait,MappableTrait},
+    session::common_traits::{BuilderTrait, MappableTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
 };
 use serde::{Deserialize, Serialize};

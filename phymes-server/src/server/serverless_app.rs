@@ -311,7 +311,9 @@ mod tests {
             session_name: session_name.clone(),
             subject_name: "messages".to_string(),
             format: SessionResponseFormat::Bytes,
-            publish: ArrowTablePublish::Extend { table_name: "messages".to_string() },
+            publish: ArrowTablePublish::Extend {
+                table_name: "messages".to_string(),
+            },
             content: "What is the world's tallest mountain?".to_string().into(),
             metadata: "".to_string(),
             stream: true,

@@ -87,7 +87,7 @@ impl ArrowProcessorTrait for OpenAIChatProcessor {
             subscribe,
         })
     }
-    
+
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
@@ -96,8 +96,8 @@ impl ArrowProcessorTrait for OpenAIChatProcessor {
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
-    
-    fn get_subscribe(&self) -> &dyn SubscribeTrait{
+
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
         self.subscribe.as_ref()
     }
 
@@ -414,7 +414,7 @@ mod tests {
             repeat_last_n: 64,
             api_url: Some("http://0.0.0.0:8000/v1".to_string()),
             openai_asset: Some(
-                crate::openai_asset::openai_which::WhichOpenAIAsset::MetaLlamaV3p2_1B,
+                crate::openai_asset::available_openai_assets::AvailableOpenAIAssets::MetaLlamaV3p2_1B,
             ),
             ..Default::default()
         };
@@ -457,7 +457,7 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = OpenAIChatProcessor::new_with_pub_sub_for(
+        let chat_processor = OpenAIChatProcessor::new_arc_with_pub_sub(
             name,
             &[ArrowTablePublish::ExtendChunks {
                 table_name: messages.to_string(),
@@ -472,7 +472,6 @@ mod tests {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
-            &[],
             AllTableNamesSubscribe::new_box(),
         );
         let mut stream = chat_processor.process(

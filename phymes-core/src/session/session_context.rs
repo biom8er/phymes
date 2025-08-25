@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrow::array::{ArrayRef, UInt64Array};
 use arrow::array::{BooleanArray, StringArray};
 use arrow::datatypes::SchemaRef;
@@ -21,7 +21,10 @@ use super::{
     runtime_env::RuntimeEnv,
     session_context_builder::SessionContextBuilder,
 };
-use crate::metrics::{get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, get_metrics_as_pivot_table, ArrowTaskMetricsSet, HashMap};
+use crate::metrics::{
+    ArrowTaskMetricsSet, HashMap, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt,
+    get_metrics_as_pivot_table,
+};
 use crate::table::arrow_table_publish::ArrowTablePublish;
 use crate::table::{
     arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
@@ -55,7 +58,7 @@ impl MappableTrait for SessionContextTableNames {
             Self::Processors => "PROCESSORS",
             Self::Subjects => "SUBJECTS",
             Self::RuntimeEnvironments => "RUNTIME_ENVIRONMENTS",
-            Self::MermaidJS => "MERMAID_JS"
+            Self::MermaidJS => "MERMAID_JS",
         }
     }
 }
@@ -81,8 +84,22 @@ pub struct SessionContext {
 }
 
 impl SessionContext {
-    pub fn new(name: String, tasks: TaskMap, state: StateMap, metrics: ArrowTaskMetricsSet, runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>, max_iter: usize) -> SessionContext {
-        Self {name, tasks, state, metrics, runtime_envs, max_iter}
+    pub fn new(
+        name: String,
+        tasks: TaskMap,
+        state: StateMap,
+        metrics: ArrowTaskMetricsSet,
+        runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
+        max_iter: usize,
+    ) -> SessionContext {
+        Self {
+            name,
+            tasks,
+            state,
+            metrics,
+            runtime_envs,
+            max_iter,
+        }
     }
 
     /// Get a task
@@ -98,24 +115,39 @@ impl SessionContext {
     /// Create the metrics table if it does not exist or update with the new metrics
     pub fn update_metrics_table(&mut self) -> Result<bool> {
         // create the pivot table and clear the metrics
-        let pivot_table = get_metrics_as_pivot_table(std::slice::from_ref(&self.metrics), SessionContextTableNames::Metrics.get_name())?;
+        let pivot_table = get_metrics_as_pivot_table(
+            std::slice::from_ref(&self.metrics),
+            SessionContextTableNames::Metrics.get_name(),
+        )?;
         self.metrics.clear();
 
         // update the state with the metrics
         if pivot_table.count_rows() > 0 {
-            if self.state.contains_key(SessionContextTableNames::Metrics.get_name()) {
-                self.state.get_mut(SessionContextTableNames::Metrics.get_name())
+            if self
+                .state
+                .contains_key(SessionContextTableNames::Metrics.get_name())
+            {
+                self.state
+                    .get_mut(SessionContextTableNames::Metrics.get_name())
                     .unwrap()
                     .try_write()
                     .unwrap()
-                    .update_table(pivot_table.get_record_batches_own(), ArrowTablePublish::Extend { table_name: SessionContextTableNames::Metrics.get_name().to_string() })?;
+                    .update_table(
+                        pivot_table.get_record_batches_own(),
+                        ArrowTablePublish::Extend {
+                            table_name: SessionContextTableNames::Metrics.get_name().to_string(),
+                        },
+                    )?;
             } else {
-                self.state.insert(SessionContextTableNames::Metrics.get_name().to_string(), Arc::new(RwLock::new(pivot_table)));
+                self.state.insert(
+                    SessionContextTableNames::Metrics.get_name().to_string(),
+                    Arc::new(RwLock::new(pivot_table)),
+                );
             }
             Ok(true)
         } else {
             Ok(false)
-        }        
+        }
     }
 
     /// Get the metrics as a gantt for the session
@@ -124,7 +156,9 @@ impl SessionContext {
             let pivot_table = get_metrics_as_gantt_table(pivot_table.try_read().unwrap().clone())?;
             get_metrics_as_mermaid_gantt(pivot_table)
         } else {
-            Err(anyhow!("Metrics table not in state. Run `update_metrics_table` first."))
+            Err(anyhow!(
+                "Metrics table not in state. Run `update_metrics_table` first."
+            ))
         }
     }
 
@@ -1301,8 +1335,7 @@ mod tests {
         assert_eq!(
             info.get_column_as_vec_str("subject_name"),
             [
-                "config_1", "config_2", "config_3",
-                "state_1", "state_2", "state_3",
+                "config_1", "config_2", "config_3", "state_1", "state_2", "state_3",
             ]
         );
         let num_rows = info
@@ -2442,16 +2475,18 @@ mod tests {
         // Check the metrics
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 5385);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
-        
+
         // Add the metrics to the state
-        session_stream_state.try_write().unwrap().get_session_context_mut().update_metrics_table()?;
+        session_stream_state
+            .try_write()
+            .unwrap()
+            .get_session_context_mut()
+            .update_metrics_table()?;
 
         // Check the metrics tables
         assert!(metrics.clone_inner().output_rows().is_none());
         assert!(metrics.clone_inner().elapsed_compute().is_none());
-        let sss = session_stream_state
-            .try_read()
-            .unwrap();
+        let sss = session_stream_state.try_read().unwrap();
         let metrics_table = sss
             .get_session_context()
             .get_states()
@@ -2460,12 +2495,54 @@ mod tests {
             .try_read()
             .unwrap();
         let task_names = metrics_table.get_column_as_vec_str("task_name");
-        assert_eq!(task_names, ["processor_1", "processor_1", "processor_1", "processor_1", "processor_1", "processor_1", "processor_1", "processor_1", "processor_2", "processor_2", "processor_2", "processor_2", "processor_2", "processor_2", "processor_2", "processor_2", "processor_3", "processor_3", "processor_3", "processor_3", "processor_3", "processor_3", "processor_3", "processor_3", "session_1", "session_1", "session_1"]);
-        let replicate_counts = metrics_table.get_column_as_vec_primitive::<u64>("replicate_count")?;
-        assert_eq!(replicate_counts, [1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3]);
+        assert_eq!(
+            task_names,
+            [
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "session_1",
+                "session_1",
+                "session_1"
+            ]
+        );
+        let replicate_counts =
+            metrics_table.get_column_as_vec_primitive::<u64>("replicate_count")?;
+        assert_eq!(
+            replicate_counts,
+            [
+                1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3
+            ]
+        );
         let output_rows = metrics_table.get_column_as_vec_primitive::<u64>("output_rows")?;
         let output_rows_sum = output_rows.iter().sum::<u64>();
-        let output_rows_sum_test = [15, 0, 69, 0, 0, 312, 0, 1392, 15, 0, 69, 0, 312, 0, 1392, 0, 15, 0, 69, 0, 312, 0, 1392, 0, 6, 7, 8].iter().sum::<u64>();
+        let output_rows_sum_test = [
+            15, 0, 69, 0, 0, 312, 0, 1392, 15, 0, 69, 0, 312, 0, 1392, 0, 15, 0, 69, 0, 312, 0,
+            1392, 0, 6, 7, 8,
+        ]
+        .iter()
+        .sum::<u64>();
         assert_eq!(output_rows_sum, output_rows_sum_test);
 
         // Check pivot and gantt

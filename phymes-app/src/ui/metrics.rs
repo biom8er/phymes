@@ -26,7 +26,9 @@ use phymes_server::server::{
 use crate::{
     state::{
         metrics::{
-            sync_current_active_metric_state, sync_current_metrics_mermaid_state, SyncCurrentActiveMetricState, SyncCurrentMetricsMermaidJSState, ACTIVE_METRIC, MERMAID_ELAPSED_COMPUTE, MERMAID_OUTPUT_ROWS, MERMAID_PROCESSOR_TRACES
+            sync_current_active_metric_state, sync_current_metrics_mermaid_state,
+            SyncCurrentActiveMetricState, SyncCurrentMetricsMermaidJSState, ACTIVE_METRIC,
+            MERMAID_ELAPSED_COMPUTE, MERMAID_OUTPUT_ROWS, MERMAID_PROCESSOR_TRACES,
         },
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
@@ -54,7 +56,8 @@ pub fn metrics_modal() -> Element {
     });
 
     // Get the active session info for the metrics view
-    let sync_current_metrics_mermaid_state = use_coroutine_handle::<SyncCurrentMetricsMermaidJSState>();
+    let sync_current_metrics_mermaid_state =
+        use_coroutine_handle::<SyncCurrentMetricsMermaidJSState>();
     let _ = use_resource(move || async move {
         let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
         let route = "/app/v1/metrics_info";
@@ -76,7 +79,9 @@ pub fn metrics_modal() -> Element {
                     let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!("There was a error parsing SyncCurrentMetricsMermaidJSState {err}.");
+                            tracing::error!(
+                                "There was a error parsing SyncCurrentMetricsMermaidJSState {err}."
+                            );
                             Vec::new()
                         });
                     for row in json_rows.iter() {
@@ -127,7 +132,9 @@ pub fn metrics_modal() -> Element {
                 for byte in bytes.iter() {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!("There was a error parsing SyncCurrentMetricMermaidJSState {err}.");
+                            tracing::error!(
+                                "There was a error parsing SyncCurrentMetricMermaidJSState {err}."
+                            );
                             Vec::new()
                         });
                     for row in json_rows.iter() {
@@ -158,8 +165,6 @@ pub fn metrics_modal() -> Element {
         }
     });
 
-    
-    
     // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
     let diagram_code: Memo<String> = use_memo(move || {
         if &ACTIVE_METRIC.read().to_string() == SESSION_METRICS_HEADERS.first().unwrap() {

@@ -80,15 +80,23 @@ impl ArrowTablePublish {
 
     pub fn from_str(name: &str, subject: &str) -> Result<ArrowTablePublish> {
         let publication = if name.contains("Extend") {
-            ArrowTablePublish::Extend { table_name: subject.to_string() }
+            ArrowTablePublish::Extend {
+                table_name: subject.to_string(),
+            }
         } else if name.contains("Replace") {
-            ArrowTablePublish::Replace { table_name: subject.to_string() }
+            ArrowTablePublish::Replace {
+                table_name: subject.to_string(),
+            }
         } else if name.contains("ReplaceLast") {
-            ArrowTablePublish::ReplaceLast { table_name: subject.to_string() }
+            ArrowTablePublish::ReplaceLast {
+                table_name: subject.to_string(),
+            }
         } else if name.contains("None") {
             ArrowTablePublish::None {}
         } else {
-            return Err(anyhow!("Variant for ArrowTablePublish {name} with subject {subject} was not recognized."))
+            return Err(anyhow!(
+                "Variant for ArrowTablePublish {name} with subject {subject} was not recognized."
+            ));
         };
         Ok(publication)
     }

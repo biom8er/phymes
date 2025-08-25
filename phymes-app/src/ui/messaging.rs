@@ -45,7 +45,7 @@ use crate::{
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
     },
-    ui::svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg, attachment_icon_svg},
+    ui::svg_icons::{assistant_icon_svg, attachment_icon_svg, send_icon_svg, user_icon_svg},
 };
 
 /// View for messaging between the user and AI assistant
@@ -239,10 +239,10 @@ pub fn messaging_interface_footer() -> Element {
                     class: "attach_button",
                     // This must be outside the form or it will be refreshed on each submit
                     button {
-                        onclick: move |_| async move {                            
+                        onclick: move |_| async move {
                             // TODO: add support for adding attachments through the messaging interface
                         },
-                        svg { dangerous_inner_html: attachment_icon_svg() }                        
+                        svg { dangerous_inner_html: attachment_icon_svg() }
                     }
                 }
 
@@ -377,7 +377,7 @@ pub fn messaging_interface_footer() -> Element {
                             svg { dangerous_inner_html: send_icon_svg() }
                         } else {
                             // TODO: add support for audio
-                        }                        
+                        }
                     }
                 }
             }

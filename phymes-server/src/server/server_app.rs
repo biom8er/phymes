@@ -29,7 +29,10 @@ use tokio::net::TcpListener;
 #[allow(unused_imports)]
 use super::{server_config::ServerConfig, server_state::ServerState};
 use crate::handlers::{
-    session_info::{session_metrics_info, session_subjects_schema, session_subjects_num_rows, session_mermaid_js},
+    session_info::{
+        session_mermaid_js, session_metrics_info, session_subjects_num_rows,
+        session_subjects_schema,
+    },
     session_state::{session_get_state, session_put_state},
     session_stream::session_stream,
     sign_in::{authorize, sign_in},

@@ -1,30 +1,58 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
-use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt32Array, UInt8Array}, datatypes::{Field, Schema}};
-use phymes_core::{metrics::HashSet, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, runtime_env::{RuntimeEnv, RuntimeEnvTrait}, session_context::SessionContextTableNames, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder}}, table::{arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{from_str_to_subscribe, ArrowTableSubscribe}}, task::arrow_processor::ArrowProcessorBuilder};
+use anyhow::{Result, anyhow};
+use arrow::{
+    array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array},
+    datatypes::{Field, Schema},
+};
+use phymes_core::{
+    metrics::HashSet,
+    session::{
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
+        runtime_env::{RuntimeEnv, RuntimeEnvTrait},
+        session_context::SessionContextTableNames,
+        session_context_builder::{
+            SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
+        },
+    },
+    table::{
+        arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+        arrow_table_publish::ArrowTablePublish,
+        arrow_table_subscribe::{ArrowTableSubscribe, from_str_to_subscribe},
+    },
+    task::arrow_processor::ArrowProcessorBuilder,
+};
 
-use crate::{session_plans::available_processors::AvailableProcessors, session_traits::mermaid_js::{from_data_type_to_str, from_str_to_data_type, SessionContextBuilderMermaidTrait}};
+use crate::{
+    session_plans::available_processors::AvailableProcessors,
+    session_traits::mermaid_js::{
+        SessionContextBuilderMermaidTrait, from_data_type_to_str, from_str_to_data_type,
+    },
+};
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
 pub trait SessionContextBuilderTabularTrait {
     /// Convert the session into tables
-    /// 
+    ///
     /// # Notes
-    /// 
+    ///
     /// * All subjects that are a part of the state are included
     /// * Additional meta tables describing the SessionContext schema are included
     /// * Mermaid_js scripts are also included
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `include_subjects` - whether to include the subject data or not
     /// * `include_mermaid` - whether to include the mermaid flowchart and erDiagrams or not
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * `Vec<ArrowTable>` with the SessionContext in tabular format and Optional `Vec<ArrowTable>` with the state
-    fn to_arrow_tables(&self, include_subjects: bool, include_mermaid: bool) -> Result<(Vec<ArrowTable>, Option<Vec<ArrowTable>>)>;
+    fn to_arrow_tables(
+        &self,
+        include_subjects: bool,
+        include_mermaid: bool,
+    ) -> Result<(Vec<ArrowTable>, Option<Vec<ArrowTable>>)>;
 
     /// Get the subjects in tabular form
     fn get_subjects_as_table(&self) -> Result<ArrowTable>;
@@ -33,9 +61,9 @@ pub trait SessionContextBuilderTabularTrait {
     fn get_tasks_as_table(&self) -> Result<ArrowTable>;
 
     /// Get the processors in tabular form
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// * No sorting is performed when generating the table
     ///   so that order of processors is maintained
     fn get_processors_as_table(&self) -> Result<ArrowTable>;
@@ -47,28 +75,42 @@ pub trait SessionContextBuilderTabularTrait {
     fn get_mermaid_js_as_table(&self) -> Result<ArrowTable>;
 
     /// Create the session from tables
-    /// 
+    ///
     /// # Notes
-    /// 
+    ///
     /// * Minimally, the meta tables describing the SessionContext schema must be included
     /// * Optionally, the subject tables will be populated with data if the state tables are included
     /// * Mermaid_js scripts are ignored
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `tables` - List of [ArrowTable]s describing the [SessionContext] schema with
     ///   optional subject tables with the actual data
     /// * `state` - Optionally the subject data. If none the subject tables will be initialized.
-    fn from_arrow_tables(tables: &[&ArrowTable], state: Option<Vec<ArrowTable>>) -> Result<Self> where Self: Sized;
+    fn from_arrow_tables(tables: &[&ArrowTable], state: Option<Vec<ArrowTable>>) -> Result<Self>
+    where
+        Self: Sized;
 
-    fn with_subjects_as_tables(self, subjects: &ArrowTable) -> Result<Self> where Self: Sized;
-    fn with_tasks_as_tables(self, tasks: &ArrowTable) -> Result<Self> where Self: Sized;
-    fn with_processors_as_tables(self, processors: &ArrowTable) -> Result<Self> where Self: Sized;
-    fn with_runtime_envs_as_tables(self, runtime_envs: &ArrowTable) -> Result<Self> where Self: Sized;    
+    fn with_subjects_as_tables(self, subjects: &ArrowTable) -> Result<Self>
+    where
+        Self: Sized;
+    fn with_tasks_as_tables(self, tasks: &ArrowTable) -> Result<Self>
+    where
+        Self: Sized;
+    fn with_processors_as_tables(self, processors: &ArrowTable) -> Result<Self>
+    where
+        Self: Sized;
+    fn with_runtime_envs_as_tables(self, runtime_envs: &ArrowTable) -> Result<Self>
+    where
+        Self: Sized;
 }
 
 impl SessionContextBuilderTabularTrait for SessionContextBuilder {
-    fn to_arrow_tables(&self, include_subjects: bool, include_mermaid: bool) -> Result<(Vec<ArrowTable>, Option<Vec<ArrowTable>>)> {
+    fn to_arrow_tables(
+        &self,
+        include_subjects: bool,
+        include_mermaid: bool,
+    ) -> Result<(Vec<ArrowTable>, Option<Vec<ArrowTable>>)> {
         let mut tables = vec![
             self.get_subjects_as_table()?,
             self.get_tasks_as_table()?,
@@ -86,13 +128,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok((tables, state))
     }
 
-    fn from_arrow_tables(tables: &[&ArrowTable], mut state: Option<Vec<ArrowTable>>) -> Result<Self> where Self: Sized {
+    fn from_arrow_tables(tables: &[&ArrowTable], mut state: Option<Vec<ArrowTable>>) -> Result<Self>
+    where
+        Self: Sized,
+    {
         // initialize the builder
         let mut builder = Self::new();
 
         // extract the schema
         for table in tables {
-            if table.get_name() == SessionContextTableNames::Subjects.get_name() && state.is_none() {
+            if table.get_name() == SessionContextTableNames::Subjects.get_name() && state.is_none()
+            {
                 builder = builder.with_subjects_as_tables(table)?;
             } else if table.get_name() == SessionContextTableNames::Tasks.get_name() {
                 builder = builder.with_tasks_as_tables(table)?;
@@ -103,7 +149,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             } else if table.get_name() == SessionContextTableNames::MermaidJS.get_name() {
                 continue;
             } else {
-                return Err(anyhow!("Unrecognized table {} found when creating SessionContextBuilder", table.get_name()))
+                return Err(anyhow!(
+                    "Unrecognized table {} found when creating SessionContextBuilder",
+                    table.get_name()
+                ));
             }
         }
 
@@ -113,13 +162,15 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         } else {
             Ok(builder)
         }
-    }    
+    }
 
     fn get_subjects_as_table(&self) -> Result<ArrowTable> {
-        // Check that the state exists        
+        // Check that the state exists
         if self.state.is_none() {
-            return Err(anyhow!("Add state subjects before making the subject tables."));
-        } 
+            return Err(anyhow!(
+                "Add state subjects before making the subject tables."
+            ));
+        }
 
         let mut subject_names = Vec::new();
         let mut cols_names = Vec::new();
@@ -130,7 +181,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         sorted_state.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         for subject in sorted_state.iter() {
             let fields = subject.get_schema().fields().clone();
-            for field in fields.iter() {                
+            for field in fields.iter() {
                 let type_name = from_data_type_to_str(field.data_type());
                 subject_names.push(subject.get_name().to_string());
                 cols_names.push(field.name().to_string());
@@ -193,7 +244,9 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
     fn get_processors_as_table(&self) -> Result<ArrowTable> {
         if self.processors.is_none() {
-            return Err(anyhow!("Add processors before making the Mermaid Flowchart."));
+            return Err(anyhow!(
+                "Add processors before making the Mermaid Flowchart."
+            ));
         }
         let mut processor_names = Vec::new();
         let mut processor_types = Vec::new();
@@ -242,19 +295,26 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         ArrowTable::get_builder()
             .with_name(SessionContextTableNames::Processors.get_name())
             .with_record_batches(vec![batch])?
-            .build()        
+            .build()
     }
 
     fn get_runtime_envs_as_table(&self) -> Result<ArrowTable> {
         if self.runtime_envs.is_none() {
-            return Err(anyhow!("Add runtime environments before making the Mermaid Flowchart."));
+            return Err(anyhow!(
+                "Add runtime environments before making the Mermaid Flowchart."
+            ));
         }
         let mut runtime_env_names = Vec::new();
         let mut memory_limits = Vec::new();
         let mut time_limits = Vec::new();
 
         // sort the runtime environments
-        let mut sorted_rts = self.runtime_envs.as_ref().unwrap().iter().collect::<Vec<_>>();
+        let mut sorted_rts = self
+            .runtime_envs
+            .as_ref()
+            .unwrap()
+            .iter()
+            .collect::<Vec<_>>();
         sorted_rts.sort_by(|a, b| a.name.cmp(&b.name));
         for rt in sorted_rts.iter() {
             runtime_env_names.push(rt.get_name());
@@ -278,8 +338,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         ArrowTable::get_builder()
             .with_name(SessionContextTableNames::RuntimeEnvironments.get_name())
             .with_record_batches(vec![batch])?
-            .build()    
-        
+            .build()
     }
 
     fn get_mermaid_js_as_table(&self) -> Result<ArrowTable> {
@@ -301,7 +360,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .build()
     }
 
-    fn with_subjects_as_tables(self, subjects: &ArrowTable) -> Result<Self> where Self: Sized {
+    fn with_subjects_as_tables(self, subjects: &ArrowTable) -> Result<Self>
+    where
+        Self: Sized,
+    {
         // extract arrays
         let subjects_vec_str = subjects.get_column_as_vec_str("subject_name");
         let columns_vec_str = subjects.get_column_as_vec_str("column_name");
@@ -309,12 +371,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // get unique subjects
         let subjects_unique = subjects_vec_str.iter().collect::<HashSet<_>>();
-        let combined = subjects_vec_str.iter()
+        let combined = subjects_vec_str
+            .iter()
             .zip(columns_vec_str.iter())
             .zip(types_vec_str.iter())
             .map(|((x, y), z)| (x, y, z))
             .collect::<Vec<_>>();
-        
+
         // build the state tables
         let mut state = Vec::new();
         for subject in subjects_unique {
@@ -326,14 +389,20 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 }
             }
             let batch = RecordBatch::new_empty(Arc::new(Schema::new(fields)));
-            let table = ArrowTable::get_builder().with_record_batches(vec![batch])?.with_name(&subject).build()?;
+            let table = ArrowTable::get_builder()
+                .with_record_batches(vec![batch])?
+                .with_name(&subject)
+                .build()?;
             state.push(table);
         }
 
         Ok(self.with_state(state))
     }
 
-    fn with_tasks_as_tables(self, tasks: &ArrowTable) -> Result<Self> where Self: Sized {
+    fn with_tasks_as_tables(self, tasks: &ArrowTable) -> Result<Self>
+    where
+        Self: Sized,
+    {
         // extract arrays
         let tasks_vec_str = tasks.get_column_as_vec_str("task_name");
         let processors_vec_str = tasks.get_column_as_vec_str("processor_name");
@@ -347,12 +416,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 sort_tasks.push(task_name);
             }
         }
-        let combined = tasks_vec_str.iter()
+        let combined = tasks_vec_str
+            .iter()
             .zip(processors_vec_str.iter())
             .zip(runtime_envs_vec_str.iter())
             .map(|((x, y), z)| (x, y, z))
             .collect::<Vec<_>>();
-        
+
         // build the task plans
         let mut tasks = Vec::new();
         for task in sort_tasks {
@@ -361,7 +431,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             builder.processor_names.replace(Vec::new());
             for (t, p, r) in combined.iter() {
                 if t == &task {
-                    builder.processor_names.as_mut().unwrap().push(p.to_string());
+                    builder
+                        .processor_names
+                        .as_mut()
+                        .unwrap()
+                        .push(p.to_string());
                     builder.runtime_env_name.replace(r.to_string());
                 }
             }
@@ -371,24 +445,31 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(self.with_tasks(tasks))
     }
 
-    fn with_processors_as_tables(self, procesors: &ArrowTable) -> Result<Self> where Self: Sized {
+    fn with_processors_as_tables(self, procesors: &ArrowTable) -> Result<Self>
+    where
+        Self: Sized,
+    {
         // extract arrays
         let processor_vec_str = procesors.get_column_as_vec_str("processor_name");
         let type_vec_str = procesors.get_column_as_vec_str("processor_type");
         let subscribe_vec_str = procesors.get_column_as_vec_str("subscribe_type");
         let pub_sub_vec_str = procesors.get_column_as_vec_str("publication_subscription_name");
-        let pub_sub_tab_name_vec_str = procesors.get_column_as_vec_str("publication_subscription_table_names");
+        let pub_sub_tab_name_vec_str =
+            procesors.get_column_as_vec_str("publication_subscription_table_names");
         let is_sub_vec = procesors.get_column_as_vec_primitive::<u8>("is_subscription")?;
 
         // get unique processors while preserving order
         let mut processors_unique = processor_vec_str.iter().collect::<HashSet<_>>();
         let mut sort_processors = Vec::new();
         for processor_name in processor_vec_str.iter() {
-            if processors_unique.contains(processor_name) && processors_unique.remove(processor_name) {
+            if processors_unique.contains(processor_name)
+                && processors_unique.remove(processor_name)
+            {
                 sort_processors.push(processor_name);
             }
         }
-        let combined = processor_vec_str.iter()
+        let combined = processor_vec_str
+            .iter()
             .zip(type_vec_str.iter())
             .zip(subscribe_vec_str.iter())
             .zip(pub_sub_vec_str.iter())
@@ -396,7 +477,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .zip(is_sub_vec.iter())
             .map(|(((((a, b), c), d), e), f)| (a, b, c, d, e, f))
             .collect::<Vec<_>>();
-        
+
         // build the processors in order
         let mut processors = Vec::new();
         for processor_name in sort_processors {
@@ -404,21 +485,24 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             builder.processor_name.replace(processor_name.to_string());
             builder.subscriptions.replace(Vec::new());
             builder.publications.replace(Vec::new());
-            for (name,t, s_t, sub, sub_tab, is_sub) in combined.iter() {
+            for (name, t, s_t, sub, sub_tab, is_sub) in combined.iter() {
                 if name == &processor_name {
                     if **is_sub == 1 {
                         let subscription = ArrowTableSubscribe::from_str(sub, sub_tab)?;
                         builder.subscriptions.as_mut().unwrap().push(subscription);
                     } else {
-                        let publication = ArrowTablePublish::from_str(sub, sub_tab)?;                    
+                        let publication = ArrowTablePublish::from_str(sub, sub_tab)?;
                         builder.publications.as_mut().unwrap().push(publication);
                     }
-                    let subscribe = from_str_to_subscribe(s_t)?;               
+                    let subscribe = from_str_to_subscribe(s_t)?;
                     builder.processor_type.replace(t.to_string());
                     builder.subscribe.replace(subscribe);
                 }
             }
-            let available_processor = AvailableProcessors::new_from_name(builder.processor_type.as_ref().unwrap().as_str()).unwrap();
+            let available_processor = AvailableProcessors::new_from_name(
+                builder.processor_type.as_ref().unwrap().as_str(),
+            )
+            .unwrap();
             let processor = available_processor.build_with_builder(builder)?;
             processors.push(processor);
         }
@@ -426,20 +510,25 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(self.with_processors(processors))
     }
 
-    fn with_runtime_envs_as_tables(self, runtime_envs: &ArrowTable) -> Result<Self> where Self: Sized {
+    fn with_runtime_envs_as_tables(self, runtime_envs: &ArrowTable) -> Result<Self>
+    where
+        Self: Sized,
+    {
         // extract arrays
         let runtime_envs_vec_str = runtime_envs.get_column_as_vec_str("runtime_env_name");
-        let memory_limits_vec_str = runtime_envs.get_column_as_vec_primitive::<u32>("memory_limit")?;
+        let memory_limits_vec_str =
+            runtime_envs.get_column_as_vec_primitive::<u32>("memory_limit")?;
         let time_limits_vec_str = runtime_envs.get_column_as_vec_primitive::<u32>("time_limit")?;
 
         // get unique subjects
         let runtime_envs_unique = runtime_envs_vec_str.iter().collect::<HashSet<_>>();
-        let combined = runtime_envs_vec_str.iter()
+        let combined = runtime_envs_vec_str
+            .iter()
             .zip(memory_limits_vec_str.iter())
             .zip(time_limits_vec_str.iter())
             .map(|((x, y), z)| (x, y, z))
             .collect::<Vec<_>>();
-        
+
         // build the task plans
         let mut runtime_envs = Vec::new();
         for rt_name in runtime_envs_unique {
@@ -469,7 +558,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{session::session_context_builder::test_session_context_builder::make_test_session_builder_parallel_task, task::arrow_task::test_task::{make_runtime_env, make_state_tables}};
+    use phymes_core::{
+        session::session_context_builder::test_session_context_builder::make_test_session_builder_parallel_task,
+        task::arrow_task::test_task::{make_runtime_env, make_state_tables},
+    };
 
     use super::*;
 
@@ -494,55 +586,231 @@ mod tests {
         let (tables, state) = builder.to_arrow_tables(false, true)?;
 
         // Check the tables
-        assert_eq!(tables.first().unwrap().get_name(), SessionContextTableNames::Subjects.get_name());
+        assert_eq!(
+            tables.first().unwrap().get_name(),
+            SessionContextTableNames::Subjects.get_name()
+        );
         // assert_eq!(tables.first().unwrap().get_column_as_vec_str("subject_name"), [""]);
         // assert_eq!(tables.first().unwrap().get_column_as_vec_str("column_name"), [""]);
         // assert_eq!(tables.first().unwrap().get_column_as_vec_str("type_name"), [""]);
-        assert_eq!(tables.get(1).unwrap().get_name(), SessionContextTableNames::Tasks.get_name());
+        assert_eq!(
+            tables.get(1).unwrap().get_name(),
+            SessionContextTableNames::Tasks.get_name()
+        );
         // assert_eq!(tables.get(1).unwrap().get_column_as_vec_str("task_name"), [""]);
         // assert_eq!(tables.get(1).unwrap().get_column_as_vec_str("processor_name"), [""]);
         // assert_eq!(tables.get(1).unwrap().get_column_as_vec_str("runtime_env_name"), [""]);
-        assert_eq!(tables.get(2).unwrap().get_name(), SessionContextTableNames::Processors.get_name());
+        assert_eq!(
+            tables.get(2).unwrap().get_name(),
+            SessionContextTableNames::Processors.get_name()
+        );
         // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("processor_name"), [""]);
         // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("processor_type"), [""]);
         // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("publication_subscription_name"), [""]);
         // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("publication_subscription_table_names"), [""]);
         // assert_eq!(tables.get(2).unwrap().get_column_as_vec_primitive::<u8>("is_subscription")?, []);
         // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("subscribe_type"), [""]);
-        assert_eq!(tables.get(3).unwrap().get_name(), SessionContextTableNames::RuntimeEnvironments.get_name());
+        assert_eq!(
+            tables.get(3).unwrap().get_name(),
+            SessionContextTableNames::RuntimeEnvironments.get_name()
+        );
         // assert_eq!(tables.get(3).unwrap().get_column_as_vec_str("runtime_env_name"), [""]);
         // assert_eq!(tables.get(3).unwrap().get_column_as_vec_primitive::<u32>("memory_limit")?, [""]);
         // assert_eq!(tables.get(3).unwrap().get_column_as_vec_primitive::<u32>("time_limit")?, [""]);
-        assert_eq!(tables.get(4).unwrap().get_name(), SessionContextTableNames::MermaidJS.get_name());
+        assert_eq!(
+            tables.get(4).unwrap().get_name(),
+            SessionContextTableNames::MermaidJS.get_name()
+        );
         // assert_eq!(tables.get(4).unwrap().get_column_as_vec_str("mermaid_js_flowchart"), [""]);
         // assert_eq!(tables.get(4).unwrap().get_column_as_vec_str("mermaid_js_erdiagram"), [""]);
 
         // Test from tables
-        let (tables_test, _state_test) = SessionContextBuilder::from_arrow_tables(&tables.iter().collect::<Vec<_>>(), state)?.to_arrow_tables(false, true)?;
+        let (tables_test, _state_test) =
+            SessionContextBuilder::from_arrow_tables(&tables.iter().collect::<Vec<_>>(), state)?
+                .to_arrow_tables(false, true)?;
 
         // Check the tables
-        assert_eq!(tables_test.first().unwrap().get_name(), tables.first().unwrap().get_name());
-        assert_eq!(tables_test.first().unwrap().get_column_as_vec_str("subject_name"), tables.first().unwrap().get_column_as_vec_str("subject_name"));
-        assert_eq!(tables_test.first().unwrap().get_column_as_vec_str("column_name"), tables.first().unwrap().get_column_as_vec_str("column_name"));
-        assert_eq!(tables_test.first().unwrap().get_column_as_vec_str("type_name"), tables.first().unwrap().get_column_as_vec_str("type_name"));
-        assert_eq!(tables_test.get(1).unwrap().get_name(), tables.get(1).unwrap().get_name());
-        assert_eq!(tables_test.get(1).unwrap().get_column_as_vec_str("task_name"), tables.get(1).unwrap().get_column_as_vec_str("task_name"));
-        assert_eq!(tables_test.get(1).unwrap().get_column_as_vec_str("processor_name"), tables.get(1).unwrap().get_column_as_vec_str("processor_name"));
-        assert_eq!(tables_test.get(1).unwrap().get_column_as_vec_str("runtime_env_name"), tables.get(1).unwrap().get_column_as_vec_str("runtime_env_name"));
-        assert_eq!(tables_test.get(2).unwrap().get_name(), tables.get(2).unwrap().get_name());
-        assert_eq!(tables_test.get(2).unwrap().get_column_as_vec_str("processor_name"), tables.get(2).unwrap().get_column_as_vec_str("processor_name"));
-        assert_eq!(tables_test.get(2).unwrap().get_column_as_vec_str("processor_type"), tables.get(2).unwrap().get_column_as_vec_str("processor_type"));
-        assert_eq!(tables_test.get(2).unwrap().get_column_as_vec_str("publication_subscription_name"), tables.get(2).unwrap().get_column_as_vec_str("publication_subscription_name"));
-        assert_eq!(tables_test.get(2).unwrap().get_column_as_vec_str("publication_subscription_table_names"), tables.get(2).unwrap().get_column_as_vec_str("publication_subscription_table_names"));
-        assert_eq!(tables_test.get(2).unwrap().get_column_as_vec_primitive::<u8>("is_subscription")?, tables.get(2).unwrap().get_column_as_vec_primitive::<u8>("is_subscription")?);
-        assert_eq!(tables_test.get(2).unwrap().get_column_as_vec_str("subscribe_type"), tables.get(2).unwrap().get_column_as_vec_str("subscribe_type"));
-        assert_eq!(tables_test.get(3).unwrap().get_name(), tables.get(3).unwrap().get_name());
-        assert_eq!(tables_test.get(3).unwrap().get_column_as_vec_str("runtime_env_name"), tables.get(3).unwrap().get_column_as_vec_str("runtime_env_name"));
-        assert_eq!(tables_test.get(3).unwrap().get_column_as_vec_primitive::<u32>("memory_limit")?, tables.get(3).unwrap().get_column_as_vec_primitive::<u32>("memory_limit")?);
-        assert_eq!(tables_test.get(3).unwrap().get_column_as_vec_primitive::<u32>("time_limit")?, tables.get(3).unwrap().get_column_as_vec_primitive::<u32>("time_limit")?);
-        assert_eq!(tables_test.get(4).unwrap().get_name(), tables.get(4).unwrap().get_name());
-        assert_eq!(tables_test.get(4).unwrap().get_column_as_vec_str("mermaid_js_flowchart"), tables.get(4).unwrap().get_column_as_vec_str("mermaid_js_flowchart"));
-        assert_eq!(tables_test.get(4).unwrap().get_column_as_vec_str("mermaid_js_erdiagram"), tables.get(4).unwrap().get_column_as_vec_str("mermaid_js_erdiagram"));
+        assert_eq!(
+            tables_test.first().unwrap().get_name(),
+            tables.first().unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test
+                .first()
+                .unwrap()
+                .get_column_as_vec_str("subject_name"),
+            tables
+                .first()
+                .unwrap()
+                .get_column_as_vec_str("subject_name")
+        );
+        assert_eq!(
+            tables_test
+                .first()
+                .unwrap()
+                .get_column_as_vec_str("column_name"),
+            tables.first().unwrap().get_column_as_vec_str("column_name")
+        );
+        assert_eq!(
+            tables_test
+                .first()
+                .unwrap()
+                .get_column_as_vec_str("type_name"),
+            tables.first().unwrap().get_column_as_vec_str("type_name")
+        );
+        assert_eq!(
+            tables_test.get(1).unwrap().get_name(),
+            tables.get(1).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test
+                .get(1)
+                .unwrap()
+                .get_column_as_vec_str("task_name"),
+            tables.get(1).unwrap().get_column_as_vec_str("task_name")
+        );
+        assert_eq!(
+            tables_test
+                .get(1)
+                .unwrap()
+                .get_column_as_vec_str("processor_name"),
+            tables
+                .get(1)
+                .unwrap()
+                .get_column_as_vec_str("processor_name")
+        );
+        assert_eq!(
+            tables_test
+                .get(1)
+                .unwrap()
+                .get_column_as_vec_str("runtime_env_name"),
+            tables
+                .get(1)
+                .unwrap()
+                .get_column_as_vec_str("runtime_env_name")
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_name(),
+            tables.get(2).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_str("processor_name"),
+            tables
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_str("processor_name")
+        );
+        assert_eq!(
+            tables_test
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_str("processor_type"),
+            tables
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_str("processor_type")
+        );
+        assert_eq!(
+            tables_test
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_str("publication_subscription_name"),
+            tables
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_str("publication_subscription_name")
+        );
+        assert_eq!(
+            tables_test
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_str("publication_subscription_table_names"),
+            tables
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_str("publication_subscription_table_names")
+        );
+        assert_eq!(
+            tables_test
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_primitive::<u8>("is_subscription")?,
+            tables
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_primitive::<u8>("is_subscription")?
+        );
+        assert_eq!(
+            tables_test
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_str("subscribe_type"),
+            tables
+                .get(2)
+                .unwrap()
+                .get_column_as_vec_str("subscribe_type")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_name(),
+            tables.get(3).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test
+                .get(3)
+                .unwrap()
+                .get_column_as_vec_str("runtime_env_name"),
+            tables
+                .get(3)
+                .unwrap()
+                .get_column_as_vec_str("runtime_env_name")
+        );
+        assert_eq!(
+            tables_test
+                .get(3)
+                .unwrap()
+                .get_column_as_vec_primitive::<u32>("memory_limit")?,
+            tables
+                .get(3)
+                .unwrap()
+                .get_column_as_vec_primitive::<u32>("memory_limit")?
+        );
+        assert_eq!(
+            tables_test
+                .get(3)
+                .unwrap()
+                .get_column_as_vec_primitive::<u32>("time_limit")?,
+            tables
+                .get(3)
+                .unwrap()
+                .get_column_as_vec_primitive::<u32>("time_limit")?
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_name(),
+            tables.get(4).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test
+                .get(4)
+                .unwrap()
+                .get_column_as_vec_str("mermaid_js_flowchart"),
+            tables
+                .get(4)
+                .unwrap()
+                .get_column_as_vec_str("mermaid_js_flowchart")
+        );
+        assert_eq!(
+            tables_test
+                .get(4)
+                .unwrap()
+                .get_column_as_vec_str("mermaid_js_erdiagram"),
+            tables
+                .get(4)
+                .unwrap()
+                .get_column_as_vec_str("mermaid_js_erdiagram")
+        );
 
         Ok(())
     }

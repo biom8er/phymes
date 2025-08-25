@@ -97,8 +97,8 @@ impl ArrowProcessorTrait for OpenAIEmbedProcessor {
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
-    
-    fn get_subscribe(&self) -> &dyn SubscribeTrait{
+
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
         self.subscribe.as_ref()
     }
 
@@ -477,7 +477,7 @@ mod tests {
             input_type: "passage".to_string(),
             api_url: Some("http://0.0.0.0:8001/v1".to_string()),
             openai_asset: Some(
-                crate::openai_asset::openai_which::WhichOpenAIAsset::NvidiaLlamaV3p2NvEmbedQA1BV2,
+                crate::openai_asset::available_openai_assets::AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2,
             ),
             ..Default::default()
         };

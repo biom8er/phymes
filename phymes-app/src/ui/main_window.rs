@@ -1,23 +1,9 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-#[cfg(feature = "mermaid_js")]
-use serde::{Deserialize, Serialize};
-#[cfg(feature = "mermaid_js")]
-use phymes_core::session::session_context_builder::SessionContextBuilder;
-#[cfg(feature = "mermaid_js")]
-use phymes_agents::session_traits::mermaid_js::SessionContextBuilderMermaidTrait;
-
-#[cfg(feature = "mermaid_js")]
-#[derive(Debug, Deserialize, Serialize)]
-struct MermaidJsObject {
-    svg: Option<String>,
-    error: Option<String>,
-}
-
 use super::messaging::{messaging_interface_footer, messaging_interface_view};
 use super::metrics::metrics_modal;
-use super::settings::{settings_interface_view, settings_interface_footer};
+use super::settings::{settings_interface_footer, settings_interface_view};
 use super::sign_in::sign_in_modal;
 use super::subjects::subjects_modal;
 use super::svg_icons::{
@@ -190,206 +176,72 @@ pub fn main_window() -> Element {
     }
 }
 
-#[cfg(feature = "mermaid_js")]
-pub fn render_mermaid_svg(diagram_code: Signal<String>, id: &str) -> Resource<(Option<String>,Option<String>,Option<String>)> {
-    let div_id = id.to_string();
-    let rendered_html: Resource<(Option<String>,Option<String>,Option<String>)> = use_resource(move || {
-        let div_id = div_id.clone();
-        async move {
-            // Render the mermaid.js diagram
-            let eval = document::eval(format!(r#"
-                try {{
-                    let code = await dioxus.recv();
-                    const {{ svg }} = await mermaid.render("{div_id}", code);
-                    return {{ svg: svg, error: null }};
-                }} catch (error) {{
-                    return {{ svg: null, error: error.message }};
-                }}"#).as_str()
-            );
-            eval.send(diagram_code.read().to_string()).unwrap();
-            let mermaid_js_object = match eval.await {
-                Ok(res) => {
-                    let res: MermaidJsObject = serde_json::from_value(res).unwrap();
-                    res
-                },
-                Err(err) => {
-                    tracing::error!("Mermaid.js err {err:?}");
-                    MermaidJsObject { svg: None, error: Some(err.to_string())}
-                }
-            };
-
-            // Build the preliminary session context
-            let builder_error =  match SessionContextBuilder::from_mermaid_flowchart(&diagram_code.read().to_string()) {
-                Ok(_res) => None,
-                Err(err) => Some(err.to_string()),
-            };
-
-            (mermaid_js_object.svg, mermaid_js_object.error, builder_error)
-        }
-    });
-
-    // add pan and zoom
-    let div_id = id.to_string();
-    use_effect(move || {
-        let div_id = div_id.clone();
-        let _ = rendered_html.read();
-        document::eval(format!(r#"
-            const container = document.getElementById("{div_id}");
-            const svgElement = container.querySelector("svg");
-
-            // Initialize Panzoom
-            const panzoomInstance = Panzoom(svgElement, {{
-                maxScale: 5,
-                minScale: 0.5,
-                step: 0.1,
-            }});
-
-            // Add mouse wheel zoom
-            container.addEventListener("wheel", (event) => {{
-                panzoomInstance.zoomWithWheel(event);
-            }});
-            "#).as_str()
-        );
-    });
-
-    rendered_html
-}
-
+/// About text view with information on using the application
+/// 
+/// # Notes
+/// * all of the text should match /phymes-book/src/phymes-app/ui.md
 #[component]
 pub fn about_text_modal() -> Element {
-    let mut diagram_code = use_signal(|| String::from("graph TB\n\ta-->b"));
-    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv");
-    
-    let out = if let Some(result) = &*rendered_html.read() {
-        match result {
-            // Mermaid.js error
-            (_, Some(error), None) => {
-                rsx! {
+    rsx! {
+        div {
+            class: "messaging_list",
+            p { "Welcome to PHYMES by Biom🤖er" },
+            ul {
+                li {
                     div {
-                        class: "messaging_list",
-                        p { "Welcome to PHYMES by Biom🤖er" }
-                        div {
-                            class: "text_input",
-                            form {
-                                textarea {
-                                    rows: "10",
-                                    cols: "40",
-                                    value: "{diagram_code}",
-                                    oninput: move |evt| diagram_code.set(evt.value()),
-                                }
-                            }
+                        class: "help_li_item",
+                        h2 { "{HeaderMenu::Help.as_str()}" }
+                        svg { dangerous_inner_html: help_icon_svg() }
+                        span { "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHub" }                        
+                        a {
+                            href: "https://github.com/biom8er/phymes/issues",
+                            target: "_blank",
+                            rel: "noopener noreferrer",
                         }
-                        p { "{error}" },
-                    }            
+                        span { " if you run into problems." }
+                    }
                 }
-            }
-            // SessionContextBuilder error
-            (_, None, Some(error)) => {
-                rsx! {
+                li {
                     div {
-                        class: "messaging_list",
-                        p { "Welcome to PHYMES by Biom🤖er" }
-                        div {
-                            class: "text_input",
-                            form {
-                                textarea {
-                                    rows: "10",
-                                    cols: "40",
-                                    value: "{diagram_code}",
-                                    oninput: move |evt| diagram_code.set(evt.value()),
-                                }
-                            }
-                        }
-                        p { "{error}" },
-                    }            
+                        class: "help_li_item",  
+                        h2 { "Menu" }
+                        svg { dangerous_inner_html: menu_icon_svg() }
+                        p { "Hide or show the menu items below." }
+                    }
                 }
-            }
-            // Mermaid.js and SessionContextBuilder error
-            (_, Some(error_mjs), Some(error_ctxb)) => {
-                rsx! {
+                li {
                     div {
-                        class: "messaging_list",
-                        p { "Welcome to PHYMES by Biom🤖er" }
-                        div {
-                            class: "text_input",
-                            form {
-                                textarea {
-                                    rows: "10",
-                                    cols: "40",
-                                    value: "{diagram_code}",
-                                    oninput: move |evt| diagram_code.set(evt.value()),
-                                }
-                            }
-                        }
-                        p { "{error_mjs}" },
-                        p { "{error_ctxb}" },
-                    }            
+                        class: "help_li_item", 
+                        h2 { "{HeaderMenu::Settings.as_str()}" }
+                        svg { dangerous_inner_html: settings_icon_svg() }
+                        p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
+                    }
                 }
-            }
-            // Valid SVG with no errors
-            (Some(svg), _, _) => {
-                rsx! {
+                li {
                     div {
-                        class: "messaging_list",
-                        p { "Welcome to PHYMES by Biom🤖er" }
-                        div {
-                            class: "text_input",
-                            form {
-                                textarea {
-                                    rows: "10",
-                                    cols: "40",
-                                    value: "{diagram_code}",
-                                    oninput: move |evt| diagram_code.set(evt.value()),
-                                }
-                            }
-                        }
-                        div {
-                            id: "graphDiv",
-                            class: "mermaid",
-                            svg { dangerous_inner_html: svg.to_string() }
-                        }
+                        class: "help_li_item", 
+                        h2 { "{HeaderMenu::Subjects.as_str()}" }
+                        svg { dangerous_inner_html: database_icon_svg() }
+                        p { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
+                    }
+                }
+                li {
+                    div {
+                        class: "help_li_item", 
+                        h2 { "{HeaderMenu::Message.as_str()}" }
+                        svg { dangerous_inner_html: message_icon_svg() }
+                        p { "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated." }
+                    }
+                }
+                li {
+                    div {
+                        class: "help_li_item", 
+                        h2 { "{HeaderMenu::Metrics.as_str()}" }
+                        svg { dangerous_inner_html: top_speed_icon_svg() }
+                        p { "A list of metrics associated with the active session plan. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest." }
                     }
                 }
             }
-            // All other cases
-            (_, _, _) => {
-                rsx! {
-                    div {
-                        class: "messaging_list",
-                        p { "Welcome to PHYMES by Biom🤖er" },
-                        div {
-                            class: "text_input",
-                            form {
-                                textarea {
-                                    rows: "10",
-                                    cols: "40",
-                                    value: "{diagram_code}",
-                                    oninput: move |evt| diagram_code.set(evt.value()),
-                                }
-                            }
-                        }
-                    }            
-                }
-            }
         }
-    } else {
-        rsx! {
-            div {
-                class: "messaging_list",
-                p { "Welcome to PHYMES by Biom🤖er" },
-                div {
-                    class: "text_input",
-                    form {
-                        textarea {
-                            rows: "10",
-                            cols: "40",
-                            value: "{diagram_code}",
-                            oninput: move |evt| diagram_code.set(evt.value()),
-                        }
-                    }
-                }
-            }            
-        }
-    };
-    out
+    }
 }

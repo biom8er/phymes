@@ -75,7 +75,6 @@ pub struct MessageAggregatorProcessor {
     subscribe: Box<dyn SubscribeTrait>,
 }
 
-
 impl MappableTrait for MessageAggregatorProcessor {
     fn get_name(&self) -> &str {
         &self.name
@@ -120,8 +119,8 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
-    
-    fn get_subscribe(&self) -> &dyn SubscribeTrait{
+
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
         self.subscribe.as_ref()
     }
 

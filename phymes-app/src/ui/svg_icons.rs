@@ -237,10 +237,25 @@ pub fn top_speed_icon_svg() -> String {
 pub fn menu_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-        <g id="HamburgerMenue" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
-            <line x1="5" y1="7" x2="19" y2="7" stroke-linecap="round"/>
-            <line x1="5" y1="17" x2="19" y2="17" id="Path" stroke-linecap="round"/>
-            <line x1="5" y1="12" x2="19" y2="12" id="Path" stroke-linecap="round"/>
+        <g id="HamburgerMenu" clip-rule="evenodd" transform="matrix(0.28138693,0,0,0.28138693,-0.70446457,-0.16664841)">
+            <line x1="2.831579"
+                y1="1.5052627"
+                x2="7.3017545"
+                y2="1.5052627"
+                stroke="white" stroke-width="2" fill="none" fill-rule="evenodd"
+                stroke-linecap="round"/>
+            <line x1="2.831579"
+                y1="4.698245"
+                x2="7.3017545"
+                y2="4.698245"
+                stroke="white" stroke-width="2" fill="none" fill-rule="evenodd"
+                stroke-linecap="round"/>
+            <line x1="2.831579"
+                y1="3.101754"
+                x2="7.3017545"
+                y2="3.101754"
+                stroke="white" stroke-width="2" fill="none" fill-rule="evenodd"
+                stroke-linecap="round"/>
         </g>
     </svg>"##;
     svg.to_string()

@@ -2,11 +2,33 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use clap::ValueEnum;
-use phymes_core::{session::common_traits::MappableTrait, table::{arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::{ArrowTableSubscribe, SubscribeTrait}}, task::arrow_processor::{test_processor::ArrowProcessorMock, ArrowProcessorBuilder, ArrowProcessorEcho, ArrowProcessorTrait}};
-use phymes_data::candle_data::{data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor};
-use phymes_ml::{candle_chat::{chat_processor::CandleChatProcessor, message_aggregator_processor::MessageAggregatorProcessor, message_parser_processor::MessageParserProcessor}, candle_embed::embed_processor::CandleEmbedProcessor};
+use phymes_core::{
+    session::common_traits::MappableTrait,
+    table::{
+        arrow_table_publish::ArrowTablePublish,
+        arrow_table_subscribe::{ArrowTableSubscribe, SubscribeTrait},
+    },
+    task::arrow_processor::{
+        ArrowProcessorBuilder, ArrowProcessorEcho, ArrowProcessorTrait,
+        test_processor::ArrowProcessorMock,
+    },
+};
+use phymes_data::candle_data::{
+    data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor,
+};
+use phymes_ml::{
+    candle_chat::{
+        chat_processor::CandleChatProcessor,
+        message_aggregator_processor::MessageAggregatorProcessor,
+        message_parser_processor::MessageParserProcessor,
+    },
+    candle_embed::embed_processor::CandleEmbedProcessor,
+};
 #[cfg(feature = "openai_api")]
-use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_embed::embed_processor::OpenAIEmbedProcessor};
+use phymes_ml::{
+    openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_embed::embed_processor::OpenAIEmbedProcessor,
+};
 use serde::{Deserialize, Serialize};
 
 /// The available session plans
@@ -80,7 +102,10 @@ impl AvailableProcessors {
                 Some(Self::OpenAIChatProcessor)
             } else if name == OpenAIEmbedProcessor::get_static_name() {
                 Some(Self::OpenAIEmbedProcessor)
-            } 
+            } else {
+                None
+            }
+            #[cfg(not(feature = "openai_api"))]
             None
         }
     }
@@ -99,37 +124,91 @@ impl AvailableProcessors {
             AvailableProcessors::OpenAIChatProcessor.get_name(),
             #[cfg(feature = "openai_api")]
             AvailableProcessors::OpenAIEmbedProcessor.get_name(),
-            ];
+        ];
         processor_names
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>()
     }
 
-    pub fn build_arc_with_pub_sub(self,
+    pub fn build_arc_with_pub_sub(
+        self,
         name: &str,
         publications: &[ArrowTablePublish],
         subscriptions: &[ArrowTableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>
+        subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ArrowProcessorTrait> {
         match self {
-            Self::ArrowProcessorMock => ArrowProcessorMock::new_arc_with_pub_sub(name, publications, subscriptions, subscribe),
-            Self::ArrowProcessorEcho => ArrowProcessorEcho::new_arc_with_pub_sub(name, publications, subscriptions, subscribe),
-            Self::CandleDataProcessor => CandleDataProcessor::new_arc_with_pub_sub(name, publications, subscriptions, subscribe),
-            Self::DataSummaryProcessor => DataSummaryProcessor::new_arc_with_pub_sub(name, publications, subscriptions, subscribe),
-            Self::CandleChatProcessor => CandleChatProcessor::new_arc_with_pub_sub(name, publications, subscriptions, subscribe),
-            Self::MessageAggregatorProcessor => MessageAggregatorProcessor::new_arc_with_pub_sub(name, publications, subscriptions, subscribe),
-            Self::MessageParserProcessor => MessageParserProcessor::new_arc_with_pub_sub(name, publications, subscriptions, subscribe),
-            Self::CandleEmbedProcessor => CandleEmbedProcessor::new_arc_with_pub_sub(name, publications, subscriptions, subscribe),
+            Self::ArrowProcessorMock => ArrowProcessorMock::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
+            Self::ArrowProcessorEcho => ArrowProcessorEcho::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
+            Self::CandleDataProcessor => CandleDataProcessor::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
+            Self::DataSummaryProcessor => DataSummaryProcessor::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
+            Self::CandleChatProcessor => CandleChatProcessor::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
+            Self::MessageAggregatorProcessor => MessageAggregatorProcessor::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
+            Self::MessageParserProcessor => MessageParserProcessor::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
+            Self::CandleEmbedProcessor => CandleEmbedProcessor::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIChatProcessor => OpenAIChatProcessor::new_arc_with_pub_sub(name, publications, subscriptions, subscribe),
+            Self::OpenAIChatProcessor => OpenAIChatProcessor::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIEmbedProcessor => OpenAIEmbedProcessor::new_arc_with_pub_sub(name, publications, subscriptions, subscribe),
+            Self::OpenAIEmbedProcessor => OpenAIEmbedProcessor::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
         }
     }
 
-    pub fn build_with_builder(self, builder: ArrowProcessorBuilder) -> Result<Arc<dyn ArrowProcessorTrait>> {
+    pub fn build_with_builder(
+        self,
+        builder: ArrowProcessorBuilder,
+    ) -> Result<Arc<dyn ArrowProcessorTrait>> {
         let (name, publications, subscriptions, subscribe) = builder.take()?;
-        Ok(self.build_arc_with_pub_sub(&name ,&publications, &subscriptions, subscribe))
+        Ok(self.build_arc_with_pub_sub(&name, &publications, &subscriptions, subscribe))
     }
 }

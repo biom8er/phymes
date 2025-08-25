@@ -6,20 +6,23 @@ use parking_lot::Mutex;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap, get_metrics_as_pivot_table},
     session::{
-        common_traits::{device, BuildableTrait, BuilderTrait},
+        common_traits::{BuildableTrait, BuilderTrait, device},
         runtime_env::RuntimeEnv,
     },
     table::{
         arrow_table::{
-            test_table::TestTableSizes, ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait
+            ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait, test_table::TestTableSizes,
         },
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
     },
-    task::{arrow_message::{
-        ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-        ArrowOutgoingMessageTrait,
-    }, arrow_processor::ArrowProcessorTrait},
+    task::{
+        arrow_message::{
+            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
+            ArrowOutgoingMessageTrait,
+        },
+        arrow_processor::ArrowProcessorTrait,
+    },
 };
 use phymes_data::{
     candle_data::{
@@ -247,7 +250,14 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 &[ArrowTablePublish::Replace {
                                     table_name: "results".to_string(),
                                 }],
-                                &[ArrowTableSubscribe::AlwaysFullTable { table_name: lhs_name.clone() }, ArrowTableSubscribe::AlwaysFullTable { table_name: rhs_name.clone() }],
+                                &[
+                                    ArrowTableSubscribe::AlwaysFullTable {
+                                        table_name: lhs_name.clone(),
+                                    },
+                                    ArrowTableSubscribe::AlwaysFullTable {
+                                        table_name: rhs_name.clone(),
+                                    },
+                                ],
                                 AllTableNamesSubscribe::new_box(),
                             );
                             let mut ops_stream = ops_processor

@@ -5,13 +5,16 @@ use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    metrics::{ArrowTaskMetricsSet, HashMap, HashSet}, session::common_traits::{StateMap, TaskMap}, table::{
+    metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
+    session::common_traits::{StateMap, TaskMap},
+    table::{
         arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::ArrowTableSubscribe,
-    }, task::{
+    },
+    task::{
         arrow_processor::ArrowProcessorTrait,
         arrow_task::{ArrowTask, ArrowTaskBuilderTrait},
-    }
+    },
 };
 
 use super::{
@@ -48,9 +51,15 @@ impl TaskPlanBuilder {
         if self.task_name.is_none() {
             return Err(anyhow!("Missing task name"));
         } else if self.runtime_env_name.as_ref().is_none() {
-            return Err(anyhow!("Missing runtime_env_name for task {}", self.task_name.as_ref().unwrap()));
+            return Err(anyhow!(
+                "Missing runtime_env_name for task {}",
+                self.task_name.as_ref().unwrap()
+            ));
         } else if self.processor_names.as_ref().is_none() {
-            return Err(anyhow!("Missing processor_names for task {}", self.task_name.as_ref().unwrap()));
+            return Err(anyhow!(
+                "Missing processor_names for task {}",
+                self.task_name.as_ref().unwrap()
+            ));
         }
 
         let task_plan = TaskPlan {
@@ -81,7 +90,14 @@ pub struct SessionContextBuilder {
     pub max_iter: Option<usize>,
 }
 
-type SessionContextInput = (String, TaskMap, StateMap, ArrowTaskMetricsSet, HashMap<String, Arc<Mutex<RuntimeEnv>>>, usize);
+type SessionContextInput = (
+    String,
+    TaskMap,
+    StateMap,
+    ArrowTaskMetricsSet,
+    HashMap<String, Arc<Mutex<RuntimeEnv>>>,
+    usize,
+);
 
 impl SessionContextBuilder {
     // Get a list of subscriptions and publications for a specific task
@@ -339,10 +355,17 @@ impl SessionContextBuilder {
                 (t.task_name.to_owned(), Arc::new(task))
             })
             .collect::<HashMap<_, _>>();
-        
+
         let name = self.name.unwrap();
         let max_iter = self.max_iter.unwrap_or(25);
-        Ok((name, task_map, state_map, metrics, runtime_env_map, max_iter))
+        Ok((
+            name,
+            task_map,
+            state_map,
+            metrics,
+            runtime_env_map,
+            max_iter,
+        ))
     }
 }
 
@@ -832,8 +855,9 @@ mod tests {
     #[test]
     fn test_session_build_fail_missing_runtime_env() -> Result<()> {
         // No runtime env
-        let result =
-            test_session_context_builder::make_test_session_builder_parallel_task().with_name("session_1").build();
+        let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
+            .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(

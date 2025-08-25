@@ -33,12 +33,11 @@ use crate::{
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
         subjects::{
-            clear_subject_schema_state, sync_current_subject_schema_state,
-            clear_subject_num_rows_state, sync_current_subject_num_rows_state, 
-            ClearSubjectSchemaState, SyncCurrentSubjectSchemaState, 
-            ClearSubjectNumRowsState, SyncCurrentSubjectNumRowsState,
-            SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES, 
-            SUBJECT_NAMES, SUBJECT_NUM_ROWS
+            clear_subject_num_rows_state, clear_subject_schema_state,
+            sync_current_subject_num_rows_state, sync_current_subject_schema_state,
+            ClearSubjectNumRowsState, ClearSubjectSchemaState, SyncCurrentSubjectNumRowsState,
+            SyncCurrentSubjectSchemaState, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS,
+            SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES,
         },
     },
     ui::{
@@ -151,7 +150,8 @@ pub fn subjects_modal() -> Element {
 
     // Get the active session schema for the subject view
     let clear_subjects_schema_state = use_coroutine_handle::<ClearSubjectSchemaState>();
-    let sync_current_subjects_schema_state = use_coroutine_handle::<SyncCurrentSubjectSchemaState>();
+    let sync_current_subjects_schema_state =
+        use_coroutine_handle::<SyncCurrentSubjectSchemaState>();
     let _ = use_resource(move || async move {
         let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
         clear_subjects_schema_state.send(ClearSubjectSchemaState {});
@@ -174,7 +174,9 @@ pub fn subjects_modal() -> Element {
                     let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!("There was a error parsing SyncCurrentSubjectSchemaState {err}.");
+                            tracing::error!(
+                                "There was a error parsing SyncCurrentSubjectSchemaState {err}."
+                            );
                             Vec::new()
                         });
                     for row in json_rows.iter() {
@@ -251,7 +253,7 @@ pub fn subjects_modal() -> Element {
             }
             Err(err) => tracing::error!("{err:?}"),
         }
-    });    
+    });
 
     // Get the active session row counts for the subject view
     let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
@@ -368,25 +370,24 @@ pub fn subjects_modal() -> Element {
     let mut schema_columns = Vec::new();
     let mut schema_types = Vec::new();
     if schema_columns.is_empty() {
-        (schema_columns, schema_types) =
-            get_subject_schema_col_type_by_subject_name(
-                subject_shown.read().as_str(),
-                &SUBJECT_SCHEMA_NAMES
-                    .read()
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect::<Vec<_>>(),
-                &SUBJECT_SCHEMA_COLUMNS
-                    .read()
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect::<Vec<_>>(),
-                &SUBJECT_SCHEMA_TYPES
-                    .read()
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect::<Vec<_>>(),
-            );
+        (schema_columns, schema_types) = get_subject_schema_col_type_by_subject_name(
+            subject_shown.read().as_str(),
+            &SUBJECT_SCHEMA_NAMES
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &SUBJECT_SCHEMA_COLUMNS
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &SUBJECT_SCHEMA_TYPES
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+        );
     }
     let mut num_rows = Vec::new();
     if num_rows.is_empty() {

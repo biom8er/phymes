@@ -29,8 +29,6 @@ pub async fn sync_current_metrics_mermaid_state(
     }
 }
 
-
-
 #[allow(clippy::redundant_closure)]
 pub static ACTIVE_METRIC: GlobalSignal<String> = Signal::global(|| String::new());
 

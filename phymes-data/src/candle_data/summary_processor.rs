@@ -99,8 +99,8 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
-    
-    fn get_subscribe(&self) -> &dyn SubscribeTrait{
+
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
         self.subscribe.as_ref()
     }
 
@@ -128,8 +128,16 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
         for subs in self.subscriptions.iter() {
             if subs.get_table_name() != self.get_name() {
                 match message.remove(subs.get_table_name()) {
-                    Some(m) => { subscriptions.push(m); }
-                    None  => return Err(anyhow!("Subscription {} not provided for {}.", subs.get_table_name(), self.get_name())),
+                    Some(m) => {
+                        subscriptions.push(m);
+                    }
+                    None => {
+                        return Err(anyhow!(
+                            "Subscription {} not provided for {}.",
+                            subs.get_table_name(),
+                            self.get_name()
+                        ));
+                    }
                 }
             }
         }
@@ -415,7 +423,9 @@ mod tests {
             &[ArrowTablePublish::Extend {
                 table_name: "messages".to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable { table_name: "lhs_name".to_string() }],
+            &[ArrowTableSubscribe::AlwaysFullTable {
+                table_name: "lhs_name".to_string(),
+            }],
             AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(messages, metrics.clone(), runtime_env)?;

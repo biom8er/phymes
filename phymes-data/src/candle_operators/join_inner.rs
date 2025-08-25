@@ -6,7 +6,10 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor, op::CmpOp};
-use phymes_core::{schemas::{chat_completion, types}, session::common_traits::MappableTrait};
+use phymes_core::{
+    schemas::{chat_completion, types},
+    session::common_traits::MappableTrait,
+};
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
