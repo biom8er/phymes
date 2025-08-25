@@ -100,8 +100,8 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
         })
     }
     
-    fn get_subscribe(&self) -> &Box<dyn SubscribeTrait> {
-        &self.subscribe
+    fn get_subscribe(&self) -> &dyn SubscribeTrait{
+        self.subscribe.as_ref()
     }
 
     fn get_type(&self) -> &str {

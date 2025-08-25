@@ -131,7 +131,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         for subject in sorted_state.iter() {
             let fields = subject.get_schema().fields().clone();
             for field in fields.iter() {                
-                let type_name = from_data_type_to_str(&field.data_type());
+                let type_name = from_data_type_to_str(field.data_type());
                 subject_names.push(subject.get_name().to_string());
                 cols_names.push(field.name().to_string());
                 type_names.push(type_name);
@@ -407,13 +407,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             for (name,t, s_t, sub, sub_tab, is_sub) in combined.iter() {
                 if name == &processor_name {
                     if **is_sub == 1 {
-                        let subscription = ArrowTableSubscribe::from_str(&sub, &sub_tab)?;
+                        let subscription = ArrowTableSubscribe::from_str(sub, sub_tab)?;
                         builder.subscriptions.as_mut().unwrap().push(subscription);
                     } else {
-                        let publication = ArrowTablePublish::from_str(&sub, &sub_tab)?;                    
+                        let publication = ArrowTablePublish::from_str(sub, sub_tab)?;                    
                         builder.publications.as_mut().unwrap().push(publication);
                     }
-                    let subscribe = from_str_to_subscribe(*s_t)?;               
+                    let subscribe = from_str_to_subscribe(s_t)?;               
                     builder.processor_type.replace(t.to_string());
                     builder.subscribe.replace(subscribe);
                 }

@@ -7,8 +7,8 @@ use phymes_agents::{session_plans::chat_agent_session::{
         test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2}, ChatAgentSession
     }, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::{common_traits::BuilderTrait, session_context::{get_metrics_as_pivot_table, SessionStreamState}, session_context_builder::SessionContextBuilderTrait},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap, get_metrics_as_pivot_table},
+    session::{common_traits::BuilderTrait, session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
     table::arrow_table::ArrowTableTrait,
     task::arrow_message::ArrowIncomingMessage,
 };

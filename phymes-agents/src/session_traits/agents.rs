@@ -6,10 +6,12 @@ use phymes_core::{metrics::{ArrowTaskMetricsSet, HashMap}, session::{common_trai
 
 use crate::session_traits::tabular::SessionContextBuilderTabularTrait;
 
+type SessionContextInput = (String, TaskMap, StateMap, ArrowTaskMetricsSet, HashMap<String, Arc<Mutex<RuntimeEnv>>>, usize, Vec<ArrowTable>);
+
 /// Trait extension for [SessionContextBuilderTrait] to facilitate building agentic workflows
 pub trait SessionContextBuilderAgentsTrait {
     /// Build the [SessionContext] objects along with the [SessionContext] schema tables
-    fn build_inner_with_tables(self) -> Result<(String, TaskMap, StateMap, ArrowTaskMetricsSet, HashMap<String, Arc<Mutex<RuntimeEnv>>>, usize, Vec<ArrowTable>)>;
+    fn build_inner_with_tables(self) -> Result<SessionContextInput>;
 
     fn build_with_tables(self) -> Result<SessionContext> where Self: Sized {
         // build the tasks, state, metrics, and runtime objects
@@ -26,7 +28,7 @@ pub trait SessionContextBuilderAgentsTrait {
 }
 
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {    
-    fn build_inner_with_tables(self) -> Result<(String, TaskMap, StateMap, ArrowTaskMetricsSet, HashMap<String, Arc<Mutex<RuntimeEnv>>>, usize, Vec<ArrowTable>)> {
+    fn build_inner_with_tables(self) -> Result<SessionContextInput> {
         let (tables, _state) = self.to_arrow_tables(false, true)?;
         let (name, tasks, state, metrics, runtime_envs, max_iter) = self.build_inner()?;
         Ok((name, tasks, state, metrics, runtime_envs, max_iter, tables))

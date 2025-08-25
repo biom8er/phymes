@@ -7,8 +7,8 @@ use phymes_agents::{session_plans::document_rag_session::{
         test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query}, DocumentRAGSession
     }, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::{common_traits::BuilderTrait, session_context::{get_metrics_as_pivot_table, SessionStreamState}, session_context_builder::SessionContextBuilderTrait},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap, get_metrics_as_pivot_table},
+    session::{common_traits::BuilderTrait, session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait},
     table::arrow_table::ArrowTableTrait,
     task::arrow_message::ArrowIncomingMessage,
 };

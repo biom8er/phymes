@@ -200,11 +200,11 @@ pub fn render_mermaid_svg(diagram_code: Signal<String>, id: &str) -> Resource<(O
             let eval = document::eval(format!(r#"
                 try {{
                     let code = await dioxus.recv();
-                    const {{ svg }} = await mermaid.render("{}", code);
+                    const {{ svg }} = await mermaid.render("{div_id}", code);
                     return {{ svg: svg, error: null }};
                 }} catch (error) {{
                     return {{ svg: null, error: error.message }};
-                }}"#, div_id).as_str()
+                }}"#).as_str()
             );
             eval.send(diagram_code.read().to_string()).unwrap();
             let mermaid_js_object = match eval.await {
@@ -234,7 +234,7 @@ pub fn render_mermaid_svg(diagram_code: Signal<String>, id: &str) -> Resource<(O
         let div_id = div_id.clone();
         let _ = rendered_html.read();
         document::eval(format!(r#"
-            const container = document.getElementById("{}");
+            const container = document.getElementById("{div_id}");
             const svgElement = container.querySelector("svg");
 
             // Initialize Panzoom
@@ -248,7 +248,7 @@ pub fn render_mermaid_svg(diagram_code: Signal<String>, id: &str) -> Resource<(O
             container.addEventListener("wheel", (event) => {{
                 panzoomInstance.zoomWithWheel(event);
             }});
-            "#, div_id).as_str()
+            "#).as_str()
         );
     });
 

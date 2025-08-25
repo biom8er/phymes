@@ -10,11 +10,12 @@ use phymes_ml::{openai_chat::chat_processor::OpenAIChatProcessor, openai_embed::
 use serde::{Deserialize, Serialize};
 
 /// The available session plans
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableProcessors {
     #[value(name = "ArrowProcessorMock")]
     ArrowProcessorMock,
     #[value(name = "ArrowProcessorEcho")]
+    #[default]
     ArrowProcessorEcho,
     #[value(name = "CandleDataProcessor")]
     CandleDataProcessor,
@@ -34,12 +35,6 @@ pub enum AvailableProcessors {
     #[cfg(feature = "openai_api")]
     #[value(name = "OpenAIEmbedProcessor")]
     OpenAIEmbedProcessor,
-}
-
-impl Default for AvailableProcessors {
-    fn default() -> Self {
-        AvailableProcessors::ArrowProcessorEcho
-    }
 }
 
 impl MappableTrait for AvailableProcessors {
