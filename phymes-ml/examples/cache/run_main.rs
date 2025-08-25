@@ -3,14 +3,14 @@ use phymes_core::session::common_traits::device;
 use serde::{Deserialize, Serialize};
 
 use candle_core::DType;
-use phymes_ml::candle_assets::candle_which::WhichCandleAsset;
+use phymes_ml::candle_assets::available_candle_assets::AvailableCandleAssets;
 
 #[derive(Parser, Debug, Serialize, Deserialize, Default, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct WhichCandleAssetConfig {
     /// The model to use.
     #[arg(long, default_value = "Qwen-v2.5-0.5b-chat")]
-    pub which: WhichCandleAsset,
+    pub which: AvailableCandleAssets,
 }
 
 pub async fn run_main() -> anyhow::Result<()> {

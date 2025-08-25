@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
+    session::common_traits::{StateMap, TaskMap},
     table::{
         arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::ArrowTableSubscribe,
@@ -36,6 +37,39 @@ pub struct TaskPlan {
     //   subscriptions are randomly assigned to a task in the queue group
     //   pub queue_gorup_name
 }
+
+/// The builder for the `TaskPlan`
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct TaskPlanBuilder {
+    pub task_name: Option<String>,
+    pub runtime_env_name: Option<String>,
+    pub processor_names: Option<Vec<String>>,
+}
+
+impl TaskPlanBuilder {
+    pub fn build(mut self) -> Result<TaskPlan> {
+        if self.task_name.is_none() {
+            return Err(anyhow!("Missing task name"));
+        } else if self.runtime_env_name.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing runtime_env_name for task {}",
+                self.task_name.as_ref().unwrap()
+            ));
+        } else if self.processor_names.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing processor_names for task {}",
+                self.task_name.as_ref().unwrap()
+            ));
+        }
+
+        let task_plan = TaskPlan {
+            task_name: self.task_name.take().unwrap(),
+            runtime_env_name: self.runtime_env_name.take().unwrap(),
+            processor_names: self.processor_names.take().unwrap(),
+        };
+        Ok(task_plan)
+    }
+}
 pub trait SessionContextBuilderTrait: BuilderTrait {
     fn with_processors(self, processors: Vec<Arc<dyn ArrowProcessorTrait>>) -> Self;
     fn with_state(self, state: Vec<ArrowTable>) -> Self;
@@ -55,6 +89,15 @@ pub struct SessionContextBuilder {
     pub tasks: Option<Vec<TaskPlan>>,
     pub max_iter: Option<usize>,
 }
+
+type SessionContextInput = (
+    String,
+    TaskMap,
+    StateMap,
+    ArrowTaskMetricsSet,
+    HashMap<String, Arc<Mutex<RuntimeEnv>>>,
+    usize,
+);
 
 impl SessionContextBuilder {
     // Get a list of subscriptions and publications for a specific task
@@ -166,26 +209,15 @@ impl SessionContextBuilder {
             })
             .collect::<Vec<_>>()
     }
-}
 
-impl BuilderTrait for SessionContextBuilder {
-    type T = SessionContext;
-    fn new() -> Self {
-        Self {
-            name: None,
-            processors: None,
-            state: None,
-            metrics: None,
-            runtime_envs: None,
-            tasks: None,
-            max_iter: None,
+    /// Build the [SessionContext] members
+    pub fn build_inner(mut self) -> Result<SessionContextInput> {
+        if self.name.is_none() {
+            return Err(anyhow!(
+                "Please give the session a name before attempting to build the session."
+            ));
         }
-    }
-    fn with_name(mut self, name: &str) -> Self {
-        self.name = Some(name.to_string());
-        self
-    }
-    fn build(mut self) -> Result<Self::T> {
+
         if self.tasks.is_none() {
             return Err(anyhow!(
                 "Please add a plan before attempting to build the session."
@@ -324,14 +356,50 @@ impl BuilderTrait for SessionContextBuilder {
             })
             .collect::<HashMap<_, _>>();
 
+        let name = self.name.unwrap();
+        let max_iter = self.max_iter.unwrap_or(25);
+        Ok((
+            name,
+            task_map,
+            state_map,
+            metrics,
+            runtime_env_map,
+            max_iter,
+        ))
+    }
+}
+
+impl BuilderTrait for SessionContextBuilder {
+    type T = SessionContext;
+    fn new() -> Self {
+        Self {
+            name: None,
+            processors: None,
+            state: None,
+            metrics: None,
+            runtime_envs: None,
+            tasks: None,
+            max_iter: None,
+        }
+    }
+
+    fn with_name(mut self, name: &str) -> Self {
+        self.name = Some(name.to_string());
+        self
+    }
+
+    fn build(self) -> Result<Self::T> {
+        // build the tasks, state, metrics, and runtime objects
+        let (name, tasks, state, metrics, runtime_envs, max_iter) = self.build_inner()?;
+
         // ready to build the session
         Ok(Self::T {
-            name: self.name.unwrap_or_default(),
-            tasks: task_map,
-            state: state_map,
+            name,
+            tasks,
+            state,
             metrics,
-            runtime_envs: runtime_env_map,
-            max_iter: self.max_iter.unwrap_or(25),
+            runtime_envs,
+            max_iter,
         })
     }
 }
@@ -403,7 +471,7 @@ pub mod test_session_context_builder {
     /// Tasks subscribe and publish to state_1, state_2, and state_3
     pub fn make_test_session_builder_parallel_task() -> SessionContextBuilder {
         let processor_plans = vec![
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_1".to_string(),
@@ -416,10 +484,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_2",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_2".to_string(),
@@ -432,10 +499,9 @@ pub mod test_session_context_builder {
                         table_name: "config_2".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_3",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_3".to_string(),
@@ -448,10 +514,9 @@ pub mod test_session_context_builder {
                         table_name: "config_3".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "session_1",
                 &[
                     ArrowTablePublish::Extend {
@@ -475,7 +540,6 @@ pub mod test_session_context_builder {
                         table_name: "state_3".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
         ];
@@ -489,7 +553,7 @@ pub mod test_session_context_builder {
     /// Tasks subscribe and publish to state_1
     pub fn make_test_session_builder_sequential_task() -> SessionContextBuilder {
         let processor_plans = vec![
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_1".to_string(),
@@ -502,10 +566,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_2",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_1".to_string(),
@@ -518,10 +581,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "processor_3",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_1".to_string(),
@@ -534,10 +596,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_with_pub_sub_for(
+            ArrowProcessorMock::new_arc_with_pub_sub(
                 "session_1",
                 &[ArrowTablePublish::Extend {
                     table_name: "state_1".to_string(),
@@ -545,7 +606,6 @@ pub mod test_session_context_builder {
                 &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                     table_name: "state_1".to_string(),
                 }],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ),
         ];
@@ -712,8 +772,21 @@ mod tests {
     }
 
     #[test]
-    fn test_session_build_fail_missing_plan() -> Result<()> {
+    fn test_session_build_fail_missing_name() -> Result<()> {
         let result = SessionContextBuilder::new().build();
+        match result {
+            Ok(_) => panic!("Should have failed"),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Please give the session a name before attempting to build the session."
+            ),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_session_build_fail_missing_plan() -> Result<()> {
+        let result = SessionContextBuilder::new().with_name("session_1").build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -728,6 +801,7 @@ mod tests {
     fn test_session_build_fail_missing_processor() -> Result<()> {
         // No tasks
         let result = SessionContextBuilder::new()
+            .with_name("session_1")
             .with_tasks(test_session_context_builder::make_test_session_builder_tasks())
             .build();
         match result {
@@ -744,6 +818,7 @@ mod tests {
             ArrowProcessorMock::new_arc("processor_2"),
         ];
         let result = SessionContextBuilder::new()
+            .with_name("session_1")
             .with_tasks(test_session_context_builder::make_test_session_builder_tasks())
             .with_processors(processors)
             .build();
@@ -763,6 +838,7 @@ mod tests {
             ArrowProcessorMock::new_arc("not_found"),
         ];
         let result = SessionContextBuilder::new()
+            .with_name("session_1")
             .with_tasks(test_session_context_builder::make_test_session_builder_tasks())
             .with_processors(processors)
             .build();
@@ -779,8 +855,9 @@ mod tests {
     #[test]
     fn test_session_build_fail_missing_runtime_env() -> Result<()> {
         // No runtime env
-        let result =
-            test_session_context_builder::make_test_session_builder_parallel_task().build();
+        let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
+            .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -791,6 +868,7 @@ mod tests {
 
         // Missing runtime env
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
             .with_runtime_envs(Vec::new())
             .build();
         match result {
@@ -803,6 +881,7 @@ mod tests {
 
         // Runtime env not found in plan
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("not_found")?])
             .build();
         match result {
@@ -819,6 +898,7 @@ mod tests {
     fn test_session_build_fail_missing_state() -> Result<()> {
         // No state
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .build();
         match result {
@@ -831,6 +911,7 @@ mod tests {
 
         // Missing state
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(make_state_tables("state_1", "config_1")?)
             .build();
@@ -847,6 +928,7 @@ mod tests {
         state.extend(make_state_tables("state_2", "config_2")?);
         state.extend(make_state_tables("not_found", "config_3")?);
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
+            .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
             .build();

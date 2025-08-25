@@ -36,6 +36,8 @@ cargo check --features wsl,gpu,candle --all-targets
 cargo test --features wsl,gpu,candle
 cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
+cargo run --package phymes-agents --features wsl,gpu,candle --release --example doc_rag_session
+cargo run --package phymes-agents --features wsl,gpu,candle --release --example tool_agent_session
 cargo check --all-targets
 cargo check -p phymes-core --all-targets --no-default-features --features wsl
 cargo check -p phymes-data --all-targets --no-default-features --features wsl
@@ -48,8 +50,8 @@ cargo check -p phymes-agents --all-targets --no-default-features --features wsl,
 cargo check -p phymes-server --all-targets --no-default-features --features wsl
 cargo check -p phymes-server --all-targets --no-default-features --features wsl,hf_hub,candle
 cargo check -p phymes-server --all-targets --no-default-features --features wsl,openai_api
-cargo check -p phymes-app --all-targets --features mobile
-cargo check -p phymes-app --all-targets --features desktop
+cargo check -p phymes-app --all-targets --no-default-features --features mobile
+cargo check -p phymes-app --all-targets --no-default-features --features desktop
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all -- --check
 cargo check -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
@@ -70,6 +72,10 @@ cargo test -p phymes-agents --no-default-features --features wasip2,candle --tar
 for file in target/wasm32-wasip2/release/deps/phymes_agents-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
 cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat_agent_session
 wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat_agent_session.wasm
+cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example doc_rag_session
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/doc_rag_session.wasm
+cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example tool_agent_session
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/tool_agent_session.wasm
 cargo check -p phymes-server --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
 cargo test -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_server-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
@@ -126,7 +132,7 @@ for file in target/wasm32-wasip2/release/deps/candle_ops-*.wasm; do [ -f "$file"
 mv ~/.cache/metrics/* ./target/criterion/metrics/
 ```
 
-# Semantic versioning
+## Semantic versioning
 
 The following will change the version of all `Cargo.toml` and `Cargo.lock` files
 
@@ -134,4 +140,36 @@ The following will change the version of all `Cargo.toml` and `Cargo.lock` files
 export RELEASE_VERSION="0.2.0"
 export PACKAGES="phymes-app phymes-agents phymes-ml phymes-data phymes-core phymes-server"
 for p in $PACKAGES; do cd $p;  awk -v ver="$RELEASE_VERSION" '/^version = / {sub(/= "[^"]*"/, "= \""ver"\""); print; next} {print}' Cargo.toml > Cargo.toml.new;  mv Cargo.toml.new Cargo.toml; cd ..; awk -v ver="$RELEASE_VERSION" -v package="$p" '"^name = \"\"package\"\"$" {print; getline; sub(/version = "[^"]*"/, "version = \""ver"\""); print; next} {print}' Cargo.lock > Cargo.lock.new; mv Cargo.lock.new Cargo.lock; done
+```
+
+## Release builds
+
+The following will build each of the releases for distribution
+
+```bash
+# Web app with NVIDIA CUDA GPU support using native Candle
+dx bundle -p phymes-app --platform web --release
+cargo build --package phymes-server --features wsl,gpu,candle,hf_hub --release
+mv target/release/phymes-server target/dx/phymes-app/release/web/public/
+tar -czf phymes-web-candle-cuda12.6.2-ubuntu24.04.tar.gz -C target/dx/phymes-app/release/web/public .
+
+# Linux desktop app with NVIDIA CUDA GPU support using native Candle
+cargo build -p phymes-app --features desktop --release
+cargo build --package phymes-server --features wsl,gpu,candle,hf_hub --release
+tar -czf phymes-desktop-candle-cuda12.6.2-ubuntu24.04.tar.gz target/release/phymes-app target/release/phymes-server
+
+# Web app without GPU support using OpenAI API
+dx bundle -p phymes-app --platform web --release
+cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
+mv target/release/phymes-server target/dx/phymes-app/release/web/public/
+tar -czf phymes-web-openai-ubuntu24.04.tar.gz -C target/dx/phymes-app/release/web/public .
+
+# Linux desktop app without GPU support using OpenAI API
+cargo build -p phymes-app --features desktop --release
+cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
+tar -czf phymes-desktop-openai-ubuntu24.04.tar.gz target/release/phymes-app target/release/phymes-server
+
+# WASM app without GPU support using native Candle
+cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release
+tar -czf phymes-candle-wasm32-wasip2.tar.gz -C target/wasm32-wasip2/release ./phymes-server.wasm
 ```

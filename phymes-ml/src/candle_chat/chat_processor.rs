@@ -58,26 +58,7 @@ pub struct CandleChatProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
-    forward: Vec<String>,
     subscribe: Box<dyn SubscribeTrait>,
-}
-
-impl CandleChatProcessor {
-    pub fn new_with_pub_sub_for(
-        name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
-        forward: &[&str],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe,
-        })
-    }
 }
 
 impl MappableTrait for CandleChatProcessor {
@@ -101,18 +82,35 @@ impl PubSubTrait for CandleChatProcessor {
 }
 
 impl ArrowProcessorTrait for CandleChatProcessor {
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait> {
+        Arc::new(Self {
+            name: name.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe,
+        })
+    }
+
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
-            forward: Vec::new(),
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
-    fn get_forward_subscriptions(&self) -> &[String] {
-        self.forward.as_slice()
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
+        self.subscribe.as_ref()
+    }
+
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
     }
 
     #[instrument(skip(self, message, metrics, runtime_env))]
@@ -712,7 +710,7 @@ pub mod bench_chat_processor {
 
         // Build the chat task
         #[allow(unused_variables)]
-        let chat_processor = CandleChatProcessor::new_with_pub_sub_for(
+        let chat_processor = CandleChatProcessor::new_arc_with_pub_sub(
             name,
             &[ArrowTablePublish::ExtendChunks {
                 table_name: messages.to_string(),
@@ -727,11 +725,10 @@ pub mod bench_chat_processor {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
-            &[],
             AllTableNamesSubscribe::new_box(),
         );
         #[cfg(all(not(feature = "candle"), feature = "openai_api"))]
-        let chat_processor = OpenAIChatProcessor::new_with_pub_sub_for(
+        let chat_processor = OpenAIChatProcessor::new_arc_with_pub_sub(
             name,
             &[ArrowTablePublish::ExtendChunks {
                 table_name: messages.to_string(),
@@ -746,7 +743,6 @@ pub mod bench_chat_processor {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
-            &[],
             AllTableNamesSubscribe::new_box(),
         );
         let mut stream = chat_processor.process(
@@ -773,7 +769,7 @@ mod tests {
         session::runtime_env::RuntimeEnvTrait,
     };
 
-    use crate::candle_assets::candle_which::{load_model_asset_path, load_tokenizer};
+    use crate::candle_assets::available_candle_assets::{load_model_asset_path, load_tokenizer};
 
     use super::*;
 
@@ -854,7 +850,7 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::SmolLM2_135MChat,
+                crate::candle_assets::available_candle_assets::AvailableCandleAssets::SmolLM2_135MChat,
             ),
             ..Default::default()
         };
@@ -912,7 +908,7 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::SmolLM2_135MChat,
+                crate::candle_assets::available_candle_assets::AvailableCandleAssets::SmolLM2_135MChat,
             ),
             ..Default::default()
         };
@@ -956,7 +952,7 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = CandleChatProcessor::new_with_pub_sub_for(
+        let chat_processor = CandleChatProcessor::new_arc_with_pub_sub(
             name,
             &[ArrowTablePublish::ExtendChunks {
                 table_name: messages.to_string(),
@@ -971,7 +967,6 @@ mod tests {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
-            &[],
             AllTableNamesSubscribe::new_box(),
         );
         let mut stream = chat_processor.process(

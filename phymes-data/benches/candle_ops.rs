@@ -4,22 +4,24 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap, get_metrics_as_pivot_table},
     session::{
         common_traits::{BuildableTrait, BuilderTrait, device},
         runtime_env::RuntimeEnv,
-        session_context::get_metrics_as_pivot_table,
     },
     table::{
         arrow_table::{
             ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait, test_table::TestTableSizes,
         },
         arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
+        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
     },
-    task::arrow_message::{
-        ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-        ArrowOutgoingMessageTrait,
+    task::{
+        arrow_message::{
+            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
+            ArrowOutgoingMessageTrait,
+        },
+        arrow_processor::ArrowProcessorTrait,
     },
 };
 use phymes_data::{
@@ -28,7 +30,7 @@ use phymes_data::{
         data_processor::CandleDataProcessor,
         tensor_service::CandleTensorService,
     },
-    candle_operators::which_operator::WhichCandleOperator,
+    candle_operators::available_candle_operators::AvailableCandleOperators,
 };
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
@@ -55,7 +57,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for the ops functions
     let ops_configs_vec = [
         DataConfig {
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: AvailableCandleOperators::RelativeSimilarityScore,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "embedding".to_string(),
@@ -65,7 +67,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: WhichCandleOperator::SortColumnAndIndices,
+            which: AvailableCandleOperators::SortColumnAndIndices,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "score".to_string(),
@@ -87,7 +89,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         //     ..Default::default()
         // },
         DataConfig {
-            which: WhichCandleOperator::JoinInner,
+            which: AvailableCandleOperators::JoinInner,
             lhs_pk: "title".to_string(),
             lhs_fk: "id".to_string(),
             rhs_pk: Some("title".to_string()),
@@ -95,7 +97,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: WhichCandleOperator::GroupByAndAggregate,
+            which: AvailableCandleOperators::GroupByAndAggregate,
             lhs_pk: "id".to_string(),
             lhs_fk: "id".to_string(),
             lhs_values: "[\"title\",\"collection\"]".to_string(),
@@ -106,7 +108,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: WhichCandleOperator::FilterColumnsAndIndices,
+            which: AvailableCandleOperators::FilterColumnsAndIndices,
             lhs_pk: "id".to_string(),
             lhs_values: "[\"title\",\"id\"]".to_string(),
             op_kwargs: Some(
@@ -243,13 +245,19 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
                         // Make the stream and run
                         let _result = rt.block_on(async {
-                            let ops_processor = CandleDataProcessor::new_with_pub_sub_for(
+                            let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
                                 name.as_str(),
                                 &[ArrowTablePublish::Replace {
                                     table_name: "results".to_string(),
                                 }],
-                                &[],
-                                &[],
+                                &[
+                                    ArrowTableSubscribe::AlwaysFullTable {
+                                        table_name: lhs_name.clone(),
+                                    },
+                                    ArrowTableSubscribe::AlwaysFullTable {
+                                        table_name: rhs_name.clone(),
+                                    },
+                                ],
                                 AllTableNamesSubscribe::new_box(),
                             );
                             let mut ops_stream = ops_processor

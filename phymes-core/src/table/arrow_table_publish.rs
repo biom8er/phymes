@@ -36,7 +36,21 @@ pub enum ArrowTablePublish {
 }
 
 impl ArrowTablePublish {
-    pub fn get_name(&self) -> String {
+    pub fn get_short_name(&self) -> &str {
+        match self {
+            Self::Extend { table_name: _tn } => "Extend",
+            Self::ExtendChunks {
+                table_name: _tn,
+                col_name: _cn,
+            } => "ExtendChunks",
+            Self::Replace { table_name: _tn } => "Replace",
+            Self::ReplaceLast { table_name: _tn } => "ReplaceLast",
+            Self::None => "None",
+            Self::Custom(name) => name,
+        }
+    }
+
+    pub fn get_full_name(&self) -> String {
         match self {
             Self::Extend { table_name: tn } => format!("extend-{tn}"),
             Self::ExtendChunks {
@@ -62,6 +76,35 @@ impl ArrowTablePublish {
             Self::None => "",
             Self::Custom(_name) => "",
         }
+    }
+
+    pub fn from_str(name: &str, subject: &str) -> Result<ArrowTablePublish> {
+        let publication = if name.contains("Extend") {
+            ArrowTablePublish::Extend {
+                table_name: subject.to_string(),
+            }
+        } else if name.contains("Replace") {
+            ArrowTablePublish::Replace {
+                table_name: subject.to_string(),
+            }
+        } else if name.contains("ReplaceLast") {
+            ArrowTablePublish::ReplaceLast {
+                table_name: subject.to_string(),
+            }
+        } else if name.contains("None") {
+            ArrowTablePublish::None {}
+        } else {
+            return Err(anyhow!(
+                "Variant for ArrowTablePublish {name} with subject {subject} was not recognized."
+            ));
+        };
+        Ok(publication)
+    }
+}
+
+impl MappableTrait for ArrowTablePublish {
+    fn get_name(&self) -> &str {
+        self.get_short_name()
     }
 }
 

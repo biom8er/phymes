@@ -9,13 +9,18 @@ use futures::TryStreamExt;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-use phymes_agents::session_plans::{
-    agent_session_builder::AgentSessionBuilderTrait,
-    tool_agent_session::{ToolAgentSession, test_tool_agent_session::bench_tool_agent_session},
+use phymes_agents::{
+    session_plans::tool_agent_session::{
+        ToolAgentSession, test_tool_agent_session::bench_tool_agent_session,
+    },
+    session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap},
-    session::session_context::SessionStreamState,
+    session::{
+        common_traits::BuilderTrait, session_context::SessionStreamState,
+        session_context_builder::SessionContextBuilderTrait,
+    },
     table::arrow_table::ArrowTableTrait,
     task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
 };
@@ -26,7 +31,11 @@ pub async fn run_main() -> Result<()> {
 
     // initialize the session
     let tool_agent_session = ToolAgentSession::default();
-    let session_ctx = tool_agent_session.make_session_context(metrics.clone())?;
+    let session_ctx = tool_agent_session
+        .build()
+        .with_metrics(metrics.clone())
+        .with_name(tool_agent_session.session_context_name)
+        .build_with_tables()?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // Make the user query
@@ -57,6 +66,27 @@ pub async fn run_main() -> Result<()> {
             println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
         }
     }
+
+    println!(
+        "number of rows {}",
+        metrics.clone_inner().output_rows().unwrap()
+    );
+    println!(
+        "elasped compute {}",
+        metrics.clone_inner().elapsed_compute().unwrap()
+    );
+
+    // println!("{:?}", session_stream_state
+    //     .try_read()
+    //     .unwrap()
+    //     .get_session_context()
+    //     .get_states()
+    //     .get(SessionContextTableNames::MermaidJS.get_name())
+    //     .unwrap()
+    //     .try_read()
+    //     .unwrap()
+    //     .get_column_as_vec_str("mermaid_js_flowchart")
+    //     .join(""));
 
     Ok(())
 }

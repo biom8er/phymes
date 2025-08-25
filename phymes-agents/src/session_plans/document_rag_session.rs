@@ -2,13 +2,11 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    metrics::ArrowTaskMetricsSet,
     schemas::message_history::create_messages_schema,
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context::SessionContext,
-        session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
+        session_context_builder::TaskPlan,
     },
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
@@ -22,10 +20,10 @@ use phymes_data::{
         data_config::DataConfig, data_processor::CandleDataProcessor,
         summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
     },
-    candle_operators::which_operator::WhichCandleOperator,
+    candle_operators::available_candle_operators::AvailableCandleOperators,
 };
 use phymes_ml::{
-    candle_assets::candle_which::WhichCandleAsset,
+    candle_assets::available_candle_assets::AvailableCandleAssets,
     candle_chat::{
         chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
         message_aggregator_processor::MessageAggregatorProcessor,
@@ -34,13 +32,14 @@ use phymes_ml::{
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{
-    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_asset::available_openai_assets::AvailableOpenAIAssets,
+    openai_chat::chat_processor::OpenAIChatProcessor,
     openai_embed::embed_processor::OpenAIEmbedProcessor,
 };
 
-use super::agent_session_builder::AgentSessionBuilderTrait;
-
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+
+use crate::session_traits::agents::CustomAgentsBuilderTrait;
 
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///
@@ -278,8 +277,8 @@ impl<'a> DocumentRAGSession<'a> {
     }
 }
 
-impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
-    fn make_task_plan(&self) -> Vec<TaskPlan> {
+impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
+    fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let mut tasks = Vec::new();
 
         // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
@@ -344,14 +343,14 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             processor_names: vec![self.session_context_name.to_string()],
         });
 
-        tasks
+        Some(tasks)
     }
 
-    fn make_processors(&self) -> Vec<Arc<dyn ArrowProcessorTrait>> {
+    fn make_processors(&self) -> Option<Vec<Arc<dyn ArrowProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
 
-        processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
+        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_1_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.chat_task_name.to_string(),
@@ -370,10 +369,9 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                     table_name: self.message_aggregator_processor_1_name.to_string(),
                 },
             ],
-            &[],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(MessageAggregatorProcessor::new_with_pub_sub_for(
+        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_2_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.state_messages_table_name.to_string(),
@@ -389,12 +387,11 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
                 },
             ],
-            &[],
             AllTableNamesSubscribe::new_box(),
         ));
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
-            processors.push(OpenAIChatProcessor::new_with_pub_sub_for(
+            processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
                     table_name: self.state_assistant_messages_table_name.to_string(),
@@ -409,11 +406,10 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
         } else {
-            processors.push(CandleChatProcessor::new_with_pub_sub_for(
+            processors.push(CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
                     table_name: self.state_assistant_messages_table_name.to_string(),
@@ -428,12 +424,11 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
         }
 
-        processors.push(CandleDataProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.document_chunk_processor_1_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.document_chunk_task_name.to_string(),
@@ -446,13 +441,12 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                     table_name: self.document_chunk_processor_1_name.to_string(),
                 },
             ],
-            &[self.embed_documents_processor_name],
             AllTableNamesSubscribe::new_box(),
         ));
 
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
-            processors.push(OpenAIEmbedProcessor::new_with_pub_sub_for(
+            processors.push(OpenAIEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_documents_processor_name,
                 &[ArrowTablePublish::Replace {
                     table_name: self.state_doc_embed_table_name.to_string(),
@@ -465,11 +459,10 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                         table_name: self.embed_documents_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
             #[cfg(feature = "openai_api")]
-            processors.push(OpenAIEmbedProcessor::new_with_pub_sub_for(
+            processors.push(OpenAIEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_query_processor_name,
                 &[ArrowTablePublish::Replace {
                     table_name: self.state_q_embed_table_name.to_string(),
@@ -482,11 +475,10 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                         table_name: self.embed_query_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
         } else {
-            processors.push(CandleEmbedProcessor::new_with_pub_sub_for(
+            processors.push(CandleEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_documents_processor_name,
                 &[ArrowTablePublish::Replace {
                     table_name: self.state_doc_embed_table_name.to_string(),
@@ -499,10 +491,9 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                         table_name: self.embed_documents_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
-            processors.push(CandleEmbedProcessor::new_with_pub_sub_for(
+            processors.push(CandleEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_query_processor_name,
                 &[ArrowTablePublish::Replace {
                     table_name: self.state_q_embed_table_name.to_string(),
@@ -515,12 +506,11 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                         table_name: self.embed_query_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
         }
 
-        processors.push(CandleDataProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.relative_similarity_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
@@ -536,32 +526,24 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                     table_name: self.relative_similarity_processor_name.to_string(),
                 },
             ],
-            &[
-                self.sort_scores_processor_name,
-                self.top_k_processor_name,
-                self.document_chunk_processor_2_name,
-                self.join_chunks_processor_name,
-                self.state_documents_table_name,
-            ],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(CandleDataProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.sort_scores_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable {
-                table_name: self.sort_scores_processor_name.to_string(),
-            }],
             &[
-                self.top_k_processor_name,
-                self.document_chunk_processor_2_name,
-                self.join_chunks_processor_name,
-                self.state_documents_table_name,
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.sort_scores_processor_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.state_scores_table_name.to_string(),
+                },
             ],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(CandleDataProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.document_chunk_processor_2_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_documents_table_name.to_string(),
@@ -574,14 +556,9 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                     table_name: self.document_chunk_processor_2_name.to_string(),
                 },
             ],
-            &[
-                self.join_chunks_processor_name,
-                self.top_k_processor_name,
-                self.state_scores_table_name,
-            ],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(CandleDataProcessor::new_with_pub_sub_for(
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.join_chunks_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_scores_chunks_join_table_name.to_string(),
@@ -591,24 +568,33 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                     table_name: self.state_documents_table_name.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.state_scores_table_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.join_chunks_processor_name.to_string().to_string(),
                 },
             ],
-            &[self.top_k_processor_name],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(DataSummaryProcessor::new_with_pub_sub_for(
+        processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.top_k_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_top_k_docs_table_name.to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable {
-                table_name: self.top_k_processor_name.to_string().to_string(),
-            }],
-            &[],
+            &[
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.top_k_processor_name.to_string().to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self
+                        .state_scores_chunks_join_table_name
+                        .to_string()
+                        .to_string(),
+                },
+            ],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(ArrowProcessorEcho::new_with_pub_sub_for(
+        processors.push(ArrowProcessorEcho::new_arc_with_pub_sub(
             self.session_context_name,
             &[
                 ArrowTablePublish::Extend {
@@ -627,15 +613,14 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.state_assistant_messages_table_name.to_string(),
             }],
-            &[],
             AllTableNamesSubscribe::new_box(),
         ));
 
-        processors
+        Some(processors)
     }
 
-    fn make_runtime_envs(&self) -> Result<Vec<RuntimeEnv>> {
-        Ok(vec![
+    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
+        Some(vec![
             RuntimeEnv::new().with_name(self.chat_runtime_env_name),
             RuntimeEnv::new().with_name(self.embed_documents_runtime_env_name),
             RuntimeEnv::new().with_name(self.embed_query_runtime_env_name),
@@ -644,7 +629,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         ])
     }
 
-    fn make_state_tables(&self) -> Result<Vec<ArrowTable>> {
+    fn make_state_tables(&self) -> Option<Vec<ArrowTable>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -670,14 +655,14 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
                 "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(WhichCandleAsset::QwenV2p5_1p5bChat),
+            candle_asset: Some(AvailableCandleAssets::QwenV2p5_1p5bChat),
             ..Default::default()
         };
 
         // Add hf_hub if available
         #[cfg(feature = "hf_hub")]
         {
-            candle_chat_config.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
+            candle_chat_config.candle_asset = Some(AvailableCandleAssets::QwenV2p5_3bChat);
             candle_chat_config.openai_asset = None;
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
@@ -689,7 +674,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
         #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
-            candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
+            candle_chat_config.openai_asset = Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;
@@ -697,11 +682,13 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             candle_chat_config.api_url = self.chat_api_url.map(|s| s.to_string());
         }
 
-        let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;
+        let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
         let candle_chat_state = ArrowTableBuilder::new()
             .with_name(self.chat_processor_name)
-            .with_json(&candle_chat_config_json, 1)?
-            .build()?;
+            .with_json(&candle_chat_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Default embed config
         #[allow(unused_mut)]
@@ -727,7 +714,7 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             )),
             candle_asset: Some(
                 // WhichCandleAsset::BertEmbed,
-                WhichCandleAsset::QuantizedBertEmbed,
+                AvailableCandleAssets::QuantizedBertEmbed,
             ),
             // weights_config_file: Some(format!(
             //     "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/config.json",
@@ -758,14 +745,15 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             candle_embed_config.weights_file = None;
             candle_embed_config.tokenizer_file = None;
             candle_embed_config.tokenizer_config_file = None;
-            candle_embed_config.candle_asset = Some(WhichCandleAsset::QwenV2_1p5bEmbed);
+            candle_embed_config.candle_asset = Some(AvailableCandleAssets::QwenV2_1p5bEmbed);
         }
 
         // Add openAI_api if available
         #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_embed_config.candle_asset = None;
-            candle_embed_config.openai_asset = Some(WhichOpenAIAsset::NvidiaLlamaV3p2NvEmbedQA1BV2);
+            candle_embed_config.openai_asset =
+                Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2);
             candle_embed_config.weights_config_file = None;
             candle_embed_config.weights_file = None;
             candle_embed_config.tokenizer_file = None;
@@ -773,15 +761,19 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             candle_embed_config.api_url = self.embed_api_url.map(|s| s.to_string());
             candle_embed_config.input_type = "query".to_string();
         }
-        let candle_embed_config_json = serde_json::to_vec(&candle_embed_config)?;
+        let candle_embed_config_json = serde_json::to_vec(&candle_embed_config).unwrap();
         let candle_doc_embed_state = ArrowTableBuilder::new()
             .with_name(self.embed_documents_processor_name)
-            .with_json(&candle_embed_config_json, 1)?
-            .build()?;
+            .with_json(&candle_embed_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let candle_query_embed_state = ArrowTableBuilder::new()
             .with_name(self.embed_query_processor_name)
-            .with_json(&candle_embed_config_json, 1)?
-            .build()?;
+            .with_json(&candle_embed_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Message aggregator config
         let aggregator_config = DataConfig {
@@ -790,18 +782,22 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            which: WhichCandleOperator::SortColumnAndIndices,
+            which: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
-        let aggregator_config_json = serde_json::to_vec(&aggregator_config)?;
+        let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
         let aggregator_1_state = ArrowTableBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
-            .with_json(&aggregator_config_json.clone(), 1)?
-            .build()?;
+            .with_json(&aggregator_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let aggregator_2_state = ArrowTableBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
-            .with_json(&aggregator_config_json, 1)?
-            .build()?;
+            .with_json(&aggregator_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Chunk documents config
         let chunk_document_config = DataConfig {
@@ -809,18 +805,22 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: "document_id".to_string(),
             lhs_fk: "document_id".to_string(),
             lhs_values: "text".to_string(),
-            which: WhichCandleOperator::ChunkDocuments,
+            which: AvailableCandleOperators::ChunkDocuments,
             ..Default::default()
         };
-        let chunk_document_config_json = serde_json::to_vec(&chunk_document_config)?;
+        let chunk_document_config_json = serde_json::to_vec(&chunk_document_config).unwrap();
         let chunk_document_1_state = ArrowTableBuilder::new()
             .with_name(self.document_chunk_processor_1_name)
-            .with_json(&chunk_document_config_json, 1)?
-            .build()?;
+            .with_json(&chunk_document_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let chunk_document_2_state = ArrowTableBuilder::new()
             .with_name(self.document_chunk_processor_2_name)
-            .with_json(&chunk_document_config_json, 1)?
-            .build()?;
+            .with_json(&chunk_document_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Relative similarity config
         let rel_sim_config = DataConfig {
@@ -832,14 +832,16 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
-        let rel_sim_config_json = serde_json::to_vec(&rel_sim_config)?;
+        let rel_sim_config_json = serde_json::to_vec(&rel_sim_config).unwrap();
         let rel_sim_state = ArrowTableBuilder::new()
             .with_name(self.relative_similarity_processor_name)
-            .with_json(&rel_sim_config_json, 1)?
-            .build()?;
+            .with_json(&rel_sim_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Sort scores config
         let sort_scores_config = DataConfig {
@@ -847,14 +849,16 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: "chunk_id".to_string(),
             lhs_fk: "chunk_id".to_string(),
             lhs_values: "score".to_string(),
-            which: WhichCandleOperator::SortColumnAndIndices,
+            which: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
-        let sort_scores_config_json = serde_json::to_vec(&sort_scores_config)?;
+        let sort_scores_config_json = serde_json::to_vec(&sort_scores_config).unwrap();
         let sort_scores_state = ArrowTableBuilder::new()
             .with_name(self.sort_scores_processor_name)
-            .with_json(&sort_scores_config_json, 1)?
-            .build()?;
+            .with_json(&sort_scores_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Join chunks scores config
         let join_chunks_config = DataConfig {
@@ -866,14 +870,16 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some("text".to_string()),
-            which: WhichCandleOperator::JoinInner,
+            which: AvailableCandleOperators::JoinInner,
             ..Default::default()
         };
-        let join_chunks_config_json = serde_json::to_vec(&join_chunks_config)?;
+        let join_chunks_config_json = serde_json::to_vec(&join_chunks_config).unwrap();
         let join_chunks_state = ArrowTableBuilder::new()
             .with_name(self.join_chunks_processor_name)
-            .with_json(&join_chunks_config_json, 1)?
-            .build()?;
+            .with_json(&join_chunks_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Summary config (to limit the number of documents)
         let top_k_config = DataSummaryConfig {
@@ -881,13 +887,15 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             num_rows: Some(3),
             num_batches: Some(1),
         };
-        let top_k_config_json = serde_json::to_vec(&top_k_config)?;
+        let top_k_config_json = serde_json::to_vec(&top_k_config).unwrap();
         let top_k_state = ArrowTableBuilder::new()
             .with_name(self.top_k_processor_name)
-            .with_json(&top_k_config_json, 1)?
-            .build()?;
+            .with_json(&top_k_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
-        Ok(vec![
+        Some(vec![
             candle_chat_state,
             candle_doc_embed_state,
             candle_query_embed_state,
@@ -899,30 +907,19 @@ impl AgentSessionBuilderTrait for DocumentRAGSession<'_> {
             chunk_document_2_state,
             join_chunks_state,
             top_k_state,
-            self.make_chat_table()?,
-            self.make_messages_table()?,
-            self.make_user_messages_table()?,
-            self.make_assistant_messages_table()?,
-            self.make_documents_table()?,
-            self.make_document_chunk_table()?,
-            self.make_queries_table()?,
-            self.make_top_k_docs_table()?,
-            self.make_doc_embed_table()?,
-            self.make_q_embed_table()?,
-            self.make_scores_table()?,
-            self.make_join_chunks_scores_table()?,
+            self.make_chat_table().unwrap(),
+            self.make_messages_table().unwrap(),
+            self.make_user_messages_table().unwrap(),
+            self.make_assistant_messages_table().unwrap(),
+            self.make_documents_table().unwrap(),
+            self.make_document_chunk_table().unwrap(),
+            self.make_queries_table().unwrap(),
+            self.make_top_k_docs_table().unwrap(),
+            self.make_doc_embed_table().unwrap(),
+            self.make_q_embed_table().unwrap(),
+            self.make_scores_table().unwrap(),
+            self.make_join_chunks_scores_table().unwrap(),
         ])
-    }
-
-    fn make_session_context(&self, metrics: ArrowTaskMetricsSet) -> Result<SessionContext> {
-        SessionContextBuilder::new()
-            .with_name(self.session_context_name)
-            .with_tasks(self.make_task_plan())
-            .with_metrics(metrics)
-            .with_runtime_envs(self.make_runtime_envs()?)
-            .with_state(self.make_state_tables()?)
-            .with_processors(self.make_processors())
-            .build()
     }
 }
 
@@ -1078,11 +1075,16 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::HashMap,
-        session::session_context::SessionStreamState,
+        metrics::{ArrowTaskMetricsSet, HashMap},
+        session::{
+            session_context::SessionStreamState,
+            session_context_builder::SessionContextBuilderTrait,
+        },
         table::arrow_table::ArrowTableTrait,
         task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
+
+    use crate::session_traits::agents::SessionContextBuilderAgentsTrait;
 
     use super::*;
     use test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query};
@@ -1102,7 +1104,11 @@ mod tests {
             doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
             doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
         }
-        let session_ctx = doc_rag_session.make_session_context(metrics.clone())?;
+        let session_ctx = doc_rag_session
+            .build()
+            .with_metrics(metrics.clone())
+            .with_name(doc_rag_session.session_context_name)
+            .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Create the document message

@@ -1,4 +1,5 @@
 pub mod message_history;
+pub mod vector_search;
 
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
 pub mod chat_completion;

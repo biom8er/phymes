@@ -16,8 +16,8 @@ use phymes_core::{
     },
     task::{
         arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
+            ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
+            ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
         publish_subscribe::PubSubTrait,
@@ -49,26 +49,7 @@ pub struct CandleDataProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
-    forward: Vec<String>,
     subscribe: Box<dyn SubscribeTrait>,
-}
-
-impl CandleDataProcessor {
-    pub fn new_with_pub_sub_for(
-        name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
-        forward: &[&str],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe,
-        })
-    }
 }
 
 impl MappableTrait for CandleDataProcessor {
@@ -92,18 +73,35 @@ impl PubSubTrait for CandleDataProcessor {
 }
 
 impl ArrowProcessorTrait for CandleDataProcessor {
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait> {
+        Arc::new(Self {
+            name: name.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe,
+        })
+    }
+
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
-            forward: Vec::new(),
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
-    fn get_forward_subscriptions(&self) -> &[String] {
-        self.forward.as_slice()
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
+        self.subscribe.as_ref()
+    }
+
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
     }
 
     #[instrument(skip(self, message, metrics, runtime_env))]
@@ -121,17 +119,29 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Make the outbox and move forwarded messages
-        let mut outbox = HashMap::<String, ArrowOutgoingMessage>::new();
-        for f in self.forward.iter() {
-            if let Some(m) = message.remove(f) {
-                let _ = outbox.insert(f.to_string(), m);
+        // Remove subscriptions
+        let mut subscriptions = HashMap::<String, ArrowOutgoingMessage>::new();
+        for subs in self.subscriptions.iter() {
+            if subs.get_table_name() != self.get_name() {
+                match message.remove(subs.get_table_name()) {
+                    // DM: need to migrate this to `make_random_name` to avoid hash collisions
+                    Some(m) => {
+                        subscriptions.insert(m.get_subject().to_string(), m);
+                    }
+                    None => {
+                        return Err(anyhow!(
+                            "Subscription {} not provided for {}.",
+                            subs.get_table_name(),
+                            self.get_name()
+                        ));
+                    }
+                }
             }
         }
 
         // Run the ops
         let out = Box::pin(CandleDataStream::new(
-            message,
+            subscriptions,
             config,
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),
@@ -143,8 +153,8 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             .with_message(out)
             .with_update(self.publications.first().unwrap())
             .build()?;
-        let _ = outbox.insert(out_m.get_name().to_string(), out_m);
-        Ok(outbox)
+        let _ = message.insert(out_m.get_name().to_string(), out_m);
+        Ok(message)
     }
 }
 
@@ -236,7 +246,7 @@ impl Stream for CandleDataStream {
         let _timer = metrics.elapsed_compute().timer();
 
         // Intialize the config
-        event!(Level::DEBUG, "Initializing OpsProcessor config.");
+        event!(Level::DEBUG, "Initializing config.");
         if self.config.is_none() {
             let mut batches = Vec::new();
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
@@ -288,7 +298,7 @@ impl Stream for CandleDataStream {
         }
 
         // Collect the LHS queries
-        event!(Level::DEBUG, "Collecting OpsProcessor LHS.");
+        event!(Level::DEBUG, "Collecting LHS.");
         if self.lhs_inbox.is_empty() {
             let lhs_name = self.config.as_ref().unwrap().lhs_name.clone();
             let lhs = match self.messages.get_mut(lhs_name.as_str()) {
@@ -309,6 +319,7 @@ impl Stream for CandleDataStream {
                                 Ok(builder) => builder.with_name("").build()?,
                                 Err(err) => {
                                     self.is_finished = true;
+                                    event!(Level::ERROR, "{}", err.to_string().as_str());
                                     return Poll::Ready(Some(Ok(make_error_record_batch(
                                         err.to_string().as_str(),
                                     ))));
@@ -318,8 +329,14 @@ impl Stream for CandleDataStream {
                         }
                         None => {
                             self.is_finished = true;
+                            let error_str = format!(
+                                "lhs_name {lhs_name} does not exist. Available options are {:?}",
+                                self.messages.keys()
+                            );
+                            event!(Level::ERROR, error_str);
                             return Poll::Ready(Some(Ok(make_error_record_batch(
-                                format!("lhs_name {lhs_name} does not exist. Available options are {:?}", self.messages.keys()).as_str()))));
+                                error_str.as_str(),
+                            ))));
                         }
                     }
                 }
@@ -328,7 +345,7 @@ impl Stream for CandleDataStream {
         };
 
         // Collect the RHS document chunks
-        event!(Level::DEBUG, "Collecting OpsProcessor RHS.");
+        event!(Level::DEBUG, "Collecting RHS.");
         if self.rhs_inbox.is_empty() && self.config.as_ref().unwrap().rhs_name.is_some() {
             let rhs_name = self
                 .config
@@ -363,6 +380,7 @@ impl Stream for CandleDataStream {
                                 Ok(builder) => builder.with_name("").build()?,
                                 Err(err) => {
                                     self.is_finished = true;
+                                    event!(Level::ERROR, "{}", err.to_string().as_str());
                                     return Poll::Ready(Some(Ok(make_error_record_batch(
                                         err.to_string().as_str(),
                                     ))));
@@ -372,8 +390,14 @@ impl Stream for CandleDataStream {
                         }
                         None => {
                             self.is_finished = true;
+                            let error_str = format!(
+                                "rhs_name {rhs_name} does not exist. Available options are {:?}",
+                                self.messages.keys()
+                            );
+                            event!(Level::ERROR, error_str);
                             return Poll::Ready(Some(Ok(make_error_record_batch(
-                                format!("rhs_name {rhs_name} does not exist. Available options are {:?}", self.messages.keys()).as_str()))));
+                                error_str.as_str(),
+                            ))));
                         }
                     }
                 }
@@ -384,7 +408,7 @@ impl Stream for CandleDataStream {
         // Compute the data operator
         event!(
             Level::DEBUG,
-            "Executing Ops {}.",
+            "Executing {}.",
             self.config.as_ref().unwrap().which.get_name()
         );
         self.init_tensor_service()?;
@@ -486,7 +510,7 @@ pub mod test_candle_ops_processor {
 
 #[cfg(test)]
 mod tests {
-    use crate::candle_operators::which_operator::WhichCandleOperator;
+    use crate::candle_operators::available_candle_operators::AvailableCandleOperators;
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
     use phymes_core::table::{arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish};
@@ -561,7 +585,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
         let config_table = ArrowTable::get_builder()
@@ -652,7 +676,7 @@ mod tests {
 
         // Make the config
         let config_args = DataConfig {
-            which: WhichCandleOperator::HumanInTheLoop,
+            which: AvailableCandleOperators::HumanInTheLoop,
             lhs_args: Some("{\"role\": \"assistant\", \"content\": \"RESPONSE\"}".to_string()),
             rhs_args: None,
             ..Default::default()
@@ -860,7 +884,7 @@ mod tests {
             ArrowOutgoingMessage::get_builder()
                 .with_name("lhs_name")
                 .with_publisher("")
-                .with_subject("")
+                .with_subject("lhs_name")
                 .with_update(&ArrowTablePublish::None)
                 .with_message(lhs_table.to_record_batch_stream())
                 .build()?,
@@ -886,7 +910,7 @@ mod tests {
             ArrowOutgoingMessage::get_builder()
                 .with_name("rhs_name")
                 .with_publisher("")
-                .with_subject("")
+                .with_subject("rhs_name")
                 .with_update(&ArrowTablePublish::None)
                 .with_message(rhs_table.to_record_batch_stream())
                 .build()?,
@@ -902,7 +926,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -936,13 +960,19 @@ mod tests {
         let runtime_env = Arc::new(Mutex::new(runtime_env));
 
         // Make the stream and run
-        let ops_processor = CandleDataProcessor::new_with_pub_sub_for(
+        let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
             "candle_ops_processor",
             &[ArrowTablePublish::Replace {
                 table_name: "results".to_string(),
             }],
-            &[],
-            &[],
+            &[
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: "lhs_name".to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: "rhs_name".to_string(),
+                },
+            ],
             AllTableNamesSubscribe::new_box(),
         );
         let mut ops_stream = ops_processor.process(messages, metrics, runtime_env)?;

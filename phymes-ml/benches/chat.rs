@@ -1,11 +1,10 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics},
-    session::session_context::get_metrics_as_pivot_table,
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, get_metrics_as_pivot_table},
     table::arrow_table::ArrowTableTrait,
 };
 use phymes_ml::{
-    candle_assets::candle_which::WhichCandleAsset,
+    candle_assets::available_candle_assets::AvailableCandleAssets,
     candle_chat::{
         chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor,
     },
@@ -46,7 +45,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_smollm2_1.candle_asset = Some(WhichCandleAsset::SmolLM2_135MChat);
+    config_smollm2_1.candle_asset = Some(AvailableCandleAssets::SmolLM2_135MChat);
     let mut config_smollm2_2 = config_smollm2_1.clone();
     config_smollm2_2.weights_file = Some(format!(
         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q8_0.gguf",
@@ -74,13 +73,13 @@ fn benchmark_chat_processor(c: &mut Criterion) {
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_qwen2p5_1.candle_asset = Some(WhichCandleAsset::QwenV2p5_0p5bChat);
+    config_qwen2p5_1.candle_asset = Some(AvailableCandleAssets::QwenV2p5_0p5bChat);
     let mut config_qwen2p5_2 = config_qwen2p5_1.clone();
     config_qwen2p5_2.weights_file = Some(format!(
         "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-3b-instruct-q5_k_m.gguf",
         std::env::var("HOME").unwrap_or("".to_string())
     ));
-    config_qwen2p5_2.candle_asset = Some(WhichCandleAsset::QwenV2p5_3bChat);
+    config_qwen2p5_2.candle_asset = Some(AvailableCandleAssets::QwenV2p5_3bChat);
     let config_vec = vec![
         config_smollm2_1,
         // config_smollm2_2,

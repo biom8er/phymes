@@ -1,6 +1,7 @@
 use anyhow::Result;
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
 use candle_core::Device;
+use phymes_core::session::common_traits::MappableTrait;
 use std::{fmt::Debug, sync::Arc};
 
 /// Helper function to create an error message that
@@ -11,29 +12,7 @@ pub fn make_error_record_batch(error: &str) -> RecordBatch {
 }
 
 /// Data operators and other tools that utilize tensor services
-pub trait DataOperatorTrait: Send + Sync + Debug {
-    /// Short name for the DataOperator, such as 'AddRows'.
-    /// Like `get_name` but can be called without an instance.
-    fn get_static_name() -> &'static str
-    where
-        Self: Sized,
-    {
-        let full_name = std::any::type_name::<Self>();
-        let maybe_start_idx = full_name.rfind(':');
-        match maybe_start_idx {
-            Some(start_idx) => &full_name[start_idx + 1..],
-            None => "UNKNOWN",
-        }
-    }
-
-    /// The user defined name of the DataOperator
-    fn get_name() -> String
-    where
-        Self: Sized,
-    {
-        Self::get_static_name().to_string()
-    }
-
+pub trait DataOperatorTrait: MappableTrait + Send + Sync + Debug {
     /// Create a new instance of the data operator
     /// with the given keyword arguments.
     ///

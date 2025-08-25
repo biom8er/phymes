@@ -8,7 +8,10 @@ use lopdf::{
     content::{Content, Operation},
     dictionary,
 };
-use phymes_core::schemas::{chat_completion, types};
+use phymes_core::{
+    schemas::{chat_completion, types},
+    session::common_traits::MappableTrait,
+};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::{Level, event, instrument};
 
@@ -21,10 +24,13 @@ pub struct ExtractPDFText {
     lhs_values: String,
 }
 
-impl DataOperatorTrait for ExtractPDFText {
-    fn get_static_name() -> &'static str {
-        "extract-pdf-text"
+impl MappableTrait for ExtractPDFText {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
+}
+
+impl DataOperatorTrait for ExtractPDFText {
     fn new(
         lhs_pk: &str,
         _lhs_fk: &str,
@@ -89,7 +95,7 @@ impl DataOperatorTrait for ExtractPDFText {
             }),
         );
         let function = types::Function {
-            name: Self::get_name(),
+            name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,

@@ -55,7 +55,6 @@ main header .navbar .checkbtn {
 	cursor: pointer;
 }
 main header .navbar svg {
-    transform: scale(1.5);
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;
@@ -174,7 +173,7 @@ main .messaging_list button{
 	outline: none;
 	cursor: pointer;
 }
-main .messaging_list p{
+main .messaging_list p, main .messaging_list span, main .messaging_list a{
     float: middle;
 	margin: auto;
 	background-color:#333333ff;
@@ -395,12 +394,12 @@ main footer .text_input{
 	height: 100%;
 	float: left;
 }
-main footer .text_input #message_form {
+main footer .text_input form {
     width: 100%;
     height: 100%;
 	color:#fff;
 }
-main footer .text_input #message_form textarea {
+main footer .text_input form textarea {
 	border:none;
     width: 100%;
     height: 100%;
@@ -415,8 +414,26 @@ main footer .text_input #message_form textarea {
 	color:#fff;
 	background-color:#333333ff;
 }
-main footer .text_input #message_form textarea::placeholder{
+main footer .text_input form textarea::placeholder{
 	color:#fff;
+}
+main footer .attach_button{
+    width: 64px;
+    height: 48px;
+    float: left;
+}
+main footer .attach_button button{
+    width: auto;
+    height: auto;
+	border: none;
+	color:#fff;
+	background-color:black;
+	cursor: pointer;
+}
+main footer .attach_button svg {
+    max-width: 48px; /* based on viewBox attributes in svg */
+    max-height: 48px;
+    vertical-align: middle;
 }
 main footer .submit_button{
     width: 64px;
@@ -432,9 +449,40 @@ main footer .submit_button button{
 	cursor: pointer;
 }
 main footer .submit_button svg {
-    transform: scale(1.25);
 	translate: 2 2px;
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;
+}
+
+/* Help menu styling */
+main .messaging_list .help_li_item{
+    width: 100%;
+    height: auto;
+	display: flex;
+	align-items: center;
+	padding: 2px;
+}
+main .messaging_list .help_li_item h2{
+    vertical-align: middle;
+	float: left;
+	text-align: left;
+}
+main .messaging_list .help_li_item svg{
+    max-width: 48px; /* based on viewBox attributes in svg */
+    max-height: 48px;
+    vertical-align: middle;
+	float: left;
+}
+main .messaging_list .help_li_item p, main .messaging_list .help_li_item span, main .messaging_list .help_li_item a{
+    vertical-align: middle;
+	float: right;
+	text-align: left;
+}
+
+#graphDiv {
+    width: 99%;
+    height: 90%;
+    overflow: hidden;
+    position: relative;
 }

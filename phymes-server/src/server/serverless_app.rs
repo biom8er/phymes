@@ -145,7 +145,7 @@ mod tests {
             .unwrap();
         let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
-        // Test subjects_info
+        // Test subjects_schema
         let mut server = Serverless::new();
 
         // Extract out the JWT token
@@ -167,10 +167,10 @@ mod tests {
         };
         let data = serde_json::to_string(&session_response).unwrap();
 
-        // Make the request for the subjects_info
+        // Make the request for the subjects_schema
         let request: Request<String> = Request::builder()
             .method("POST")
-            .uri("http://127.0.0.1:8000/app/v1/subjects_info")
+            .uri("http://127.0.0.1:8000/app/v1/subjects_schema")
             .header("Content-type", "application/json")
             .header("Authorization", bearer.as_str())
             .body(data)
@@ -178,7 +178,7 @@ mod tests {
         let response: Response = server.call(request).await;
         assert_eq!(200, response.status());
 
-        // Parse the response for the subjects_info
+        // Parse the response for the subjects_schema
         let bytes: Vec<Bytes> = response
             .into_body()
             .into_data_stream()
@@ -186,43 +186,6 @@ mod tests {
             .await
             .unwrap();
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
-
-        // DM: omitted to reduce test time
-        // // Test session_stream
-        // let mut server = Serverless::new();
-
-        // // Create the session state JSON value
-        // let session_response = SessionResponse {
-        //     session_name: session_name.clone(),
-        //     subject_name: "messages".to_string(),
-        //     format: SessionResponseFormat::Bytes,
-        //     publish: ArrowTablePublish::None,
-        //     content: "What is the world's tallest mountain?".to_string(),
-        //     metadata: "".to_string(),
-        //     stream: true
-        // };
-        // let data = serde_json::to_string(&session_response).unwrap();
-
-        // // Make the request for the chat
-        // let request: Request<String> = Request::builder()
-        //     .method("POST")
-        //     .uri("http://127.0.0.1:8000/app/v1/chat")
-        //     .header("Content-type", "application/json")
-        //     .header("Authorization", bearer.as_str())
-        //     .body(data)
-        //     .unwrap();
-        // let response: Response = server.call(request).await;
-        // assert_eq!(200, response.status());
-
-        // // Parse the response for the chat
-        // let bytes: Vec<Bytes> = response
-        //     .into_body()
-        //     .into_data_stream()
-        //     .try_collect()
-        //     .await
-        //     .unwrap();
-        // let values: Vec<Map<String, Value>> = serde_json::from_slice(bytes.first().unwrap()).unwrap();
-        // println!("{values:?}");
     }
 
     #[tokio::test]
@@ -248,7 +211,7 @@ mod tests {
             .unwrap();
         let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
-        // Test subjects_info using serverless_app
+        // Test subjects_schema using serverless_app
         let token = values.get("jwt").unwrap().as_str().unwrap();
         let bearer = token.to_string();
         let session_name =
@@ -266,7 +229,67 @@ mod tests {
         let data = serde_json::to_string(&session_response).unwrap();
 
         let config = ServerlessConfig {
-            route: "app/v1/subjects_info".to_string(),
+            route: "app/v1/subjects_schema".to_string(),
+            basic_auth: None,
+            bearer_auth: Some(bearer.clone()),
+            data: Some(data),
+        };
+        let response = serverless_app(config, &mut serverless).await.unwrap();
+        assert_eq!(200, response.status());
+
+        let bytes: Vec<Bytes> = response
+            .into_body()
+            .into_data_stream()
+            .try_collect()
+            .await
+            .unwrap();
+        let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+
+        // Test subjects_num_rows using serverless_app
+        let session_response = SessionResponse {
+            session_plan: "Chat".to_string(),
+            session_name: session_name.clone(),
+            subject_name: "".to_string(),
+            format: SessionResponseFormat::Bytes,
+            publish: ArrowTablePublish::None,
+            content: "".to_string().into(),
+            metadata: "".to_string(),
+            stream: false,
+        };
+        let data = serde_json::to_string(&session_response).unwrap();
+
+        let config = ServerlessConfig {
+            route: "app/v1/subjects_num_rows".to_string(),
+            basic_auth: None,
+            bearer_auth: Some(bearer.clone()),
+            data: Some(data),
+        };
+        let response = serverless_app(config, &mut serverless).await.unwrap();
+        assert_eq!(200, response.status());
+
+        let bytes: Vec<Bytes> = response
+            .into_body()
+            .into_data_stream()
+            .try_collect()
+            .await
+            .unwrap();
+        let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+
+        // Test mermaid_js using serverless_app
+        let session_response = SessionResponse {
+            session_plan: "Chat".to_string(),
+            session_name: session_name.clone(),
+            subject_name: "".to_string(),
+            format: SessionResponseFormat::Bytes,
+            publish: ArrowTablePublish::None,
+            content: "".to_string().into(),
+            metadata: "".to_string(),
+            stream: false,
+        };
+        let data = serde_json::to_string(&session_response).unwrap();
+
+        let config = ServerlessConfig {
+            route: "app/v1/mermaid_js".to_string(),
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
@@ -288,7 +311,9 @@ mod tests {
             session_name: session_name.clone(),
             subject_name: "messages".to_string(),
             format: SessionResponseFormat::Bytes,
-            publish: ArrowTablePublish::None,
+            publish: ArrowTablePublish::Extend {
+                table_name: "messages".to_string(),
+            },
             content: "What is the world's tallest mountain?".to_string().into(),
             metadata: "".to_string(),
             stream: true,
@@ -298,7 +323,7 @@ mod tests {
         let config = ServerlessConfig {
             route: "app/v1/chat".to_string(),
             basic_auth: None,
-            bearer_auth: Some(bearer),
+            bearer_auth: Some(bearer.clone()),
             data: Some(data),
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
@@ -313,5 +338,35 @@ mod tests {
         let values: Vec<Map<String, Value>> =
             serde_json::from_slice(bytes.first().unwrap()).unwrap();
         println!("{values:?}");
+
+        // Test metrics using serverless_app
+        let session_response = SessionResponse {
+            session_plan: "Chat".to_string(),
+            session_name: session_name.clone(),
+            subject_name: "".to_string(),
+            format: SessionResponseFormat::Bytes,
+            publish: ArrowTablePublish::None,
+            content: "".to_string().into(),
+            metadata: "".to_string(),
+            stream: false,
+        };
+        let data = serde_json::to_string(&session_response).unwrap();
+
+        let config = ServerlessConfig {
+            route: "app/v1/metrics_info".to_string(),
+            basic_auth: None,
+            bearer_auth: Some(bearer.clone()),
+            data: Some(data),
+        };
+        let response = serverless_app(config, &mut serverless).await.unwrap();
+        assert_eq!(200, response.status());
+
+        let bytes: Vec<Bytes> = response
+            .into_body()
+            .into_data_stream()
+            .try_collect()
+            .await
+            .unwrap();
+        let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
     }
 }

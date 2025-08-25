@@ -53,26 +53,7 @@ pub struct DataSummaryProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
-    forward: Vec<String>,
     subscribe: Box<dyn SubscribeTrait>,
-}
-
-impl DataSummaryProcessor {
-    pub fn new_with_pub_sub_for(
-        name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
-        forward: &[&str],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe,
-        })
-    }
 }
 
 impl MappableTrait for DataSummaryProcessor {
@@ -96,18 +77,35 @@ impl PubSubTrait for DataSummaryProcessor {
 }
 
 impl ArrowProcessorTrait for DataSummaryProcessor {
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait> {
+        Arc::new(Self {
+            name: name.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe,
+        })
+    }
+
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
-            forward: Vec::new(),
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
-    fn get_forward_subscriptions(&self) -> &[String] {
-        self.forward.as_slice()
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
+        self.subscribe.as_ref()
+    }
+
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
     }
 
     #[instrument(skip(self, message, metrics, runtime_env))]
@@ -126,16 +124,32 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
         };
 
         // Extract out the messages to be summarized
-        // DM: we need to assume that there is only one message left to summarize
-        assert_eq!(message.len(), 1);
-        let messages = match message.into_iter().next() {
-            Some((_k, v)) => v.get_message_own(),
-            None => return Err(anyhow!("Messages not provided for {}.", self.get_name())),
-        };
+        let mut subscriptions = Vec::new();
+        for subs in self.subscriptions.iter() {
+            if subs.get_table_name() != self.get_name() {
+                match message.remove(subs.get_table_name()) {
+                    Some(m) => {
+                        subscriptions.push(m);
+                    }
+                    None => {
+                        return Err(anyhow!(
+                            "Subscription {} not provided for {}.",
+                            subs.get_table_name(),
+                            self.get_name()
+                        ));
+                    }
+                }
+            }
+        }
+        if subscriptions.len() > 1 {
+            return Err(anyhow!("More than one subscription was found."));
+        } else if subscriptions.is_empty() {
+            return Err(anyhow!("No subscriptions were found."));
+        }
 
         // Make the outbox and send
         let out = Box::pin(DataSummaryStream::new(
-            messages,
+            subscriptions.swap_remove(0).get_message_own(),
             config,
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),
@@ -365,7 +379,7 @@ mod tests {
             ArrowOutgoingMessage::get_builder()
                 .with_name("lhs_name")
                 .with_publisher("")
-                .with_subject("")
+                .with_subject("lhs_name")
                 .with_update(&ArrowTablePublish::None)
                 .with_message(lhs_table.to_record_batch_stream())
                 .build()?,
@@ -387,7 +401,7 @@ mod tests {
             ArrowOutgoingMessage::get_builder()
                 .with_name("summary_processor")
                 .with_publisher("")
-                .with_subject("")
+                .with_subject("summary_processor")
                 .with_update(&ArrowTablePublish::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
@@ -404,13 +418,14 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = DataSummaryProcessor::new_with_pub_sub_for(
+        let processor = DataSummaryProcessor::new_arc_with_pub_sub(
             "summary_processor",
             &[ArrowTablePublish::Extend {
                 table_name: "messages".to_string(),
             }],
-            &[],
-            &[],
+            &[ArrowTableSubscribe::AlwaysFullTable {
+                table_name: "lhs_name".to_string(),
+            }],
             AllTableNamesSubscribe::new_box(),
         );
         let mut stream = processor.process(messages, metrics.clone(), runtime_env)?;

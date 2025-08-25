@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use arrow::array::{ArrayRef, UInt64Array};
 use arrow::array::{BooleanArray, StringArray};
 use arrow::datatypes::SchemaRef;
@@ -21,7 +21,10 @@ use super::{
     runtime_env::RuntimeEnv,
     session_context_builder::SessionContextBuilder,
 };
-use crate::metrics::{ArrowTaskMetricsSet, HashMap};
+use crate::metrics::{
+    ArrowTaskMetricsSet, HashMap, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt,
+    get_metrics_as_pivot_table,
+};
 use crate::table::arrow_table_publish::ArrowTablePublish;
 use crate::table::{
     arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
@@ -33,157 +36,31 @@ use crate::task::{
         ArrowIncomingMessageTrait, ArrowMessageBuilderTrait, ArrowMessageTrait,
         ArrowOutgoingMessage, ArrowOutgoingMessageTrait,
     },
-    arrow_task::ArrowTaskTrait,
     publish_subscribe::PubSubTrait,
 };
 
-/// Get the metrics for multiple sessions as a table
-pub fn get_metrics_as_pivot_table(
-    metrics_vec: &[ArrowTaskMetricsSet],
-    table_name: &str,
-) -> Result<ArrowTable> {
-    // extract out values from metrics
-    let mut task_metrics_count: HashMap<(String, String), usize> = HashMap::new();
-    let mut task_names_vec = Vec::<(String, usize)>::new();
-    let mut metric_names_vec = Vec::<String>::new();
-    let mut metric_values_vec = Vec::<u64>::new();
-    for metrics in metrics_vec.iter() {
-        for metric in metrics.clone_inner().iter() {
-            // Count the number of unique task and metric combinations
-            let task_name = metric.task().as_ref().unwrap().to_string();
-            let metric_name = metric.value().name().to_string();
-            if let Some(count) =
-                task_metrics_count.get_mut(&(task_name.clone(), metric_name.clone()))
-            {
-                *count += 1;
-            } else {
-                task_metrics_count.insert((task_name.clone(), metric_name.clone()), 1);
-            }
-
-            // Record the task name, metric name, and value
-            task_names_vec.push((
-                task_name.clone(),
-                *task_metrics_count
-                    .get(&(task_name.clone(), metric_name.clone()))
-                    .unwrap(),
-            ));
-            metric_names_vec.push(metric_name);
-            metric_values_vec.push(metric.value().as_usize() as u64);
-        }
-    }
-
-    // find the unique metric names and task names
-    let mut unique_metric_names: Vec<String> = metric_names_vec
-        .iter()
-        .cloned()
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .collect();
-    unique_metric_names.sort();
-    let mut unique_task_names: Vec<(String, usize)> = task_names_vec
-        .iter()
-        .cloned()
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .collect();
-    unique_task_names.sort_by(|a, b| a.1.cmp(&b.1));
-    unique_task_names.sort_by(|a, b| a.0.cmp(&b.0));
-
-    // create the pivot table columns and initialize with task names and replicate counts
-    let mut pivot_columns = Vec::new();
-    let task_names: ArrayRef = Arc::new(StringArray::from(
-        unique_task_names
-            .iter()
-            .map(|(name, _)| name.clone())
-            .collect::<Vec<_>>(),
-    ));
-    pivot_columns.push(("task_name", task_names));
-    let replicate_couns: ArrayRef = Arc::new(UInt64Array::from(
-        unique_task_names
-            .iter()
-            .map(|(_, count)| *count as u64)
-            .collect::<Vec<_>>(),
-    ));
-    pivot_columns.push(("replicate_count", replicate_couns));
-
-    // Extract the metric values for each unique metric name and task name
-    for metric_name in unique_metric_names.iter() {
-        let mut pivot_metric_values = Vec::<u64>::new();
-        for (task_name, replicate_count) in unique_task_names.iter() {
-            // find the matching metric and task name
-            let mut found = false;
-            for i in 0..task_names_vec.len() {
-                if metric_names_vec.get(i).unwrap() == metric_name
-                    && task_names_vec.get(i).unwrap().0 == *task_name
-                    && task_names_vec.get(i).unwrap().1 == *replicate_count
-                {
-                    pivot_metric_values.push(metric_values_vec.get(i).unwrap().to_owned());
-                    found = true;
-                    break;
-                }
-            }
-            if !found {
-                pivot_metric_values.push(0); // default value if not found
-            }
-        }
-
-        // create the named array for this metric
-        let metric_values: ArrayRef = Arc::new(UInt64Array::from(pivot_metric_values));
-        pivot_columns.push((metric_name, metric_values));
-    }
-
-    // create the record batch
-    let batch = RecordBatch::try_from_iter(pivot_columns)?;
-
-    // create the table
-    ArrowTable::get_builder()
-        .with_name(table_name)
-        .with_record_batches(vec![batch])?
-        .build()
+/// Reserved table names for the [SessionContext]
+#[derive(Debug)]
+pub enum SessionContextTableNames {
+    Metrics,
+    Tasks,
+    Processors,
+    Subjects,
+    RuntimeEnvironments,
+    MermaidJS,
 }
 
-/// Get the metrics for a single session as a table
-pub fn get_metrics_as_table(metrics: ArrowTaskMetricsSet, table_name: &str) -> Result<ArrowTable> {
-    // extract out values from metrics
-    let mut task_names_vec = Vec::<String>::new();
-    let mut metric_names_vec = Vec::<String>::new();
-    let mut metric_values_vec = Vec::<u64>::new();
-    // let mut metrics_sorted = metrics.clone_inner().iter().map(|m| Arc::clone(m)).collect::<Vec<_>>();
-    // metrics_sorted.sort_by(|a, b| a.task().as_ref().unwrap().cmp(b.task().as_ref().unwrap()));
-    // metrics_sorted.sort_by(|a, b| a.value().name().to_string().cmp(&b.value().name().to_string()));
-    for metric in metrics.clone_inner().iter() {
-        task_names_vec.push(metric.task().as_ref().unwrap().to_string());
-        metric_names_vec.push(metric.value().name().to_string());
-        metric_values_vec.push(metric.value().as_usize() as u64);
+impl MappableTrait for SessionContextTableNames {
+    fn get_name(&self) -> &str {
+        match self {
+            Self::Metrics => "METRICS",
+            Self::Tasks => "TASKS",
+            Self::Processors => "PROCESSORS",
+            Self::Subjects => "SUBJECTS",
+            Self::RuntimeEnvironments => "RUNTIME_ENVIRONMENTS",
+            Self::MermaidJS => "MERMAID_JS",
+        }
     }
-
-    if let Some(val) = metrics.clone_inner().elapsed_compute() {
-        task_names_vec.push("All".to_string());
-        metric_names_vec.push("elapsed_compute".to_string());
-        metric_values_vec.push(val as u64);
-    }
-
-    if let Some(val) = metrics.clone_inner().output_rows() {
-        task_names_vec.push("All".to_string());
-        metric_names_vec.push("output_rows".to_string());
-        metric_values_vec.push(val as u64);
-    }
-
-    // create the record batch
-    let task_names: ArrayRef = Arc::new(StringArray::from(task_names_vec));
-    let metric_names: ArrayRef = Arc::new(StringArray::from(metric_names_vec));
-    let metric_values: ArrayRef = Arc::new(UInt64Array::from(metric_values_vec));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("task_name", task_names),
-        ("metric_name", metric_names),
-        ("metric_value", metric_values),
-    ])?;
-
-    // create the table
-    ArrowTable::get_builder()
-        .with_name(table_name)
-        .with_record_batches(vec![batch])?
-        .build()
 }
 
 /// The `SessionContext` creates an execution graph based on a
@@ -207,6 +84,24 @@ pub struct SessionContext {
 }
 
 impl SessionContext {
+    pub fn new(
+        name: String,
+        tasks: TaskMap,
+        state: StateMap,
+        metrics: ArrowTaskMetricsSet,
+        runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
+        max_iter: usize,
+    ) -> SessionContext {
+        Self {
+            name,
+            tasks,
+            state,
+            metrics,
+            runtime_envs,
+            max_iter,
+        }
+    }
+
     /// Get a task
     pub(crate) fn get_tasks(&self) -> &TaskMap {
         &self.tasks
@@ -217,9 +112,54 @@ impl SessionContext {
         &self.state
     }
 
-    /// Get the metrics for the session
-    pub fn get_metrics_info_as_table(&self, table_name: &str) -> Result<ArrowTable> {
-        get_metrics_as_table(self.metrics.clone(), table_name)
+    /// Create the metrics table if it does not exist or update with the new metrics
+    pub fn update_metrics_table(&mut self) -> Result<bool> {
+        // create the pivot table and clear the metrics
+        let pivot_table = get_metrics_as_pivot_table(
+            std::slice::from_ref(&self.metrics),
+            SessionContextTableNames::Metrics.get_name(),
+        )?;
+        self.metrics.clear();
+
+        // update the state with the metrics
+        if pivot_table.count_rows() > 0 {
+            if self
+                .state
+                .contains_key(SessionContextTableNames::Metrics.get_name())
+            {
+                self.state
+                    .get_mut(SessionContextTableNames::Metrics.get_name())
+                    .unwrap()
+                    .try_write()
+                    .unwrap()
+                    .update_table(
+                        pivot_table.get_record_batches_own(),
+                        ArrowTablePublish::Extend {
+                            table_name: SessionContextTableNames::Metrics.get_name().to_string(),
+                        },
+                    )?;
+            } else {
+                self.state.insert(
+                    SessionContextTableNames::Metrics.get_name().to_string(),
+                    Arc::new(RwLock::new(pivot_table)),
+                );
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Get the metrics as a gantt for the session
+    pub fn get_metrics_as_mermaid_gantt(&self) -> Result<ArrowTable> {
+        if let Some(pivot_table) = self.state.get(SessionContextTableNames::Metrics.get_name()) {
+            let pivot_table = get_metrics_as_gantt_table(pivot_table.try_read().unwrap().clone())?;
+            get_metrics_as_mermaid_gantt(pivot_table)
+        } else {
+            Err(anyhow!(
+                "Metrics table not in state. Run `update_metrics_table` first."
+            ))
+        }
     }
 
     /// Get the max iterations
@@ -228,86 +168,26 @@ impl SessionContext {
     }
 
     /// Get the subject schema
-    pub fn get_subjects_info_as_table(&self, table_name: &str) -> Result<ArrowTable> {
+    pub fn get_subject_num_rows_as_table(&self, table_name: &str) -> Result<ArrowTable> {
         let mut subject_names = Vec::new();
-        let mut cols_names = Vec::new();
-        let mut type_names = Vec::new();
         let mut num_rows = Vec::new();
 
         // Sort the hashmap
         let mut sorted_map = self.state.iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.0.cmp(b.0));
         for (_name, state) in sorted_map.iter() {
-            let fields = state.try_read().unwrap().get_schema().fields().clone();
             let name = state.try_read().unwrap().get_name().to_string();
             let num_row = state.try_read().unwrap().count_rows() as u64;
-            for field in fields.iter() {
-                subject_names.push(name.clone());
-                cols_names.push(field.name().to_string());
-                type_names.push(field.data_type().to_string());
-                num_rows.push(num_row);
-            }
+            subject_names.push(name.clone());
+            num_rows.push(num_row);
         }
 
         // create the record batch
         let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
-        let cols_names: ArrayRef = Arc::new(StringArray::from(cols_names));
-        let type_names: ArrayRef = Arc::new(StringArray::from(type_names));
         let num_rows: ArrayRef = Arc::new(UInt64Array::from(num_rows));
         let batch = RecordBatch::try_from_iter(vec![
-            ("subject_names", subject_names),
-            ("column_names", cols_names),
-            ("type_names", type_names),
+            ("subject_name", subject_names),
             ("num_rows", num_rows),
-        ])?;
-
-        // create the table
-        ArrowTable::get_builder()
-            .with_name(table_name)
-            .with_record_batches(vec![batch])?
-            .build()
-    }
-
-    /// Get the session tasks information
-    /// as a list of task_names, processor_names, subject_names, and pub_or_sub
-    ///   where publications are + and subscriptions are -
-    pub fn get_tasks_info_as_table(&self, table_name: &str) -> Result<ArrowTable> {
-        let mut task_names = Vec::new();
-        let mut processor_names = Vec::new();
-        let mut subject_names = Vec::new();
-        let mut pub_or_sub = Vec::new();
-
-        // Sort the hashmap
-        let mut sorted_map = self.tasks.iter().collect::<Vec<_>>();
-        sorted_map.sort_by(|a, b| a.0.cmp(b.0));
-        for (name, task) in sorted_map.iter() {
-            for p in task.get_processors().iter() {
-                // Get the sub and pub
-                for sub in p.get_subscriptions().iter() {
-                    subject_names.push(sub.get_table_name().to_string());
-                    pub_or_sub.push("-".to_string());
-                    task_names.push(name.to_string());
-                    processor_names.push(p.get_name().to_string());
-                }
-                for publications in p.get_publications().iter() {
-                    subject_names.push(publications.get_table_name().to_string());
-                    pub_or_sub.push("+".to_string());
-                    task_names.push(name.to_string());
-                    processor_names.push(p.get_name().to_string());
-                }
-            }
-        }
-
-        // create the record batch
-        let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
-        let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
-        let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
-        let pub_or_sub: ArrayRef = Arc::new(StringArray::from(pub_or_sub));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("task_names", task_names),
-            ("processor_names", processor_names),
-            ("subject_names", subject_names),
-            ("pub_or_sub", pub_or_sub),
         ])?;
 
         // create the table
@@ -1446,155 +1326,16 @@ mod tests {
     }
 
     #[test]
-    fn test_session_get_tasks_info_as_table() -> Result<()> {
+    fn test_session_get_subject_num_rows_as_table() -> Result<()> {
         let metrics = ArrowTaskMetricsSet::new();
         let session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
-        let info = session_context.get_tasks_info_as_table("table")?;
+        let info = session_context.get_subject_num_rows_as_table("table")?;
         assert_eq!(info.get_name(), "table");
         assert_eq!(
-            info.get_column_as_vec_str("task_names"),
+            info.get_column_as_vec_str("subject_name"),
             [
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "task_1",
-                "task_1",
-                "task_1",
-                "task_2",
-                "task_2",
-                "task_2",
-                "task_3",
-                "task_3",
-                "task_3"
-            ]
-        );
-        assert_eq!(
-            info.get_column_as_vec_str("processor_names"),
-            [
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "processor_1",
-                "processor_1",
-                "processor_1",
-                "processor_2",
-                "processor_2",
-                "processor_2",
-                "processor_3",
-                "processor_3",
-                "processor_3"
-            ]
-        );
-        assert_eq!(
-            info.get_column_as_vec_str("subject_names"),
-            [
-                "state_1", "state_2", "state_3", "state_1", "state_2", "state_3", "state_1",
-                "config_1", "state_1", "state_2", "config_2", "state_2", "state_3", "config_3",
-                "state_3"
-            ]
-        );
-        assert_eq!(
-            info.get_column_as_vec_str("pub_or_sub"),
-            [
-                "-", "-", "-", "+", "+", "+", "-", "-", "+", "-", "-", "+", "-", "-", "+"
-            ]
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_session_get_subjects_info_as_table() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
-        let session_context =
-            make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
-        let info = session_context.get_subjects_info_as_table("table")?;
-        assert_eq!(info.get_name(), "table");
-        assert_eq!(
-            info.get_column_as_vec_str("subject_names"),
-            [
-                "config_1", "config_1", "config_1", "config_2", "config_2", "config_2", "config_3",
-                "config_3", "config_3", "state_1", "state_1", "state_1", "state_1", "state_1",
-                "state_1", "state_1", "state_2", "state_2", "state_2", "state_2", "state_2",
-                "state_2", "state_2", "state_3", "state_3", "state_3", "state_3", "state_3",
-                "state_3", "state_3",
-            ]
-        );
-        assert_eq!(
-            info.get_column_as_vec_str("column_names"),
-            [
-                "a",
-                "b",
-                "c",
-                "a",
-                "b",
-                "c",
-                "a",
-                "b",
-                "c",
-                "id",
-                "collection",
-                "title",
-                "text",
-                "metadata",
-                "score",
-                "embedding",
-                "id",
-                "collection",
-                "title",
-                "text",
-                "metadata",
-                "score",
-                "embedding",
-                "id",
-                "collection",
-                "title",
-                "text",
-                "metadata",
-                "score",
-                "embedding"
-            ]
-        );
-        assert_eq!(
-            info.get_column_as_vec_str("type_names"),
-            [
-                "Utf8",
-                "UInt32",
-                "UInt16",
-                "Utf8",
-                "UInt32",
-                "UInt16",
-                "Utf8",
-                "UInt32",
-                "UInt16",
-                "UInt32",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Float32",
-                "FixedSizeList(Field { name: \"item\", data_type: Float32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)",
-                "UInt32",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Float32",
-                "FixedSizeList(Field { name: \"item\", data_type: Float32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)",
-                "UInt32",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Utf8",
-                "Float32",
-                "FixedSizeList(Field { name: \"item\", data_type: Float32, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }, 8)"
+                "config_1", "config_2", "config_3", "state_1", "state_2", "state_3",
             ]
         );
         let num_rows = info
@@ -1612,13 +1353,7 @@ mod tests {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        assert_eq!(
-            num_rows,
-            [
-                1, 1, 1, 1, 1, 1, 1, 1, 1, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
-                12, 12, 12, 12, 12, 12, 12
-            ]
-        );
+        assert_eq!(num_rows, [1, 1, 1, 12, 12, 12]);
 
         Ok(())
     }
@@ -2728,8 +2463,6 @@ mod tests {
                 table_name: "state_1".to_string()
             }
         );
-
-        // Check the metrics
         let partitions = response
             .get_mut(0)
             .unwrap()
@@ -2738,18 +2471,85 @@ mod tests {
             .get_message_own();
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 6);
+
+        // Check the metrics
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 5385);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
 
-        // DM: seperate test
-        let _info = session_stream_state
-            .try_read()
+        // Add the metrics to the state
+        session_stream_state
+            .try_write()
             .unwrap()
-            .get_session_context()
-            .get_metrics_info_as_table("")?;
+            .get_session_context_mut()
+            .update_metrics_table()?;
 
-        // DM: seperate test
-        let _pivot_table = get_metrics_as_pivot_table(&[metrics], "")?;
+        // Check the metrics tables
+        assert!(metrics.clone_inner().output_rows().is_none());
+        assert!(metrics.clone_inner().elapsed_compute().is_none());
+        let sss = session_stream_state.try_read().unwrap();
+        let metrics_table = sss
+            .get_session_context()
+            .get_states()
+            .get(SessionContextTableNames::Metrics.get_name())
+            .unwrap()
+            .try_read()
+            .unwrap();
+        let task_names = metrics_table.get_column_as_vec_str("task_name");
+        assert_eq!(
+            task_names,
+            [
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_1",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_2",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "processor_3",
+                "session_1",
+                "session_1",
+                "session_1"
+            ]
+        );
+        let replicate_counts =
+            metrics_table.get_column_as_vec_primitive::<u64>("replicate_count")?;
+        assert_eq!(
+            replicate_counts,
+            [
+                1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3
+            ]
+        );
+        let output_rows = metrics_table.get_column_as_vec_primitive::<u64>("output_rows")?;
+        let output_rows_sum = output_rows.iter().sum::<u64>();
+        let output_rows_sum_test = [
+            15, 0, 69, 0, 0, 312, 0, 1392, 15, 0, 69, 0, 312, 0, 1392, 0, 15, 0, 69, 0, 312, 0,
+            1392, 0, 6, 7, 8,
+        ]
+        .iter()
+        .sum::<u64>();
+        assert_eq!(output_rows_sum, output_rows_sum_test);
+
+        // Check pivot and gantt
+        let gantt = sss.get_session_context().get_metrics_as_mermaid_gantt()?;
+        assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
+        assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
+        assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));
 
         Ok(())
     }

@@ -204,9 +204,9 @@ mod tests {
         assert_eq!(
             session_names,
             &[
-                "myemail@gmail.comChat",
-                "myemail@gmail.comDocChat",
-                "myemail@gmail.comToolChat"
+                "myemailgmailcomChat",
+                "myemailgmailcomDocChat",
+                "myemailgmailcomToolChat"
             ]
         );
     }
@@ -226,9 +226,9 @@ mod tests {
                 .map(|s| s.to_string())
                 .collect::<HashSet<_>>(),
             [
-                "myemail@gmail.comChat",
-                "myemail@gmail.comToolChat",
-                "myemail@gmail.comDocChat"
+                "myemailgmailcomDocChat",
+                "myemailgmailcomToolChat",
+                "myemailgmailcomChat"
             ]
             .iter()
             .map(|s| s.to_string())
@@ -257,10 +257,10 @@ mod tests {
             .session_contexts
             .try_write()
             .unwrap()
-            .remove("myemail@gmail.comChat")
+            .remove("myemailgmailcomChat")
             .unwrap();
         let missing = state.find_session_names_not_in_state(&session_names);
-        assert_eq!(missing, &["myemail@gmail.comChat"]);
+        assert_eq!(missing, &["myemailgmailcomChat"]);
     }
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]

@@ -3,35 +3,45 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
 #[allow(clippy::redundant_closure)]
-pub static METRIC_TASK_NAMES: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+pub static MERMAID_PROCESSOR_TRACES: GlobalSignal<String> = Signal::global(|| String::new());
 #[allow(clippy::redundant_closure)]
-pub static METRIC_NAMES: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+pub static MERMAID_ELAPSED_COMPUTE: GlobalSignal<String> = Signal::global(|| String::new());
 #[allow(clippy::redundant_closure)]
-pub static METRIC_VALUES: GlobalSignal<Vec<u64>> = Signal::global(|| Vec::new());
+pub static MERMAID_OUTPUT_ROWS: GlobalSignal<String> = Signal::global(|| String::new());
 
-/// Task information
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
-pub struct SyncCurrentMetricsInfoState {
-    pub metric_task_name: String,
-    pub metric_name: String,
-    pub metric_value: u64,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SyncCurrentMetricsMermaidJSState {
+    pub processor_traces: String,
+    pub elapsed_compute: String,
+    pub output_rows: String,
 }
 
-pub async fn sync_current_metrics_info_state(
-    mut rx: UnboundedReceiver<SyncCurrentMetricsInfoState>,
+pub async fn sync_current_metrics_mermaid_state(
+    mut rx: UnboundedReceiver<SyncCurrentMetricsMermaidJSState>,
 ) {
     while let Some(updated_state) = rx.next().await {
-        (*METRIC_TASK_NAMES.write()).push(updated_state.metric_task_name);
-        (*METRIC_NAMES.write()).push(updated_state.metric_name);
-        (*METRIC_VALUES.write()).push(updated_state.metric_value);
+        (*MERMAID_PROCESSOR_TRACES.write()).clear();
+        (*MERMAID_PROCESSOR_TRACES.write()).push_str(updated_state.processor_traces.as_str());
+        (*MERMAID_ELAPSED_COMPUTE.write()).clear();
+        (*MERMAID_ELAPSED_COMPUTE.write()).push_str(updated_state.elapsed_compute.as_str());
+        (*MERMAID_OUTPUT_ROWS.write()).clear();
+        (*MERMAID_OUTPUT_ROWS.write()).push_str(updated_state.output_rows.as_str());
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
-pub struct ClearMetricsInfoState {}
+#[allow(clippy::redundant_closure)]
+pub static ACTIVE_METRIC: GlobalSignal<String> = Signal::global(|| String::new());
 
-pub async fn clear_metrics_info_state(mut _rx: UnboundedReceiver<ClearMetricsInfoState>) {
-    (*METRIC_TASK_NAMES.write()).clear();
-    (*METRIC_NAMES.write()).clear();
-    (*METRIC_VALUES.write()).clear();
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct SyncCurrentActiveMetricState {
+    pub name: String,
+}
+
+pub async fn sync_current_active_metric_state(
+    mut rx: UnboundedReceiver<SyncCurrentActiveMetricState>,
+) {
+    while let Some(updated_state) = rx.next().await {
+        (*ACTIVE_METRIC.write()).clear();
+        (*ACTIVE_METRIC.write()).push_str(updated_state.name.as_str());
+    }
 }

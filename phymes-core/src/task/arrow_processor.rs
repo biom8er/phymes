@@ -11,7 +11,7 @@ use crate::{
     },
     task::publish_subscribe::PubSubTrait,
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -46,23 +46,25 @@ pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug
     /// ## 3. Remote RPC call
     /// Process with `message` and make an RPC call
     /// that returns a stream or batch of `RecordBatch`es
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait>
+    where
+        Self: Sized;
+
+    /// Default new implementation
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait>
     where
         Self: Sized;
 
-    // DM: let's introduce this after tool fixes...
-    // fn new_arc_with_pub_sub_for(
-    //     name: &str,
-    //     publications: &[ArrowTablePublish],
-    //     subscriptions: &[ArrowTableSubscribe],
-    //     forward: &[&str],
-    //     subscribe: Box<dyn SubscribeTrait>
-    // ) -> Arc<dyn ArrowProcessorTrait>
-    // where
-    //     Self: Sized;
+    /// Get the subscription policy
+    fn get_subscribe(&self) -> &dyn SubscribeTrait;
 
-    /// Get forwarded subscriptions
-    fn get_forward_subscriptions(&self) -> &[String];
+    /// Alias for `get_static_name`
+    fn get_type(&self) -> &str;
 
     /// Begin execution of `task`, returning a [`Stream`] of
     /// [`RecordBatch`]es.
@@ -237,26 +239,7 @@ pub struct ArrowProcessorEcho {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
-    forward: Vec<String>,
     subscribe: Box<dyn SubscribeTrait>,
-}
-
-impl ArrowProcessorEcho {
-    pub fn new_with_pub_sub_for(
-        name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
-        forward: &[&str],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe,
-        })
-    }
 }
 
 impl MappableTrait for ArrowProcessorEcho {
@@ -284,21 +267,35 @@ impl PubSubTrait for ArrowProcessorEcho {
 }
 
 impl ArrowProcessorTrait for ArrowProcessorEcho {
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait>
-    where
-        Self: Sized,
-    {
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait> {
+        Arc::new(Self {
+            name: name.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe,
+        })
+    }
+
+    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
-            forward: Vec::new(),
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
-    fn get_forward_subscriptions(&self) -> &[String] {
-        self.forward.as_slice()
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
+        self.subscribe.as_ref()
+    }
+
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
     }
 
     fn process(
@@ -309,6 +306,57 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
     ) -> Result<OutgoingMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
         Ok(message)
+    }
+}
+
+/// A lightweight builder for structures implementing the [ArrowProcessorTrait]
+///
+/// # Notes
+/// * A full `ArrowProcessorBuilderTrait` will be provided in the future
+///   once the API stabilizes
+#[derive(Default)]
+pub struct ArrowProcessorBuilder {
+    pub publications: Option<Vec<ArrowTablePublish>>,
+    pub subscriptions: Option<Vec<ArrowTableSubscribe>>,
+    pub subscribe: Option<Box<dyn SubscribeTrait>>,
+    pub processor_name: Option<String>,
+    pub processor_type: Option<String>,
+}
+
+type ProcessorInput = (
+    String,
+    Vec<ArrowTablePublish>,
+    Vec<ArrowTableSubscribe>,
+    Box<dyn SubscribeTrait>,
+);
+
+impl ArrowProcessorBuilder {
+    pub fn take(mut self) -> Result<ProcessorInput> {
+        if self.processor_name.as_ref().is_none() {
+            return Err(anyhow!("Missing processor name"));
+        } else if self.publications.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing publications for processor {}",
+                self.processor_name.as_ref().unwrap()
+            ));
+        } else if self.subscriptions.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing subscriptions for processor {}",
+                self.processor_name.as_ref().unwrap()
+            ));
+        } else if self.subscribe.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing subscribe for processor {}",
+                self.processor_name.as_ref().unwrap()
+            ));
+        }
+
+        Ok((
+            self.processor_name.take().unwrap(),
+            self.publications.take().unwrap(),
+            self.subscriptions.take().unwrap(),
+            self.subscribe.take().unwrap(),
+        ))
     }
 }
 
@@ -340,26 +388,7 @@ pub mod test_processor {
         name: String,
         publications: Vec<ArrowTablePublish>,
         subscriptions: Vec<ArrowTableSubscribe>,
-        forward: Vec<String>,
         subscribe: Box<dyn SubscribeTrait>,
-    }
-
-    impl ArrowProcessorMock {
-        pub fn new_with_pub_sub_for(
-            name: &str,
-            publications: &[ArrowTablePublish],
-            subscriptions: &[ArrowTableSubscribe],
-            forward: &[&str],
-            subscribe: Box<dyn SubscribeTrait>,
-        ) -> Arc<dyn ArrowProcessorTrait> {
-            Arc::new(Self {
-                name: name.to_string(),
-                publications: publications.to_owned(),
-                subscriptions: subscriptions.to_owned(),
-                forward: forward.iter().map(|s| s.to_string()).collect(),
-                subscribe,
-            })
-        }
     }
 
     impl MappableTrait for ArrowProcessorMock {
@@ -387,21 +416,35 @@ pub mod test_processor {
     }
 
     impl ArrowProcessorTrait for ArrowProcessorMock {
-        fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait>
-        where
-            Self: Sized,
-        {
+        fn new_arc_with_pub_sub(
+            name: &str,
+            publications: &[ArrowTablePublish],
+            subscriptions: &[ArrowTableSubscribe],
+            subscribe: Box<dyn SubscribeTrait>,
+        ) -> Arc<dyn ArrowProcessorTrait> {
+            Arc::new(Self {
+                name: name.to_string(),
+                publications: publications.to_owned(),
+                subscriptions: subscriptions.to_owned(),
+                subscribe,
+            })
+        }
+
+        fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
                 publications: vec![ArrowTablePublish::None],
                 subscriptions: vec![ArrowTableSubscribe::None],
-                forward: Vec::new(),
                 subscribe: AllTableNamesSubscribe::new_box(),
             })
         }
 
-        fn get_forward_subscriptions(&self) -> &[String] {
-            self.forward.as_slice()
+        fn get_subscribe(&self) -> &dyn SubscribeTrait {
+            self.subscribe.as_ref()
+        }
+
+        fn get_type(&self) -> &str {
+            Self::get_static_name()
         }
 
         fn process(

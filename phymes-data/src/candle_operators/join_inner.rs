@@ -6,7 +6,10 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor, op::CmpOp};
-use phymes_core::schemas::{chat_completion, types};
+use phymes_core::{
+    schemas::{chat_completion, types},
+    session::common_traits::MappableTrait,
+};
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
@@ -28,10 +31,13 @@ pub struct JoinInner {
     rhs_fk: String,
 }
 
-impl DataOperatorTrait for JoinInner {
-    fn get_static_name() -> &'static str {
-        "join-inner"
+impl MappableTrait for JoinInner {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
+}
+
+impl DataOperatorTrait for JoinInner {
     fn new(
         lhs_pk: &str,
         lhs_fk: &str,
@@ -127,7 +133,7 @@ impl DataOperatorTrait for JoinInner {
             }),
         );
         let function = types::Function {
-            name: Self::get_name(),
+            name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,

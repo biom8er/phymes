@@ -8,67 +8,194 @@ This tutorial describes how the [Document RAG Agent Session Plan](https://github
 The document RAG agent adds a complex document parsing, embedding, and retrieval Data pipeline to the agentic AI architecture of the chat agent.
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> embed_task: Documents
-    [*] --> embed_task: Query
-    [*] --> chat_agent: Query
-    embed_task --> vs_task: Search docs
-    vs_task --> chat_agent: Top docs
-    chat_agent --> [*]: Response
-```
-
-The session starts with an upload of documents to the embed_task to chunk and embed the documents, an upload of the query to the embed_task to embed the query, and a query to the chat_agent from the user. Next, a vector search is performed over the embedded documents to find the top K documents matching the query. Finally, the top K documents are provided to the chat_agent to ground the text generation inference to respond back to the user.
-
-Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the user, embed_task, vs_task, and chat_agent.
-
-```mermaid
 sequenceDiagram
-    user->>documents: 1
-    user->>query: 2a
-    user->>messages: 2b
-    documents --> embed_doc_task: 3
-    doc_embed_config --> embed_doc_task: 4
-    embed_doc_task --> embedded_documents: 5
-    query --> embed_query_task: 6
-    query_embed_config --> embed_query_task: 7
-    embed_query_task --> embedded_queries: 8
-    embedded_documents --> vs_task: 9a
-    embedded_queries --> vs_task: 9b
-    vs_config --> vs_task: 10
-    vs_task -> top_k_docs: 11
-    messages-->>chat_agent: 12a
-    top_k_docs-->>chat_agent: 12b
-    config->>chat_agent: 13
-    chat_agent->>messages: 14
-    messages->>user: 15
+    autonumber
+    user ->> TEI: documents
+    user ->> TEI: query 
+    user ->> TGI: user_message
+    TEI ->> retrieval: embedded_docs
+    TEI ->> retrieval: embedded_query
+    retrieval ->> TGI: top_k_docs
+    TGI ->> user: assistant_message
 ```
 
-The sequence of actions are the following:
+The session is composed of 4 tasks: 1. the user, 2. Text embedding inference (TEI), 3. Retrieval, and 4. Text generation inference (TGI). 
 
-1. The user publishes to documents subject
+The session starts when the user publishes documents (1), and a query (2 and 3) to the session.
 
 ![documents](../assets/2025-07-05_phymes-app_docchat-documents_subjects.png)
 
-2. The user publishes to query subject and messages subject
-3. The embed_doc_task subscribes to the documents subject when there is a change to the documents subject table
-4. The embed_doc_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
-5. The embed_doc_task chunks the documents, embeds the chunks, and publishes the results to the embedded_documents subject.
-6. The embed_query_task subscribes to the documents subject when there is a change to the documents subject table
-7. The embed_query_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
-8. The embed_query_task embeds the query and publishes the results to the embedded_queries subject.
-9. The vs_task subscribes to the embedded_documents and embedded_queries subjects when there is a change to the embedded_documents and embedded_queries subject tables
-10. The vs_task subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chunk_processor.
-11. The vs_task computes the relative similarity between the query and document embeddings, sorts the scores in descending order, retrieves the chunk text, formats the results for RAG, and publishes the results to the top_k_docs subject.
-12. The chat_agent subscribes to messages and top_k_docs subjects when there is a change to the messages and top_k_docs subject tables.
-13. The chat_agent subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chat_agent.
-14. The chat_agent performs text generation inference based on the messages subject content and retrieved Top K document chunks, and publishes the results to the messages subject.
-15. The user subscribes to messages subject where there is a change to the messages subject table.
+The TEI task then chunks the documents, and embeds the chunks and query (4 and 5). The Retrieval task finds the document chunks that best match the query and returns the top K chunks (6). The TGI task generates a response for the user based on the top K chunks and the query (7).
 
 ![doc-rag-response](../assets/2025-07-05_phymes-app_docchat_messaging.png)
 
-The session ends because there are no further updates to the subjects. If the user publishes a follow-up message or uploads new documents, the session will pick-up where it left off with the chat_agent responding to the updated message and top k document chunk content.
+The session ends when there are no further updates to the subjects. If the user publishes a follow-up message or uploads new documents, the session will pick-up where it left off.
+
+```mermaid
+flowchart TD
+	subgraph message_aggregator_task_1
+		user_messages-subject-.FullTable.->message_aggregator_1-subscribe
+		top_k-subject-.FullTable.->message_aggregator_1-subscribe
+		assistant_messages-subject--FullTable-->message_aggregator_1-subscribe
+		message_aggregator_1-subject--LastRecordBatch-->message_aggregator_1-subscribe
+		message_aggregator_1-subscribe-->message_aggregator_1-processor
+		message_aggregator_1-processor-->message_aggregator_1-publish
+		message_aggregator_1-publish--Replace-->chat_task_1-subject
+	end
+	subgraph message_aggregator_task_2
+		user_messages-subject-.LastRecordBatch.->message_aggregator_2-subscribe
+		assistant_messages-subject-.LastRecordBatch.->message_aggregator_2-subscribe
+		message_aggregator_2-subject--LastRecordBatch-->message_aggregator_2-subscribe
+		message_aggregator_2-subscribe-->message_aggregator_2-processor
+		message_aggregator_2-processor-->message_aggregator_2-publish
+		message_aggregator_2-publish--Extend-->messages-subject
+	end
+	subgraph chat_task_1
+		chat_task_1-subject-.FullTable.->chat_processor_1-subscribe
+		-subject--None-->chat_processor_1-subscribe
+		chat_processor_1-subject--FullTable-->chat_processor_1-subscribe
+		chat_processor_1-subscribe-->chat_processor_1-processor
+		chat_processor_1-processor-->chat_processor_1-publish
+		chat_processor_1-publish--ExtendChunks-->assistant_messages-subject
+	end
+	subgraph embed_documents_task_1
+		documents-subject-.FullTable.->chunk_documents_processor_1-subscribe
+		chunk_documents_processor_1-subject--FullTable-->chunk_documents_processor_1-subscribe
+		chunk_documents_processor_1-subscribe-->chunk_documents_processor_1-processor
+		chunk_documents_processor_1-processor-->chunk_documents_processor_1-publish
+		chunk_documents_processor_1-publish--Replace-->chunk_documents_task_1-subject
+		chunk_documents_task_1-subject--FullTable-->embed_documents_processor_1-subscribe
+		embed_documents_processor_1-subject--FullTable-->embed_documents_processor_1-subscribe
+		embed_documents_processor_1-subscribe-->embed_documents_processor_1-processor
+		embed_documents_processor_1-processor-->embed_documents_processor_1-publish
+		embed_documents_processor_1-publish--Replace-->doc_embeddings-subject
+	end
+	subgraph embed_query_task_1
+		queries-subject-.FullTable.->embed_query_processor_1-subscribe
+		embed_query_processor_1-subject--FullTable-->embed_query_processor_1-subscribe
+		embed_query_processor_1-subscribe-->embed_query_processor_1-processor
+		embed_query_processor_1-processor-->embed_query_processor_1-publish
+		embed_query_processor_1-publish--Replace-->q_embeddings-subject
+	end
+	subgraph vs_task_1
+		doc_embeddings-subject--FullTable-->rel_sim_processor_1-subscribe
+		q_embeddings-subject-.FullTable.->rel_sim_processor_1-subscribe
+		rel_sim_processor_1-subject--FullTable-->rel_sim_processor_1-subscribe
+		rel_sim_processor_1-subscribe-->rel_sim_processor_1-processor
+		rel_sim_processor_1-processor-->rel_sim_processor_1-publish
+		rel_sim_processor_1-publish--Replace-->tmp_scores-subject
+		sort_scores_processor_1-subject--FullTable-->sort_scores_processor_1-subscribe
+		tmp_scores-subject--FullTable-->sort_scores_processor_1-subscribe
+		sort_scores_processor_1-subscribe-->sort_scores_processor_1-processor
+		sort_scores_processor_1-processor-->sort_scores_processor_1-publish
+		sort_scores_processor_1-publish--Replace-->tmp_scores-subject
+		documents-subject--FullTable-->chunk_documents_processor_2-subscribe
+		chunk_documents_processor_2-subject--FullTable-->chunk_documents_processor_2-subscribe
+		chunk_documents_processor_2-subscribe-->chunk_documents_processor_2-processor
+		chunk_documents_processor_2-processor-->chunk_documents_processor_2-publish
+		chunk_documents_processor_2-publish--Replace-->documents-subject
+		documents-subject--FullTable-->join_scores_chunks_processor_1-subscribe
+		tmp_scores-subject--FullTable-->join_scores_chunks_processor_1-subscribe
+		join_scores_chunks_processor_1-subject--FullTable-->join_scores_chunks_processor_1-subscribe
+		join_scores_chunks_processor_1-subscribe-->join_scores_chunks_processor_1-processor
+		join_scores_chunks_processor_1-processor-->join_scores_chunks_processor_1-publish
+		join_scores_chunks_processor_1-publish--Replace-->tmp_scores_chunks_join-subject
+		top_k_processor_1-subject--FullTable-->top_k_processor_1-subscribe
+		tmp_scores_chunks_join-subject--FullTable-->top_k_processor_1-subscribe
+		top_k_processor_1-subscribe-->top_k_processor_1-processor
+		top_k_processor_1-processor-->top_k_processor_1-publish
+		top_k_processor_1-publish--Replace-->top_k-subject
+	end
+	subgraph session_context_1
+		assistant_messages-subject-.LastRecordBatch.->session_context_1-subscribe
+		session_context_1-subscribe-->session_context_1-processor
+		session_context_1-processor-->session_context_1-publish
+		session_context_1-publish--Extend-->user_messages-subject
+		session_context_1-publish--Extend-->documents-subject
+		session_context_1-publish--Extend-->queries-subject
+		session_context_1-publish--Extend-->assistant_messages-subject
+	end
+	vs_rt_1-rt-->message_aggregator_task_1
+	vs_rt_1-rt-->message_aggregator_task_2
+	chat_rt_1-rt-->chat_task_1
+	embed_documents_rt_1-rt-->embed_documents_task_1
+	embed_query_rt_1-rt-->embed_query_task_1
+	vs_rt_1-rt-->vs_task_1
+	rt_default-rt-->session_context_1
+	message_aggregator_1-processor@{shape: rect, label: MessageAggregatorProcessor}
+	message_aggregator_2-processor@{shape: rect, label: MessageAggregatorProcessor}
+	chat_processor_1-processor@{shape: rect, label: CandleChatProcessor}
+	chunk_documents_processor_1-processor@{shape: rect, label: CandleDataProcessor}
+	embed_documents_processor_1-processor@{shape: rect, label: CandleEmbedProcessor}
+	embed_query_processor_1-processor@{shape: rect, label: CandleEmbedProcessor}
+	rel_sim_processor_1-processor@{shape: rect, label: CandleDataProcessor}
+	sort_scores_processor_1-processor@{shape: rect, label: CandleDataProcessor}
+	chunk_documents_processor_2-processor@{shape: rect, label: CandleDataProcessor}
+	join_scores_chunks_processor_1-processor@{shape: rect, label: CandleDataProcessor}
+	top_k_processor_1-processor@{shape: rect, label: DataSummaryProcessor}
+	session_context_1-processor@{shape: rect, label: ArrowProcessorEcho}
+	chat_rt_1-rt@{shape: subproc, label: chat_rt_1}
+	embed_documents_rt_1-rt@{shape: subproc, label: embed_documents_rt_1}
+	embed_query_rt_1-rt@{shape: subproc, label: embed_query_rt_1}
+	rt_default-rt@{shape: subproc, label: rt_default}
+	vs_rt_1-rt@{shape: subproc, label: vs_rt_1}
+	assistant_messages-subject@{shape: doc, label: assistant_messages}
+	chat_processor_1-subject@{shape: doc, label: chat_processor_1}
+	chat_task_1-subject@{shape: doc, label: chat_task_1}
+	chunk_documents_processor_1-subject@{shape: doc, label: chunk_documents_processor_1}
+	chunk_documents_processor_2-subject@{shape: doc, label: chunk_documents_processor_2}
+	chunk_documents_task_1-subject@{shape: doc, label: chunk_documents_task_1}
+	doc_embeddings-subject@{shape: doc, label: doc_embeddings}
+	documents-subject@{shape: doc, label: documents}
+	embed_documents_processor_1-subject@{shape: doc, label: embed_documents_processor_1}
+	embed_query_processor_1-subject@{shape: doc, label: embed_query_processor_1}
+	join_scores_chunks_processor_1-subject@{shape: doc, label: join_scores_chunks_processor_1}
+	message_aggregator_1-subject@{shape: doc, label: message_aggregator_1}
+	message_aggregator_2-subject@{shape: doc, label: message_aggregator_2}
+	messages-subject@{shape: doc, label: messages}
+	q_embeddings-subject@{shape: doc, label: q_embeddings}
+	queries-subject@{shape: doc, label: queries}
+	rel_sim_processor_1-subject@{shape: doc, label: rel_sim_processor_1}
+	sort_scores_processor_1-subject@{shape: doc, label: sort_scores_processor_1}
+	tmp_scores-subject@{shape: doc, label: tmp_scores}
+	tmp_scores_chunks_join-subject@{shape: doc, label: tmp_scores_chunks_join}
+	top_k-subject@{shape: doc, label: top_k}
+	top_k_processor_1-subject@{shape: doc, label: top_k_processor_1}
+	user_messages-subject@{shape: doc, label: user_messages}
+	chat_processor_1-publish@{shape: fork}
+	chunk_documents_processor_1-publish@{shape: fork}
+	chunk_documents_processor_2-publish@{shape: fork}
+	embed_documents_processor_1-publish@{shape: fork}
+	embed_query_processor_1-publish@{shape: fork}
+	join_scores_chunks_processor_1-publish@{shape: fork}
+	message_aggregator_1-publish@{shape: fork}
+	message_aggregator_2-publish@{shape: fork}
+	rel_sim_processor_1-publish@{shape: fork}
+	session_context_1-publish@{shape: fork}
+	sort_scores_processor_1-publish@{shape: fork}
+	top_k_processor_1-publish@{shape: fork}
+	chat_processor_1-subscribe@{shape: diamond, label: All}
+	chunk_documents_processor_1-subscribe@{shape: diamond, label: All}
+	chunk_documents_processor_2-subscribe@{shape: diamond, label: All}
+	embed_documents_processor_1-subscribe@{shape: diamond, label: All}
+	embed_query_processor_1-subscribe@{shape: diamond, label: All}
+	join_scores_chunks_processor_1-subscribe@{shape: diamond, label: All}
+	message_aggregator_1-subscribe@{shape: diamond, label: All}
+	message_aggregator_2-subscribe@{shape: diamond, label: All}
+	rel_sim_processor_1-subscribe@{shape: diamond, label: All}
+	session_context_1-subscribe@{shape: diamond, label: All}
+	sort_scores_processor_1-subscribe@{shape: diamond, label: All}
+	top_k_processor_1-subscribe@{shape: diamond, label: All}
+```
+
+Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the User, TEI, Retrieval, and TGI tasks. Each task is composed of one or more processes that are chained together to execute the task. Each processor listens for changes on their subscribed subjects and publishes their results to subjects. Each task runs once the subscription criteria for all of its child processors are satisfied.
+
+At each superstep of the session, subscribed subjects are allocated to tasks, tasks are ran in parallel, and the subjects for which tasks publish on are updated sequentially.
+
+While not shown in the flowchart above, each processor subscribes to a special subject usually called the config which specifies all of the parameters for the processor. And like any other subject, the config can also be updated dynamically during the execution of the session.
+
+The decision to chain multiple processors into a single task or to allocated each processor to its own task is up to the needs of the user. Chaining multple processors can be more performant and efficient because fewer subscription and publishing copies and updates, respectively are needed. However, allocating each processor to its own task is easier to debug since the output of each task can be easily verified. Also, any processor that requires an external API call has to be allocated to its own task as chaining of streams breaks the poll on the external API call.
 
 ## Next steps
 
-The [Document RAG Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-agents/src/session_plans/document_rag_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user. For production use cases, we recommend the NVIDIA RAG [Blue Print](https://github.com/NVIDIA-AI-Blueprints/rag).
+The [Document RAG Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-agents/src/session_plans/document_rag_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user. The session plan can be used with embedded Candle models or OpenAI API endpoints for token services.

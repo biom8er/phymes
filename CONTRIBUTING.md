@@ -638,7 +638,7 @@ Second, build the server with the desired features.
 
 ```bash
 # GPU support and Candle token service
-cargo build --package phymes-server --features wsl,gpu,candle --release
+cargo build --package phymes-server --features wsl,gpu,candle,hf_hub --release
 
 # Or OpenAI API
 cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
@@ -731,7 +731,7 @@ wastime --dir=$HOME/.cache phymes-server.wasm --route app/v1/sign_in --basic_aut
 # mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["Chat","DocChat","ToolChat"]}
 
 # Get information about the different subjects
-wastime --dir=$HOME/.cache phymes-server.wasm curl --route app/v1/subjects_info --bearer_auth JWTTOKEN --data '{"session_name":"EMAILChat","subject_name":"","format":"Bytes","publish":"None","content":"","metadata":"","stream":false}'
+wastime --dir=$HOME/.cache phymes-server.wasm curl --route app/v1/subjects_schema --bearer_auth JWTTOKEN --data '{"session_name":"EMAILChat","subject_name":"","format":"Bytes","publish":"None","content":"","metadata":"","stream":false}'
 
 # Chat request
 # Be sure to replace EMAIL and JWTTOKEN with your actual email and JWT token!

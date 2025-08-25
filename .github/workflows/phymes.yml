@@ -95,6 +95,8 @@ jobs:
           export LD_LIBRARY_PATH=/usr/local/bin:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
           cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
           cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
+          cargo run --package phymes-agents --features wsl,gpu,candle --release --example doc_rag_session
+          cargo run --package phymes-agents --features wsl,gpu,candle --release --example tool_agent_session
 
   # test compilation features on linux (except those already built in other jobs)
   linux-features:
@@ -142,10 +144,10 @@ jobs:
       #   run: |
       #     apt update
       #     apt install -y libgtk-3-dev libsoup-3.0-0 libjavascriptcoregtk-4.1-dev
-      # - name: Check compilation -p phymes-app --all-targets --features mobile
-      #   run: cargo check -p phymes-app --all-targets --features mobile
-      # - name: Check compilation -p phymes-app --all-targets --features desktop
-      #   run: cargo check -p phymes-app --all-targets --features desktop
+      # - name: Check compilation -p phymes-app --all-targets --no-default-features --features mobile
+      #   run: cargo check -p phymes-app --all-targets --no-default-features --features mobile
+      # - name: Check compilation -p phymes-app --all-targets --no-default-features --features desktop
+      #   run: cargo check -p phymes-app --all-targets --no-default-features --features desktop
 
   # test crate on wasm32
   wasm32-build:

@@ -1,15 +1,11 @@
-use anyhow::Result;
 use std::sync::Arc;
 
-use super::agent_session_builder::AgentSessionBuilderTrait;
 use phymes_core::{
-    metrics::ArrowTaskMetricsSet,
     schemas::message_history::create_messages_schema,
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context::SessionContext,
-        session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
+        session_context_builder::TaskPlan,
     },
     table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
@@ -19,13 +15,16 @@ use phymes_core::{
     task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
 };
 use phymes_ml::{
-    candle_assets::candle_which::WhichCandleAsset,
+    candle_assets::available_candle_assets::AvailableCandleAssets,
     candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor},
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{
-    openai_asset::openai_which::WhichOpenAIAsset, openai_chat::chat_processor::OpenAIChatProcessor,
+    openai_asset::available_openai_assets::AvailableOpenAIAssets,
+    openai_chat::chat_processor::OpenAIChatProcessor,
 };
+
+use crate::session_traits::agents::CustomAgentsBuilderTrait;
 
 pub struct ChatAgentSession<'a> {
     pub chat_task_name: &'a str,
@@ -58,9 +57,9 @@ impl<'a> ChatAgentSession<'a> {
     }
 }
 
-impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
-    fn make_task_plan(&self) -> Vec<TaskPlan> {
-        vec![
+impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
+    fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
+        Some(vec![
             TaskPlan {
                 task_name: self.chat_task_name.to_string(),
                 runtime_env_name: self.runtime_env_name.to_string(),
@@ -71,15 +70,15 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                 runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![self.session_context_name.to_string()],
             },
-        ]
+        ])
     }
 
-    fn make_processors(&self) -> Vec<Arc<dyn ArrowProcessorTrait>> {
+    fn make_processors(&self) -> Option<Vec<Arc<dyn ArrowProcessorTrait>>> {
         let mut processors = Vec::new();
         // The order is the order in which the processors are called in the task
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
-            processors.push(OpenAIChatProcessor::new_with_pub_sub_for(
+            processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
                     table_name: self.chat_subscription_name.to_string(),
@@ -94,11 +93,10 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
         } else {
-            processors.push(CandleChatProcessor::new_with_pub_sub_for(
+            processors.push(CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
                     table_name: self.chat_subscription_name.to_string(),
@@ -113,11 +111,10 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                &[],
                 AllTableNamesSubscribe::new_box(),
             ));
         }
-        processors.push(ArrowProcessorEcho::new_with_pub_sub_for(
+        processors.push(ArrowProcessorEcho::new_arc_with_pub_sub(
             self.session_context_name,
             &[ArrowTablePublish::Extend {
                 table_name: self.chat_subscription_name.to_string(),
@@ -125,20 +122,19 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.chat_subscription_name.to_string(),
             }],
-            &[],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors
+        Some(processors)
     }
 
-    fn make_runtime_envs(&self) -> Result<Vec<RuntimeEnv>> {
-        Ok(vec![
+    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
+        Some(vec![
             RuntimeEnv::new().with_name(self.runtime_env_name),
             RuntimeEnv::new().with_name("rt_default"),
         ])
     }
 
-    fn make_state_tables(&self) -> Result<Vec<ArrowTable>> {
+    fn make_state_tables(&self) -> Option<Vec<ArrowTable>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -164,14 +160,14 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
                 "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(WhichCandleAsset::SmolLM2_135MChat),
+            candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
             ..Default::default()
         };
 
         // Add hf_hub if available
         #[cfg(feature = "hf_hub")]
         {
-            candle_chat_config.candle_asset = Some(WhichCandleAsset::QwenV2p5_1p5bChat);
+            candle_chat_config.candle_asset = Some(AvailableCandleAssets::QwenV2p5_1p5bChat);
             candle_chat_config.openai_asset = None;
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
@@ -183,36 +179,29 @@ impl AgentSessionBuilderTrait for ChatAgentSession<'_> {
         #[cfg(all(feature = "openai_api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
-            candle_chat_config.openai_asset = Some(WhichOpenAIAsset::MetaLlamaV3p2_1B);
+            candle_chat_config.openai_asset = Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B);
             candle_chat_config.weights_config_file = None;
             candle_chat_config.weights_file = None;
             candle_chat_config.tokenizer_file = None;
             candle_chat_config.tokenizer_config_file = None;
             candle_chat_config.api_url = self.chat_api_url.map(|s| s.to_string());
         }
-        let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;
+        let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
         let config = ArrowTableBuilder::new()
             .with_name(self.chat_processor_name)
-            .with_json(&candle_chat_config_json, 1)?
-            .build()?;
+            .with_json(&candle_chat_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         let messages = ArrowTableBuilder::new()
             .with_name(self.chat_subscription_name)
             .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()?;
-        Ok(vec![config, messages])
-    }
-
-    fn make_session_context(&self, metrics: ArrowTaskMetricsSet) -> Result<SessionContext> {
-        SessionContextBuilder::new()
-            .with_name(self.session_context_name)
-            .with_tasks(self.make_task_plan())
-            .with_metrics(metrics)
-            .with_runtime_envs(self.make_runtime_envs()?)
-            .with_state(self.make_state_tables()?)
-            .with_processors(self.make_processors())
+            .with_record_batches(Vec::new())
+            .unwrap()
             .build()
+            .unwrap();
+        Some(vec![config, messages])
     }
 }
 
@@ -300,14 +289,20 @@ pub mod test_chat_agent_session {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::HashMap,
-        session::session_context::SessionStreamState,
+        metrics::{ArrowTaskMetricsSet, HashMap},
+        session::{
+            session_context::SessionStreamState,
+            session_context_builder::SessionContextBuilderTrait,
+        },
         table::arrow_table::ArrowTableTrait,
         task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
+
+    use crate::session_traits::agents::SessionContextBuilderAgentsTrait;
 
     use super::*;
     use test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2};
@@ -319,7 +314,11 @@ mod tests {
 
         // initialize the session
         let chat_agent_session = ChatAgentSession::default();
-        let session_ctx = chat_agent_session.make_session_context(metrics.clone())?;
+        let session_ctx = chat_agent_session
+            .build()
+            .with_metrics(metrics.clone())
+            .with_name(chat_agent_session.session_context_name)
+            .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Skip actually running the session as it takes too long on the CPU

@@ -1,6 +1,6 @@
 [package]
 name = "phymes-app"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Douglas McCloskey"]
 # DM: updating to 2024 causes many "error[E0716]: temporary value dropped while borrowed"
 #  when using dioxus `use_memo`
@@ -22,9 +22,9 @@ serde = { version = "1.0.219", features = ["derive"] }
 chrono = "0.4.41"
 bytes = "1.10.0"
 serde_json = "1.0.140"
-plotly = { version = "0.13.3", default-features = false, optional = true}
 phymes-core = { path = "../phymes-core", default-features = false }
 phymes-server = { path = "../phymes-server", default-features = false }
+phymes-agents = { path = "../phymes-agents", default-features = false }
 clap = {version = "4.5.40", optional = true}
 tokio = { version = "1.45.1", default-features = false, optional = true }
 tracing = "0.1.41"
@@ -34,24 +34,25 @@ tracing-subscriber = "0.3.7"
 default = ["web"]
 
 # Frontend options for plotting
-plotly_cdn_js = ["dep:plotly"]
-plotly_embed_js = ["plotly/plotly_embed_js"]
+mermaid_js = []
+mermaid_js_cdn = ["mermaid_js"] # use the mjs loaded from CDN server
+mermaid_js_embed = ["mermaid_js"] # use the js (~3 MB) from local filesystem
 
 # Serverside options for gpu and token/tensor services
-wasip2 = ["phymes-server/wasip2", "phymes-core/wasip2"]
-wsl = ["phymes-server/wsl", "phymes-core/wsl"]
-gpu = ["phymes-server/gpu"]
-candle = ["phymes-server/candle"]
-hf_hub = ["phymes-server/hf_hub"]
-openai_api = ["phymes-server/openai_api"]
+wasip2 = ["phymes-server/wasip2", "phymes-agents/wasip2", "phymes-core/wasip2"]
+wsl = ["phymes-server/wsl", "phymes-agents/wsl", "phymes-core/wsl"]
+gpu = ["phymes-server/gpu", "phymes-agents/gpu"]
+candle = ["phymes-server/candle", "phymes-agents/candle"]
+hf_hub = ["phymes-server/hf_hub", "phymes-agents/hf_hub"]
+openai_api = ["phymes-server/openai_api", "phymes-agents/openai_api"]
 # DM: this is a work in progress because we need to access
 #     resources on the device while in the browser context
 serverless = [] # Switch to use the serverless application
 
 # Dioxus platform options
-web = ["dioxus/web", "plotly_cdn_js", "wasip2"]
-desktop = ["dioxus/desktop", "dioxus/launch", "plotly_embed_js", "wasip2"]
-mobile = ["dioxus/mobile", "plotly_embed_js", "wasip2"]
+web = ["dioxus/web", "wasip2", "mermaid_js_cdn"]
+desktop = ["dioxus/desktop", "dioxus/launch", "wasip2", "mermaid_js_embed"]
+mobile = ["dioxus/mobile", "wasip2", "mermaid_js_embed"]
 # DM: Dioxus builds the server for native and not for the "target" platform e.g., mobile, desktop, etc.
 # see https://dioxuslabs.com/learn/0.6/guide/bundle/
 server = ["wsl", "candle", "clap/derive", "tokio/full"]

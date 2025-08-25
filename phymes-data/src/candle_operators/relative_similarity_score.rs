@@ -6,7 +6,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use phymes_core::{
-    session::common_traits::{BuildableTrait, BuilderTrait},
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
 
@@ -30,10 +30,13 @@ pub struct RelativeSimilarityScore {
     rhs_values: String,
 }
 
-impl DataOperatorTrait for RelativeSimilarityScore {
-    fn get_static_name() -> &'static str {
-        "relative-similarity-score"
+impl MappableTrait for RelativeSimilarityScore {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
+}
+
+impl DataOperatorTrait for RelativeSimilarityScore {
     fn new(
         lhs_pk: &str,
         lhs_fk: &str,
@@ -134,7 +137,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
             }),
         );
         let function = types::Function {
-            name: Self::get_name(),
+            name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,

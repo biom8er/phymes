@@ -50,26 +50,7 @@ pub struct CandleEmbedProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
-    forward: Vec<String>,
     subscribe: Box<dyn SubscribeTrait>,
-}
-
-impl CandleEmbedProcessor {
-    pub fn new_with_pub_sub_for(
-        name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
-        forward: &[&str],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe,
-        })
-    }
 }
 
 impl MappableTrait for CandleEmbedProcessor {
@@ -92,18 +73,35 @@ impl PubSubTrait for CandleEmbedProcessor {
 }
 
 impl ArrowProcessorTrait for CandleEmbedProcessor {
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait> {
+        Arc::new(Self {
+            name: name.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe,
+        })
+    }
+
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
-            forward: Vec::new(),
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
-    fn get_forward_subscriptions(&self) -> &[String] {
-        self.forward.as_slice()
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
+        self.subscribe.as_ref()
+    }
+
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
     }
 
     #[instrument(skip(self, message, metrics, runtime_env))]
@@ -584,7 +582,7 @@ mod tests {
     use candle_core::Device;
     use futures::TryStreamExt;
 
-    use crate::candle_assets::candle_which::{load_model_asset_path, load_tokenizer};
+    use crate::candle_assets::available_candle_assets::{load_model_asset_path, load_tokenizer};
 
     use super::*;
 
@@ -644,7 +642,7 @@ mod tests {
             )),
             candle_asset: Some(
                 // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
-                crate::candle_assets::candle_which::WhichCandleAsset::QuantizedBertEmbed,
+                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QuantizedBertEmbed,
             ),
             ..Default::default()
         };
@@ -740,7 +738,7 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                crate::candle_assets::candle_which::WhichCandleAsset::QwenV2_1p5bEmbed,
+                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QwenV2_1p5bEmbed,
             ),
             ..Default::default()
         };
@@ -960,7 +958,7 @@ mod tests {
             )),
             candle_asset: Some(
                 // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
-                crate::candle_assets::candle_which::WhichCandleAsset::QuantizedBertEmbed,
+                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QuantizedBertEmbed,
             ),
             ..Default::default()
         };

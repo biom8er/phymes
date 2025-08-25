@@ -1,7 +1,11 @@
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::{metrics::HashMap, session::common_traits::StateMap};
+use crate::{
+    metrics::HashMap,
+    session::common_traits::{MappableTrait, StateMap},
+};
 
 use super::{
     arrow_table::{ArrowTable, ArrowTableTrait},
@@ -38,6 +42,20 @@ impl ArrowTableSubscribe {
         }
     }
 
+    #[allow(dead_code)]
+    fn get_full_name(&self) -> String {
+        match self {
+            Self::OnUpdateFullTable { table_name: tn } => format!("OnUpdateFullTable-{tn}"),
+            Self::OnUpdateLastRecordBatch { table_name: tn } => {
+                format!("OnUpdateLastRecordBatch-{tn}")
+            }
+            Self::AlwaysFullTable { table_name: tn } => format!("AlwaysFullTable-{tn}"),
+            Self::AlwaysLastRecordBatch { table_name: tn } => format!("AlwaysLastRecordBatch-{tn}"),
+            Self::None => "None".to_string(),
+            Self::Custom(name) => name.to_string(),
+        }
+    }
+
     pub fn is_update(&self) -> bool {
         match self {
             Self::OnUpdateFullTable { table_name: _tn }
@@ -46,6 +64,57 @@ impl ArrowTableSubscribe {
             | Self::AlwaysLastRecordBatch { table_name: _tn } => false,
             Self::None => false,
             Self::Custom(_name) => false,
+        }
+    }
+
+    pub fn get_short_name(&self) -> &str {
+        match self {
+            Self::OnUpdateFullTable { table_name: _tn } => "FullTable",
+            Self::OnUpdateLastRecordBatch { table_name: _tn } => "LastRecordBatch",
+            Self::AlwaysFullTable { table_name: _tn } => "FullTable",
+            Self::AlwaysLastRecordBatch { table_name: _tn } => "LastRecordBatch",
+            Self::None => "None",
+            Self::Custom(name) => name,
+        }
+    }
+
+    pub fn from_str(name: &str, subject: &str) -> Result<ArrowTableSubscribe> {
+        let subscription = if name.contains("OnUpdateFullTable") {
+            ArrowTableSubscribe::OnUpdateFullTable {
+                table_name: subject.to_string(),
+            }
+        } else if name.contains("AlwaysFullTable") {
+            ArrowTableSubscribe::AlwaysFullTable {
+                table_name: subject.to_string(),
+            }
+        } else if name.contains("OnUpdateLastRecordBatch") {
+            ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                table_name: subject.to_string(),
+            }
+        } else if name.contains("AlwaysLastRecordBatch") {
+            ArrowTableSubscribe::AlwaysLastRecordBatch {
+                table_name: subject.to_string(),
+            }
+        } else if name.contains("None") {
+            ArrowTableSubscribe::None {}
+        } else {
+            return Err(anyhow!(
+                "Variant for ArrowTableSubscribe {name} with subject {subject} was not recognized."
+            ));
+        };
+        Ok(subscription)
+    }
+}
+
+impl MappableTrait for ArrowTableSubscribe {
+    fn get_name(&self) -> &str {
+        match self {
+            Self::OnUpdateFullTable { table_name: _tn } => "OnUpdateFullTable",
+            Self::OnUpdateLastRecordBatch { table_name: _tn } => "OnUpdateLastRecordBatch",
+            Self::AlwaysFullTable { table_name: _tn } => "AlwaysFullTable",
+            Self::AlwaysLastRecordBatch { table_name: _tn } => "AlwaysLastRecordBatch",
+            Self::None => "None",
+            Self::Custom(name) => name,
         }
     }
 }
@@ -98,8 +167,33 @@ impl ArrowTableSubscribeTrait for ArrowTable {
     }
 }
 
+/// Helper function to convert a [String] to a [SubscribeTrait]
+///
+/// # Notes
+/// * This method will eventually be on an enum of all concrete
+///   [SubscribeTrait] implementations
+/// * Comparison by `contains` can be dangerous so order matters
+pub fn from_str_to_subscribe(line: &str) -> Result<Box<dyn SubscribeTrait>> {
+    let subscribe = if line.contains(AllTableSchemasSubscribe::get_static_name()) {
+        AllTableSchemasSubscribe::new_box()
+    } else if line.contains(AnyTableSchemaSubscribe::get_static_name()) {
+        AnyTableSchemaSubscribe::new_box()
+    } else if line.contains(AllTableNamesSubscribe::get_static_name()) {
+        AllTableNamesSubscribe::new_box()
+    } else if line.contains(AnyTableNameSubscribe::get_static_name()) {
+        AnyTableNameSubscribe::new_box()
+    } else if line.contains(AlwaysSubscribe::get_static_name()) {
+        AlwaysSubscribe::new_box()
+    } else if line.contains(ChatContentSubscribe::get_static_name()) {
+        ChatContentSubscribe::new_box()
+    } else {
+        return Err(anyhow!("Subscribe policy {line} was not recognized."));
+    };
+    Ok(subscribe)
+}
+
 /// Determine when all subscriptions are ready
-pub trait SubscribeTrait: Debug + Send + Sync {
+pub trait SubscribeTrait: MappableTrait + Debug + Send + Sync {
     fn check_subscriptions(
         &self,
         subscriptions: &[ArrowTableSubscribe],
@@ -132,6 +226,15 @@ impl SubscribeTrait for AlwaysSubscribe {
     }
 }
 
+impl MappableTrait for AlwaysSubscribe {
+    fn get_static_name() -> &'static str {
+        "Always"
+    }
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
 /// Subscribe when any matching table name has been updated
 #[derive(Default, Debug)]
 pub struct AnyTableNameSubscribe;
@@ -159,6 +262,15 @@ impl SubscribeTrait for AnyTableNameSubscribe {
     }
 }
 
+impl MappableTrait for AnyTableNameSubscribe {
+    fn get_static_name() -> &'static str {
+        "Any"
+    }
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
 /// Subscribe when all matching table names has been updated
 #[derive(Default, Debug)]
 pub struct AllTableNamesSubscribe;
@@ -181,6 +293,15 @@ impl SubscribeTrait for AllTableNamesSubscribe {
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
+    }
+}
+
+impl MappableTrait for AllTableNamesSubscribe {
+    fn get_static_name() -> &'static str {
+        "All"
+    }
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }
 
@@ -226,6 +347,15 @@ impl SubscribeTrait for AnyTableSchemaSubscribe {
     }
 }
 
+impl MappableTrait for AnyTableSchemaSubscribe {
+    fn get_static_name() -> &'static str {
+        "AnySchema"
+    }
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
 /// Subscribe when all matching table schemas has been updated
 #[derive(Default, Debug)]
 pub struct AllTableSchemasSubscribe;
@@ -263,6 +393,47 @@ impl SubscribeTrait for AllTableSchemasSubscribe {
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
+    }
+}
+
+impl MappableTrait for AllTableSchemasSubscribe {
+    fn get_static_name() -> &'static str {
+        "AllSchema"
+    }
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+/// Custom subscription to pull in all of the relevant content for the chat
+#[derive(Default, Debug)]
+pub struct ChatContentSubscribe {
+    user_message_table_name: String,
+    tool_message_table_name: String,
+}
+
+impl SubscribeTrait for ChatContentSubscribe {
+    fn check_subscriptions(
+        &self,
+        _subscriptions: &[ArrowTableSubscribe],
+        updates: &HashMap<String, bool>,
+        _state: &StateMap,
+    ) -> bool {
+        let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
+        let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
+        *tool || *user
+    }
+    fn new_box() -> Box<dyn SubscribeTrait> {
+        Box::new(Self {
+            user_message_table_name: "user_messages".to_string(),
+            tool_message_table_name: "tool_messages".to_string(),
+        })
+    }
+}
+
+impl MappableTrait for ChatContentSubscribe {
+    fn get_name(&self) -> &str {
+        "ChatContentSubscribe"
     }
 }
 

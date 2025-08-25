@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-use crate::candle_operators::which_operator::WhichCandleOperator;
+use crate::candle_operators::available_candle_operators::AvailableCandleOperators;
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataStreamManager {
@@ -183,7 +183,7 @@ pub struct DataConfig {
 
     /// The operator to invoke
     #[arg(long, default_value = "relative-similarity-score")]
-    pub which: WhichCandleOperator,
+    pub which: AvailableCandleOperators,
 }
 
 impl Default for DataConfig {
@@ -202,7 +202,7 @@ impl Default for DataConfig {
             rhs_args: None,
             op_kwargs: None,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
-            which: WhichCandleOperator::RelativeSimilarityScore,
+            which: AvailableCandleOperators::RelativeSimilarityScore,
         }
     }
 }

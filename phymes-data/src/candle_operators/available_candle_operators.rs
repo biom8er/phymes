@@ -5,7 +5,7 @@ use arrow::array::{ArrayRef, RecordBatch, StringArray};
 /// General dependencies
 use clap::ValueEnum;
 use phymes_core::{
-    session::common_traits::BuilderTrait,
+    session::common_traits::{BuilderTrait, MappableTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
 };
 use serde::{Deserialize, Serialize};
@@ -19,40 +19,40 @@ use crate::candle_operators::{
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
-pub enum WhichCandleOperator {
-    #[value(name = "relative-similarity-score")]
+pub enum AvailableCandleOperators {
+    #[value(name = "RelativeSimilarityScore")]
     #[serde(alias = "relative-similarity-score")]
     RelativeSimilarityScore,
-    #[value(name = "sort-column-and-indices")]
+    #[value(name = "SortColumnAndIndices")]
     #[serde(alias = "sort-column-and-indices")]
     SortColumnAndIndices,
-    #[value(name = "human-in-the-loop")]
+    #[value(name = "HumanInTheLoop")]
     #[serde(alias = "human-in-the-loop")]
     HumanInTheLoop,
-    #[value(name = "chunk-documents")]
+    #[value(name = "ChunkDocuments")]
     #[serde(alias = "chunk-documents")]
     ChunkDocuments,
-    #[value(name = "join-inner")]
+    #[value(name = "JoinInner")]
     #[serde(alias = "join-inner")]
     JoinInner,
-    #[value(name = "extract-pdf-text")]
+    #[value(name = "ExtractPDFText")]
     #[serde(alias = "extract-pdf-text")]
     ExtractPDFText,
-    #[value(name = "group-by-and-aggregate")]
+    #[value(name = "GroupByAndAggregate")]
     #[serde(alias = "group-by-and-aggregate")]
     GroupByAndAggregate,
-    #[value(name = "filter-columns-and-indices")]
+    #[value(name = "FilterColumnsAndIndices")]
     #[serde(alias = "filter-columns-and-indices")]
     FilterColumnsAndIndices,
 }
 
-impl Default for WhichCandleOperator {
+impl Default for AvailableCandleOperators {
     fn default() -> Self {
         Self::RelativeSimilarityScore
     }
 }
 
-impl WhichCandleOperator {
+impl AvailableCandleOperators {
     /// Wrapper to return the name of any SortColumnAndIndices
     pub fn get_name(&self) -> &str {
         match self {
@@ -83,21 +83,21 @@ impl WhichCandleOperator {
 
     /// Return the operatiSortColumnAndIndices
     pub fn new_from_name(name: &str) -> Option<Self> {
-        if name == RelativeSimilarityScore::get_name() {
+        if name == RelativeSimilarityScore::get_static_name() {
             Some(Self::RelativeSimilarityScore)
-        } else if name == SortColumnAndIndices::get_name() {
+        } else if name == SortColumnAndIndices::get_static_name() {
             Some(Self::SortColumnAndIndices)
-        } else if name == HumanInTheLoop::get_name() {
+        } else if name == HumanInTheLoop::get_static_name() {
             Some(Self::HumanInTheLoop)
-        } else if name == ChunkDocuments::get_name() {
+        } else if name == ChunkDocuments::get_static_name() {
             Some(Self::ChunkDocuments)
-        } else if name == JoinInner::get_name() {
+        } else if name == JoinInner::get_static_name() {
             Some(Self::JoinInner)
-        } else if name == ExtractPDFText::get_name() {
+        } else if name == ExtractPDFText::get_static_name() {
             Some(Self::ExtractPDFText)
-        } else if name == GroupByAndAggregate::get_name() {
+        } else if name == GroupByAndAggregate::get_static_name() {
             Some(Self::GroupByAndAggregate)
-        } else if name == FilterColumnsAndIndices::get_name() {
+        } else if name == FilterColumnsAndIndices::get_static_name() {
             Some(Self::FilterColumnsAndIndices)
         } else {
             None
@@ -149,7 +149,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
     let mut tool_id_vec = Vec::new();
     let mut tool_vec = Vec::new();
     for destination in destinations.iter() {
-        if let Some(ops) = WhichCandleOperator::new_from_name(destination) {
+        if let Some(ops) = AvailableCandleOperators::new_from_name(destination) {
             tool_id_vec.push(ops.get_name().to_string());
             tool_vec.push(ops.get_json_tool_schema());
         }
@@ -181,30 +181,30 @@ mod tests {
         let result = convert_destinations_to_tools(
             "test",
             &[
-                "relative-similarity-score".to_string(),
-                "sort-column-and-indices".to_string(),
-                "chunk-documents".to_string(),
-                "join-inner".to_string(),
-                "human-in-the-loop".to_string(),
-                "group-by-and-aggregate".to_string(),
-                "filter-columns-and-indices".to_string(),
+                "RelativeSimilarityScore".to_string(),
+                "SortColumnAndIndices".to_string(),
+                "ChunkDocuments".to_string(),
+                "JoinInner".to_string(),
+                "HumanInTheLoop".to_string(),
+                "GroupByAndAggregate".to_string(),
+                "FilterColumnsAndIndices".to_string(),
             ],
         )
         .unwrap();
         assert_eq!(
             result.get_column_as_vec_str("tool_id"),
             &[
-                "relative-similarity-score",
-                "sort-column-and-indices",
-                "chunk-documents",
-                "join-inner",
-                "human-in-the-loop",
-                "group-by-and-aggregate",
-                "filter-columns-and-indices"
+                "RelativeSimilarityScore",
+                "SortColumnAndIndices",
+                "ChunkDocuments",
+                "JoinInner",
+                "HumanInTheLoop",
+                "GroupByAndAggregate",
+                "FilterColumnsAndIndices"
             ]
         );
         let functions = result.get_column_as_vec_str("tool");
-        assert!(functions.first().unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"relative-similarity-score\",\"description\":\"Compute the relative similarity score between two different lists of embedding vectors\"")
+        assert!(functions.first().unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"RelativeSimilarityScore\",\"description\":\"Compute the relative similarity score between two different lists of embedding vectors\"")
         );
         assert!(
             functions
@@ -231,7 +231,7 @@ mod tests {
                 .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\",\"rhs_name\",\"rhs_pk\",\"rhs_values\"]}}}")
         );
 
-        assert!(functions.get(1).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"sort-column-and-indices\",\"description\":\"Sort the the list of computed scores in ascending order\"")
+        assert!(functions.get(1).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"SortColumnAndIndices\",\"description\":\"Sort the the list of computed scores in ascending order\"")
         );
         assert!(
             functions
@@ -252,7 +252,7 @@ mod tests {
                 .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
         );
 
-        assert!(functions.get(2).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"chunk-documents\",\"description\":\"Chunk documents by splitting the document text\"")
+        assert!(functions.get(2).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"ChunkDocuments\",\"description\":\"Chunk documents by splitting the document text\"")
         );
         assert!(
             functions
@@ -273,7 +273,7 @@ mod tests {
                 .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
         );
 
-        assert!(functions.get(3).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"join-inner\",\"description\":\"Join two tables on their foreign keys\"")
+        assert!(functions.get(3).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"JoinInner\",\"description\":\"Join two tables on their foreign keys\"")
         );
         assert!(
             functions
@@ -296,7 +296,7 @@ mod tests {
                 .contains("\"required\":[\"lhs_name\",\"rhs_name\",\"lhs_fk\",\"rhs_fk\"]}}}")
         );
 
-        assert!(functions.get(4).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"human-in-the-loop\",\"description\":\"The response to the user.\"")
+        assert!(functions.get(4).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"HumanInTheLoop\",\"description\":\"The response to the user.\"")
         );
         assert!(
             functions
@@ -313,7 +313,7 @@ mod tests {
                 .contains("\"required\":[\"lhs_args\"]}}}")
         );
 
-        assert!(functions.get(5).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"group-by-and-aggregate\",\"description\":\"Group by user specified columns and aggregate user specified aggregation columns using the user specified aggregation operators.\"")
+        assert!(functions.get(5).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"GroupByAndAggregate\",\"description\":\"Group by user specified columns and aggregate user specified aggregation columns using the user specified aggregation operators.\"")
         );
         assert!(
             functions
@@ -330,7 +330,7 @@ mod tests {
                 .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
         );
 
-        assert!(functions.get(6).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"filter-columns-and-indices\",\"description\":\"Filter by specified columns using a specified comparator operator over specified columns.\"")
+        assert!(functions.get(6).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"FilterColumnsAndIndices\",\"description\":\"Filter by specified columns using a specified comparator operator over specified columns.\"")
         );
         assert!(
             functions

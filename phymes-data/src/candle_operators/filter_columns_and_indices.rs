@@ -15,7 +15,7 @@ use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
 use phymes_core::{
     schemas::{chat_completion, types},
-    session::common_traits::{BuildableTrait, BuilderTrait},
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
 use tracing::instrument;
@@ -39,10 +39,13 @@ pub struct FilterColumnsAndIndices {
     cmp_predicate: DataComparatorPredicate,
 }
 
-impl DataOperatorTrait for FilterColumnsAndIndices {
-    fn get_static_name() -> &'static str {
-        "filter-columns-and-indices"
+impl MappableTrait for FilterColumnsAndIndices {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
+}
+
+impl DataOperatorTrait for FilterColumnsAndIndices {
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
@@ -153,7 +156,7 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
             }),
         );
         let function = types::Function {
-            name: Self::get_name(),
+            name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,

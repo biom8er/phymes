@@ -72,26 +72,7 @@ pub struct MessageAggregatorProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
-    forward: Vec<String>,
     subscribe: Box<dyn SubscribeTrait>,
-}
-
-impl MessageAggregatorProcessor {
-    pub fn new_with_pub_sub_for(
-        name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
-        forward: &[&str],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe,
-        })
-    }
 }
 
 impl MappableTrait for MessageAggregatorProcessor {
@@ -114,6 +95,20 @@ impl PubSubTrait for MessageAggregatorProcessor {
 }
 
 impl ArrowProcessorTrait for MessageAggregatorProcessor {
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait> {
+        Arc::new(Self {
+            name: name.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe,
+        })
+    }
+
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
@@ -121,13 +116,16 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
                 table_name: "messages".to_string(),
             }],
             subscriptions: vec![ArrowTableSubscribe::None],
-            forward: Vec::new(),
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
-    fn get_forward_subscriptions(&self) -> &[String] {
-        self.forward.as_slice()
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
+        self.subscribe.as_ref()
+    }
+
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
     }
 
     #[instrument(skip(self, message, metrics, runtime_env))]
@@ -329,7 +327,7 @@ mod tests {
             test_table::{make_test_table, make_test_table_chat},
         },
     };
-    use phymes_data::candle_operators::which_operator::WhichCandleOperator;
+    use phymes_data::candle_operators::available_candle_operators::AvailableCandleOperators;
 
     use super::*;
 
@@ -375,7 +373,7 @@ mod tests {
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            which: WhichCandleOperator::SortColumnAndIndices,
+            which: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

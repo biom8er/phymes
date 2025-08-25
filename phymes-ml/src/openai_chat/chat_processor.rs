@@ -50,26 +50,7 @@ pub struct OpenAIChatProcessor {
     name: String,
     publications: Vec<ArrowTablePublish>,
     subscriptions: Vec<ArrowTableSubscribe>,
-    forward: Vec<String>,
     subscribe: Box<dyn SubscribeTrait>,
-}
-
-impl OpenAIChatProcessor {
-    pub fn new_with_pub_sub_for(
-        name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
-        forward: &[&str],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            forward: forward.iter().map(|s| s.to_string()).collect(),
-            subscribe,
-        })
-    }
 }
 
 impl MappableTrait for OpenAIChatProcessor {
@@ -93,18 +74,35 @@ impl PubSubTrait for OpenAIChatProcessor {
 }
 
 impl ArrowProcessorTrait for OpenAIChatProcessor {
+    fn new_arc_with_pub_sub(
+        name: &str,
+        publications: &[ArrowTablePublish],
+        subscriptions: &[ArrowTableSubscribe],
+        subscribe: Box<dyn SubscribeTrait>,
+    ) -> Arc<dyn ArrowProcessorTrait> {
+        Arc::new(Self {
+            name: name.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe,
+        })
+    }
+
     fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: vec![ArrowTablePublish::None],
             subscriptions: vec![ArrowTableSubscribe::None],
-            forward: Vec::new(),
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
 
-    fn get_forward_subscriptions(&self) -> &[String] {
-        self.forward.as_slice()
+    fn get_subscribe(&self) -> &dyn SubscribeTrait {
+        self.subscribe.as_ref()
+    }
+
+    fn get_type(&self) -> &str {
+        Self::get_static_name()
     }
 
     fn process(
@@ -416,7 +414,7 @@ mod tests {
             repeat_last_n: 64,
             api_url: Some("http://0.0.0.0:8000/v1".to_string()),
             openai_asset: Some(
-                crate::openai_asset::openai_which::WhichOpenAIAsset::MetaLlamaV3p2_1B,
+                crate::openai_asset::available_openai_assets::AvailableOpenAIAssets::MetaLlamaV3p2_1B,
             ),
             ..Default::default()
         };
@@ -459,7 +457,7 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = OpenAIChatProcessor::new_with_pub_sub_for(
+        let chat_processor = OpenAIChatProcessor::new_arc_with_pub_sub(
             name,
             &[ArrowTablePublish::ExtendChunks {
                 table_name: messages.to_string(),
@@ -474,7 +472,6 @@ mod tests {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
-            &[],
             AllTableNamesSubscribe::new_box(),
         );
         let mut stream = chat_processor.process(

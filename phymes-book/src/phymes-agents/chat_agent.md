@@ -9,36 +9,55 @@ This tutorial describes how the [Chat Agent Session Plan](https://github.com/bio
 The simplest agentic AI architecture is that of a chat agent, which can be modeled as a static directed acyclic graph.
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> chat_agent: Query
-    chat_agent --> [*]: Response
-```
-
-The session starts with a query to the chat_agent from the user, and the chat_agent runs text generation inference to respond back to the user.
-
-Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the user and the chat_agent.
-
-```mermaid
 sequenceDiagram
-    user->>messages: 1
-    messages->>chat_agent: 2
-    config->>chat_agent: 3
-    chat_agent->>messages: 4
-    messages->>user: 5
+    autonumber
+    user ->> TGI: messages
+    TGI ->> user: messages
 ```
 
-The sequence of actions are the following:
-
-1. The user publishes to messages subject
-2. The chat_agent subscribes to messages subject when there is a change to the messages subject table.
-3. The chat_agent subscribes to configs subject no matter if there is a change or not because the configs provide the parameters for running the chat_agent.
-4. The chat_agent performs text generation inference based on the messages subject content and publishes the results to the messages subject.
-5. The user subscribes to messages subject where there is a change to the messages subject table.
+The session is composed of 2 tasks: 1. the user, and 2. Text generation inference (TGI).
 
 ![sign-in](../assets/2025-07-05_phymes-app_docchat-no-rag_messaging.png)
 
-The session ends because there are no further updates to the subjects. If the user publishes a follow-up message, the session will pick-up where it left off with the chat_agent responding to the updated message content.
+The session starts when the user uploads their query to the session (1). The TGI task generates a response for the user based on the query (2). The session ends when there are no further updates to the subjects. If the user publishes a follow-up message, the session will pick-up where it left off.
+
+```mermaid
+flowchart TD
+	subgraph chat_task_1
+		messages-subject-.FullTable.->chat_processor_1-subscribe
+		-subject--None-->chat_processor_1-subscribe
+		chat_processor_1-subject--FullTable-->chat_processor_1-subscribe
+		chat_processor_1-subscribe-->chat_processor_1-processor
+		chat_processor_1-processor-->chat_processor_1-publish
+		chat_processor_1-publish--ExtendChunks-->messages-subject
+	end
+	subgraph session_1
+		messages-subject-.LastRecordBatch.->session_1-subscribe
+		session_1-subscribe-->session_1-processor
+		session_1-processor-->session_1-publish
+		session_1-publish--Extend-->messages-subject
+	end
+	rt_1-rt-->chat_task_1
+	rt_default-rt-->session_1
+	chat_processor_1-processor@{shape: rect, label: CandleChatProcessor}
+	session_1-processor@{shape: rect, label: ArrowProcessorEcho}
+	rt_1-rt@{shape: subproc, label: rt_1}
+	rt_default-rt@{shape: subproc, label: rt_default}
+	chat_processor_1-subject@{shape: doc, label: chat_processor_1}
+	messages-subject@{shape: doc, label: messages}
+	chat_processor_1-publish@{shape: fork}
+	session_1-publish@{shape: fork}
+	chat_processor_1-subscribe@{shape: diamond, label: All}
+	session_1-subscribe@{shape: diamond, label: All}
+```
+
+Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the User, and TGI tasks. Each task is composed of one or more processes that are chained together to execute the task. Each processor listens for changes on their subscribed subjects and publishes their results to subjects. Each task runs once the subscription criteria for all of its child processors are satisfied.
+
+At each superstep of the session, subscribed subjects are allocated to tasks, tasks are ran in parallel, and the subjects for which tasks publish on are updated sequentially.
+
+While not shown in the flowchart above, each processor subscribes to a special subject usually called the config which specifies all of the parameters for the processor. And like any other subject, the config can also be updated dynamically during the execution of the session.
+
+The decision to chain multiple processors into a single task or to allocated each processor to its own task is up to the needs of the user. Chaining multple processors can be more performant and efficient because fewer subscription and publishing copies and updates, respectively are needed. However, allocating each processor to its own task is easier to debug since the output of each task can be easily verified. Also, any processor that requires an external API call has to be allocated to its own task as chaining of streams breaks the poll on the external API call.
 
 ## Next steps
 

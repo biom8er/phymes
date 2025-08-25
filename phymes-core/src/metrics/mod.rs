@@ -4,6 +4,7 @@ mod baseline;
 mod builder;
 mod common;
 mod instant;
+mod table;
 mod value;
 
 use parking_lot::Mutex;
@@ -18,6 +19,10 @@ pub use common::{HashMap, HashSet};
 // public exports
 pub use baseline::{BaselineMetrics, RecordOutput};
 pub use builder::MetricBuilder;
+pub use table::{
+    get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, get_metrics_as_pivot_table,
+    get_metrics_as_table,
+};
 pub use value::{Count, Gauge, MetricValue, ScopedTimerGuard, Time, Timestamp};
 
 /// Something that tracks a value of interest (metric) of a phymes-core
@@ -354,6 +359,11 @@ impl ArrowTaskMetricsSet {
     pub fn clone_inner(&self) -> MetricsSet {
         let guard = self.inner.lock();
         (*guard).clone()
+    }
+
+    /// Clear the metrics
+    pub fn clear(&mut self) {
+        self.inner.try_lock().unwrap().metrics.clear();
     }
 }
 

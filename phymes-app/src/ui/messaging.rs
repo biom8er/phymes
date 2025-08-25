@@ -18,6 +18,7 @@ use phymes_server::handlers::{
     sign_in::create_session_name,
 };
 
+/// DM: we need to find a better way to synchronize this between the front-end and server...
 const MESSAGES_SUBJECT_NAME: &str = "messages";
 
 #[cfg(not(feature = "serverless"))]
@@ -44,7 +45,7 @@ use crate::{
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
     },
-    ui::svg_icons::{assistant_icon_svg, send_icon_svg, user_icon_svg},
+    ui::svg_icons::{assistant_icon_svg, attachment_icon_svg, send_icon_svg, user_icon_svg},
 };
 
 /// View for messaging between the user and AI assistant
@@ -235,6 +236,17 @@ pub fn messaging_interface_footer() -> Element {
         if !JWT.read().is_empty() && !ACTIVE_SESSION_NAME.read().is_empty() {
             footer {
                 div {
+                    class: "attach_button",
+                    // This must be outside the form or it will be refreshed on each submit
+                    button {
+                        onclick: move |_| async move {
+                            // TODO: add support for adding attachments through the messaging interface
+                        },
+                        svg { dangerous_inner_html: attachment_icon_svg() }
+                    }
+                }
+
+                div {
                     class: "text_input",
                     form {
                         id: "message_form",
@@ -361,7 +373,11 @@ pub fn messaging_interface_footer() -> Element {
                                 }
                             }
                         },
-                        svg { dangerous_inner_html: send_icon_svg() }
+                        if !prompt.read().is_empty() {
+                            svg { dangerous_inner_html: send_icon_svg() }
+                        } else {
+                            // TODO: add support for audio
+                        }
                     }
                 }
             }

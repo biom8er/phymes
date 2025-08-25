@@ -2,8 +2,8 @@ use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-use crate::candle_assets::candle_which::WhichCandleAsset;
-use crate::openai_asset::openai_which::WhichOpenAIAsset;
+use crate::candle_assets::available_candle_assets::AvailableCandleAssets;
+use crate::openai_asset::available_openai_assets::AvailableOpenAIAssets;
 
 #[derive(Debug, ValueEnum, PartialEq, Clone, Eq, Serialize, Deserialize)]
 pub enum Pool {
@@ -72,11 +72,11 @@ pub struct CandleEmbedConfig {
 
     /// The model size to use.
     #[arg(long, default_value = "Qwen-v2-1.5b-embed")]
-    pub candle_asset: Option<WhichCandleAsset>,
+    pub candle_asset: Option<AvailableCandleAssets>,
 
     /// The model to use.
     #[arg(long)]
-    pub openai_asset: Option<WhichOpenAIAsset>,
+    pub openai_asset: Option<AvailableOpenAIAssets>,
 }
 
 impl CandleEmbedConfig {
