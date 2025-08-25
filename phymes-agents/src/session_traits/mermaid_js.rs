@@ -421,8 +421,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 Ok(ArrowProcessorMock::get_static_name().to_string())
             } else if line.contains(ArrowProcessorEcho::get_static_name()) {
                 Ok(ArrowProcessorEcho::get_static_name().to_string())
-            } else if line.contains(ArrowProcessorEcho::get_static_name()) {
-                Ok(CandleDataProcessor::get_static_name().to_string())
             } else if line.contains(CandleDataProcessor::get_static_name()) {
                 Ok(CandleDataProcessor::get_static_name().to_string())
             } else if line.contains(DataSummaryProcessor::get_static_name()) {
