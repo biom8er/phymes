@@ -163,6 +163,7 @@ pub fn main_window() -> Element {
                 sign_in_modal {},
             } else if header_menu.read().as_str() == "Settings" {
                 settings_interface_view {},
+                split_panel_drag_handle {}, 
                 settings_interface_footer {},
             } else if header_menu.read().as_str() == "Subjects" {
                 subjects_modal {},
@@ -175,6 +176,118 @@ pub fn main_window() -> Element {
         }
     }
 }
+
+/// Split panel vertical drag
+/// 
+/// # Notes
+/// * this component is a work in progress...
+/// * the JS listeners are necessary for the component to work
+/// * the dioxus signals are also needed to trigger the JS code
+/// * attempting to call the JS directly without the listeners results in bugs
+///   See commented code for trying to resize with JS directly
+#[component]
+pub fn split_panel_drag_handle() -> Element {
+    // let mut is_dragging: Signal<bool> = use_signal(|| false);
+    // let mut y_coordinate: Signal<f64> = use_signal(|| 0.0 as f64);
+    let mut js_trigger: Signal<bool> = use_signal(|| false);
+    
+    // use_effect(move || {
+    //     // Resize the two window windows
+    //     let y_coordinate = y_coordinate.read().to_owned();
+    //     document::eval(format!(
+    //         r#"const container = document.querySelector('#container');
+    //         const topPane = document.querySelector('.messaging_list');
+    //         const bottomPane = document.querySelector('.resizable_text_input');
+    //         const dragHandle = document.querySelector('.drag-handle');
+
+    //         const containerHeight = container.offsetHeight;
+    //         const offsetY = {y_coordinate} - container.getBoundingClientRect().top;
+    //         let percentHeight = (offsetY / containerHeight) * 100;
+
+    //         // Clamp between 10% and 90% for usability
+    //         percentHeight = Math.max(10, Math.min(90, percentHeight));
+    //         percentHeightChange = 100 - percentHeight;
+
+    //         topPane.style.height = `${{percentHeight}}%`;
+    //         bottomPane.style.height = `${{percentHeightChange}}%`;"#).as_str()
+    //     );
+    // });
+    use_effect(move || {
+        // Resize the two window windows
+        let _js_trigger = js_trigger.read().to_owned();
+        document::eval(
+            r#"const container = document.querySelector('#container');
+            const topPane = document.querySelector('.messaging_list');
+            const bottomPane = document.querySelector('.resizable_text_input');
+            const dragHandle = document.querySelector('.drag-handle');
+
+            let isDragging = false;
+
+            dragHandle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                document.body.style.cursor = 'row-resize';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const containerHeight = container.offsetHeight;
+                const offsetY = e.clientY - container.getBoundingClientRect().top;
+                let percentHeight = (offsetY / containerHeight) * 100;
+
+                // Clamp between 10% and 90% for usability
+                percentHeight = Math.max(10, Math.min(90, percentHeight));
+                percentHeightChange = 100 - percentHeight;
+
+                topPane.style.height = `${percentHeight}%`;
+                bottomPane.style.height = `${percentHeightChange}%`;
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                document.body.style.cursor = 'default';
+            });"#
+        );
+    });
+
+    rsx! {
+        div {
+            class: "drag-handle",
+            // onmousemove: move |event| {
+            //     if is_dragging() {
+            //         y_coordinate.set(event.client_coordinates().y);
+            //     }
+            // },
+            // onmousedown: move |_| is_dragging.set(true),
+            // onmouseup: move |_| is_dragging.set(false),
+            onclick: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+            onmousedown: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+            onmouseup: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+            onmousemove: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+            onmouseenter: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+            onmouseleave: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+        }
+    }
+}
+
 
 /// About text view with information on using the application
 ///

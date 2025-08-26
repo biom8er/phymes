@@ -478,6 +478,7 @@ pub fn settings_interface_footer() -> Element {
     rsx! {
         if !JWT.read().is_empty() && !ACTIVE_SESSION_NAME.read().is_empty() {
             footer {
+                class: "resizable_text_input",
                 div {
                     class: "text_input",
                     form {

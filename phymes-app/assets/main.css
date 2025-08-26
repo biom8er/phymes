@@ -2,17 +2,17 @@
 *{
 	box-sizing:border-box;
 }
-body{
+html, body{
 	background-color: #000000;
     font-family: Arial, Helvetica, sans-serif;
+	margin: 0;
+	height: 100%;
 }
 #container{
-    width: 98vw;
-    height: 98vh;
+    width: 100vw;
+    height: 100vh;
 	background:#000000;
 	margin:0 0;
-	font-size:0;
-	border-radius:5px;
 	overflow:hidden;
 	display: flex;
 	flex-direction: column;
@@ -375,18 +375,25 @@ main .messaging_list .user .message{
 }
 main .messaging_list .assistant svg {
     display: inline-block;
-    /* transform: scale(0.7); */
     max-width: 60px; /* based on viewBox attributes in svg */
     max-height: 60px;
     vertical-align: middle;
 }
 main .messaging_list .user svg {
     display: inline-block;
-    /* transform: scale(0.7); */
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;
 }
+
+/* Split pane vertical resize handle */
+.drag-handle {
+  height: 6px;
+  background: #888;
+  cursor: row-resize;
+}
+
+/* Split pane design between `main .messaging_list` and `main .resizable_text_input` (which is the footer) */
 main footer{
 	height: 15%;
 	min-height: 15%;
@@ -395,6 +402,8 @@ main footer{
 	padding:2px 2px 2px 2px;
     align-items: bottom;
     display: flex;
+	flex-grow: 1;
+  	overflow: hidden;
 }
 main footer .text_input{
     width: 100%;
