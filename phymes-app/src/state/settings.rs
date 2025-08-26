@@ -26,18 +26,22 @@ pub static SESSION_MERMAID_ERDIAGRAM: GlobalSignal<String> = Signal::global(|| S
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyncCurrentSessionMermaidJSState {
-    pub flowchart: String,
-    pub erdiagram: String,
+    pub flowchart: Option<String>,
+    pub erdiagram: Option<String>,
 }
 
 pub async fn sync_current_session_mermaid_state(
     mut rx: UnboundedReceiver<SyncCurrentSessionMermaidJSState>,
 ) {
     while let Some(updated_state) = rx.next().await {
-        (*SESSION_MERMAID_FLOWCHART.write()).clear();
-        (*SESSION_MERMAID_FLOWCHART.write()).push_str(updated_state.flowchart.as_str());
-        (*SESSION_MERMAID_ERDIAGRAM.write()).clear();
-        (*SESSION_MERMAID_ERDIAGRAM.write()).push_str(updated_state.erdiagram.as_str());
+        if let Some(flowchart) = updated_state.flowchart {
+            (*SESSION_MERMAID_FLOWCHART.write()).clear();
+            (*SESSION_MERMAID_FLOWCHART.write()).push_str(flowchart.as_str());
+        }
+        if let Some(erdiagram) = updated_state.erdiagram {
+            (*SESSION_MERMAID_ERDIAGRAM.write()).clear();
+            (*SESSION_MERMAID_ERDIAGRAM.write()).push_str(erdiagram.as_str());
+        }
     }
 }
 
