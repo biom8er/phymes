@@ -47,3 +47,19 @@ pub struct MermaidJsObject {
     pub svg: Option<String>,
     pub error: Option<String>,
 }
+
+#[allow(clippy::redundant_closure)]
+pub static IS_FLOWCHART_SHOWN: GlobalSignal<bool> = Signal::global(|| true);
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SyncIsFlowchartShownState {
+    pub is_shown: bool,
+}
+
+pub async fn sync_is_flowchart_shown_state(
+    mut rx: UnboundedReceiver<SyncIsFlowchartShownState>,
+) {
+    while let Some(updated_state) = rx.next().await {
+        (*IS_FLOWCHART_SHOWN.write()) = updated_state.is_shown;
+    }
+}

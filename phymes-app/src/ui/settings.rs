@@ -13,9 +13,7 @@ use crate::{
     state::{
         messaging::{clear_current_message_state, ClearCurrentMessageState},
         settings::{
-            sync_current_active_session_state, sync_current_session_mermaid_state,
-            SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, ACTIVE_SESSION_NAME,
-            SESSION_MERMAID_FLOWCHART,
+            sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_MERMAID_ERDIAGRAM, SESSION_MERMAID_FLOWCHART
         },
         sign_in::{EMAIL, JWT, SESSION_NAMES},
     },
@@ -61,6 +59,7 @@ pub fn get_non_duplicated_sorted_subjects(subjects: &[&str]) -> Vec<String> {
 pub fn settings_interface_view() -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_current_session_mermaid_state);
+    use_coroutine(sync_is_flowchart_shown_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
@@ -168,8 +167,14 @@ pub fn settings_interface_view() -> Element {
     });
 
     // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
-    let diagram_code: Memo<String> = use_memo(move || SESSION_MERMAID_FLOWCHART.read().to_string());
-    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv", true);
+    let diagram_code: Memo<String> = use_memo(move || {
+        if IS_FLOWCHART_SHOWN() {
+            SESSION_MERMAID_FLOWCHART.read().to_string()
+        } else {
+            SESSION_MERMAID_ERDIAGRAM.read().to_string()
+        }        
+    });
+    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv", true, IS_FLOWCHART_SHOWN());
     let out = if let Some(result) = &*rendered_html.read() {
         match result {
             // Mermaid.js or SessionContextBuilder error
@@ -190,6 +195,14 @@ pub fn settings_interface_view() -> Element {
                             class: "messaging_list",
                             settings_dropdown_view {}
                             p { "{error}" },
+                            button { 
+                                onclick: move |_| async move {
+                                    let current = IS_FLOWCHART_SHOWN.read().to_owned();
+                                    let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
+                                    sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
+                                },
+                                "Toggle Diagrams"
+                            },
                         }
                     }
                 }
@@ -213,6 +226,14 @@ pub fn settings_interface_view() -> Element {
                             settings_dropdown_view {}
                             p { "{error_mjs}" },
                             p { "{error_ctxb}" },
+                            button { 
+                                onclick: move |_| async move {
+                                    let current = IS_FLOWCHART_SHOWN.read().to_owned();
+                                    let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
+                                    sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
+                                },
+                                "Toggle Diagrams"
+                            },
                         }
                     }
                 }
@@ -233,7 +254,15 @@ pub fn settings_interface_view() -> Element {
                     } else {
                         div {
                             class: "messaging_list",
-                            settings_dropdown_view {}
+                            settings_dropdown_view {},
+                            button { 
+                                onclick: move |_| async move {
+                                    let current = IS_FLOWCHART_SHOWN.read().to_owned();
+                                    let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
+                                    sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
+                                },
+                                "Toggle Diagrams"
+                            },
                             div {
                                 id: "graphDiv",
                                 class: "mermaid",
@@ -259,7 +288,15 @@ pub fn settings_interface_view() -> Element {
                     } else {
                         div {
                             class: "messaging_list",
-                            settings_dropdown_view {}
+                            settings_dropdown_view {},
+                            button { 
+                                onclick: move |_| async move {
+                                    let current = IS_FLOWCHART_SHOWN.read().to_owned();
+                                    let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
+                                    sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
+                                },
+                                "Toggle Diagrams"
+                            },
                         }
                     }
                 }
@@ -280,7 +317,15 @@ pub fn settings_interface_view() -> Element {
             } else {
                 div {
                     class: "messaging_list",
-                    settings_dropdown_view {}
+                    settings_dropdown_view {},
+                    button { 
+                        onclick: move |_| async move {
+                            let current = IS_FLOWCHART_SHOWN.read().to_owned();
+                            let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
+                            sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
+                        },
+                        "Toggle Diagrams"
+                    },
                 }
             }
         }
@@ -385,6 +430,7 @@ pub fn render_mermaid_svg(
     diagram_code: Memo<String>,
     id: &str,
     check_build: bool,
+    flowchart: bool,
 ) -> Resource<(Option<String>, Option<String>, Option<String>)> {
     let div_id = id.to_string();
     let rendered_html: Resource<(Option<String>, Option<String>, Option<String>)> =
@@ -422,11 +468,19 @@ pub fn render_mermaid_svg(
 
                 // Build the preliminary session context
                 if check_build {
-                    let builder_error =
+                    let builder_error = if flowchart {                        
+                        tracing::debug!("flowchart: is flowchart {flowchart}.");
                         match SessionContextBuilder::from_mermaid_flowchart(&diagram_code()) {
                             Ok(_res) => None,
                             Err(err) => Some(err.to_string()),
-                        };
+                        }
+                    } else {            
+                        tracing::debug!("erdiagram: is flowchart {flowchart}.");
+                        match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(&diagram_code()) {
+                            Ok(_res) => None,
+                            Err(err) => Some(err.to_string()),
+                        }
+                    };
                     (
                         mermaid_js_object.svg,
                         mermaid_js_object.error,
@@ -473,7 +527,13 @@ pub fn render_mermaid_svg(
 #[component]
 pub fn settings_interface_footer() -> Element {
     use_coroutine(sync_current_session_mermaid_state);
-    let diagram_code: Memo<String> = use_memo(move || SESSION_MERMAID_FLOWCHART.read().to_string());
+    let diagram_code: Memo<String> = use_memo(move || {
+        if IS_FLOWCHART_SHOWN() {
+            SESSION_MERMAID_FLOWCHART.read().to_string()
+        } else {
+            SESSION_MERMAID_ERDIAGRAM.read().to_string()
+        }        
+    });
 
     rsx! {
         if !JWT.read().is_empty() && !ACTIVE_SESSION_NAME.read().is_empty() {
