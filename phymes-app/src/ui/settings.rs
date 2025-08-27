@@ -17,7 +17,7 @@ use crate::{
         },
         sign_in::{EMAIL, JWT, SESSION_NAMES},
     },
-    ui::svg_icons::{column_arrow_right_icon_svg, search_icon_svg, send_icon_svg, trash_icon_svg},
+    ui::svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, search_icon_svg, trash_icon_svg},
 };
 
 #[cfg(feature = "mermaid_js")]
@@ -365,6 +365,12 @@ pub fn settings_dropdown_view() -> Element {
                 },
                 svg { dangerous_inner_html: column_arrow_right_icon_svg() },
             },
+            button { 
+                svg { dangerous_inner_html: edit_icon_svg() },
+            },
+            button { 
+                svg { dangerous_inner_html: deploy_icon_svg() },
+            },
         }
 
         // Dynamic dropdown
@@ -440,14 +446,12 @@ pub fn render_mermaid_svg(
 
                 // Build the preliminary session context
                 if check_build {
-                    let builder_error = if flowchart() {                        
-                        tracing::debug!("flowchart: is flowchart {flowchart}.");
+                    let builder_error = if flowchart() {
                         match SessionContextBuilder::from_mermaid_flowchart(&diagram_code()) {
                             Ok(_res) => None,
                             Err(err) => Some(err.to_string()),
                         }
-                    } else {            
-                        tracing::debug!("erdiagram: is flowchart {flowchart}.");
+                    } else {
                         match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(&diagram_code()) {
                             Ok(_res) => None,
                             Err(err) => Some(err.to_string()),
@@ -544,7 +548,7 @@ pub fn settings_interface_footer() -> Element {
                             // TODO: create new session
                         },
                         if !diagram_code().is_empty() {
-                            svg { dangerous_inner_html: send_icon_svg() }
+                            svg { dangerous_inner_html: save_icon_svg() }
                         }
                     }
                 }

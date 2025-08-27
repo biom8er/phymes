@@ -8,7 +8,7 @@ use super::sign_in::sign_in_modal;
 use super::subjects::subjects_modal;
 use super::svg_icons::{
     database_icon_svg, help_icon_svg, logo_icon_svg, menu_icon_svg, message_icon_svg,
-    person_icon_svg, settings_icon_svg, top_speed_icon_svg,
+    person_icon_svg, apps_icon_svg, top_speed_icon_svg,
 };
 
 #[component]
@@ -134,7 +134,8 @@ pub fn main_window() -> Element {
                     onclick: move |_| async move {
                         header_menu.set(HeaderMenu::Settings);
                     },
-                    svg { dangerous_inner_html: settings_icon_svg() }
+                    // svg { dangerous_inner_html: settings_icon_svg() }
+                    svg { dangerous_inner_html: apps_icon_svg() }
                 }
                 button {
                     onclick: move |_| async move {
@@ -320,7 +321,8 @@ pub fn about_text_modal() -> Element {
                     div {
                         class: "help_li_item",
                         h2 { "{HeaderMenu::Settings.as_str()}" }
-                        svg { dangerous_inner_html: settings_icon_svg() }
+                        // svg { dangerous_inner_html: settings_icon_svg() }
+                        svg { dangerous_inner_html: apps_icon_svg() }
                         p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
                     }
                 }

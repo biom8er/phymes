@@ -45,7 +45,7 @@ use crate::{
         settings::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
     },
-    ui::svg_icons::{assistant_icon_svg, attachment_icon_svg, send_icon_svg, user_icon_svg},
+    ui::svg_icons::{assistant_icon_svg, attachment_icon_svg, microphone_icon_svg, send_icon_svg, user_icon_svg},
 };
 
 /// View for messaging between the user and AI assistant
@@ -262,121 +262,123 @@ pub fn messaging_interface_footer() -> Element {
                 div {
                     class: "submit_button",
                     // This must be outside the form or it will be refreshed on each submit
-                    button {
-                        onclick: move |_| async move {
-                            let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
-                            let sync_message_content = use_coroutine_handle::<SyncCurrentMessageContentState>();
+                    if prompt.read().is_empty() {
+                        button {
+                            svg { dangerous_inner_html: microphone_icon_svg() }
+                        }
+                    } else {
+                        button {
+                            onclick: move |_| async move {
+                                let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
+                                let sync_message_content = use_coroutine_handle::<SyncCurrentMessageContentState>();
 
-                            // signed in and ready to chat
-                            sync_message.send(SyncCurrentMessageState {
-                                role: "user".to_string(),
-                                content: prompt.to_string(),
-                                timestamp: create_timestamp_str()
-                            });
+                                // signed in and ready to chat
+                                sync_message.send(SyncCurrentMessageState {
+                                    role: "user".to_string(),
+                                    content: prompt.to_string(),
+                                    timestamp: create_timestamp_str()
+                                });
 
-                            // let the user know that the response is being prepared
-                            sync_message.send(SyncCurrentMessageState {
-                                role: "assistant".to_string(),
-                                content: "Preparing response...".to_string(),
-                                timestamp: create_timestamp_str()
-                            });
+                                // let the user know that the response is being prepared
+                                sync_message.send(SyncCurrentMessageState {
+                                    role: "assistant".to_string(),
+                                    content: "Preparing response...".to_string(),
+                                    timestamp: create_timestamp_str()
+                                });
 
-                            // create the message
-                            let data = SessionResponse {
-                                session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-                                session_name: create_session_name(
-                                    EMAIL.read().as_str(),
-                                    ACTIVE_SESSION_NAME.read().as_str(),
-                                ),
-                                subject_name: MESSAGES_SUBJECT_NAME.to_string(),
-                                format: SessionResponseFormat::Bytes,
-                                publish: ArrowTablePublish::None,
-                                content: prompt.to_string().into(),
-                                metadata: "".to_string(),
-                                stream: false,
-                            };
-                            prompt.write().clear();
-                            let data_serialized = serde_json::to_string(&data).unwrap();
-                            let route = "/app/v1/chat";
+                                // create the message
+                                let data = SessionResponse {
+                                    session_plan: ACTIVE_SESSION_NAME.read().to_string(),
+                                    session_name: create_session_name(
+                                        EMAIL.read().as_str(),
+                                        ACTIVE_SESSION_NAME.read().as_str(),
+                                    ),
+                                    subject_name: MESSAGES_SUBJECT_NAME.to_string(),
+                                    format: SessionResponseFormat::Bytes,
+                                    publish: ArrowTablePublish::None,
+                                    content: prompt.to_string().into(),
+                                    metadata: "".to_string(),
+                                    stream: false,
+                                };
+                                prompt.write().clear();
+                                let data_serialized = serde_json::to_string(&data).unwrap();
+                                let route = "/app/v1/chat";
 
-                            #[cfg(not(feature = "serverless"))]
-                            let addr = format!("{ADDR_BACKEND}{route}");
-                            #[cfg(not(feature = "serverless"))]
-                            match reqwest::Client::new()
-                                .post(addr)
-                                .bearer_auth(JWT.to_string())
-                                .header(CONTENT_TYPE, "application/json")
-                                .body(data_serialized)
-                                .send()
-                                .await {
-                                Ok(stream) => {
-                                    sync_message_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
-                                    let mut stream = stream.bytes_stream();
-                                    while let Some(Ok(bytes)) = stream.next().await {
-                                        let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                                        let json_rows: Vec<Map<String, Value>> = serde_json::from_str(json_str.trim_end_matches(char::from(0)))
-                                            .unwrap_or_else(|e| {
+                                #[cfg(not(feature = "serverless"))]
+                                let addr = format!("{ADDR_BACKEND}{route}");
+                                #[cfg(not(feature = "serverless"))]
+                                match reqwest::Client::new()
+                                    .post(addr)
+                                    .bearer_auth(JWT.to_string())
+                                    .header(CONTENT_TYPE, "application/json")
+                                    .body(data_serialized)
+                                    .send()
+                                    .await {
+                                    Ok(stream) => {
+                                        sync_message_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
+                                        let mut stream = stream.bytes_stream();
+                                        while let Some(Ok(bytes)) = stream.next().await {
+                                            let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+                                            let json_rows: Vec<Map<String, Value>> = serde_json::from_str(json_str.trim_end_matches(char::from(0)))
+                                                .unwrap_or_else(|e| {
+                                                    let mut m = Map::new();
+                                                    m.insert("content".to_string(), format!("{e:?} caused by {json_str}").into());
+                                                    vec![m]
+                                                });
+                                            for row in json_rows.iter() {
+                                                if row.get("role").unwrap().as_str().unwrap() == "assistant" {
+                                                    sync_message_content.send(SyncCurrentMessageContentState {
+                                                        content: row.get("content").unwrap().as_str().unwrap().to_string(),
+                                                        replace_last: false
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    },
+                                    Err(e) => {
+                                        sync_message_content.send(SyncCurrentMessageContentState {content: format!("{e:?}"), replace_last: true});
+                                    }
+                                }
+
+                                #[cfg(feature = "serverless")]
+                                let config = ServerlessConfig {
+                                    route: route.to_string(),
+                                    basic_auth: None,
+                                    bearer_auth: Some(JWT().to_string()),
+                                    data: Some(data_serialized),
+                                };
+                                #[cfg(feature = "serverless")]
+                                let mut serverless = Serverless::new();
+                                #[cfg(feature = "serverless")]
+                                match serverless_app(config, &mut serverless).await {
+                                    Ok(response) => {
+                                        sync_message_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
+                                        let bytes: Vec<Bytes> = response
+                                            .into_body()
+                                            .into_data_stream()
+                                            .try_collect()
+                                            .await
+                                            .unwrap();
+                                        for byte in bytes.iter() {
+                                            let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte).unwrap_or_else(|e| {
                                                 let mut m = Map::new();
-                                                m.insert("content".to_string(), format!("{e:?} caused by {json_str}").into());
+                                                m.insert("content".to_string(), format!("Error: {e:?}").into());
                                                 vec![m]
                                             });
-                                        for row in json_rows.iter() {
-                                            if row.get("role").unwrap().as_str().unwrap() == "assistant" {
+                                            for row in json_rows.iter() {
                                                 sync_message_content.send(SyncCurrentMessageContentState {
                                                     content: row.get("content").unwrap().as_str().unwrap().to_string(),
                                                     replace_last: false
                                                 });
                                             }
                                         }
+                                    },
+                                    Err(e) => {
+                                        sync_message_content.send(SyncCurrentMessageContentState {content: format!("Error: {e:?}"), replace_last: true});
                                     }
-                                },
-                                Err(e) => {
-                                    sync_message_content.send(SyncCurrentMessageContentState {content: format!("{e:?}"), replace_last: true});
                                 }
-                            }
-
-                            #[cfg(feature = "serverless")]
-                            let config = ServerlessConfig {
-                                route: route.to_string(),
-                                basic_auth: None,
-                                bearer_auth: Some(JWT().to_string()),
-                                data: Some(data_serialized),
-                            };
-                            #[cfg(feature = "serverless")]
-                            let mut serverless = Serverless::new();
-                            #[cfg(feature = "serverless")]
-                            match serverless_app(config, &mut serverless).await {
-                                Ok(response) => {
-                                    sync_message_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
-                                    let bytes: Vec<Bytes> = response
-                                        .into_body()
-                                        .into_data_stream()
-                                        .try_collect()
-                                        .await
-                                        .unwrap();
-                                    for byte in bytes.iter() {
-                                        let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte).unwrap_or_else(|e| {
-                                            let mut m = Map::new();
-                                            m.insert("content".to_string(), format!("Error: {e:?}").into());
-                                            vec![m]
-                                        });
-                                        for row in json_rows.iter() {
-                                            sync_message_content.send(SyncCurrentMessageContentState {
-                                                content: row.get("content").unwrap().as_str().unwrap().to_string(),
-                                                replace_last: false
-                                            });
-                                        }
-                                    }
-                                },
-                                Err(e) => {
-                                    sync_message_content.send(SyncCurrentMessageContentState {content: format!("Error: {e:?}"), replace_last: true});
-                                }
-                            }
-                        },
-                        if !prompt.read().is_empty() {
+                            },
                             svg { dangerous_inner_html: send_icon_svg() }
-                        } else {
-                            // TODO: add support for audio
                         }
                     }
                 }
