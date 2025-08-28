@@ -194,7 +194,7 @@ impl CandleChatStream {
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
         Ok(Self {
-            schema: AvailableSubjects::Messages.create_schema(),
+            schema: AvailableSubjects::Messages.to_schema(),
             message_stream,
             tools_stream,
             baseline_metrics,

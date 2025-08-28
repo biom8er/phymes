@@ -191,7 +191,7 @@ impl DataSummaryStream {
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
         Ok(Self {
-            schema: AvailableSubjects::Messages.create_schema(),
+            schema: AvailableSubjects::Messages.to_schema(),
             message_stream,
             config_stream,
             runtime_env,

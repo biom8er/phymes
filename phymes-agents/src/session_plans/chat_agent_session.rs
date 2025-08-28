@@ -192,7 +192,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             .unwrap();
         
         Some(vec![config, 
-            AvailableSubjects::Messages.create_table(self.chat_subscription_name).unwrap()
+            AvailableSubjects::Messages.to_table(self.chat_subscription_name).unwrap()
         ])
     }
 }

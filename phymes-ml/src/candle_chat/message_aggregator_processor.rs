@@ -191,7 +191,7 @@ impl MessageAggregatorStream {
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
         Ok(Self {
-            schema: AvailableSubjects::Messages.create_schema(),
+            schema: AvailableSubjects::Messages.to_schema(),
             input,
             config_stream,
             config: None,

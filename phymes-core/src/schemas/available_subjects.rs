@@ -2,7 +2,7 @@ use crate::{session::common_traits::{BuilderTrait, MappableTrait}, table::arrow_
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, StringArray},
+    array::{ArrayRef, Int64Array, ListBuilder, StringArray, UInt8Array, UInt8Builder},
     datatypes::{DataType, Field, Fields, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
@@ -145,6 +145,19 @@ pub fn create_queries_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+pub fn create_queries_batch(
+    query_ids: Vec<String>,
+    text: Vec<String>,
+) -> Result<RecordBatch> {
+    let query_ids: ArrayRef = Arc::new(StringArray::from(query_ids));
+    let text: ArrayRef = Arc::new(StringArray::from(text));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("query_id", query_ids),
+        ("text", text),
+    ])?;
+    Ok(batch)
+}
+
 pub fn create_document_embeddings_fields() -> Fields {
     let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
     let document_id = Field::new("document_id", DataType::Utf8, false);
@@ -187,15 +200,46 @@ pub fn create_join_chunks_scores_fields() -> Fields {
 }
 
 pub fn create_blob_fields() -> Fields {
-    let document_id = Field::new("document_id", DataType::Utf8, false);
-    let types = Field::new("type", DataType::Utf8, false);
-    let bytes = Field::new("bytes", DataType::UInt8, false);
+    let filename = Field::new("filename", DataType::Utf8, false);
+    let extension = Field::new("extension", DataType::Utf8, false);
+    let list_data_type = DataType::List(
+        Arc::new(Field::new_list_field(DataType::UInt8, false))
+    );
+    let bytes = Field::new("bytes", list_data_type, false);
+    let metadata = Field::new("metadata", DataType::Utf8, false);
     Fields::from(vec![
-        document_id,
-        types,
+        filename,
+        extension,
         bytes,
+        metadata,
     ])
 }
+
+pub fn create_blob_batch(
+    filename: Vec<String>,
+    extension: Vec<String>,
+    bytes: Vec<Vec<u8>>,
+    metadata: Vec<String>,
+) -> Result<RecordBatch> {
+    let filename: ArrayRef = Arc::new(StringArray::from(filename));
+    let extension: ArrayRef = Arc::new(StringArray::from(extension));
+    let value_builder = UInt8Builder::new();
+    let mut list_builder = ListBuilder::new(value_builder);
+    for values in bytes.into_iter() {
+        list_builder.values().append_slice(&values);
+        list_builder.append(true);
+    }
+    let bytes: ArrayRef = Arc::new(list_builder.finish());
+    let metadata: ArrayRef = Arc::new(StringArray::from(metadata));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("filename", filename),
+        ("extension", extension),
+        ("bytes", bytes),
+        ("metadata", metadata),
+    ])?;
+    Ok(batch)
+}
+
 /// The available subject schmeas
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableSubjects {
@@ -230,7 +274,7 @@ impl MappableTrait for AvailableSubjects {
 }
 
 impl AvailableSubjects {
-    pub fn create_table(&self, name: &str) -> Result<ArrowTable> {
+    pub fn to_table(&self, name: &str) -> Result<ArrowTable> {
         match self {
             AvailableSubjects::Messages => {
                 create_table_from_fields(name, &create_messages_fields)
@@ -269,7 +313,7 @@ impl AvailableSubjects {
             ),
         }
     }
-    pub fn create_schema(&self) -> SchemaRef {
+    pub fn to_schema(&self) -> SchemaRef {
         match self {
             AvailableSubjects::Messages => create_schema_from_fields(&create_messages_fields),
             AvailableSubjects::Values => create_schema_from_fields(&create_values_fields),

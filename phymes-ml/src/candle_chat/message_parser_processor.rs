@@ -188,7 +188,7 @@ impl MessageParserStream {
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
         Ok(Self {
-            schema: AvailableSubjects::Values.create_schema(),
+            schema: AvailableSubjects::Values.to_schema(),
             message_stream,
             config_stream,
             runtime_env,

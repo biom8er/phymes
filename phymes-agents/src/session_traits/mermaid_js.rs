@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::session_plans::available_processors::AvailableProcessors;
+use crate::session_plans::{available_agent_subjects::check_agent_subjects, available_processors::AvailableProcessors};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
@@ -1109,6 +1109,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 subject_names
             ));
         }
+        check_agent_subjects(&subject_names_vec)?;
 
         let builder = Self::new()
             .with_tasks(task_plans)
@@ -1121,8 +1122,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         // Subjects to be collected
         let mut subjects = Vec::new();
         let mut subject_names = HashSet::new();
-
-        // Supported List types
 
         // Parse the mermaid.js flowchart string
         let erdiagram_lines = erdiagram.split("\n").collect::<Vec<_>>();
@@ -1217,6 +1216,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 subject_names
             ));
         }
+        check_agent_subjects(&subject_names.into_iter().collect::<Vec<_>>())?;
 
         Ok(self.with_state(subjects))
     }

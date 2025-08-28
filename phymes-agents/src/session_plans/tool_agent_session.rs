@@ -507,14 +507,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             summary_state_2,
             self.make_scores_table().unwrap(), 
             self.make_tools_table().unwrap(),
-            AvailableSubjects::Messages.create_table(self.state_messages_table_name).unwrap(),  
-            AvailableSubjects::Messages.create_table(self.state_user_messages_table_name).unwrap(),
-            AvailableSubjects::Messages.create_table(self.state_assistant_messages_table_name).unwrap(),  
-            AvailableSubjects::Messages.create_table(self.state_tool_messages_table_name).unwrap(),    
-            AvailableSubjects::Messages.create_table(self.chat_task_name).unwrap(),      
-            AvailableSubjects::Messages.create_table(self.message_parser_task_name).unwrap(),
-            AvailableSubjects::Values.create_table(self.tool_task_name).unwrap(),
-            AvailableSubjects::Values.create_table(self.hitl_task_name).unwrap(),
+            AvailableSubjects::Messages.to_table(self.state_messages_table_name).unwrap(),  
+            AvailableSubjects::Messages.to_table(self.state_user_messages_table_name).unwrap(),
+            AvailableSubjects::Messages.to_table(self.state_assistant_messages_table_name).unwrap(),  
+            AvailableSubjects::Messages.to_table(self.state_tool_messages_table_name).unwrap(),    
+            AvailableSubjects::Messages.to_table(self.chat_task_name).unwrap(),      
+            AvailableSubjects::Messages.to_table(self.message_parser_task_name).unwrap(),
+            AvailableSubjects::Values.to_table(self.tool_task_name).unwrap(),
+            AvailableSubjects::Values.to_table(self.hitl_task_name).unwrap(),
         ])
     }
 }
