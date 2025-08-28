@@ -185,6 +185,17 @@ pub fn create_join_chunks_scores_fields() -> Fields {
         text,
     ])
 }
+
+pub fn create_blob_fields() -> Fields {
+    let document_id = Field::new("document_id", DataType::Utf8, false);
+    let types = Field::new("type", DataType::Utf8, false);
+    let bytes = Field::new("bytes", DataType::UInt8, false);
+    Fields::from(vec![
+        document_id,
+        types,
+        bytes,
+    ])
+}
 /// The available subject schmeas
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableSubjects {
@@ -198,6 +209,7 @@ pub enum AvailableSubjects {
     QueryEmbeddings,
     EmbeddingScores,
     JoinChunksScores,
+    Blob,
 }
 
 impl MappableTrait for AvailableSubjects {
@@ -212,6 +224,7 @@ impl MappableTrait for AvailableSubjects {
             AvailableSubjects::QueryEmbeddings => "QueryEmbeddings",
             AvailableSubjects::EmbeddingScores => "EmbeddingScores",
             AvailableSubjects::JoinChunksScores => "JoinChunksScores",
+            AvailableSubjects::Blob => "Blob",
         }
     }
 }
@@ -250,6 +263,10 @@ impl AvailableSubjects {
                 name,
                 &create_join_chunks_scores_fields,
             ),
+            AvailableSubjects::Blob => create_table_from_fields(
+                name,
+                &create_blob_fields,
+            ),
         }
     }
     pub fn create_schema(&self) -> SchemaRef {
@@ -273,6 +290,7 @@ impl AvailableSubjects {
             AvailableSubjects::JoinChunksScores => {
                 create_schema_from_fields(&create_join_chunks_scores_fields)
             }
+            AvailableSubjects::Blob => create_schema_from_fields(&create_blob_fields),
         }
     }
 }
