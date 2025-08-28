@@ -6,8 +6,8 @@ use std::{
 
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    schemas::message_history::{
-        create_messages_record_batch, create_messages_schema, create_timestamp_micros,
+    schemas::available_subjects::{
+        create_messages_record_batch, create_timestamp_micros, AvailableSubjects,
     },
     session::{
         common_traits::{
@@ -191,7 +191,7 @@ impl DataSummaryStream {
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
         Ok(Self {
-            schema: create_messages_schema(),
+            schema: AvailableSubjects::Messages.create_schema(),
             message_stream,
             config_stream,
             runtime_env,

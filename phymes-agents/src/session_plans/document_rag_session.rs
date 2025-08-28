@@ -1,8 +1,7 @@
-use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    schemas::message_history::create_messages_schema,
+    schemas::available_subjects::AvailableSubjects,
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
@@ -37,7 +36,7 @@ use phymes_ml::{
     openai_embed::embed_processor::OpenAIEmbedProcessor,
 };
 
-use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+use arrow::datatypes::SchemaRef;
 
 use crate::session_traits::agents::CustomAgentsBuilderTrait;
 
@@ -94,7 +93,6 @@ pub struct DocumentRAGSession<'a> {
     pub state_scores_table_name: &'a str,
     pub state_scores_chunks_join_table_name: &'a str,
     /// Other parameters
-    pub embed_length: usize,
     pub chat_api_url: Option<&'a str>,
     pub embed_api_url: Option<&'a str>,
 }
@@ -135,7 +133,6 @@ impl Default for DocumentRAGSession<'_> {
             state_top_k_docs_table_name: "top_k",
             state_scores_table_name: "tmp_scores",
             state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
-            embed_length: 384, // Hidden size for BERT
             chat_api_url: None,
             embed_api_url: None,
         }
@@ -148,132 +145,6 @@ impl<'a> DocumentRAGSession<'a> {
             session_context_name,
             ..Default::default()
         }
-    }
-    pub fn make_chat_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.chat_task_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_messages_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_messages_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_user_messages_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_user_messages_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_assistant_messages_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_assistant_messages_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_documents_table(&self) -> Result<ArrowTable> {
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let document_id = Field::new("document_id", DataType::Utf8, false);
-        let text = Field::new("text", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![chunk_id, document_id, text]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_documents_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_document_chunk_table(&self) -> Result<ArrowTable> {
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let document_id = Field::new("document_id", DataType::Utf8, false);
-        let text = Field::new("text", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![chunk_id, document_id, text]));
-        ArrowTableBuilder::new()
-            .with_name(self.document_chunk_task_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_doc_embed_table(&self) -> Result<ArrowTable> {
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let document_id = Field::new("document_id", DataType::Utf8, false);
-        let list_data_type = DataType::FixedSizeList(
-            Arc::new(Field::new_list_field(DataType::Float32, false)),
-            self.embed_length.try_into().unwrap(),
-        );
-        let embedding = Field::new("embedding", list_data_type, false);
-        let schema = Arc::new(Schema::new(vec![chunk_id, document_id, embedding]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_doc_embed_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_queries_table(&self) -> Result<ArrowTable> {
-        let query_id = Field::new("query_id", DataType::Utf8, false);
-        let text = Field::new("text", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![query_id, text]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_queries_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_q_embed_table(&self) -> Result<ArrowTable> {
-        let query_id = Field::new("query_id", DataType::Utf8, false);
-        let list_data_type = DataType::FixedSizeList(
-            Arc::new(Field::new_list_field(DataType::Float32, false)),
-            self.embed_length.try_into().unwrap(),
-        );
-        let embedding = Field::new("embedding", list_data_type, false);
-        let schema = Arc::new(Schema::new(vec![query_id, embedding]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_q_embed_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_scores_table(&self) -> Result<ArrowTable> {
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let query_id = Field::new("query_id", DataType::Utf8, false);
-        let score = Field::new("score", DataType::Float32, false);
-        let schema = Arc::new(Schema::new(vec![chunk_id, query_id, score]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_scores_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_join_chunks_scores_table(&self) -> Result<ArrowTable> {
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let query_id = Field::new("query_id", DataType::Utf8, false);
-        let score = Field::new("score", DataType::Float32, false);
-        let document_id = Field::new("document_id", DataType::Utf8, false);
-        let text = Field::new("text", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![
-            chunk_id,
-            query_id,
-            score,
-            document_id,
-            text,
-        ]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_scores_chunks_join_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_top_k_docs_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_top_k_docs_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
     }
 }
 
@@ -693,7 +564,6 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         // Default embed config
         #[allow(unused_mut)]
         let mut candle_embed_config = CandleEmbedConfig {
-            dimensions: Some(self.embed_length as i32),
             // All files need to be local for WASM testing
             weights_config_file: Some(format!(
                 "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
@@ -896,7 +766,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .unwrap();
 
         Some(vec![
-            candle_chat_state,
+            candle_chat_state, 
             candle_doc_embed_state,
             candle_query_embed_state,
             aggregator_1_state,
@@ -907,18 +777,18 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             chunk_document_2_state,
             join_chunks_state,
             top_k_state,
-            self.make_chat_table().unwrap(),
-            self.make_messages_table().unwrap(),
-            self.make_user_messages_table().unwrap(),
-            self.make_assistant_messages_table().unwrap(),
-            self.make_documents_table().unwrap(),
-            self.make_document_chunk_table().unwrap(),
-            self.make_queries_table().unwrap(),
-            self.make_top_k_docs_table().unwrap(),
-            self.make_doc_embed_table().unwrap(),
-            self.make_q_embed_table().unwrap(),
-            self.make_scores_table().unwrap(),
-            self.make_join_chunks_scores_table().unwrap(),
+            AvailableSubjects::Messages.create_table(self.chat_task_name).unwrap(),
+            AvailableSubjects::Messages.create_table(self.state_messages_table_name).unwrap(),
+            AvailableSubjects::Messages.create_table(self.state_user_messages_table_name).unwrap(),
+            AvailableSubjects::Messages.create_table(self.state_assistant_messages_table_name).unwrap(), 
+            AvailableSubjects::Messages.create_table(self.state_top_k_docs_table_name).unwrap(), 
+            AvailableSubjects::Documents.create_table(self.state_documents_table_name).unwrap(), 
+            AvailableSubjects::Documents.create_table(self.document_chunk_task_name).unwrap(),   
+            AvailableSubjects::Queries.create_table(self.state_queries_table_name).unwrap(),
+            AvailableSubjects::DocumentEmbeddings.create_table(self.state_doc_embed_table_name).unwrap(), 
+            AvailableSubjects::QueryEmbeddings.create_table(self.state_q_embed_table_name).unwrap(),       
+            AvailableSubjects::EmbeddingScores.create_table(self.state_scores_table_name).unwrap(),         
+            AvailableSubjects::JoinChunksScores.create_table(self.state_scores_chunks_join_table_name).unwrap(),
         ])
     }
 }
@@ -940,7 +810,7 @@ pub mod test_doc_rag_session {
     use super::*;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use parking_lot::RwLock;
-    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_core::schemas::messages::MessagesBuilderTraitExt;
     use phymes_core::{
         metrics::HashMap,
         session::{
@@ -1072,6 +942,7 @@ pub mod test_doc_rag_session {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
@@ -1097,10 +968,8 @@ mod tests {
         // initialize the session
         let mut doc_rag_session = DocumentRAGSession::default();
         if cfg!(feature = "hf_hub") {
-            doc_rag_session.embed_length = 1536; // Hidden size for GTE Qwen2 1.5B
         }
         if cfg!(not(feature = "candle")) {
-            doc_rag_session.embed_length = 384; // Smallest dimension for Llama
             doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
             doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
         }

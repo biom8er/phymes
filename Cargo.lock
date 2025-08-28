@@ -5329,6 +5329,7 @@ dependencies = [
  "bytes",
  "candle-core",
  "chrono",
+ "clap 4.5.45",
  "futures",
  "getrandom 0.3.3",
  "hashbrown 0.15.5",

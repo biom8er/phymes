@@ -130,12 +130,10 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     state_top_k_docs_table_name: "top_k",
                     state_scores_table_name: "tmp_scores",
                     state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
-                    embed_length: 384, // Hidden size for BERT
                     chat_api_url: None,
                     embed_api_url: None,
                 };
                 if cfg!(not(feature = "candle")) {
-                    config.embed_length = 384; // Smallest dimension for Llama
                     config.chat_api_url = Some("http://0.0.0.0:8000/v1");
                     config.embed_api_url = Some("http://0.0.0.0:8001/v1");
                 }

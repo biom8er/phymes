@@ -9,16 +9,13 @@ use crate::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     schemas::{
-        chat_completion::Tool,
-        message_history::{
-            MessageHistoryTraitExt, create_messages_record_batch, create_messages_schema,
-            create_timestamp_micros,
-        },
+        available_subjects::{
+            create_messages_record_batch, create_timestamp_micros, AvailableSubjects
+        }, chat_completion::Tool, messages::MessagesTraitExt
     },
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
-            TokenWrapper, device,
+            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, TokenWrapper
         },
         runtime_env::RuntimeEnv,
     },
@@ -197,7 +194,7 @@ impl CandleChatStream {
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
         Ok(Self {
-            schema: create_messages_schema(),
+            schema: AvailableSubjects::Messages.create_schema(),
             message_stream,
             tools_stream,
             baseline_metrics,
@@ -656,7 +653,7 @@ pub fn process_prompt_chat(
 
 pub mod bench_chat_processor {
     use phymes_core::{
-        metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt,
+        metrics::HashMap, schemas::messages::MessagesBuilderTraitExt,
         session::runtime_env::RuntimeEnvTrait,
     };
 
@@ -765,7 +762,7 @@ pub mod bench_chat_processor {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt,
+        metrics::HashMap, schemas::messages::MessagesBuilderTraitExt,
         session::runtime_env::RuntimeEnvTrait,
     };
 

@@ -1,100 +1,21 @@
-use crate::table::{
+use crate::{schemas::available_subjects::{create_messages_record_batch, create_timestamp_micros}, table::{
     arrow_script::ArrowTableScript,
     arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
     stream::SendableRecordBatchStream,
     stream_adapter::RecordBatchReceiverStream,
-};
+}};
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::{ArrayRef, Int64Array, StringArray},
-    datatypes::{DataType, Field, Fields, Schema, SchemaRef},
+    array::{Int64Array, StringArray},
     record_batch::RecordBatch,
 };
-use chrono::{DateTime, Utc};
 use futures::StreamExt;
-use std::sync::Arc;
 use tracing::{Level, event};
 
 use super::chat_completion::{self, ChatCompletionMessage, Content, MessageRole, ToolCall};
 
-/// Generate a timestamp that can be added to the message table
-pub fn create_timestamp_str() -> String {
-    let now: DateTime<Utc> = Utc::now();
-    now.format("%a %b %e %T %Y").to_string()
-}
-
-/// Generate a timestamp that can be added to the message table
-pub fn create_timestamp_micros() -> i64 {
-    let now: DateTime<Utc> = Utc::now();
-    now.timestamp_micros()
-}
-
-/// Convert timestamp in micro seconds to a formatted string
-pub fn convert_timestamp_micros_to_str(timestamp_micros: i64) -> String {
-    // Convert microseconds to seconds and nanoseconds
-    let datetime = DateTime::from_timestamp(
-        timestamp_micros / 1_000_000,                    // seconds
-        ((timestamp_micros % 1_000_000) * 1_000) as u32, // nanoseconds
-    )
-    .unwrap();
-
-    // Format as a string
-    datetime.format("%a %b %e %T %Y").to_string()
-}
-
-/// Create message fields
-pub fn create_messages_fields() -> Fields {
-    let field_names = ["role", "content"];
-    let mut fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    fields_vec.push(Field::new("timestamp", DataType::Int64, false));
-    Fields::from(fields_vec)
-}
-
-pub fn create_messages_schema() -> SchemaRef {
-    let fields = create_messages_fields();
-    Arc::new(Schema::new(fields))
-}
-
-pub fn create_messages_record_batch(
-    role: Vec<String>,
-    content: Vec<String>,
-    timestamp: Vec<i64>,
-) -> Result<RecordBatch> {
-    let role: ArrayRef = Arc::new(StringArray::from(role));
-    let content: ArrayRef = Arc::new(StringArray::from(content));
-    let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("role", role),
-        ("content", content),
-        ("timestamp", timestamp),
-    ])?;
-    Ok(batch)
-}
-
-pub fn create_values_record_batch(
-    names: Vec<String>,
-    publishers: Vec<String>,
-    subjects: Vec<String>,
-    values: Vec<String>,
-) -> Result<RecordBatch> {
-    let names: ArrayRef = Arc::new(StringArray::from(names));
-    let publishers: ArrayRef = Arc::new(StringArray::from(publishers));
-    let subjects: ArrayRef = Arc::new(StringArray::from(subjects));
-    let values: ArrayRef = Arc::new(StringArray::from(values));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("name", names),
-        ("publisher", publishers),
-        ("subject", subjects),
-        ("values", values),
-    ])?;
-    Ok(batch)
-}
-
-pub trait MessageHistoryTraitExt: Sized {
+pub trait MessagesTraitExt: Sized {
     /// Apply a template to build the message
     fn to_chat_prompt(
         self,
@@ -108,7 +29,7 @@ pub trait MessageHistoryTraitExt: Sized {
     fn to_openai_messages(self) -> Vec<ChatCompletionMessage>;
 }
 
-impl MessageHistoryTraitExt for ArrowTable {
+impl MessagesTraitExt for ArrowTable {
     fn to_chat_prompt(
         self,
         chat_template: &str,
@@ -193,7 +114,7 @@ impl MessageHistoryTraitExt for ArrowTable {
     }
 }
 
-pub trait MessageHistoryBuilderTraitExt: Sized {
+pub trait MessagesBuilderTraitExt: Sized {
     /// Insert the system template to the chat history
     fn insert_system_template_str(self, system_prompt: &str) -> Result<Self>;
 
@@ -212,7 +133,7 @@ pub trait MessageHistoryBuilderTraitExt: Sized {
     ) -> Result<(Self, SendableRecordBatchStream)>;
 }
 
-impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
+impl MessagesBuilderTraitExt for ArrowTableBuilder {
     fn insert_system_template_str(mut self, system_prompt: &str) -> Result<Self> {
         // Fill in the system template
 
@@ -376,7 +297,7 @@ impl MessageHistoryBuilderTraitExt for ArrowTableBuilder {
     }
 }
 
-mod test_message_history {
+mod test_messages {
     use super::*;
     use crate::{
         metrics::{ArrowTaskMetricsSet, HashMap},
@@ -623,6 +544,8 @@ mod test_message_history {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::chat_completion::Tool;
     use crate::{
         metrics::{ArrowTaskMetricsSet, HashMap},
@@ -780,7 +703,7 @@ mod tests {
 
         // Build the chat task
         let chat_processor: Arc<dyn ArrowProcessorTrait> =
-            test_message_history::CandleChatMockProcessor::new_arc("ChatBot");
+            test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
             ArrowTaskMetricsSet::new(),
@@ -867,7 +790,7 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = test_message_history::CandleChatMockProcessor::new_arc("ChatBot");
+        let chat_processor = test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
             ArrowTaskMetricsSet::new(),

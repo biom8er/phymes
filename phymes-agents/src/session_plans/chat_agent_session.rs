@@ -1,18 +1,15 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    schemas::message_history::create_messages_schema,
-    session::{
+    schemas::available_subjects::AvailableSubjects, session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
-    },
-    table::{
+    }, table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
-    },
-    task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
+    }, task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait}
 };
 use phymes_ml::{
     candle_assets::available_candle_assets::AvailableCandleAssets,
@@ -193,15 +190,10 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             .unwrap()
             .build()
             .unwrap();
-
-        let messages = ArrowTableBuilder::new()
-            .with_name(self.chat_subscription_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())
-            .unwrap()
-            .build()
-            .unwrap();
-        Some(vec![config, messages])
+        
+        Some(vec![config, 
+            AvailableSubjects::Messages.create_table(self.chat_subscription_name).unwrap()
+        ])
     }
 }
 
@@ -221,7 +213,7 @@ pub mod test_chat_agent_session {
 
     use super::*;
 
-    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_core::schemas::messages::MessagesBuilderTraitExt;
 
     /// Run the first query for the chat agent session and return the response
     pub fn bench_chat_agent_session_1<'a>(

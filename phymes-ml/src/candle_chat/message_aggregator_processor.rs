@@ -6,7 +6,7 @@ use std::{
 
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    schemas::message_history::{create_messages_fields, create_messages_schema},
+    schemas::available_subjects::{create_messages_fields, AvailableSubjects},
     session::{
         common_traits::{
             BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, device,
@@ -191,7 +191,7 @@ impl MessageAggregatorStream {
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
         Ok(Self {
-            schema: create_messages_schema(),
+            schema: AvailableSubjects::Messages.create_schema(),
             input,
             config_stream,
             config: None,

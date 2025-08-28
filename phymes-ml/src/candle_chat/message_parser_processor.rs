@@ -7,10 +7,9 @@ use std::{
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     schemas::{
-        chat_completion::ToolCall,
-        message_history::{
-            create_messages_record_batch, create_timestamp_micros, create_values_record_batch,
-        },
+        available_subjects::{
+            create_messages_record_batch, create_timestamp_micros, create_values_record_batch, AvailableSubjects,
+        }, chat_completion::ToolCall
     },
     session::{
         common_traits::{
@@ -37,7 +36,7 @@ use phymes_core::{
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
-    datatypes::{DataType, Field, Schema, SchemaRef},
+    datatypes::SchemaRef,
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
@@ -188,16 +187,8 @@ impl MessageParserStream {
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
-        // Output schema
-        let field_names = ["name", "publisher", "subject", "values"];
-        let fields_vec = field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Utf8, false))
-            .collect::<Vec<_>>();
-        let schema = Arc::new(Schema::new(fields_vec));
-
         Ok(Self {
-            schema,
+            schema: AvailableSubjects::Values.create_schema(),
             message_stream,
             config_stream,
             runtime_env,

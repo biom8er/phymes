@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    schemas::message_history::create_messages_schema,
+    schemas::available_subjects::{create_tools_record_batch, AvailableSubjects},
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
@@ -41,7 +41,6 @@ use phymes_ml::{
 
 use arrow::{
     array::{ArrayRef, Float32Array, StringArray},
-    datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
 
@@ -121,15 +120,15 @@ impl<'a> ToolAgentSession<'a> {
         }
     }
     pub fn make_tools_table(&self) -> Result<ArrowTable> {
-        let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
-            AvailableCandleOperators::SortColumnAndIndices.get_name(),
-            AvailableCandleOperators::HumanInTheLoop.get_name(),
-        ]));
-        let tool: ArrayRef = Arc::new(StringArray::from(vec![
+        let tool_ids = vec![
+            AvailableCandleOperators::SortColumnAndIndices.get_name().to_string(),
+            AvailableCandleOperators::HumanInTheLoop.get_name().to_string(),
+        ];
+        let tools = vec![
             AvailableCandleOperators::SortColumnAndIndices.get_json_tool_schema(),
             AvailableCandleOperators::HumanInTheLoop.get_json_tool_schema(),
-        ]));
-        let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)])?;
+        ];
+        let batch = create_tools_record_batch(tool_ids, tools)?;
         ArrowTableBuilder::new()
             .with_name(self.state_tools_table_name)
             .with_record_batches(vec![batch])?
@@ -142,66 +141,6 @@ impl<'a> ToolAgentSession<'a> {
         ArrowTableBuilder::new()
             .with_name(self.state_scores_table_name)
             .with_record_batches(vec![batch])?
-            .build()
-    }
-    pub fn make_chat_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.chat_task_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_message_parser_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.message_parser_task_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_messages_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_messages_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_user_messages_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_user_messages_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_assistant_messages_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_assistant_messages_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_tool_messages_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_tool_messages_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_tool_config_table(&self) -> Result<ArrowTable> {
-        let values = Field::new("values", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![values]));
-        ArrowTableBuilder::new()
-            .with_name(self.tool_task_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_hitl_config_table(&self) -> Result<ArrowTable> {
-        let values = Field::new("values", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![values]));
-        ArrowTableBuilder::new()
-            .with_name(self.hitl_task_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
             .build()
     }
 }
@@ -566,16 +505,16 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             aggregator_2_state,
             summary_state_1,
             summary_state_2,
-            self.make_scores_table().unwrap(),
-            self.make_messages_table().unwrap(),
-            self.make_user_messages_table().unwrap(),
-            self.make_assistant_messages_table().unwrap(),
-            self.make_tool_messages_table().unwrap(),
-            self.make_chat_table().unwrap(),
-            self.make_message_parser_table().unwrap(),
+            self.make_scores_table().unwrap(), 
             self.make_tools_table().unwrap(),
-            self.make_tool_config_table().unwrap(),
-            self.make_hitl_config_table().unwrap(),
+            AvailableSubjects::Messages.create_table(self.state_messages_table_name).unwrap(),  
+            AvailableSubjects::Messages.create_table(self.state_user_messages_table_name).unwrap(),
+            AvailableSubjects::Messages.create_table(self.state_assistant_messages_table_name).unwrap(),  
+            AvailableSubjects::Messages.create_table(self.state_tool_messages_table_name).unwrap(),    
+            AvailableSubjects::Messages.create_table(self.chat_task_name).unwrap(),      
+            AvailableSubjects::Messages.create_table(self.message_parser_task_name).unwrap(),
+            AvailableSubjects::Values.create_table(self.tool_task_name).unwrap(),
+            AvailableSubjects::Values.create_table(self.hitl_task_name).unwrap(),
         ])
     }
 }
@@ -583,7 +522,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 pub mod test_tool_agent_session {
     use super::*;
     use parking_lot::RwLock;
-    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
+    use phymes_core::schemas::messages::MessagesBuilderTraitExt;
     use phymes_core::{
         metrics::HashMap,
         session::{

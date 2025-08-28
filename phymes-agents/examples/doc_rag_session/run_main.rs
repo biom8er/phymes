@@ -32,11 +32,7 @@ pub async fn run_main() -> Result<()> {
 
     // initialize the session
     let mut doc_rag_session = DocumentRAGSession::default();
-    if cfg!(feature = "hf_hub") {
-        doc_rag_session.embed_length = 1536; // Hidden size for GTE Qwen2 1.5B
-    }
     if cfg!(not(feature = "candle")) {
-        doc_rag_session.embed_length = 384; // Smallest dimension for Llama
         doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
         doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
     }

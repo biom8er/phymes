@@ -28,6 +28,7 @@ arrow = { version = "54.3.1", default-features = false, features = ["csv", "json
 pin-project-lite = "0.2.16"
 async-trait = "0.1.88"
 anyhow = "1.0.95"
+clap = { version = "4.2.4", features = ["derive"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 tokio = { version = "1.45.1", default-features = false, features = [], optional = true}
 tracing = "0.1.41"

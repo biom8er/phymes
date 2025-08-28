@@ -10,7 +10,7 @@ use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
 use phymes_core::{
-    schemas::message_history::{convert_timestamp_micros_to_str, create_timestamp_str},
+    schemas::available_subjects::{convert_timestamp_micros_to_str, create_timestamp_str},
     table::arrow_table_publish::ArrowTablePublish,
 };
 use phymes_server::handlers::{

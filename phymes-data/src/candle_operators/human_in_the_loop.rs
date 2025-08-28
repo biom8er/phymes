@@ -8,7 +8,7 @@ use candle_core::Device;
 use phymes_core::{
     schemas::{
         chat_completion,
-        message_history::{create_messages_record_batch, create_timestamp_micros},
+        available_subjects::{create_messages_record_batch, create_timestamp_micros},
         types,
     },
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
