@@ -183,6 +183,9 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                 ArrowTablePublish::Extend {
                     table_name: AvailableMessagingPublishSubjects::UserMessages.get_name().to_string(),
                 },
+                ArrowTablePublish::Extend {
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
+                },
             ],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
