@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::ValueEnum;
-use phymes_core::{schemas::{available_subjects::{create_blob_batch, create_queries_batch, create_timestamp_str, AvailableSubjects}, messages::MessagesBuilderTraitExt}, session::common_traits::{BuilderTrait, MappableTrait}, table::{arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, ArrowMessageBuilderTrait}};
+use phymes_core::{metrics::HashMap, schemas::{available_subjects::{create_blob_batch, create_queries_batch, create_timestamp_str, AvailableSubjects}, messages::MessagesBuilderTraitExt}, session::common_traits::{BuilderTrait, MappableTrait}, table::{arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, ArrowMessageBuilderTrait}};
 use serde::{Deserialize, Serialize};
 
 /// Check that one or more of the [AvailableMessagingPublishSubjects], one or more of the [AvailableMessageSubscribeSubjects],
@@ -29,6 +29,15 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Helper function to create the incoming message map from a vector of incoming messages
+pub fn create_incoming_message_map(messages: Vec<ArrowIncomingMessage>) -> HashMap<String, ArrowIncomingMessage> {
+    let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
+    for message in messages {
+        incoming_message_map.insert(message.get_name().to_string(), message);
+    }
+    incoming_message_map
 }
 
 pub trait AvailableSubjectsTrait {
@@ -184,6 +193,7 @@ pub trait MessageSubscribeSubjectsTrait {
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableMessageSubscribeSubjects {
     #[default]
+    AggregatedMessages,
     AssistantMessages,
     ToolMessages,
 }
@@ -197,6 +207,7 @@ impl AvailableSubjectsTrait for AvailableMessageSubscribeSubjects {
 impl MappableTrait for AvailableMessageSubscribeSubjects {
     fn get_name(&self) -> &str {
         match self {
+            AvailableMessageSubscribeSubjects::AggregatedMessages => "AggregatedMessages",
             AvailableMessageSubscribeSubjects::AssistantMessages => "AssistantMessages",
             AvailableMessageSubscribeSubjects::ToolMessages => "ToolMessages",
         }

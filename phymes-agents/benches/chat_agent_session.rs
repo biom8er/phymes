@@ -4,16 +4,13 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    session_plans::chat_agent_session::{
-        ChatAgentSession,
-        test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2},
-    },
+    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableMessagingPublishSubjects, MessagingPublishSubjectsTrait}, chat_agent_session::ChatAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap, get_metrics_as_pivot_table},
+    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::BuilderTrait, session_context::SessionStreamState,
+        common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
     },
     table::arrow_table::ArrowTableTrait,
@@ -63,13 +60,20 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let session_context_name = format!("session_1_{tag}_{iter}");
                 let chat_processor_name = format!("chat_processor_1_{tag}_{iter}");
                 let chat_task_name = format!("chat_task_1_{tag}_{iter}");
+                let message_aggregator_task_1_name = format!("message_aggregator_task_1_{tag}_{iter}");
+                let message_aggregator_processor_1_name = format!("message_aggregator_processor_1_{tag}_{iter}");
+                let message_aggregator_task_2_name = format!("message_aggregator_task_2_{tag}_{iter}");
+                let message_aggregator_processor_2_name = format!("message_aggregator_processor_2_{tag}_{iter}");
                 let config = ChatAgentSession {
                     session_context_name: session_context_name.as_str(),
                     chat_processor_name: chat_processor_name.as_str(),
                     chat_task_name: chat_task_name.as_str(),
-                    runtime_env_name: "rt_1",
-                    chat_subscription_name: "messages",
+                    message_aggregator_task_1_name: message_aggregator_task_1_name.as_str(),
+                    message_aggregator_processor_1_name: message_aggregator_processor_1_name.as_str(),
+                    message_aggregator_task_2_name: message_aggregator_task_2_name.as_str(),
+                    message_aggregator_processor_2_name: message_aggregator_processor_2_name.as_str(),
                     chat_api_url: Some("http://0.0.0.0:8000/v1"),
+                    ..Default::default()
                 };
 
                 // Create the session stream state
@@ -92,21 +96,20 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                 let timer = baseline_metrics.elapsed_compute().timer();
                 let _messages = rt.block_on(async {
-                    let session_stream = bench_chat_agent_session_1(
-                        Arc::clone(&session_stream_state),
-                        &config,
-                        user_content.0,
-                    );
+                    let incoming_message_map = create_incoming_message_map(vec![
+                        AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_content.1, config.session_context_name)?,
+                    ]);
+                    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
                         .try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>()
                         .await
                 });
                 let _messages = rt.block_on(async {
-                    let session_stream = bench_chat_agent_session_2(
-                        Arc::clone(&session_stream_state),
-                        &config,
-                        user_content.1,
-                    );
+                    session_stream_state.try_write().unwrap().set_iter(0);
+                    let incoming_message_map = create_incoming_message_map(vec![
+                        AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_content.1, config.session_context_name)?,
+                    ]);
+                    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
                         .try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>()
                         .await
