@@ -2,34 +2,29 @@ use candle_core::{DType, Tensor};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::{
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::AvailableSubjects, session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
-            TokenWrapper, device,
+            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, TokenWrapper
         },
         runtime_env::RuntimeEnv,
-    },
-    table::{
+    }, table::{
         arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
-    task::{
+    }, task::{
         arrow_message::{
             ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
         arrow_processor::ArrowProcessorTrait,
         publish_subscribe::PubSubTrait,
-    },
+    }
 };
 
 use arrow::{
-    array::{ArrayData, ArrayRef, FixedSizeListArray, StringArray},
-    buffer::Buffer,
-    datatypes::{DataType, Field, Schema, SchemaRef},
+    array::{ArrayRef, Float32Builder, ListBuilder, StringArray},
+    datatypes::{DataType, Field, SchemaRef},
     record_batch::RecordBatch,
 };
 
@@ -168,12 +163,8 @@ impl CandleEmbedStream {
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
-        // Initialize with an empty schema
-        // since it is not so straight forward to know the size of the vector embeddings beforehand
-        // i.e., it is defined as the "hidden_size" in the model_config.json
-        let schema = Arc::new(Schema::empty());
         Ok(Self {
-            schema,
+            schema: AvailableSubjects::DocumentEmbeddings.to_schema(),
             document_stream,
             config_stream,
             baseline_metrics,
@@ -422,7 +413,6 @@ pub fn convert_embedding_vector_to_record_batch(
     embedding_vec: Vec<Vec<f32>>,
     other: Vec<RecordBatch>,
 ) -> Result<RecordBatch> {
-    let embedding_len = embedding_vec.first().unwrap().len();
     let n_embedding = embedding_vec.len();
     assert_eq!(
         n_embedding,
@@ -433,26 +423,15 @@ pub fn convert_embedding_vector_to_record_batch(
             .iter()
             .sum::<usize>()
     );
-    let total_len = embedding_len * n_embedding;
 
     // Wrap into a record batch
-    let value_data = ArrayData::builder(DataType::Float32)
-        .len(total_len)
-        .add_buffer(Buffer::from_slice_ref(
-            embedding_vec.into_iter().flatten().collect::<Vec<_>>(),
-        ))
-        .build()
-        .unwrap();
-    let list_data_type = DataType::FixedSizeList(
-        Arc::new(Field::new_list_field(DataType::Float32, false)),
-        embedding_len.try_into().unwrap(),
-    );
-    let list_data = ArrayData::builder(list_data_type.clone())
-        .len(n_embedding)
-        .add_child_data(value_data.clone())
-        .build()
-        .unwrap();
-    let embeddings: ArrayRef = Arc::new(FixedSizeListArray::from(list_data));
+    let value_builder = Float32Builder::new();
+    let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Float32, false));
+    for values in embedding_vec.into_iter() {
+        list_builder.values().append_slice(&values);
+        list_builder.append(true);
+    }
+    let embeddings: ArrayRef = Arc::new(list_builder.finish());
 
     // Extract out all of the other columns
     let mut batch_vec = Vec::new();
@@ -699,7 +678,7 @@ mod tests {
             .column_by_name("embedding")
             .unwrap()
             .as_any()
-            .downcast_ref::<FixedSizeListArray>()
+            .downcast_ref::<ListArray>()
             .unwrap()
             .iter()
             .map(|s| {
@@ -816,7 +795,7 @@ mod tests {
                 .column_by_name("embedding")
                 .unwrap()
                 .as_any()
-                .downcast_ref::<FixedSizeListArray>()
+                .downcast_ref::<ListArray>()
                 .unwrap()
                 .iter()
                 .map(|s| {
@@ -886,7 +865,7 @@ mod tests {
                 .column_by_name("embedding")
                 .unwrap()
                 .as_any()
-                .downcast_ref::<FixedSizeListArray>()
+                .downcast_ref::<ListArray>()
                 .unwrap()
                 .iter()
                 .map(|s| {
@@ -1019,7 +998,7 @@ mod tests {
                 .column_by_name("embedding")
                 .unwrap()
                 .as_any()
-                .downcast_ref::<FixedSizeListArray>()
+                .downcast_ref::<ListArray>()
                 .unwrap()
                 .iter()
                 .map(|s| {

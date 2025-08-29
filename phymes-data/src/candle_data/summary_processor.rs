@@ -259,6 +259,8 @@ impl Stream for DataSummaryStream {
                 Some(col_names) => {
                     // Parse the JSON list of column names
                     let col_names_vec: Vec<String> = serde_json::from_str(col_names)?;
+                    event!(Level::DEBUG, "col_names_vec: {:?}", col_names_vec);
+                    event!(Level::DEBUG, "batches: {:?}", batches);
 
                     // Remove all columns that are not specified
                     batches
@@ -288,6 +290,7 @@ impl Stream for DataSummaryStream {
                                 .filter(|(_, field)| !columns_to_remove.contains(field.name()))
                                 .map(|(column, _)| Arc::clone(column))
                                 .collect::<Vec<_>>();
+                            event!(Level::DEBUG, "New schema: {:?}, new columns: {:?}", new_schema, new_columns);
 
                             RecordBatch::try_new(new_schema, new_columns).unwrap()
                         })

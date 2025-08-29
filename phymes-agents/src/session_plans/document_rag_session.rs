@@ -318,23 +318,22 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             AllTableNamesSubscribe::new_box(),
         ));
 
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.document_chunk_processor_1_name,
-            &[ArrowTablePublish::Extend {
-                table_name: self.document_chunk_task_name.to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: self.state_documents_table_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.document_chunk_processor_1_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-
         if cfg!(not(feature = "candle")) {
+            processors.push(CandleDataProcessor::new_arc_with_pub_sub(
+                self.document_chunk_processor_1_name,
+                &[ArrowTablePublish::Extend {
+                    table_name: self.document_chunk_task_name.to_string(),
+                }],
+                &[
+                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: self.state_documents_table_name.to_string(),
+                    },
+                    ArrowTableSubscribe::AlwaysFullTable {
+                        table_name: self.document_chunk_processor_1_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ));
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_documents_processor_name,
@@ -368,6 +367,21 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 AllTableNamesSubscribe::new_box(),
             ));
         } else {
+            processors.push(CandleDataProcessor::new_arc_with_pub_sub(
+                self.document_chunk_processor_1_name,
+                &[ArrowTablePublish::Extend {
+                    table_name: self.document_chunk_task_name.to_string(),
+                }],
+                &[
+                    ArrowTableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.state_documents_table_name.to_string(),
+                    },
+                    ArrowTableSubscribe::AlwaysFullTable {
+                        table_name: self.document_chunk_processor_1_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ));
             processors.push(CandleEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_documents_processor_name,
                 &[ArrowTablePublish::Extend {
@@ -461,7 +475,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     table_name: self.state_scores_table_name.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.join_chunks_processor_name.to_string().to_string(),
+                    table_name: self.join_chunks_processor_name.to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
@@ -473,13 +487,11 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             }],
             &[
                 ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.top_k_processor_name.to_string().to_string(),
+                    table_name: self.top_k_processor_name.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self
-                        .state_scores_chunks_join_table_name
-                        .to_string()
-                        .to_string(),
+                        .state_scores_chunks_join_table_name.to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
@@ -692,7 +704,6 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let extract_pdf_config = DataConfig {
             lhs_name: AvailableAttachmentPublishSubjects::UserPdf.get_name().to_string(),
             lhs_pk: "filename".to_string(),
-            lhs_fk: "filename".to_string(),
             lhs_values: "bytes".to_string(),
             which: AvailableCandleOperators::ExtractPDFText,
             ..Default::default()
