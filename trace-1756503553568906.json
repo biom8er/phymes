@@ -1,0 +1,9 @@
+[
+{"args":{"name":"main"},"name":"thread_name","ph":"M","pid":1,"tid":0},
+{".file":"phymes-core/src/session/session_context.rs",".line":752,"cat":"phymes_core::session::session_context","name":"run_superstep","ph":"B","pid":1,"tid":0,"ts":66953.578},
+{".file":"phymes-core/src/session/session_context.rs",".line":390,"cat":"phymes_core::session::session_context","name":"update_state_from_messages","ph":"B","pid":1,"tid":0,"ts":67011.638},
+{".file":"phymes-core/src/session/session_context.rs",".line":390,"cat":"phymes_core::session::session_context","name":"update_state_from_messages","ph":"E","pid":1,"tid":0,"ts":621400.714},
+{".file":"phymes-core/src/session/session_context.rs",".line":752,"cat":"phymes_core::session::session_context","name":"run_superstep","ph":"E","pid":1,"tid":0,"ts":621447.273},
+{".file":"phymes-core/src/session/session_context.rs",".line":752,"cat":"phymes_core::session::session_context","name":"run_superstep","ph":"B","pid":1,"tid":0,"ts":621452.441},
+{".file":"phymes-core/src/session/session_context.rs",".line":752,"cat":"phymes_core::session::session_context","name":"run_superstep","ph":"E","pid":1,"tid":0,"ts":621455.224}
+]

@@ -325,7 +325,7 @@ pub fn prepare_pdf_documents(
 
 /// Make a PDF document with text content for testing purposes
 #[allow(dead_code)]
-fn make_pdf_document(contents: &[&str]) -> Document {
+pub fn make_pdf_document(contents: &[&str]) -> Document {
     let mut doc = Document::with_version("1.5");
     let pages_id = doc.new_object_id();
     let font_id = doc.add_object(dictionary! {

@@ -128,7 +128,7 @@ impl MessagingPublishSubjectsTrait for AvailableMessagingPublishSubjects {
     }
 }
 pub trait AttachmentPublishSubjectsTrait {
-    fn to_incoming_message(&self, filename: &str, bytes: &[u8], extension: &str, metadata: &str, session_context_name: &str) -> Result<ArrowIncomingMessage>;
+    fn to_incoming_message(&self, filename: &str, bytes: Vec<u8>, extension: &str, metadata: &str, session_context_name: &str) -> Result<ArrowIncomingMessage>;
 }
 
 /// The available subjects that the user can publish via attachments
@@ -165,8 +165,8 @@ impl MappableTrait for AvailableAttachmentPublishSubjects {
 }
 
 impl AttachmentPublishSubjectsTrait for AvailableAttachmentPublishSubjects {
-    fn to_incoming_message(&self, filename: &str, bytes: &[u8], extension: &str, metadata: &str, session_context_name: &str) -> Result<ArrowIncomingMessage> {
-        let batch = create_blob_batch(vec![filename.to_string()], vec![extension.to_string()], vec![bytes.to_vec()], vec![metadata.to_string()])?;
+    fn to_incoming_message(&self, filename: &str, bytes: Vec<u8>, extension: &str, metadata: &str, session_context_name: &str) -> Result<ArrowIncomingMessage> {
+        let batch = create_blob_batch(vec![filename.to_string()], vec![extension.to_string()], vec![bytes], vec![metadata.to_string()])?;
         let table = ArrowTableBuilder::new()
             .with_name(self.get_name())
             .with_record_batches(vec![batch])

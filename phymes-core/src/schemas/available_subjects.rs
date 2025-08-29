@@ -224,7 +224,7 @@ pub fn create_blob_batch(
     let filename: ArrayRef = Arc::new(StringArray::from(filename));
     let extension: ArrayRef = Arc::new(StringArray::from(extension));
     let value_builder = UInt8Builder::new();
-    let mut list_builder = ListBuilder::new(value_builder);
+    let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::UInt8, false));
     for values in bytes.into_iter() {
         list_builder.values().append_slice(&values);
         list_builder.append(true);

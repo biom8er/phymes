@@ -17,7 +17,7 @@ use crate::{session_plans::available_agent_subjects::{create_incoming_message_ma
 
 use super::{
     chat_agent_session::ChatAgentSession,
-    document_rag_session::{DocumentRAGSession, test_doc_rag_session::bench_doc_rag_session_query},
+    document_rag_session::DocumentRAGSession,
     tool_agent_session::{ToolAgentSession, test_tool_agent_session::bench_tool_agent_session},
 };
 
@@ -124,12 +124,12 @@ impl AvailableSessionPlans {
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             Ok(session_stream)
         } else if session_plan_name == Self::DocChat.get_name() {
-            let session = DocumentRAGSession::new_with_session_name(session_name);
-            Ok(bench_doc_rag_session_query(
-                Arc::clone(&session_stream_state),
-                &session,
-                user_query,
-            ))
+            let incoming_message_map = create_incoming_message_map(vec![
+                AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, session_name)?,
+                AvailableMessagingPublishSubjects::UserQueries.to_incoming_message(user_query, session_name)?,
+            ]);
+            let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+            Ok(session_stream)
         } else if session_plan_name == Self::ToolChat.get_name() {
             let session = ToolAgentSession::new_with_session_name(session_name);
             Ok(bench_tool_agent_session(
