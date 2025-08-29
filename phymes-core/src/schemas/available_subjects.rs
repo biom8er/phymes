@@ -2,7 +2,7 @@ use crate::{session::common_traits::{BuilderTrait, MappableTrait}, table::arrow_
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, ListBuilder, StringArray, UInt8Array, UInt8Builder},
+    array::{ArrayRef, Int64Array, ListBuilder, StringArray, UInt8Builder},
     datatypes::{DataType, Field, Fields, Schema, SchemaRef},
     record_batch::RecordBatch,
 };

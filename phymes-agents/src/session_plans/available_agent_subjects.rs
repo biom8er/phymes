@@ -20,10 +20,12 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     }
 
     if !has_messaging_publish {
-        anyhow::bail!("At least one AvailableMessagingPublishSubject must be provided");
+        anyhow::bail!("At least one AvailableMessagingPublishSubject {:?} must be provided", 
+            [AvailableMessagingPublishSubjects::UserMessages, AvailableMessagingPublishSubjects::UserQueries]);
     }
     if !has_message_subscribe {
-        anyhow::bail!("At least one AvailableMessageSubscribeSubject must be provided");
+        anyhow::bail!("At least one AvailableMessageSubscribeSubject {:? }must be provided", 
+            [AvailableMessageSubscribeSubjects::AssistantMessages, AvailableMessageSubscribeSubjects::ToolMessages]);
     }
 
     Ok(())
@@ -129,11 +131,13 @@ pub enum AvailableAttachmentPublishSubjects {
     UserVideo,
     UserImage,
     UserScript,
+    UserCsv,
+    UserJson,
 }
 
 impl AvailableSubjectsTrait for AvailableAttachmentPublishSubjects {
     fn to_table(&self) -> Result<ArrowTable> {
-        AvailableSubjects::Blobs.to_table(self.get_name())
+        AvailableSubjects::Blob.to_table(self.get_name())
     }
 }
 
@@ -145,6 +149,8 @@ impl MappableTrait for AvailableAttachmentPublishSubjects {
             AvailableAttachmentPublishSubjects::UserVideo => "UserVideo",
             AvailableAttachmentPublishSubjects::UserImage => "UserImage",
             AvailableAttachmentPublishSubjects::UserScript => "UserScript",
+            AvailableAttachmentPublishSubjects::UserCsv => "UserCsv",
+            AvailableAttachmentPublishSubjects::UserJson => "UserJson",
         }
     }
 }
@@ -220,7 +226,7 @@ pub enum AvailableAttachmentsSubscribeSubjects {
 
 impl AvailableSubjectsTrait for AvailableAttachmentsSubscribeSubjects {
     fn to_table(&self) -> Result<ArrowTable> {
-        AvailableSubjects::Blobs.to_table(self.get_name())
+        AvailableSubjects::Blob.to_table(self.get_name())
     }
 }
 
