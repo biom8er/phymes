@@ -1200,19 +1200,20 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
 
         // Check the subjects
-        if subjects.len() != subject_names.len()
-            || subjects
-                .iter()
-                .map(|t| t.get_name().to_string())
+        let subjects_vec =  subjects
+            .iter()
+            .map(|t| t.get_name().to_string())
+            .collect::<Vec<_>>();
+        if subjects_vec.len() != subject_names.len()
+            || subjects_vec
+                .clone()
+                .into_iter()
                 .collect::<HashSet<_>>()
                 != subject_names
         {
             return Err(anyhow!(
                 "There is an inconsistency in the subject tables {:?} and subject mentions {:?}",
-                subjects
-                    .iter()
-                    .map(|t| t.get_name().to_string())
-                    .collect::<HashSet<_>>(),
+                subjects_vec,
                 subject_names
             ));
         }

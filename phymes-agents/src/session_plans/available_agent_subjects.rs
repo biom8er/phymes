@@ -20,12 +20,12 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     }
 
     if !has_messaging_publish {
-        anyhow::bail!("At least one AvailableMessagingPublishSubject {:?} must be provided", 
-            [AvailableMessagingPublishSubjects::UserMessages, AvailableMessagingPublishSubjects::UserQueries]);
+        anyhow::bail!("At least one AvailableMessagingPublishSubject {:?} must be provided. Provided subjects were {:?}.", 
+            [AvailableMessagingPublishSubjects::UserMessages, AvailableMessagingPublishSubjects::UserQueries], subjects);
     }
     if !has_message_subscribe {
-        anyhow::bail!("At least one AvailableMessageSubscribeSubject {:? }must be provided", 
-            [AvailableMessageSubscribeSubjects::AssistantMessages, AvailableMessageSubscribeSubjects::ToolMessages]);
+        anyhow::bail!("At least one AvailableMessageSubscribeSubject {:? }must be provided. Provided subjects were {:?}.", 
+            [AvailableMessageSubscribeSubjects::AssistantMessages, AvailableMessageSubscribeSubjects::ToolMessages, AvailableMessageSubscribeSubjects::AggregatedMessages], subjects);
     }
 
     Ok(())
@@ -51,8 +51,10 @@ pub trait MessagingPublishSubjectsTrait {
 /// The available subjects that the user can publish on from the messaging interface
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableMessagingPublishSubjects {
-    #[default]
+    #[default]    
+    #[value(name = "UserMessages")]
     UserMessages,
+    #[value(name = "UserQueries")]
     UserQueries,
 }
 
@@ -135,11 +137,17 @@ pub trait AttachmentPublishSubjectsTrait {
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableAttachmentPublishSubjects {
     #[default]
+    #[value(name = "UserPdf")]
     UserPdf,
+    #[value(name = "UserAudio")]
     UserAudio,
+    #[value(name = "UserVideo")]
     UserVideo,
+    #[value(name = "UserImage")]
     UserImage,
+    #[value(name = "UserScript")]
     UserScript,
+    #[value(name = "UserCsv")]
     UserCsv,
 }
 
@@ -191,8 +199,11 @@ pub trait MessageSubscribeSubjectsTrait {
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableMessageSubscribeSubjects {
     #[default]
+    #[value(name = "AggregatedMessages")]
     AggregatedMessages,
+    #[value(name = "AssistantMessages")]
     AssistantMessages,
+    #[value(name = "ToolMessages")]
     ToolMessages,
 }
 
@@ -229,8 +240,11 @@ pub trait AttachmentSubscribeSubjectsTrait {
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableAttachmentsSubscribeSubjects {
     #[default]
+    #[value(name = "AssistantImage")]
     AssistantImage,
+    #[value(name = "AssistantCsv")]
     AssistantCsv,
+    #[value(name = "AssistantScript")]
     AssistantScript,
 }
 

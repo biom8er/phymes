@@ -777,7 +777,6 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             AvailableSubjects::Documents.to_table(self.state_documents_table_name).unwrap(),
             AvailableSubjects::Documents.to_table(self.document_chunk_task_name).unwrap(),
             AvailableMessagingPublishSubjects::UserQueries.to_table().unwrap(),
-            AvailableSubjects::Queries.to_table(AvailableMessagingPublishSubjects::UserQueries.get_name()).unwrap(),
             AvailableSubjects::DocumentEmbeddings.to_table(self.state_doc_embed_table_name).unwrap(), 
             AvailableSubjects::QueryEmbeddings.to_table(self.state_q_embed_table_name).unwrap(),       
             AvailableSubjects::EmbeddingScores.to_table(self.state_scores_table_name).unwrap(),         

@@ -649,7 +649,7 @@ mod tests {
         let bytes = tabular_data.to_csv(csv_format.delimiter, csv_format.header)?;
 
         // Make the user query
-        let user_query = "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`. Respond using human-in-the-loop when you have the answer.";
+        let user_query = "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.";
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -664,65 +664,6 @@ mod tests {
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
                 session_stream.try_collect().await?;
-
-            // println!(
-            //     "Iters: {}",
-            //     session_stream_state.try_read().unwrap().get_iter()
-            // );
-            // println!(
-            //     "Updates: {:?}",
-            //     session_stream_state.try_read().unwrap().get_superstep_updates()
-            // );
-            // println!(
-            //     "Messages: {:?}",
-            //     session_stream_state
-            //         .try_read()
-            //         .unwrap()
-            //         .get_session_context()
-            //         .get_states()
-            //         .get(tool_agent_session.state_messages_table_name)
-            //         .unwrap()
-            // );
-            // println!(
-            //     "chat: {:?}",
-            //     session_stream_state
-            //         .try_read()
-            //         .unwrap()
-            //         .get_session_context()
-            //         .get_states()
-            //         .get(tool_agent_session.chat_task_name)
-            //         .unwrap()
-            // );
-            // println!(
-            //     "parser: {:?}",
-            //     session_stream_state
-            //         .try_read()
-            //         .unwrap()
-            //         .get_session_context()
-            //         .get_states()
-            //         .get(tool_agent_session.message_parser_task_name)
-            //         .unwrap()
-            // );
-            // println!(
-            //     "hitl: {:?}",
-            //     session_stream_state
-            //         .try_read()
-            //         .unwrap()
-            //         .get_session_context()
-            //         .get_states()
-            //         .get(tool_agent_session.hitl_task_name)
-            //         .unwrap()
-            // );
-            // println!(
-            //     "tools: {:?}",
-            //     session_stream_state
-            //         .try_read()
-            //         .unwrap()
-            //         .get_session_context()
-            //         .get_states()
-            //         .get(tool_agent_session.tool_task_name)
-            //         .unwrap()
-            // );
 
             // Update the chat history with the response
             let json_data = response
