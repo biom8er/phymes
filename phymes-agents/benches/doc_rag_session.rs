@@ -116,7 +116,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     extract_pdf_task_name: &extract_pdf_task_name,
                     extract_pdf_processor_name: &extract_pdf_processor_name,
                     document_chunk_task_name: &document_chunk_task_name,
-                    document_chunk_processor_1_name: &document_chunk_processor_1_name,
+                    document_chunk_processor_name: &document_chunk_processor_1_name,
                     embed_documents_runtime_env_name: "embed_documents_rt_1",
                     embed_query_runtime_env_name: "embed_documents_rt_1", //"embed_query_rt_1",
                     vector_search_task_name: &vector_search_task_name,

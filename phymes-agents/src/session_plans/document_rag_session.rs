@@ -66,7 +66,7 @@ pub struct DocumentRAGSession<'a> {
     pub extract_pdf_processor_name: &'a str,
     /// Chunk documents task
     pub document_chunk_task_name: &'a str,
-    pub document_chunk_processor_1_name: &'a str,
+    pub document_chunk_processor_name: &'a str,
     // DM: Two embed runtimes are needed for embedded Candle models due to edge cases
     //   where the mutexes are access simultaneously. Set the embed runtimes to
     //   the same name when using OpenAI API
@@ -76,10 +76,6 @@ pub struct DocumentRAGSession<'a> {
     pub vector_search_task_name: &'a str,
     pub relative_similarity_processor_name: &'a str,
     pub sort_scores_processor_name: &'a str,
-    // DM: Needed because the document chunks are not stored during the embed task
-    //  for embedded Candle models. Set to the same name as `document_chunk_processor_1_name`
-    //  when using OpenAI API
-    pub document_chunk_processor_2_name: &'a str,
     pub join_chunks_processor_name: &'a str,
     pub top_k_processor_name: &'a str,
     pub vector_search_runtime_env_name: &'a str,
@@ -113,13 +109,12 @@ impl Default for DocumentRAGSession<'_> {
             extract_pdf_task_name: "extract_pdf_task_1",
             extract_pdf_processor_name: "extract_pdf_processor_1",
             document_chunk_task_name: "chunk_documents_task_1",
-            document_chunk_processor_1_name: "chunk_documents_processor_1",
+            document_chunk_processor_name: "chunk_documents_processor_1",
             embed_documents_runtime_env_name: "embed_documents_rt_1",
             embed_query_runtime_env_name: "embed_query_rt_1", // "embed_documents_rt_1",
             vector_search_task_name: "vs_task_1",
             relative_similarity_processor_name: "rel_sim_processor_1",
             sort_scores_processor_name: "sort_scores_processor_1",
-            document_chunk_processor_2_name: "chunk_documents_processor_2", //"chunk_documents_processor_1",
             join_chunks_processor_name: "join_scores_chunks_processor_1",
             top_k_processor_name: "top_k_processor_1",
             vector_search_runtime_env_name: "vs_rt_1",
@@ -166,34 +161,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             runtime_env_name: self.chat_runtime_env_name.to_string(),
             processor_names: vec![self.chat_processor_name.to_string()],
         });
-
-        if cfg!(not(feature = "candle")) {
-            tasks.push(TaskPlan {
-                task_name: self.extract_pdf_task_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.extract_pdf_processor_name.to_string()],
-            });
-            tasks.push(TaskPlan {
-                task_name: self.document_chunk_task_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.document_chunk_processor_1_name.to_string()],
-            });
-            tasks.push(TaskPlan {
-                task_name: self.embed_documents_task_name.to_string(),
-                runtime_env_name: self.embed_documents_runtime_env_name.to_string(),
-                processor_names: vec![self.embed_documents_processor_name.to_string()],
-            });
-        } else {
-            tasks.push(TaskPlan {
-                task_name: self.embed_documents_task_name.to_string(),
-                runtime_env_name: self.embed_documents_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.extract_pdf_processor_name.to_string(),
-                    self.document_chunk_processor_1_name.to_string(),
-                    self.embed_documents_processor_name.to_string(),
-                ],
-            });
-        }
+        tasks.push(TaskPlan {
+            task_name: self.extract_pdf_task_name.to_string(),
+            runtime_env_name: "rt_default".to_string(),
+            processor_names: vec![
+                self.extract_pdf_processor_name.to_string(),
+                self.document_chunk_processor_name.to_string(),
+            ],
+        });
+        tasks.push(TaskPlan {
+            task_name: self.embed_documents_task_name.to_string(),
+            runtime_env_name: self.embed_documents_runtime_env_name.to_string(),
+            processor_names: vec![self.embed_documents_processor_name.to_string()],
+        });
 
         tasks.push(TaskPlan {
             task_name: self.embed_query_task_name.to_string(),
@@ -206,7 +186,6 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             processor_names: vec![
                 self.relative_similarity_processor_name.to_string(),
                 self.sort_scores_processor_name.to_string(),
-                self.document_chunk_processor_2_name.to_string(),
                 self.join_chunks_processor_name.to_string(),
                 self.top_k_processor_name.to_string(),
             ],
@@ -305,7 +284,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.extract_pdf_processor_name,
             &[ArrowTablePublish::Extend {
-                table_name: self.state_documents_table_name.to_string(),
+                table_name: self.document_chunk_task_name.to_string(),
             }],
             &[
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
@@ -317,23 +296,23 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ],
             AllTableNamesSubscribe::new_box(),
         ));
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
+            self.document_chunk_processor_name,
+            &[ArrowTablePublish::Extend {
+                table_name: self.state_documents_table_name.to_string(),
+            }],
+            &[
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.document_chunk_task_name.to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.document_chunk_processor_name.to_string(),
+                },
+            ],
+            AllTableNamesSubscribe::new_box(),
+        ));
 
         if cfg!(not(feature = "candle")) {
-            processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-                self.document_chunk_processor_1_name,
-                &[ArrowTablePublish::Extend {
-                    table_name: self.document_chunk_task_name.to_string(),
-                }],
-                &[
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: self.state_documents_table_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.document_chunk_processor_1_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ));
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_documents_processor_name,
@@ -342,7 +321,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 }],
                 &[
                     ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: self.document_chunk_task_name.to_string(),
+                        table_name: self.state_documents_table_name.to_string(),
                     },
                     ArrowTableSubscribe::AlwaysFullTable {
                         table_name: self.embed_documents_processor_name.to_string(),
@@ -367,29 +346,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 AllTableNamesSubscribe::new_box(),
             ));
         } else {
-            processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-                self.document_chunk_processor_1_name,
-                &[ArrowTablePublish::Extend {
-                    table_name: self.document_chunk_task_name.to_string(),
-                }],
-                &[
-                    ArrowTableSubscribe::AlwaysLastRecordBatch {
-                        table_name: self.state_documents_table_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.document_chunk_processor_1_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ));
             processors.push(CandleEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_documents_processor_name,
                 &[ArrowTablePublish::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::AlwaysLastRecordBatch {
-                        table_name: self.document_chunk_task_name.to_string(),
+                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: self.state_documents_table_name.to_string(),
                     },
                     ArrowTableSubscribe::AlwaysFullTable {
                         table_name: self.embed_documents_processor_name.to_string(),
@@ -443,21 +407,6 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.state_scores_table_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.document_chunk_processor_2_name,
-            &[ArrowTablePublish::Replace {
-                table_name: self.state_documents_table_name.to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.state_documents_table_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.document_chunk_processor_2_name.to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
@@ -718,7 +667,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Chunk documents config
         let chunk_document_config = DataConfig {
-            lhs_name: self.state_documents_table_name.to_string(),
+            lhs_name: self.document_chunk_task_name.to_string(),
             lhs_pk: "document_id".to_string(),
             lhs_fk: "document_id".to_string(),
             lhs_values: "text".to_string(),
@@ -726,14 +675,8 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let chunk_document_config_json = serde_json::to_vec(&chunk_document_config).unwrap();
-        let chunk_document_1_state = ArrowTableBuilder::new()
-            .with_name(self.document_chunk_processor_1_name)
-            .with_json(&chunk_document_config_json, 1)
-            .unwrap()
-            .build()
-            .unwrap();
-        let chunk_document_2_state = ArrowTableBuilder::new()
-            .with_name(self.document_chunk_processor_2_name)
+        let chunk_document_state = ArrowTableBuilder::new()
+            .with_name(self.document_chunk_processor_name)
             .with_json(&chunk_document_config_json, 1)
             .unwrap()
             .build()
@@ -819,10 +762,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             aggregator_1_state,
             aggregator_2_state,
             extract_pdf_state,
-            chunk_document_1_state,
+            chunk_document_state,
             rel_sim_state,
             sort_scores_state,
-            chunk_document_2_state,
             join_chunks_state,
             top_k_state,
             AvailableSubjects::Messages.to_table(self.chat_task_name).unwrap(),
@@ -831,7 +773,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             AvailableMessageSubscribeSubjects::AssistantMessages.to_table().unwrap(),
             AvailableSubjects::Messages.to_table(self.state_top_k_docs_table_name).unwrap(),
             AvailableAttachmentPublishSubjects::UserPdf.to_table().unwrap(),
-            AvailableSubjects::Documents.to_table(self.state_documents_table_name).unwrap(), 
+            AvailableSubjects::Documents.to_table(self.state_documents_table_name).unwrap(),
             AvailableSubjects::Documents.to_table(self.document_chunk_task_name).unwrap(),
             AvailableMessagingPublishSubjects::UserQueries.to_table().unwrap(),
             AvailableSubjects::Queries.to_table(AvailableMessagingPublishSubjects::UserQueries.get_name()).unwrap(),
@@ -965,7 +907,7 @@ mod tests {
                 }
                 if metric.value().name() == "output_rows"
                     && metric.task().as_ref().unwrap()
-                        == doc_rag_session.document_chunk_processor_1_name
+                        == doc_rag_session.document_chunk_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 21);
                 }
