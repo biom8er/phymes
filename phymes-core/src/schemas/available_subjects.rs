@@ -105,6 +105,15 @@ pub fn create_values_record_batch(
     Ok(batch)
 }
 
+pub fn create_config_fields() -> Fields {
+    let field_names = ["values"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
 pub fn create_tools_fields() -> Fields {
     let field_names = ["tool_id", "tool"];
     let fields_vec = field_names
@@ -246,6 +255,7 @@ pub enum AvailableSubjects {
     Messages,
     #[default]
     Values,
+    Configs,
     Tools,
     Documents,
     Queries,
@@ -261,6 +271,7 @@ impl MappableTrait for AvailableSubjects {
         match self {
             AvailableSubjects::Messages => "Messages",
             AvailableSubjects::Values => "Values",
+            AvailableSubjects::Configs => "Configs",
             AvailableSubjects::Tools => "Tools",
             AvailableSubjects::Documents => "Documents",
             AvailableSubjects::Queries => "Queries",
@@ -281,6 +292,9 @@ impl AvailableSubjects {
             }
             AvailableSubjects::Values => {
                 create_table_from_fields(name, &create_values_fields)
+            }
+            AvailableSubjects::Configs => {
+                create_table_from_fields(name, &create_config_fields)
             }
             AvailableSubjects::Tools => {
                 create_table_from_fields(name, &create_tools_fields)
@@ -317,6 +331,7 @@ impl AvailableSubjects {
         match self {
             AvailableSubjects::Messages => create_schema_from_fields(&create_messages_fields),
             AvailableSubjects::Values => create_schema_from_fields(&create_values_fields),
+            AvailableSubjects::Configs => create_schema_from_fields(&create_config_fields),
             AvailableSubjects::Tools => create_schema_from_fields(&create_tools_fields),
             AvailableSubjects::Documents => {
                 create_schema_from_fields(&create_documents_fields)

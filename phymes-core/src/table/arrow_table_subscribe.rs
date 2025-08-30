@@ -412,6 +412,15 @@ pub struct ChatContentSubscribe {
     tool_message_table_name: String,
 }
 
+impl ChatContentSubscribe {
+    pub fn new_box_with_table_names(user_message_table_name: &str, tool_message_table_name: &str) -> Box<dyn SubscribeTrait> {
+        Box::new(Self {
+            user_message_table_name: user_message_table_name.to_string(),
+            tool_message_table_name: tool_message_table_name.to_string(),
+        })
+    }
+}
+
 impl SubscribeTrait for ChatContentSubscribe {
     fn check_subscriptions(
         &self,
@@ -425,8 +434,10 @@ impl SubscribeTrait for ChatContentSubscribe {
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {
-            user_message_table_name: "user_messages".to_string(),
-            tool_message_table_name: "tool_messages".to_string(),
+            // DM: dangerous as the strings needs to stay syncronized with the actual table names
+            // in `AvailableMessageSubscribeSubjects` and `AvailableMessagingPublishSubjects`
+            user_message_table_name: "UserMessages".to_string(),
+            tool_message_table_name: "ToolMessages".to_string(),
         })
     }
 }

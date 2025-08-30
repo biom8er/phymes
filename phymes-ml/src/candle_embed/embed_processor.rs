@@ -557,7 +557,7 @@ pub fn process_prompt_embed(
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::{Float32Array, StringArray};
+    use arrow::array::{Float32Array, ListArray, StringArray};
     use candle_core::Device;
     use futures::TryStreamExt;
 

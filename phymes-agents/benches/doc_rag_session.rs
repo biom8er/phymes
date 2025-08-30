@@ -94,8 +94,6 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let relative_similarity_processor_name =
                     format!("rel_sim_processor_1_{tag}_{iter}");
                 let sort_scores_processor_name = format!("sort_scores_processor_1_{tag}_{iter}");
-                let document_chunk_processor_2_name =
-                    format!("chunk_documents_processor_2_{tag}_{iter}");
                 let join_chunks_processor_name =
                     format!("join_scores_chunks_processor_1_{tag}_{iter}");
                 let top_k_processor_name = format!("top_k_processor_1_{tag}_{iter}");
@@ -122,7 +120,6 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     vector_search_task_name: &vector_search_task_name,
                     relative_similarity_processor_name: &relative_similarity_processor_name,
                     sort_scores_processor_name: &sort_scores_processor_name,
-                    document_chunk_processor_2_name: &document_chunk_processor_2_name,
                     join_chunks_processor_name: &join_chunks_processor_name,
                     top_k_processor_name: &top_k_processor_name,
                     vector_search_runtime_env_name: "vs_rt_1",

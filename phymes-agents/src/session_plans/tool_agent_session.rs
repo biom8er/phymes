@@ -4,7 +4,7 @@ use std::sync::Arc;
 use phymes_core::{
     schemas::available_subjects::{create_tools_record_batch, AvailableSubjects},
     session::{
-        common_traits::BuilderTrait,
+        common_traits::{BuilderTrait, MappableTrait},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     },
@@ -44,7 +44,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 
-use crate::session_traits::agents::CustomAgentsBuilderTrait;
+use crate::{session_plans::available_agent_subjects::{AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, AvailableSubjectsTrait}, session_traits::agents::CustomAgentsBuilderTrait};
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
@@ -71,10 +71,6 @@ pub struct ToolAgentSession<'a> {
     pub summary_processor_2_name: &'a str,
     /// Session and state
     pub session_context_name: &'a str,
-    pub state_messages_table_name: &'a str,
-    pub state_user_messages_table_name: &'a str,
-    pub state_assistant_messages_table_name: &'a str,
-    pub state_tool_messages_table_name: &'a str,
     pub state_tools_table_name: &'a str,
     pub state_scores_table_name: &'a str,
     pub chat_api_url: Option<&'a str>,
@@ -101,10 +97,6 @@ impl Default for ToolAgentSession<'_> {
             message_aggregator_task_2_name: "message_aggregator_task_2",
             message_aggregator_processor_2_name: "message_aggregator_processor_2",
             message_aggregator_runtime_env_name: "message_aggregator_rt_1",
-            state_messages_table_name: "messages",
-            state_user_messages_table_name: "user_messages",
-            state_assistant_messages_table_name: "assistant_messages",
-            state_tool_messages_table_name: "tool_messages",
             state_scores_table_name: "available_data_1",
             state_tools_table_name: "tools",
             chat_api_url: Some("http://0.0.0.0:8000/v1"),
@@ -207,31 +199,31 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             }],
             &[
                 ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.state_user_messages_table_name.to_string(),
+                    table_name: AvailableMessagingPublishSubjects::UserMessages.get_name().to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: self.state_tool_messages_table_name.to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::ToolMessages.get_name().to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.state_assistant_messages_table_name.to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_1_name.to_string(),
                 },
             ],
-            ChatContentSubscribe::new_box(),
+            ChatContentSubscribe::new_box_with_table_names(AvailableMessagingPublishSubjects::UserMessages.get_name(), AvailableMessageSubscribeSubjects::ToolMessages.get_name()),
         ));
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_2_name,
             &[ArrowTablePublish::Extend {
-                table_name: self.state_messages_table_name.to_string(),
+                table_name: AvailableMessageSubscribeSubjects::AggregatedMessages.get_name().to_string(),
             }],
             &[
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: self.state_user_messages_table_name.to_string(),
+                    table_name: AvailableMessagingPublishSubjects::UserMessages.get_name().to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: self.state_assistant_messages_table_name.to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
@@ -285,7 +277,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ArrowTablePublish::Extend {
                     // The first publication is the default publish target
                     // table_name: self.chat_task_name.to_string(),
-                    table_name: self.state_assistant_messages_table_name.to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
                 },
                 ArrowTablePublish::Extend {
                     table_name: self.tool_task_name.to_string(),
@@ -322,7 +314,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.hitl_processor_name,
             &[ArrowTablePublish::Extend {
-                table_name: self.state_assistant_messages_table_name.to_string(),
+                table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
             }],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.hitl_task_name.to_string(),
@@ -332,7 +324,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.summary_processor_1_name,
             &[ArrowTablePublish::Extend {
-                table_name: self.state_tool_messages_table_name.to_string(),
+                table_name: AvailableMessageSubscribeSubjects::ToolMessages.get_name().to_string(),
             }],
             &[
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
@@ -347,14 +339,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.summary_processor_2_name,
             &[ArrowTablePublish::Extend {
-                table_name: self.state_assistant_messages_table_name.to_string(),
+                table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
             }],
             &[
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.summary_processor_2_name.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.state_assistant_messages_table_name.to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
@@ -363,14 +355,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             self.session_context_name,
             &[
                 ArrowTablePublish::Extend {
-                    table_name: self.state_user_messages_table_name.to_string(),
+                    table_name: AvailableMessagingPublishSubjects::UserMessages.get_name().to_string(),
                 },
                 ArrowTablePublish::Extend {
-                    table_name: self.state_assistant_messages_table_name.to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
                 },
             ],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                table_name: self.state_assistant_messages_table_name.to_string(),
+                table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
         ));
@@ -507,63 +499,15 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             summary_state_2,
             self.make_scores_table().unwrap(), 
             self.make_tools_table().unwrap(),
-            AvailableSubjects::Messages.to_table(self.state_messages_table_name).unwrap(),  
-            AvailableSubjects::Messages.to_table(self.state_user_messages_table_name).unwrap(),
-            AvailableSubjects::Messages.to_table(self.state_assistant_messages_table_name).unwrap(),  
-            AvailableSubjects::Messages.to_table(self.state_tool_messages_table_name).unwrap(),    
+            AvailableMessageSubscribeSubjects::AggregatedMessages.to_table().unwrap(),
+            AvailableMessagingPublishSubjects::UserMessages.to_table().unwrap(),
+            AvailableMessageSubscribeSubjects::AssistantMessages.to_table().unwrap(),
+            AvailableMessageSubscribeSubjects::ToolMessages.to_table().unwrap(),   
             AvailableSubjects::Messages.to_table(self.chat_task_name).unwrap(),      
             AvailableSubjects::Messages.to_table(self.message_parser_task_name).unwrap(),
-            AvailableSubjects::Values.to_table(self.tool_task_name).unwrap(),
-            AvailableSubjects::Values.to_table(self.hitl_task_name).unwrap(),
+            AvailableSubjects::Configs.to_table(self.tool_task_name).unwrap(),
+            AvailableSubjects::Configs.to_table(self.hitl_task_name).unwrap(),
         ])
-    }
-}
-
-pub mod test_tool_agent_session {
-    use super::*;
-    use parking_lot::RwLock;
-    use phymes_core::schemas::messages::MessagesBuilderTraitExt;
-    use phymes_core::{
-        metrics::HashMap,
-        session::{
-            common_traits::MappableTrait,
-            session_context::{SessionStream, SessionStreamState},
-        },
-        task::arrow_message::{
-            ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
-            ArrowMessageBuilderTrait,
-        },
-    };
-
-    pub fn bench_tool_agent_session<'a>(
-        session_stream_state: Arc<RwLock<SessionStreamState>>,
-        session: &ToolAgentSession<'a>,
-        user_query: &str,
-    ) -> SessionStream {
-        // Make the system prompt and add the user query
-        let message_builder = ArrowTableBuilder::new()
-            .with_name(session.state_user_messages_table_name)
-            // .insert_system_template_str("You are a helpful assistant. You are only allowed to call the provided tools. Do not provide a response that does not adhere to the schema of a tool.")
-            // .unwrap()
-            .append_new_user_query_str(user_query, "user")
-            .unwrap();
-
-        // Build the current message state
-        let incoming_message = ArrowIncomingMessageBuilder::new()
-            .with_name(session.state_user_messages_table_name)
-            .with_subject(session.state_user_messages_table_name)
-            .with_publisher(session.session_context_name)
-            .with_message(message_builder.build().unwrap())
-            .with_update(&ArrowTablePublish::Extend {
-                table_name: session.state_user_messages_table_name.to_string(),
-            })
-            .build()
-            .unwrap();
-        let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
-        incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
-
-        // Run the session
-        SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state))
     }
 }
 
@@ -574,17 +518,16 @@ mod tests {
     use phymes_core::{
         metrics::{ArrowTaskMetricsSet, HashMap},
         session::{
-            session_context::SessionStreamState,
+            session_context::{SessionStream, SessionStreamState},
             session_context_builder::SessionContextBuilderTrait,
         },
         table::arrow_table::ArrowTableTrait,
         task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
 
-    use crate::session_traits::agents::SessionContextBuilderAgentsTrait;
+    use crate::{session_plans::available_agent_subjects::{create_incoming_message_map, MessagingPublishSubjectsTrait}, session_traits::agents::SessionContextBuilderAgentsTrait};
 
     use super::*;
-    use test_tool_agent_session::bench_tool_agent_session;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_tool_agent_session() -> Result<()> {
@@ -609,11 +552,10 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            let session_stream = bench_tool_agent_session(
-                Arc::clone(&session_stream_state),
-                &tool_agent_session,
-                user_query,
-            );
+            let incoming_message_map = create_incoming_message_map(vec![
+                AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, tool_agent_session.session_context_name)?,
+            ]);
+            let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
                 session_stream.try_collect().await?;
 
@@ -683,7 +625,7 @@ mod tests {
                 .remove(&format!(
                     "from_{}_on_{}",
                     tool_agent_session.session_context_name,
-                    tool_agent_session.state_assistant_messages_table_name
+                    AvailableMessageSubscribeSubjects::AssistantMessages.get_name()
                 ))
                 .unwrap()
                 .get_message_own()

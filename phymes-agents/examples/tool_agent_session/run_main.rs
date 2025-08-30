@@ -10,15 +10,13 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::tool_agent_session::{
-        ToolAgentSession, test_tool_agent_session::bench_tool_agent_session,
-    },
+    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, MessagingPublishSubjectsTrait}, tool_agent_session::ToolAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap},
     session::{
-        common_traits::BuilderTrait, session_context::SessionStreamState,
+        common_traits::{BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
     },
     table::arrow_table::ArrowTableTrait,
@@ -41,11 +39,10 @@ pub async fn run_main() -> Result<()> {
     // Make the user query
     let user_query = "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.";
 
-    let session_stream = bench_tool_agent_session(
-        Arc::clone(&session_stream_state),
-        &tool_agent_session,
-        user_query,
-    );
+    let incoming_message_map = create_incoming_message_map(vec![
+        AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, tool_agent_session.session_context_name)?,
+    ]);
+    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
         session_stream.try_collect().await?;
 
@@ -56,7 +53,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             tool_agent_session.session_context_name,
-            tool_agent_session.state_assistant_messages_table_name
+            AvailableMessageSubscribeSubjects::AssistantMessages.get_name()
         ))
         .unwrap()
         .get_message_own()
