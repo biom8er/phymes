@@ -33,7 +33,7 @@ use phymes_core::{
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::RecordBatch, csv, datatypes::{Schema, SchemaRef}
+    array::RecordBatch, datatypes::{Schema, SchemaRef}
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
@@ -259,11 +259,6 @@ impl Stream for DataSummaryStream {
             // Limit the columns
             let batches_col = match self.config.as_ref().unwrap().col_names.as_ref() {
                 Some(col_names) => {
-                    // Parse the JSON list of column names
-                    let col_names_vec: Vec<String> = serde_json::from_str(col_names)?;
-                    event!(Level::DEBUG, "col_names_vec: {:?}", col_names_vec);
-                    event!(Level::DEBUG, "batches: {:?}", batches);
-
                     // Remove all columns that are not specified
                     batches
                         .into_iter()
@@ -272,7 +267,7 @@ impl Stream for DataSummaryStream {
                                 .schema()
                                 .fields()
                                 .iter()
-                                .filter(|field| !col_names_vec.contains(field.name()))
+                                .filter(|field| !col_names.contains(field.name()))
                                 .map(|field| field.name().to_string())
                                 .collect::<Vec<_>>();
                             let schema = batch.schema();
@@ -414,7 +409,7 @@ mod tests {
         arrow_table::ArrowTableBuilder, arrow_table_publish::ArrowTablePublish,
     };
 
-    use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
+    use crate::candle_data::{data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32, summary_config::CsvFormat};
 
     use super::*;
 
@@ -438,7 +433,7 @@ mod tests {
         let config = DataSummaryConfig {
             num_rows: Some(2),
             num_batches: Some(1),
-            col_names: Some("[\"embedding\",\"lhs_pk\"]".to_string()),
+            col_names: Some(vec!["embedding".to_string(),"lhs_pk".to_string()]),
             format: DataSummaryFormat::Message,
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -533,8 +528,8 @@ mod tests {
         let config = DataSummaryConfig {
             num_rows: Some(2),
             num_batches: Some(1),
-            col_names: Some("[\"lhs_pk\"]".to_string()),
-            format: DataSummaryFormat::Csv,
+            col_names: Some(vec!["lhs_pk".to_string()]),
+            format: DataSummaryFormat::Csv(CsvFormat { ..Default::default() }),
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = ArrowTableBuilder::new()

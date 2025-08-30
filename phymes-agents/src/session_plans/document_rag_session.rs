@@ -743,7 +743,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Summary config (to limit the number of documents)
         let top_k_config = DataSummaryConfig {
-            col_names: Some("[\"text\"]".to_string()),
+            col_names: Some(vec!["text".to_string()]),
             num_rows: Some(3),
             num_batches: Some(1),
             format: DataSummaryFormat::Message,
