@@ -33,8 +33,7 @@ use phymes_core::{
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::RecordBatch,
-    datatypes::{Schema, SchemaRef},
+    array::RecordBatch, csv, datatypes::{Schema, SchemaRef}
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
@@ -342,7 +341,7 @@ impl Stream for DataSummaryStream {
                     metrics.record_poll(poll)
 
                 }
-                DataSummaryFormat::Csv => {
+                DataSummaryFormat::Csv(csv_format) => {
                     // Convert to Values representation
                     let mut values = Vec::new();
                     for row in batch_limit.iter() {
@@ -356,14 +355,14 @@ impl Stream for DataSummaryStream {
                         .build()?;
 
                     // Convert to CSV and wrap into a blob batch
-                    let bytes = table.to_csv(b',', true)?;
+                    let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
                     let batch = create_blob_batch(vec!["attachment".to_string()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
                     return metrics.record_poll(poll);
                 }
-                DataSummaryFormat::Json => {
+                DataSummaryFormat::Json(_json_format) => {
                     // Convert to Values representation
                     let mut values = Vec::new();
                     for row in batch_limit.iter() {
@@ -386,6 +385,12 @@ impl Stream for DataSummaryStream {
                 }
                 DataSummaryFormat::Pdf => {
                     todo!("Implement PDF output");
+                }
+                DataSummaryFormat::Bytes => {
+                    todo!("Implement Bytes output");
+                }
+                DataSummaryFormat::IPC => {
+                    todo!("Implement Arrow IPC output");
                 }
             }
         }

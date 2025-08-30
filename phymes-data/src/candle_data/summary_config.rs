@@ -2,16 +2,49 @@ use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
+#[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub struct CsvFormat {
+    pub delimiter: u8,
+    pub header: bool,
+    pub batch_size: usize,
+}
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
+impl Default for CsvFormat {
+    fn default() -> Self {
+        CsvFormat {
+            delimiter: b',',
+            header: true,
+            batch_size: 1024,
+        }
+    }
+}
+
+#[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub struct JsonFormat {
+    pub batch_size: usize,
+}
+
+impl Default for JsonFormat {
+    fn default() -> Self {
+        JsonFormat { batch_size: 1024 }
+    }
+}
+
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DataSummaryFormat {
     /// ToolMessage format
     #[default]
     Message,
-    /// Attachment formats
-    Csv,
-    Json,
-    Pdf,
+    /// Comma Seperated Values string    
+    Csv(CsvFormat),
+    /// Json attachment
+    Json(JsonFormat),
+    /// Pdf attachment
+    Pdf,    
+    /// JSON Object written to Bytes
+    Bytes,
+    /// Arrow IPC
+    IPC,
 }
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
