@@ -25,6 +25,7 @@ serde_json = "1.0.140"
 phymes-core = { path = "../phymes-core", default-features = false }
 phymes-server = { path = "../phymes-server", default-features = false }
 phymes-agents = { path = "../phymes-agents", default-features = false }
+phymes-data = { path = "../phymes-data", default-features = false }
 clap = {version = "4.5.40", optional = true}
 tokio = { version = "1.45.1", default-features = false, optional = true }
 tracing = "0.1.41"
@@ -39,10 +40,10 @@ mermaid_js_cdn = ["mermaid_js"] # use the mjs loaded from CDN server
 mermaid_js_embed = ["mermaid_js"] # use the js (~3 MB) from local filesystem
 
 # Serverside options for gpu and token/tensor services
-wasip2 = ["phymes-server/wasip2", "phymes-agents/wasip2", "phymes-core/wasip2"]
-wsl = ["phymes-server/wsl", "phymes-agents/wsl", "phymes-core/wsl"]
-gpu = ["phymes-server/gpu", "phymes-agents/gpu"]
-candle = ["phymes-server/candle", "phymes-agents/candle"]
+wasip2 = ["phymes-server/wasip2", "phymes-agents/wasip2", "phymes-core/wasip2", "phymes-data/wasip2"]
+wsl = ["phymes-server/wsl", "phymes-agents/wsl", "phymes-core/wsl", "phymes-data/wsl"]
+gpu = ["phymes-server/gpu", "phymes-agents/gpu", "phymes-data/gpu"]
+candle = ["phymes-server/candle", "phymes-agents/candle", "phymes-data/candle"]
 hf_hub = ["phymes-server/hf_hub", "phymes-agents/hf_hub"]
 openai_api = ["phymes-server/openai_api", "phymes-agents/openai_api"]
 # DM: this is a work in progress because we need to access

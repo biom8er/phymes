@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    schemas::available_subjects::{create_tools_record_batch, AvailableSubjects},
+    schemas::available_subjects::{create_table_from_fields, create_tools_record_batch, AvailableSubjects},
     session::{
         common_traits::{BuilderTrait, MappableTrait},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
@@ -39,12 +39,9 @@ use phymes_ml::{
     openai_chat::chat_processor::OpenAIChatProcessor,
 };
 
-use arrow::{
-    array::{ArrayRef, Float32Array, StringArray},
-    record_batch::RecordBatch,
-};
+use arrow::datatypes::{DataType, Field, Fields};
 
-use crate::{session_plans::available_agent_subjects::{AvailableAttachmentsSubscribeSubjects, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, AvailableSubjectsTrait}, session_traits::agents::CustomAgentsBuilderTrait};
+use crate::{session_plans::available_agent_subjects::{AvailableAttachmentPublishSubjects, AvailableAttachmentsSubscribeSubjects, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, AvailableSubjectsTrait}, session_traits::agents::CustomAgentsBuilderTrait};
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
@@ -61,6 +58,9 @@ pub struct ToolAgentSession<'a> {
     pub message_aggregator_task_2_name: &'a str,
     pub message_aggregator_processor_2_name: &'a str,
     pub message_aggregator_runtime_env_name: &'a str,
+    /// Extract tabular data from the user attachments
+    pub extract_tabular_data_task_name: &'a str,
+    pub extract_tabular_data_processor_name: &'a str,
     /// The tool node (one of the CandleOps i.e., sort op)
     pub tool_task_name: &'a str,
     pub tool_processor_name: &'a str,
@@ -89,6 +89,8 @@ impl Default for ToolAgentSession<'_> {
             chat_processor_name: "chat_processor_1",
             chat_task_name: "chat_task_1",
             chat_runtime_env_name: "chat_rt_1",
+            extract_tabular_data_task_name: "extract_tabular_data_task_1",
+            extract_tabular_data_processor_name: "extract_tabular_data_processor_1",
             tool_task_name: AvailableCandleOperators::SortColumnAndIndices.get_name(),
             tool_processor_name: AvailableCandleOperators::SortColumnAndIndices.get_name(),
             tool_runtime_env_name: "tool_rt_1",
@@ -135,15 +137,6 @@ impl<'a> ToolAgentSession<'a> {
             .with_record_batches(vec![batch])?
             .build()
     }
-    pub fn make_scores_table(&self) -> Result<ArrowTable> {
-        let lhs_ids: ArrayRef = Arc::new(StringArray::from(vec!["0", "1", "2"]));
-        let scores: ArrayRef = Arc::new(Float32Array::from(vec![3.0, 2.0, 1.0]));
-        let batch = RecordBatch::try_from_iter(vec![("lhs_pk", lhs_ids), ("score", scores)])?;
-        ArrowTableBuilder::new()
-            .with_name(self.state_scores_table_name)
-            .with_record_batches(vec![batch])?
-            .build()
-    }
 }
 
 impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
@@ -173,6 +166,11 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 task_name: self.message_parser_task_name.to_string(),
                 runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.message_parser_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.extract_tabular_data_task_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![self.extract_tabular_data_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.tool_task_name.to_string(),
@@ -313,9 +311,24 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AllTableNamesSubscribe::new_box(),
         ));
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.tool_processor_name,
+            self.extract_tabular_data_processor_name,
             &[ArrowTablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
+            }],
+            &[
+                ArrowTableSubscribe::OnUpdateFullTable {
+                    table_name: AvailableAttachmentPublishSubjects::UserCsv.get_name().to_string(),
+                },
+                ArrowTableSubscribe::AlwaysFullTable {
+                    table_name: self.extract_tabular_data_processor_name.to_string(),
+                },
+            ],
+            AllTableNamesSubscribe::new_box(),
+        ));
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
+            self.tool_processor_name,
+            &[ArrowTablePublish::Replace {
+                table_name: self.tool_summary_task_name.to_string(),
             }],
             &[
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
@@ -347,7 +360,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     table_name: self.tool_attachment_processor_name.to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: self.state_scores_table_name.to_string(),
+                    table_name: self.tool_summary_task_name.to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
@@ -362,7 +375,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     table_name: self.tool_summary_processor_name.to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: self.state_scores_table_name.to_string(),
+                    table_name: self.tool_summary_task_name.to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
@@ -387,6 +400,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             &[
                 ArrowTablePublish::Extend {
                     table_name: AvailableMessagingPublishSubjects::UserMessages.get_name().to_string(),
+                },
+                ArrowTablePublish::Replace {
+                    table_name: AvailableAttachmentPublishSubjects::UserCsv.get_name().to_string(),
                 },
                 ArrowTablePublish::Extend {
                     table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
@@ -511,6 +527,24 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .build()
             .unwrap();
 
+        // Extract tabular data config        
+        let csv_format = DataSummaryFormat::Csv(CsvFormat { ..Default::default() });
+        let csv_format_str = serde_json::to_string(&csv_format).unwrap();
+        let extract_tabular_data_config = DataConfig {
+            lhs_name: AvailableAttachmentPublishSubjects::UserCsv.get_name().to_string(),
+            lhs_values: "bytes".to_string(),
+            op_kwargs: Some(csv_format_str),
+            which: AvailableCandleOperators::ExtractTabularData,
+            ..Default::default()
+        };
+        let extract_tabular_data_config_json = serde_json::to_vec(&extract_tabular_data_config).unwrap();
+        let extract_tabular_data_state = ArrowTableBuilder::new()
+            .with_name(self.extract_tabular_data_processor_name)
+            .with_json(&extract_tabular_data_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
         // Attachment config
         let attachment_config = DataSummaryConfig {
             format: DataSummaryFormat::Csv( CsvFormat { ..Default::default() } ),
@@ -542,18 +576,29 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .build()
             .unwrap();
 
+        // Scores table schema
+        fn create_scores_fields() -> Fields {
+            let mut fields_vec = Vec::new();
+            fields_vec.push(Field::new("lhs_pk", DataType::Utf8, false));
+            fields_vec.push(Field::new("score", DataType::Float64, false));
+            Fields::from(fields_vec)
+        }
+
         Some(vec![
             candle_chat_state,
             candle_message_parser_state,
             aggregator_1_state,
             aggregator_2_state,
+            extract_tabular_data_state,
             attachmen_state,
             summary_state_1,
             summary_state_2,
-            self.make_scores_table().unwrap(), 
+            create_table_from_fields(self.state_scores_table_name, &create_scores_fields).unwrap(),
+            create_table_from_fields(self.tool_summary_task_name, &create_scores_fields).unwrap(),
             self.make_tools_table().unwrap(),
             AvailableMessageSubscribeSubjects::AggregatedMessages.to_table().unwrap(),
             AvailableMessagingPublishSubjects::UserMessages.to_table().unwrap(),
+            AvailableAttachmentPublishSubjects::UserCsv.to_table().unwrap(),
             AvailableMessageSubscribeSubjects::AssistantMessages.to_table().unwrap(),
             AvailableMessageSubscribeSubjects::ToolMessages.to_table().unwrap(),
             AvailableSubjects::Messages.to_table(self.chat_task_name).unwrap(),      
@@ -578,8 +623,9 @@ mod tests {
         table::arrow_table::ArrowTableTrait,
         task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
     };
+    use phymes_data::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
 
-    use crate::{session_plans::available_agent_subjects::{create_incoming_message_map, MessagingPublishSubjectsTrait}, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::available_agent_subjects::{create_incoming_message_map, AttachmentPublishSubjectsTrait, MessagingPublishSubjectsTrait}, session_traits::agents::SessionContextBuilderAgentsTrait};
 
     use super::*;
 
@@ -597,6 +643,11 @@ mod tests {
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
+        // Make the tabular data
+        let csv_format = CsvFormat { ..Default::default() };
+        let tabular_data = make_scores_table()?;
+        let bytes = tabular_data.to_csv(csv_format.delimiter, csv_format.header)?;
+
         // Make the user query
         let user_query = "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`. Respond using human-in-the-loop when you have the answer.";
 
@@ -608,6 +659,7 @@ mod tests {
         )) {
             let incoming_message_map = create_incoming_message_map(vec![
                 AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, tool_agent_session.session_context_name)?,
+                AvailableAttachmentPublishSubjects::UserCsv.to_incoming_message("filename", bytes, ",csv", "", tool_agent_session.session_context_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =

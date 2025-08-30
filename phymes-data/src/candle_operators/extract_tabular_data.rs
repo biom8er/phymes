@@ -5,7 +5,7 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
     schemas::{chat_completion, types},
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
 };
 use tracing::{Level, event, instrument};
 
@@ -63,7 +63,10 @@ impl DataOperatorTrait for ExtractTabularData {
     ) -> Result<RecordBatch> {
         match extract_tabular_data(&self.lhs_values, lhs_args, &self.format) {
             Ok(batch) => Ok(batch),
-            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+            Err(err) => {
+                event!(Level::ERROR, "ExtractTabularData operator: {err}");
+                Ok(make_error_record_batch(err.to_string().as_str()))
+            },
         }
     }
     fn get_description() -> String {
@@ -76,16 +79,6 @@ impl DataOperatorTrait for ExtractTabularData {
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
-                description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
-                ),
                 ..Default::default()
             }),
         );
@@ -117,7 +110,6 @@ impl DataOperatorTrait for ExtractTabularData {
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
-                    "lhs_pk".to_string(),
                     "lhs_values".to_string(),
                     "op_kwargs".to_string(),
                 ]),
@@ -152,6 +144,11 @@ pub fn extract_tabular_data(lhs_values: &str, lhs_args: &[RecordBatch], format: 
             .with_json(values_vec.last().unwrap(), json_format.batch_size)?
             .build()?
         }
+        DataSummaryFormat::IPC => {
+            ArrowTableBuilder::new_from_ipc_stream(values_vec.last().unwrap())?
+            .with_name("attachment")
+            .build()?
+        }
         _ => return Err(anyhow!("Unsupported format {:?} for extract_tabular_data operator.", format)),        
     };
 
@@ -159,19 +156,13 @@ pub fn extract_tabular_data(lhs_values: &str, lhs_args: &[RecordBatch], format: 
     Ok(batch)
 }
 
-#[cfg(test)]
-mod tests {
+pub mod test_extract_tabular_data {
+    use super::*; 
     use std::sync::Arc;
 
     use arrow::array::{ArrayRef, Float32Array, StringArray};
-    use phymes_core::{
-        schemas::available_subjects::create_blob_batch, session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}
-    };
-
-    use crate::candle_data::summary_config::CsvFormat;
-
-    use super::*;
-
+    use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait}
+    }; 
     
     pub fn make_scores_table() -> Result<ArrowTable> {
         let lhs_ids: ArrayRef = Arc::new(StringArray::from(vec!["a", "b", "c"]));
@@ -182,6 +173,17 @@ mod tests {
             .with_record_batches(vec![batch])?
             .build()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use phymes_core::{
+        schemas::available_subjects::create_blob_batch, session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}
+    };
+
+    use crate::{candle_data::summary_config::{CsvFormat, JsonFormat}, candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table};
+
+    use super::*;
 
     #[test]
     fn test_extract_tabular_data_csv_format() {
@@ -197,6 +199,39 @@ mod tests {
             "bytes",
             &vec![csv_batch],
             &DataSummaryFormat::Csv(csv_format),
+        ).unwrap();
+
+        // Check the dimensions of the extracted data
+        assert_eq!(extracted.num_columns(), 2);
+        assert_eq!(extracted.num_rows(), 3);
+
+        // Check the contents of the extracted data
+        let table = ArrowTable::get_builder()
+            .with_name("extracted")
+            .with_record_batches(vec![extracted])
+            .unwrap()
+            .build()
+            .unwrap();
+        let lhs_pk = table.get_column_as_vec_str("lhs_pk");
+        let score = table.get_column_as_vec_primitive::<f64>("score").unwrap();
+        assert_eq!(lhs_pk, vec!["a", "b", "c"]);
+        assert_eq!(score, vec![3.0, 2.0, 1.0]);
+    }
+
+    #[test]
+    fn test_extract_tabular_data_json_format() {
+        let json_format = JsonFormat { ..Default::default() };
+
+        // Make the tabular data
+        let tabular_data = make_scores_table().unwrap();
+        let bytes = tabular_data.to_json().unwrap();
+        let json_batch = create_blob_batch(vec!["attachment".to_string()], vec!["csv".to_string()], vec![bytes], vec!["".to_string()]).unwrap();
+
+        // Extract the tabular data
+        let extracted = extract_tabular_data(
+            "bytes",
+            &vec![json_batch],
+            &&DataSummaryFormat::Json(json_format),
         ).unwrap();
 
         // Check the dimensions of the extracted data

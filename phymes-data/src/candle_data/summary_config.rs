@@ -21,30 +21,9 @@ impl Default for CsvFormat {
     }
 }
 
-impl FromStr for CsvFormat {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let items = s.split("-").collect::<Vec<&str>>();
-        if items.len() !=3 {
-            return Err(anyhow::anyhow!("Invalid CsvFormat string, expected format: <delimiter>-<header>-<batch_size>."));
-        }
-
-        Ok(CsvFormat { delimiter: items[0].as_bytes()[0], header: items[1].parse::<bool>()?, batch_size: items[2].parse::<usize>()? } )
-    }
-}
-
 #[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct JsonFormat {
     pub batch_size: usize,
-}
-
-impl FromStr for JsonFormat {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(JsonFormat { batch_size: s.parse::<usize>()? } )
-    }
 }
 
 impl Default for JsonFormat {
@@ -56,7 +35,6 @@ impl Default for JsonFormat {
 #[derive(Clone, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DataSummaryFormat {
     /// ToolMessage format
-    #[default]
     Message,
     /// Comma Seperated Values string    
     Csv(CsvFormat),
@@ -68,33 +46,17 @@ pub enum DataSummaryFormat {
     Bytes,
     /// Arrow IPC
     IPC,
+    #[default]
+    None,
 }
 
 impl FromStr for DataSummaryFormat {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let items = s.split("-").collect::<Vec<&str>>();
-        match items.first() {
-            Some(&"Message") => Ok(DataSummaryFormat::Message),
-            Some(&"Csv") => {
-                if items.len() != 4 {
-                    return Err(anyhow::anyhow!("Invalid CsvFormat string, expected format: Csv-<delimiter>-<header>-<batch_size>."));
-                }
-                let csv_format = CsvFormat { delimiter: items[1].as_bytes()[0], header: items[2].parse::<bool>()?, batch_size: items[3].parse::<usize>()? };
-                Ok(DataSummaryFormat::Csv(csv_format))
-            },
-            Some(&"Json") => {
-                if items.len() != 2 {
-                    return Err(anyhow::anyhow!("Invalid JsonFormat string, expected format: Json-<batch_size>."));
-                }
-                let json_format = JsonFormat { batch_size: items[1].parse::<usize>()? };
-                Ok(DataSummaryFormat::Json(json_format))
-            },
-            Some(&"Pdf") => Ok(DataSummaryFormat::Pdf),
-            Some(&"Bytes") => Ok(DataSummaryFormat::Bytes),
-            Some(&"IPC") => Ok(DataSummaryFormat::IPC),
-            _ => Err(anyhow::anyhow!("Invalid DataSummaryFormat string, expected one of Message, Csv-<delimiter>-<header>-<batch_size>, Json-<batch_size>, Pdf, Bytes, IPC.")),
+        match serde_json::from_str::<DataSummaryFormat>(s) {
+            Ok(format) => Ok(format),
+            Err(err) => Err(anyhow::anyhow!("{err:?}. Invalid DataSummaryFormat string, expected one of Message, Csv, Json, Pdf, Bytes, IPC, or None.")),
         }
     }
 }

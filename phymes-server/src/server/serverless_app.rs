@@ -85,10 +85,11 @@ mod tests {
     use futures::TryStreamExt;
     use futures_executor::block_on;
     use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+    use phymes_data::candle_data::summary_config::DataSummaryFormat;
     use serde_json::{Map, Value};
 
     use crate::handlers::{
-        session_info::{SessionResponse, SessionResponseFormat},
+        session_info::SessionResponse,
         sign_in::{basic_auth, create_session_name},
     };
 
@@ -159,7 +160,7 @@ mod tests {
             session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "".to_string(),
-            format: SessionResponseFormat::Bytes,
+            format: DataSummaryFormat::Bytes,
             publish: ArrowTablePublish::None,
             content: "".to_string().into(),
             metadata: "".to_string(),
@@ -220,7 +221,7 @@ mod tests {
             session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "".to_string(),
-            format: SessionResponseFormat::Bytes,
+            format: DataSummaryFormat::Bytes,
             publish: ArrowTablePublish::None,
             content: "".to_string().into(),
             metadata: "".to_string(),
@@ -250,7 +251,7 @@ mod tests {
             session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "".to_string(),
-            format: SessionResponseFormat::Bytes,
+            format: DataSummaryFormat::Bytes,
             publish: ArrowTablePublish::None,
             content: "".to_string().into(),
             metadata: "".to_string(),
@@ -280,7 +281,7 @@ mod tests {
             session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "".to_string(),
-            format: SessionResponseFormat::Bytes,
+            format: DataSummaryFormat::Bytes,
             publish: ArrowTablePublish::None,
             content: "".to_string().into(),
             metadata: "".to_string(),
@@ -310,7 +311,7 @@ mod tests {
             session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "messages".to_string(),
-            format: SessionResponseFormat::Bytes,
+            format: DataSummaryFormat::Bytes,
             publish: ArrowTablePublish::Extend {
                 table_name: "messages".to_string(),
             },

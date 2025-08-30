@@ -141,7 +141,6 @@ pub enum AvailableAttachmentPublishSubjects {
     UserImage,
     UserScript,
     UserCsv,
-    UserJson,
 }
 
 impl AvailableSubjectsTrait for AvailableAttachmentPublishSubjects {
@@ -159,7 +158,6 @@ impl MappableTrait for AvailableAttachmentPublishSubjects {
             AvailableAttachmentPublishSubjects::UserImage => "UserImage",
             AvailableAttachmentPublishSubjects::UserScript => "UserScript",
             AvailableAttachmentPublishSubjects::UserCsv => "UserCsv",
-            AvailableAttachmentPublishSubjects::UserJson => "UserJson",
         }
     }
 }

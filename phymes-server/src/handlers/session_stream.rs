@@ -19,6 +19,7 @@ use phymes_core::{
 
 // General imports
 use anyhow::{Error, Result};
+use phymes_data::candle_data::summary_config::DataSummaryFormat;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -26,7 +27,7 @@ use std::sync::Arc;
 use crate::{
     handlers::{
         json_error::{ErrorToResponse, JsonError, serde_json_error_response},
-        session_info::{SessionResponse, SessionResponseFormat},
+        session_info::SessionResponse,
         sign_in::CurrentUser,
     },
     server::server_state::ServerState,
@@ -101,7 +102,7 @@ pub async fn session_stream(
             // Note: that we cannot write state updates to disk for
             //   streaming responses since we need to execute the stream first
             match (&payload.format, payload.stream) {
-                (SessionResponseFormat::Bytes, true) => {
+                (DataSummaryFormat::Bytes, true) => {
                     // Convert the output to bytes
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
@@ -113,7 +114,7 @@ pub async fn session_stream(
                     // Send the stream
                     Body::from_stream(response).into_response()
                 }
-                (SessionResponseFormat::Bytes, false) => {
+                (DataSummaryFormat::Bytes, false) => {
                     // Convert the output to bytes
                     let response: Vec<HashMap<String, ArrowIncomingMessage>> =
                         session_stream.try_collect().await.unwrap();
@@ -147,7 +148,7 @@ pub async fn session_stream(
                     // Send the stream
                     Body::from(response).into_response()
                 }
-                (SessionResponseFormat::IPC, true) => {
+                (DataSummaryFormat::IPC, true) => {
                     // Convert the output to IPC
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
@@ -159,7 +160,7 @@ pub async fn session_stream(
                     // Send the stream
                     Body::from_stream(response).into_response()
                 }
-                (SessionResponseFormat::IPC, false) => {
+                (DataSummaryFormat::IPC, false) => {
                     // Convert the output to bytes
                     let response: Vec<HashMap<String, ArrowIncomingMessage>> =
                         session_stream.try_collect().await.unwrap();

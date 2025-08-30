@@ -46,7 +46,7 @@ impl DataOperatorTrait for SortColumnAndIndices {
         kwargs: Option<&str>,
     ) -> Self {
         // Attempt to parse the op_kwargs
-        let ops_kwargs_default = "{\"asc\": false}";
+        let ops_kwargs_default = "{\"asc\": true}";
         let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
         let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
             .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
@@ -55,7 +55,7 @@ impl DataOperatorTrait for SortColumnAndIndices {
             asc: ops_kwargs
                 .get("asc")
                 .and_then(|v| v.as_bool())
-                .unwrap_or(false),
+                .unwrap_or(true),
         }
     }
     fn forward(

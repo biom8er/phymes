@@ -11,11 +11,7 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::candle_operators::{
-    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait,
-    extract_pdf_text::ExtractPDFText, filter_columns_and_indices::FilterColumnsAndIndices,
-    group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop,
-    join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore,
-    sort_column_and_indices::SortColumnAndIndices,
+    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, sort_column_and_indices::SortColumnAndIndices
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -44,6 +40,9 @@ pub enum AvailableCandleOperators {
     #[value(name = "FilterColumnsAndIndices")]
     #[serde(alias = "filter-columns-and-indices")]
     FilterColumnsAndIndices,
+    #[value(name = "ExtractTabularData")]
+    #[serde(alias = "extract-tabular-data")]
+    ExtractTabularData,
 }
 
 impl Default for AvailableCandleOperators {
@@ -64,6 +63,7 @@ impl AvailableCandleOperators {
             Self::ExtractPDFText => ExtractPDFText::get_static_name(),
             Self::GroupByAndAggregate => GroupByAndAggregate::get_static_name(),
             Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_static_name(),
+            Self::ExtractTabularData => ExtractTabularData::get_static_name(),
         }
     }
 
@@ -78,29 +78,7 @@ impl AvailableCandleOperators {
             Self::ExtractPDFText => ExtractPDFText::get_json_tool_schema(),
             Self::GroupByAndAggregate => GroupByAndAggregate::get_json_tool_schema(),
             Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_json_tool_schema(),
-        }
-    }
-
-    /// Return the operatiSortColumnAndIndices
-    pub fn new_from_name(name: &str) -> Option<Self> {
-        if name == RelativeSimilarityScore::get_static_name() {
-            Some(Self::RelativeSimilarityScore)
-        } else if name == SortColumnAndIndices::get_static_name() {
-            Some(Self::SortColumnAndIndices)
-        } else if name == HumanInTheLoop::get_static_name() {
-            Some(Self::HumanInTheLoop)
-        } else if name == ChunkDocuments::get_static_name() {
-            Some(Self::ChunkDocuments)
-        } else if name == JoinInner::get_static_name() {
-            Some(Self::JoinInner)
-        } else if name == ExtractPDFText::get_static_name() {
-            Some(Self::ExtractPDFText)
-        } else if name == GroupByAndAggregate::get_static_name() {
-            Some(Self::GroupByAndAggregate)
-        } else if name == FilterColumnsAndIndices::get_static_name() {
-            Some(Self::FilterColumnsAndIndices)
-        } else {
-            None
+            Self::ExtractTabularData => ExtractTabularData::get_json_tool_schema(),
         }
     }
 
@@ -141,6 +119,9 @@ impl AvailableCandleOperators {
             Self::FilterColumnsAndIndices => Box::new(FilterColumnsAndIndices::new(
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
+            Self::ExtractTabularData => Box::new(ExtractTabularData::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
         }
     }
 }
@@ -149,7 +130,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
     let mut tool_id_vec = Vec::new();
     let mut tool_vec = Vec::new();
     for destination in destinations.iter() {
-        if let Some(ops) = AvailableCandleOperators::new_from_name(destination) {
+        if let Ok(ops) = AvailableCandleOperators::from_str(destination, false) {
             tool_id_vec.push(ops.get_name().to_string());
             tool_vec.push(ops.get_json_tool_schema());
         }
@@ -188,6 +169,7 @@ mod tests {
                 "HumanInTheLoop".to_string(),
                 "GroupByAndAggregate".to_string(),
                 "FilterColumnsAndIndices".to_string(),
+                "ExtractTabularData".to_string(),
             ],
         )
         .unwrap();
@@ -200,7 +182,8 @@ mod tests {
                 "JoinInner",
                 "HumanInTheLoop",
                 "GroupByAndAggregate",
-                "FilterColumnsAndIndices"
+                "FilterColumnsAndIndices",
+                "ExtractTabularData"
             ]
         );
         let functions = result.get_column_as_vec_str("tool");
@@ -345,6 +328,25 @@ mod tests {
                 .get(6)
                 .unwrap()
                 .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
+        );
+
+        assert!(functions.get(7).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"ExtractTabularData\",\"description\":\"Extract tabular data in either CSV or JSON format from Bytes\"")
+        );
+        assert!(
+            functions
+                .get(7)
+                .unwrap()
+                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
+        );
+        assert!(functions.get(7).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the left hand side table\"")
+        );
+        assert!(functions.get(7).unwrap().contains("\"op_kwargs\":{\"type\":\"string\",\"description\":\"DataSummaryFormat object as a String\"")
+        );
+        assert!(
+            functions
+                .get(7)
+                .unwrap()
+                .contains("\"required\":[\"lhs_name\",\"lhs_values\",\"op_kwargs\"]}}}")
         );
     }
 

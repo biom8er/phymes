@@ -322,7 +322,7 @@ impl Stream for DataSummaryStream {
 
             // Convert to the desired format
             match self.config.as_ref().unwrap().format {
-                DataSummaryFormat::Message => {
+                DataSummaryFormat::Message | DataSummaryFormat::None => {
                     // Wrap into a record batch
                     let content = serde_json::to_string(&batch_limit)?;
                     let batch = create_messages_record_batch(

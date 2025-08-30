@@ -942,12 +942,21 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
         let schema = match self.schema {
             Some(ref schema) => schema.clone(),
             None => {
+                // Attempt to infer the schema
                 let (schema, _) = format.infer_schema(&mut cursor, None)?;
                 cursor.rewind().unwrap();
-                let schema = Arc::new(schema);
+
+                // Change nullable = true to false
+                let mut fields = Vec::new();
+                for field in schema.fields() {
+                    fields.push(Field::new(field.name(), field.data_type().clone(), false));
+                }
+
+                // Make the Schema
+                let schema = Arc::new(Schema::new(fields));
                 self.schema = Some(schema.clone());
                 schema
-            } // None => return Err(anyhow!("Please define the schema before adding record batches!"))
+            }
         };
 
         // Read in the CSV

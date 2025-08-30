@@ -1,8 +1,9 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+use phymes_data::candle_data::summary_config::{CsvFormat, DataSummaryFormat, JsonFormat};
 use phymes_server::handlers::{
-    session_info::{SessionResponse, SessionResponseFormat},
+    session_info::SessionResponse,
     sign_in::create_session_name,
 };
 
@@ -141,7 +142,7 @@ pub fn subjects_modal() -> Element {
         session_plan: ACTIVE_SESSION_NAME.read().to_string(),
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
-        format: SessionResponseFormat::Bytes,
+        format: DataSummaryFormat::Bytes,
         publish: ArrowTablePublish::None,
         content: "".to_string().into(),
         metadata: "".to_string(),
@@ -437,11 +438,11 @@ pub fn subjects_modal() -> Element {
                                 metadata: file_name.clone(),
                                 content: contents.into_bytes(),
                                 publish: publish.to_owned(),
-                                format: SessionResponseFormat::CSV {
+                                format: DataSummaryFormat::Csv(CsvFormat {
                                     delimiter: b',',
                                     header: true,
                                     batch_size: 1024,
-                                },
+                                }),
                                 stream: false,
                             });
                         }
@@ -459,29 +460,7 @@ pub fn subjects_modal() -> Element {
                                 metadata: file_name.clone(),
                                 content: contents.into_bytes(),
                                 publish: publish.to_owned(),
-                                format: SessionResponseFormat::JSON { batch_size: 1024 },
-                                stream: false,
-                            });
-                        }
-                    }
-                    Some("pdf") => {
-                        // Read the file as PDF
-                        if let Some(contents) = file_engine.read_file(file_name).await {
-                            tracing::debug!(
-                                "Reading PDF file: {file_name} with {} bytes",
-                                contents.len()
-                            );
-                            files_uploaded.write().push(SessionResponse {
-                                session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-                                session_name: create_session_name(
-                                    EMAIL.read().as_str(),
-                                    ACTIVE_SESSION_NAME.read().as_str(),
-                                ),
-                                subject_name: subject_shown.read().to_string(),
-                                metadata: file_name.clone(),
-                                content: contents,
-                                publish: publish.to_owned(),
-                                format: SessionResponseFormat::PDF,
+                                format: DataSummaryFormat::Json(JsonFormat{ batch_size: 1024 }),
                                 stream: false,
                             });
                         }
@@ -676,7 +655,7 @@ pub fn subjects_modal() -> Element {
                                             session_plan: ACTIVE_SESSION_NAME.read().to_string(),
                                             session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
                                             subject_name: subject_shown.read().to_string(),
-                                            format: SessionResponseFormat::CSV { delimiter: b',', header: true, batch_size: 1024 },
+                                            format: DataSummaryFormat::Csv( CsvFormat { delimiter: b',', header: true, batch_size: 1024 }),
                                             publish: ArrowTablePublish::None,
                                             content: "".to_string().into(),
                                             metadata: "".to_string(),

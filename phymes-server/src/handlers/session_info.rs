@@ -15,34 +15,13 @@ use phymes_core::{
     session::session_context::SessionContextTableNames,
     table::{arrow_table::ArrowTableTrait, arrow_table_publish::ArrowTablePublish},
 };
+use phymes_data::candle_data::summary_config::DataSummaryFormat;
 use serde::{Deserialize, Serialize};
 
 // Library imports
 use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};
 use crate::handlers::sign_in::CurrentUser;
 use crate::server::server_state::ServerState;
-
-/// Format of the request
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub enum SessionResponseFormat {
-    /// Comma Seperated Values string
-    /// Recommended defaults: b',', true, 1024,
-    CSV {
-        delimiter: u8,
-        header: bool,
-        batch_size: usize,
-    },
-    /// JSON string
-    JSON { batch_size: usize },
-    /// JSON Object written to Bytes
-    Bytes,
-    /// Arrow IPC
-    IPC,
-    /// PDF
-    PDF,
-    #[default]
-    None,
-}
 
 /// Server session request
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
@@ -54,7 +33,7 @@ pub struct SessionResponse {
     /// The subject name if known else blank
     pub subject_name: String,
     /// The format of the response
-    pub format: SessionResponseFormat,
+    pub format: DataSummaryFormat,
     /// Publish method
     pub publish: ArrowTablePublish,
     /// The content to publish or subscribe

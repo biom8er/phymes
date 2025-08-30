@@ -10,25 +10,12 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_core::{
-    metrics::HashMap,
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
-    task::arrow_message::{
-        ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
-        ArrowMessageBuilderTrait,
-    },
-};
-use phymes_data::candle_operators::extract_pdf_text::{
-    extract_pdf_text, filter_pdf, load_pdf_document,
-};
+use phymes_core::table::arrow_table::ArrowTableTrait;
+use phymes_data::candle_data::summary_config::DataSummaryFormat;
 
 // Library imports
 use crate::handlers::sign_in::CurrentUser;
-use crate::handlers::{
-    json_error::{ErrorToResponse, JsonError, serde_json_error_response},
-    session_info::SessionResponseFormat,
-};
+use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};
 use crate::server::server_state::ServerState;
 
 use super::session_info::SessionResponse;
@@ -83,58 +70,54 @@ pub async fn session_put_state(
                         .unwrap()
                         .get_schema();
                     let update = match payload.format {
-                        SessionResponseFormat::CSV {
-                            delimiter,
-                            header,
-                            batch_size,
-                        } => session_stream_state
+                        DataSummaryFormat::Csv(csv_format) => session_stream_state
                             .try_write()
                             .unwrap()
                             .update_state_from_csv_str(
                                 &schema,
                                 &String::from_utf8_lossy(&payload.content),
                                 &payload.publish,
-                                delimiter,
-                                header,
-                                batch_size,
+                                csv_format.delimiter,
+                                csv_format.header,
+                                csv_format.batch_size,
                             )
                             .unwrap(),
-                        SessionResponseFormat::PDF => {
-                            // DM: alternatively, we could wrap into a Table and extract the text
-                            //     using the `phymes_data` pipeline
-                            // Load the PDF document and extract text
-                            let pdf =
-                                filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
-                            let batch =
-                                extract_pdf_text([(payload.metadata.clone(), pdf)].as_slice())
-                                    .unwrap();
-                            let table = ArrowTable::get_builder()
-                                .with_name(payload.subject_name.as_str())
-                                .with_record_batches(vec![batch])
-                                .unwrap()
-                                .build()
-                                .unwrap();
+                        // SessionResponseFormat::PDF => {
+                        //     // DM: alternatively, we could wrap into a Table and extract the text
+                        //     //     using the `phymes_data` pipeline
+                        //     // Load the PDF document and extract text
+                        //     let pdf =
+                        //         filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
+                        //     let batch =
+                        //         extract_pdf_text([(payload.metadata.clone(), pdf)].as_slice())
+                        //             .unwrap();
+                        //     let table = ArrowTable::get_builder()
+                        //         .with_name(payload.subject_name.as_str())
+                        //         .with_record_batches(vec![batch])
+                        //         .unwrap()
+                        //         .build()
+                        //         .unwrap();
 
-                            // Create the update message
-                            let incoming_message = ArrowIncomingMessageBuilder::new()
-                                .with_name(payload.subject_name.as_str())
-                                .with_subject(payload.subject_name.as_str())
-                                .with_publisher(payload.session_name.as_str())
-                                .with_message(table)
-                                .with_update(&payload.publish)
-                                .build()
-                                .unwrap();
-                            let mut incoming_message_map =
-                                HashMap::<String, ArrowIncomingMessage>::new();
-                            incoming_message_map
-                                .insert(incoming_message.get_name().to_string(), incoming_message);
+                        //     // Create the update message
+                        //     let incoming_message = ArrowIncomingMessageBuilder::new()
+                        //         .with_name(payload.subject_name.as_str())
+                        //         .with_subject(payload.subject_name.as_str())
+                        //         .with_publisher(payload.session_name.as_str())
+                        //         .with_message(table)
+                        //         .with_update(&payload.publish)
+                        //         .build()
+                        //         .unwrap();
+                        //     let mut incoming_message_map =
+                        //         HashMap::<String, ArrowIncomingMessage>::new();
+                        //     incoming_message_map
+                        //         .insert(incoming_message.get_name().to_string(), incoming_message);
 
-                            // Update the session state with the new message
-                            session_stream_state
-                                .try_write()
-                                .unwrap()
-                                .update_state_from_messages(incoming_message_map)
-                        }
+                        //     // Update the session state with the new message
+                        //     session_stream_state
+                        //         .try_write()
+                        //         .unwrap()
+                        //         .update_state_from_messages(incoming_message_map)
+                        // }
                         _ => unimplemented!(),
                     };
                     session_stream_state
@@ -229,7 +212,7 @@ pub async fn session_get_state(
                 .get(payload.session_name.as_str())
             {
                 Some(session_stream_state) => match payload.format {
-                    SessionResponseFormat::Bytes => {
+                    DataSummaryFormat::Bytes => {
                         // Get the subject table as a json object
                         let object = session_stream_state
                             .try_read()
@@ -246,11 +229,7 @@ pub async fn session_get_state(
                         let buf = Bytes::from(content);
                         Body::from(buf).into_response()
                     }
-                    SessionResponseFormat::CSV {
-                        delimiter,
-                        header,
-                        batch_size: _,
-                    } => {
+                    DataSummaryFormat::Csv(csv_format) => {
                         // Get the subject table as a csv string
                         let csv = session_stream_state
                             .try_read()
@@ -261,7 +240,7 @@ pub async fn session_get_state(
                             .unwrap()
                             .try_read()
                             .unwrap()
-                            .to_csv(delimiter, header)
+                            .to_csv(csv_format.delimiter, csv_format.header)
                             .unwrap();
                         let buf = Bytes::from(csv);
                         Body::from(buf).into_response()

@@ -7,10 +7,11 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
+use phymes_data::{candle_data::summary_config::CsvFormat, candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table};
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableAttachmentsSubscribeSubjects, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, MessagingPublishSubjectsTrait}, tool_agent_session::ToolAgentSession},
+    session_plans::{available_agent_subjects::{create_incoming_message_map, AttachmentPublishSubjectsTrait, AvailableAttachmentPublishSubjects, AvailableAttachmentsSubscribeSubjects, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, MessagingPublishSubjectsTrait}, tool_agent_session::ToolAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
@@ -36,11 +37,17 @@ pub async fn run_main() -> Result<()> {
         .build_with_tables()?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
+    // Make the tabular data
+    let csv_format = CsvFormat { ..Default::default() };
+    let tabular_data = make_scores_table()?;
+    let bytes = tabular_data.to_csv(csv_format.delimiter, csv_format.header)?;
+
     // Make the user query
     let user_query = "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.";
 
     let incoming_message_map = create_incoming_message_map(vec![
         AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, tool_agent_session.session_context_name)?,
+        AvailableAttachmentPublishSubjects::UserCsv.to_incoming_message("filename", bytes, ",csv", "", tool_agent_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =

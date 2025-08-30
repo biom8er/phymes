@@ -3,6 +3,7 @@ use dioxus::prelude::*;
 
 // General imports
 use futures::StreamExt;
+use phymes_data::candle_data::summary_config::DataSummaryFormat;
 use serde_json::{self, Map, Value};
 
 #[cfg(not(feature = "serverless"))]
@@ -14,7 +15,7 @@ use phymes_core::{
     table::arrow_table_publish::ArrowTablePublish,
 };
 use phymes_server::handlers::{
-    session_info::{SessionResponse, SessionResponseFormat},
+    session_info::SessionResponse,
     sign_in::create_session_name,
 };
 
@@ -68,7 +69,7 @@ pub fn messaging_interface_view() -> Element {
                 ACTIVE_SESSION_NAME.read().as_str(),
             ),
             subject_name: MESSAGES_SUBJECT_NAME.to_string(),
-            format: SessionResponseFormat::Bytes,
+            format: DataSummaryFormat::Bytes,
             publish: ArrowTablePublish::None,
             content: "".to_string().into(),
             metadata: "".to_string(),
@@ -294,7 +295,7 @@ pub fn messaging_interface_footer() -> Element {
                                         ACTIVE_SESSION_NAME.read().as_str(),
                                     ),
                                     subject_name: MESSAGES_SUBJECT_NAME.to_string(),
-                                    format: SessionResponseFormat::Bytes,
+                                    format: DataSummaryFormat::Bytes,
                                     publish: ArrowTablePublish::None,
                                     content: prompt.to_string().into(),
                                     metadata: "".to_string(),
