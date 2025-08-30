@@ -7,7 +7,7 @@ use std::{
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     schemas::available_subjects::{
-        create_messages_record_batch, create_timestamp_micros, AvailableSubjects,
+        create_blob_batch, create_messages_record_batch, create_timestamp_micros, AvailableSubjects
     },
     session::{
         common_traits::{
@@ -40,10 +40,13 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
 
+use crate::candle_data::summary_config::DataSummaryFormat;
+
 use super::summary_config::DataSummaryConfig;
 
 /// Processor that takes the results of an OpsProcessor
 ///   and creates a summary of the result for chat inference
+///   or creates an attachment for the user to download
 ///
 /// # Notes
 ///
@@ -300,6 +303,7 @@ impl Stream for DataSummaryStream {
             };
 
             // Concatenate into a single record batch
+            let schema = batches_col.first().unwrap().schema();
             let mut batch_json = ArrowTable::get_builder()
                 .with_name("")
                 .with_record_batches(batches_col)?
@@ -322,21 +326,68 @@ impl Stream for DataSummaryStream {
                 None => batch_limit = batch_json,
             }
 
-            // And then a single string
-            let content = serde_json::to_string(&batch_limit)?;
+            // Convert to the desired format
+            match self.config.as_ref().unwrap().format {
+                DataSummaryFormat::Message => {
+                    // Wrap into a record batch
+                    let content = serde_json::to_string(&batch_limit)?;
+                    let batch = create_messages_record_batch(
+                        vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
+                        vec![content.to_string()],
+                        vec![create_timestamp_micros()],
+                    )?;
 
-            // Wrap into a record batch
-            // DM: Change when upgrading to Qwen 3
-            // let role: ArrayRef = Arc::new(StringArray::from(vec!["function"]));
-            let batch = create_messages_record_batch(
-                vec!["tool".to_string()],
-                vec![content.to_string()],
-                vec![create_timestamp_micros()],
-            )?;
+                    // record the poll
+                    let poll = Poll::Ready(Some(Ok(batch)));
+                    metrics.record_poll(poll)
 
-            // record the poll
-            let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
+                }
+                DataSummaryFormat::Csv => {
+                    // Convert to Values representation
+                    let mut values = Vec::new();
+                    for row in batch_limit.iter() {
+                        let v = serde_json::to_value(row)?;
+                        values.push(v);
+                    }
+                    let table = ArrowTable::get_builder()
+                        .with_name("attachment")
+                        .with_schema(schema)
+                        .with_json_values(&values)?
+                        .build()?;
+
+                    // Convert to CSV and wrap into a blob batch
+                    let bytes = table.to_csv(b',', true)?;
+                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()])?;
+
+                    // record the poll
+                    let poll = Poll::Ready(Some(Ok(batch)));
+                    return metrics.record_poll(poll);
+                }
+                DataSummaryFormat::Json => {
+                    // Convert to Values representation
+                    let mut values = Vec::new();
+                    for row in batch_limit.iter() {
+                        let v = serde_json::to_value(row)?;
+                        values.push(v);
+                    }
+                    let table = ArrowTable::get_builder()
+                        .with_name("attachment")
+                        .with_schema(schema)
+                        .with_json_values(&values)?
+                        .build()?;
+
+                    // Convert to CSV and wrap into a blob batch
+                    let bytes = table.to_json()?;
+                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".json".to_string()], vec![bytes], vec!["".to_string()])?;
+
+                    // record the poll
+                    let poll = Poll::Ready(Some(Ok(batch)));
+                    return metrics.record_poll(poll);
+                }
+                DataSummaryFormat::Pdf => {
+                    todo!("Implement PDF output");
+                }
+            }
         }
     }
 
@@ -353,6 +404,7 @@ impl RecordBatchStream for DataSummaryStream {
 
 #[cfg(test)]
 mod tests {
+    use arrow::array::{ArrayRef, StringArray};
     use phymes_core::table::{
         arrow_table::ArrowTableBuilder, arrow_table_publish::ArrowTablePublish,
     };
@@ -362,9 +414,8 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_summary_processor() -> Result<()> {
+    async fn test_summary_processor_message_format() -> Result<()> {
         // Create the input
-        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
         let lhs_ids_vec = vec!["1", "2", "3"];
         let lhs_embeddings_vec: Vec<Vec<f32>> = vec![
             vec![1., 1., 1., 1.],
@@ -377,6 +428,22 @@ mod tests {
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
+
+        // Make the config
+        let config = DataSummaryConfig {
+            num_rows: Some(2),
+            num_batches: Some(1),
+            col_names: Some("[\"embedding\",\"lhs_pk\"]".to_string()),
+            format: DataSummaryFormat::Message,
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = ArrowTableBuilder::new()
+            .with_name("summary_processor")
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Make the input messages
+        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
         let _ = messages.insert(
             "lhs_name".to_string(),
             ArrowOutgoingMessage::get_builder()
@@ -387,18 +454,6 @@ mod tests {
                 .with_message(lhs_table.to_record_batch_stream())
                 .build()?,
         );
-
-        // Make the config
-        let config = DataSummaryConfig {
-            num_rows: Some(2),
-            num_batches: Some(1),
-            col_names: Some("[\"embedding\",\"lhs_pk\"]".to_string()),
-        };
-        let config_json = serde_json::to_vec(&config)?;
-        let config_table = ArrowTableBuilder::new()
-            .with_name("summary_processor")
-            .with_json(&config_json, 1)?
-            .build()?;
         let _ = messages.insert(
             "summary_processor".to_string(),
             ArrowOutgoingMessage::get_builder()
@@ -431,7 +486,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(messages, metrics.clone(), runtime_env)?;
+        let mut stream = processor.process(messages, metrics.clone(), runtime_env.clone())?;
 
         // Wrap the results in a table
         let partitions = ArrowTableBuilder::new_from_sendable_record_batch_stream(
@@ -440,6 +495,8 @@ mod tests {
         .await?
         .with_name("")
         .build()?;
+
+        // Check the results
         assert_eq!(partitions.count_rows(), 1);
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
@@ -452,6 +509,102 @@ mod tests {
                 "[{\"embedding\":[1.0,1.0,1.0,1.0],\"lhs_pk\":\"1\"},{\"embedding\":[0.0,0.0,0.0,1.0],\"lhs_pk\":\"3\"}]"
             ]
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_summary_processor_blob_formats() -> Result<()> {
+        // Create the input
+        let lhs_ids_vec = vec!["1", "2", "3"];
+        let ids_ar: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec));
+        let lhs_batch = RecordBatch::try_from_iter(vec![("lhs_pk", ids_ar)])?;
+        let lhs_table = ArrowTable::get_builder()
+            .with_name("lhs_name")
+            .with_record_batches(vec![lhs_batch])?
+            .build()?;
+
+        // Make the config
+        let config = DataSummaryConfig {
+            num_rows: Some(2),
+            num_batches: Some(1),
+            col_names: Some("[\"lhs_pk\"]".to_string()),
+            format: DataSummaryFormat::Csv,
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = ArrowTableBuilder::new()
+            .with_name("summary_processor")
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Make the input messages
+        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+        let _ = messages.insert(
+            "lhs_name".to_string(),
+            ArrowOutgoingMessage::get_builder()
+                .with_name("lhs_name")
+                .with_publisher("")
+                .with_subject("lhs_name")
+                .with_update(&ArrowTablePublish::None)
+                .with_message(lhs_table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = messages.insert(
+            "summary_processor".to_string(),
+            ArrowOutgoingMessage::get_builder()
+                .with_name("summary_processor")
+                .with_publisher("")
+                .with_subject("summary_processor")
+                .with_update(&ArrowTablePublish::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        let metrics = ArrowTaskMetricsSet::new();
+
+        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+            token_service: None,
+            tensor_service: None,
+            name: "service".to_string(),
+            memory_limit: None,
+            time_limit: None,
+        }));
+
+        // Create the processor and run
+        let processor = DataSummaryProcessor::new_arc_with_pub_sub(
+            "summary_processor",
+            &[ArrowTablePublish::Extend {
+                table_name: "messages".to_string(),
+            }],
+            &[ArrowTableSubscribe::AlwaysFullTable {
+                table_name: "lhs_name".to_string(),
+            }],
+            AllTableNamesSubscribe::new_box(),
+        );
+        let mut stream = processor.process(messages, metrics.clone(), runtime_env.clone())?;
+
+        // Wrap the results in a table
+        let partitions = ArrowTableBuilder::new_from_sendable_record_batch_stream(
+            stream.remove("messages").unwrap().get_message_own(),
+        )
+        .await?
+        .with_name("")
+        .build()?;
+
+        // Check the results
+        assert_eq!(partitions.count_rows(), 1);
+        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
+        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
+        assert_eq!(partitions.get_column_as_vec_str("filename"), ["attachment"]);
+        assert_eq!(partitions.get_column_as_vec_str("extension"), [".csv"]);
+        assert_eq!(partitions.get_column_as_vec_str("metadata"), [""]);
+        let contents_vec = partitions.get_column_as_vec_nested_primitive::<u8>("bytes")?;
+        let mut contents_str = Vec::new();
+        for contents in contents_vec.into_iter() {
+            contents_str.push(String::from_utf8(contents)?);
+        }
+        let contents_join = contents_str.join("");
+        assert_eq!(contents_join, "lhs_pk\n1\n3\n");
 
         Ok(())
     }

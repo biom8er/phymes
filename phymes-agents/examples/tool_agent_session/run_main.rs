@@ -10,7 +10,7 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, MessagingPublishSubjectsTrait}, tool_agent_session::ToolAgentSession},
+    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableAttachmentsSubscribeSubjects, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, MessagingPublishSubjectsTrait}, tool_agent_session::ToolAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
@@ -62,6 +62,25 @@ pub async fn run_main() -> Result<()> {
         if row["role"] != "system" {
             println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
         }
+    }
+
+    let attachment_data = response
+        .last_mut()
+        .unwrap()
+        .remove(&format!(
+            "from_{}_on_{}",
+            tool_agent_session.session_context_name,
+            AvailableAttachmentsSubscribeSubjects::AssistantCsv.get_name()
+        ))
+        .unwrap()
+        .get_message_own()
+        .to_json_object()?;
+    for row in &attachment_data {
+        let bytes = row["bytes"].as_array().unwrap()
+            .into_iter()
+            .map(|v| v.as_u64().unwrap() as u8)
+            .collect::<Vec<u8>>();
+        println!("attachment {}.{}: {}", row["filename"], row["extension"], String::from_utf8_lossy(bytes.as_ref()).into_owned())
     }
 
     println!(

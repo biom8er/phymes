@@ -232,6 +232,7 @@ pub trait AttachmentSubscribeSubjectsTrait {
 pub enum AvailableAttachmentsSubscribeSubjects {
     #[default]
     AssistantImage,
+    AssistantCsv,
     AssistantScript,
 }
 
@@ -245,6 +246,7 @@ impl MappableTrait for AvailableAttachmentsSubscribeSubjects {
     fn get_name(&self) -> &str {
         match self {
             AvailableAttachmentsSubscribeSubjects::AssistantImage => "AssistantImage",
+            AvailableAttachmentsSubscribeSubjects::AssistantCsv => "AssistantCsv",
             AvailableAttachmentsSubscribeSubjects::AssistantScript => "AssistantScript",
         }
     }

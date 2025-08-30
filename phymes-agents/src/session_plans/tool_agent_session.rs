@@ -21,7 +21,7 @@ use phymes_core::{
 use phymes_data::{
     candle_data::{
         data_config::DataConfig, data_processor::CandleDataProcessor,
-        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
+        summary_config::{DataSummaryConfig, DataSummaryFormat}, summary_processor::DataSummaryProcessor,
     },
     candle_operators::available_candle_operators::AvailableCandleOperators,
 };
@@ -44,7 +44,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 
-use crate::{session_plans::available_agent_subjects::{AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, AvailableSubjectsTrait}, session_traits::agents::CustomAgentsBuilderTrait};
+use crate::{session_plans::available_agent_subjects::{AvailableAttachmentsSubscribeSubjects, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, AvailableSubjectsTrait}, session_traits::agents::CustomAgentsBuilderTrait};
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
@@ -60,15 +60,21 @@ pub struct ToolAgentSession<'a> {
     pub message_aggregator_processor_1_name: &'a str,
     pub message_aggregator_task_2_name: &'a str,
     pub message_aggregator_processor_2_name: &'a str,
-    pub message_aggregator_runtime_env_name: &'a str, // sometimes there are locks with the other aggregator
+    pub message_aggregator_runtime_env_name: &'a str,
     /// The tool node (one of the CandleOps i.e., sort op)
     pub tool_task_name: &'a str,
     pub tool_processor_name: &'a str,
     pub tool_runtime_env_name: &'a str,
-    pub summary_processor_1_name: &'a str,
+    /// Create the attachment for the user
+    pub tool_attachment_task_name: &'a str,
+    pub tool_attachment_processor_name: &'a str,
+    /// Summarize the tool node results for the chat node
+    pub tool_summary_task_name: &'a str,
+    pub tool_summary_processor_name: &'a str,
+    /// Human in the loop tool node
     pub hitl_task_name: &'a str,
     pub hitl_processor_name: &'a str,
-    pub summary_processor_2_name: &'a str,
+    pub hitl_summary_processor_name: &'a str,
     /// Session and state
     pub session_context_name: &'a str,
     pub state_tools_table_name: &'a str,
@@ -86,10 +92,13 @@ impl Default for ToolAgentSession<'_> {
             tool_task_name: AvailableCandleOperators::SortColumnAndIndices.get_name(),
             tool_processor_name: AvailableCandleOperators::SortColumnAndIndices.get_name(),
             tool_runtime_env_name: "tool_rt_1",
-            summary_processor_1_name: "summary_processor_1",
+            tool_attachment_task_name: "tool_attachment_task_1",
+            tool_attachment_processor_name: "tool_attachment_processor_1",
+            tool_summary_task_name: "tool_summary_task_1",
+            tool_summary_processor_name: "tool_summary_processor_1",
             hitl_task_name: AvailableCandleOperators::HumanInTheLoop.get_name(),
             hitl_processor_name: AvailableCandleOperators::HumanInTheLoop.get_name(),
-            summary_processor_2_name: "summary_processor_2",
+            hitl_summary_processor_name: "hitl_summary_processor_1",
             message_parser_task_name: "message_parser_task_1",
             message_parser_processor_name: "message_parser_processor_1",
             message_aggregator_task_1_name: "message_aggregator_task_1",
@@ -168,17 +177,24 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             TaskPlan {
                 task_name: self.tool_task_name.to_string(),
                 runtime_env_name: self.tool_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.tool_processor_name.to_string(),
-                    self.summary_processor_1_name.to_string(),
-                ],
+                processor_names: vec![self.tool_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.tool_attachment_task_name.to_string(),
+                runtime_env_name: self.tool_runtime_env_name.to_string(),
+                processor_names: vec![self.tool_attachment_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.tool_summary_task_name.to_string(),
+                runtime_env_name: self.tool_runtime_env_name.to_string(),
+                processor_names: vec![self.tool_summary_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.hitl_task_name.to_string(),
                 runtime_env_name: self.tool_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.hitl_processor_name.to_string(),
-                    self.summary_processor_2_name.to_string(),
+                    self.hitl_summary_processor_name.to_string(),
                 ],
             },
             TaskPlan {
@@ -322,28 +338,43 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AllTableNamesSubscribe::new_box(),
         ));
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
-            self.summary_processor_1_name,
+            self.tool_attachment_processor_name,
             &[ArrowTablePublish::Extend {
-                table_name: AvailableMessageSubscribeSubjects::ToolMessages.get_name().to_string(),
+                table_name: AvailableAttachmentsSubscribeSubjects::AssistantCsv.get_name().to_string(),
             }],
             &[
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.summary_processor_1_name.to_string(),
+                    table_name: self.tool_attachment_processor_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                ArrowTableSubscribe::OnUpdateFullTable {
                     table_name: self.state_scores_table_name.to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
         ));
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
-            self.summary_processor_2_name,
+            self.tool_summary_processor_name,
+            &[ArrowTablePublish::Extend {
+                table_name: AvailableMessageSubscribeSubjects::ToolMessages.get_name().to_string(),
+            }],
+            &[
+                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.tool_summary_processor_name.to_string(),
+                },
+                ArrowTableSubscribe::OnUpdateFullTable {
+                    table_name: self.state_scores_table_name.to_string(),
+                },
+            ],
+            AllTableNamesSubscribe::new_box(),
+        ));
+        processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
+            self.hitl_summary_processor_name,
             &[ArrowTablePublish::Extend {
                 table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
             }],
             &[
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.summary_processor_2_name.to_string(),
+                    table_name: self.hitl_summary_processor_name.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
@@ -360,10 +391,18 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ArrowTablePublish::Extend {
                     table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
                 },
+                ArrowTablePublish::Extend {
+                    table_name: AvailableAttachmentsSubscribeSubjects::AssistantCsv.get_name().to_string(),
+                },
             ],
-            &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
-            }],
+            &[
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
+                },
+                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: AvailableAttachmentsSubscribeSubjects::AssistantCsv.get_name().to_string(),
+                }
+            ],
             AllTableNamesSubscribe::new_box(),
         ));
         Some(processors)
@@ -472,19 +511,32 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .build()
             .unwrap();
 
+        // Attachment config
+        let attachment_config = DataSummaryConfig {
+            format: DataSummaryFormat::Csv,
+            ..Default::default()
+        };
+        let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();
+        let attachmen_state = ArrowTableBuilder::new()
+            .with_name(self.tool_attachment_processor_name)
+            .with_json(&attachmen_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
         // Summary config
         let summary_config = DataSummaryConfig {
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
         let summary_state_1 = ArrowTableBuilder::new()
-            .with_name(self.summary_processor_1_name)
+            .with_name(self.tool_summary_processor_name)
             .with_json(&summary_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
         let summary_state_2 = ArrowTableBuilder::new()
-            .with_name(self.summary_processor_2_name)
+            .with_name(self.hitl_summary_processor_name)
             .with_json(&summary_config_json, 1)
             .unwrap()
             .build()
@@ -495,6 +547,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             candle_message_parser_state,
             aggregator_1_state,
             aggregator_2_state,
+            attachmen_state,
             summary_state_1,
             summary_state_2,
             self.make_scores_table().unwrap(), 
@@ -502,11 +555,12 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AvailableMessageSubscribeSubjects::AggregatedMessages.to_table().unwrap(),
             AvailableMessagingPublishSubjects::UserMessages.to_table().unwrap(),
             AvailableMessageSubscribeSubjects::AssistantMessages.to_table().unwrap(),
-            AvailableMessageSubscribeSubjects::ToolMessages.to_table().unwrap(),   
+            AvailableMessageSubscribeSubjects::ToolMessages.to_table().unwrap(),
             AvailableSubjects::Messages.to_table(self.chat_task_name).unwrap(),      
             AvailableSubjects::Messages.to_table(self.message_parser_task_name).unwrap(),
             AvailableSubjects::Configs.to_table(self.tool_task_name).unwrap(),
             AvailableSubjects::Configs.to_table(self.hitl_task_name).unwrap(),
+            AvailableAttachmentsSubscribeSubjects::AssistantCsv.to_table().unwrap(),
         ])
     }
 }
@@ -636,6 +690,25 @@ mod tests {
                 }
             }
 
+            let attachment_data = response
+                .last_mut()
+                .unwrap()
+                .remove(&format!(
+                    "from_{}_on_{}",
+                    tool_agent_session.session_context_name,
+                    AvailableAttachmentsSubscribeSubjects::AssistantCsv.get_name()
+                ))
+                .unwrap()
+                .get_message_own()
+                .to_json_object()?;
+            for row in &attachment_data {
+                let bytes = row["bytes"].as_array().unwrap()
+                    .into_iter()
+                    .map(|v| v.as_u64().unwrap() as u8)
+                    .collect::<Vec<u8>>();
+                println!("attachment {}.{}: {}", row["filename"], row["extension"], String::from_utf8_lossy(bytes.as_ref()).into_owned())
+            }
+
             for metric in metrics.clone_inner().iter() {
                 if metric.value().name() == "output_rows"
                     && metric.task().as_ref().unwrap() == tool_agent_session.chat_processor_name
@@ -655,7 +728,13 @@ mod tests {
                 }
                 if metric.value().name() == "output_rows"
                     && metric.task().as_ref().unwrap()
-                        == tool_agent_session.summary_processor_1_name
+                        == tool_agent_session.tool_summary_processor_name
+                {
+                    assert_eq!(metric.value().as_usize(), 1);
+                }
+                if metric.value().name() == "output_rows"
+                    && metric.task().as_ref().unwrap()
+                        == tool_agent_session.tool_attachment_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 1);
                 }
@@ -675,6 +754,9 @@ mod tests {
                 )
             );
             assert!(json_data.first().unwrap().get("content").is_some());
+            assert!(attachment_data.first().unwrap().get("bytes").is_some());
+            assert!(attachment_data.first().unwrap().get("filename").is_some());
+            assert!(attachment_data.first().unwrap().get("extension").is_some());
         }
 
         Ok(())

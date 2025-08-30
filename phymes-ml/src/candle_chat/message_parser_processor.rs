@@ -619,7 +619,7 @@ mod tests {
         Ok(())
     }
 
-    #[ignore = "dynamic schema update breaks `RecordBatchStream` in tests"]
+    //#[ignore = "dynamic schema update breaks `RecordBatchStream` in tests"]
     #[tokio::test]
     async fn test_message_processor_error() -> Result<()> {
         // Create the input

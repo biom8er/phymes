@@ -1,6 +1,18 @@
 use anyhow::Result;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
+
+
+#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
+pub enum DataSummaryFormat {
+    /// ToolMessage format
+    #[default]
+    Message,
+    /// Attachment formats
+    Csv,
+    Json,
+    Pdf,
+}
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
 #[command(author, version, about, long_about = None)]
@@ -17,6 +29,10 @@ pub struct DataSummaryConfig {
     /// The number of batches
     #[arg(long, default_value = "1")]
     pub num_batches: Option<usize>,
+
+    /// The output format
+    #[arg(long)]
+    pub format: DataSummaryFormat,
 }
 
 impl DataSummaryConfig {

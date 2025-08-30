@@ -5,7 +5,7 @@ use super::{
     stream_adapter::RecordBatchStreamAdapter,
 };
 
-use arrow::datatypes::Schema;
+use arrow::{array::{ArrayData, Float32Builder, ListBuilder}, buffer::Buffer, datatypes::{Field, Schema}};
 use arrow::ipc::{
     reader::{FileReader, StreamReader},
     writer::{FileWriter, StreamWriter},
@@ -47,7 +47,7 @@ use anyhow::{Result, anyhow};
 use bytes::Bytes;
 use futures::TryStreamExt;
 use serde_json::{Map, Value};
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 /// Traits for an arrow table
 /// All record batches are guaranteed to have the same schema
@@ -964,120 +964,198 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
     }
 
     fn with_json_values(mut self, json_values: &[Value]) -> Result<Self> {
+        if self.schema.is_none() {
+            return Err(anyhow!("Please define the schema before adding record batches!"));
+        }
+
         // Prepare the data arrays
         let mut batch_vec = Vec::with_capacity(self.schema.as_ref().unwrap().fields().len());
         let n_rows = json_values.len();
 
         // Create the arrays
         for field in self.schema.as_ref().unwrap().fields() {
-            if field.data_type() == &DataType::Utf8 {
-                let mut array_vec = Vec::with_capacity(n_rows);
-                for value in json_values {
-                    if let Value::Object(map) = value
-                        && let Some(Value::String(val)) = map.get(field.name())
-                    {
-                        array_vec.push(val.to_owned());
+            match field.data_type() {
+                DataType::Utf8 => {
+                    let mut array_vec = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::String(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.to_owned());
+                        }
                     }
+                    let array_ref: ArrayRef = Arc::new(StringArray::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
                 }
-                let array_ref: ArrayRef = Arc::new(StringArray::from(array_vec));
-                batch_vec.push((field.name(), array_ref));
-            } else if field.data_type() == &DataType::UInt8 {
-                let mut array_vec: Vec<u8> = Vec::with_capacity(n_rows);
-                for value in json_values {
-                    if let Value::Object(map) = value
-                        && let Some(Value::Number(val)) = map.get(field.name())
-                    {
-                        array_vec.push(val.as_u64().unwrap().try_into().unwrap());
+                DataType::UInt8 => {
+                    let mut array_vec: Vec<u8> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Number(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.as_u64().unwrap().try_into().unwrap());
+                        }
                     }
+                    let array_ref: ArrayRef = Arc::new(UInt8Array::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
                 }
-                let array_ref: ArrayRef = Arc::new(UInt8Array::from(array_vec));
-                batch_vec.push((field.name(), array_ref));
-            } else if field.data_type() == &DataType::UInt16 {
-                let mut array_vec: Vec<u16> = Vec::with_capacity(n_rows);
-                for value in json_values {
-                    if let Value::Object(map) = value
-                        && let Some(Value::Number(val)) = map.get(field.name())
-                    {
-                        array_vec.push(val.as_u64().unwrap().try_into().unwrap());
+                DataType::UInt16 => {
+                    let mut array_vec: Vec<u16> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Number(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.as_u64().unwrap().try_into().unwrap());
+                        }
                     }
+                    let array_ref: ArrayRef = Arc::new(UInt16Array::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
                 }
-                let array_ref: ArrayRef = Arc::new(UInt16Array::from(array_vec));
-                batch_vec.push((field.name(), array_ref));
-            } else if field.data_type() == &DataType::UInt32 {
-                let mut array_vec: Vec<u32> = Vec::with_capacity(n_rows);
-                for value in json_values {
-                    if let Value::Object(map) = value
-                        && let Some(Value::Number(val)) = map.get(field.name())
-                    {
-                        array_vec.push(val.as_u64().unwrap().try_into().unwrap());
+                DataType::UInt32 => {
+                    let mut array_vec: Vec<u32> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Number(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.as_u64().unwrap().try_into().unwrap());
+                        }
                     }
+                    let array_ref: ArrayRef = Arc::new(UInt32Array::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
                 }
-                let array_ref: ArrayRef = Arc::new(UInt32Array::from(array_vec));
-                batch_vec.push((field.name(), array_ref));
-            } else if field.data_type() == &DataType::UInt64 {
-                let mut array_vec: Vec<u64> = Vec::with_capacity(n_rows);
-                for value in json_values {
-                    if let Value::Object(map) = value
-                        && let Some(Value::Number(val)) = map.get(field.name())
-                    {
-                        array_vec.push(val.as_u64().unwrap());
+                DataType::UInt64 => {
+                    let mut array_vec: Vec<u64> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Number(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.as_u64().unwrap());
+                        }
                     }
+                    let array_ref: ArrayRef = Arc::new(UInt64Array::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
                 }
-                let array_ref: ArrayRef = Arc::new(UInt64Array::from(array_vec));
-                batch_vec.push((field.name(), array_ref));
-            } else if field.data_type() == &DataType::Float16 {
-                // let mut array_vec: Vec<f16> = Vec::with_capacity(n_rows);
-                // for value in json_values {
-                //     if let Value::Object(map) = value {
-                //         if let Some(Value::Number(val)) = map.get(field.name()) {
-                //             array_vec.push(val.as_f64().unwrap() as f16);
-                //         }
-                //     }
-                // }
-                // let array_ref: ArrayRef = Arc::new(Float16Array::from(array_vec));
-                // batch_vec.push((field.name(), array_ref));
-                return Err(anyhow!(
-                    "Unstable/Unsupported type {:?} found when converting JSON object to RecordBatch",
-                    field.data_type()
-                ));
-            } else if field.data_type() == &DataType::Float32 {
-                let mut array_vec: Vec<f32> = Vec::with_capacity(n_rows);
-                for value in json_values {
-                    if let Value::Object(map) = value
-                        && let Some(Value::Number(val)) = map.get(field.name())
-                    {
-                        array_vec.push(val.as_f64().unwrap() as f32);
+                DataType::Float16 => {
+                    // let mut array_vec: Vec<f16> = Vec::with_capacity(n_rows);
+                    // for value in json_values {
+                    //     if let Value::Object(map) = value {
+                    //         if let Some(Value::Number(val)) = map.get(field.name()) {
+                    //             array_vec.push(val.as_f64().unwrap() as f16);
+                    //         }
+                    //     }
+                    // }
+                    // let array_ref: ArrayRef = Arc::new(Float16Array::from(array_vec));
+                    // batch_vec.push((field.name(), array_ref));
+                    return Err(anyhow!(
+                        "Unstable/Unsupported type {:?} found when converting JSON object to RecordBatch",
+                        field.data_type()
+                    ));
+                }
+                DataType::Float32 => {
+                    let mut array_vec: Vec<f32> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Number(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.as_f64().unwrap() as f32);
+                        }
                     }
+                    let array_ref: ArrayRef = Arc::new(Float32Array::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
                 }
-                let array_ref: ArrayRef = Arc::new(Float32Array::from(array_vec));
-                batch_vec.push((field.name(), array_ref));
-            } else if field.data_type() == &DataType::Float64 {
-                let mut array_vec: Vec<f64> = Vec::with_capacity(n_rows);
-                for value in json_values {
-                    if let Value::Object(map) = value
-                        && let Some(Value::Number(val)) = map.get(field.name())
-                    {
-                        array_vec.push(val.as_f64().unwrap());
+                DataType::Float64 => {
+                    let mut array_vec: Vec<f64> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Number(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.as_f64().unwrap());
+                        }
                     }
+                    let array_ref: ArrayRef = Arc::new(Float64Array::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
                 }
-                let array_ref: ArrayRef = Arc::new(Float64Array::from(array_vec));
-                batch_vec.push((field.name(), array_ref));
-            } else if field.data_type() == &DataType::Boolean {
-                let mut array_vec: Vec<bool> = Vec::with_capacity(n_rows);
-                for value in json_values {
-                    if let Value::Object(map) = value
-                        && let Some(Value::Bool(val)) = map.get(field.name())
-                    {
-                        array_vec.push(*val);
+                DataType::Boolean => {
+                    let mut array_vec: Vec<bool> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Bool(val)) = map.get(field.name())
+                        {
+                            array_vec.push(*val);
+                        }
                     }
+                    let array_ref: ArrayRef = Arc::new(BooleanArray::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
                 }
-                let array_ref: ArrayRef = Arc::new(BooleanArray::from(array_vec));
-                batch_vec.push((field.name(), array_ref));
-            } else {
-                return Err(anyhow!(
-                    "Unsupported type {:?} found when converting JSON object to RecordBatch",
-                    field.data_type()
-                ));
+                DataType::FixedSizeList(f, s) => match f.data_type(){
+                    DataType::Float32 => {
+                        let mut array_vec: Vec<Vec<f32>> = Vec::with_capacity(n_rows);
+                        for value in json_values {
+                            if let Value::Object(map) = value
+                                && let Some(Value::Array(val)) = map.get(field.name())
+                            {
+                                let mut inner_vec = Vec::with_capacity(*s as usize);
+                                for v in val {
+                                    if let Value::Number(num) = v {
+                                        inner_vec.push(num.as_f64().unwrap() as f32);
+                                    }
+                                }
+                                array_vec.push(inner_vec);
+                            }
+                        }
+                        let list_values = array_vec.into_iter().flatten().collect::<Vec<_>>();
+                        let value_data = ArrayData::builder(f.data_type().clone())
+                            .len(list_values.len())
+                            .add_buffer(Buffer::from_vec(list_values))
+                            .build()
+                            .unwrap();
+                        let list_data_type = DataType::FixedSizeList(
+                            Arc::new(Field::new_list_field(f.data_type().clone(), false)),
+                            *s,
+                        );
+                        let list_data = ArrayData::builder(list_data_type)
+                            .len(n_rows)
+                            .add_child_data(value_data)
+                            .build()
+                            .unwrap();
+                        let array_ref: ArrayRef = Arc::new(FixedSizeListArray::from(list_data));
+                        batch_vec.push((field.name(), array_ref));
+                    }
+                    _ => return Err(anyhow!(
+                        "Unsupported type {:?} found when converting JSON object to RecordBatch",
+                        field.data_type()
+                    ))
+                }
+                DataType::List(f) => match f.data_type(){
+                    DataType::Float32 => {
+                        let value_builder = Float32Builder::new();
+                        let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Float32, false));
+                        for value in json_values {
+                            if let Value::Object(map) = value
+                                && let Some(Value::Array(val)) = map.get(field.name())
+                            {
+                                let mut values = Vec::new();
+                                for v in val {
+                                    if let Value::Number(num) = v {
+                                        values.push(num.as_f64().unwrap() as f32);
+                                    }
+                                }
+                                list_builder.values().append_slice(&values);
+                                list_builder.append(true);
+                            }
+                        }
+                        let array_ref: ArrayRef = Arc::new(list_builder.finish());
+                        batch_vec.push((field.name(), array_ref));
+                    }
+                    _ => return Err(anyhow!(
+                        "Unsupported type {:?} found when converting JSON object to RecordBatch",
+                        field.data_type()
+                    ))
+                }
+                _ => return Err(anyhow!(
+                        "Unsupported type {:?} found when converting JSON object to RecordBatch",
+                        field.data_type()
+                    ))
             }
         }
         let batch = RecordBatch::try_from_iter(batch_vec)?;
@@ -1088,8 +1166,17 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
     async fn new_from_sendable_record_batch_stream(
         stream: SendableRecordBatchStream,
     ) -> Result<Self> {
-        let schema = stream.schema();
+        // The stream schema maybe different than the actual schema if it is dynamically updated
+        let stream_schema = stream.schema();
+
+        // Collect the record batches
         let record_batches: Vec<RecordBatch> = stream.try_collect::<Vec<_>>().await?;
+        let schema = record_batches.first().unwrap().schema();
+        if !schema.eq(&stream_schema) {
+            event!(Level::WARN, "Schema mismatch between stream {:?} and record batch {:?}", stream_schema, schema);
+        }
+
+        // Use the record batch schema
         Self::new()
             .with_schema(schema)
             .with_record_batches(record_batches)
