@@ -39,7 +39,7 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
 
-use crate::candle_data::summary_config::DataSummaryFormat;
+use crate::candle_data::summary_config::{CsvFormat, DataSummaryFormat};
 
 use super::summary_config::DataSummaryConfig;
 
@@ -352,6 +352,49 @@ impl Stream for DataSummaryStream {
                     // Convert to CSV and wrap into a blob batch
                     let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
                     let batch = create_blob_batch(vec!["attachment".to_string()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()])?;
+
+                    // record the poll
+                    let poll = Poll::Ready(Some(Ok(batch)));
+                    return metrics.record_poll(poll);
+                }
+                DataSummaryFormat::CsvDefault => {
+                    // Convert to Values representation
+                    let mut values = Vec::new();
+                    for row in batch_limit.iter() {
+                        let v = serde_json::to_value(row)?;
+                        values.push(v);
+                    }
+                    let table = ArrowTable::get_builder()
+                        .with_name("attachment")
+                        .with_schema(schema)
+                        .with_json_values(&values)?
+                        .build()?;
+
+                    // Convert to CSV and wrap into a blob batch
+                    let csv_format = CsvFormat { ..Default::default()};
+                    let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
+                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()])?;
+
+                    // record the poll
+                    let poll = Poll::Ready(Some(Ok(batch)));
+                    return metrics.record_poll(poll);
+                }
+                DataSummaryFormat::JsonObject => {
+                    // Convert to Values representation
+                    let mut values = Vec::new();
+                    for row in batch_limit.iter() {
+                        let v = serde_json::to_value(row)?;
+                        values.push(v);
+                    }
+                    let table = ArrowTable::get_builder()
+                        .with_name("attachment")
+                        .with_schema(schema)
+                        .with_json_values(&values)?
+                        .build()?;
+
+                    // Convert to CSV and wrap into a blob batch
+                    let bytes = table.to_json()?;
+                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".json".to_string()], vec![bytes], vec!["".to_string()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));

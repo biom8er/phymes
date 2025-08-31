@@ -162,6 +162,7 @@ pub struct DataConfig {
 
     /// The right hand side table name
     #[arg(long, default_value = "rhs_name")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rhs_name: Option<String>,
 
     /// The left hand side primary key column identifier

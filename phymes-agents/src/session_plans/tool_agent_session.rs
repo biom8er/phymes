@@ -551,7 +551,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Attachment config
         let attachment_config = DataSummaryConfig {
-            format: DataSummaryFormat::Csv( CsvFormat { ..Default::default() } ),
+            format: DataSummaryFormat::CsvDefault,
             ..Default::default()
         };
         let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();
