@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
 use anyhow::Result;
-use clap::ValueEnum;
-use phymes_core::{metrics::HashMap, schemas::{available_subjects::{create_blob_batch, create_queries_batch, create_timestamp_str, AvailableSubjects}, messages::MessagesBuilderTraitExt}, session::common_traits::{BuilderTrait, MappableTrait}, table::{arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, ArrowMessageBuilderTrait}};
+use clap::{Parser, ValueEnum};
+use phymes_core::{metrics::HashMap, schemas::{available_subjects::{create_blob_batch, create_queries_batch, create_timestamp_str, AvailableSubjects, AvailableSubjectsTrait}, messages::MessagesBuilderTraitExt}, session::common_traits::{BuilderTrait, MappableTrait}, table::{arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, ArrowMessageBuilderTrait}};
 use serde::{Deserialize, Serialize};
 
 /// Check that one or more of the [AvailableMessagingPublishSubjects], one or more of the [AvailableMessageSubscribeSubjects],
@@ -42,8 +42,32 @@ pub fn create_incoming_message_map(messages: Vec<ArrowIncomingMessage>) -> HashM
     incoming_message_map
 }
 
-pub trait AvailableSubjectsTrait {
-    fn to_table(&self) -> Result<ArrowTable>;
+
+/// Session interface mode: Message (text) or Attachment (bytes)
+#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
+pub enum SessionInterfaceMode {
+    #[default]    
+    #[value(name = "Message")]
+    Message,
+    #[value(name = "Attachment")]
+    Attachment
+}
+
+/// Session interface direction: Publish or Subscribe
+#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
+pub enum SessionInterfaceDirection {
+    #[default]    
+    #[value(name = "Publish")]
+    Publish,
+    #[value(name = "Subscribe")]
+    Subscribe
+}
+
+/// The session interface composed of a type and direction
+#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
+pub struct SessionInterface {
+    pub mode: SessionInterfaceMode,
+    pub direction: SessionInterfaceDirection,
 }
 
 pub trait MessagingPublishSubjectsTrait {
@@ -52,36 +76,82 @@ pub trait MessagingPublishSubjectsTrait {
 
 /// The available subjects that the user can publish on from the messaging interface
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
-pub enum AvailableMessagingPublishSubjects {
+pub enum AvailableinterfaceSubjects {
     #[default]    
     #[value(name = "UserMessages")]
     UserMessages,
     #[value(name = "UserQueries")]
     UserQueries,
+    #[value(name = "UserPdf")]
+    UserPdf,
+    #[value(name = "UserAudio")]
+    UserAudio,
+    #[value(name = "UserVideo")]
+    UserVideo,
+    #[value(name = "UserImage")]
+    UserImage,
+    #[value(name = "UserScript")]
+    UserScript,
+    #[value(name = "UserCsv")]
+    UserCsv,
+    #[value(name = "AggregatedMessages")]
+    AggregatedMessages,
+    #[value(name = "AssistantMessages")]
+    AssistantMessages,
+    #[value(name = "ToolMessages")]
+    ToolMessages,
+    #[value(name = "AssistantImage")]
+    AssistantImage,
+    #[value(name = "AssistantCsv")]
+    AssistantCsv,
+    #[value(name = "AssistantScript")]
+    AssistantScript,
 }
 
-impl Display for AvailableMessagingPublishSubjects {
+impl Display for AvailableinterfaceSubjects {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UserMessages => write!(f, "UserMessages"),
             Self::UserQueries => write!(f, "UserQueries"),
+            Self::UserPdf => write!(f, "UserPdf"),
+            Self::UserAudio => write!(f, "UserAudio"),
+            Self::UserVideo => write!(f, "UserVideo"),
+            Self::UserImage => write!(f, "UserImage"),
+            Self::UserScript => write!(f, "UserScript"),
+            Self::UserCsv => write!(f, "UserCsv"),
+            Self::AggregatedMessages => write!(f, "AggregatedMessages"),
+            Self::AssistantMessages => write!(f, "AssistantMessages"),
+            Self::ToolMessages => write!(f, "ToolMessages"),
+            Self::AssistantImage => write!(f, "AssistantImage"),
+            Self::AssistantCsv => write!(f, "AssistantCsv"),
+            Self::AssistantScript => write!(f, "AssistantScript"),
         }
     }
 }
 
-
-impl AvailableSubjectsTrait for AvailableMessagingPublishSubjects {
-    fn to_table(&self) -> Result<ArrowTable> {
+impl AvailableSubjectsTrait for AvailableinterfaceSubjects {
+    fn to_table(&self, name: Option<&str>) -> Result<ArrowTable> {        
         match self {
-            Self::UserMessages => AvailableSubjects::Messages.to_table(self.to_string().as_str()),
-            Self::UserQueries => AvailableSubjects::Queries.to_table(self.to_string().as_str()),
-        }
-        
+            Self::UserMessages 
+            | Self::AggregatedMessages
+            | Self::AssistantMessages
+            | Self::ToolMessages => AvailableSubjects::Messages.to_table(name),
+            Self::UserQueries => AvailableSubjects::Queries.to_table(name),
+            Self::UserPdf 
+            | Self::UserAudio 
+            | Self::UserVideo
+            | Self::UserImage 
+            | Self::UserScript 
+            | Self::UserCsv 
+            | Self::AssistantImage 
+            | Self::AssistantCsv
+            | Self::AssistantScript => AvailableSubjects::Blob.to_table(name),
+        }        
     }
 }
 
-impl MessagingPublishSubjectsTrait for AvailableMessagingPublishSubjects {
-    fn to_incoming_message(&self, content: &str, session_context_name: &str) -> Result<ArrowIncomingMessage> {
+impl AvailableinterfaceSubjects {
+    pub fn to_incoming_message(&self, content: &str, session_context_name: &str) -> Result<ArrowIncomingMessage> {
         match self {
             AvailableMessagingPublishSubjects::UserMessages => {
                 // Make the system prompt and add the user query
@@ -136,6 +206,8 @@ impl MessagingPublishSubjectsTrait for AvailableMessagingPublishSubjects {
         }
     }
 }
+
+
 pub trait AttachmentPublishSubjectsTrait {
     fn to_incoming_message(&self, filename: &str, bytes: Vec<u8>, extension: &str, metadata: &str, session_context_name: &str) -> Result<ArrowIncomingMessage>;
 }
@@ -158,22 +230,8 @@ pub enum AvailableAttachmentPublishSubjects {
     UserCsv,
 }
 
-impl Display for AvailableAttachmentPublishSubjects {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::UserPdf => write!(f, "UserPdf"),
-            Self::UserAudio => write!(f, "UserAudio"),
-            Self::UserVideo => write!(f, "UserVideo"),
-            Self::UserImage => write!(f, "UserImage"),
-            Self::UserScript => write!(f, "UserScript"),
-            Self::UserCsv => write!(f, "UserCsv"),
-        }
-    }
-}
-
 impl AvailableSubjectsTrait for AvailableAttachmentPublishSubjects {
     fn to_table(&self) -> Result<ArrowTable> {
-        AvailableSubjects::Blob.to_table(self.to_string().as_str())
     }
 }
 
@@ -214,16 +272,6 @@ pub enum AvailableMessageSubscribeSubjects {
     ToolMessages,
 }
 
-impl Display for AvailableMessageSubscribeSubjects {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::AggregatedMessages => write!(f, "AggregatedMessages"),
-            Self::AssistantMessages => write!(f, "AssistantMessages"),
-            Self::ToolMessages => write!(f, "ToolMessages"),
-        }
-    }
-}
-
 impl AvailableSubjectsTrait for AvailableMessageSubscribeSubjects {
     fn to_table(&self) -> Result<ArrowTable> {
         AvailableSubjects::Messages.to_table(self.to_string().as_str())
@@ -253,22 +301,6 @@ pub enum AvailableAttachmentsSubscribeSubjects {
     AssistantCsv,
     #[value(name = "AssistantScript")]
     AssistantScript,
-}
-
-impl Display for AvailableAttachmentsSubscribeSubjects {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::AssistantImage => write!(f, "AssistantImage"),
-            Self::AssistantCsv => write!(f, "AssistantCsv"),
-            Self::AssistantScript => write!(f, "AssistantScript"),
-        }
-    }
-}
-
-impl AvailableSubjectsTrait for AvailableAttachmentsSubscribeSubjects {
-    fn to_table(&self) -> Result<ArrowTable> {
-        AvailableSubjects::Blob.to_table(self.to_string().as_str())
-    }
 }
 
 impl AttachmentSubscribeSubjectsTrait for AvailableAttachmentsSubscribeSubjects {

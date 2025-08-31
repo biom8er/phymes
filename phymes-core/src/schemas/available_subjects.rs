@@ -9,7 +9,7 @@ use arrow::{
 use clap::ValueEnum;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 /// Generate a timestamp that can be added to the message table
 pub fn create_timestamp_str() -> String {
@@ -249,84 +249,107 @@ pub fn create_blob_batch(
     Ok(batch)
 }
 
+pub trait AvailableSubjectsTrait {
+    fn to_table(&self, name: Option<&str>) -> Result<ArrowTable>;
+}
+
 /// The available subject schmeas
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableSubjects {
+    #[value(name = "Messages")]
     Messages,
     #[default]
+    #[value(name = "Values")]
     Values,
+    #[value(name = "Configs")]
     Configs,
+    #[value(name = "Tools")]
     Tools,
+    #[value(name = "Documents")]
     Documents,
+    #[value(name = "Queries")]
     Queries,
+    #[value(name = "DocumentEmbeddings")]
     DocumentEmbeddings,
+    #[value(name = "QueryEmbeddings")]
     QueryEmbeddings,
+    #[value(name = "EmbeddingScores")]
     EmbeddingScores,
+    #[value(name = "JoinChunksScores")]
     JoinChunksScores,
+    #[value(name = "Blob")]
     Blob,
 }
 
-impl MappableTrait for AvailableSubjects {
-    fn get_name(&self) -> &str {
+impl Display for AvailableSubjects {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AvailableSubjects::Messages => "Messages",
-            AvailableSubjects::Values => "Values",
-            AvailableSubjects::Configs => "Configs",
-            AvailableSubjects::Tools => "Tools",
-            AvailableSubjects::Documents => "Documents",
-            AvailableSubjects::Queries => "Queries",
-            AvailableSubjects::DocumentEmbeddings => "DocumentEmbeddings",
-            AvailableSubjects::QueryEmbeddings => "QueryEmbeddings",
-            AvailableSubjects::EmbeddingScores => "EmbeddingScores",
-            AvailableSubjects::JoinChunksScores => "JoinChunksScores",
-            AvailableSubjects::Blob => "Blob",
+            AvailableSubjects::Messages => write!(f, "Messages"),
+            AvailableSubjects::Values => write!(f, "Values"),
+            AvailableSubjects::Configs => write!(f, "Configs"),
+            AvailableSubjects::Tools => write!(f, "Tools"),
+            AvailableSubjects::Documents => write!(f, "Documents"),
+            AvailableSubjects::Queries => write!(f, "Queries"),
+            AvailableSubjects::DocumentEmbeddings => write!(f, "DocumentEmbeddings"),
+            AvailableSubjects::QueryEmbeddings => write!(f, "QueryEmbeddings"),
+            AvailableSubjects::EmbeddingScores => write!(f, "EmbeddingScores"),
+            AvailableSubjects::JoinChunksScores => write!(f, "JoinChunksScores"),
+            AvailableSubjects::Blob => write!(f, "Blob"),
         }
     }
 }
 
-impl AvailableSubjects {
-    pub fn to_table(&self, name: &str) -> Result<ArrowTable> {
+impl AvailableSubjectsTrait for AvailableSubjects {
+    fn to_table(&self, name: Option<&str>) -> Result<ArrowTable> {
+        let name = match name {
+            Some(name) => name.to_string(),
+            None => self.to_string(),
+        };
         match self {
             AvailableSubjects::Messages => {
-                create_table_from_fields(name, &create_messages_fields)
+                create_table_from_fields(name.as_str(), &create_messages_fields)
             }
             AvailableSubjects::Values => {
-                create_table_from_fields(name, &create_values_fields)
+                create_table_from_fields(name.as_str(), &create_values_fields)
             }
             AvailableSubjects::Configs => {
-                create_table_from_fields(name, &create_config_fields)
+                create_table_from_fields(name.as_str(), &create_config_fields)
             }
             AvailableSubjects::Tools => {
-                create_table_from_fields(name, &create_tools_fields)
+                create_table_from_fields(name.as_str(), &create_tools_fields)
             }
             AvailableSubjects::Documents => {
-                create_table_from_fields(name, &create_documents_fields)
+                create_table_from_fields(name.as_str(), &create_documents_fields)
             }
             AvailableSubjects::Queries => {
-                create_table_from_fields(name, &create_queries_fields)
+                create_table_from_fields(name.as_str(), &create_queries_fields)
             }
             AvailableSubjects::DocumentEmbeddings => create_table_from_fields(
-                name,
+                name.as_str(),
                 &create_document_embeddings_fields,
             ),
             AvailableSubjects::QueryEmbeddings => create_table_from_fields(
-                name,
+                name.as_str(),
                 &create_query_embeddings_fields,
             ),
             AvailableSubjects::EmbeddingScores => create_table_from_fields(
-                name,
+                name.as_str(),
                 &create_embeddings_scores_fields,
             ),
             AvailableSubjects::JoinChunksScores => create_table_from_fields(
-                name,
+                name.as_str(),
                 &create_join_chunks_scores_fields,
             ),
             AvailableSubjects::Blob => create_table_from_fields(
-                name,
+                name.as_str(),
                 &create_blob_fields,
             ),
         }
     }
+
+}
+
+impl AvailableSubjects {
     pub fn to_schema(&self) -> SchemaRef {
         match self {
             AvailableSubjects::Messages => create_schema_from_fields(&create_messages_fields),
