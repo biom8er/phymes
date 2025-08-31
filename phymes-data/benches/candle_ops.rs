@@ -160,12 +160,12 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                 // Create a unique identifier for the benchmark
                 let id = format!(
                     "{}_{lhs_size}-{rhs_size}_{wasm}_{gpu}_{candle}",
-                    config.operator.get_name(),
+                    config.operator,
                 );
                 // let id = format!(
                 //     "{}_{lhs_size}-{rhs_size}_{}_{wasm}_{gpu}_{candle}",
-                //     config.which.get_name(),
-                //     stream.get_name()
+                //     config.operator,
+                //     stream
                 // );
                 let mut iter = 0;
                 c.bench_function(id.as_str(), |b| {

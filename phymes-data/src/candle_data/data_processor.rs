@@ -409,7 +409,7 @@ impl Stream for CandleDataStream {
         event!(
             Level::DEBUG,
             "Executing {}.",
-            self.config.as_ref().unwrap().operator.get_name()
+            self.config.as_ref().unwrap().operator
         );
         self.init_tensor_service()?;
         let batch = self.data_operator.as_ref().unwrap().forward(

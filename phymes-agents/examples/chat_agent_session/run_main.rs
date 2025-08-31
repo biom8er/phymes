@@ -16,7 +16,7 @@ use phymes_agents::{
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap},
     session::{
-        common_traits::{BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
+        common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
     },
     table::arrow_table::ArrowTableTrait,
@@ -54,7 +54,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             chat_agent_session.session_context_name,
-            AvailableMessageSubscribeSubjects::AssistantMessages.get_name()
+            AvailableMessageSubscribeSubjects::AssistantMessages
         ))
         .unwrap()
         .get_message_own()
@@ -81,7 +81,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             chat_agent_session.session_context_name,
-            AvailableMessageSubscribeSubjects::AssistantMessages.get_name()
+            AvailableMessageSubscribeSubjects::AssistantMessages
         ))
         .unwrap()
         .get_message_own()

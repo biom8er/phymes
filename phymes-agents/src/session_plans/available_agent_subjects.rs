@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use anyhow::Result;
 use clap::ValueEnum;
 use phymes_core::{metrics::HashMap, schemas::{available_subjects::{create_blob_batch, create_queries_batch, create_timestamp_str, AvailableSubjects}, messages::MessagesBuilderTraitExt}, session::common_traits::{BuilderTrait, MappableTrait}, table::{arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, ArrowMessageBuilderTrait}};
@@ -58,18 +60,19 @@ pub enum AvailableMessagingPublishSubjects {
     UserQueries,
 }
 
-impl AvailableSubjectsTrait for AvailableMessagingPublishSubjects {
-    fn to_table(&self) -> Result<ArrowTable> {
-        AvailableSubjects::Messages.to_table(self.get_name())
+impl Display for AvailableMessagingPublishSubjects {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UserMessages => write!(f, "UserMessages"),
+            Self::UserQueries => write!(f, "UserQueries"),
+        }
     }
 }
 
-impl MappableTrait for AvailableMessagingPublishSubjects {
-    fn get_name(&self) -> &str {
-        match self {
-            AvailableMessagingPublishSubjects::UserMessages => "UserMessages",
-            AvailableMessagingPublishSubjects::UserQueries => "UserQueries",
-        }
+
+impl AvailableSubjectsTrait for AvailableMessagingPublishSubjects {
+    fn to_table(&self) -> Result<ArrowTable> {
+        AvailableSubjects::Messages.to_table(self.to_string().as_str())
     }
 }
 
@@ -79,18 +82,18 @@ impl MessagingPublishSubjectsTrait for AvailableMessagingPublishSubjects {
             AvailableMessagingPublishSubjects::UserMessages => {
                 // Make the system prompt and add the user query
                 let message_builder = ArrowTableBuilder::new()
-                    .with_name(self.get_name())
+                    .with_name(self.to_string().as_str())
                     // .insert_system_template_str("You are a helpful assistant.").unwrap()
                     .append_new_user_query_str(content, "user")?;
 
                 // Build the current message state
                 ArrowIncomingMessageBuilder::new()
-                    .with_name(self.get_name())
-                    .with_subject(self.get_name())
+                    .with_name(self.to_string().as_str())
+                    .with_subject(self.to_string().as_str())
                     .with_publisher(session_context_name)
                     .with_message(message_builder.clone().build()?)
                     .with_update(&ArrowTablePublish::Extend {
-                        table_name: self.get_name().to_string(),
+                        table_name: self.to_string(),
                     })
                     .build()
             }
@@ -111,18 +114,18 @@ impl MessagingPublishSubjectsTrait for AvailableMessagingPublishSubjects {
                 let batch = create_queries_batch(query_vec, vec![create_timestamp_str()])?;
 
                 let table = ArrowTableBuilder::new()
-                    .with_name(self.get_name())
+                    .with_name(self.to_string().as_str())
                     .with_record_batches(vec![batch])
                     .unwrap()
                     .build()?;
 
                 ArrowIncomingMessageBuilder::new()
-                    .with_name(self.get_name())
-                    .with_subject(self.get_name())
+                    .with_name(self.to_string().as_str())
+                    .with_subject(self.to_string().as_str())
                     .with_publisher(session_context_name)
                     .with_message(table)
                     .with_update(&ArrowTablePublish::Replace {
-                        table_name: self.get_name().to_string(),
+                        table_name: self.to_string(),
                     })
                     .build()
             }
@@ -151,22 +154,22 @@ pub enum AvailableAttachmentPublishSubjects {
     UserCsv,
 }
 
-impl AvailableSubjectsTrait for AvailableAttachmentPublishSubjects {
-    fn to_table(&self) -> Result<ArrowTable> {
-        AvailableSubjects::Blob.to_table(self.get_name())
+impl Display for AvailableAttachmentPublishSubjects {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UserPdf => write!(f, "UserPdf"),
+            Self::UserAudio => write!(f, "UserAudio"),
+            Self::UserVideo => write!(f, "UserVideo"),
+            Self::UserImage => write!(f, "UserImage"),
+            Self::UserScript => write!(f, "UserScript"),
+            Self::UserCsv => write!(f, "UserCsv"),
+        }
     }
 }
 
-impl MappableTrait for AvailableAttachmentPublishSubjects {
-    fn get_name(&self) -> &str {
-        match self {
-            AvailableAttachmentPublishSubjects::UserPdf => "UserPdf",
-            AvailableAttachmentPublishSubjects::UserAudio => "UserAudio",
-            AvailableAttachmentPublishSubjects::UserVideo => "UserVideo",
-            AvailableAttachmentPublishSubjects::UserImage => "UserImage",
-            AvailableAttachmentPublishSubjects::UserScript => "UserScript",
-            AvailableAttachmentPublishSubjects::UserCsv => "UserCsv",
-        }
+impl AvailableSubjectsTrait for AvailableAttachmentPublishSubjects {
+    fn to_table(&self) -> Result<ArrowTable> {
+        AvailableSubjects::Blob.to_table(self.to_string().as_str())
     }
 }
 
@@ -174,18 +177,18 @@ impl AttachmentPublishSubjectsTrait for AvailableAttachmentPublishSubjects {
     fn to_incoming_message(&self, filename: &str, bytes: Vec<u8>, extension: &str, metadata: &str, session_context_name: &str) -> Result<ArrowIncomingMessage> {
         let batch = create_blob_batch(vec![filename.to_string()], vec![extension.to_string()], vec![bytes], vec![metadata.to_string()])?;
         let table = ArrowTableBuilder::new()
-            .with_name(self.get_name())
+            .with_name(self.to_string().as_str())
             .with_record_batches(vec![batch])
             .unwrap()
             .build()?;
 
         ArrowIncomingMessageBuilder::new()
-            .with_name(self.get_name())
-            .with_subject(self.get_name())
+            .with_name(self.to_string().as_str())
+            .with_subject(self.to_string().as_str())
             .with_publisher(session_context_name)
             .with_message(table)
             .with_update(&ArrowTablePublish::Extend {
-                table_name: self.get_name().to_string(),
+                table_name: self.to_string().to_string(),
             })
             .build()
     }
@@ -207,19 +210,19 @@ pub enum AvailableMessageSubscribeSubjects {
     ToolMessages,
 }
 
-impl AvailableSubjectsTrait for AvailableMessageSubscribeSubjects {
-    fn to_table(&self) -> Result<ArrowTable> {
-        AvailableSubjects::Messages.to_table(self.get_name())
+impl Display for AvailableMessageSubscribeSubjects {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AggregatedMessages => write!(f, "AggregatedMessages"),
+            Self::AssistantMessages => write!(f, "AssistantMessages"),
+            Self::ToolMessages => write!(f, "ToolMessages"),
+        }
     }
 }
 
-impl MappableTrait for AvailableMessageSubscribeSubjects {
-    fn get_name(&self) -> &str {
-        match self {
-            AvailableMessageSubscribeSubjects::AggregatedMessages => "AggregatedMessages",
-            AvailableMessageSubscribeSubjects::AssistantMessages => "AssistantMessages",
-            AvailableMessageSubscribeSubjects::ToolMessages => "ToolMessages",
-        }
+impl AvailableSubjectsTrait for AvailableMessageSubscribeSubjects {
+    fn to_table(&self) -> Result<ArrowTable> {
+        AvailableSubjects::Messages.to_table(self.to_string().as_str())
     }
 }
 
@@ -248,19 +251,19 @@ pub enum AvailableAttachmentsSubscribeSubjects {
     AssistantScript,
 }
 
-impl AvailableSubjectsTrait for AvailableAttachmentsSubscribeSubjects {
-    fn to_table(&self) -> Result<ArrowTable> {
-        AvailableSubjects::Blob.to_table(self.get_name())
+impl Display for AvailableAttachmentsSubscribeSubjects {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AssistantImage => write!(f, "AssistantImage"),
+            Self::AssistantCsv => write!(f, "AssistantCsv"),
+            Self::AssistantScript => write!(f, "AssistantScript"),
+        }
     }
 }
 
-impl MappableTrait for AvailableAttachmentsSubscribeSubjects {
-    fn get_name(&self) -> &str {
-        match self {
-            AvailableAttachmentsSubscribeSubjects::AssistantImage => "AssistantImage",
-            AvailableAttachmentsSubscribeSubjects::AssistantCsv => "AssistantCsv",
-            AvailableAttachmentsSubscribeSubjects::AssistantScript => "AssistantScript",
-        }
+impl AvailableSubjectsTrait for AvailableAttachmentsSubscribeSubjects {
+    fn to_table(&self) -> Result<ArrowTable> {
+        AvailableSubjects::Blob.to_table(self.to_string().as_str())
     }
 }
 

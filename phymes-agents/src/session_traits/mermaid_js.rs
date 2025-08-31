@@ -6,6 +6,7 @@ use arrow::{
     array::RecordBatch,
     datatypes::{DataType, Field, Schema},
 };
+use clap::ValueEnum;
 use phymes_core::{
     metrics::{HashMap, HashSet},
     session::{
@@ -1087,8 +1088,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
         for name in processor_names_vec {
             let builder = processor_builders.remove(&name).unwrap();
-            let available_processor = AvailableProcessors::new_from_name(
-                builder.processor_type.as_ref().unwrap().as_str(),
+            let available_processor = AvailableProcessors::from_str(
+                builder.processor_type.as_ref().unwrap().as_str(), 
+                false
             )
             .unwrap();
             let processor = available_processor.build_with_builder(builder)?;

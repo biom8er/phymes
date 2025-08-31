@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use phymes_core::{
     schemas::available_subjects::AvailableSubjects, session::{
-        common_traits::{BuilderTrait, MappableTrait},
+        common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     }, table::{
@@ -110,10 +110,10 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             }],
             &[
                 ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: AvailableMessagingPublishSubjects::UserMessages.get_name().to_string(),
+                    table_name: AvailableMessagingPublishSubjects::UserMessages.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_1_name.to_string(),
@@ -124,14 +124,14 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_2_name,
             &[ArrowTablePublish::Extend {
-                table_name: AvailableMessageSubscribeSubjects::AggregatedMessages.get_name().to_string(),
+                table_name: AvailableMessageSubscribeSubjects::AggregatedMessages.to_string(),
             }],
             &[
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableMessagingPublishSubjects::UserMessages.get_name().to_string(),
+                    table_name: AvailableMessagingPublishSubjects::UserMessages.to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
@@ -144,7 +144,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
-                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
@@ -162,7 +162,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             processors.push(CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
-                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
@@ -181,14 +181,14 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             self.session_context_name,
             &[
                 ArrowTablePublish::Extend {
-                    table_name: AvailableMessagingPublishSubjects::UserMessages.get_name().to_string(),
+                    table_name: AvailableMessagingPublishSubjects::UserMessages.to_string(),
                 },
                 ArrowTablePublish::Extend {
-                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
+                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
                 },
             ],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                table_name: AvailableMessageSubscribeSubjects::AssistantMessages.get_name().to_string(),
+                table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
         ));
@@ -353,7 +353,7 @@ mod tests {
                 .remove(&format!(
                     "from_{}_on_{}",
                     chat_agent_session.session_context_name,
-                    AvailableMessageSubscribeSubjects::AssistantMessages.get_name()
+                    AvailableMessageSubscribeSubjects::AssistantMessages
                 ))
                 .unwrap()
                 .get_message_own()
@@ -396,7 +396,7 @@ mod tests {
                 .remove(&format!(
                     "from_{}_on_{}",
                     chat_agent_session.session_context_name,
-                    AvailableMessageSubscribeSubjects::AssistantMessages.get_name()
+                    AvailableMessageSubscribeSubjects::AssistantMessages
                 ))
                 .unwrap()
                 .get_message_own()

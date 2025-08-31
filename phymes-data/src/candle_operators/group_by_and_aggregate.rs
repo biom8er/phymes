@@ -209,7 +209,7 @@ fn aggregator_operator_tensor(
             return Err(anyhow!(
                 "Unsupported data type {} and aggregator operator {} for column {}",
                 lhs_table.get_column_data_type(agg_column)?.to_string(),
-                agg_operator.get_name(),
+                agg_operator,
                 agg_column,
             ));
         }
@@ -617,7 +617,7 @@ pub fn group_by_and_aggregate(
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
                                 lhs_table.get_column_data_type(agg_column)?.to_string(),
-                                agg_operator.get_name(),
+                                agg_operator,
                                 agg_column,
                             ));
                         }
@@ -635,7 +635,7 @@ pub fn group_by_and_aggregate(
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
                                 lhs_table.get_column_data_type(agg_column)?.to_string(),
-                                agg_operator.get_name(),
+                                agg_operator,
                                 agg_column,
                             ));
                         }
@@ -696,7 +696,7 @@ pub fn group_by_and_aggregate(
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
                                 lhs_table.get_column_data_type(agg_column)?.to_string(),
-                                agg_operator.get_name(),
+                                agg_operator,
                                 agg_column,
                             ));
                         }
@@ -756,7 +756,7 @@ pub fn group_by_and_aggregate(
                 ));
             }
         };
-        let columns_name = format!("{agg_column}-{}", agg_operator.get_name());
+        let columns_name = format!("{agg_column}-{}", agg_operator);
         batch_vec.push((columns_name, lhs_agg));
     }
 

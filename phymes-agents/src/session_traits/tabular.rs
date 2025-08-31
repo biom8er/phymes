@@ -5,6 +5,7 @@ use arrow::{
     array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array},
     datatypes::{Field, Schema},
 };
+use clap::ValueEnum;
 use phymes_core::{
     metrics::HashSet,
     session::{
@@ -499,8 +500,9 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     builder.subscribe.replace(subscribe);
                 }
             }
-            let available_processor = AvailableProcessors::new_from_name(
+            let available_processor = AvailableProcessors::from_str(
                 builder.processor_type.as_ref().unwrap().as_str(),
+                false
             )
             .unwrap();
             let processor = available_processor.build_with_builder(builder)?;

@@ -203,7 +203,7 @@ where
             return Err(anyhow!(
                 "Unsupported data type {} and comparator {} for column {column_name}",
                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                cmp_operators.get(index).unwrap().get_name()
+                cmp_operators.get(index).unwrap()
             ));
         }
     };
@@ -334,7 +334,7 @@ pub fn filter_columns_and_indices(
                         return Err(anyhow!(
                             "Unsupported data type {} and comparator {} for column {column_name}",
                             lhs_table.get_column_data_type(column_name)?.to_string(),
-                            cmp_operators.get(index).unwrap().get_name()
+                            cmp_operators.get(index).unwrap()
                         ));
                     }
                 };
@@ -361,7 +361,7 @@ pub fn filter_columns_and_indices(
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
                                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                                cmp_operators.get(index).unwrap().get_name()
+                                cmp_operators.get(index).unwrap()
                             ));
                         }
                     };
@@ -387,7 +387,7 @@ pub fn filter_columns_and_indices(
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
                                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                                cmp_operators.get(index).unwrap().get_name()
+                                cmp_operators.get(index).unwrap()
                             ));
                         }
                     };
@@ -413,7 +413,7 @@ pub fn filter_columns_and_indices(
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
                                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                                cmp_operators.get(index).unwrap().get_name()
+                                cmp_operators.get(index).unwrap()
                             ));
                         }
                     };
@@ -439,7 +439,7 @@ pub fn filter_columns_and_indices(
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
                                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                                cmp_operators.get(index).unwrap().get_name()
+                                cmp_operators.get(index).unwrap()
                             ));
                         }
                     };
@@ -465,7 +465,7 @@ pub fn filter_columns_and_indices(
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
                                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                                cmp_operators.get(index).unwrap().get_name()
+                                cmp_operators.get(index).unwrap()
                             ));
                         }
                     };

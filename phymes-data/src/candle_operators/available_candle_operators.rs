@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
 
@@ -51,22 +51,23 @@ impl Default for AvailableCandleOperators {
     }
 }
 
-impl AvailableCandleOperators {
-    /// Wrapper to return the name of any SortColumnAndIndices
-    pub fn get_name(&self) -> &str {
+impl Display for AvailableCandleOperators {    
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::RelativeSimilarityScore => RelativeSimilarityScore::get_static_name(),
-            Self::SortColumnAndIndices => SortColumnAndIndices::get_static_name(),
-            Self::HumanInTheLoop => HumanInTheLoop::get_static_name(),
-            Self::ChunkDocuments => ChunkDocuments::get_static_name(),
-            Self::JoinInner => JoinInner::get_static_name(),
-            Self::ExtractPDFText => ExtractPDFText::get_static_name(),
-            Self::GroupByAndAggregate => GroupByAndAggregate::get_static_name(),
-            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_static_name(),
-            Self::ExtractTabularData => ExtractTabularData::get_static_name(),
+            Self::RelativeSimilarityScore => write!(f, "{}", RelativeSimilarityScore::get_static_name()),
+            Self::SortColumnAndIndices => write!(f, "{}", SortColumnAndIndices::get_static_name()),
+            Self::HumanInTheLoop => write!(f, "{}", HumanInTheLoop::get_static_name()),
+            Self::ChunkDocuments => write!(f, "{}", ChunkDocuments::get_static_name()),
+            Self::JoinInner => write!(f, "{}", JoinInner::get_static_name()),
+            Self::ExtractPDFText => write!(f, "{}", ExtractPDFText::get_static_name()),
+            Self::GroupByAndAggregate => write!(f, "{}", GroupByAndAggregate::get_static_name()),
+            Self::FilterColumnsAndIndices => write!(f, "{}", FilterColumnsAndIndices::get_static_name()),
+            Self::ExtractTabularData => write!(f, "{}", ExtractTabularData::get_static_name()),
         }
     }
+}
 
+impl AvailableCandleOperators {
     /// Wrapper to return the JSON schema SortColumnAndIndices
     pub fn get_json_tool_schema(&self) -> String {
         match self {
@@ -131,7 +132,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
     let mut tool_vec = Vec::new();
     for destination in destinations.iter() {
         if let Ok(ops) = AvailableCandleOperators::from_str(destination, false) {
-            tool_id_vec.push(ops.get_name().to_string());
+            tool_id_vec.push(ops.to_string());
             tool_vec.push(ops.get_json_tool_schema());
         }
     }

@@ -1,17 +1,14 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use anyhow::Result;
 use clap::ValueEnum;
 use phymes_core::{
-    session::common_traits::MappableTrait,
-    table::{
+    session::common_traits::MappableTrait, table::{
         arrow_table_publish::ArrowTablePublish,
         arrow_table_subscribe::{ArrowTableSubscribe, SubscribeTrait},
-    },
-    task::arrow_processor::{
-        ArrowProcessorBuilder, ArrowProcessorEcho, ArrowProcessorTrait,
-        test_processor::ArrowProcessorMock,
-    },
+    }, task::arrow_processor::{
+        test_processor::ArrowProcessorMock, ArrowProcessorBuilder, ArrowProcessorEcho, ArrowProcessorTrait
+    }
 };
 use phymes_data::candle_data::{
     data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor,
@@ -59,71 +56,41 @@ pub enum AvailableProcessors {
     OpenAIEmbedProcessor,
 }
 
-impl MappableTrait for AvailableProcessors {
-    fn get_name(&self) -> &str {
+impl Display for AvailableProcessors {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ArrowProcessorMock => ArrowProcessorMock::get_static_name(),
-            Self::ArrowProcessorEcho => ArrowProcessorEcho::get_static_name(),
-            Self::CandleDataProcessor => CandleDataProcessor::get_static_name(),
-            Self::DataSummaryProcessor => DataSummaryProcessor::get_static_name(),
-            Self::CandleChatProcessor => CandleChatProcessor::get_static_name(),
-            Self::MessageAggregatorProcessor => MessageAggregatorProcessor::get_static_name(),
-            Self::MessageParserProcessor => MessageParserProcessor::get_static_name(),
-            Self::CandleEmbedProcessor => CandleEmbedProcessor::get_static_name(),
+            Self::ArrowProcessorMock => write!(f, "{}", ArrowProcessorMock::get_static_name()),
+            Self::ArrowProcessorEcho => write!(f, "{}", ArrowProcessorEcho::get_static_name()),
+            Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
+            Self::DataSummaryProcessor => write!(f, "{}", DataSummaryProcessor::get_static_name()),
+            Self::CandleChatProcessor => write!(f, "{}", CandleChatProcessor::get_static_name()),
+            Self::MessageAggregatorProcessor => write!(f, "{}", MessageAggregatorProcessor::get_static_name()),
+            Self::MessageParserProcessor => write!(f, "{}", MessageParserProcessor::get_static_name()),
+            Self::CandleEmbedProcessor => write!(f, "{}", CandleEmbedProcessor::get_static_name()),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIChatProcessor => OpenAIChatProcessor::get_static_name(),
+            Self::OpenAIChatProcessor => write!(f, "{}", OpenAIChatProcessor::get_static_name()),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIEmbedProcessor => OpenAIEmbedProcessor::get_static_name(),
+            Self::OpenAIEmbedProcessor => write!(f, "{}", OpenAIEmbedProcessor::get_static_name()),
         }
     }
 }
 
 impl AvailableProcessors {
-    pub fn new_from_name(name: &str) -> Option<Self> {
-        if name == ArrowProcessorMock::get_static_name() {
-            Some(Self::ArrowProcessorMock)
-        } else if name == ArrowProcessorEcho::get_static_name() {
-            Some(Self::ArrowProcessorEcho)
-        } else if name == CandleDataProcessor::get_static_name() {
-            Some(Self::CandleChatProcessor)
-        } else if name == DataSummaryProcessor::get_static_name() {
-            Some(Self::DataSummaryProcessor)
-        } else if name == CandleChatProcessor::get_static_name() {
-            Some(Self::CandleChatProcessor)
-        } else if name == MessageAggregatorProcessor::get_static_name() {
-            Some(Self::MessageAggregatorProcessor)
-        } else if name == MessageParserProcessor::get_static_name() {
-            Some(Self::MessageParserProcessor)
-        } else if name == CandleEmbedProcessor::get_static_name() {
-            Some(Self::CandleEmbedProcessor)
-        } else {
-            #[cfg(feature = "openai_api")]
-            if name == OpenAIChatProcessor::get_static_name() {
-                Some(Self::OpenAIChatProcessor)
-            } else if name == OpenAIEmbedProcessor::get_static_name() {
-                Some(Self::OpenAIEmbedProcessor)
-            } else {
-                None
-            }
-            #[cfg(not(feature = "openai_api"))]
-            None
-        }
-    }
     /// Get all available processor plans
     pub fn get_all_processor_names() -> Vec<String> {
         let processor_names = [
-            AvailableProcessors::ArrowProcessorMock.get_name(),
-            AvailableProcessors::ArrowProcessorEcho.get_name(),
-            AvailableProcessors::CandleDataProcessor.get_name(),
-            AvailableProcessors::DataSummaryProcessor.get_name(),
-            AvailableProcessors::CandleChatProcessor.get_name(),
-            AvailableProcessors::MessageAggregatorProcessor.get_name(),
-            AvailableProcessors::MessageParserProcessor.get_name(),
-            AvailableProcessors::CandleEmbedProcessor.get_name(),
+            AvailableProcessors::ArrowProcessorMock.to_string(),
+            AvailableProcessors::ArrowProcessorEcho.to_string(),
+            AvailableProcessors::CandleDataProcessor.to_string(),
+            AvailableProcessors::DataSummaryProcessor.to_string(),
+            AvailableProcessors::CandleChatProcessor.to_string(),
+            AvailableProcessors::MessageAggregatorProcessor.to_string(),
+            AvailableProcessors::MessageParserProcessor.to_string(),
+            AvailableProcessors::CandleEmbedProcessor.to_string(),
             #[cfg(feature = "openai_api")]
-            AvailableProcessors::OpenAIChatProcessor.get_name(),
+            AvailableProcessors::OpenAIChatProcessor.to_string(),
             #[cfg(feature = "openai_api")]
-            AvailableProcessors::OpenAIEmbedProcessor.get_name(),
+            AvailableProcessors::OpenAIEmbedProcessor.to_string(),
         ];
         processor_names
             .iter()

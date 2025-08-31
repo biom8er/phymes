@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
@@ -6,7 +6,7 @@ use parking_lot::RwLock;
 use phymes_core::{
     metrics::ArrowTaskMetricsSet,
     session::{
-        common_traits::{BuilderTrait, MappableTrait},
+        common_traits::BuilderTrait,
         session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
     },
@@ -32,12 +32,12 @@ pub enum AvailableSessionPlans {
     ToolChat,
 }
 
-impl MappableTrait for AvailableSessionPlans {
-    fn get_name(&self) -> &str {
+impl Display for AvailableSessionPlans {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Chat => "Chat",
-            Self::DocChat => "DocChat",
-            Self::ToolChat => "ToolChat",
+            Self::Chat => write!(f, "Chat"),
+            Self::DocChat => write!(f, "DocChat"),
+            Self::ToolChat => write!(f, "ToolChat"),
         }
     }
 }
@@ -97,11 +97,11 @@ impl AvailableSessionPlans {
         session_plan_name: &str,
         session_name: &str,
     ) -> Result<Arc<RwLock<SessionStreamState>>> {
-        if session_plan_name == Self::Chat.get_name() {
+        if session_plan_name == Self::Chat.to_string() {
             Ok(Self::Chat.get_session_stream_state(session_name))
-        } else if session_plan_name == Self::DocChat.get_name() {
+        } else if session_plan_name == Self::DocChat.to_string() {
             Ok(Self::DocChat.get_session_stream_state(session_name))
-        } else if session_plan_name == Self::ToolChat.get_name() {
+        } else if session_plan_name == Self::ToolChat.to_string() {
             Ok(Self::ToolChat.get_session_stream_state(session_name))
         } else {
             Err(anyhow!(
@@ -117,20 +117,20 @@ impl AvailableSessionPlans {
         session_stream_state: Arc<RwLock<SessionStreamState>>,
         user_query: &str,
     ) -> Result<SessionStream> {
-        if session_plan_name == Self::Chat.get_name() {
+        if session_plan_name == Self::Chat.to_string() {
             let incoming_message_map = create_incoming_message_map(vec![
                 AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, session_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             Ok(session_stream)
-        } else if session_plan_name == Self::DocChat.get_name() {
+        } else if session_plan_name == Self::DocChat.to_string() {
             let incoming_message_map = create_incoming_message_map(vec![
                 AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, session_name)?,
                 AvailableMessagingPublishSubjects::UserQueries.to_incoming_message(user_query, session_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             Ok(session_stream)
-        } else if session_plan_name == Self::ToolChat.get_name() {
+        } else if session_plan_name == Self::ToolChat.to_string() {
             let incoming_message_map = create_incoming_message_map(vec![
                 AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, session_name)?,
             ]);

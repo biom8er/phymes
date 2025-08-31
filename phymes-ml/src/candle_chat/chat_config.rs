@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 
@@ -46,12 +45,10 @@ pub struct CandleChatConfig {
 
     /// The length of the sample to generate (in tokens).
     #[arg(short = 'n', long, default_value_t = 1000)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: usize,
 
     /// The temperature used to generate samples, use 0 for greedy sampling.
     #[arg(long, default_value_t = 0.8)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: f64,
 
     /// Nucleus sampling probability cutoff.

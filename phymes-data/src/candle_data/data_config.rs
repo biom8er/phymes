@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
@@ -23,13 +25,13 @@ pub enum DataStreamManager {
     StreamLHSAccumulateRHS,
 }
 
-impl DataStreamManager {
-    pub fn get_name(&self) -> &str {
+impl Display for DataStreamManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::AccumulateLHSStreamRHS => "accumulate-lhs-stream-rhs",
-            Self::AccumulateLHSAccumulateRHS => "accumulate-lhs-accumulate-rhs",
-            Self::StreamLHSStreamRHS => "stream-lhs-stream-rhs",
-            Self::StreamLHSAccumulateRHS => "stream-lhs-accumulate-rhs",
+            Self::AccumulateLHSStreamRHS => write!(f, "AccumulateLHSStreamRHS"),
+            Self::AccumulateLHSAccumulateRHS => write!(f, "AccumulateLHSAccumulateRHS"),
+            Self::StreamLHSStreamRHS => write!(f, "StreamLHSStreamRHS"),
+            Self::StreamLHSAccumulateRHS => write!(f, "StreamLHSAccumulateRHS"),
         }
     }
 }
@@ -53,16 +55,16 @@ pub enum DataAggregatorOperator {
     Concat,
 }
 
-impl DataAggregatorOperator {
-    pub fn get_name(&self) -> &str {
+impl Display for DataAggregatorOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Max => "Max",
-            Self::Min => "Min",
-            Self::Sum => "Sum",
-            Self::Mean => "Mean",
-            Self::Var => "Var",
-            Self::Count => "Count",
-            Self::Concat => "Concat",
+            Self::Max => write!(f, "Max"),
+            Self::Min => write!(f, "Min"),
+            Self::Sum => write!(f, "Sum"),
+            Self::Mean => write!(f, "Mean"),
+            Self::Var => write!(f, "Var"),
+            Self::Count => write!(f, "Count"),
+            Self::Concat => write!(f, "Concat"),
         }
     }
 }
@@ -71,44 +73,60 @@ impl DataAggregatorOperator {
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataComparatorOperator {
     /// Primitive
+    #[value(name = "Equals")]
     Equals,
+    #[value(name = "NotEquals")]
     NotEquals,
+    #[value(name = "LessThanOrEqualTo")]
     LessThanOrEqualTo,
+    #[value(name = "GreaterThanOrEqualTo")]
     GreaterThanOrEqualTo,
+    #[value(name = "LessThan")]
     LessThan,
+    #[value(name = "GreaterThan")]
     GreaterThan,
     /// Nested and non-primitive
+    #[value(name = "Contains")]
     Contains,
+    #[value(name = "EndsWith")]
     EndsWith,
+    #[value(name = "CaseInsensitiveLike")]
     CaseInsensitiveLike,
+    #[value(name = "Like")]
     Like,
+    #[value(name = "CaseInsensitiveNotLike")]
     CaseInsensitiveNotLike,
+    #[value(name = "NotLike")]
     NotLike,
+    #[value(name = "InList")]
     InList,
+    #[value(name = "InListUtf8")]
     InListUtf8,
+    #[value(name = "RegExpIsMatch")]
     RegExpIsMatch,
+    #[value(name = "StartsWith")]
     StartsWith,
 }
 
-impl DataComparatorOperator {
-    pub fn get_name(&self) -> &str {
+impl Display for DataComparatorOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Equals => "Equals",
-            Self::NotEquals => "NotEquals",
-            Self::LessThanOrEqualTo => "LessThanOrEqualTo",
-            Self::GreaterThanOrEqualTo => "GreaterThanOrEqualTo",
-            Self::LessThan => "LessThan",
-            Self::GreaterThan => "GreaterThan",
-            Self::Contains => "Contains",
-            Self::EndsWith => "EndsWith",
-            Self::CaseInsensitiveLike => "CaseInsensitiveLike",
-            Self::Like => "Like",
-            Self::CaseInsensitiveNotLike => "CaseInsensitiveNotLike",
-            Self::NotLike => "NotLike",
-            Self::InList => "InList",
-            Self::InListUtf8 => "InListUtf8",
-            Self::RegExpIsMatch => "RegExpIsMatch",
-            Self::StartsWith => "StartsWith",
+            Self::Equals => write!(f, "Equals"),
+            Self::NotEquals => write!(f, "NotEquals"),
+            Self::LessThanOrEqualTo => write!(f, "LessThanOrEqualTo"),
+            Self::GreaterThanOrEqualTo => write!(f, "GreaterThanOrEqualTo"),
+            Self::LessThan => write!(f, "LessThan"),
+            Self::GreaterThan => write!(f, "GreaterThan"),
+            Self::Contains => write!(f, "Contains"),
+            Self::EndsWith => write!(f, "EndsWith"),
+            Self::CaseInsensitiveLike => write!(f, "CaseInsensitiveLike"),
+            Self::Like => write!(f, "Like"),
+            Self::CaseInsensitiveNotLike => write!(f, "CaseInsensitiveNotLike"),
+            Self::NotLike => write!(f, "NotLike"),
+            Self::InList => write!(f, "InList"),
+            Self::InListUtf8 => write!(f, "InListUtf8"),
+            Self::RegExpIsMatch => write!(f, "RegExpIsMatch"),
+            Self::StartsWith => write!(f, "StartsWith"),
         }
     }
 }
@@ -116,15 +134,17 @@ impl DataComparatorOperator {
 /// Data Comparison predicates to evaluate parenthetic groups
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataComparatorPredicate {
+    #[value(name = "All")]
     All,
+    #[value(name = "Any")]
     Any,
 }
 
-impl DataComparatorPredicate {
-    pub fn get_name(&self) -> &str {
+impl Display for DataComparatorPredicate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::All => "All",
-            Self::Any => "Any",
+            Self::All => write!(f, "All"),
+            Self::Any => write!(f, "Any"),
         }
     }
 }
