@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::{Parser, ValueEnum};
-use phymes_core::{metrics::HashMap, schemas::{available_subjects::{create_blob_batch, create_queries_batch, create_timestamp_str, AvailableSubjects, AvailableSubjectsTrait}, messages::MessagesBuilderTraitExt}, session::common_traits::{BuilderTrait, MappableTrait}, table::{arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, ArrowMessageBuilderTrait}};
+use phymes_core::{metrics::HashMap, schemas::{available_subjects::{create_blob_batch, create_messages_record_batch, create_queries_batch, create_timestamp_str, AvailableSubjects, AvailableSubjectsTrait}, messages::MessagesBuilderTraitExt}, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, ArrowMessageBuilderTrait}};
 use serde::{Deserialize, Serialize};
 
 /// Check that one or more of the [AvailableMessagingPublishSubjects], one or more of the [AvailableMessageSubscribeSubjects],
@@ -41,7 +41,6 @@ pub fn create_incoming_message_map(messages: Vec<ArrowIncomingMessage>) -> HashM
     }
     incoming_message_map
 }
-
 
 /// Session interface mode: Message (text) or Attachment (bytes)
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -129,6 +128,21 @@ impl Display for AvailableinterfaceSubjects {
     }
 }
 
+#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
+pub struct MessageInterface {
+    pub content: Vec<String>,
+    pub role: Vec<String>,
+    pub timestamp: Vec<i64>,
+}
+
+#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
+pub struct AttachmentInterface {
+    pub filename: Vec<String>, 
+    pub bytes: Vec<Vec<u8>>, 
+    pub extension: Vec<String>, 
+    pub metadata: Vec<String>,
+}
+
 impl AvailableSubjectsTrait for AvailableinterfaceSubjects {
     fn to_table(&self, name: Option<&str>) -> Result<ArrowTable> {        
         match self {
@@ -151,41 +165,92 @@ impl AvailableSubjectsTrait for AvailableinterfaceSubjects {
 }
 
 impl AvailableinterfaceSubjects {
-    pub fn to_incoming_message(&self, content: &str, session_context_name: &str) -> Result<ArrowIncomingMessage> {
+    pub fn get_mode(&self) -> SessionInterfaceMode {
         match self {
-            AvailableMessagingPublishSubjects::UserMessages => {
+            Self::UserMessages 
+            | Self::AggregatedMessages
+            | Self::AssistantMessages
+            | Self::ToolMessages
+            | Self::UserQueries => SessionInterfaceMode::Message,
+            Self::UserPdf 
+            | Self::UserAudio 
+            | Self::UserVideo
+            | Self::UserImage 
+            | Self::UserScript 
+            | Self::UserCsv 
+            | Self::AssistantImage 
+            | Self::AssistantCsv
+            | Self::AssistantScript => SessionInterfaceMode::Attachment,
+        }
+    }
+
+    pub fn get_direction(&self) -> SessionInterfaceDirection {
+        match self {
+            Self::UserMessages 
+            | Self::UserQueries
+            | Self::UserPdf 
+            | Self::UserAudio 
+            | Self::UserVideo
+            | Self::UserImage 
+            | Self::UserScript 
+            | Self::UserCsv  => SessionInterfaceDirection::Publish,
+            Self::AssistantImage 
+            | Self::AssistantCsv
+            | Self::AssistantScript
+            | Self::AggregatedMessages
+            | Self::AssistantMessages
+            | Self::ToolMessages => SessionInterfaceDirection::Subscribe
+        }
+    }
+
+    pub fn to_incoming_message(&self, message: Option<MessageInterface>, attachment: Option<AttachmentInterface>, session_name: &str) -> Result<ArrowIncomingMessage> {
+        match self {
+            AvailableinterfaceSubjects::UserMessages => {
+                if message.is_none() {
+                    return Err(anyhow!("Specify the `MessageInterfaceInput` before building the message."))
+                }
                 // Make the system prompt and add the user query
-                let message_builder = ArrowTableBuilder::new()
+                let table = ArrowTableBuilder::new()
                     .with_name(self.to_string().as_str())
                     // .insert_system_template_str("You are a helpful assistant.").unwrap()
-                    .append_new_user_query_str(content, "user")?;
+                    // .append_new_user_query_str(&message.unwrap().content, "user")?;
+                    .append_new_user_query(create_messages_record_batch(
+                        message.unwrap().role, 
+                        message.unwrap().content, 
+                        message.unwrap().timestamp)?)?
+                    .build()?;
 
                 // Build the current message state
                 ArrowIncomingMessageBuilder::new()
                     .with_name(self.to_string().as_str())
                     .with_subject(self.to_string().as_str())
-                    .with_publisher(session_context_name)
-                    .with_message(message_builder.clone().build()?)
+                    .with_publisher(session_name)
+                    .with_message(table)
                     .with_update(&ArrowTablePublish::Extend {
                         table_name: self.to_string(),
                     })
                     .build()
             }
-            AvailableMessagingPublishSubjects::UserQueries => {
+            AvailableinterfaceSubjects::UserQueries => {
+                if message.is_none() {
+                    return Err(anyhow!("Specify the `MessageInterfaceInput` before building the message."))
+                }
                 // Make the query prompt
                 let mut query_vec = Vec::new();
-                if cfg!(feature = "hf_hub") {
-                    // DM: note that the prompt for the query is specific to Qwen!
-                    let query_embed_str = format!(
-                        "{}{}",
-                        "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ",
-                        content
-                    );
-                    query_vec.push(query_embed_str);
-                } else {
-                    query_vec.push(content.to_string());
+                for content in message.unwrap().content {
+                    if cfg!(feature = "hf_hub") {
+                        // DM: note that the prompt for the query is specific to Qwen!
+                        let query_embed_str = format!(
+                            "{}{}",
+                            "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ",
+                            content
+                        );
+                        query_vec.push(query_embed_str);
+                    } else {
+                        query_vec.push(content);
+                    }
                 }
-                let batch = create_queries_batch(query_vec, vec![create_timestamp_str()])?;
+                let batch = create_queries_batch(query_vec, message.unwrap().timestamp)?;
 
                 let table = ArrowTableBuilder::new()
                     .with_name(self.to_string().as_str())
@@ -196,118 +261,70 @@ impl AvailableinterfaceSubjects {
                 ArrowIncomingMessageBuilder::new()
                     .with_name(self.to_string().as_str())
                     .with_subject(self.to_string().as_str())
-                    .with_publisher(session_context_name)
+                    .with_publisher(session_name)
                     .with_message(table)
                     .with_update(&ArrowTablePublish::Replace {
                         table_name: self.to_string(),
                     })
                     .build()
+            },
+            Self::UserPdf 
+            | Self::UserAudio 
+            | Self::UserVideo
+            | Self::UserImage 
+            | Self::UserScript 
+            | Self::UserCsv  => {
+                if attachment.is_none() {
+                    return Err(anyhow!("Specify the `AttachmentInterfaceInput` before building the message."))
+                }
+                let batch = create_blob_batch(
+                    attachment.unwrap().filename, 
+                    attachment.unwrap().extension, 
+                    attachment.unwrap().bytes,
+                    attachment.unwrap().metadata
+                )?;
+                let table = ArrowTableBuilder::new()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])
+                    .unwrap()
+                    .build()?;
+
+                ArrowIncomingMessageBuilder::new()
+                    .with_name(self.to_string().as_str())
+                    .with_subject(self.to_string().as_str())
+                    .with_publisher(session_name)
+                    .with_message(table)
+                    .with_update(&ArrowTablePublish::Extend {
+                        table_name: self.to_string().to_string(),
+                    })
+                    .build()
             }
+            _ => return Err(anyhow!("Cannot build an incoming message for a subscription subject.")),
         }
     }
-}
 
-
-pub trait AttachmentPublishSubjectsTrait {
-    fn to_incoming_message(&self, filename: &str, bytes: Vec<u8>, extension: &str, metadata: &str, session_context_name: &str) -> Result<ArrowIncomingMessage>;
-}
-
-/// The available subjects that the user can publish via attachments
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
-pub enum AvailableAttachmentPublishSubjects {
-    #[default]
-    #[value(name = "UserPdf")]
-    UserPdf,
-    #[value(name = "UserAudio")]
-    UserAudio,
-    #[value(name = "UserVideo")]
-    UserVideo,
-    #[value(name = "UserImage")]
-    UserImage,
-    #[value(name = "UserScript")]
-    UserScript,
-    #[value(name = "UserCsv")]
-    UserCsv,
-}
-
-impl AvailableSubjectsTrait for AvailableAttachmentPublishSubjects {
-    fn to_table(&self) -> Result<ArrowTable> {
-    }
-}
-
-impl AttachmentPublishSubjectsTrait for AvailableAttachmentPublishSubjects {
-    fn to_incoming_message(&self, filename: &str, bytes: Vec<u8>, extension: &str, metadata: &str, session_context_name: &str) -> Result<ArrowIncomingMessage> {
-        let batch = create_blob_batch(vec![filename.to_string()], vec![extension.to_string()], vec![bytes], vec![metadata.to_string()])?;
-        let table = ArrowTableBuilder::new()
-            .with_name(self.to_string().as_str())
-            .with_record_batches(vec![batch])
-            .unwrap()
-            .build()?;
-
-        ArrowIncomingMessageBuilder::new()
-            .with_name(self.to_string().as_str())
-            .with_subject(self.to_string().as_str())
-            .with_publisher(session_context_name)
-            .with_message(table)
-            .with_update(&ArrowTablePublish::Extend {
-                table_name: self.to_string().to_string(),
-            })
-            .build()
-    }
-}
-
-pub trait MessageSubscribeSubjectsTrait {
-    fn from_incomeing_message(&self, message: &ArrowIncomingMessage) -> Result<String>;
-}
-
-/// The available subjects that the user can subscribe to and view in the messaging interface
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
-pub enum AvailableMessageSubscribeSubjects {
-    #[default]
-    #[value(name = "AggregatedMessages")]
-    AggregatedMessages,
-    #[value(name = "AssistantMessages")]
-    AssistantMessages,
-    #[value(name = "ToolMessages")]
-    ToolMessages,
-}
-
-impl AvailableSubjectsTrait for AvailableMessageSubscribeSubjects {
-    fn to_table(&self) -> Result<ArrowTable> {
-        AvailableSubjects::Messages.to_table(self.to_string().as_str())
-    }
-}
-
-impl MessageSubscribeSubjectsTrait for AvailableMessageSubscribeSubjects {
-    fn from_incomeing_message(&self, message: &ArrowIncomingMessage) -> Result<String> {
-        // let filenames = message.get_message_own().get_column_as_vec_nonprimitive::<String>("filename")?;
-        let content_vec = message.get_message().get_column_as_vec_str("content");
-        let content = content_vec.join("");
-        Ok(content)
-    }
-}
-
-pub trait AttachmentSubscribeSubjectsTrait {
-    fn from_incomeing_message(&self, message: &ArrowIncomingMessage) -> Result<(Vec<String>, Vec<String>, Vec<Vec<u8>>)>;
-}
-
-/// The available subjects that the user can subscribe to via attachments
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
-pub enum AvailableAttachmentsSubscribeSubjects {
-    #[default]
-    #[value(name = "AssistantImage")]
-    AssistantImage,
-    #[value(name = "AssistantCsv")]
-    AssistantCsv,
-    #[value(name = "AssistantScript")]
-    AssistantScript,
-}
-
-impl AttachmentSubscribeSubjectsTrait for AvailableAttachmentsSubscribeSubjects {
-    fn from_incomeing_message(&self, message: &ArrowIncomingMessage) -> Result<(Vec<String>, Vec<String>, Vec<Vec<u8>>)> {
-        let filenames = message.get_message().get_column_as_vec_nonprimitive::<String>("filename")?;
-        let extensions = message.get_message().get_column_as_vec_nonprimitive::<String>("extension")?;
-        let bytes_vec = message.get_message().get_column_as_vec_nested_primitive::<u8>("bytes")?;
-        Ok((filenames, extensions, bytes_vec))
+    pub fn from_incoming_message(&self, message: &ArrowIncomingMessage) -> Result<(Option<MessageInterface>, Option<AttachmentInterface>)> {
+        match self {
+            Self::AggregatedMessages
+            | Self::AssistantMessages
+            | Self::ToolMessages => {
+                let content = message.get_message().get_column_as_vec_nonprimitive::<String>("content")?;
+                let role = message.get_message().get_column_as_vec_nonprimitive::<String>("role")?;
+                let timestamp = message.get_message().get_column_as_vec_primitive::<i64>("timestamp")?;
+                let message = MessageInterface { role, content, timestamp };
+                Ok((Some(content), None))
+            },
+            Self::AssistantCsv
+            | Self::AssistantImage
+            | Self::AssistantScript => {
+                let filename = message.get_message().get_column_as_vec_nonprimitive::<String>("filename")?;
+                let extension = message.get_message().get_column_as_vec_nonprimitive::<String>("extension")?;
+                let bytes = message.get_message().get_column_as_vec_nested_primitive::<u8>("bytes")?;
+                let metadata = message.get_message().get_column_as_vec_nonprimitive::<String>("metadata")?;
+                let attachment = AttachmentInterface {filename, extension, bytes, metadata};
+                Ok((None, Some(attachment)))
+            },
+            _ => return Err(anyhow!("Cannot extract from an incoming message for a poublication subject.")),
+        }
     }
 }
