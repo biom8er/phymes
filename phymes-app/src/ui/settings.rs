@@ -448,12 +448,12 @@ pub fn render_mermaid_svg(
                 // Build the preliminary session context
                 if check_build {
                     let builder_error = if flowchart() {
-                        match SessionContextBuilder::from_mermaid_flowchart(&diagram_code()) {
+                        match SessionContextBuilder::from_mermaid_flowchart(&diagram_code(), true) {
                             Ok(_res) => None,
                             Err(err) => Some(err.to_string()),
                         }
                     } else {
-                        match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(&diagram_code()) {
+                        match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(&diagram_code(), true) {
                             Ok(_res) => None,
                             Err(err) => Some(err.to_string()),
                         }

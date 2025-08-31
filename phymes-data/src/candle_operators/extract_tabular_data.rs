@@ -144,7 +144,7 @@ pub fn extract_tabular_data(lhs_values: &str, lhs_args: &[RecordBatch], format: 
             .with_json(values_vec.last().unwrap(), json_format.batch_size)?
             .build()?
         }
-        DataSummaryFormat::IPC => {
+        DataSummaryFormat::Ipc => {
             ArrowTableBuilder::new_from_ipc_stream(values_vec.last().unwrap())?
             .with_name("attachment")
             .build()?

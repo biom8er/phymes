@@ -384,7 +384,7 @@ impl Stream for DataSummaryStream {
                 DataSummaryFormat::Bytes => {
                     todo!("Implement Bytes output");
                 }
-                DataSummaryFormat::IPC => {
+                DataSummaryFormat::Ipc => {
                     todo!("Implement Arrow IPC output");
                 }
             }

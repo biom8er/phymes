@@ -174,12 +174,12 @@ pub trait SessionContextBuilderMermaidTrait {
     fn to_mermaid_erdiagram(&self) -> Result<String>;
 
     /// Create a session builder from a mermaid flowchart
-    fn from_mermaid_flowchart(flowchart: &str) -> Result<Self>
+    fn from_mermaid_flowchart(flowchart: &str, agent_subjects: bool) -> Result<Self>
     where
         Self: Sized;
 
     /// Create the state from a mermaid ER Diagram
-    fn with_state_from_mermaid_erdiagram(self, erdiagram: &str) -> Result<Self>
+    fn with_state_from_mermaid_erdiagram(self, erdiagram: &str, agent_subjects: bool) -> Result<Self>
     where
         Self: Sized;
 }
@@ -338,7 +338,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         Ok(mermaid_js.join("\n"))
     }
 
-    fn from_mermaid_flowchart(flowchart: &str) -> Result<Self> {
+    fn from_mermaid_flowchart(flowchart: &str, agent_subjects: bool) -> Result<Self> {
         // The members that we will build
         let mut task_plan_builders = HashMap::<String, TaskPlanBuilder>::new();
         let mut processor_builders = HashMap::<String, ArrowProcessorBuilder>::new();
@@ -1111,7 +1111,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 subject_names
             ));
         }
-        check_agent_subjects(&subject_names_vec)?;
+        if agent_subjects {
+            check_agent_subjects(&subject_names_vec)?;
+        }        
 
         let builder = Self::new()
             .with_tasks(task_plans)
@@ -1120,7 +1122,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         Ok(builder)
     }
 
-    fn with_state_from_mermaid_erdiagram(self, erdiagram: &str) -> Result<Self> {
+    fn with_state_from_mermaid_erdiagram(self, erdiagram: &str, agent_subjects: bool) -> Result<Self> {
         // Subjects to be collected
         let mut subjects = Vec::new();
         let mut subject_names = HashSet::new();
@@ -1219,7 +1221,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 subject_names
             ));
         }
-        check_agent_subjects(&subject_names.into_iter().collect::<Vec<_>>())?;
+        if agent_subjects {
+            check_agent_subjects(&subject_names.into_iter().collect::<Vec<_>>())?;
+        }        
 
         Ok(self.with_state(subjects))
     }
@@ -1303,8 +1307,8 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram()?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart)?
-            .with_state_from_mermaid_erdiagram(&erdiagram)?;
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
+            .with_state_from_mermaid_erdiagram(&erdiagram, false)?;
 
         // Test that the names match
         let mut test = builder_test
@@ -1371,8 +1375,8 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram()?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart)?
-            .with_state_from_mermaid_erdiagram(&erdiagram)?;
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_state_from_mermaid_erdiagram(&erdiagram, true)?;
 
         // Test that the names match
         let mut test = builder_test
@@ -1439,8 +1443,8 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram()?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart)?
-            .with_state_from_mermaid_erdiagram(&erdiagram)?;
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_state_from_mermaid_erdiagram(&erdiagram, true)?;
 
         // Test that the names match
         let mut test = builder_test
@@ -1507,8 +1511,8 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram()?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart)?
-            .with_state_from_mermaid_erdiagram(&erdiagram)?;
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_state_from_mermaid_erdiagram(&erdiagram, true)?;
 
         // Test that the names match
         let mut test = builder_test

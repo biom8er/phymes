@@ -148,7 +148,7 @@ pub async fn session_stream(
                     // Send the stream
                     Body::from(response).into_response()
                 }
-                (DataSummaryFormat::IPC, true) => {
+                (DataSummaryFormat::Ipc, true) => {
                     // Convert the output to IPC
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
@@ -160,7 +160,7 @@ pub async fn session_stream(
                     // Send the stream
                     Body::from_stream(response).into_response()
                 }
-                (DataSummaryFormat::IPC, false) => {
+                (DataSummaryFormat::Ipc, false) => {
                     // Convert the output to bytes
                     let response: Vec<HashMap<String, ArrowIncomingMessage>> =
                         session_stream.try_collect().await.unwrap();
