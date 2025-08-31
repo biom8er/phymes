@@ -18,7 +18,7 @@ use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use crate::{
     candle_data::data_config::{DataComparatorOperator, DataComparatorPredicate},
@@ -71,7 +71,10 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
             device,
         ) {
             Ok(batch) => Ok(batch),
-            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+            Err(err) => {
+                event!(Level::ERROR, "{err}");
+                Ok(make_error_record_batch(err.to_string().as_str()))
+            },
         }
     }
     fn new(

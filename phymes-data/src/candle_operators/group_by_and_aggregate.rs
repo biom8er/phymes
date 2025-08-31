@@ -20,6 +20,7 @@ use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
+use tracing::{event, instrument, Level};
 
 use crate::{
     candle_data::data_config::DataAggregatorOperator,
@@ -68,7 +69,10 @@ impl DataOperatorTrait for GroupByAndAggregate {
             device,
         ) {
             Ok(batch) => Ok(batch),
-            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+            Err(err) => {
+                event!(Level::ERROR, "{err}");
+                Ok(make_error_record_batch(err.to_string().as_str()))
+            },
         }
     }
     fn new(
@@ -360,6 +364,7 @@ where
 /// * `agg_columns` - Slice of Strings for the aggregation columns
 /// * `agg_operators` - Slice of [DataAggregatorOperator]s specifying the aggregator operator to apply to each agg_column
 /// * `device` - The compute device
+#[instrument(skip(lhs_values,lhs_args,agg_columns,agg_operators,device))]
 pub fn group_by_and_aggregate(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],

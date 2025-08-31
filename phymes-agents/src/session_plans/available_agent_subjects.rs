@@ -72,7 +72,11 @@ impl Display for AvailableMessagingPublishSubjects {
 
 impl AvailableSubjectsTrait for AvailableMessagingPublishSubjects {
     fn to_table(&self) -> Result<ArrowTable> {
-        AvailableSubjects::Messages.to_table(self.to_string().as_str())
+        match self {
+            Self::UserMessages => AvailableSubjects::Messages.to_table(self.to_string().as_str()),
+            Self::UserQueries => AvailableSubjects::Queries.to_table(self.to_string().as_str()),
+        }
+        
     }
 }
 

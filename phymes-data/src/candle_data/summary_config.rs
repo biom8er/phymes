@@ -84,11 +84,3 @@ pub struct DataSummaryConfig {
     #[arg(long)]
     pub format: DataSummaryFormat,
 }
-
-impl DataSummaryConfig {
-    #[allow(dead_code)]
-    fn new_from_json(input: &str) -> Result<Self> {
-        let self_data: DataSummaryConfig = serde_json::from_str(input)?;
-        Ok(self_data)
-    }
-}

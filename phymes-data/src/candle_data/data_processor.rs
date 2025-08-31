@@ -267,7 +267,7 @@ impl Stream for CandleDataStream {
                     .collect::<Vec<_>>()
                     .join("");
                 let mut config_values: serde_json::Value = serde_json::from_str(&config_json)?;
-                config_values["arguments"]["which"] = config_values["name"].clone();
+                config_values["arguments"]["operator"] = config_values["name"].clone();
                 let config: DataConfig =
                     serde_json::from_value(config_values.get("arguments").unwrap().clone())?;
                 self.config.replace(config);

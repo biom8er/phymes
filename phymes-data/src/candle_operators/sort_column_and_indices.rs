@@ -18,7 +18,7 @@ use phymes_core::{
     table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
 };
 use std::{collections::HashMap, sync::Arc};
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
 
@@ -66,7 +66,10 @@ impl DataOperatorTrait for SortColumnAndIndices {
     ) -> Result<RecordBatch> {
         match sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device) {
             Ok(batch) => Ok(batch),
-            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
+            Err(err) => {
+                event!(Level::ERROR, "{err}");
+                Ok(make_error_record_batch(err.to_string().as_str()))
+            },
         }
     }
     fn get_description() -> String {

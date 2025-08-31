@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
@@ -237,13 +236,5 @@ impl Default for DataConfig {
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
             operator: AvailableCandleOperators::RelativeSimilarityScore,
         }
-    }
-}
-
-impl DataConfig {
-    #[allow(dead_code)]
-    fn new_from_json(input: &str) -> Result<Self> {
-        let self_data: DataConfig = serde_json::from_str(input)?;
-        Ok(self_data)
     }
 }

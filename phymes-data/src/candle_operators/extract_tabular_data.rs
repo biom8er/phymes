@@ -64,7 +64,7 @@ impl DataOperatorTrait for ExtractTabularData {
         match extract_tabular_data(&self.lhs_values, lhs_args, &self.format) {
             Ok(batch) => Ok(batch),
             Err(err) => {
-                event!(Level::ERROR, "ExtractTabularData operator: {err}");
+                event!(Level::ERROR, "{err}");
                 Ok(make_error_record_batch(err.to_string().as_str()))
             },
         }
