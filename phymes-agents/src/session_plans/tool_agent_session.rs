@@ -510,7 +510,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            which: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
@@ -534,7 +534,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_name: AvailableAttachmentPublishSubjects::UserCsv.get_name().to_string(),
             lhs_values: "bytes".to_string(),
             op_kwargs: Some(csv_format_str),
-            which: AvailableCandleOperators::ExtractTabularData,
+            operator: AvailableCandleOperators::ExtractTabularData,
             ..Default::default()
         };
         let extract_tabular_data_config_json = serde_json::to_vec(&extract_tabular_data_config).unwrap();

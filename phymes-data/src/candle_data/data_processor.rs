@@ -286,7 +286,7 @@ impl Stream for CandleDataStream {
         // Build the data operator
         if self.data_operator.is_none() {
             let config = self.config.as_ref().unwrap().clone();
-            self.data_operator.replace(config.which.build(
+            self.data_operator.replace(config.operator.build(
                 &config.lhs_pk,
                 &config.lhs_fk,
                 &config.lhs_values,
@@ -409,7 +409,7 @@ impl Stream for CandleDataStream {
         event!(
             Level::DEBUG,
             "Executing {}.",
-            self.config.as_ref().unwrap().which.get_name()
+            self.config.as_ref().unwrap().operator.get_name()
         );
         self.init_tensor_service()?;
         let batch = self.data_operator.as_ref().unwrap().forward(
@@ -585,7 +585,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: AvailableCandleOperators::RelativeSimilarityScore,
+            operator: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
         let config_table = ArrowTable::get_builder()
@@ -676,7 +676,7 @@ mod tests {
 
         // Make the config
         let config_args = DataConfig {
-            which: AvailableCandleOperators::HumanInTheLoop,
+            operator: AvailableCandleOperators::HumanInTheLoop,
             lhs_args: Some("{\"role\": \"assistant\", \"content\": \"RESPONSE\"}".to_string()),
             rhs_args: None,
             ..Default::default()
@@ -926,7 +926,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: AvailableCandleOperators::RelativeSimilarityScore,
+            operator: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

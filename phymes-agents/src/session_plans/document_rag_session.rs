@@ -632,7 +632,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            which: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
@@ -654,7 +654,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: AvailableAttachmentPublishSubjects::UserPdf.get_name().to_string(),
             lhs_pk: "filename".to_string(),
             lhs_values: "bytes".to_string(),
-            which: AvailableCandleOperators::ExtractPDFText,
+            operator: AvailableCandleOperators::ExtractPDFText,
             ..Default::default()
         };
         let extract_pdf_config_json = serde_json::to_vec(&extract_pdf_config).unwrap();
@@ -671,7 +671,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: "document_id".to_string(),
             lhs_fk: "document_id".to_string(),
             lhs_values: "text".to_string(),
-            which: AvailableCandleOperators::ChunkDocuments,
+            operator: AvailableCandleOperators::ChunkDocuments,
             ..Default::default()
         };
         let chunk_document_config_json = serde_json::to_vec(&chunk_document_config).unwrap();
@@ -692,7 +692,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some("embedding".to_string()),
-            which: AvailableCandleOperators::RelativeSimilarityScore,
+            operator: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
         let rel_sim_config_json = serde_json::to_vec(&rel_sim_config).unwrap();
@@ -709,7 +709,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: "chunk_id".to_string(),
             lhs_fk: "chunk_id".to_string(),
             lhs_values: "score".to_string(),
-            which: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let sort_scores_config_json = serde_json::to_vec(&sort_scores_config).unwrap();
@@ -730,7 +730,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some("text".to_string()),
-            which: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::JoinInner,
             ..Default::default()
         };
         let join_chunks_config_json = serde_json::to_vec(&join_chunks_config).unwrap();

@@ -37,12 +37,19 @@ impl DataStreamManager {
 /// Data Aggregation (Reduction) operators
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataAggregatorOperator {
+    #[value(name = "Max")]
     Max,
+    #[value(name = "Min")]
     Min,
+    #[value(name = "Sum")]
     Sum,
+    #[value(name = "Mean")]
     Mean,
+    #[value(name = "Var")]
     Var,
+    #[value(name = "Count")]
     Count,
+    #[value(name = "Concat")]
     Concat,
 }
 
@@ -144,6 +151,7 @@ pub struct DataConfig {
 
     /// The right hand side primary key column identifier
     #[arg(long, default_value = "rhs_pk")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rhs_pk: Option<String>,
 
     /// The left hand side primary key column identifier
@@ -152,6 +160,7 @@ pub struct DataConfig {
 
     /// The right hand side primary key column identifier
     #[arg(long, default_value = "rhs_fk")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rhs_fk: Option<String>,
 
     /// The left hand side values column identifier
@@ -160,21 +169,25 @@ pub struct DataConfig {
 
     /// The right hand side values column identifier
     #[arg(long, default_value = "rhs_values")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rhs_values: Option<String>,
 
     /// The left hand side arguments to the operator
     /// JSONized vector of record batches
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lhs_args: Option<String>,
 
     /// The right hand side arguments to the operator
     /// JSONized vector of record batches
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rhs_args: Option<String>,
 
     /// Operator keyword arguments in JSON format
     /// that can be deserialized on the fly
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub op_kwargs: Option<String>,
 
     /// The streaming strategy to use
@@ -183,7 +196,7 @@ pub struct DataConfig {
 
     /// The operator to invoke
     #[arg(long, default_value = "relative-similarity-score")]
-    pub which: AvailableCandleOperators,
+    pub operator: AvailableCandleOperators,
 }
 
 impl Default for DataConfig {
@@ -202,7 +215,7 @@ impl Default for DataConfig {
             rhs_args: None,
             op_kwargs: None,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
-            which: AvailableCandleOperators::RelativeSimilarityScore,
+            operator: AvailableCandleOperators::RelativeSimilarityScore,
         }
     }
 }

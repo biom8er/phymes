@@ -266,7 +266,7 @@ impl Stream for MessageAggregatorStream {
             // Build the data operator
             if self.data_operator.is_none() {
                 let config = self.config.as_ref().unwrap().clone();
-                self.data_operator.replace(config.which.build(
+                self.data_operator.replace(config.operator.build(
                     &config.lhs_pk,
                     &config.lhs_fk,
                     &config.lhs_values,
@@ -373,7 +373,7 @@ mod tests {
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            which: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

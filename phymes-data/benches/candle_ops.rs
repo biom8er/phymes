@@ -57,7 +57,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for the ops functions
     let ops_configs_vec = [
         DataConfig {
-            which: AvailableCandleOperators::RelativeSimilarityScore,
+            operator: AvailableCandleOperators::RelativeSimilarityScore,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "embedding".to_string(),
@@ -67,7 +67,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::SortColumnAndIndices,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: "score".to_string(),
@@ -89,7 +89,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         //     ..Default::default()
         // },
         DataConfig {
-            which: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::JoinInner,
             lhs_pk: "title".to_string(),
             lhs_fk: "id".to_string(),
             rhs_pk: Some("title".to_string()),
@@ -97,7 +97,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: AvailableCandleOperators::GroupByAndAggregate,
+            operator: AvailableCandleOperators::GroupByAndAggregate,
             lhs_pk: "id".to_string(),
             lhs_fk: "id".to_string(),
             lhs_values: "[\"title\",\"collection\"]".to_string(),
@@ -108,7 +108,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            which: AvailableCandleOperators::FilterColumnsAndIndices,
+            operator: AvailableCandleOperators::FilterColumnsAndIndices,
             lhs_pk: "id".to_string(),
             lhs_values: "[\"title\",\"id\"]".to_string(),
             op_kwargs: Some(
@@ -160,7 +160,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                 // Create a unique identifier for the benchmark
                 let id = format!(
                     "{}_{lhs_size}-{rhs_size}_{wasm}_{gpu}_{candle}",
-                    config.which.get_name(),
+                    config.operator.get_name(),
                 );
                 // let id = format!(
                 //     "{}_{lhs_size}-{rhs_size}_{}_{wasm}_{gpu}_{candle}",

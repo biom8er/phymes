@@ -271,7 +271,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             lhs_fk: "".to_string(),
             lhs_values: "timestamp".to_string(),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            which: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
