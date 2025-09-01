@@ -10,12 +10,12 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
+use phymes_agents::session_plans::available_agent_subjects::{AttachmentInterface, MessageInterface};
 use phymes_core::session::common_traits::MappableTrait;
 use phymes_core::{
     session::session_context::SessionContextTableNames,
-    table::{arrow_table::ArrowTableTrait, arrow_table_publish::ArrowTablePublish},
+    table::arrow_table::ArrowTableTrait,
 };
-use phymes_data::candle_data::summary_config::DataSummaryFormat;
 use serde::{Deserialize, Serialize};
 
 // Library imports
@@ -31,15 +31,11 @@ pub struct SessionResponse {
     /// The name of the session
     pub session_name: String,
     /// The subject name if known else blank
-    pub subject_name: String,
-    /// The format of the response
-    pub format: DataSummaryFormat,
-    /// Publish method
-    pub publish: ArrowTablePublish,
-    /// The content to publish or subscribe
-    pub content: Vec<u8>,
-    /// Any additional metadata
-    pub metadata: String,
+    pub subject_name: Option<String>,
+    /// The message content
+    pub messaging: Option<MessageInterface>,
+    /// The attachment content
+    pub attachment: Option<AttachmentInterface>,
     /// Stream the response
     pub stream: bool,
 }

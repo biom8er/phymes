@@ -11,19 +11,14 @@ use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AttachmentPublishSubjectsTrait, AvailableAttachmentPublishSubjects, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, MessagingPublishSubjectsTrait}, document_rag_session::{
-        DocumentRAGSession
-    }},
+    session_plans::{available_agent_subjects::{create_incoming_message_map, AttachmentInterface, AvailableinterfaceSubjects, MessageInterface}, document_rag_session::DocumentRAGSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap},
-    session::{
+    metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
         common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    },
-    table::arrow_table::ArrowTableTrait,
-    task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
+    }, table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {
@@ -53,12 +48,24 @@ pub async fn run_main() -> Result<()> {
     let mut pdf = make_pdf_document(document_texts);
     let mut bytes = Vec::new();
     pdf.save_to(&mut bytes)?;
-    let user_query = "What are the four molecules that compose DNA?";
+        
+    // Wrap into the message/attachment interfaces
+    let message_interface = MessageInterface { 
+        role: "user".to_string(), 
+        content: "What are the four molecules that compose DNA?".to_string(), 
+        timestamp: create_timestamp_micros()
+    };
+    let attachment_interface = AttachmentInterface {
+        filename: "wiki".to_string(),
+        bytes,
+        extension: ".pdf".to_string(),
+        metadata: String::new(),
+    };
 
     // ----- Query #1 -----
     // Embed the documents
     let incoming_message_map = create_incoming_message_map(vec![
-        AvailableAttachmentPublishSubjects::UserPdf.to_incoming_message("Wiki", bytes, ".pdf", "", doc_rag_session.session_context_name)?,
+        AvailableinterfaceSubjects::UserPdf.to_incoming_message(None, Some(vec![attachment_interface]), doc_rag_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let _response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -66,8 +73,8 @@ pub async fn run_main() -> Result<()> {
 
     // Embed the query and invoke a response
     let incoming_message_map = create_incoming_message_map(vec![
-        AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, doc_rag_session.session_context_name)?,
-        AvailableMessagingPublishSubjects::UserQueries.to_incoming_message(user_query, doc_rag_session.session_context_name)?,
+        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface.clone()]), None, doc_rag_session.session_context_name)?,
+        AvailableinterfaceSubjects::UserQueries.to_incoming_message(Some(vec![message_interface]), None, doc_rag_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -80,7 +87,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             doc_rag_session.session_context_name,
-            AvailableMessageSubscribeSubjects::AssistantMessages
+            AvailableinterfaceSubjects::AssistantMessages
         ))
         .unwrap()
         .get_message_own()

@@ -10,17 +10,14 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, MessagingPublishSubjectsTrait}, chat_agent_session::ChatAgentSession},
+    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableinterfaceSubjects, MessageInterface}, chat_agent_session::ChatAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap},
-    session::{
+    metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
         common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    },
-    table::arrow_table::ArrowTableTrait,
-    task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
+    }, table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {
@@ -40,8 +37,13 @@ pub async fn run_main() -> Result<()> {
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // ----- Query #1 -----
+    let message_interface = MessageInterface { 
+        role: "user".to_string(), 
+        content: "Write a function to count prime numbers up to N.".to_string(), 
+        timestamp: create_timestamp_micros()
+    };
     let incoming_message_map = create_incoming_message_map(vec![
-        AvailableMessagingPublishSubjects::UserMessages.to_incoming_message("Write a function to count prime numbers up to N.", chat_agent_session.session_context_name)?,
+        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -54,7 +56,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             chat_agent_session.session_context_name,
-            AvailableMessageSubscribeSubjects::AssistantMessages
+            AvailableinterfaceSubjects::AssistantMessages
         ))
         .unwrap()
         .get_message_own()
@@ -67,8 +69,13 @@ pub async fn run_main() -> Result<()> {
 
     // ----- Query #2 -----
     session_stream_state.try_write().unwrap().set_iter(0);
+    let message_interface = MessageInterface { 
+        role: "user".to_string(), 
+        content: "Please provide an example using the functions.".to_string(), 
+        timestamp: create_timestamp_micros()
+    };
     let incoming_message_map = create_incoming_message_map(vec![
-        AvailableMessagingPublishSubjects::UserMessages.to_incoming_message("Please provide an example using the functions.", chat_agent_session.session_context_name)?,
+        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -81,7 +88,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             chat_agent_session.session_context_name,
-            AvailableMessageSubscribeSubjects::AssistantMessages
+            AvailableinterfaceSubjects::AssistantMessages
         ))
         .unwrap()
         .get_message_own()

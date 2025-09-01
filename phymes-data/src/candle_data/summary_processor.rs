@@ -400,7 +400,7 @@ impl Stream for DataSummaryStream {
                     let poll = Poll::Ready(Some(Ok(batch)));
                     return metrics.record_poll(poll);
                 }
-                DataSummaryFormat::Json(_json_format) => {
+                DataSummaryFormat::Json(_) | DataSummaryFormat::JsonDefault => {
                     // Convert to Values representation
                     let mut values = Vec::new();
                     for row in batch_limit.iter() {

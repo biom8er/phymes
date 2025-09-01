@@ -4,17 +4,14 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableMessagingPublishSubjects, MessagingPublishSubjectsTrait}, chat_agent_session::ChatAgentSession},
+    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableinterfaceSubjects, MessageInterface}, chat_agent_session::ChatAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::{
+    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
         common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    },
-    table::arrow_table::ArrowTableTrait,
-    task::arrow_message::ArrowIncomingMessage,
+    }, table::arrow_table::ArrowTableTrait, task::arrow_message::ArrowIncomingMessage
 };
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {
@@ -96,8 +93,13 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                 let timer = baseline_metrics.elapsed_compute().timer();
                 let _messages = rt.block_on(async {
+                    let message_interface = MessageInterface { 
+                        role: "user".to_string(), 
+                        content: user_content.0.to_string(), 
+                        timestamp: create_timestamp_micros()
+                    };
                     let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_content.1, config.session_context_name)?,
+                        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, config.session_context_name)?,
                     ]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
@@ -106,8 +108,13 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 });
                 let _messages = rt.block_on(async {
                     session_stream_state.try_write().unwrap().set_iter(0);
+                    let message_interface = MessageInterface { 
+                        role: "user".to_string(), 
+                        content: user_content.1.to_string(), 
+                        timestamp: create_timestamp_micros()
+                    };
                     let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_content.1, config.session_context_name)?,
+                        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, config.session_context_name)?,
                     ]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream

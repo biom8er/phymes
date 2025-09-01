@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
@@ -40,9 +41,12 @@ pub enum DataSummaryFormat {
     #[clap(skip)]
     #[value(name = "Csv")]
     Csv(CsvFormat),
-    /// Json attachment
+    /// Json Object
     #[value(name = "JsonObject")]
     JsonObject,
+    /// Json attachment
+    #[value(name = "JsonDefault")]
+    JsonDefault,
     #[clap(skip)]
     #[value(name = "Json")]
     Json(JsonFormat),
@@ -58,6 +62,21 @@ pub enum DataSummaryFormat {
     #[default]
     #[value(name = "None")]
     None,
+}
+
+impl DataSummaryFormat {
+    /// Convert from a filename extension
+    pub fn from_extension(extension: &str) -> Result<Self> {
+        let format = match extension {
+            ".csv" => DataSummaryFormat::CsvDefault,
+            ".json" => DataSummaryFormat::JsonDefault,
+            ".pdf" => DataSummaryFormat::Pdf,
+            ".bytes" => DataSummaryFormat::Bytes,
+            ".ipc" => DataSummaryFormat::Ipc,
+            _ => return Err(anyhow!("File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, and .ipc")),
+        };
+        Ok(format)
+    }
 }
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]

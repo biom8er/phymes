@@ -1,4 +1,4 @@
-use crate::{session::common_traits::{BuilderTrait, MappableTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait}};
+use crate::{session::common_traits::BuilderTrait, table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait}};
 
 use anyhow::Result;
 use arrow::{

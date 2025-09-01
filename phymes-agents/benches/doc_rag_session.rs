@@ -4,17 +4,14 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AttachmentPublishSubjectsTrait, AvailableAttachmentPublishSubjects, AvailableMessagingPublishSubjects, MessagingPublishSubjectsTrait}, document_rag_session:: DocumentRAGSession},
+    session_plans::{available_agent_subjects::{create_incoming_message_map, AttachmentInterface, AvailableinterfaceSubjects, MessageInterface}, document_rag_session:: DocumentRAGSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::{
+    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
         common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    },
-    table::arrow_table::ArrowTableTrait,
-    task::arrow_message::ArrowIncomingMessage,
+    }, table::arrow_table::ArrowTableTrait, task::arrow_message::ArrowIncomingMessage
 };
 use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 
@@ -158,8 +155,14 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                 let timer = baseline_metrics.elapsed_compute().timer();
                 let _messages = rt.block_on(async {
+                    let attachment_interface = AttachmentInterface {
+                        filename: "wiki".to_string(),
+                        bytes: bytes.to_vec(),
+                        extension: ".pdf".to_string(),
+                        metadata: String::new(),
+                    };
                     let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableAttachmentPublishSubjects::UserPdf.to_incoming_message("Wiki", bytes.to_vec(), ".pdf", "", session_context_name.as_str())?,
+                        AvailableinterfaceSubjects::UserPdf.to_incoming_message(None, Some(vec![attachment_interface]), session_context_name.as_str())?,
                     ]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
@@ -167,9 +170,14 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .await
                 });
                 let _messages = rt.block_on(async {
+                    let message_interface = MessageInterface { 
+                        role: "user".to_string(), 
+                        content: user_query.to_string(), 
+                        timestamp: create_timestamp_micros()
+                    };
                     let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, session_context_name.as_str())?,
-                        AvailableMessagingPublishSubjects::UserQueries.to_incoming_message(user_query, session_context_name.as_str())?,
+                        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface.clone()]), None, session_context_name.as_str())?,
+                        AvailableinterfaceSubjects::UserQueries.to_incoming_message(Some(vec![message_interface]), None, session_context_name.as_str())?,
                     ]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream

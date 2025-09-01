@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    schemas::available_subjects::AvailableSubjects,
+    schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait},
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
@@ -38,7 +38,7 @@ use phymes_ml::{
 
 use arrow::datatypes::SchemaRef;
 
-use crate::{session_plans::available_agent_subjects::{AvailableAttachmentPublishSubjects, AvailableMessageSubscribeSubjects, AvailableMessagingPublishSubjects, AvailableSubjectsTrait}, session_traits::agents::CustomAgentsBuilderTrait};
+use crate::{session_plans::available_agent_subjects::AvailableinterfaceSubjects, session_traits::agents::CustomAgentsBuilderTrait};
 
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///
@@ -210,13 +210,13 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             }],
             &[
                 ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: AvailableMessagingPublishSubjects::UserMessages.to_string(),
+                    table_name: AvailableinterfaceSubjects::UserMessages.to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateFullTable {
                     table_name: self.state_top_k_docs_table_name.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_1_name.to_string(),
@@ -227,14 +227,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_2_name,
             &[ArrowTablePublish::Extend {
-                table_name: AvailableMessageSubscribeSubjects::AggregatedMessages.to_string(),
+                table_name: AvailableinterfaceSubjects::AggregatedMessages.to_string(),
             }],
             &[
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableMessagingPublishSubjects::UserMessages.to_string(),
+                    table_name: AvailableinterfaceSubjects::UserMessages.to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
@@ -247,7 +247,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
-                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
@@ -265,7 +265,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             processors.push(CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[ArrowTablePublish::ExtendChunks {
-                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
@@ -288,7 +288,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             }],
             &[
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableAttachmentPublishSubjects::UserPdf.to_string(),
+                    table_name: AvailableinterfaceSubjects::UserPdf.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.extract_pdf_processor_name.to_string(),
@@ -337,7 +337,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 }],
                 &[
                     ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: AvailableMessagingPublishSubjects::UserQueries.to_string(),
+                        table_name: AvailableinterfaceSubjects::UserQueries.to_string(),
                     },
                     ArrowTableSubscribe::AlwaysFullTable {
                         table_name: self.embed_query_processor_name.to_string(),
@@ -368,7 +368,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 }],
                 &[
                     ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: AvailableMessagingPublishSubjects::UserQueries.to_string(),
+                        table_name: AvailableinterfaceSubjects::UserQueries.to_string(),
                     },
                     ArrowTableSubscribe::AlwaysFullTable {
                         table_name: self.embed_query_processor_name.to_string(),
@@ -449,20 +449,20 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             self.session_context_name,
             &[
                 ArrowTablePublish::Extend {
-                    table_name: AvailableMessagingPublishSubjects::UserMessages.to_string(),
+                    table_name: AvailableinterfaceSubjects::UserMessages.to_string(),
                 },
                 ArrowTablePublish::Extend {
                     table_name: self.state_documents_table_name.to_string(),
                 },
                 ArrowTablePublish::Extend {
-                    table_name: AvailableMessagingPublishSubjects::UserQueries.to_string(),
+                    table_name: AvailableinterfaceSubjects::UserQueries.to_string(),
                 },
                 ArrowTablePublish::Extend {
-                    table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
                 },
             ],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                table_name: AvailableMessageSubscribeSubjects::AssistantMessages.to_string(),
+                table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
         ));
@@ -651,7 +651,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Extract pdf config
         let extract_pdf_config = DataConfig {
-            lhs_name: AvailableAttachmentPublishSubjects::UserPdf.to_string(),
+            lhs_name: AvailableinterfaceSubjects::UserPdf.to_string(),
             lhs_pk: "filename".to_string(),
             lhs_values: "bytes".to_string(),
             operator: AvailableCandleOperators::ExtractPDFText,
@@ -768,19 +768,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             sort_scores_state,
             join_chunks_state,
             top_k_state,
-            AvailableSubjects::Messages.to_table(self.chat_task_name).unwrap(),
-            AvailableMessageSubscribeSubjects::AggregatedMessages.to_table().unwrap(),
-            AvailableMessagingPublishSubjects::UserMessages.to_table().unwrap(),
-            AvailableMessageSubscribeSubjects::AssistantMessages.to_table().unwrap(),
-            AvailableSubjects::Messages.to_table(self.state_top_k_docs_table_name).unwrap(),
-            AvailableAttachmentPublishSubjects::UserPdf.to_table().unwrap(),
-            AvailableSubjects::Documents.to_table(self.state_documents_table_name).unwrap(),
-            AvailableSubjects::Documents.to_table(self.document_chunk_task_name).unwrap(),
-            AvailableMessagingPublishSubjects::UserQueries.to_table().unwrap(),
-            AvailableSubjects::DocumentEmbeddings.to_table(self.state_doc_embed_table_name).unwrap(), 
-            AvailableSubjects::QueryEmbeddings.to_table(self.state_q_embed_table_name).unwrap(),       
-            AvailableSubjects::EmbeddingScores.to_table(self.state_scores_table_name).unwrap(),         
-            AvailableSubjects::JoinChunksScores.to_table(self.state_scores_chunks_join_table_name).unwrap(),
+            AvailableSubjects::Messages.to_table(Some(self.chat_task_name)).unwrap(),
+            AvailableinterfaceSubjects::AggregatedMessages.to_table(None).unwrap(),
+            AvailableinterfaceSubjects::UserMessages.to_table(None).unwrap(),
+            AvailableinterfaceSubjects::AssistantMessages.to_table(None).unwrap(),
+            AvailableSubjects::Messages.to_table(Some(self.state_top_k_docs_table_name)).unwrap(),
+            AvailableinterfaceSubjects::UserPdf.to_table(None).unwrap(),
+            AvailableSubjects::Documents.to_table(Some(self.state_documents_table_name)).unwrap(),
+            AvailableSubjects::Documents.to_table(Some(self.document_chunk_task_name)).unwrap(),
+            AvailableinterfaceSubjects::UserQueries.to_table(None).unwrap(),
+            AvailableSubjects::DocumentEmbeddings.to_table(Some(self.state_doc_embed_table_name)).unwrap(), 
+            AvailableSubjects::QueryEmbeddings.to_table(Some(self.state_q_embed_table_name)).unwrap(),       
+            AvailableSubjects::EmbeddingScores.to_table(Some(self.state_scores_table_name)).unwrap(),         
+            AvailableSubjects::JoinChunksScores.to_table(Some(self.state_scores_chunks_join_table_name)).unwrap(),
         ])
     }
 }
@@ -804,17 +804,14 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::{ArrowTaskMetricsSet, HashMap},
-        session::{
+        metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
             session_context::{SessionStream, SessionStreamState},
             session_context_builder::SessionContextBuilderTrait,
-        },
-        table::arrow_table::ArrowTableTrait,
-        task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
+        }, table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait}
     };
     use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 
-    use crate::{session_plans::available_agent_subjects::{create_incoming_message_map, AttachmentPublishSubjectsTrait, MessagingPublishSubjectsTrait}, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::available_agent_subjects::{create_incoming_message_map, AttachmentInterface, MessageInterface}, session_traits::agents::SessionContextBuilderAgentsTrait};
 
     use super::*;
 
@@ -848,7 +845,19 @@ mod tests {
         let mut pdf = make_pdf_document(document_texts);
         let mut bytes = Vec::new();
         pdf.save_to(&mut bytes)?;
-        let user_query = "What are the four molecules that compose DNA?";
+        
+        // Wrap into the message/attachment interfaces
+        let message_interface = MessageInterface { 
+            role: "user".to_string(), 
+            content: "What are the four molecules that compose DNA?".to_string(), 
+            timestamp: create_timestamp_micros()
+        };
+        let attachment_interface = AttachmentInterface {
+            filename: "wiki".to_string(),
+            bytes,
+            extension: ".pdf".to_string(),
+            metadata: String::new(),
+        };
 
         // Skip actually running the session as it takes too long on the CPU
         //     until a smaller embedding model is supported (i.e., QuantBERT)
@@ -860,7 +869,7 @@ mod tests {
             // ----- Query #1 -----
             // Embed the documents
             let incoming_message_map = create_incoming_message_map(vec![
-                AvailableAttachmentPublishSubjects::UserPdf.to_incoming_message("Wiki", bytes, ".pdf", "", doc_rag_session.session_context_name)?,
+                AvailableinterfaceSubjects::UserPdf.to_incoming_message(None, Some(vec![attachment_interface]), doc_rag_session.session_context_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let _response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -868,8 +877,8 @@ mod tests {
 
             // Embed the query and invoke a response
             let incoming_message_map = create_incoming_message_map(vec![
-                AvailableMessagingPublishSubjects::UserMessages.to_incoming_message(user_query, doc_rag_session.session_context_name)?,
-                AvailableMessagingPublishSubjects::UserQueries.to_incoming_message(user_query, doc_rag_session.session_context_name)?,
+                AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface.clone()]), None, doc_rag_session.session_context_name)?,
+                AvailableinterfaceSubjects::UserQueries.to_incoming_message(Some(vec![message_interface]), None, doc_rag_session.session_context_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -882,7 +891,7 @@ mod tests {
                 .remove(&format!(
                     "from_{}_on_{}",
                     doc_rag_session.session_context_name,
-                    AvailableMessageSubscribeSubjects::AssistantMessages
+                    AvailableinterfaceSubjects::AssistantMessages
                 ))
                 .unwrap()
                 .get_message_own()

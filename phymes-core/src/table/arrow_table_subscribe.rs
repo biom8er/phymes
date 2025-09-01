@@ -435,7 +435,7 @@ impl SubscribeTrait for ChatContentSubscribe {
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {
             // DM: dangerous as the strings needs to stay syncronized with the actual table names
-            // in `AvailableMessageSubscribeSubjects` and `AvailableMessagingPublishSubjects`
+            // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
             user_message_table_name: "UserMessages".to_string(),
             tool_message_table_name: "ToolMessages".to_string(),
         })
