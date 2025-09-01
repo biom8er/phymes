@@ -11,7 +11,7 @@ use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AttachmentInterface, AvailableinterfaceSubjects, MessageInterface}, document_rag_session::DocumentRAGSession},
+    session_plans::{available_interface_subjects::{create_incoming_message_map, AttachmentInterface, AvailableInterfaceSubjects, MessageInterface}, document_rag_session::DocumentRAGSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
@@ -65,7 +65,7 @@ pub async fn run_main() -> Result<()> {
     // ----- Query #1 -----
     // Embed the documents
     let incoming_message_map = create_incoming_message_map(vec![
-        AvailableinterfaceSubjects::UserPdf.to_incoming_message(None, Some(vec![attachment_interface]), doc_rag_session.session_context_name)?,
+        AvailableInterfaceSubjects::UserPdf.to_incoming_message(None, Some(vec![attachment_interface]), doc_rag_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let _response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -73,8 +73,8 @@ pub async fn run_main() -> Result<()> {
 
     // Embed the query and invoke a response
     let incoming_message_map = create_incoming_message_map(vec![
-        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface.clone()]), None, doc_rag_session.session_context_name)?,
-        AvailableinterfaceSubjects::UserQueries.to_incoming_message(Some(vec![message_interface]), None, doc_rag_session.session_context_name)?,
+        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface.clone()]), None, doc_rag_session.session_context_name)?,
+        AvailableInterfaceSubjects::UserQueries.to_incoming_message(Some(vec![message_interface]), None, doc_rag_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -87,7 +87,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             doc_rag_session.session_context_name,
-            AvailableinterfaceSubjects::AssistantMessages
+            AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
         .get_message_own()

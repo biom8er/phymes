@@ -216,11 +216,13 @@ pub fn create_blob_fields() -> Fields {
     );
     let bytes = Field::new("bytes", list_data_type, false);
     let metadata = Field::new("metadata", DataType::Utf8, false);
+    let timestamp = Field::new("timestamp", DataType::Int64, false);
     Fields::from(vec![
         filename,
         extension,
         bytes,
         metadata,
+        timestamp,
     ])
 }
 
@@ -229,6 +231,7 @@ pub fn create_blob_batch(
     extension: Vec<String>,
     bytes: Vec<Vec<u8>>,
     metadata: Vec<String>,
+    timestamp: Vec<i64>,
 ) -> Result<RecordBatch> {
     let filename: ArrayRef = Arc::new(StringArray::from(filename));
     let extension: ArrayRef = Arc::new(StringArray::from(extension));
@@ -240,11 +243,13 @@ pub fn create_blob_batch(
     }
     let bytes: ArrayRef = Arc::new(list_builder.finish());
     let metadata: ArrayRef = Arc::new(StringArray::from(metadata));
+    let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
     let batch = RecordBatch::try_from_iter(vec![
         ("filename", filename),
         ("extension", extension),
         ("bytes", bytes),
         ("metadata", metadata),
+        ("timestamp", timestamp),
     ])?;
     Ok(batch)
 }

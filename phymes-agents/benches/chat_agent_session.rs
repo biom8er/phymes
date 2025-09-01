@@ -4,7 +4,7 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableinterfaceSubjects, MessageInterface}, chat_agent_session::ChatAgentSession},
+    session_plans::{available_interface_subjects::{create_incoming_message_map, AvailableInterfaceSubjects, MessageInterface}, chat_agent_session::ChatAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
@@ -99,7 +99,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         timestamp: create_timestamp_micros()
                     };
                     let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, config.session_context_name)?,
+                        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, config.session_context_name)?,
                     ]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
@@ -114,7 +114,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         timestamp: create_timestamp_micros()
                     };
                     let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, config.session_context_name)?,
+                        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, config.session_context_name)?,
                     ]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream

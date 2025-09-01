@@ -77,6 +77,19 @@ impl DataSummaryFormat {
         };
         Ok(format)
     }
+    
+    /// The file extension for the format
+    pub fn to_extension(&self) -> &str {
+        match self {
+            Self::Message => "",
+            Self::Csv(_) | Self::CsvDefault => ".csv",
+            Self::Json(_) | Self::JsonObject | Self::JsonDefault => ".json",
+            Self::Bytes => ".bytes",
+            Self::Ipc => ".ipc",
+            Self::Pdf => ".pdf",
+            Self::None => "",
+        }
+    }
 }
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]

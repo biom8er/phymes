@@ -10,7 +10,7 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AvailableinterfaceSubjects, MessageInterface}, chat_agent_session::ChatAgentSession},
+    session_plans::{available_interface_subjects::{create_incoming_message_map, AvailableInterfaceSubjects, MessageInterface}, chat_agent_session::ChatAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
@@ -43,7 +43,7 @@ pub async fn run_main() -> Result<()> {
         timestamp: create_timestamp_micros()
     };
     let incoming_message_map = create_incoming_message_map(vec![
-        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
+        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -56,7 +56,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             chat_agent_session.session_context_name,
-            AvailableinterfaceSubjects::AssistantMessages
+            AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
         .get_message_own()
@@ -75,7 +75,7 @@ pub async fn run_main() -> Result<()> {
         timestamp: create_timestamp_micros()
     };
     let incoming_message_map = create_incoming_message_map(vec![
-        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
+        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -88,7 +88,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             chat_agent_session.session_context_name,
-            AvailableinterfaceSubjects::AssistantMessages
+            AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
         .get_message_own()

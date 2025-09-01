@@ -41,7 +41,7 @@ use phymes_ml::{
 
 use arrow::datatypes::{DataType, Field, Fields};
 
-use crate::{session_plans::available_agent_subjects::AvailableinterfaceSubjects, session_traits::agents::CustomAgentsBuilderTrait};
+use crate::{session_plans::available_interface_subjects::AvailableInterfaceSubjects, session_traits::agents::CustomAgentsBuilderTrait};
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
@@ -217,31 +217,31 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             }],
             &[
                 ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: AvailableinterfaceSubjects::UserMessages.to_string(),
+                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableinterfaceSubjects::ToolMessages.to_string(),
+                    table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_1_name.to_string(),
                 },
             ],
-            ChatContentSubscribe::new_box_with_table_names(AvailableinterfaceSubjects::UserMessages.to_string().as_str(), AvailableinterfaceSubjects::ToolMessages.to_string().as_str()),
+            ChatContentSubscribe::new_box_with_table_names(AvailableInterfaceSubjects::UserMessages.to_string().as_str(), AvailableInterfaceSubjects::ToolMessages.to_string().as_str()),
         ));
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_2_name,
             &[ArrowTablePublish::Extend {
-                table_name: AvailableinterfaceSubjects::AggregatedMessages.to_string(),
+                table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
             }],
             &[
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableinterfaceSubjects::UserMessages.to_string(),
+                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
@@ -295,7 +295,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ArrowTablePublish::Extend {
                     // The first publication is the default publish target
                     // table_name: self.chat_task_name.to_string(),
-                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
                 ArrowTablePublish::Extend {
                     table_name: self.tool_task_name.to_string(),
@@ -321,7 +321,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             }],
             &[
                 ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: AvailableinterfaceSubjects::UserCsv.to_string(),
+                    table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysFullTable {
                     table_name: self.extract_tabular_data_processor_name.to_string(),
@@ -347,7 +347,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.hitl_processor_name,
             &[ArrowTablePublish::Extend {
-                table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
+                table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
             }],
             &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.hitl_task_name.to_string(),
@@ -357,7 +357,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.tool_attachment_processor_name,
             &[ArrowTablePublish::Extend {
-                table_name: AvailableinterfaceSubjects::AssistantCsv.to_string(),
+                table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
             }],
             &[
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
@@ -372,7 +372,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.tool_summary_processor_name,
             &[ArrowTablePublish::Extend {
-                table_name: AvailableinterfaceSubjects::ToolMessages.to_string(),
+                table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
             }],
             &[
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
@@ -387,14 +387,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.hitl_summary_processor_name,
             &[ArrowTablePublish::Extend {
-                table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
+                table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
             }],
             &[
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.hitl_summary_processor_name.to_string(),
                 },
                 ArrowTableSubscribe::AlwaysLastRecordBatch {
-                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
@@ -403,24 +403,24 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             self.session_context_name,
             &[
                 ArrowTablePublish::Extend {
-                    table_name: AvailableinterfaceSubjects::UserMessages.to_string(),
+                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
                 ArrowTablePublish::Replace {
-                    table_name: AvailableinterfaceSubjects::UserCsv.to_string(),
+                    table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                 },
                 ArrowTablePublish::Extend {
-                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
                 ArrowTablePublish::Extend {
-                    table_name: AvailableinterfaceSubjects::AssistantCsv.to_string(),
+                    table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
                 },
             ],
             &[
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableinterfaceSubjects::AssistantMessages.to_string(),
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
                 ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableinterfaceSubjects::AssistantCsv.to_string(),
+                    table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
                 }
             ],
             AllTableNamesSubscribe::new_box(),
@@ -535,7 +535,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let csv_format = DataSummaryFormat::Csv(CsvFormat { ..Default::default() });
         let csv_format_str = serde_json::to_string(&csv_format).unwrap();
         let extract_tabular_data_config = DataConfig {
-            lhs_name: AvailableinterfaceSubjects::UserCsv.to_string(),
+            lhs_name: AvailableInterfaceSubjects::UserCsv.to_string(),
             lhs_values: "bytes".to_string(),
             op_kwargs: Some(csv_format_str),
             operator: AvailableCandleOperators::ExtractTabularData,
@@ -600,16 +600,16 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             create_table_from_fields(self.state_scores_table_name, &create_scores_fields).unwrap(),
             create_table_from_fields(self.tool_summary_task_name, &create_scores_fields).unwrap(),
             self.make_tools_table().unwrap(),
-            AvailableinterfaceSubjects::AggregatedMessages.to_table(None).unwrap(),
-            AvailableinterfaceSubjects::UserMessages.to_table(None).unwrap(),
-            AvailableinterfaceSubjects::UserCsv.to_table(None).unwrap(),
-            AvailableinterfaceSubjects::AssistantMessages.to_table(None).unwrap(),
-            AvailableinterfaceSubjects::ToolMessages.to_table(None).unwrap(),
+            AvailableInterfaceSubjects::AggregatedMessages.to_table(None).unwrap(),
+            AvailableInterfaceSubjects::UserMessages.to_table(None).unwrap(),
+            AvailableInterfaceSubjects::UserCsv.to_table(None).unwrap(),
+            AvailableInterfaceSubjects::AssistantMessages.to_table(None).unwrap(),
+            AvailableInterfaceSubjects::ToolMessages.to_table(None).unwrap(),
             AvailableSubjects::Messages.to_table(Some(self.chat_task_name)).unwrap(),      
             AvailableSubjects::Messages.to_table(Some(self.message_parser_task_name)).unwrap(),
             AvailableSubjects::Configs.to_table(Some(self.tool_task_name)).unwrap(),
             AvailableSubjects::Configs.to_table(Some(self.hitl_task_name)).unwrap(),
-            AvailableinterfaceSubjects::AssistantCsv.to_table(None).unwrap(),
+            AvailableInterfaceSubjects::AssistantCsv.to_table(None).unwrap(),
         ])
     }
 }
@@ -626,7 +626,7 @@ mod tests {
     };
     use phymes_data::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
 
-    use crate::{session_plans::available_agent_subjects::{create_incoming_message_map, AttachmentInterface, MessageInterface}, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::available_interface_subjects::{create_incoming_message_map, AttachmentInterface, MessageInterface}, session_traits::agents::SessionContextBuilderAgentsTrait};
 
     use super::*;
 
@@ -669,8 +669,8 @@ mod tests {
             feature = "gpu"
         )) {
             let incoming_message_map = create_incoming_message_map(vec![
-                AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, tool_agent_session.session_context_name)?,
-                AvailableinterfaceSubjects::UserCsv.to_incoming_message(None, Some(vec![attachment_interface]), tool_agent_session.session_context_name)?,
+                AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, tool_agent_session.session_context_name)?,
+                AvailableInterfaceSubjects::UserCsv.to_incoming_message(None, Some(vec![attachment_interface]), tool_agent_session.session_context_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -683,7 +683,7 @@ mod tests {
                 .remove(&format!(
                     "from_{}_on_{}",
                     tool_agent_session.session_context_name,
-                    AvailableinterfaceSubjects::AssistantMessages.to_string()
+                    AvailableInterfaceSubjects::AssistantMessages.to_string()
                 ))
                 .unwrap()
                 .get_message_own()
@@ -700,7 +700,7 @@ mod tests {
                 .remove(&format!(
                     "from_{}_on_{}",
                     tool_agent_session.session_context_name,
-                    AvailableinterfaceSubjects::AssistantCsv.to_string()
+                    AvailableInterfaceSubjects::AssistantCsv.to_string()
                 ))
                 .unwrap()
                 .get_message_own()

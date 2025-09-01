@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::session_plans::{available_agent_subjects::check_agent_subjects, available_processors::AvailableProcessors};
+use crate::session_plans::{available_interface_subjects::check_agent_subjects, available_processors::AvailableProcessors};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,

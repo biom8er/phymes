@@ -10,7 +10,7 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_agents::session_plans::available_agent_subjects::{AttachmentInterface, MessageInterface};
+use phymes_agents::session_plans::available_interface_subjects::{AttachmentInterface, MessageInterface};
 use phymes_core::session::common_traits::MappableTrait;
 use phymes_core::{
     session::session_context::SessionContextTableNames,

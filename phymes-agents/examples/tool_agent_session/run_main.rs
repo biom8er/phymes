@@ -11,7 +11,7 @@ use phymes_data::{candle_data::summary_config::CsvFormat, candle_operators::extr
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AttachmentInterface, AvailableinterfaceSubjects, MessageInterface}, tool_agent_session::ToolAgentSession},
+    session_plans::{available_interface_subjects::{create_incoming_message_map, AttachmentInterface, AvailableInterfaceSubjects, MessageInterface}, tool_agent_session::ToolAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
@@ -53,8 +53,8 @@ pub async fn run_main() -> Result<()> {
     };
 
     let incoming_message_map = create_incoming_message_map(vec![
-            AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, tool_agent_session.session_context_name)?,
-            AvailableinterfaceSubjects::UserCsv.to_incoming_message(None, Some(vec![attachment_interface]), tool_agent_session.session_context_name)?,
+            AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, tool_agent_session.session_context_name)?,
+            AvailableInterfaceSubjects::UserCsv.to_incoming_message(None, Some(vec![attachment_interface]), tool_agent_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
@@ -67,7 +67,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             tool_agent_session.session_context_name,
-            AvailableinterfaceSubjects::AssistantMessages
+            AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
         .get_message_own()
@@ -84,7 +84,7 @@ pub async fn run_main() -> Result<()> {
         .remove(&format!(
             "from_{}_on_{}",
             tool_agent_session.session_context_name,
-            AvailableinterfaceSubjects::AssistantCsv
+            AvailableInterfaceSubjects::AssistantCsv
         ))
         .unwrap()
         .get_message_own()

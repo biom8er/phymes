@@ -13,7 +13,7 @@ use phymes_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{session_plans::available_agent_subjects::{create_incoming_message_map, AttachmentInterface, AvailableinterfaceSubjects, MessageInterface}, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
+use crate::{session_plans::available_interface_subjects::{create_incoming_message_map, AttachmentInterface, AvailableInterfaceSubjects, MessageInterface}, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
 
 use super::{
     chat_agent_session::ChatAgentSession,
@@ -120,22 +120,22 @@ impl AvailableSessionPlans {
     ) -> Result<SessionStream> {
         if session_plan_name == Self::Chat.to_string() {
             let incoming_message_map = create_incoming_message_map(vec![
-                AvailableinterfaceSubjects::UserMessages.to_incoming_message(message, attachment, session_name)?,
+                AvailableInterfaceSubjects::UserMessages.to_incoming_message(message, attachment, session_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             Ok(session_stream)
         } else if session_plan_name == Self::DocChat.to_string() {
             let incoming_message_map = create_incoming_message_map(vec![
-                AvailableinterfaceSubjects::UserMessages.to_incoming_message(message.clone(), None, session_name)?,
-                AvailableinterfaceSubjects::UserQueries.to_incoming_message(message, None, session_name)?,
-                AvailableinterfaceSubjects::UserPdf.to_incoming_message(None, attachment, session_name)?,
+                AvailableInterfaceSubjects::UserMessages.to_incoming_message(message.clone(), None, session_name)?,
+                AvailableInterfaceSubjects::UserQueries.to_incoming_message(message, None, session_name)?,
+                AvailableInterfaceSubjects::UserPdf.to_incoming_message(None, attachment, session_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             Ok(session_stream)
         } else if session_plan_name == Self::ToolChat.to_string() {
             let incoming_message_map = create_incoming_message_map(vec![
-                AvailableinterfaceSubjects::UserMessages.to_incoming_message(message, None, session_name)?,
-                AvailableinterfaceSubjects::UserCsv.to_incoming_message(None, attachment, session_name)?,
+                AvailableInterfaceSubjects::UserMessages.to_incoming_message(message, None, session_name)?,
+                AvailableInterfaceSubjects::UserCsv.to_incoming_message(None, attachment, session_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             Ok(session_stream)

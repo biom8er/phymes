@@ -14,7 +14,7 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     let mut has_message_subscribe = false;
 
     for subject in subjects.iter() {
-        if let Ok(interface_subject) = AvailableinterfaceSubjects::from_str(subject, false) {
+        if let Ok(interface_subject) = AvailableInterfaceSubjects::from_str(subject, false) {
             if interface_subject.get_mode() == SessionInterfaceMode::Message && interface_subject.get_direction() == SessionInterfaceDirection::Publish {
                 has_messaging_publish = true;
             }
@@ -26,11 +26,11 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
 
     if !has_messaging_publish {
         anyhow::bail!("At least one AvailableInterface Message and Publish subject {:?} must be provided. Provided subjects were {:?}.", 
-            [AvailableinterfaceSubjects::UserMessages, AvailableinterfaceSubjects::UserQueries], subjects);
+            [AvailableInterfaceSubjects::UserMessages, AvailableInterfaceSubjects::UserQueries], subjects);
     }
     if !has_message_subscribe {
         anyhow::bail!("At least one AvailableInterface Message and Subscribe subject {:? }must be provided. Provided subjects were {:?}.", 
-            [AvailableinterfaceSubjects::AssistantMessages, AvailableinterfaceSubjects::ToolMessages, AvailableinterfaceSubjects::AggregatedMessages], subjects);
+            [AvailableInterfaceSubjects::AssistantMessages, AvailableInterfaceSubjects::ToolMessages, AvailableInterfaceSubjects::AggregatedMessages], subjects);
     }
 
     Ok(())
@@ -72,13 +72,9 @@ pub struct SessionInterface {
     pub direction: SessionInterfaceDirection,
 }
 
-pub trait MessagingPublishSubjectsTrait {
-    fn to_incoming_message(&self, content: &str, session_context_name: &str) -> Result<ArrowIncomingMessage>;
-}
-
 /// The available subjects that the user can publish on from the messaging interface
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
-pub enum AvailableinterfaceSubjects {
+pub enum AvailableInterfaceSubjects {
     #[default]    
     #[value(name = "UserMessages")]
     UserMessages,
@@ -110,7 +106,7 @@ pub enum AvailableinterfaceSubjects {
     AssistantScript,
 }
 
-impl Display for AvailableinterfaceSubjects {
+impl Display for AvailableInterfaceSubjects {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UserMessages => write!(f, "UserMessages"),
@@ -148,7 +144,7 @@ pub struct AttachmentInterface {
     pub metadata: String,
 }
 
-impl AvailableSubjectsTrait for AvailableinterfaceSubjects {
+impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
     fn to_table(&self, name: Option<&str>) -> Result<ArrowTable> {        
         match self {
             Self::UserMessages 
@@ -169,7 +165,7 @@ impl AvailableSubjectsTrait for AvailableinterfaceSubjects {
     }
 }
 
-impl AvailableinterfaceSubjects {
+impl AvailableInterfaceSubjects {
     /// Get the mode of the subject
     pub fn get_mode(&self) -> SessionInterfaceMode {
         match self {
@@ -213,7 +209,7 @@ impl AvailableinterfaceSubjects {
     /// Create an incoming message from either a message or attachment
     pub fn to_incoming_message(&self, message: Option<Vec<MessageInterface>>, attachment: Option<Vec<AttachmentInterface>>, session_name: &str) -> Result<ArrowIncomingMessage> {
         match self {
-            AvailableinterfaceSubjects::UserMessages => {
+            AvailableInterfaceSubjects::UserMessages => {
                 // Extract out the messages
                 if message.is_none() {
                     return Err(anyhow!("Specify the `MessageInterfaceInput` before building the message."))
@@ -237,7 +233,7 @@ impl AvailableinterfaceSubjects {
                     })
                     .build()
             }
-            AvailableinterfaceSubjects::UserQueries => {
+            AvailableInterfaceSubjects::UserQueries => {
                 // Extract out the messages
                 if message.is_none() {
                     return Err(anyhow!("Specify the `MessageInterfaceInput` before building the message."))

@@ -4,7 +4,7 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    session_plans::{available_agent_subjects::{create_incoming_message_map, AttachmentInterface, AvailableinterfaceSubjects, MessageInterface}, document_rag_session:: DocumentRAGSession},
+    session_plans::{available_interface_subjects::{create_incoming_message_map, AttachmentInterface, AvailableInterfaceSubjects, MessageInterface}, document_rag_session:: DocumentRAGSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
@@ -162,7 +162,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         metadata: String::new(),
                     };
                     let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableinterfaceSubjects::UserPdf.to_incoming_message(None, Some(vec![attachment_interface]), session_context_name.as_str())?,
+                        AvailableInterfaceSubjects::UserPdf.to_incoming_message(None, Some(vec![attachment_interface]), session_context_name.as_str())?,
                     ]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
@@ -176,8 +176,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         timestamp: create_timestamp_micros()
                     };
                     let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableinterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface.clone()]), None, session_context_name.as_str())?,
-                        AvailableinterfaceSubjects::UserQueries.to_incoming_message(Some(vec![message_interface]), None, session_context_name.as_str())?,
+                        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface.clone()]), None, session_context_name.as_str())?,
+                        AvailableInterfaceSubjects::UserQueries.to_incoming_message(Some(vec![message_interface]), None, session_context_name.as_str())?,
                     ]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
