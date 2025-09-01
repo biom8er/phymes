@@ -13,21 +13,23 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     let mut has_message_subscribe = false;
 
     for subject in subjects.iter() {
-        if AvailableMessagingPublishSubjects::from_str(subject, false).is_ok() {
-            has_messaging_publish = true;
-        }
-        if AvailableMessageSubscribeSubjects::from_str(subject, false).is_ok() {
-            has_message_subscribe = true;
+        if let Ok(interface_subject) = AvailableinterfaceSubjects::from_str(subject, false) {
+            if interface_subject.get_mode() == SessionInterfaceMode::Message && interface_subject.get_direction() == SessionInterfaceDirection::Publish {
+                has_messaging_publish = true;
+            }
+            if interface_subject.get_mode() == SessionInterfaceMode::Message && interface_subject.get_direction() == SessionInterfaceDirection::Subscribe {
+                has_message_subscribe = true;
+            }
         }
     }
 
     if !has_messaging_publish {
-        anyhow::bail!("At least one AvailableMessagingPublishSubject {:?} must be provided. Provided subjects were {:?}.", 
-            [AvailableMessagingPublishSubjects::UserMessages, AvailableMessagingPublishSubjects::UserQueries], subjects);
+        anyhow::bail!("At least one AvailableInterface Message and Publish subject {:?} must be provided. Provided subjects were {:?}.", 
+            [AvailableinterfaceSubjects::UserMessages, AvailableinterfaceSubjects::UserQueries], subjects);
     }
     if !has_message_subscribe {
-        anyhow::bail!("At least one AvailableMessageSubscribeSubject {:? }must be provided. Provided subjects were {:?}.", 
-            [AvailableMessageSubscribeSubjects::AssistantMessages, AvailableMessageSubscribeSubjects::ToolMessages, AvailableMessageSubscribeSubjects::AggregatedMessages], subjects);
+        anyhow::bail!("At least one AvailableInterface Message and Subscribe subject {:? }must be provided. Provided subjects were {:?}.", 
+            [AvailableinterfaceSubjects::AssistantMessages, AvailableinterfaceSubjects::ToolMessages, AvailableinterfaceSubjects::AggregatedMessages], subjects);
     }
 
     Ok(())
@@ -237,7 +239,8 @@ impl AvailableinterfaceSubjects {
                 }
                 // Make the query prompt
                 let mut query_vec = Vec::new();
-                for content in message.unwrap().content {
+                let mut query_ids = Vec::new()
+                for (content, timestamp) in message.unwrap().content.into_iter().zip(message.unwrap().timestamp.into_iter()) {
                     if cfg!(feature = "hf_hub") {
                         // DM: note that the prompt for the query is specific to Qwen!
                         let query_embed_str = format!(
@@ -249,8 +252,9 @@ impl AvailableinterfaceSubjects {
                     } else {
                         query_vec.push(content);
                     }
+                    query_ids.push(timestamp.to_string());
                 }
-                let batch = create_queries_batch(query_vec, message.unwrap().timestamp)?;
+                let batch = create_queries_batch(query_ids, query_vec)?;
 
                 let table = ArrowTableBuilder::new()
                     .with_name(self.to_string().as_str())
