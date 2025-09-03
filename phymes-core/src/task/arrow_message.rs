@@ -21,17 +21,19 @@ use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
 use futures::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 
-/// An Arrow Message
-///
-/// Contains information about what task published the message,
-/// the subject, how to update the stream, and the message itself
+/// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
+/// metadata for subject, publisher, and update
 pub trait ArrowMessageTrait: MappableTrait + BuildableTrait + Send {
+    type T;
     fn get_subject(&self) -> &str;
     fn get_publisher(&self) -> &str;
     fn get_update(&self) -> &ArrowTablePublish;
+    fn get_message(&self) -> &<Self as ArrowMessageTrait>::T;
+    fn get_message_own(self) -> <Self as ArrowMessageTrait>::T;
+    fn get_message_mut(&mut self) -> &mut <Self as ArrowMessageTrait>::T; 
 }
 
-pub trait ArrowIncomingMessageTrait: ArrowMessageTrait + Sync {
+pub trait ArrowIncomingMessageTrait: ArrowMessageTrait {
     fn get_message(&self) -> &ArrowTable;
     fn get_message_own(self) -> ArrowTable;
     fn get_message_mut(&mut self) -> &mut ArrowTable;
@@ -63,8 +65,8 @@ pub struct ArrowIncomingMessage {
     subject: String,
     /// The name of the publishing task
     publisher: String,
-    /// The actual message
-    message: ArrowTable,
+    /// The actual message as an IPC stream
+    message: Vec<u8>,
     /// How to update the state
     update: ArrowTablePublish,
 }
@@ -74,7 +76,7 @@ impl ArrowIncomingMessage {
         name: &str,
         subject: &str,
         publisher: &str,
-        message: Option<ArrowTable>,
+        message: Option<Vec<u8>>,
         update: Option<ArrowTablePublish>,
     ) -> Self {
         Self {
@@ -110,15 +112,18 @@ impl ArrowIncomingMessage {
             .collect::<Vec<_>>();
         let fields = Fields::from(fields_vec);
 
-        if self.message.get_schema().fields().contains(&fields) {
+        // Wrap the message in a table
+        let table = ArrowTableBuilder::new_from_ipc_stream(&self.message)?
+            .with_name(&self.subject)
+            .build()?;
+
+        if table.get_schema().fields().contains(&fields) {
             // Each row is a new message
             let data = field_names
                 .iter()
-                .map(|f| self.message.get_column_as_vec_str(f))
+                .map(|f| table.get_column_as_vec_str(f))
                 .collect::<Vec<_>>();
-            let n_rows: usize = self
-                .message
-                .get_record_batches()
+            let n_rows: usize = table.get_record_batches()
                 .iter()
                 .map(|batches| batches.num_rows())
                 .sum::<usize>();
@@ -128,10 +133,11 @@ impl ArrowIncomingMessage {
                     data.get(3).unwrap().get(row).unwrap().to_string(),
                 ]));
                 let batch = RecordBatch::try_from_iter(vec![("values", values)])?;
-                let table = ArrowTableBuilder::new()
+                let bytes = ArrowTableBuilder::new()
                     .with_name(name)
                     .with_record_batches(vec![batch])?
-                    .build()?;
+                    .build()?
+                    .to_ipc_stream()?;
                 let message = ArrowIncomingMessageBuilder::new()
                     // .with_name(name)
                     .with_publisher(data.get(1).unwrap().get(row).unwrap())
@@ -139,7 +145,7 @@ impl ArrowIncomingMessage {
                     .with_update(&ArrowTablePublish::Extend {
                         table_name: data.get(2).unwrap().get(row).unwrap().to_string(),
                     })
-                    .with_message(table)
+                    .with_message(bytes)
                     .make_name()?
                     .build()?;
                 let _ = map.insert(name.to_string(), message);
@@ -169,6 +175,7 @@ impl BuildableTrait for ArrowIncomingMessage {
 }
 
 impl ArrowMessageTrait for ArrowIncomingMessage {
+    type T = Vec<u8>;
     fn get_subject(&self) -> &str {
         &self.subject
     }
@@ -178,70 +185,13 @@ impl ArrowMessageTrait for ArrowIncomingMessage {
     fn get_update(&self) -> &ArrowTablePublish {
         &self.update
     }
-}
-
-impl ArrowIncomingMessageTrait for ArrowIncomingMessage {
-    fn get_message(&self) -> &ArrowTable {
+    fn get_message(&self) -> &<Self as ArrowMessageTrait>::T {
         &self.message
     }
-    fn get_message_own(self) -> ArrowTable {
+    fn get_message_own(self) -> <Self as ArrowMessageTrait>::T {
         self.message
     }
-    fn get_message_mut(&mut self) -> &mut ArrowTable {
-        &mut self.message
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ArrowIncomingIPCMessage {
-    /// Name of the message
-    name: String,
-    /// The name of the intended subject task
-    subject: String,
-    /// The name of the publisher task
-    publisher: String,
-    /// The actual message
-    message: Vec<u8>,
-    /// How to update the state
-    update: ArrowTablePublish,
-}
-
-impl MappableTrait for ArrowIncomingIPCMessage {
-    fn get_name(&self) -> &str {
-        &self.name
-    }
-}
-
-impl BuildableTrait for ArrowIncomingIPCMessage {
-    type T = ArrowIncomingIPCMessageBuilder;
-    fn get_builder() -> Self::T
-    where
-        Self: Sized,
-    {
-        Self::T::default()
-    }
-}
-
-impl ArrowMessageTrait for ArrowIncomingIPCMessage {
-    fn get_subject(&self) -> &str {
-        &self.subject
-    }
-    fn get_publisher(&self) -> &str {
-        &self.publisher
-    }
-    fn get_update(&self) -> &ArrowTablePublish {
-        &self.update
-    }
-}
-
-impl ArrowIncomingIPCMessageTrait for ArrowIncomingIPCMessage {
-    fn get_message(&self) -> &Vec<u8> {
-        &self.message
-    }
-    fn get_message_own(self) -> Vec<u8> {
-        self.message
-    }
-    fn get_message_mut(&mut self) -> &mut Vec<u8> {
+    fn get_message_mut(&mut self) -> &mut <Self as ArrowMessageTrait>::T {
         &mut self.message
     }
 }
@@ -276,6 +226,7 @@ impl BuildableTrait for ArrowOutgoingMessage {
 }
 
 impl ArrowMessageTrait for ArrowOutgoingMessage {
+    type T = SendableRecordBatchStream;
     fn get_subject(&self) -> &str {
         &self.subject
     }
@@ -285,74 +236,19 @@ impl ArrowMessageTrait for ArrowOutgoingMessage {
     fn get_update(&self) -> &ArrowTablePublish {
         &self.update
     }
-}
-
-impl ArrowOutgoingMessageTrait for ArrowOutgoingMessage {
-    fn get_message(&self) -> &SendableRecordBatchStream {
+    fn get_message(&self) -> &<Self as ArrowMessageTrait>::T {
         &self.message
     }
-    fn get_message_own(self) -> SendableRecordBatchStream {
+    fn get_message_own(self) -> <Self as ArrowMessageTrait>::T {
         self.message
     }
-    fn get_message_mut(&mut self) -> &mut SendableRecordBatchStream {
-        &mut self.message
-    }
-}
-
-pub struct ArrowOutgoingIPCMessage {
-    /// Name of the message
-    name: String,
-    /// The name of the intended subject task
-    subject: String,
-    /// The name of the publisher task
-    publisher: String,
-    /// The actual message
-    message: SendableIPCRecordBatchStream,
-    /// How to update the state
-    update: ArrowTablePublish,
-}
-
-impl MappableTrait for ArrowOutgoingIPCMessage {
-    fn get_name(&self) -> &str {
-        &self.name
-    }
-}
-
-impl BuildableTrait for ArrowOutgoingIPCMessage {
-    type T = ArrowOutgoingIPCMessageBuilder;
-    fn get_builder() -> Self::T
-    where
-        Self: Sized,
-    {
-        Self::T::default()
-    }
-}
-
-impl ArrowMessageTrait for ArrowOutgoingIPCMessage {
-    fn get_subject(&self) -> &str {
-        &self.subject
-    }
-    fn get_publisher(&self) -> &str {
-        &self.publisher
-    }
-    fn get_update(&self) -> &ArrowTablePublish {
-        &self.update
-    }
-}
-
-impl ArrowOutgoingIPCMessageTrait for ArrowOutgoingIPCMessage {
-    fn get_message(&self) -> &SendableIPCRecordBatchStream {
-        &self.message
-    }
-    fn get_message_own(self) -> SendableIPCRecordBatchStream {
-        self.message
-    }
-    fn get_message_mut(&mut self) -> &mut SendableIPCRecordBatchStream {
+    fn get_message_mut(&mut self) -> &mut <Self as ArrowMessageTrait>::T {
         &mut self.message
     }
 }
 
 pub trait ArrowMessageBuilderTrait: BuilderTrait + Send {
+    type T;
     fn with_subject(self, name: &str) -> Self;
     fn with_publisher(self, name: &str) -> Self;
     fn make_name(self) -> Result<Self>
@@ -362,21 +258,7 @@ pub trait ArrowMessageBuilderTrait: BuilderTrait + Send {
     where
         Self: Sized;
     fn with_update(self, update: &ArrowTablePublish) -> Self;
-}
-
-pub trait ArrowIncomingMessageBuilderTrait: ArrowMessageBuilderTrait + Sync {
-    fn with_message(self, message: ArrowTable) -> Self;
-}
-
-pub trait ArrowOutgoingMessageBuilderTrait: ArrowMessageBuilderTrait {
-    fn with_message(self, message: SendableRecordBatchStream) -> Self;
-}
-
-pub trait ArrowIPCMessageBuilderTrait: ArrowMessageBuilderTrait + Sync {
-    fn with_message(self, message: Vec<u8>) -> Self;
-}
-pub trait ArrowOutgoingIPCMessageBuilderTrait: ArrowMessageBuilderTrait {
-    fn with_message(self, message: SendableIPCRecordBatchStream) -> Self;
+    fn with_message(self, message: <Self as ArrowMessageBuilderTrait>::T) -> Self;
 }
 
 #[derive(Default, Clone)]
@@ -388,7 +270,7 @@ pub struct ArrowIncomingMessageBuilder {
     /// The name of the publisher task
     pub publisher: Option<String>,
     /// The actually message
-    pub message: Option<ArrowTable>,
+    pub message: Option<Vec<u8>>,
     /// How to update the state
     pub update: Option<ArrowTablePublish>,
 }
@@ -426,6 +308,7 @@ impl BuilderTrait for ArrowIncomingMessageBuilder {
 }
 
 impl ArrowMessageBuilderTrait for ArrowIncomingMessageBuilder {
+    type T = Vec<u8>;
     fn with_subject(mut self, name: &str) -> Self {
         self.subject = Some(name.to_string());
         self
@@ -464,10 +347,7 @@ impl ArrowMessageBuilderTrait for ArrowIncomingMessageBuilder {
         let name = format!("{subject}_{hash}");
         Ok(self.with_name(&name))
     }
-}
-
-impl ArrowIncomingMessageBuilderTrait for ArrowIncomingMessageBuilder {
-    fn with_message(mut self, message: ArrowTable) -> Self {
+    fn with_message(mut self, message: <Self as ArrowMessageBuilderTrait>::T) -> Self {
         self.message = Some(message);
         self
     }
@@ -485,21 +365,6 @@ pub struct ArrowOutgoingMessageBuilder {
     pub message: Option<SendableRecordBatchStream>,
     /// How to update the state
     pub update: Option<ArrowTablePublish>,
-}
-
-impl ArrowOutgoingMessageBuilder {
-    pub fn new_from_outgoing_ipc_message(message: ArrowOutgoingIPCMessage) -> Self {
-        Self {
-            name: Some(message.get_name().to_string()),
-            subject: Some(message.get_subject().to_string()),
-            publisher: Some(message.get_publisher().to_string()),
-            update: Some(message.get_update().clone()),
-            message: Some(Box::pin(ArrowMessageStreamDeserializer {
-                schema: message.get_message().schema(),
-                input: message.get_message_own(),
-            })),
-        }
-    }
 }
 
 impl BuilderTrait for ArrowOutgoingMessageBuilder {
@@ -535,6 +400,7 @@ impl BuilderTrait for ArrowOutgoingMessageBuilder {
 }
 
 impl ArrowMessageBuilderTrait for ArrowOutgoingMessageBuilder {
+    type T = SendableRecordBatchStream;
     fn with_subject(mut self, name: &str) -> Self {
         self.subject = Some(name.to_string());
         self
@@ -573,299 +439,9 @@ impl ArrowMessageBuilderTrait for ArrowOutgoingMessageBuilder {
         let name = format!("{subject}_{hash}");
         Ok(self.with_name(&name))
     }
-}
-
-impl ArrowOutgoingMessageBuilderTrait for ArrowOutgoingMessageBuilder {
-    fn with_message(mut self, message: SendableRecordBatchStream) -> Self {
+    fn with_message(mut self, message: <Self as ArrowMessageBuilderTrait>::T) -> Self {
         self.message = Some(message);
         self
-    }
-}
-
-#[derive(Default, Clone)]
-pub struct ArrowIncomingIPCMessageBuilder {
-    /// Name of the message
-    pub name: Option<String>,
-    /// The name of the intended subject task
-    pub subject: Option<String>,
-    /// The name of the publisher task
-    pub publisher: Option<String>,
-    /// The actually message
-    pub message: Option<Vec<u8>>,
-    /// How to update the state
-    pub update: Option<ArrowTablePublish>,
-}
-
-impl BuilderTrait for ArrowIncomingIPCMessageBuilder {
-    type T = ArrowIncomingIPCMessage;
-    fn new() -> Self {
-        Self {
-            name: None,
-            subject: None,
-            publisher: None,
-            message: None,
-            update: None,
-        }
-    }
-    fn with_name(mut self, name: &str) -> Self
-    where
-        Self: Sized,
-    {
-        self.name = Some(name.to_string());
-        self
-    }
-    fn build(self) -> Result<Self::T>
-    where
-        Self: Sized,
-    {
-        Ok(Self::T {
-            name: self.name.unwrap_or_default(),
-            subject: self.subject.unwrap_or_default(),
-            publisher: self.publisher.unwrap_or_default(),
-            message: self.message.unwrap(),
-            update: self.update.unwrap(),
-        })
-    }
-}
-
-impl ArrowMessageBuilderTrait for ArrowIncomingIPCMessageBuilder {
-    fn with_subject(mut self, name: &str) -> Self {
-        self.subject = Some(name.to_string());
-        self
-    }
-    fn with_publisher(mut self, name: &str) -> Self {
-        self.publisher = Some(name.to_string());
-        self
-    }
-    fn with_update(mut self, update: &ArrowTablePublish) -> Self {
-        self.update = Some(update.to_owned());
-        self
-    }
-    fn make_name(self) -> Result<Self> {
-        let publisher = match self.publisher {
-            Some(ref s) => s,
-            None => return Err(anyhow!("Cannot make name without publisher name")),
-        };
-        let subject = match self.subject {
-            Some(ref s) => s,
-            None => return Err(anyhow!("Cannot make name without subject name")),
-        };
-        let name = format!("from_{publisher}_on_{subject}");
-        Ok(self.with_name(&name))
-    }
-    fn make_random_name(self) -> Result<Self>
-    where
-        Self: Sized,
-    {
-        let mut buf = [0u8; 16];
-        getrandom::fill(&mut buf)?;
-        let hash = u128::from_ne_bytes(buf);
-        let subject = match self.subject {
-            Some(ref s) => s,
-            None => return Err(anyhow!("Cannot make name without subject name")),
-        };
-        let name = format!("{subject}_{hash}");
-        Ok(self.with_name(&name))
-    }
-}
-
-impl ArrowIPCMessageBuilderTrait for ArrowIncomingIPCMessageBuilder {
-    fn with_message(mut self, message: Vec<u8>) -> Self {
-        self.message = Some(message);
-        self
-    }
-}
-
-#[derive(Default)]
-pub struct ArrowOutgoingIPCMessageBuilder {
-    /// Name of the message
-    pub name: Option<String>,
-    /// The name of the intended subject task
-    pub subject: Option<String>,
-    /// The name of the publisher task
-    pub publisher: Option<String>,
-    /// The actually message
-    pub message: Option<SendableIPCRecordBatchStream>,
-    /// How to update the state
-    pub update: Option<ArrowTablePublish>,
-}
-
-impl ArrowOutgoingIPCMessageBuilder {
-    pub fn new_from_outgoing_message(message: ArrowOutgoingMessage) -> Self {
-        Self {
-            name: Some(message.get_name().to_string()),
-            subject: Some(message.get_subject().to_string()),
-            publisher: Some(message.get_publisher().to_string()),
-            update: Some(message.get_update().clone()),
-            message: Some(Box::pin(ArrowMessageStreamSerializer {
-                schema: message.get_message().schema(),
-                input: message.get_message_own(),
-            })),
-        }
-    }
-}
-
-impl BuilderTrait for ArrowOutgoingIPCMessageBuilder {
-    type T = ArrowOutgoingIPCMessage;
-    fn new() -> Self {
-        Self {
-            name: None,
-            subject: None,
-            publisher: None,
-            message: None,
-            update: None,
-        }
-    }
-    fn with_name(mut self, name: &str) -> Self
-    where
-        Self: Sized,
-    {
-        self.name = Some(name.to_string());
-        self
-    }
-    fn build(self) -> Result<Self::T>
-    where
-        Self: Sized,
-    {
-        Ok(Self::T {
-            name: self.name.unwrap_or_default(),
-            subject: self.subject.unwrap_or_default(),
-            publisher: self.publisher.unwrap_or_default(),
-            message: self.message.unwrap(),
-            update: self.update.unwrap(),
-        })
-    }
-}
-
-impl ArrowMessageBuilderTrait for ArrowOutgoingIPCMessageBuilder {
-    fn with_subject(mut self, name: &str) -> Self {
-        self.subject = Some(name.to_string());
-        self
-    }
-    fn with_publisher(mut self, name: &str) -> Self {
-        self.publisher = Some(name.to_string());
-        self
-    }
-    fn with_update(mut self, update: &ArrowTablePublish) -> Self {
-        self.update = Some(update.to_owned());
-        self
-    }
-    fn make_name(self) -> Result<Self> {
-        let publisher = match self.publisher {
-            Some(ref s) => s,
-            None => return Err(anyhow!("Cannot make name without publisher name")),
-        };
-        let subject = match self.subject {
-            Some(ref s) => s,
-            None => return Err(anyhow!("Cannot make name without subject name")),
-        };
-        let name = format!("from_{publisher}_on_{subject}");
-        Ok(self.with_name(&name))
-    }
-    fn make_random_name(self) -> Result<Self>
-    where
-        Self: Sized,
-    {
-        let mut buf = [0u8; 16];
-        getrandom::fill(&mut buf)?;
-        let hash = u128::from_ne_bytes(buf);
-        let subject = match self.subject {
-            Some(ref s) => s,
-            None => return Err(anyhow!("Cannot make name without subject name")),
-        };
-        let name = format!("{subject}_{hash}");
-        Ok(self.with_name(&name))
-    }
-}
-
-impl ArrowOutgoingIPCMessageBuilderTrait for ArrowOutgoingIPCMessageBuilder {
-    fn with_message(mut self, message: SendableIPCRecordBatchStream) -> Self {
-        self.message = Some(message);
-        self
-    }
-}
-
-struct ArrowMessageStreamDeserializer {
-    /// The schema of the stream
-    schema: SchemaRef,
-    /// The input task to process.
-    input: SendableIPCRecordBatchStream,
-}
-
-fn deserialize_batches(
-    bytes: Vec<u8>,
-    // could also be other arguments required for processing
-) -> Result<RecordBatch> {
-    let table = ArrowTableBuilder::new_from_ipc_stream(&bytes)?
-        .with_name("tmp")
-        .build()?;
-    Ok(table.get_record_batches().first().unwrap().to_owned())
-}
-
-impl Stream for ArrowMessageStreamDeserializer {
-    type Item = Result<RecordBatch>;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match ready!(self.input.poll_next_unpin(cx)) {
-            Some(Ok(bytes)) => {
-                let processed_batch = deserialize_batches(bytes)?;
-                Poll::Ready(Some(Ok(processed_batch)))
-            }
-            _ => Poll::Ready(None),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        // Same number of record batches
-        self.input.size_hint()
-    }
-}
-
-impl RecordBatchStream for ArrowMessageStreamDeserializer {
-    fn schema(&self) -> SchemaRef {
-        Arc::clone(&self.schema)
-    }
-}
-struct ArrowMessageStreamSerializer {
-    /// The schema of the stream
-    schema: SchemaRef,
-    /// The input task to process.
-    input: SendableRecordBatchStream,
-}
-
-fn serialize_batches(
-    batch: RecordBatch,
-    // could also be other arguments required for processing
-) -> Result<Vec<u8>> {
-    let table = ArrowTableBuilder::new()
-        .with_name("tmp")
-        .with_record_batches(vec![batch])?
-        .build()?;
-    table.to_ipc_stream()
-}
-
-impl Stream for ArrowMessageStreamSerializer {
-    type Item = Result<Vec<u8>>;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match ready!(self.input.poll_next_unpin(cx)) {
-            Some(Ok(batch)) => {
-                let processed_batch = serialize_batches(batch)?;
-                Poll::Ready(Some(Ok(processed_batch)))
-            }
-            _ => Poll::Ready(None),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        // Same number of record batches
-        self.input.size_hint()
-    }
-}
-
-impl IPCRecordBatchStream for ArrowMessageStreamSerializer {
-    fn schema(&self) -> SchemaRef {
-        Arc::clone(&self.schema)
     }
 }
 
@@ -952,48 +528,6 @@ mod tests {
         assert_eq!(
             outgoing_message.get_message().schema(),
             test_table.get_schema()
-        );
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_convert_ipc_to_outgoing_message() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 8, 3)?;
-
-        // Make the Outgoing Message
-        let outgoing_message = ArrowOutgoingMessageBuilder::new()
-            .with_name("name")
-            .with_subject("subject")
-            .with_publisher("publisher")
-            .with_update(&ArrowTablePublish::None)
-            .with_message(test_table.clone().to_record_batch_stream())
-            .build()?;
-
-        // Convert to an IPC stream then back to outgoing message
-        let outgoing_ipc_message =
-            ArrowOutgoingIPCMessageBuilder::new_from_outgoing_message(outgoing_message).build()?;
-        let outgoing_message =
-            ArrowOutgoingMessageBuilder::new_from_outgoing_ipc_message(outgoing_ipc_message)
-                .build()?;
-        assert_eq!(outgoing_message.get_name(), "name");
-        assert_eq!(outgoing_message.get_subject(), "subject");
-        assert_eq!(outgoing_message.get_publisher(), "publisher");
-        assert_eq!(*outgoing_message.get_update(), ArrowTablePublish::None);
-
-        // Get back the original table
-        let test_table_read = ArrowTableBuilder::new_from_sendable_record_batch_stream(
-            outgoing_message.get_message_own(),
-        )
-        .await?
-        .with_name("test_table")
-        .build()?;
-
-        assert_eq!(test_table.get_name(), test_table_read.get_name());
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
-        assert_eq!(
-            test_table.get_record_batches(),
-            test_table_read.get_record_batches()
         );
 
         Ok(())
