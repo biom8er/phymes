@@ -1,8 +1,10 @@
 use std::fmt::Display;
 
 use anyhow::{anyhow, Result};
+use arrow::array::RecordBatch;
 use clap::{Parser, ValueEnum};
-use phymes_core::{metrics::HashMap, schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}}, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, ArrowMessageBuilderTrait}};
+use phymes_core::{metrics::HashMap, schemas::available_subjects::{create_messages_fields, create_table_from_fields_and_struct, AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowIncomingIPCMessage, ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, ArrowMessageBuilderTrait}};
+use phymes_data::candle_data::summary_config::DataSummaryFormat;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -45,26 +47,6 @@ pub fn create_incoming_message_map(messages: Vec<ArrowIncomingMessage>) -> HashM
     incoming_message_map
 }
 
-/// Session interface mode: Message (text) or Attachment (bytes)
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
-pub enum SessionInterfaceMode {
-    #[default]    
-    #[value(name = "Message")]
-    Message,
-    #[value(name = "Attachment")]
-    Attachment
-}
-
-/// Session interface direction: Publish or Subscribe
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
-pub enum SessionInterfaceDirection {
-    #[default]    
-    #[value(name = "Publish")]
-    Publish,
-    #[value(name = "Subscribe")]
-    Subscribe
-}
-
 /// The available subjects that the user can publish on from the messaging interface
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableInterfaceSubjects {
@@ -97,6 +79,15 @@ pub enum AvailableInterfaceSubjects {
     AssistantCsv,
     #[value(name = "AssistantScript")]
     AssistantScript,
+    // #[value(name = "SessionMetrics")]
+    // SessionMetrics,
+    // #[value(name = "SessionSchema")]
+    // SessionMetricsAsGantt,
+    // #[value(name = "SessionSchema")]
+    // SessionSchema,
+    // #[value(name = "SessionSchemaWithRows")]
+    // SessionSchemaWithRows,
+
 }
 
 impl Display for AvailableInterfaceSubjects {
@@ -120,32 +111,14 @@ impl Display for AvailableInterfaceSubjects {
     }
 }
 
-/// Schema of the message
-#[derive(Parser, Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct MessageInterface {
-    pub content: String,
-    pub role: String,
-    pub timestamp: i64,
-}
-
-/// Schema of the attachment
-#[derive(Parser, Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct AttachmentInterface {
-    pub filename: String, 
-    pub bytes: Vec<u8>, 
-    pub extension: String, 
-    pub metadata: String,
-    pub timestamp: i64,
-}
-
 impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
-    fn to_table(&self, name: Option<&str>) -> Result<ArrowTable> {        
+    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<ArrowTable> {
         match self {
             Self::UserMessages 
             | Self::AggregatedMessages
             | Self::AssistantMessages
-            | Self::ToolMessages => AvailableSubjects::Messages.to_table(name),
-            Self::UserQueries => AvailableSubjects::Queries.to_table(name),
+            | Self::ToolMessages => AvailableSubjects::Messages.to_table(name, batches),
+            Self::UserQueries => AvailableSubjects::Queries.to_table(name, batches),
             Self::UserPdf 
             | Self::UserAudio 
             | Self::UserVideo
@@ -154,20 +127,16 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::UserCsv 
             | Self::AssistantImage 
             | Self::AssistantCsv
-            | Self::AssistantScript => AvailableSubjects::Blob.to_table(name),
+            | Self::AssistantScript => AvailableSubjects::Blob.to_table(name, batches),
         }        
     }
-}
-
-impl AvailableInterfaceSubjects {
-    /// Get the mode of the subject
-    pub fn get_mode(&self) -> SessionInterfaceMode {
+    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<ArrowTable> where T: Sized + Serialize {
         match self {
             Self::UserMessages 
             | Self::AggregatedMessages
             | Self::AssistantMessages
-            | Self::ToolMessages
-            | Self::UserQueries => SessionInterfaceMode::Message,
+            | Self::ToolMessages => AvailableSubjects::Messages.to_table_from_struct::<T>(name, s),
+            Self::UserQueries => AvailableSubjects::Queries.to_table_from_struct::<T>(name, s),
             Self::UserPdf 
             | Self::UserAudio 
             | Self::UserVideo
@@ -176,180 +145,42 @@ impl AvailableInterfaceSubjects {
             | Self::UserCsv 
             | Self::AssistantImage 
             | Self::AssistantCsv
-            | Self::AssistantScript => SessionInterfaceMode::Attachment,
-        }
+            | Self::AssistantScript => AvailableSubjects::Blob.to_table_from_struct::<T>(name, s),
+        } 
     }
-
-    /// Get the direction of the subject
-    pub fn get_direction(&self) -> SessionInterfaceDirection {
+    fn to_struct_from_table<T>(&self, table: &ArrowTable) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a> {
         match self {
             Self::UserMessages 
-            | Self::UserQueries
-            | Self::UserPdf 
-            | Self::UserAudio 
-            | Self::UserVideo
-            | Self::UserImage 
-            | Self::UserScript 
-            | Self::UserCsv  => SessionInterfaceDirection::Publish,
-            Self::AssistantImage 
-            | Self::AssistantCsv
-            | Self::AssistantScript
             | Self::AggregatedMessages
             | Self::AssistantMessages
-            | Self::ToolMessages => SessionInterfaceDirection::Subscribe
-        }
-    }
-
-    /// Create an incoming message from either a message or attachment
-    pub fn to_incoming_message(&self, message: Option<Vec<MessageInterface>>, attachment: Option<Vec<AttachmentInterface>>, session_name: &str) -> Result<ArrowIncomingMessage> {
-        match self {
-            AvailableInterfaceSubjects::UserMessages => {
-                // Extract out the messages
-                if message.is_none() {
-                    return Err(anyhow!("Specify the `MessageInterfaceInput` before building the message."))
-                }
-                let batch_size = message.iter().len();
-                let bytes = serde_json::to_vec(&message.unwrap())?;
-                let table = ArrowTable::get_builder()
-                    .with_name(self.to_string().as_str())
-                    .with_schema(AvailableSubjects::Messages.to_schema())
-                    .with_json(&bytes, batch_size)?
-                    .build()?;
-
-                // Build the current message state
-                ArrowIncomingMessageBuilder::new()
-                    .with_name(self.to_string().as_str())
-                    .with_subject(self.to_string().as_str())
-                    .with_publisher(session_name)
-                    .with_message(table)
-                    .with_update(&ArrowTablePublish::Extend {
-                        table_name: self.to_string(),
-                    })
-                    .build()
-            }
-            AvailableInterfaceSubjects::UserQueries => {
-                // Extract out the messages
-                if message.is_none() {
-                    return Err(anyhow!("Specify the `MessageInterfaceInput` before building the message."))
-                }
-                let queries = message.unwrap().into_iter()
-                    .map(|m| {
-                        let content = if cfg!(feature = "hf_hub") {
-                            // DM: note that the prompt for the query is specific to Qwen!
-                            format!(
-                                "{}{}",
-                                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ",
-                                m.content
-                            )
-                        } else {
-                            m.content
-                        };
-                        let id = m.timestamp.to_string();
-                        json!({"query_id": id, "text": content})
-                    }).collect::<Vec<_>>();
-                
-                // Make the table
-                let table = ArrowTable::get_builder()
-                    .with_name(self.to_string().as_str())
-                    .with_schema(AvailableSubjects::Queries.to_schema())
-                    .with_json_values(&queries)?
-                    .build()?;
-
-                ArrowIncomingMessageBuilder::new()
-                    .with_name(self.to_string().as_str())
-                    .with_subject(self.to_string().as_str())
-                    .with_publisher(session_name)
-                    .with_message(table)
-                    .with_update(&ArrowTablePublish::Replace {
-                        table_name: self.to_string(),
-                    })
-                    .build()
-            },
+            | Self::ToolMessages => AvailableSubjects::Messages.to_struct_from_table::<T>(table),
+            Self::UserQueries => AvailableSubjects::Queries.to_struct_from_table::<T>(table),
             Self::UserPdf 
             | Self::UserAudio 
             | Self::UserVideo
             | Self::UserImage 
             | Self::UserScript 
-            | Self::UserCsv  => {
-                // Extract out the attachments
-                if attachment.is_none() {
-                    return Err(anyhow!("Specify the `AttachmentInterfaceInput` before building the message."))
-                }
-                let batch_size = attachment.iter().len();
-                let bytes = serde_json::to_vec(&attachment.unwrap())?;
-                let table = ArrowTable::get_builder()
-                    .with_name(self.to_string().as_str())
-                    .with_schema(AvailableSubjects::Blob.to_schema())
-                    .with_json(&bytes, batch_size)?
-                    .build()?;
-
-                ArrowIncomingMessageBuilder::new()
-                    .with_name(self.to_string().as_str())
-                    .with_subject(self.to_string().as_str())
-                    .with_publisher(session_name)
-                    .with_message(table)
-                    .with_update(&ArrowTablePublish::Extend {
-                        table_name: self.to_string().to_string(),
-                    })
-                    .build()
-            }
-            _ => return Err(anyhow!("Cannot build an incoming message for a subscription subject.")),
-        }
-    }
-
-    /// Extract out the contents for display as a message or attachment
-    pub fn from_incoming_message(&self, message: &ArrowIncomingMessage) -> Result<(Option<Vec<MessageInterface>>, Option<Vec<AttachmentInterface>>)> {
-        match self {
-            Self::AggregatedMessages
-            | Self::AssistantMessages
-            | Self::ToolMessages => {
-                let role = message.get_message().get_column_as_vec_nonprimitive::<String>("role")?;
-                let content = message.get_message().get_column_as_vec_nonprimitive::<String>("content")?;
-                let timestamp = message.get_message().get_column_as_vec_primitive::<i64>("timestamp")?;
-                let message = role.into_iter()
-                    .zip(content.into_iter())
-                    .zip(timestamp.into_iter())
-                    .map(|((role, content), timestamp)| MessageInterface { role, content, timestamp })
-                    .collect::<Vec<_>>();
-                Ok((Some(message), None))
-            },
-            Self::AssistantCsv
-            | Self::AssistantImage
-            | Self::AssistantScript => {
-                let filename = message.get_message().get_column_as_vec_nonprimitive::<String>("filename")?;
-                let extension = message.get_message().get_column_as_vec_nonprimitive::<String>("extension")?;
-                let bytes = message.get_message().get_column_as_vec_nested_primitive::<u8>("bytes")?;
-                let metadata = message.get_message().get_column_as_vec_nonprimitive::<String>("metadata")?;
-                let timestamp = message.get_message().get_column_as_vec_primitive::<i64>("timestamp")?;
-                let attachment = filename.into_iter()
-                    .zip(extension.into_iter())
-                    .zip(bytes.into_iter())
-                    .zip(metadata.into_iter())
-                    .zip(timestamp.into_iter())
-                    .map(|((((filename, extension), bytes), metadata), timestamp)| AttachmentInterface {filename, extension, bytes, metadata, timestamp})
-                    .collect::<Vec<_>>();
-                Ok((None, Some(attachment)))
-            },
-            _ => return Err(anyhow!("Cannot extract from an incoming message for a poublication subject.")),
-        }
+            | Self::UserCsv 
+            | Self::AssistantImage 
+            | Self::AssistantCsv
+            | Self::AssistantScript => AvailableSubjects::Blob.to_struct_from_table::<T>(table),
+        } 
     }
 }
 
 /// Server session request
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
-pub struct SessionInterface {
+pub struct SessionInterface<T> {
     /// The name of the session plan
     pub session_plan: String,
     /// The name of the session
     pub session_name: String,
-    /// Message or Attachment
-    pub mode: SessionInterfaceMode,
-    /// Publish or Subscribe
-    pub direction: SessionInterfaceDirection,
+    /// Format of the message or request
+    pub format: DataSummaryFormat,
     /// The subject name
     pub subject_name: Option<String>,
     /// The message content
-    pub messaging: Option<MessageInterface>,
+    pub message: Option<ArrowIncomingIPCMessage>,
     /// The attachment content
     pub attachment: Option<AttachmentInterface>,
     /// Stream the response

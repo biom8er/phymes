@@ -62,3 +62,12 @@ pub async fn clear_subject_num_rows_state(mut _rx: UnboundedReceiver<ClearSubjec
     (*SUBJECT_NAMES.write()).clear();
     (*SUBJECT_NUM_ROWS.write()).clear();
 }
+
+#[derive(Parser, Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct SyncCurrentAttachments {
+    pub filename: String, 
+    pub bytes: Vec<u8>, 
+    pub extension: String, 
+    pub metadata: String,
+    pub timestamp: i64,
+}

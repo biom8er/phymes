@@ -351,7 +351,7 @@ impl Stream for DataSummaryStream {
 
                     // Convert to CSV and wrap into a blob batch
                     let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()])?;
+                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -373,7 +373,7 @@ impl Stream for DataSummaryStream {
                     // Convert to CSV and wrap into a blob batch
                     let csv_format = CsvFormat { ..Default::default()};
                     let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()])?;
+                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -394,7 +394,7 @@ impl Stream for DataSummaryStream {
 
                     // Convert to CSV and wrap into a blob batch
                     let bytes = table.to_json()?;
-                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".json".to_string()], vec![bytes], vec!["".to_string()])?;
+                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".json".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -415,7 +415,7 @@ impl Stream for DataSummaryStream {
 
                     // Convert to CSV and wrap into a blob batch
                     let bytes = table.to_json()?;
-                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".json".to_string()], vec![bytes], vec!["".to_string()])?;
+                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".json".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));

@@ -1,6 +1,6 @@
-use crate::{session::common_traits::BuilderTrait, table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait}};
+use crate::{session::common_traits::BuilderTrait, table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait}};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use arrow::{
     array::{ArrayRef, Int64Array, ListBuilder, StringArray, UInt8Builder},
     datatypes::{DataType, Field, Fields, Schema, SchemaRef},
@@ -42,13 +42,43 @@ pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
 
 pub fn create_table_from_fields(
     name: &str,
+    batches: Option<Vec<RecordBatch>>,
     f: &dyn Fn() -> Fields,
 ) -> Result<ArrowTable> {
     ArrowTableBuilder::new()
         .with_name(name)
         .with_schema(create_schema_from_fields(f))
-        .with_record_batches(Vec::new())?
+        .with_record_batches(batches.unwrap_or(Vec::new()))?
         .build()
+}
+
+pub fn create_table_from_fields_and_struct<T>(
+    name: &str,
+    s: &[T],
+    f: &dyn Fn() -> Fields,
+) -> Result<ArrowTable> 
+where
+    T: Sized + Serialize,
+{
+    let batch_size = s.iter().len();
+    let bytes = serde_json::to_vec(s)?;
+    ArrowTableBuilder::new()
+        .with_name(name)
+        .with_schema(create_schema_from_fields(f))
+        .with_json(&bytes, batch_size)?
+        .build()
+}
+
+pub fn extract_struct_from_table<T>(table: &ArrowTable) -> Result<Vec<T>>
+where
+    T: Sized + for<'a> Deserialize<'a>
+{
+    let bytes = table.to_json()?;
+    let content = match serde_json::from_slice::<Vec<T>>(&bytes) {
+        Ok(content) => content,
+        Err(err) => return Err(anyhow!("{err}")),
+    };
+    Ok(content)
 }
 
 pub fn create_messages_fields() -> Fields {
@@ -59,6 +89,15 @@ pub fn create_messages_fields() -> Fields {
         .collect::<Vec<_>>();
     fields_vec.push(Field::new("timestamp", DataType::Int64, false));
     Fields::from(fields_vec)
+}
+
+/// In combination with [MessagesTraitExt]
+/// 
+/// MessagesTraitExt: phymes-core/src/schemas/messages.rs
+pub struct MessagesSubject {
+    pub role: String,
+    pub content: String,
+    pub timestamp: i64,
 }
 
 pub fn create_messages_record_batch(
@@ -154,6 +193,27 @@ pub fn create_queries_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+pub struct QueriesSubject {
+    pub query_id: String,
+    pub text: String,
+}
+
+impl QueriesSubject {
+    pub fn new(text: &str) -> Self {
+        let content = if cfg!(feature = "hf_hub") {
+            // DM: note that the prompt for the query is specific to Qwen!
+            format!(
+                "{}{}",
+                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ",
+                text
+            )
+        } else {
+            text.to_string()
+        };
+        Self { query_id: create_timestamp_str(), text: content }
+    }
+}
+
 pub fn create_queries_batch(
     query_ids: Vec<String>,
     text: Vec<String>,
@@ -226,6 +286,15 @@ pub fn create_blob_fields() -> Fields {
     ])
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct BlobSubject {
+    pub filename: String, 
+    pub bytes: Vec<u8>, 
+    pub extension: String, 
+    pub metadata: String,
+    pub timestamp: i64,
+}
+
 pub fn create_blob_batch(
     filename: Vec<String>,
     extension: Vec<String>,
@@ -255,7 +324,9 @@ pub fn create_blob_batch(
 }
 
 pub trait AvailableSubjectsTrait {
-    fn to_table(&self, name: Option<&str>) -> Result<ArrowTable>;
+    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<ArrowTable>;
+    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<ArrowTable> where T: Sized + Serialize;
+    fn to_struct_from_table<T>(&self, table: &ArrowTable) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a>;
 }
 
 /// The available subject schmeas
@@ -305,53 +376,89 @@ impl Display for AvailableSubjects {
 }
 
 impl AvailableSubjectsTrait for AvailableSubjects {
-    fn to_table(&self, name: Option<&str>) -> Result<ArrowTable> {
+    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<ArrowTable> {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),
         };
         match self {
             AvailableSubjects::Messages => {
-                create_table_from_fields(name.as_str(), &create_messages_fields)
+                create_table_from_fields(name.as_str(), batches, &create_messages_fields)
             }
             AvailableSubjects::Values => {
-                create_table_from_fields(name.as_str(), &create_values_fields)
+                create_table_from_fields(name.as_str(), batches, &create_values_fields)
             }
             AvailableSubjects::Configs => {
-                create_table_from_fields(name.as_str(), &create_config_fields)
+                create_table_from_fields(name.as_str(), batches, &create_config_fields)
             }
             AvailableSubjects::Tools => {
-                create_table_from_fields(name.as_str(), &create_tools_fields)
+                create_table_from_fields(name.as_str(), batches, &create_tools_fields)
             }
             AvailableSubjects::Documents => {
-                create_table_from_fields(name.as_str(), &create_documents_fields)
+                create_table_from_fields(name.as_str(), batches, &create_documents_fields)
             }
             AvailableSubjects::Queries => {
-                create_table_from_fields(name.as_str(), &create_queries_fields)
+                create_table_from_fields(name.as_str(), batches, &create_queries_fields)
             }
             AvailableSubjects::DocumentEmbeddings => create_table_from_fields(
-                name.as_str(),
+                name.as_str(), batches,
                 &create_document_embeddings_fields,
             ),
             AvailableSubjects::QueryEmbeddings => create_table_from_fields(
-                name.as_str(),
+                name.as_str(), batches,
                 &create_query_embeddings_fields,
             ),
             AvailableSubjects::EmbeddingScores => create_table_from_fields(
-                name.as_str(),
+                name.as_str(), batches,
                 &create_embeddings_scores_fields,
             ),
             AvailableSubjects::JoinChunksScores => create_table_from_fields(
-                name.as_str(),
+                name.as_str(), batches,
                 &create_join_chunks_scores_fields,
             ),
             AvailableSubjects::Blob => create_table_from_fields(
-                name.as_str(),
+                name.as_str(), batches,
                 &create_blob_fields,
             ),
         }
     }
-
+    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<ArrowTable> where T: Sized + Serialize {
+        let name = match name {
+            Some(name) => name.to_string(),
+            None => self.to_string(),
+        };
+        match self {
+            AvailableSubjects::Messages => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_messages_fields),
+            AvailableSubjects::Values => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_values_fields),
+            AvailableSubjects::Configs => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_config_fields),
+            AvailableSubjects::Tools => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_tools_fields),
+            AvailableSubjects::Documents => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_documents_fields),
+            AvailableSubjects::Queries => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_queries_fields),
+            AvailableSubjects::DocumentEmbeddings => create_table_from_fields_and_struct::<T>(
+                name.as_str(), s,
+                &create_document_embeddings_fields,
+            ),
+            AvailableSubjects::QueryEmbeddings => create_table_from_fields_and_struct::<T>(
+                name.as_str(), s,
+                &create_query_embeddings_fields,
+            ),
+            AvailableSubjects::EmbeddingScores => create_table_from_fields_and_struct::<T>(
+                name.as_str(), s,
+                &create_embeddings_scores_fields,
+            ),
+            AvailableSubjects::JoinChunksScores => create_table_from_fields_and_struct::<T>(
+                name.as_str(), s,
+                &create_join_chunks_scores_fields,
+            ),
+            AvailableSubjects::Blob => create_table_from_fields_and_struct::<T>(
+                name.as_str(), s,
+                &create_blob_fields,
+            ),
+        }
+    }
+    fn to_struct_from_table<T>(&self, table: &ArrowTable) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a> {
+        extract_struct_from_table::<T>(table)
+    }
 }
 
 impl AvailableSubjects {
