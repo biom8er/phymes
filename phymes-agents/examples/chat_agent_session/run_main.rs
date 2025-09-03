@@ -17,7 +17,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
         common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait}
+    }, table::table::TableTrait, task::message::{IPCMessage, ArrowIncomingMessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {
@@ -46,7 +46,7 @@ pub async fn run_main() -> Result<()> {
         AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-    let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+    let mut response: Vec<HashMap<String, IPCMessage>> =
         session_stream.try_collect().await?;
 
     // Update the chat history with the response
@@ -78,7 +78,7 @@ pub async fn run_main() -> Result<()> {
         AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
     ]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-    let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+    let mut response: Vec<HashMap<String, IPCMessage>> =
         session_stream.try_collect().await?;
 
     // Update the chat history with the response

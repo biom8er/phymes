@@ -9,14 +9,14 @@ use phymes_core::{
         session_context_builder::TaskPlan,
     },
     table::{
-        arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{
-            AllTableNamesSubscribe, AnyTableNameSubscribe, ArrowTableSubscribe,
+        table::{Table, TableBuilder, TableBuilderTrait},
+        table_publish::TablePublish,
+        table_subscribe::{
+            AllTableNamesSubscribe, AnyTableNameSubscribe, TableSubscribe,
             ChatContentSubscribe, SubscribeTrait,
         },
     },
-    task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
+    task::processor::{ProcessorEcho, ProcessorTrait},
 };
 use phymes_data::{
     candle_data::{
@@ -126,7 +126,7 @@ impl<'a> ToolAgentSession<'a> {
             ..Default::default()
         }
     }
-    pub fn make_tools_table(&self) -> Result<ArrowTable> {
+    pub fn make_tools_table(&self) -> Result<Table> {
         let tool_ids = vec![
             AvailableCandleOperators::SortColumnAndIndices.to_string(),
             AvailableCandleOperators::HumanInTheLoop.to_string(),
@@ -136,7 +136,7 @@ impl<'a> ToolAgentSession<'a> {
             AvailableCandleOperators::HumanInTheLoop.get_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
-        ArrowTableBuilder::new()
+        TableBuilder::new()
             .with_name(self.state_tools_table_name)
             .with_record_batches(vec![batch])?
             .build()
@@ -207,25 +207,25 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         ])
     }
 
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ArrowProcessorTrait>>> {
+    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_1_name,
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: self.chat_task_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_1_name.to_string(),
                 },
             ],
@@ -233,17 +233,17 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         ));
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_2_name,
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
                 },
             ],
@@ -253,17 +253,17 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
-                &[ArrowTablePublish::Replace {
+                &[TablePublish::Replace {
                     table_name: self.message_parser_task_name.to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.state_tools_table_name.to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
@@ -272,17 +272,17 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         } else {
             processors.push(CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
-                &[ArrowTablePublish::Replace {
+                &[TablePublish::Replace {
                     table_name: self.message_parser_task_name.to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.state_tools_table_name.to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
@@ -292,23 +292,23 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         processors.push(MessageParserProcessor::new_arc_with_pub_sub(
             self.message_parser_processor_name,
             &[
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     // The first publication is the default publish target
                     // table_name: self.chat_task_name.to_string(),
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: self.tool_task_name.to_string(),
                 },
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: self.hitl_task_name.to_string(),
                 },
             ],
             &[
-                ArrowTableSubscribe::OnUpdateFullTable {
+                TableSubscribe::OnUpdateFullTable {
                     table_name: self.message_parser_task_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.message_parser_processor_name.to_string(),
                 },
             ],
@@ -316,14 +316,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         ));
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.extract_tabular_data_processor_name,
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateFullTable {
+                TableSubscribe::OnUpdateFullTable {
                     table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.extract_tabular_data_processor_name.to_string(),
                 },
             ],
@@ -331,14 +331,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         ));
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.tool_processor_name,
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: self.tool_summary_task_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: self.tool_task_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.state_scores_table_name.to_string(),
                 },
             ],
@@ -346,24 +346,24 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         ));
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.hitl_processor_name,
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
             }],
-            &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
+            &[TableSubscribe::OnUpdateLastRecordBatch {
                 table_name: self.hitl_task_name.to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
         ));
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.tool_attachment_processor_name,
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.tool_attachment_processor_name.to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateFullTable {
+                TableSubscribe::OnUpdateFullTable {
                     table_name: self.tool_summary_task_name.to_string(),
                 },
             ],
@@ -371,14 +371,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         ));
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.tool_summary_processor_name,
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.tool_summary_processor_name.to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateFullTable {
+                TableSubscribe::OnUpdateFullTable {
                     table_name: self.tool_summary_task_name.to_string(),
                 },
             ],
@@ -386,40 +386,40 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         ));
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.hitl_summary_processor_name,
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.hitl_summary_processor_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(ArrowProcessorEcho::new_arc_with_pub_sub(
+        processors.push(ProcessorEcho::new_arc_with_pub_sub(
             self.session_context_name,
             &[
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                ArrowTablePublish::Replace {
+                TablePublish::Replace {
                     table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                 },
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
                 },
             ],
             &[
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
                 }
             ],
@@ -437,7 +437,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         ])
     }
 
-    fn make_state_tables(&self) -> Option<Vec<ArrowTable>> {
+    fn make_state_tables(&self) -> Option<Vec<Table>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -494,13 +494,13 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         }
 
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
-        let candle_chat_state = ArrowTableBuilder::new()
+        let candle_chat_state = TableBuilder::new()
             .with_name(self.chat_processor_name)
             .with_json(&candle_chat_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
-        let candle_message_parser_state = ArrowTableBuilder::new()
+        let candle_message_parser_state = TableBuilder::new()
             .with_name(self.message_parser_processor_name)
             .with_json(&candle_chat_config_json, 1)
             .unwrap()
@@ -518,13 +518,13 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
-        let aggregator_1_state = ArrowTableBuilder::new()
+        let aggregator_1_state = TableBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
             .with_json(&aggregator_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
-        let aggregator_2_state = ArrowTableBuilder::new()
+        let aggregator_2_state = TableBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
             .with_json(&aggregator_config_json, 1)
             .unwrap()
@@ -542,7 +542,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let extract_tabular_data_config_json = serde_json::to_vec(&extract_tabular_data_config).unwrap();
-        let extract_tabular_data_state = ArrowTableBuilder::new()
+        let extract_tabular_data_state = TableBuilder::new()
             .with_name(self.extract_tabular_data_processor_name)
             .with_json(&extract_tabular_data_config_json.clone(), 1)
             .unwrap()
@@ -555,7 +555,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();
-        let attachmen_state = ArrowTableBuilder::new()
+        let attachmen_state = TableBuilder::new()
             .with_name(self.tool_attachment_processor_name)
             .with_json(&attachmen_config_json.clone(), 1)
             .unwrap()
@@ -567,13 +567,13 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
-        let summary_state_1 = ArrowTableBuilder::new()
+        let summary_state_1 = TableBuilder::new()
             .with_name(self.tool_summary_processor_name)
             .with_json(&summary_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
-        let summary_state_2 = ArrowTableBuilder::new()
+        let summary_state_2 = TableBuilder::new()
             .with_name(self.hitl_summary_processor_name)
             .with_json(&summary_config_json, 1)
             .unwrap()
@@ -622,7 +622,7 @@ mod tests {
         metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
             session_context::{SessionStream, SessionStreamState},
             session_context_builder::SessionContextBuilderTrait,
-        }, table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait}
+        }, table::table::TableTrait, task::message::{IPCMessage, ArrowIncomingMessageTrait}
     };
     use phymes_data::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
 
@@ -673,7 +673,7 @@ mod tests {
                 AvailableInterfaceSubjects::UserCsv.to_incoming_message(None, Some(vec![attachment_interface]), tool_agent_session.session_context_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+            let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
             // Update the chat history with the response

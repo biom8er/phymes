@@ -18,7 +18,7 @@ use phymes_core::{
 };
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    table::table::{Table, TableBuilderTrait, TableTrait},
 };
 use tracing::{event, instrument, Level};
 
@@ -173,7 +173,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
 /// Partition a lexocographically sorted slice of [RecordBatch]es
 fn partition_record_batches(
     lhs_values: &[&str],
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
 ) -> Result<Vec<Range<usize>>> {
     let mut columns = Vec::new();
     for column_name in lhs_values.iter() {
@@ -187,7 +187,7 @@ fn partition_record_batches(
 fn aggregator_operator_tensor(
     agg_column: &str,
     agg_operator: &DataAggregatorOperator,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     tensor: &Tensor,
     range: &Range<usize>,
     device: &Device,
@@ -224,7 +224,7 @@ fn aggregator_operator_tensor(
 /// Helper function to extract the aggregator column for primitive types
 fn extract_aggregator_column_primitive<T>(
     group_column: &str,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     ranges: &[Range<usize>],
 ) -> Vec<T>
 where
@@ -244,7 +244,7 @@ where
 /// Helper function to extract the aggregator column for primitive types
 fn extract_aggregator_column_nonprimitive<T>(
     group_column: &str,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     ranges: &[Range<usize>],
 ) -> Vec<T>
 where
@@ -264,7 +264,7 @@ where
 /// Helper function to extract the aggregator column for primitive types
 fn extract_aggregator_column_nested_primitive<T>(
     group_column: &str,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     ranges: &[Range<usize>],
 ) -> Vec<Vec<T>>
 where
@@ -331,7 +331,7 @@ where
 fn build_aggregation_column_primitive<T>(
     agg_column: &str,
     agg_operator: &DataAggregatorOperator,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     ranges: &[Range<usize>],
     device: &Device,
 ) -> Result<Vec<T>>
@@ -392,7 +392,7 @@ pub fn group_by_and_aggregate(
     }
 
     // Wrap the lhs and rhs into an ArrowTable
-    let lhs_table = ArrowTable::get_builder()
+    let lhs_table = Table::get_builder()
         .with_record_batches(vec![lhs_sorted])?
         .with_name("")
         .build()?;
@@ -819,7 +819,7 @@ mod tests {
             ],
             &device,
         )?;
-        let result_table = ArrowTable::get_builder()
+        let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -868,7 +868,7 @@ mod tests {
             &[DataAggregatorOperator::Count],
             &device,
         )?;
-        let result_table = ArrowTable::get_builder()
+        let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;

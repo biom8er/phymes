@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::{anyhow, Result};
 use arrow::array::RecordBatch;
 use clap::{Parser, ValueEnum};
-use phymes_core::{metrics::HashMap, schemas::available_subjects::{create_messages_fields, create_table_from_fields_and_struct, AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}, arrow_table_publish::ArrowTablePublish}, task::arrow_message::{ArrowIncomingIPCMessage, ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, ArrowMessageBuilderTrait}};
+use phymes_core::{metrics::HashMap, schemas::available_subjects::{create_chat_fields, create_table_from_fields_and_struct, AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{ArrowIncomingIPCMessage, IPCMessage, IPCMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, MessageBuilderTrait}};
 use phymes_data::candle_data::summary_config::DataSummaryFormat;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -39,8 +39,8 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
 }
 
 /// Helper function to create the incoming message map from a vector of incoming messages
-pub fn create_incoming_message_map(messages: Vec<ArrowIncomingMessage>) -> HashMap<String, ArrowIncomingMessage> {
-    let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
+pub fn create_incoming_message_map(messages: Vec<IPCMessage>) -> HashMap<String, IPCMessage> {
+    let mut incoming_message_map = HashMap::<String, IPCMessage>::new();
     for message in messages {
         incoming_message_map.insert(message.get_name().to_string(), message);
     }
@@ -112,7 +112,7 @@ impl Display for AvailableInterfaceSubjects {
 }
 
 impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
-    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<ArrowTable> {
+    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table> {
         match self {
             Self::UserMessages 
             | Self::AggregatedMessages
@@ -130,7 +130,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantScript => AvailableSubjects::Blob.to_table(name, batches),
         }        
     }
-    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<ArrowTable> where T: Sized + Serialize {
+    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<Table> where T: Sized + Serialize {
         match self {
             Self::UserMessages 
             | Self::AggregatedMessages
@@ -148,7 +148,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantScript => AvailableSubjects::Blob.to_table_from_struct::<T>(name, s),
         } 
     }
-    fn to_struct_from_table<T>(&self, table: &ArrowTable) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a> {
+    fn to_struct_from_table<T>(&self, table: &Table) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a> {
         match self {
             Self::UserMessages 
             | Self::AggregatedMessages

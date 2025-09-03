@@ -13,8 +13,8 @@ use futures::prelude::*;
 use phymes_core::{
     metrics::HashMap,
     session::common_traits::MappableTrait,
-    table::arrow_table::ArrowTableTrait,
-    task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
+    table::table::TableTrait,
+    task::message::{IPCMessage, ArrowIncomingMessageTrait},
 };
 
 // General imports
@@ -117,7 +117,7 @@ pub async fn session_stream(
                 }
                 (DataSummaryFormat::Bytes, false) => {
                     // Convert the output to bytes
-                    let response: Vec<HashMap<String, ArrowIncomingMessage>> =
+                    let response: Vec<HashMap<String, IPCMessage>> =
                         session_stream.try_collect().await.unwrap();
                     let response = response
                         .into_iter()
@@ -163,7 +163,7 @@ pub async fn session_stream(
                 }
                 (DataSummaryFormat::Ipc, false) => {
                     // Convert the output to bytes
-                    let response: Vec<HashMap<String, ArrowIncomingMessage>> =
+                    let response: Vec<HashMap<String, IPCMessage>> =
                         session_stream.try_collect().await.unwrap();
                     let response = response
                         .into_iter()

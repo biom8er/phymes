@@ -1,12 +1,12 @@
 use crate::{
     metrics::HashMap,
-    session::common_traits::{BuildableTrait, BuilderTrait, OutgoingMessageMap, StateMap},
+    session::common_traits::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap},
     table::{
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{ArrowTableSubscribe, ArrowTableSubscribeTrait},
+        table_publish::TablePublish,
+        table_subscribe::{TableSubscribe, TableSubscribeTrait},
     },
-    task::arrow_message::{
-        ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
+    task::message::{
+        MessageBuilderTrait, SendableRecordBatchStreamMessage,
     },
 };
 
@@ -14,10 +14,10 @@ use crate::{
 /// subscribe to messages
 pub trait PubSubTrait {
     /// Get an immutable list of subscription subject names
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe>;
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe>;
 
     /// Get an immutable list of publication subject names
-    fn get_publications(&self) -> Vec<&ArrowTablePublish>;
+    fn get_publications(&self) -> Vec<&TablePublish>;
 
     /// Get subscriptions from the state
     ///
@@ -40,8 +40,8 @@ pub trait PubSubTrait {
         &self,
         updates: &HashMap<String, bool>,
         state: &StateMap,
-    ) -> OutgoingMessageMap {
-        let mut map = HashMap::<String, ArrowOutgoingMessage>::new();
+    ) -> SendableRecordBatchStreamMessageMap {
+        let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         for subscription in self.get_subscriptions().iter() {
             let updated = updates.get(subscription.get_table_name()).unwrap_or(&false);
             // default or dummy tables may not be found in the state so we just ignore them
@@ -59,9 +59,9 @@ pub trait PubSubTrait {
                         .collect::<Vec<_>>();
                     let update = match update.first() {
                         Some(u) => u,
-                        None => &ArrowTablePublish::None,
+                        None => &TablePublish::None,
                     };
-                    let out = ArrowOutgoingMessage::get_builder()
+                    let out = SendableRecordBatchStreamMessage::get_builder()
                         .with_publisher("State")
                         .with_subject(subscription.get_table_name())
                         .with_update(update)

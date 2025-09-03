@@ -10,8 +10,8 @@ use phymes_core::{
         session_context::SessionContext,
         session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
     },
-    table::arrow_table::ArrowTable,
-    task::arrow_processor::ArrowProcessorTrait,
+    table::table::Table,
+    task::processor::ProcessorTrait,
 };
 
 use crate::session_traits::tabular::SessionContextBuilderTabularTrait;
@@ -23,7 +23,7 @@ type SessionContextInput = (
     ArrowTaskMetricsSet,
     HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     usize,
-    Vec<ArrowTable>,
+    Vec<Table>,
 );
 
 /// Trait extension for [SessionContextBuilderTrait] to facilitate building agentic workflows
@@ -77,13 +77,13 @@ pub trait CustomAgentsBuilderTrait {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         None
     }
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ArrowProcessorTrait>>> {
+    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         None
     }
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         None
     }
-    fn make_state_tables(&self) -> Option<Vec<ArrowTable>> {
+    fn make_state_tables(&self) -> Option<Vec<Table>> {
         None
     }
     fn build(&self) -> SessionContextBuilder {

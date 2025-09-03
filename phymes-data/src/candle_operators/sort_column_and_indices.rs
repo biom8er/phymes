@@ -15,7 +15,7 @@ use phymes_core::{
 };
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    table::table::{Table, TableBuilderTrait, TableTrait},
 };
 use std::{collections::HashMap, sync::Arc};
 use tracing::{event, instrument, Level};
@@ -169,7 +169,7 @@ impl DataOperatorTrait for SortColumnAndIndices {
 /// Take the columns according to the indices over the specified columns
 pub fn take_columns_by_indices(
     column_names: &[String],
-    table: &ArrowTable,
+    table: &Table,
     asort_arr: ArrayRef,
     asort_tensor: Tensor,
     device: &Device,
@@ -260,7 +260,7 @@ pub fn sort_column_and_indices(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
-    let lhs_table = ArrowTable::get_builder()
+    let lhs_table = Table::get_builder()
         .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?;

@@ -1,4 +1,4 @@
-use crate::{session::common_traits::BuilderTrait, table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait}};
+use crate::{session::common_traits::BuilderTrait, table::table::{Table, TableBuilder, TableBuilderTrait, TableTrait}};
 
 use anyhow::{anyhow, Result};
 use arrow::{
@@ -44,8 +44,8 @@ pub fn create_table_from_fields(
     name: &str,
     batches: Option<Vec<RecordBatch>>,
     f: &dyn Fn() -> Fields,
-) -> Result<ArrowTable> {
-    ArrowTableBuilder::new()
+) -> Result<Table> {
+    TableBuilder::new()
         .with_name(name)
         .with_schema(create_schema_from_fields(f))
         .with_record_batches(batches.unwrap_or(Vec::new()))?
@@ -56,20 +56,20 @@ pub fn create_table_from_fields_and_struct<T>(
     name: &str,
     s: &[T],
     f: &dyn Fn() -> Fields,
-) -> Result<ArrowTable> 
+) -> Result<Table> 
 where
     T: Sized + Serialize,
 {
     let batch_size = s.iter().len();
     let bytes = serde_json::to_vec(s)?;
-    ArrowTableBuilder::new()
+    TableBuilder::new()
         .with_name(name)
         .with_schema(create_schema_from_fields(f))
         .with_json(&bytes, batch_size)?
         .build()
 }
 
-pub fn extract_struct_from_table<T>(table: &ArrowTable) -> Result<Vec<T>>
+pub fn extract_struct_from_table<T>(table: &Table) -> Result<Vec<T>>
 where
     T: Sized + for<'a> Deserialize<'a>
 {
@@ -81,7 +81,7 @@ where
     Ok(content)
 }
 
-pub fn create_messages_fields() -> Fields {
+pub fn create_chat_fields() -> Fields {
     let field_names = ["role", "content"];
     let mut fields_vec = field_names
         .iter()
@@ -94,13 +94,13 @@ pub fn create_messages_fields() -> Fields {
 /// In combination with [MessagesTraitExt]
 /// 
 /// MessagesTraitExt: phymes-core/src/schemas/messages.rs
-pub struct MessagesSubject {
+pub struct ChatSubject {
     pub role: String,
     pub content: String,
     pub timestamp: i64,
 }
 
-pub fn create_messages_record_batch(
+pub fn create_chat_record_batch(
     role: Vec<String>,
     content: Vec<String>,
     timestamp: Vec<i64>,
@@ -324,9 +324,9 @@ pub fn create_blob_batch(
 }
 
 pub trait AvailableSubjectsTrait {
-    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<ArrowTable>;
-    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<ArrowTable> where T: Sized + Serialize;
-    fn to_struct_from_table<T>(&self, table: &ArrowTable) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a>;
+    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table>;
+    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<Table> where T: Sized + Serialize;
+    fn to_struct_from_table<T>(&self, table: &Table) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a>;
 }
 
 /// The available subject schmeas
@@ -376,14 +376,14 @@ impl Display for AvailableSubjects {
 }
 
 impl AvailableSubjectsTrait for AvailableSubjects {
-    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<ArrowTable> {
+    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table> {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),
         };
         match self {
             AvailableSubjects::Messages => {
-                create_table_from_fields(name.as_str(), batches, &create_messages_fields)
+                create_table_from_fields(name.as_str(), batches, &create_chat_fields)
             }
             AvailableSubjects::Values => {
                 create_table_from_fields(name.as_str(), batches, &create_values_fields)
@@ -422,13 +422,13 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             ),
         }
     }
-    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<ArrowTable> where T: Sized + Serialize {
+    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<Table> where T: Sized + Serialize {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),
         };
         match self {
-            AvailableSubjects::Messages => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_messages_fields),
+            AvailableSubjects::Messages => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_chat_fields),
             AvailableSubjects::Values => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_values_fields),
             AvailableSubjects::Configs => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_config_fields),
             AvailableSubjects::Tools => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_tools_fields),
@@ -456,7 +456,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             ),
         }
     }
-    fn to_struct_from_table<T>(&self, table: &ArrowTable) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a> {
+    fn to_struct_from_table<T>(&self, table: &Table) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a> {
         extract_struct_from_table::<T>(table)
     }
 }
@@ -464,7 +464,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
 impl AvailableSubjects {
     pub fn to_schema(&self) -> SchemaRef {
         match self {
-            AvailableSubjects::Messages => create_schema_from_fields(&create_messages_fields),
+            AvailableSubjects::Messages => create_schema_from_fields(&create_chat_fields),
             AvailableSubjects::Values => create_schema_from_fields(&create_values_fields),
             AvailableSubjects::Configs => create_schema_from_fields(&create_config_fields),
             AvailableSubjects::Tools => create_schema_from_fields(&create_tools_fields),

@@ -16,7 +16,7 @@ use num_traits::{Bounded, Num, NumCast};
 use phymes_core::{
     schemas::{chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    table::table::{Table, TableBuilderTrait, TableTrait},
 };
 use tracing::{event, instrument, Level};
 
@@ -185,7 +185,7 @@ fn comparator_operator_tensor<T>(
     index: usize,
     cmp_columns: &[&str],
     cmp_operators: &[DataComparatorOperator],
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     device: &Device,
 ) -> Result<Tensor>
 where
@@ -264,7 +264,7 @@ pub fn filter_columns_and_indices(
     }
 
     // Wrap the lhs into an ArrowTable
-    let lhs_table = ArrowTable::get_builder()
+    let lhs_table = Table::get_builder()
         .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?;
@@ -632,7 +632,7 @@ mod tests {
             &DataComparatorPredicate::All,
             &device,
         )?;
-        let result_table = ArrowTable::get_builder()
+        let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -657,7 +657,7 @@ mod tests {
             &DataComparatorPredicate::Any,
             &device,
         )?;
-        let result_table = ArrowTable::get_builder()
+        let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -679,7 +679,7 @@ mod tests {
             &DataComparatorPredicate::Any,
             &device,
         )?;
-        let result_table = ArrowTable::get_builder()
+        let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;

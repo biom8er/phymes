@@ -12,7 +12,7 @@ use reqwest::{self, header::CONTENT_TYPE};
 // Phymes imports
 use phymes_core::{
     schemas::available_subjects::{convert_timestamp_micros_to_str, create_timestamp_str},
-    table::arrow_table_publish::ArrowTablePublish,
+    table::table_publish::TablePublish,
 };
 use phymes_server::handlers::{
     session_info::SessionResponse,
@@ -70,7 +70,7 @@ pub fn messaging_interface_view() -> Element {
             ),
             subject_name: MESSAGES_SUBJECT_NAME.to_string(),
             format: DataSummaryFormat::Bytes,
-            publish: ArrowTablePublish::None,
+            publish: TablePublish::None,
             content: "".to_string().into(),
             metadata: "".to_string(),
             stream: false,
@@ -296,7 +296,7 @@ pub fn messaging_interface_footer() -> Element {
                                     ),
                                     subject_name: MESSAGES_SUBJECT_NAME.to_string(),
                                     format: DataSummaryFormat::Bytes,
-                                    publish: ArrowTablePublish::None,
+                                    publish: TablePublish::None,
                                     content: prompt.to_string().into(),
                                     metadata: "".to_string(),
                                     stream: false,

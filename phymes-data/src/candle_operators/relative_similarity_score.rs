@@ -7,7 +7,7 @@ use arrow::{
 };
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    table::table::{Table, TableBuilderTrait, TableTrait},
 };
 
 use crate::candle_operators::data_operator::make_error_record_batch;
@@ -166,7 +166,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
 /// Helper method to extract out the embeddings information from the LHS and RHS arguments
 fn embeddings_to_tensor(
     values: &str,
-    table: &ArrowTable,
+    table: &Table,
     device: &Device,
 ) -> Result<(usize, usize, Tensor)> {
     match table.get_column_data_type(values)? {
@@ -235,10 +235,10 @@ fn embeddings_to_tensor(
 /// Helper method to calculate the relative similarity scores
 fn tensor_to_scores(
     lhs_values: &str,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     lhs_tensor: Tensor,
     _rhs_values: &str,
-    _rhs_table: &ArrowTable,
+    _rhs_table: &Table,
     rhs_tensor: Tensor,
 ) -> Result<ArrayRef> {
     let result = relative_similarity_scores_tensor(&lhs_tensor, &rhs_tensor)?.flatten_all()?;
@@ -302,11 +302,11 @@ fn relative_similarity_score(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs and rhs into an ArrowTable
-    let lhs_table = ArrowTable::get_builder()
+    let lhs_table = Table::get_builder()
         .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?;
-    let rhs_table = ArrowTable::get_builder()
+    let rhs_table = Table::get_builder()
         .with_record_batches(rhs_args.to_vec())?
         .with_name("")
         .build()?;

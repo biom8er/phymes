@@ -6,25 +6,25 @@ use std::{
 
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    schemas::available_subjects::{create_messages_fields, AvailableSubjects},
+    schemas::available_subjects::{create_chat_fields, AvailableSubjects},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, device,
+            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, device,
         },
         runtime_env::RuntimeEnv,
     },
     table::{
-        arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
+        table::{Table, TableBuilder, TableBuilderTrait, TableTrait},
+        table_publish::TablePublish,
+        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
+        message::{
+            MessageBuilderTrait, SendableRecordBatchStreamMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait,
+        processor::ProcessorTrait,
         publish_subscribe::PubSubTrait,
     },
 };
@@ -51,7 +51,7 @@ use tracing::{Level, event, instrument};
 /// # Returns
 /// Vec of extracted messages
 pub fn collect_messages_by_schema(
-    message: &mut OutgoingMessageMap,
+    message: &mut SendableRecordBatchStreamMessageMap,
     fields: &Fields,
 ) -> Vec<Pin<Box<dyn RecordBatchStream + Send>>> {
     message
@@ -70,8 +70,8 @@ pub fn collect_messages_by_schema(
 #[derive(Debug)]
 pub struct MessageAggregatorProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
@@ -82,10 +82,10 @@ impl MappableTrait for MessageAggregatorProcessor {
 }
 
 impl PubSubTrait for MessageAggregatorProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect()
     }
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
@@ -94,13 +94,13 @@ impl PubSubTrait for MessageAggregatorProcessor {
     }
 }
 
-impl ArrowProcessorTrait for MessageAggregatorProcessor {
+impl ProcessorTrait for MessageAggregatorProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -109,13 +109,13 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::Extend {
+            publications: vec![TablePublish::Extend {
                 table_name: "messages".to_string(),
             }],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -131,14 +131,14 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
     #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
-        mut message: OutgoingMessageMap,
+        mut message: SendableRecordBatchStreamMessageMap,
         metrics: ArrowTaskMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Collect the messages with the messages schema
-        let input = collect_messages_by_schema(&mut message, &create_messages_fields());
+        let input = collect_messages_by_schema(&mut message, &create_chat_fields());
 
         // Extract out the config
         let config = match message.remove(self.get_name()) {
@@ -153,7 +153,7 @@ impl ArrowProcessorTrait for MessageAggregatorProcessor {
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),
         )?);
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.get_publications().first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.get_publications().first().unwrap().get_table_name())
@@ -202,7 +202,7 @@ impl MessageAggregatorStream {
     }
 
     #[instrument(skip(self))]
-    fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
+    fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
             let config: DataConfig = serde_json::from_value(serde_json::Value::Object(
                 config_table.to_json_object()?.first().unwrap().to_owned(),
@@ -256,7 +256,7 @@ impl Stream for MessageAggregatorStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = ArrowTableBuilder::new()
+            let config_table = TableBuilder::new()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -322,8 +322,8 @@ impl RecordBatchStream for MessageAggregatorStream {
 mod tests {
     use phymes_core::{
         metrics::HashMap,
-        table::arrow_table::{
-            ArrowTableBuilder,
+        table::table::{
+            TableBuilder,
             test_table::{make_test_table, make_test_table_chat},
         },
     };
@@ -334,34 +334,34 @@ mod tests {
     #[tokio::test]
     async fn test_message_aggregator_processor() -> Result<()> {
         // Create the input
-        let mut message_1 = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message_1 = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message_1.insert(
             "m1".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("m1")
                 .with_publisher("s1")
                 .with_subject("messages")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(make_test_table_chat("messages")?.to_record_batch_stream())
                 .build()?,
         );
         let _ = message_1.insert(
             "m2".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("m2")
                 .with_publisher("s1")
                 .with_subject("messages")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(make_test_table_chat("messages")?.to_record_batch_stream())
                 .build()?,
         );
         let _ = message_1.insert(
             "m3".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("m3")
                 .with_publisher("s3")
                 .with_subject("messages")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(make_test_table("t1", 4, 8, 3)?.to_record_batch_stream())
                 .build()?,
         );
@@ -377,17 +377,17 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = ArrowTableBuilder::new()
+        let config_table = TableBuilder::new()
             .with_name("aggregator_processor")
             .with_json(&config_json, 1)?
             .build()?;
         let _ = message_1.insert(
             "aggregator_processor".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("aggregator_processor")
                 .with_publisher("")
                 .with_subject("")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -414,7 +414,7 @@ mod tests {
         assert!(agg_stream.get("m3").is_some());
 
         // Wrap the results in a table
-        let partitions = ArrowTableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             agg_stream.remove("messages").unwrap().get_message_own(),
         )
         .await?

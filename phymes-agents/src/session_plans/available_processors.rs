@@ -4,10 +4,10 @@ use anyhow::Result;
 use clap::ValueEnum;
 use phymes_core::{
     session::common_traits::MappableTrait, table::{
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{ArrowTableSubscribe, SubscribeTrait},
-    }, task::arrow_processor::{
-        test_processor::ArrowProcessorMock, ArrowProcessorBuilder, ArrowProcessorEcho, ArrowProcessorTrait
+        table_publish::TablePublish,
+        table_subscribe::{TableSubscribe, SubscribeTrait},
+    }, task::processor::{
+        test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho, ProcessorTrait
     }
 };
 use phymes_data::candle_data::{
@@ -59,8 +59,8 @@ pub enum AvailableProcessors {
 impl Display for AvailableProcessors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ArrowProcessorMock => write!(f, "{}", ArrowProcessorMock::get_static_name()),
-            Self::ArrowProcessorEcho => write!(f, "{}", ArrowProcessorEcho::get_static_name()),
+            Self::ArrowProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
+            Self::ArrowProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
             Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
             Self::DataSummaryProcessor => write!(f, "{}", DataSummaryProcessor::get_static_name()),
             Self::CandleChatProcessor => write!(f, "{}", CandleChatProcessor::get_static_name()),
@@ -101,18 +101,18 @@ impl AvailableProcessors {
     pub fn build_arc_with_pub_sub(
         self,
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         match self {
-            Self::ArrowProcessorMock => ArrowProcessorMock::new_arc_with_pub_sub(
+            Self::ArrowProcessorMock => ProcessorMock::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
                 subscribe,
             ),
-            Self::ArrowProcessorEcho => ArrowProcessorEcho::new_arc_with_pub_sub(
+            Self::ArrowProcessorEcho => ProcessorEcho::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
@@ -173,8 +173,8 @@ impl AvailableProcessors {
 
     pub fn build_with_builder(
         self,
-        builder: ArrowProcessorBuilder,
-    ) -> Result<Arc<dyn ArrowProcessorTrait>> {
+        builder: ProcessorBuilder,
+    ) -> Result<Arc<dyn ProcessorTrait>> {
         let (name, publications, subscriptions, subscribe) = builder.take()?;
         Ok(self.build_arc_with_pub_sub(&name, &publications, &subscriptions, subscribe))
     }

@@ -1,12 +1,12 @@
 use crate::{
     metrics::ArrowTaskMetricsSet,
     session::{
-        common_traits::{MappableTrait, OutgoingMessageMap},
+        common_traits::{MappableTrait, SendableRecordBatchStreamMessageMap},
         runtime_env::RuntimeEnv,
     },
     table::{
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
+        table_publish::TablePublish,
+        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::publish_subscribe::PubSubTrait,
@@ -20,7 +20,7 @@ use tracing::{Level, event};
 /// For inner task objects that perform the actual processing
 /// and designed to allow for chaining multiple processors
 /// into streaming computational tree
-pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
+pub trait ProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
     /// New processor
     ///
     /// # Notes
@@ -48,15 +48,15 @@ pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug
     /// that returns a stream or batch of `RecordBatch`es
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait>
+    ) -> Arc<dyn ProcessorTrait>
     where
         Self: Sized;
 
     /// Default new implementation
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait>
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait>
     where
         Self: Sized;
 
@@ -225,35 +225,35 @@ pub trait ArrowProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug
     ///
     fn process(
         &self,
-        message: OutgoingMessageMap,
+        message: SendableRecordBatchStreamMessageMap,
         metrics: ArrowTaskMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap>;
+    ) -> Result<SendableRecordBatchStreamMessageMap>;
 }
 
 /// Processor that returns the input
 /// with optional conversion to another format
 /// e.g., Bytes for web app streaming
 #[derive(Debug)]
-pub struct ArrowProcessorEcho {
+pub struct ProcessorEcho {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
-impl MappableTrait for ArrowProcessorEcho {
+impl MappableTrait for ProcessorEcho {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl PubSubTrait for ArrowProcessorEcho {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+impl PubSubTrait for ProcessorEcho {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect::<Vec<_>>()
     }
 
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect::<Vec<_>>()
     }
     fn check_subscriptions(
@@ -266,13 +266,13 @@ impl PubSubTrait for ArrowProcessorEcho {
     }
 }
 
-impl ArrowProcessorTrait for ArrowProcessorEcho {
+impl ProcessorTrait for ProcessorEcho {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -281,11 +281,11 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -300,10 +300,10 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
 
     fn process(
         &self,
-        message: OutgoingMessageMap,
+        message: SendableRecordBatchStreamMessageMap,
         _metrics: ArrowTaskMetricsSet,
         _runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
         Ok(message)
     }
@@ -315,9 +315,9 @@ impl ArrowProcessorTrait for ArrowProcessorEcho {
 /// * A full `ArrowProcessorBuilderTrait` will be provided in the future
 ///   once the API stabilizes
 #[derive(Default)]
-pub struct ArrowProcessorBuilder {
-    pub publications: Option<Vec<ArrowTablePublish>>,
-    pub subscriptions: Option<Vec<ArrowTableSubscribe>>,
+pub struct ProcessorBuilder {
+    pub publications: Option<Vec<TablePublish>>,
+    pub subscriptions: Option<Vec<TableSubscribe>>,
     pub subscribe: Option<Box<dyn SubscribeTrait>>,
     pub processor_name: Option<String>,
     pub processor_type: Option<String>,
@@ -325,12 +325,12 @@ pub struct ArrowProcessorBuilder {
 
 type ProcessorInput = (
     String,
-    Vec<ArrowTablePublish>,
-    Vec<ArrowTableSubscribe>,
+    Vec<TablePublish>,
+    Vec<TableSubscribe>,
     Box<dyn SubscribeTrait>,
 );
 
-impl ArrowProcessorBuilder {
+impl ProcessorBuilder {
     pub fn take(mut self) -> Result<ProcessorInput> {
         if self.processor_name.as_ref().is_none() {
             return Err(anyhow!("Missing processor name"));
@@ -366,10 +366,9 @@ pub mod test_processor {
     use crate::{
         metrics::BaselineMetrics,
         session::common_traits::{BuildableTrait, BuilderTrait},
-        table::arrow_table::test_table::make_test_record_batch,
-        task::arrow_message::{
-            ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
-            ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
+        table::table::test_table::make_test_record_batch,
+        task::message::{
+            MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
         },
     };
 
@@ -384,25 +383,25 @@ pub mod test_processor {
 
     /// Mock processor that adds an additional record batch
     #[derive(Debug)]
-    pub struct ArrowProcessorMock {
+    pub struct ProcessorMock {
         name: String,
-        publications: Vec<ArrowTablePublish>,
-        subscriptions: Vec<ArrowTableSubscribe>,
+        publications: Vec<TablePublish>,
+        subscriptions: Vec<TableSubscribe>,
         subscribe: Box<dyn SubscribeTrait>,
     }
 
-    impl MappableTrait for ArrowProcessorMock {
+    impl MappableTrait for ProcessorMock {
         fn get_name(&self) -> &str {
             &self.name
         }
     }
 
-    impl PubSubTrait for ArrowProcessorMock {
-        fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    impl PubSubTrait for ProcessorMock {
+        fn get_publications(&self) -> Vec<&TablePublish> {
             self.publications.iter().collect::<Vec<_>>()
         }
 
-        fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
             self.subscriptions.iter().collect::<Vec<_>>()
         }
         fn check_subscriptions(
@@ -415,13 +414,13 @@ pub mod test_processor {
         }
     }
 
-    impl ArrowProcessorTrait for ArrowProcessorMock {
+    impl ProcessorTrait for ProcessorMock {
         fn new_arc_with_pub_sub(
             name: &str,
-            publications: &[ArrowTablePublish],
-            subscriptions: &[ArrowTableSubscribe],
+            publications: &[TablePublish],
+            subscriptions: &[TableSubscribe],
             subscribe: Box<dyn SubscribeTrait>,
-        ) -> Arc<dyn ArrowProcessorTrait> {
+        ) -> Arc<dyn ProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
                 publications: publications.to_owned(),
@@ -430,11 +429,11 @@ pub mod test_processor {
             })
         }
 
-        fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+        fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
-                publications: vec![ArrowTablePublish::None],
-                subscriptions: vec![ArrowTableSubscribe::None],
+                publications: vec![TablePublish::None],
+                subscriptions: vec![TableSubscribe::None],
                 subscribe: AllTableNamesSubscribe::new_box(),
             })
         }
@@ -449,14 +448,14 @@ pub mod test_processor {
 
         fn process(
             &self,
-            message: OutgoingMessageMap,
+            message: SendableRecordBatchStreamMessageMap,
             metrics: ArrowTaskMetricsSet,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
-        ) -> Result<OutgoingMessageMap> {
+        ) -> Result<SendableRecordBatchStreamMessageMap> {
             event!(Level::INFO, "Starting processor {}", self.get_name());
 
             // Add another record batch to the input
-            let mut outbox = HashMap::<String, ArrowOutgoingMessage>::new();
+            let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
             for (s_name, s) in message.into_iter() {
                 let name = s_name.clone();
                 let source = s.get_publisher().to_string();
@@ -467,7 +466,7 @@ pub mod test_processor {
                     input: s.get_message_own(),
                     baseline_metrics: BaselineMetrics::new(&metrics, self.get_name()),
                 });
-                let out_m = ArrowOutgoingMessage::get_builder()
+                let out_m = SendableRecordBatchStreamMessage::get_builder()
                     .with_name(name.as_str())
                     .with_publisher(source.as_str())
                     .with_subject(subject.as_str())
@@ -543,7 +542,7 @@ pub mod test_processor {
 mod tests {
     use std::sync::Arc;
 
-    use super::test_processor::ArrowProcessorMock;
+    use super::test_processor::ProcessorMock;
     use crate::{
         metrics::{ArrowTaskMetricsSet, HashMap},
         session::{
@@ -551,18 +550,15 @@ mod tests {
             runtime_env::RuntimeEnv,
         },
         table::{
-            arrow_table::{
-                ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait,
-                test_table::make_test_table,
+            table::{
+                test_table::make_test_table, TableBuilder, TableBuilderTrait, TableTrait
             },
-            arrow_table_publish::ArrowTablePublish,
+            table_publish::TablePublish,
         },
         task::{
-            arrow_message::{
-                ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-                ArrowOutgoingMessageTrait,
-            },
-            arrow_processor::ArrowProcessorTrait,
+            processor::ProcessorTrait, message::{
+                MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage
+            }
         },
     };
     use anyhow::Result;
@@ -573,23 +569,23 @@ mod tests {
         let metrics = ArrowTaskMetricsSet::new();
         let runtime_env = RuntimeEnv::default();
         let name = "process_1".to_string();
-        let mut message = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
             name.clone(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(name.clone().as_str())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&ArrowTablePublish::Extend {
+                .with_update(&TablePublish::Extend {
                     table_name: "test_table".to_string(),
                 })
                 .with_message(make_test_table("test_table", 4, 8, 3)?.to_record_batch_stream())
                 .build()?,
         );
-        let processor_1 = ArrowProcessorMock::new_arc("processor_1");
+        let processor_1 = ProcessorMock::new_arc("processor_1");
         let mut stream =
             processor_1.process(message, metrics.clone(), Arc::new(Mutex::new(runtime_env)))?;
-        let partitions = ArrowTableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove(&name).unwrap().get_message_own(),
         )
         .await?

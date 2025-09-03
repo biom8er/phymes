@@ -17,11 +17,11 @@ use phymes_core::{
         },
     },
     table::{
-        arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{ArrowTableSubscribe, from_str_to_subscribe},
+        table::{Table, TableBuilderTrait, TableTrait},
+        table_publish::TablePublish,
+        table_subscribe::{TableSubscribe, from_str_to_subscribe},
     },
-    task::arrow_processor::ArrowProcessorBuilder,
+    task::processor::ProcessorBuilder,
 };
 
 use crate::{
@@ -53,13 +53,13 @@ pub trait SessionContextBuilderTabularTrait {
         &self,
         include_subjects: bool,
         include_mermaid: bool,
-    ) -> Result<(Vec<ArrowTable>, Option<Vec<ArrowTable>>)>;
+    ) -> Result<(Vec<Table>, Option<Vec<Table>>)>;
 
     /// Get the subjects in tabular form
-    fn get_subjects_as_table(&self) -> Result<ArrowTable>;
+    fn get_subjects_as_table(&self) -> Result<Table>;
 
     /// Get the tasks in tabular form
-    fn get_tasks_as_table(&self) -> Result<ArrowTable>;
+    fn get_tasks_as_table(&self) -> Result<Table>;
 
     /// Get the processors in tabular form
     ///
@@ -67,13 +67,13 @@ pub trait SessionContextBuilderTabularTrait {
     ///
     /// * No sorting is performed when generating the table
     ///   so that order of processors is maintained
-    fn get_processors_as_table(&self) -> Result<ArrowTable>;
+    fn get_processors_as_table(&self) -> Result<Table>;
 
     /// Get the runtime environments in tabular form
-    fn get_runtime_envs_as_table(&self) -> Result<ArrowTable>;
+    fn get_runtime_envs_as_table(&self) -> Result<Table>;
 
     /// Get mermaid js chart strings
-    fn get_mermaid_js_as_table(&self) -> Result<ArrowTable>;
+    fn get_mermaid_js_as_table(&self) -> Result<Table>;
 
     /// Create the session from tables
     ///
@@ -88,20 +88,20 @@ pub trait SessionContextBuilderTabularTrait {
     /// * `tables` - List of [ArrowTable]s describing the [SessionContext] schema with
     ///   optional subject tables with the actual data
     /// * `state` - Optionally the subject data. If none the subject tables will be initialized.
-    fn from_arrow_tables(tables: &[&ArrowTable], state: Option<Vec<ArrowTable>>) -> Result<Self>
+    fn from_arrow_tables(tables: &[&Table], state: Option<Vec<Table>>) -> Result<Self>
     where
         Self: Sized;
 
-    fn with_subjects_as_tables(self, subjects: &ArrowTable) -> Result<Self>
+    fn with_subjects_as_tables(self, subjects: &Table) -> Result<Self>
     where
         Self: Sized;
-    fn with_tasks_as_tables(self, tasks: &ArrowTable) -> Result<Self>
+    fn with_tasks_as_tables(self, tasks: &Table) -> Result<Self>
     where
         Self: Sized;
-    fn with_processors_as_tables(self, processors: &ArrowTable) -> Result<Self>
+    fn with_processors_as_tables(self, processors: &Table) -> Result<Self>
     where
         Self: Sized;
-    fn with_runtime_envs_as_tables(self, runtime_envs: &ArrowTable) -> Result<Self>
+    fn with_runtime_envs_as_tables(self, runtime_envs: &Table) -> Result<Self>
     where
         Self: Sized;
 }
@@ -111,7 +111,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         &self,
         include_subjects: bool,
         include_mermaid: bool,
-    ) -> Result<(Vec<ArrowTable>, Option<Vec<ArrowTable>>)> {
+    ) -> Result<(Vec<Table>, Option<Vec<Table>>)> {
         let mut tables = vec![
             self.get_subjects_as_table()?,
             self.get_tasks_as_table()?,
@@ -129,7 +129,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok((tables, state))
     }
 
-    fn from_arrow_tables(tables: &[&ArrowTable], mut state: Option<Vec<ArrowTable>>) -> Result<Self>
+    fn from_arrow_tables(tables: &[&Table], mut state: Option<Vec<Table>>) -> Result<Self>
     where
         Self: Sized,
     {
@@ -165,7 +165,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
     }
 
-    fn get_subjects_as_table(&self) -> Result<ArrowTable> {
+    fn get_subjects_as_table(&self) -> Result<Table> {
         // Check that the state exists
         if self.state.is_none() {
             return Err(anyhow!(
@@ -201,13 +201,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         ])?;
 
         // create the table
-        ArrowTable::get_builder()
+        Table::get_builder()
             .with_name(SessionContextTableNames::Subjects.get_name())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_tasks_as_table(&self) -> Result<ArrowTable> {
+    fn get_tasks_as_table(&self) -> Result<Table> {
         // Check if there are members
         if self.tasks.is_none() {
             return Err(anyhow!("Add task plans before making the tasks table."));
@@ -237,13 +237,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         ])?;
 
         // create the table
-        ArrowTable::get_builder()
+        Table::get_builder()
             .with_name(SessionContextTableNames::Tasks.get_name())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_processors_as_table(&self) -> Result<ArrowTable> {
+    fn get_processors_as_table(&self) -> Result<Table> {
         if self.processors.is_none() {
             return Err(anyhow!(
                 "Add processors before making the Mermaid Flowchart."
@@ -293,13 +293,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         ])?;
 
         // create the table
-        ArrowTable::get_builder()
+        Table::get_builder()
             .with_name(SessionContextTableNames::Processors.get_name())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_runtime_envs_as_table(&self) -> Result<ArrowTable> {
+    fn get_runtime_envs_as_table(&self) -> Result<Table> {
         if self.runtime_envs.is_none() {
             return Err(anyhow!(
                 "Add runtime environments before making the Mermaid Flowchart."
@@ -336,13 +336,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         ])?;
 
         // create the table
-        ArrowTable::get_builder()
+        Table::get_builder()
             .with_name(SessionContextTableNames::RuntimeEnvironments.get_name())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_mermaid_js_as_table(&self) -> Result<ArrowTable> {
+    fn get_mermaid_js_as_table(&self) -> Result<Table> {
         let flowchart = self.to_mermaid_flowchart()?;
         let erdiagram = self.to_mermaid_erdiagram()?;
 
@@ -355,13 +355,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         ])?;
 
         // create the table
-        ArrowTable::get_builder()
+        Table::get_builder()
             .with_name(SessionContextTableNames::MermaidJS.get_name())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn with_subjects_as_tables(self, subjects: &ArrowTable) -> Result<Self>
+    fn with_subjects_as_tables(self, subjects: &Table) -> Result<Self>
     where
         Self: Sized,
     {
@@ -390,7 +390,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 }
             }
             let batch = RecordBatch::new_empty(Arc::new(Schema::new(fields)));
-            let table = ArrowTable::get_builder()
+            let table = Table::get_builder()
                 .with_record_batches(vec![batch])?
                 .with_name(subject)
                 .build()?;
@@ -400,7 +400,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(self.with_state(state))
     }
 
-    fn with_tasks_as_tables(self, tasks: &ArrowTable) -> Result<Self>
+    fn with_tasks_as_tables(self, tasks: &Table) -> Result<Self>
     where
         Self: Sized,
     {
@@ -446,7 +446,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(self.with_tasks(tasks))
     }
 
-    fn with_processors_as_tables(self, procesors: &ArrowTable) -> Result<Self>
+    fn with_processors_as_tables(self, procesors: &Table) -> Result<Self>
     where
         Self: Sized,
     {
@@ -482,17 +482,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // build the processors in order
         let mut processors = Vec::new();
         for processor_name in sort_processors {
-            let mut builder = ArrowProcessorBuilder::default();
+            let mut builder = ProcessorBuilder::default();
             builder.processor_name.replace(processor_name.to_string());
             builder.subscriptions.replace(Vec::new());
             builder.publications.replace(Vec::new());
             for (name, t, s_t, sub, sub_tab, is_sub) in combined.iter() {
                 if name == &processor_name {
                     if **is_sub == 1 {
-                        let subscription = ArrowTableSubscribe::from_str(sub, sub_tab)?;
+                        let subscription = TableSubscribe::from_str(sub, sub_tab)?;
                         builder.subscriptions.as_mut().unwrap().push(subscription);
                     } else {
-                        let publication = ArrowTablePublish::from_str(sub, sub_tab)?;
+                        let publication = TablePublish::from_str(sub, sub_tab)?;
                         builder.publications.as_mut().unwrap().push(publication);
                     }
                     let subscribe = from_str_to_subscribe(s_t)?;
@@ -512,7 +512,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(self.with_processors(processors))
     }
 
-    fn with_runtime_envs_as_tables(self, runtime_envs: &ArrowTable) -> Result<Self>
+    fn with_runtime_envs_as_tables(self, runtime_envs: &Table) -> Result<Self>
     where
         Self: Sized,
     {
@@ -562,7 +562,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 mod tests {
     use phymes_core::{
         session::session_context_builder::test_session_context_builder::make_test_session_builder_parallel_task,
-        task::arrow_task::test_task::{make_runtime_env, make_state_tables},
+        task::task::test_task::{make_runtime_env, make_state_tables},
     };
 
     use super::*;

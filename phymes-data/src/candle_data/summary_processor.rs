@@ -7,26 +7,26 @@ use std::{
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     schemas::available_subjects::{
-        create_blob_batch, create_messages_record_batch, create_timestamp_micros, AvailableSubjects
+        create_blob_batch, create_chat_record_batch, create_timestamp_micros, AvailableSubjects
     },
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
+            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap,
         },
         runtime_env::RuntimeEnv,
     },
     table::{
-        arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
+        table::{Table, TableBuilderTrait, TableTrait},
+        table_publish::TablePublish,
+        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
+        message::{
+            MessageBuilderTrait, SendableRecordBatchStreamMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait,
+        processor::ProcessorTrait,
         publish_subscribe::PubSubTrait,
     },
 };
@@ -53,8 +53,8 @@ use super::summary_config::DataSummaryConfig;
 #[derive(Debug)]
 pub struct DataSummaryProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
@@ -65,11 +65,11 @@ impl MappableTrait for DataSummaryProcessor {
 }
 
 impl PubSubTrait for DataSummaryProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
@@ -78,13 +78,13 @@ impl PubSubTrait for DataSummaryProcessor {
     }
 }
 
-impl ArrowProcessorTrait for DataSummaryProcessor {
+impl ProcessorTrait for DataSummaryProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -93,11 +93,11 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -113,10 +113,10 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
     #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
-        mut message: OutgoingMessageMap,
+        mut message: SendableRecordBatchStreamMessageMap,
         metrics: ArrowTaskMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Extract out the config
@@ -156,8 +156,8 @@ impl ArrowProcessorTrait for DataSummaryProcessor {
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),
         )?);
-        let mut outbox = HashMap::<String, ArrowOutgoingMessage>::new();
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
@@ -202,7 +202,7 @@ impl DataSummaryStream {
         })
     }
 
-    fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
+    fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
             let config: DataSummaryConfig = serde_json::from_value(serde_json::Value::Object(
                 config_table.to_json_object()?.first().unwrap().to_owned(),
@@ -232,7 +232,7 @@ impl Stream for DataSummaryStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = ArrowTable::get_builder()
+            let config_table = Table::get_builder()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -298,7 +298,7 @@ impl Stream for DataSummaryStream {
 
             // Concatenate into a single record batch
             let schema = batches_col.first().unwrap().schema();
-            let mut batch_json = ArrowTable::get_builder()
+            let mut batch_json = Table::get_builder()
                 .with_name("")
                 .with_record_batches(batches_col)?
                 .build()?
@@ -325,7 +325,7 @@ impl Stream for DataSummaryStream {
                 DataSummaryFormat::Message | DataSummaryFormat::None => {
                     // Wrap into a record batch
                     let content = serde_json::to_string(&batch_limit)?;
-                    let batch = create_messages_record_batch(
+                    let batch = create_chat_record_batch(
                         vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
                         vec![content.to_string()],
                         vec![create_timestamp_micros()],
@@ -343,7 +343,7 @@ impl Stream for DataSummaryStream {
                         let v = serde_json::to_value(row)?;
                         values.push(v);
                     }
-                    let table = ArrowTable::get_builder()
+                    let table = Table::get_builder()
                         .with_name("attachment")
                         .with_schema(schema)
                         .with_json_values(&values)?
@@ -364,7 +364,7 @@ impl Stream for DataSummaryStream {
                         let v = serde_json::to_value(row)?;
                         values.push(v);
                     }
-                    let table = ArrowTable::get_builder()
+                    let table = Table::get_builder()
                         .with_name("attachment")
                         .with_schema(schema)
                         .with_json_values(&values)?
@@ -386,7 +386,7 @@ impl Stream for DataSummaryStream {
                         let v = serde_json::to_value(row)?;
                         values.push(v);
                     }
-                    let table = ArrowTable::get_builder()
+                    let table = Table::get_builder()
                         .with_name("attachment")
                         .with_schema(schema)
                         .with_json_values(&values)?
@@ -407,7 +407,7 @@ impl Stream for DataSummaryStream {
                         let v = serde_json::to_value(row)?;
                         values.push(v);
                     }
-                    let table = ArrowTable::get_builder()
+                    let table = Table::get_builder()
                         .with_name("attachment")
                         .with_schema(schema)
                         .with_json_values(&values)?
@@ -449,7 +449,7 @@ impl RecordBatchStream for DataSummaryStream {
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
     use phymes_core::table::{
-        arrow_table::ArrowTableBuilder, arrow_table_publish::ArrowTablePublish,
+        table::TableBuilder, table_publish::TablePublish,
     };
 
     use crate::candle_data::{data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32, summary_config::CsvFormat};
@@ -467,7 +467,7 @@ mod tests {
         ];
         let lhs_batch =
             make_embeddings_record_batch_str_f32("lhs_pk", lhs_ids_vec, lhs_embeddings_vec)?;
-        let lhs_table = ArrowTable::get_builder()
+        let lhs_table = Table::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
@@ -480,30 +480,30 @@ mod tests {
             format: DataSummaryFormat::Message,
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = ArrowTableBuilder::new()
+        let config_table = TableBuilder::new()
             .with_name("summary_processor")
             .with_json(&config_json, 1)?
             .build()?;
 
         // Make the input messages
-        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = messages.insert(
             "lhs_name".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("lhs_name")
                 .with_publisher("")
                 .with_subject("lhs_name")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(lhs_table.to_record_batch_stream())
                 .build()?,
         );
         let _ = messages.insert(
             "summary_processor".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("summary_processor")
                 .with_publisher("")
                 .with_subject("summary_processor")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -521,10 +521,10 @@ mod tests {
         // Create the processor and run
         let processor = DataSummaryProcessor::new_arc_with_pub_sub(
             "summary_processor",
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: "messages".to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable {
+            &[TableSubscribe::AlwaysFullTable {
                 table_name: "lhs_name".to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
@@ -532,7 +532,7 @@ mod tests {
         let mut stream = processor.process(messages, metrics.clone(), runtime_env.clone())?;
 
         // Wrap the results in a table
-        let partitions = ArrowTableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove("messages").unwrap().get_message_own(),
         )
         .await?
@@ -562,7 +562,7 @@ mod tests {
         let lhs_ids_vec = vec!["1", "2", "3"];
         let ids_ar: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec));
         let lhs_batch = RecordBatch::try_from_iter(vec![("lhs_pk", ids_ar)])?;
-        let lhs_table = ArrowTable::get_builder()
+        let lhs_table = Table::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
@@ -575,30 +575,30 @@ mod tests {
             format: DataSummaryFormat::Csv(CsvFormat { ..Default::default() }),
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = ArrowTableBuilder::new()
+        let config_table = TableBuilder::new()
             .with_name("summary_processor")
             .with_json(&config_json, 1)?
             .build()?;
 
         // Make the input messages
-        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = messages.insert(
             "lhs_name".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("lhs_name")
                 .with_publisher("")
                 .with_subject("lhs_name")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(lhs_table.to_record_batch_stream())
                 .build()?,
         );
         let _ = messages.insert(
             "summary_processor".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("summary_processor")
                 .with_publisher("")
                 .with_subject("summary_processor")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -616,10 +616,10 @@ mod tests {
         // Create the processor and run
         let processor = DataSummaryProcessor::new_arc_with_pub_sub(
             "summary_processor",
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: "messages".to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable {
+            &[TableSubscribe::AlwaysFullTable {
                 table_name: "lhs_name".to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
@@ -627,7 +627,7 @@ mod tests {
         let mut stream = processor.process(messages, metrics.clone(), runtime_env.clone())?;
 
         // Wrap the results in a table
-        let partitions = ArrowTableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove("messages").unwrap().get_message_own(),
         )
         .await?

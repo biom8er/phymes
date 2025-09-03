@@ -8,12 +8,12 @@ use crate::{
 };
 
 use super::{
-    arrow_table::{ArrowTable, ArrowTableTrait},
+    table::{Table, TableTrait},
     stream::SendableRecordBatchStream,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
-pub enum ArrowTableSubscribe {
+pub enum TableSubscribe {
     /// Only when the subject has been updated
     OnUpdateFullTable { table_name: String },
     /// Only when the subject has been updated
@@ -30,7 +30,7 @@ pub enum ArrowTableSubscribe {
     Custom(String),
 }
 
-impl ArrowTableSubscribe {
+impl TableSubscribe {
     pub fn get_table_name(&self) -> &str {
         match self {
             Self::OnUpdateFullTable { table_name: tn } => tn,
@@ -78,25 +78,25 @@ impl ArrowTableSubscribe {
         }
     }
 
-    pub fn from_str(name: &str, subject: &str) -> Result<ArrowTableSubscribe> {
+    pub fn from_str(name: &str, subject: &str) -> Result<TableSubscribe> {
         let subscription = if name.contains("OnUpdateFullTable") {
-            ArrowTableSubscribe::OnUpdateFullTable {
+            TableSubscribe::OnUpdateFullTable {
                 table_name: subject.to_string(),
             }
         } else if name.contains("AlwaysFullTable") {
-            ArrowTableSubscribe::AlwaysFullTable {
+            TableSubscribe::AlwaysFullTable {
                 table_name: subject.to_string(),
             }
         } else if name.contains("OnUpdateLastRecordBatch") {
-            ArrowTableSubscribe::OnUpdateLastRecordBatch {
+            TableSubscribe::OnUpdateLastRecordBatch {
                 table_name: subject.to_string(),
             }
         } else if name.contains("AlwaysLastRecordBatch") {
-            ArrowTableSubscribe::AlwaysLastRecordBatch {
+            TableSubscribe::AlwaysLastRecordBatch {
                 table_name: subject.to_string(),
             }
         } else if name.contains("None") {
-            ArrowTableSubscribe::None {}
+            TableSubscribe::None {}
         } else {
             return Err(anyhow!(
                 "Variant for ArrowTableSubscribe {name} with subject {subject} was not recognized."
@@ -106,7 +106,7 @@ impl ArrowTableSubscribe {
     }
 }
 
-impl MappableTrait for ArrowTableSubscribe {
+impl MappableTrait for TableSubscribe {
     fn get_name(&self) -> &str {
         match self {
             Self::OnUpdateFullTable { table_name: _tn } => "OnUpdateFullTable",
@@ -120,7 +120,7 @@ impl MappableTrait for ArrowTableSubscribe {
 }
 
 /// Subscribe to an arrow table
-pub trait ArrowTableSubscribeTrait: ArrowTableTrait {
+pub trait TableSubscribeTrait: TableTrait {
     /// Implement the subscription
     ///
     /// # Arguments
@@ -129,40 +129,40 @@ pub trait ArrowTableSubscribeTrait: ArrowTableTrait {
     /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
     fn subscribe_table(
         &self,
-        subscribe: &ArrowTableSubscribe,
+        subscribe: &TableSubscribe,
         updated: bool,
     ) -> Option<SendableRecordBatchStream>;
 }
 
-impl ArrowTableSubscribeTrait for ArrowTable {
+impl TableSubscribeTrait for Table {
     fn subscribe_table(
         &self,
-        subscribe: &ArrowTableSubscribe,
+        subscribe: &TableSubscribe,
         updated: bool,
     ) -> Option<SendableRecordBatchStream> {
         match subscribe {
-            ArrowTableSubscribe::AlwaysFullTable { table_name: _ } => {
+            TableSubscribe::AlwaysFullTable { table_name: _ } => {
                 Some(self.to_record_batch_stream())
             }
-            ArrowTableSubscribe::AlwaysLastRecordBatch { table_name: _ } => {
+            TableSubscribe::AlwaysLastRecordBatch { table_name: _ } => {
                 Some(self.to_record_batch_stream_last_record_batch())
             }
-            ArrowTableSubscribe::OnUpdateFullTable { table_name: _ } => {
+            TableSubscribe::OnUpdateFullTable { table_name: _ } => {
                 if updated {
                     Some(self.to_record_batch_stream())
                 } else {
                     None
                 }
             }
-            ArrowTableSubscribe::OnUpdateLastRecordBatch { table_name: _ } => {
+            TableSubscribe::OnUpdateLastRecordBatch { table_name: _ } => {
                 if updated {
                     Some(self.to_record_batch_stream_last_record_batch())
                 } else {
                     None
                 }
             }
-            ArrowTableSubscribe::None => None,
-            ArrowTableSubscribe::Custom(_) => None,
+            TableSubscribe::None => None,
+            TableSubscribe::Custom(_) => None,
         }
     }
 }
@@ -196,7 +196,7 @@ pub fn from_str_to_subscribe(line: &str) -> Result<Box<dyn SubscribeTrait>> {
 pub trait SubscribeTrait: MappableTrait + Debug + Send + Sync {
     fn check_subscriptions(
         &self,
-        subscriptions: &[ArrowTableSubscribe],
+        subscriptions: &[TableSubscribe],
         updates: &HashMap<String, bool>,
         state: &StateMap,
     ) -> bool;
@@ -212,7 +212,7 @@ pub struct AlwaysSubscribe;
 impl SubscribeTrait for AlwaysSubscribe {
     fn check_subscriptions(
         &self,
-        _subscriptions: &[ArrowTableSubscribe],
+        _subscriptions: &[TableSubscribe],
         _updates: &HashMap<String, bool>,
         _state: &StateMap,
     ) -> bool {
@@ -242,7 +242,7 @@ pub struct AnyTableNameSubscribe;
 impl SubscribeTrait for AnyTableNameSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[ArrowTableSubscribe],
+        subscriptions: &[TableSubscribe],
         updates: &HashMap<String, bool>,
         _state: &StateMap,
     ) -> bool {
@@ -278,7 +278,7 @@ pub struct AllTableNamesSubscribe;
 impl SubscribeTrait for AllTableNamesSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[ArrowTableSubscribe],
+        subscriptions: &[TableSubscribe],
         updates: &HashMap<String, bool>,
         _state: &StateMap,
     ) -> bool {
@@ -312,7 +312,7 @@ pub struct AnyTableSchemaSubscribe;
 impl SubscribeTrait for AnyTableSchemaSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[ArrowTableSubscribe],
+        subscriptions: &[TableSubscribe],
         updates: &HashMap<String, bool>,
         state: &StateMap,
     ) -> bool {
@@ -363,7 +363,7 @@ pub struct AllTableSchemasSubscribe;
 impl SubscribeTrait for AllTableSchemasSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[ArrowTableSubscribe],
+        subscriptions: &[TableSubscribe],
         updates: &HashMap<String, bool>,
         state: &StateMap,
     ) -> bool {
@@ -424,7 +424,7 @@ impl ChatContentSubscribe {
 impl SubscribeTrait for ChatContentSubscribe {
     fn check_subscriptions(
         &self,
-        _subscriptions: &[ArrowTableSubscribe],
+        _subscriptions: &[TableSubscribe],
         updates: &HashMap<String, bool>,
         _state: &StateMap,
     ) -> bool {
@@ -453,13 +453,13 @@ mod test_subscribe {
 
     use parking_lot::RwLock;
 
-    use crate::table::arrow_table::test_table::make_test_table;
+    use crate::table::table::test_table::make_test_table;
 
     use super::*;
 
     #[allow(dead_code)]
     pub fn make_test_state() -> StateMap {
-        let mut state = HashMap::<String, Arc<RwLock<ArrowTable>>>::new();
+        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
         state.insert(
             "t1".to_string(),
             Arc::new(RwLock::new(make_test_table("t1", 1, 0, 1).unwrap())),
@@ -476,28 +476,28 @@ mod test_subscribe {
     }
 
     #[allow(dead_code)]
-    pub fn make_test_subscriptions(use_table_name: bool) -> Vec<ArrowTableSubscribe> {
+    pub fn make_test_subscriptions(use_table_name: bool) -> Vec<TableSubscribe> {
         if use_table_name {
             vec![
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: "t1".to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: "t2".to_string(),
                 },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: "t3".to_string(),
                 },
             ]
         } else {
             vec![
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: "t3".to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: "t3".to_string(),
                 },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: "t3".to_string(),
                 },
             ]

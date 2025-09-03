@@ -5,7 +5,7 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
     schemas::{chat_completion, types},
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::table::{Table, TableBuilder, TableBuilderTrait, TableTrait},
 };
 use tracing::{Level, event, instrument};
 
@@ -126,26 +126,26 @@ impl DataOperatorTrait for ExtractTabularData {
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[instrument(skip(lhs_values, lhs_args))]
 pub fn extract_tabular_data(lhs_values: &str, lhs_args: &[RecordBatch], format: &DataSummaryFormat) -> Result<RecordBatch> {
-    let args_table = ArrowTable::get_builder()
+    let args_table = Table::get_builder()
         .with_name("")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
     let table = match format {
         DataSummaryFormat::Csv(csv_format) => {
-            ArrowTable::get_builder()
+            Table::get_builder()
             .with_name("attachment")
             .with_csv(values_vec.last().unwrap(), csv_format.delimiter, csv_format.header, csv_format.batch_size)?
             .build()?
         }
         DataSummaryFormat::Json(json_format) => {
-            ArrowTable::get_builder()
+            Table::get_builder()
             .with_name("attachment")
             .with_json(values_vec.last().unwrap(), json_format.batch_size)?
             .build()?
         }
         DataSummaryFormat::Ipc => {
-            ArrowTableBuilder::new_from_ipc_stream(values_vec.last().unwrap())?
+            TableBuilder::new_from_ipc_stream(values_vec.last().unwrap())?
             .with_name("attachment")
             .build()?
         }
@@ -161,14 +161,14 @@ pub mod test_extract_tabular_data {
     use std::sync::Arc;
 
     use arrow::array::{ArrayRef, Float32Array, StringArray};
-    use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait}
+    use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilderTrait}
     }; 
     
-    pub fn make_scores_table() -> Result<ArrowTable> {
+    pub fn make_scores_table() -> Result<Table> {
         let lhs_ids: ArrayRef = Arc::new(StringArray::from(vec!["a", "b", "c"]));
         let scores: ArrayRef = Arc::new(Float32Array::from(vec![3.0, 2.0, 1.0]));
         let batch = RecordBatch::try_from_iter(vec![("lhs_pk", lhs_ids), ("score", scores)])?;
-        ArrowTable::get_builder()
+        Table::get_builder()
             .with_name("scores")
             .with_record_batches(vec![batch])?
             .build()
@@ -178,7 +178,7 @@ pub mod test_extract_tabular_data {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        schemas::available_subjects::create_blob_batch, session::common_traits::{BuildableTrait, BuilderTrait}, table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait}
+        schemas::available_subjects::create_blob_batch, session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilderTrait, TableTrait}
     };
 
     use crate::{candle_data::summary_config::{CsvFormat, JsonFormat}, candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table};
@@ -206,7 +206,7 @@ mod tests {
         assert_eq!(extracted.num_rows(), 3);
 
         // Check the contents of the extracted data
-        let table = ArrowTable::get_builder()
+        let table = Table::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])
             .unwrap()
@@ -239,7 +239,7 @@ mod tests {
         assert_eq!(extracted.num_rows(), 3);
 
         // Check the contents of the extracted data
-        let table = ArrowTable::get_builder()
+        let table = Table::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])
             .unwrap()

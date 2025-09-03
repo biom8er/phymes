@@ -8,12 +8,12 @@ use crate::{
     metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
     session::common_traits::{StateMap, TaskMap},
     table::{
-        arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::ArrowTableSubscribe,
+        table::Table, table_publish::TablePublish,
+        table_subscribe::TableSubscribe,
     },
     task::{
-        arrow_processor::ArrowProcessorTrait,
-        arrow_task::{ArrowTask, ArrowTaskBuilderTrait},
+        processor::ProcessorTrait,
+        task::{Task, TaskBuilderTrait},
     },
 };
 
@@ -71,8 +71,8 @@ impl TaskPlanBuilder {
     }
 }
 pub trait SessionContextBuilderTrait: BuilderTrait {
-    fn with_processors(self, processors: Vec<Arc<dyn ArrowProcessorTrait>>) -> Self;
-    fn with_state(self, state: Vec<ArrowTable>) -> Self;
+    fn with_processors(self, processors: Vec<Arc<dyn ProcessorTrait>>) -> Self;
+    fn with_state(self, state: Vec<Table>) -> Self;
     fn with_metrics(self, metrics: ArrowTaskMetricsSet) -> Self;
     fn with_runtime_envs(self, runtime_envs: Vec<RuntimeEnv>) -> Self;
     fn with_tasks(self, tasks: Vec<TaskPlan>) -> Self;
@@ -82,8 +82,8 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
 #[derive(Default)]
 pub struct SessionContextBuilder {
     pub name: Option<String>,
-    pub processors: Option<Vec<Arc<dyn ArrowProcessorTrait>>>,
-    pub state: Option<Vec<ArrowTable>>,
+    pub processors: Option<Vec<Arc<dyn ProcessorTrait>>>,
+    pub state: Option<Vec<Table>>,
     pub metrics: Option<ArrowTaskMetricsSet>,
     pub runtime_envs: Option<Vec<RuntimeEnv>>,
     pub tasks: Option<Vec<TaskPlan>>,
@@ -104,7 +104,7 @@ impl SessionContextBuilder {
     pub fn get_task_sub_pub(
         &self,
         task_name: &str,
-    ) -> (Vec<&ArrowTableSubscribe>, Vec<&ArrowTablePublish>) {
+    ) -> (Vec<&TableSubscribe>, Vec<&TablePublish>) {
         // Get the processor name
         let processors = self
             .tasks
@@ -131,12 +131,12 @@ impl SessionContextBuilder {
             .filter(|p| processors.contains(&p.get_name()))
             .for_each(|p| {
                 p.get_subscriptions().iter().for_each(|s| {
-                    if **s != ArrowTableSubscribe::None {
+                    if **s != TableSubscribe::None {
                         subscriptons_set.insert(s.to_owned());
                     }
                 });
                 p.get_publications().iter().for_each(|s| {
-                    if **s != ArrowTablePublish::None {
+                    if **s != TablePublish::None {
                         publications_set.insert(s.to_owned());
                     }
                 });
@@ -319,7 +319,7 @@ impl SessionContextBuilder {
             .unwrap()
             .into_iter()
             .map(|r| (r.get_name().to_string(), Arc::new(RwLock::new(r))))
-            .collect::<HashMap<String, Arc<RwLock<ArrowTable>>>>();
+            .collect::<HashMap<String, Arc<RwLock<Table>>>>();
 
         // Check for metrics; if none, initialize with defaults
         let metrics = match self.metrics {
@@ -343,7 +343,7 @@ impl SessionContextBuilder {
                     .filter(|p| processor_names.contains(&p.get_name().to_string()))
                     .map(Arc::clone)
                     .collect::<Vec<_>>();
-                let task = ArrowTask::get_builder()
+                let task = Task::get_builder()
                     .with_name(&t.task_name)
                     .with_metrics(metrics.clone())
                     .with_runtime_env(Arc::clone(
@@ -405,11 +405,11 @@ impl BuilderTrait for SessionContextBuilder {
 }
 
 impl SessionContextBuilderTrait for SessionContextBuilder {
-    fn with_processors(mut self, processors: Vec<Arc<dyn ArrowProcessorTrait>>) -> Self {
+    fn with_processors(mut self, processors: Vec<Arc<dyn ProcessorTrait>>) -> Self {
         self.processors = Some(processors);
         self
     }
-    fn with_state(mut self, state: Vec<ArrowTable>) -> Self {
+    fn with_state(mut self, state: Vec<Table>) -> Self {
         self.state = Some(state);
         self
     }
@@ -434,10 +434,10 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use crate::{
-        table::arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
+        table::table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
         task::{
-            arrow_processor::{ArrowProcessorEcho, test_processor::ArrowProcessorMock},
-            arrow_task::test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
+            processor::{ProcessorEcho, test_processor::ProcessorMock},
+            task::test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
         },
     };
 
@@ -471,72 +471,72 @@ pub mod test_session_context_builder {
     /// Tasks subscribe and publish to state_1, state_2, and state_3
     pub fn make_test_session_builder_parallel_task() -> SessionContextBuilder {
         let processor_plans = vec![
-            ArrowProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new_arc_with_pub_sub(
                 "processor_2",
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: "state_2".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: "state_2".to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: "config_2".to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new_arc_with_pub_sub(
                 "processor_3",
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: "state_3".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: "state_3".to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: "config_3".to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new_arc_with_pub_sub(
                 "session_1",
                 &[
-                    ArrowTablePublish::Extend {
+                    TablePublish::Extend {
                         table_name: "state_1".to_string(),
                     },
-                    ArrowTablePublish::Extend {
+                    TablePublish::Extend {
                         table_name: "state_2".to_string(),
                     },
-                    ArrowTablePublish::Extend {
+                    TablePublish::Extend {
                         table_name: "state_3".to_string(),
                     },
                 ],
                 &[
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscribe::OnUpdateLastRecordBatch {
                         table_name: "state_1".to_string(),
                     },
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscribe::OnUpdateLastRecordBatch {
                         table_name: "state_2".to_string(),
                     },
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscribe::OnUpdateLastRecordBatch {
                         table_name: "state_3".to_string(),
                     },
                 ],
@@ -553,57 +553,57 @@ pub mod test_session_context_builder {
     /// Tasks subscribe and publish to state_1
     pub fn make_test_session_builder_sequential_task() -> SessionContextBuilder {
         let processor_plans = vec![
-            ArrowProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new_arc_with_pub_sub(
                 "processor_2",
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new_arc_with_pub_sub(
                 "processor_3",
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ArrowProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new_arc_with_pub_sub(
                 "session_1",
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: "state_1".to_string(),
                 }],
-                &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                &[TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: "state_1".to_string(),
                 }],
                 AllTableNamesSubscribe::new_box(),
@@ -616,12 +616,12 @@ pub mod test_session_context_builder {
             .with_processors(processor_plans)
     }
 
-    pub fn make_test_processors() -> Vec<Arc<dyn ArrowProcessorTrait>> {
+    pub fn make_test_processors() -> Vec<Arc<dyn ProcessorTrait>> {
         vec![
-            ArrowProcessorMock::new_arc("processor_1"),
-            ArrowProcessorMock::new_arc("processor_2"),
-            ArrowProcessorMock::new_arc("processor_3"),
-            ArrowProcessorEcho::new_arc("session_1"),
+            ProcessorMock::new_arc("processor_1"),
+            ProcessorMock::new_arc("processor_2"),
+            ProcessorMock::new_arc("processor_3"),
+            ProcessorEcho::new_arc("session_1"),
         ]
     }
 
@@ -694,10 +694,10 @@ pub mod test_session_context_builder {
 mod tests {
     use super::*;
     use crate::{
-        table::arrow_table_subscribe::ArrowTableSubscribe,
+        table::table_subscribe::TableSubscribe,
         task::{
-            arrow_processor::{ArrowProcessorTrait, test_processor::ArrowProcessorMock},
-            arrow_task::test_task::{make_runtime_env, make_state_tables},
+            processor::{ProcessorTrait, test_processor::ProcessorMock},
+            task::test_task::{make_runtime_env, make_state_tables},
         },
     };
 
@@ -706,16 +706,16 @@ mod tests {
         let plan = test_session_context_builder::make_test_session_builder_parallel_task();
         let (subscriptions, publications) = plan.get_task_sub_pub("task_1");
         assert!(
-            subscriptions.contains(&&ArrowTableSubscribe::AlwaysFullTable {
+            subscriptions.contains(&&TableSubscribe::AlwaysFullTable {
                 table_name: "config_1".to_string()
             })
         );
         assert!(
-            subscriptions.contains(&&ArrowTableSubscribe::OnUpdateFullTable {
+            subscriptions.contains(&&TableSubscribe::OnUpdateFullTable {
                 table_name: "state_1".to_string()
             })
         );
-        assert!(publications.contains(&&ArrowTablePublish::Extend {
+        assert!(publications.contains(&&TablePublish::Extend {
             table_name: "state_1".to_string()
         }));
     }
@@ -814,8 +814,8 @@ mod tests {
 
         // Missing tasks
         let processors = vec![
-            ArrowProcessorMock::new_arc("processor_1"),
-            ArrowProcessorMock::new_arc("processor_2"),
+            ProcessorMock::new_arc("processor_1"),
+            ProcessorMock::new_arc("processor_2"),
         ];
         let result = SessionContextBuilder::new()
             .with_name("session_1")
@@ -832,10 +832,10 @@ mod tests {
 
         // Task not found in plan
         let processors = vec![
-            ArrowProcessorMock::new_arc("processor_1"),
-            ArrowProcessorMock::new_arc("processor_2"),
-            ArrowProcessorMock::new_arc("processor_3"),
-            ArrowProcessorMock::new_arc("not_found"),
+            ProcessorMock::new_arc("processor_1"),
+            ProcessorMock::new_arc("processor_2"),
+            ProcessorMock::new_arc("processor_3"),
+            ProcessorMock::new_arc("not_found"),
         ];
         let result = SessionContextBuilder::new()
             .with_name("session_1")

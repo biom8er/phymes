@@ -4,22 +4,22 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, device,
+            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, device,
         },
         runtime_env::RuntimeEnv,
     },
     table::{
-        arrow_table::{ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
+        table::{TableBuilder, TableBuilderTrait, TableTrait},
+        table_publish::TablePublish,
+        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
+        message::{
+            MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
             ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait,
+        processor::ProcessorTrait,
         publish_subscribe::PubSubTrait,
     },
 };
@@ -47,8 +47,8 @@ use tracing::{Level, event, instrument};
 #[derive(Debug)]
 pub struct CandleDataProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
@@ -59,11 +59,11 @@ impl MappableTrait for CandleDataProcessor {
 }
 
 impl PubSubTrait for CandleDataProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
@@ -72,13 +72,13 @@ impl PubSubTrait for CandleDataProcessor {
     }
 }
 
-impl ArrowProcessorTrait for CandleDataProcessor {
+impl ProcessorTrait for CandleDataProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -87,11 +87,11 @@ impl ArrowProcessorTrait for CandleDataProcessor {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -107,10 +107,10 @@ impl ArrowProcessorTrait for CandleDataProcessor {
     #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
-        mut message: OutgoingMessageMap,
+        mut message: SendableRecordBatchStreamMessageMap,
         metrics: ArrowTaskMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Extract out the config
@@ -120,7 +120,7 @@ impl ArrowProcessorTrait for CandleDataProcessor {
         };
 
         // Remove subscriptions
-        let mut subscriptions = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut subscriptions = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         for subs in self.subscriptions.iter() {
             if subs.get_table_name() != self.get_name() {
                 match message.remove(subs.get_table_name()) {
@@ -146,7 +146,7 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),
         )?);
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
@@ -163,7 +163,7 @@ impl ArrowProcessorTrait for CandleDataProcessor {
 pub struct CandleDataStream {
     /// The messages containing the lhs and rhs
     /// which we cannot determine until we intialize the config
-    messages: OutgoingMessageMap,
+    messages: SendableRecordBatchStreamMessageMap,
     /// Parameters for tensor operations
     config_stream: SendableRecordBatchStream,
     /// The tensor services needed for inference
@@ -186,7 +186,7 @@ pub struct CandleDataStream {
 
 impl CandleDataStream {
     pub fn new(
-        messages: OutgoingMessageMap,
+        messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         baseline_metrics: BaselineMetrics,
@@ -272,7 +272,7 @@ impl Stream for CandleDataStream {
                     serde_json::from_value(config_values.get("arguments").unwrap().clone())?;
                 self.config.replace(config);
             } else {
-                let config_table = ArrowTableBuilder::new()
+                let config_table = TableBuilder::new()
                     .with_name("config")
                     .with_record_batches(batches)?
                     .build()?;
@@ -314,7 +314,7 @@ impl Stream for CandleDataStream {
                     // Extract the input from the config
                     match self.config.as_ref().unwrap().lhs_args.as_ref() {
                         Some(qs) => {
-                            let table = match ArrowTableBuilder::new().with_json(qs.as_bytes(), 512)
+                            let table = match TableBuilder::new().with_json(qs.as_bytes(), 512)
                             {
                                 Ok(builder) => builder.with_name("").build()?,
                                 Err(err) => {
@@ -375,7 +375,7 @@ impl Stream for CandleDataStream {
                     // Extract the input from the config
                     match self.config.as_ref().unwrap().rhs_args.as_ref() {
                         Some(qs) => {
-                            let table = match ArrowTableBuilder::new().with_json(qs.as_bytes(), 512)
+                            let table = match TableBuilder::new().with_json(qs.as_bytes(), 512)
                             {
                                 Ok(builder) => builder.with_name("").build()?,
                                 Err(err) => {
@@ -513,7 +513,7 @@ mod tests {
     use crate::candle_operators::available_candle_operators::AvailableCandleOperators;
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
-    use phymes_core::table::{arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish};
+    use phymes_core::table::{table::Table, table_publish::TablePublish};
 
     use super::*;
 
@@ -531,7 +531,7 @@ mod tests {
             lhs_ids_vec,
             lhs_embeddings_vec,
         )?;
-        let lhs_table = ArrowTable::get_builder()
+        let lhs_table = Table::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
@@ -547,30 +547,30 @@ mod tests {
             rhs_ids_vec,
             rhs_embeddings_vec,
         )?;
-        let rhs_table = ArrowTable::get_builder()
+        let rhs_table = Table::get_builder()
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch])?
             .build()?;
 
         // Make the input message
-        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = messages.insert(
             lhs_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
         let _ = messages.insert(
             rhs_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -588,7 +588,7 @@ mod tests {
             operator: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
-        let config_table = ArrowTable::get_builder()
+        let config_table = Table::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config)?, 1)?
             .build()?;
@@ -681,14 +681,14 @@ mod tests {
             rhs_args: None,
             ..Default::default()
         };
-        let config_args_table = ArrowTable::get_builder()
+        let config_args_table = Table::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config_args)?, 1)?
             .build()?;
 
         // Make the stream and run
         let ops_stream = CandleDataStream::new(
-            HashMap::<String, ArrowOutgoingMessage>::new(),
+            HashMap::<String, SendableRecordBatchStreamMessage>::new(),
             config_args_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
             baseline_metrics,
@@ -741,7 +741,7 @@ mod tests {
             lhs_ids_vec_2,
             lhs_embeddings_vec_2,
         )?;
-        let lhs_table = ArrowTable::get_builder()
+        let lhs_table = Table::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch_1, lhs_batch_2])?
             .build()?;
@@ -759,30 +759,30 @@ mod tests {
             rhs_ids_vec_2,
             rhs_embeddings_vec_2,
         )?;
-        let rhs_table = ArrowTable::get_builder()
+        let rhs_table = Table::get_builder()
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch_1, rhs_batch_2])?
             .build()?;
 
         // Make the input message
-        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = messages.insert(
             lhs_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
         let _ = messages.insert(
             rhs_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -863,7 +863,7 @@ mod tests {
     #[tokio::test]
     async fn test_candle_ops_processor() -> Result<()> {
         // LHS and RHS messages
-        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let lhs_ids_vec = vec!["1", "2", "3"];
         let lhs_embeddings_vec: Vec<Vec<f32>> = vec![
             vec![1., 1., 1., 1.],
@@ -875,17 +875,17 @@ mod tests {
             lhs_ids_vec,
             lhs_embeddings_vec,
         )?;
-        let lhs_table = ArrowTable::get_builder()
+        let lhs_table = Table::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
         let _ = messages.insert(
             "lhs_name".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("lhs_name")
                 .with_publisher("")
                 .with_subject("lhs_name")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(lhs_table.to_record_batch_stream())
                 .build()?,
         );
@@ -901,17 +901,17 @@ mod tests {
             rhs_ids_vec,
             rhs_embeddings_vec,
         )?;
-        let rhs_table = ArrowTable::get_builder()
+        let rhs_table = Table::get_builder()
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch])?
             .build()?;
         let _ = messages.insert(
             "rhs_name".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("rhs_name")
                 .with_publisher("")
                 .with_subject("rhs_name")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(rhs_table.to_record_batch_stream())
                 .build()?,
         );
@@ -930,17 +930,17 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = ArrowTableBuilder::new()
+        let config_table = TableBuilder::new()
             .with_name("candle_ops_processor")
             .with_json(&config_json, 1)?
             .build()?;
         let _ = messages.insert(
             "candle_ops_processor".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("candle_ops_processor")
                 .with_publisher("")
                 .with_subject("")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -962,14 +962,14 @@ mod tests {
         // Make the stream and run
         let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
             "candle_ops_processor",
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: "results".to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: "lhs_name".to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: "rhs_name".to_string(),
                 },
             ],

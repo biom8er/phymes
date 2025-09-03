@@ -1,10 +1,10 @@
 use crate::metrics::HashMap;
 use crate::session::runtime_env::RuntimeEnv;
-use crate::table::arrow_table::ArrowTable;
+use crate::table::table::Table;
 use crate::task::{
-    arrow_message::{ArrowIncomingIPCMessage, ArrowIncomingMessage, ArrowOutgoingMessage},
-    arrow_processor::ArrowProcessorTrait,
-    arrow_task::ArrowTask,
+    message::{IPCMessage, SendableRecordBatchStreamMessage},
+    processor::ProcessorTrait,
+    task::Task,
 };
 
 /// General imports
@@ -48,22 +48,19 @@ pub fn device(cpu: bool) -> candle_core::Result<Device> {
 pub type RuntimeEnvMap = HashMap<String, Arc<Mutex<RuntimeEnv>>>;
 
 /// Processor HashMap with Arc-based abstraction
-pub type ProcessorMap = HashMap<String, Arc<dyn ArrowProcessorTrait>>;
+pub type ProcessorMap = HashMap<String, Arc<dyn ProcessorTrait>>;
 
 /// Task HashMap
-pub type TaskMap = HashMap<String, Arc<ArrowTask>>;
+pub type TaskMap = HashMap<String, Arc<Task>>;
 
 /// Table HashMap with Arc/RwLock for thread-safe multiple reads
-pub type StateMap = HashMap<String, Arc<RwLock<ArrowTable>>>;
+pub type StateMap = HashMap<String, Arc<RwLock<Table>>>;
 
 /// Incoming Message HashMap
-pub type IncomingMessageMap = HashMap<String, ArrowIncomingMessage>;
+pub type IPCMessageMap = HashMap<String, IPCMessage>;
 
 /// Outgoing Message HashMap
-pub type OutgoingMessageMap = HashMap<String, ArrowOutgoingMessage>;
-
-/// Incoming IPCMessage HashMap
-pub type IPCMessageMap = HashMap<String, ArrowIncomingIPCMessage>;
+pub type SendableRecordBatchStreamMessageMap = HashMap<String, SendableRecordBatchStreamMessage>;
 
 /// For all objects that can be inserted into a HashMap
 /// based on their `name` attribute
@@ -136,7 +133,7 @@ pub trait BuilderTrait {
 /// streaming `RecordBatch`es as messages
 pub trait RunnableTrait {
     /// Run the computation
-    fn run(&self, messages: OutgoingMessageMap) -> Result<OutgoingMessageMap>;
+    fn run(&self, messages: SendableRecordBatchStreamMessageMap) -> Result<SendableRecordBatchStreamMessageMap>;
 }
 
 /// For services that process Tensors

@@ -8,11 +8,11 @@ use candle_core::Device;
 use phymes_core::{
     schemas::{
         chat_completion,
-        available_subjects::{create_messages_record_batch, create_timestamp_micros},
+        available_subjects::{create_chat_record_batch, create_timestamp_micros},
         types,
     },
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    table::table::{Table, TableBuilderTrait, TableTrait},
 };
 use std::collections::HashMap;
 
@@ -80,7 +80,7 @@ impl DataOperatorTrait for HumanInTheLoop {
 }
 
 fn create_hitl_record_batch(lhs_args: &[RecordBatch]) -> Result<RecordBatch> {
-    let content = ArrowTable::get_builder()
+    let content = Table::get_builder()
         .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?
@@ -88,7 +88,7 @@ fn create_hitl_record_batch(lhs_args: &[RecordBatch]) -> Result<RecordBatch> {
         .first()
         .unwrap()
         .to_string();
-    create_messages_record_batch(
+    create_chat_record_batch(
         vec!["assistant".to_string()],
         vec![content],
         vec![create_timestamp_micros()],

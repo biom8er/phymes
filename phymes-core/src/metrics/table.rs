@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     metrics::{ArrowTaskMetricsSet, HashMap},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    table::table::{Table, TableBuilderTrait, TableTrait},
 };
 use anyhow::Result;
 use arrow::{
@@ -18,7 +18,7 @@ use arrow::{
 pub fn get_metrics_as_pivot_table(
     metrics_vec: &[ArrowTaskMetricsSet],
     table_name: &str,
-) -> Result<ArrowTable> {
+) -> Result<Table> {
     // extract out values from metrics
     let mut task_metrics_count: HashMap<(String, String), usize> = HashMap::new();
     let mut task_names_vec = Vec::<(String, usize)>::new();
@@ -113,14 +113,14 @@ pub fn get_metrics_as_pivot_table(
     let batch = RecordBatch::try_from_iter(pivot_columns)?;
 
     // create the table
-    ArrowTable::get_builder()
+    Table::get_builder()
         .with_name(table_name)
         .with_record_batches(vec![batch])?
         .build()
 }
 
 /// Get the metrics for a single session as a table
-pub fn get_metrics_as_table(metrics: ArrowTaskMetricsSet, table_name: &str) -> Result<ArrowTable> {
+pub fn get_metrics_as_table(metrics: ArrowTaskMetricsSet, table_name: &str) -> Result<Table> {
     // extract out values from metrics
     let mut task_names_vec = Vec::<String>::new();
     let mut metric_names_vec = Vec::<String>::new();
@@ -157,14 +157,14 @@ pub fn get_metrics_as_table(metrics: ArrowTaskMetricsSet, table_name: &str) -> R
     ])?;
 
     // create the table
-    ArrowTable::get_builder()
+    Table::get_builder()
         .with_name(table_name)
         .with_record_batches(vec![batch])?
         .build()
 }
 
 /// Add normalized start and end time for use in gantt or barplot visualizations
-pub fn get_metrics_as_gantt_table(pivot_table: ArrowTable) -> Result<ArrowTable> {
+pub fn get_metrics_as_gantt_table(pivot_table: Table) -> Result<Table> {
     // determine the minimum start time
     let start_time_arr: ArrayRef = pivot_table.get_column_as_array("start_timestamp");
     let start_time_arr_prim = start_time_arr
@@ -195,7 +195,7 @@ pub fn get_metrics_as_gantt_table(pivot_table: ArrowTable) -> Result<ArrowTable>
         batch_vec.push((field.name(), pivot_table.get_column_as_array(field.name())));
     }
     let batch = RecordBatch::try_from_iter(batch_vec)?;
-    ArrowTable::get_builder()
+    Table::get_builder()
         .with_name(pivot_table.get_name())
         .with_record_batches(vec![batch])?
         .build()
@@ -207,7 +207,7 @@ pub fn get_metrics_as_gantt_table(pivot_table: ArrowTable) -> Result<ArrowTable>
 ///
 /// * chart 1: Processor traces based on normalized start and end times
 /// * chart 2 and 3: Elapsed compute and output rows, respectively, as barcharts
-pub fn get_metrics_as_mermaid_gantt(pivot_table: ArrowTable) -> Result<ArrowTable> {
+pub fn get_metrics_as_mermaid_gantt(pivot_table: Table) -> Result<Table> {
     // initialize the diagram headers and vecs
     let header_str = "gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\t".to_string();
     let mut processor_traces_vec = vec![
@@ -263,7 +263,7 @@ pub fn get_metrics_as_mermaid_gantt(pivot_table: ArrowTable) -> Result<ArrowTabl
     ])?;
 
     // create the table
-    ArrowTable::get_builder()
+    Table::get_builder()
         .with_name(pivot_table.get_name())
         .with_record_batches(vec![batch])?
         .build()

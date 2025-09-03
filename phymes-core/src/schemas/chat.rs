@@ -1,6 +1,6 @@
-use crate::{schemas::available_subjects::{create_messages_record_batch, create_timestamp_micros}, table::{
-    arrow_script::ArrowTableScript,
-    arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
+use crate::{schemas::available_subjects::{create_chat_record_batch, create_timestamp_micros}, table::{
+    table_script::TableScript,
+    table::{Table, TableBuilder, TableBuilderTrait, TableTrait},
     stream::SendableRecordBatchStream,
     stream_adapter::RecordBatchReceiverStream,
 }};
@@ -15,7 +15,7 @@ use tracing::{Level, event};
 
 use super::chat_completion::{self, ChatCompletionMessage, Content, MessageRole, ToolCall};
 
-pub trait MessagesTraitExt: Sized {
+pub trait ChatTraitExt: Sized {
     /// Apply a template to build the message
     fn to_chat_prompt(
         self,
@@ -29,7 +29,7 @@ pub trait MessagesTraitExt: Sized {
     fn to_openai_messages(self) -> Vec<ChatCompletionMessage>;
 }
 
-impl MessagesTraitExt for ArrowTable {
+impl ChatTraitExt for Table {
     fn to_chat_prompt(
         self,
         chat_template: &str,
@@ -54,7 +54,7 @@ impl MessagesTraitExt for ArrowTable {
             "tools": tools,
         });
 
-        ArrowTableScript::new_from_template(chat_template.to_string())
+        TableScript::new_from_template(chat_template.to_string())
             .apply_template(&chat_template_inputs)
     }
 
@@ -114,7 +114,7 @@ impl MessagesTraitExt for ArrowTable {
     }
 }
 
-pub trait MessagesBuilderTraitExt: Sized {
+pub trait ChatBuilderTraitExt: Sized {
     /// Insert the system template to the chat history
     fn insert_system_template_str(self, system_prompt: &str) -> Result<Self>;
 
@@ -133,12 +133,12 @@ pub trait MessagesBuilderTraitExt: Sized {
     ) -> Result<(Self, SendableRecordBatchStream)>;
 }
 
-impl MessagesBuilderTraitExt for ArrowTableBuilder {
+impl ChatBuilderTraitExt for TableBuilder {
     fn insert_system_template_str(mut self, system_prompt: &str) -> Result<Self> {
         // Fill in the system template
 
         // Add the system content to the history (should be the first record batch)
-        let batch = create_messages_record_batch(
+        let batch = create_chat_record_batch(
             vec!["system".to_string()],
             vec![system_prompt.to_string()],
             vec![create_timestamp_micros()],
@@ -157,7 +157,7 @@ impl MessagesBuilderTraitExt for ArrowTableBuilder {
     }
 
     fn append_new_user_query_str(mut self, content: &str, role: &str) -> Result<Self> {
-        let batch = create_messages_record_batch(
+        let batch = create_chat_record_batch(
             vec![role.to_string()],
             vec![content.to_string()],
             vec![create_timestamp_micros()],
@@ -274,7 +274,7 @@ impl MessagesBuilderTraitExt for ArrowTableBuilder {
 
         // update the chat history
         let content_string: String = content.join("");
-        let batch = create_messages_record_batch(
+        let batch = create_chat_record_batch(
             vec![role.to_string()],
             vec![content_string.to_string()],
             vec![timestamp],
@@ -302,20 +302,19 @@ mod test_messages {
     use crate::{
         metrics::{ArrowTaskMetricsSet, HashMap},
         session::{
-            common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+            common_traits::{BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap},
             runtime_env::RuntimeEnv,
         },
         table::{
-            arrow_table_publish::ArrowTablePublish,
-            arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
+            table_publish::TablePublish,
+            table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
             stream::{RecordBatchStream, SendableRecordBatchStream},
         },
         task::{
-            arrow_message::{
-                ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-                ArrowOutgoingMessageTrait,
+            message::{
+                MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage
             },
-            arrow_processor::ArrowProcessorTrait,
+            processor::ProcessorTrait,
             publish_subscribe::PubSubTrait,
         },
     };
@@ -333,8 +332,8 @@ mod test_messages {
     #[derive(Debug)]
     pub struct CandleChatMockProcessor {
         name: String,
-        publications: Vec<ArrowTablePublish>,
-        subscriptions: Vec<ArrowTableSubscribe>,
+        publications: Vec<TablePublish>,
+        subscriptions: Vec<TableSubscribe>,
         subscribe: Box<dyn SubscribeTrait>,
     }
 
@@ -345,11 +344,11 @@ mod test_messages {
     }
 
     impl PubSubTrait for CandleChatMockProcessor {
-        fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+        fn get_publications(&self) -> Vec<&TablePublish> {
             self.publications.iter().collect::<Vec<_>>()
         }
 
-        fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+        fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
             self.subscriptions.iter().collect::<Vec<_>>()
         }
         fn check_subscriptions(
@@ -362,13 +361,13 @@ mod test_messages {
         }
     }
 
-    impl ArrowProcessorTrait for CandleChatMockProcessor {
+    impl ProcessorTrait for CandleChatMockProcessor {
         fn new_arc_with_pub_sub(
             name: &str,
-            publications: &[ArrowTablePublish],
-            subscriptions: &[ArrowTableSubscribe],
+            publications: &[TablePublish],
+            subscriptions: &[TableSubscribe],
             subscribe: Box<dyn SubscribeTrait>,
-        ) -> Arc<dyn ArrowProcessorTrait> {
+        ) -> Arc<dyn ProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
                 publications: publications.to_owned(),
@@ -377,11 +376,11 @@ mod test_messages {
             })
         }
 
-        fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+        fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
-                publications: vec![ArrowTablePublish::None],
-                subscriptions: vec![ArrowTableSubscribe::None],
+                publications: vec![TablePublish::None],
+                subscriptions: vec![TableSubscribe::None],
                 subscribe: AllTableNamesSubscribe::new_box(),
             })
         }
@@ -396,10 +395,10 @@ mod test_messages {
 
         fn process(
             &self,
-            mut message: OutgoingMessageMap,
+            mut message: SendableRecordBatchStreamMessageMap,
             _metrics: ArrowTaskMetricsSet,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
-        ) -> Result<OutgoingMessageMap> {
+        ) -> Result<SendableRecordBatchStreamMessageMap> {
             // Create the stream response
             let input = match message.remove("messages") {
                 Some(i) => i,
@@ -420,12 +419,12 @@ mod test_messages {
             });
 
             // Prepare the outbox
-            let mut outbox = HashMap::<String, ArrowOutgoingMessage>::new();
-            let out_m = ArrowOutgoingMessage::get_builder()
+            let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+            let out_m = SendableRecordBatchStreamMessage::get_builder()
                 .with_name("messages")
                 .with_publisher(self.get_name())
                 .with_subject("messages")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(out)
                 .build()?;
             let _ = outbox.insert(out_m.get_name().to_string(), out_m);
@@ -457,7 +456,7 @@ mod test_messages {
                 while let Some(Ok(batch)) = ready!(self.input.poll_next_unpin(cx)) {
                     batches.push(batch);
                 }
-                let messages = ArrowTableBuilder::new()
+                let messages = TableBuilder::new()
                     .with_name("messages")
                     .with_record_batches(batches)?
                     .build()?;
@@ -469,7 +468,7 @@ mod test_messages {
                         while let Some(Ok(batch)) = ready!(tools.poll_next_unpin(cx)) {
                             batches.push(batch);
                         }
-                        let tool_table = ArrowTableBuilder::new()
+                        let tool_table = TableBuilder::new()
                             .with_name("messages")
                             .with_record_batches(batches)?
                             .build()?;
@@ -500,7 +499,7 @@ mod test_messages {
                 )?;
 
                 // mock generationg of next token
-                let batch = create_messages_record_batch(
+                let batch = create_chat_record_batch(
                     vec!["assistant".to_string()],
                     vec![prompt],
                     vec![create_timestamp_micros()],
@@ -515,7 +514,7 @@ mod test_messages {
                     true => format!("Function{}", self.sample),
                     false => format!("Response{}", self.sample),
                 };
-                let batch = create_messages_record_batch(
+                let batch = create_chat_record_batch(
                     vec!["assistant".to_string()],
                     vec![response],
                     vec![create_timestamp_micros()],
@@ -554,15 +553,14 @@ mod tests {
             runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         },
         table::{
-            arrow_table::test_table::{make_test_table_chat, make_test_table_tool},
-            arrow_table_publish::ArrowTablePublish,
+            table::test_table::{make_test_table_chat, make_test_table_tool},
+            table_publish::TablePublish,
         },
         task::{
-            arrow_message::{
-                ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-                ArrowOutgoingMessageTrait,
+            message::{
+                MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage
             },
-            arrow_processor::ArrowProcessorTrait,
+            processor::ProcessorTrait,
         },
     };
     use futures::TryStreamExt;
@@ -616,7 +614,7 @@ mod tests {
     fn test_to_openai_messages() -> Result<()> {
         //let tools_call_string = "[{\"type\": \"function\", \"function\": {\"name\": \"get_current_weather\", \"arguments\": {\"location\": \"Boston, MA\"}}}]";
         let tool_call_str = r#"[{"id":"fc_12345xyz","type":"function","function":{"name":"get_current_weather","arguments":"{\"location\":\"San Francisco, CA\",\"format\":\"celsius\"}"}}]"#;
-        let test_table = ArrowTableBuilder::new()
+        let test_table = TableBuilder::new()
             .with_name("messages")
             .insert_system_template_str("Hello from system.")?
             .append_new_user_query_str("Hello from user.", "user")?
@@ -680,7 +678,7 @@ mod tests {
     #[tokio::test]
     async fn test_message_builder_no_tool_no_doc() -> Result<()> {
         // Make the system prompt and add the user query
-        let message_builder = ArrowTableBuilder::new()
+        let message_builder = TableBuilder::new()
             .with_name("messages")
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(
@@ -689,20 +687,20 @@ mod tests {
             )?;
 
         // Build the message
-        let mut message = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
             "messages".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("messages")
                 .with_publisher("")
                 .with_subject("messages")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
 
         // Build the chat task
-        let chat_processor: Arc<dyn ArrowProcessorTrait> =
+        let chat_processor: Arc<dyn ProcessorTrait> =
             test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
@@ -731,7 +729,7 @@ mod tests {
 
         // Check that the forwarded stream also matches
         let batches: Vec<RecordBatch> = stream.try_collect().await?;
-        let messages = ArrowTableBuilder::new()
+        let messages = TableBuilder::new()
             .with_name("")
             .with_record_batches(batches)?
             .build()?;
@@ -758,7 +756,7 @@ mod tests {
     #[tokio::test]
     async fn test_message_builder_with_tool() -> Result<()> {
         // Make the system prompt and add the user query
-        let message_builder = ArrowTableBuilder::new()
+        let message_builder = TableBuilder::new()
             .with_name("messages")
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(
@@ -767,24 +765,24 @@ mod tests {
             )?;
 
         // Build the message
-        let mut message = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
             "messages".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("messages")
                 .with_publisher("")
                 .with_subject("messages")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
         let _ = message.insert(
             "tools".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("tools")
                 .with_publisher("")
                 .with_subject("tools")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(make_test_table_tool("tools")?.to_record_batch_stream())
                 .build()?,
         );
@@ -818,7 +816,7 @@ mod tests {
 
         // Check that the forwarded stream also matches
         let batches: Vec<RecordBatch> = stream.try_collect().await?;
-        let messages = ArrowTableBuilder::new()
+        let messages = TableBuilder::new()
             .with_name("")
             .with_record_batches(batches)?
             .build()?;

@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use crate::metrics::HashMap;
 use crate::session::common_traits::{
-    BuildableTrait, BuilderTrait, IncomingMessageMap, MappableTrait,
+    BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait,
 };
 use crate::table::{
-    arrow_table::{ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
-    arrow_table_publish::ArrowTablePublish,
+    table::{TableBuilder, TableBuilderTrait, TableTrait},
+    table_publish::TablePublish,
     stream::SendableRecordBatchStream,
 };
 
@@ -16,18 +16,18 @@ use arrow::datatypes::{DataType, Field, Fields};
 
 /// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
 /// metadata for subject, publisher, and update
-pub trait ArrowMessageTrait: MappableTrait + BuildableTrait + Send {
+pub trait MessageTrait: MappableTrait + BuildableTrait + Send {
     type T;
     fn get_subject(&self) -> &str;
     fn get_publisher(&self) -> &str;
-    fn get_update(&self) -> &ArrowTablePublish;
-    fn get_message(&self) -> &<Self as ArrowMessageTrait>::T;
-    fn get_message_own(self) -> <Self as ArrowMessageTrait>::T;
-    fn get_message_mut(&mut self) -> &mut <Self as ArrowMessageTrait>::T; 
+    fn get_update(&self) -> &TablePublish;
+    fn get_message(&self) -> &<Self as MessageTrait>::T;
+    fn get_message_own(self) -> <Self as MessageTrait>::T;
+    fn get_message_mut(&mut self) -> &mut <Self as MessageTrait>::T; 
 }
 
 #[derive(Clone, Default, Debug)]
-pub struct ArrowIncomingMessage {
+pub struct IPCMessage {
     /// Name of the message
     name: String,
     /// The name of the subject
@@ -37,16 +37,16 @@ pub struct ArrowIncomingMessage {
     /// The actual message as an IPC stream
     message: Vec<u8>,
     /// How to update the state
-    update: ArrowTablePublish,
+    update: TablePublish,
 }
 
-impl ArrowIncomingMessage {
+impl IPCMessage {
     pub fn new(
         name: &str,
         subject: &str,
         publisher: &str,
         message: Option<Vec<u8>>,
-        update: Option<ArrowTablePublish>,
+        update: Option<TablePublish>,
     ) -> Self {
         Self {
             name: name.to_string(),
@@ -70,8 +70,8 @@ impl ArrowIncomingMessage {
     /// - It is up to the implementer to assure that the `values`
     ///   can be deserialized to either an ArrowTable or
     ///   a user-defined schema
-    pub fn to_map(self) -> Result<IncomingMessageMap> {
-        let mut map = HashMap::<String, ArrowIncomingMessage>::new();
+    pub fn to_map(self) -> Result<IPCMessageMap> {
+        let mut map = HashMap::<String, IPCMessage>::new();
 
         // Expected fields if it is an aggregated message
         let field_names = ["name", "publisher", "subject", "values"];
@@ -82,7 +82,7 @@ impl ArrowIncomingMessage {
         let fields = Fields::from(fields_vec);
 
         // Wrap the message in a table
-        let table = ArrowTableBuilder::new_from_ipc_stream(&self.message)?
+        let table = TableBuilder::new_from_ipc_stream(&self.message)?
             .with_name(&self.subject)
             .build()?;
 
@@ -102,16 +102,16 @@ impl ArrowIncomingMessage {
                     data.get(3).unwrap().get(row).unwrap().to_string(),
                 ]));
                 let batch = RecordBatch::try_from_iter(vec![("values", values)])?;
-                let bytes = ArrowTableBuilder::new()
+                let bytes = TableBuilder::new()
                     .with_name(name)
                     .with_record_batches(vec![batch])?
                     .build()?
                     .to_ipc_stream()?;
-                let message = ArrowIncomingMessageBuilder::new()
+                let message = IPCMessageBuilder::new()
                     // .with_name(name)
                     .with_publisher(data.get(1).unwrap().get(row).unwrap())
                     .with_subject(data.get(2).unwrap().get(row).unwrap())
-                    .with_update(&ArrowTablePublish::Extend {
+                    .with_update(&TablePublish::Extend {
                         table_name: data.get(2).unwrap().get(row).unwrap().to_string(),
                     })
                     .with_message(bytes)
@@ -127,14 +127,14 @@ impl ArrowIncomingMessage {
     }
 }
 
-impl MappableTrait for ArrowIncomingMessage {
+impl MappableTrait for IPCMessage {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl BuildableTrait for ArrowIncomingMessage {
-    type T = ArrowIncomingMessageBuilder;
+impl BuildableTrait for IPCMessage {
+    type T = IPCMessageBuilder;
     fn get_builder() -> Self::T
     where
         Self: Sized,
@@ -143,7 +143,7 @@ impl BuildableTrait for ArrowIncomingMessage {
     }
 }
 
-impl ArrowMessageTrait for ArrowIncomingMessage {
+impl MessageTrait for IPCMessage {
     type T = Vec<u8>;
     fn get_subject(&self) -> &str {
         &self.subject
@@ -151,21 +151,21 @@ impl ArrowMessageTrait for ArrowIncomingMessage {
     fn get_publisher(&self) -> &str {
         &self.publisher
     }
-    fn get_update(&self) -> &ArrowTablePublish {
+    fn get_update(&self) -> &TablePublish {
         &self.update
     }
-    fn get_message(&self) -> &<Self as ArrowMessageTrait>::T {
+    fn get_message(&self) -> &<Self as MessageTrait>::T {
         &self.message
     }
-    fn get_message_own(self) -> <Self as ArrowMessageTrait>::T {
+    fn get_message_own(self) -> <Self as MessageTrait>::T {
         self.message
     }
-    fn get_message_mut(&mut self) -> &mut <Self as ArrowMessageTrait>::T {
+    fn get_message_mut(&mut self) -> &mut <Self as MessageTrait>::T {
         &mut self.message
     }
 }
 
-pub struct ArrowOutgoingMessage {
+pub struct SendableRecordBatchStreamMessage {
     /// Name of the message
     name: String,
     /// The name of the intended subject task
@@ -175,17 +175,17 @@ pub struct ArrowOutgoingMessage {
     /// The actual message
     message: SendableRecordBatchStream,
     /// How to update the state
-    update: ArrowTablePublish,
+    update: TablePublish,
 }
 
-impl MappableTrait for ArrowOutgoingMessage {
+impl MappableTrait for SendableRecordBatchStreamMessage {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl BuildableTrait for ArrowOutgoingMessage {
-    type T = ArrowOutgoingMessageBuilder;
+impl BuildableTrait for SendableRecordBatchStreamMessage {
+    type T = SendableRecordBatchStreamMessageBuilder;
     fn get_builder() -> Self::T
     where
         Self: Sized,
@@ -194,7 +194,7 @@ impl BuildableTrait for ArrowOutgoingMessage {
     }
 }
 
-impl ArrowMessageTrait for ArrowOutgoingMessage {
+impl MessageTrait for SendableRecordBatchStreamMessage {
     type T = SendableRecordBatchStream;
     fn get_subject(&self) -> &str {
         &self.subject
@@ -202,21 +202,21 @@ impl ArrowMessageTrait for ArrowOutgoingMessage {
     fn get_publisher(&self) -> &str {
         &self.publisher
     }
-    fn get_update(&self) -> &ArrowTablePublish {
+    fn get_update(&self) -> &TablePublish {
         &self.update
     }
-    fn get_message(&self) -> &<Self as ArrowMessageTrait>::T {
+    fn get_message(&self) -> &<Self as MessageTrait>::T {
         &self.message
     }
-    fn get_message_own(self) -> <Self as ArrowMessageTrait>::T {
+    fn get_message_own(self) -> <Self as MessageTrait>::T {
         self.message
     }
-    fn get_message_mut(&mut self) -> &mut <Self as ArrowMessageTrait>::T {
+    fn get_message_mut(&mut self) -> &mut <Self as MessageTrait>::T {
         &mut self.message
     }
 }
 
-pub trait ArrowMessageBuilderTrait: BuilderTrait + Send {
+pub trait MessageBuilderTrait: BuilderTrait + Send {
     type T;
     fn with_subject(self, name: &str) -> Self;
     fn with_publisher(self, name: &str) -> Self;
@@ -226,12 +226,12 @@ pub trait ArrowMessageBuilderTrait: BuilderTrait + Send {
     fn make_random_name(self) -> Result<Self>
     where
         Self: Sized;
-    fn with_update(self, update: &ArrowTablePublish) -> Self;
-    fn with_message(self, message: <Self as ArrowMessageBuilderTrait>::T) -> Self;
+    fn with_update(self, update: &TablePublish) -> Self;
+    fn with_message(self, message: <Self as MessageBuilderTrait>::T) -> Self;
 }
 
 #[derive(Default, Clone)]
-pub struct ArrowIncomingMessageBuilder {
+pub struct IPCMessageBuilder {
     /// Name of the message
     pub name: Option<String>,
     /// The name of the intended subject task
@@ -241,11 +241,11 @@ pub struct ArrowIncomingMessageBuilder {
     /// The actually message
     pub message: Option<Vec<u8>>,
     /// How to update the state
-    pub update: Option<ArrowTablePublish>,
+    pub update: Option<TablePublish>,
 }
 
-impl BuilderTrait for ArrowIncomingMessageBuilder {
-    type T = ArrowIncomingMessage;
+impl BuilderTrait for IPCMessageBuilder {
+    type T = IPCMessage;
     fn new() -> Self {
         Self {
             name: None,
@@ -276,7 +276,7 @@ impl BuilderTrait for ArrowIncomingMessageBuilder {
     }
 }
 
-impl ArrowMessageBuilderTrait for ArrowIncomingMessageBuilder {
+impl MessageBuilderTrait for IPCMessageBuilder {
     type T = Vec<u8>;
     fn with_subject(mut self, name: &str) -> Self {
         self.subject = Some(name.to_string());
@@ -286,7 +286,7 @@ impl ArrowMessageBuilderTrait for ArrowIncomingMessageBuilder {
         self.publisher = Some(name.to_string());
         self
     }
-    fn with_update(mut self, update: &ArrowTablePublish) -> Self {
+    fn with_update(mut self, update: &TablePublish) -> Self {
         self.update = Some(update.to_owned());
         self
     }
@@ -316,14 +316,14 @@ impl ArrowMessageBuilderTrait for ArrowIncomingMessageBuilder {
         let name = format!("{subject}_{hash}");
         Ok(self.with_name(&name))
     }
-    fn with_message(mut self, message: <Self as ArrowMessageBuilderTrait>::T) -> Self {
+    fn with_message(mut self, message: <Self as MessageBuilderTrait>::T) -> Self {
         self.message = Some(message);
         self
     }
 }
 
 #[derive(Default)]
-pub struct ArrowOutgoingMessageBuilder {
+pub struct SendableRecordBatchStreamMessageBuilder {
     /// Name of the message
     pub name: Option<String>,
     /// The name of the intended subject task
@@ -333,11 +333,11 @@ pub struct ArrowOutgoingMessageBuilder {
     /// The actually message
     pub message: Option<SendableRecordBatchStream>,
     /// How to update the state
-    pub update: Option<ArrowTablePublish>,
+    pub update: Option<TablePublish>,
 }
 
-impl BuilderTrait for ArrowOutgoingMessageBuilder {
-    type T = ArrowOutgoingMessage;
+impl BuilderTrait for SendableRecordBatchStreamMessageBuilder {
+    type T = SendableRecordBatchStreamMessage;
     fn new() -> Self {
         Self {
             name: None,
@@ -368,7 +368,7 @@ impl BuilderTrait for ArrowOutgoingMessageBuilder {
     }
 }
 
-impl ArrowMessageBuilderTrait for ArrowOutgoingMessageBuilder {
+impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
     type T = SendableRecordBatchStream;
     fn with_subject(mut self, name: &str) -> Self {
         self.subject = Some(name.to_string());
@@ -378,7 +378,7 @@ impl ArrowMessageBuilderTrait for ArrowOutgoingMessageBuilder {
         self.publisher = Some(name.to_string());
         self
     }
-    fn with_update(mut self, update: &ArrowTablePublish) -> Self {
+    fn with_update(mut self, update: &TablePublish) -> Self {
         self.update = Some(update.to_owned());
         self
     }
@@ -408,7 +408,7 @@ impl ArrowMessageBuilderTrait for ArrowOutgoingMessageBuilder {
         let name = format!("{subject}_{hash}");
         Ok(self.with_name(&name))
     }
-    fn with_message(mut self, message: <Self as ArrowMessageBuilderTrait>::T) -> Self {
+    fn with_message(mut self, message: <Self as MessageBuilderTrait>::T) -> Self {
         self.message = Some(message);
         self
     }
@@ -416,7 +416,7 @@ impl ArrowMessageBuilderTrait for ArrowOutgoingMessageBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::table::arrow_table::test_table::{self, make_test_table, make_test_table_chat};
+    use crate::table::table::test_table::{self, make_test_table, make_test_table_chat};
 
     use super::*;
 
@@ -426,58 +426,58 @@ mod tests {
         let test_table = test_table::make_test_table("test_table", 4, 8, 3)?;
 
         // Case 1: with name
-        let incoming_message = ArrowIncomingMessageBuilder::new()
+        let incoming_message = IPCMessageBuilder::new()
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&ArrowTablePublish::None)
+            .with_update(&TablePublish::None)
             .with_message(test_table.to_ipc_stream()?)
             .build()?;
         assert_eq!(incoming_message.get_name(), "name");
         assert_eq!(incoming_message.get_subject(), "subject");
         assert_eq!(incoming_message.get_publisher(), "publisher");
-        assert_eq!(*incoming_message.get_update(), ArrowTablePublish::None);
+        assert_eq!(*incoming_message.get_update(), TablePublish::None);
 
-        let outgoing_message = ArrowOutgoingMessageBuilder::new()
+        let outgoing_message = SendableRecordBatchStreamMessageBuilder::new()
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&ArrowTablePublish::None)
+            .with_update(&TablePublish::None)
             .with_message(test_table.to_record_batch_stream())
             .build()?;
         assert_eq!(outgoing_message.get_name(), "name");
         assert_eq!(outgoing_message.get_subject(), "subject");
         assert_eq!(outgoing_message.get_publisher(), "publisher");
-        assert_eq!(*outgoing_message.get_update(), ArrowTablePublish::None);
+        assert_eq!(*outgoing_message.get_update(), TablePublish::None);
         assert_eq!(
             outgoing_message.get_message().schema(),
             test_table.get_schema()
         );
 
         // Case 2: make name
-        let incoming_message = ArrowIncomingMessageBuilder::new()
+        let incoming_message = IPCMessageBuilder::new()
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&ArrowTablePublish::None)
+            .with_update(&TablePublish::None)
             .make_name()?
             .with_message(test_table.to_ipc_stream()?)
             .build()?;
         assert_eq!(incoming_message.get_name(), "from_publisher_on_subject");
         assert_eq!(incoming_message.get_subject(), "subject");
         assert_eq!(incoming_message.get_publisher(), "publisher");
-        assert_eq!(*incoming_message.get_update(), ArrowTablePublish::None);
+        assert_eq!(*incoming_message.get_update(), TablePublish::None);
 
-        let outgoing_message = ArrowOutgoingMessageBuilder::new()
+        let outgoing_message = SendableRecordBatchStreamMessageBuilder::new()
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&ArrowTablePublish::None)
+            .with_update(&TablePublish::None)
             .make_name()?
             .with_message(test_table.to_record_batch_stream())
             .build()?;
         assert_eq!(outgoing_message.get_name(), "from_publisher_on_subject");
         assert_eq!(outgoing_message.get_subject(), "subject");
         assert_eq!(outgoing_message.get_publisher(), "publisher");
-        assert_eq!(*outgoing_message.get_update(), ArrowTablePublish::None);
+        assert_eq!(*outgoing_message.get_update(), TablePublish::None);
         assert_eq!(
             outgoing_message.get_message().schema(),
             test_table.get_schema()
@@ -505,15 +505,15 @@ mod tests {
             ("subject", subjects),
             ("values", values),
         ])?;
-        let table = ArrowTableBuilder::new()
+        let table = TableBuilder::new()
             .with_name("")
             .with_record_batches(vec![batch])?
             .build()?;
-        let message = ArrowIncomingMessageBuilder::new()
+        let message = IPCMessageBuilder::new()
             .with_name("")
             .with_publisher("")
             .with_subject("")
-            .with_update(&ArrowTablePublish::None)
+            .with_update(&TablePublish::None)
             .with_message(table.to_ipc_stream()?)
             .build()?;
         let message_map = message.to_map()?;
@@ -523,11 +523,11 @@ mod tests {
         assert_eq!(message_map.get("data").unwrap().get_subject(), "d1");
         assert_eq!(
             *message_map.get("data").unwrap().get_update(),
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: "d1".to_string()
             }
         );
-        let test_table = ArrowTableBuilder::new_from_ipc_stream(message_map
+        let test_table = TableBuilder::new_from_ipc_stream(message_map
                 .get("data")
                 .unwrap()
                 .get_message())?
@@ -544,11 +544,11 @@ mod tests {
         assert_eq!(message_map.get("chat").unwrap().get_subject(), "d2");
         assert_eq!(
             *message_map.get("chat").unwrap().get_update(),
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: "d2".to_string()
             }
         );
-        let test_table = ArrowTableBuilder::new_from_ipc_stream(message_map
+        let test_table = TableBuilder::new_from_ipc_stream(message_map
                 .get("chat")
                 .unwrap()
                 .get_message())?

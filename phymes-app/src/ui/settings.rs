@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use dioxus::prelude::*;
 use futures::StreamExt;
-use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+use phymes_core::table::table_publish::TablePublish;
 use phymes_data::candle_data::summary_config::DataSummaryFormat;
 use phymes_server::handlers::{
     session_info::SessionResponse,
@@ -67,7 +67,7 @@ pub fn settings_interface_view() -> Element {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
         format: DataSummaryFormat::Bytes,
-        publish: ArrowTablePublish::None,
+        publish: TablePublish::None,
         content: "".to_string().into(),
         metadata: "".to_string(),
         stream: false,

@@ -189,7 +189,7 @@ mod tests {
     use phymes_core::metrics::HashSet;
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
-    use phymes_core::{session::common_traits::MappableTrait, table::arrow_table::ArrowTableTrait};
+    use phymes_core::{session::common_traits::MappableTrait, table::table::TableTrait};
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
     use tempfile::tempdir;

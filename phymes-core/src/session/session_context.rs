@@ -15,7 +15,7 @@ use tracing::{Level, event, instrument};
 
 use super::{
     common_traits::{
-        BuildableTrait, BuilderTrait, IncomingMessageMap, MappableTrait, OutgoingMessageMap,
+        BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, SendableRecordBatchStreamMessageMap,
         RunnableTrait, StateMap, TaskMap,
     },
     runtime_env::RuntimeEnv,
@@ -25,16 +25,15 @@ use crate::metrics::{
     ArrowTaskMetricsSet, HashMap, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt,
     get_metrics_as_pivot_table,
 };
-use crate::table::arrow_table_publish::ArrowTablePublish;
+use crate::table::table_publish::TablePublish;
 use crate::table::{
-    arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
-    arrow_table_publish::ArrowTableUpdateTrait,
+    table::{Table, TableBuilder, TableBuilderTrait, TableTrait},
+    table_publish::TableUpdateTrait,
 };
 use crate::task::{
-    arrow_message::{
-        ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
-        ArrowIncomingMessageTrait, ArrowMessageBuilderTrait, ArrowMessageTrait,
-        ArrowOutgoingMessage, ArrowOutgoingMessageTrait,
+    message::{
+        IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait,
+        SendableRecordBatchStreamMessage,
     },
     publish_subscribe::PubSubTrait,
 };
@@ -134,7 +133,7 @@ impl SessionContext {
                     .unwrap()
                     .update_table(
                         pivot_table.get_record_batches_own(),
-                        ArrowTablePublish::Extend {
+                        TablePublish::Extend {
                             table_name: SessionContextTableNames::Metrics.get_name().to_string(),
                         },
                     )?;
@@ -151,7 +150,7 @@ impl SessionContext {
     }
 
     /// Get the metrics as a gantt for the session
-    pub fn get_metrics_as_mermaid_gantt(&self) -> Result<ArrowTable> {
+    pub fn get_metrics_as_mermaid_gantt(&self) -> Result<Table> {
         if let Some(pivot_table) = self.state.get(SessionContextTableNames::Metrics.get_name()) {
             let pivot_table = get_metrics_as_gantt_table(pivot_table.try_read().unwrap().clone())?;
             get_metrics_as_mermaid_gantt(pivot_table)
@@ -168,7 +167,7 @@ impl SessionContext {
     }
 
     /// Get the subject schema
-    pub fn get_subject_num_rows_as_table(&self, table_name: &str) -> Result<ArrowTable> {
+    pub fn get_subject_num_rows_as_table(&self, table_name: &str) -> Result<Table> {
         let mut subject_names = Vec::new();
         let mut num_rows = Vec::new();
 
@@ -191,7 +190,7 @@ impl SessionContext {
         ])?;
 
         // create the table
-        ArrowTable::get_builder()
+        Table::get_builder()
             .with_name(table_name)
             .with_record_batches(vec![batch])?
             .build()
@@ -258,10 +257,10 @@ impl SessionContext {
         for (name, subject) in self.state.iter() {
             let pathname = format!("{path}/{tag}-{}-{name}", self.get_name());
             let file = std::fs::File::open(pathname)?;
-            match ArrowTableBuilder::new_from_ipc_file(&file) {
+            match TableBuilder::new_from_ipc_file(&file) {
                 Ok(table_builder) => {
                     let table = table_builder.with_name(name).build()?;
-                    let update = ArrowTablePublish::Replace {
+                    let update = TablePublish::Replace {
                         table_name: name.to_string(),
                     };
                     subject
@@ -390,23 +389,41 @@ impl SessionStreamState {
     #[instrument(skip(self, messages))]
     pub fn update_state_from_messages(
         &self,
-        messages: IncomingMessageMap,
+        messages: IPCMessageMap,
     ) -> HashMap<String, Vec<String>> {
         let mut subjects_updated = HashMap::<String, Vec<String>>::new();
         event!(Level::DEBUG, "Message updates {:?}.", &messages.keys());
         for (_name, message) in messages.into_iter() {
+
             // Try to update the state with the new record batches
+            let table_name = message.get_update().get_table_name().to_string();
             if let Some(state) = self
                 .session_context
                 .get_states()
-                .get(message.get_update().get_table_name())
+                .get(table_name.as_str())
             {
                 let update = message.get_update().clone();
                 let publisher = message.get_publisher().to_string();
+
+                // Check for a mismatch in the schema
+                let builder = match TableBuilder::new_from_ipc_stream(&message.get_message_own()) {
+                    Ok(builder) => builder,
+                    Err(err) => {
+                        event!(Level::ERROR, "{err}");
+                        continue;
+                    }
+                };
+                let batches = builder
+                    .with_name(table_name.as_str())
+                    .build()
+                    .unwrap()
+                    .get_record_batches_own();
+
+                // Update the state
                 state
                     .try_write()
                     .unwrap()
-                    .update_table(message.get_message_own().get_record_batches_own(), update)
+                    .update_table(batches, update)
                     .unwrap();
 
                 // Record the table name that was updated and the pubisher who updated it
@@ -440,27 +457,28 @@ impl SessionStreamState {
         &self,
         schema: &SchemaRef,
         json_str: &str,
-        publish: &ArrowTablePublish,
+        publish: &TablePublish,
     ) -> Result<HashMap<String, Vec<String>>> {
         // Convert to json value
         let json_value: Vec<serde_json::Value> = serde_json::from_str(json_str)?;
 
         // Create the incoming message
-        let table = ArrowTableBuilder::new()
+        let bytes = TableBuilder::new()
             .with_schema(schema.clone())
             .with_name(publish.get_table_name())
             .with_json_values(&json_value)?
             .build()
-            .unwrap();
-        let incoming_message = ArrowIncomingMessageBuilder::new()
+            .unwrap()
+            .to_ipc_stream()?;
+        let incoming_message = IPCMessageBuilder::new()
             .with_name(publish.get_table_name())
             .with_subject(publish.get_table_name())
             .with_publisher(self.session_context.get_name())
-            .with_message(table)
+            .with_message(bytes)
             .with_update(publish)
             .build()
             .unwrap();
-        let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
+        let mut incoming_message_map = HashMap::<String, IPCMessage>::new();
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
         // Update the state
@@ -484,27 +502,28 @@ impl SessionStreamState {
         &self,
         schema: &SchemaRef,
         csv_str: &str,
-        publish: &ArrowTablePublish,
+        publish: &TablePublish,
         delimiter: u8,
         header: bool,
         batch_size: usize,
     ) -> Result<HashMap<String, Vec<String>>> {
         // Create the incoming message
-        let table = ArrowTableBuilder::new()
+        let bytes = TableBuilder::new()
             .with_schema(schema.clone())
             .with_name(publish.get_table_name())
             .with_csv(csv_str.as_bytes(), delimiter, header, batch_size)?
             .build()
-            .unwrap();
-        let incoming_message = ArrowIncomingMessageBuilder::new()
+            .unwrap()
+            .to_ipc_stream()?;
+        let incoming_message = IPCMessageBuilder::new()
             .with_name(publish.get_table_name())
             .with_subject(publish.get_table_name())
             .with_publisher(self.session_context.get_name())
-            .with_message(table)
+            .with_message(bytes)
             .with_update(publish)
             .build()
             .unwrap();
-        let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
+        let mut incoming_message_map = HashMap::<String, IPCMessage>::new();
         incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
 
         // Update the state
@@ -534,7 +553,7 @@ impl SessionStreamState {
         ])?;
 
         // Write to IPC file
-        let table = ArrowTable::get_builder()
+        let table = Table::get_builder()
             .with_name("superstep_updates")
             .with_record_batches(vec![batch])?
             .build()?;
@@ -544,7 +563,7 @@ impl SessionStreamState {
     /// Read superstep updates to file
     pub fn read_superstep_updates(&mut self, file: &File) -> Result<()> {
         // Read in the IPC file
-        let table = ArrowTableBuilder::new_from_ipc_file(file)?
+        let table = TableBuilder::new_from_ipc_file(file)?
             .with_name("superstep_updates")
             .build()?;
 
@@ -644,14 +663,14 @@ pub struct SessionStreamStep {}
 
 impl SessionStreamStep {
     /// Join the message streams using JointSet
-    async fn join_message_streams(messages: OutgoingMessageMap) -> Result<IncomingMessageMap> {
+    async fn join_message_streams(messages: SendableRecordBatchStreamMessageMap) -> Result<IPCMessageMap> {
         event!(Level::DEBUG, "Messages to join: {:?}.", &messages.keys());
         // Inspect each of the response futures
-        let mut response_builder = HashMap::<String, ArrowIncomingMessageBuilder>::new();
+        let mut response_builder = HashMap::<String, IPCMessageBuilder>::new();
         let mut join_set = JoinSet::new();
         messages.into_iter().for_each(|(resp_name, resp)| {
             // Copy over name, source, destination for later building of the complete response
-            let message = ArrowIncomingMessageBuilder::new()
+            let message = IPCMessageBuilder::new()
                 .with_name(resp_name.as_str())
                 .with_subject(resp.get_subject())
                 .with_publisher(resp.get_publisher())
@@ -666,7 +685,7 @@ impl SessionStreamStep {
         });
 
         // Collect each of the response RecordBatches
-        let mut response_batches = HashMap::<String, ArrowIncomingMessage>::new();
+        let mut response_batches = HashMap::<String, IPCMessage>::new();
         // Note that currently this doesn't identify the thread that panicked
         //
         // TODO: Replace with [join_next_with_id](https://docs.rs/tokio/latest/tokio/task/struct.JoinSet.html#method.join_next_with_id
@@ -675,14 +694,14 @@ impl SessionStreamStep {
             match response {
                 Ok((resp_name, resp)) => {
                     // Complete the input message with the processed stream
-                    let table = ArrowTableBuilder::new()
+                    let table = TableBuilder::new()
                         .with_name(resp_name.as_str())
                         .with_record_batches(resp?)?
                         .build()?;
                     let message = response_builder
                         .remove(resp_name.as_str())
                         .unwrap()
-                        .with_message(table)
+                        .with_message(table.to_ipc_stream()?)
                         .build()?;
                     let message_map = message.to_map()?;
                     response_batches.extend(message_map);
@@ -752,8 +771,8 @@ impl SessionStreamStep {
     #[instrument(skip(state, messages))]
     pub async fn run_superstep(
         state: Arc<RwLock<SessionStreamState>>,
-        messages: IncomingMessageMap,
-    ) -> Result<Option<IncomingMessageMap>> {
+        messages: IPCMessageMap,
+    ) -> Result<Option<IPCMessageMap>> {
         // Update the state
         let update = state
             .try_write()
@@ -762,8 +781,8 @@ impl SessionStreamStep {
         state.try_write().unwrap().extend_superstep_updates(update);
 
         // Iterate through each task and collect the resulting stream responses
-        let mut session_streams = HashMap::<String, ArrowOutgoingMessage>::new();
-        let mut response_streams = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let mut tasks = Vec::new();
         for (task_name, task) in state.try_read().unwrap().session_context.get_tasks().iter() {
             // Continue to the next task all subscribed subjects are not updated
@@ -822,7 +841,7 @@ impl SessionStreamStep {
 
         // Return the session stream if any
         if session_streams.is_empty() {
-            return Ok(Some(HashMap::<String, ArrowIncomingMessage>::new()));
+            return Ok(Some(HashMap::<String, IPCMessage>::new()));
         } else {
             // Join each of the session futures
             let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
@@ -836,14 +855,14 @@ pub struct SessionStream {
     state: Arc<RwLock<SessionStreamState>>,
     /// The next result
     #[allow(clippy::type_complexity)]
-    next: Option<Pin<Box<dyn Future<Output = Result<Option<IncomingMessageMap>>> + Send>>>,
+    next: Option<Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>>,
 }
 
 impl SessionStream {
-    pub fn new(input: IncomingMessageMap, state: Arc<RwLock<SessionStreamState>>) -> Self {
+    pub fn new(input: IPCMessageMap, state: Arc<RwLock<SessionStreamState>>) -> Self {
         #[allow(clippy::type_complexity)]
         let next: Option<
-            Pin<Box<dyn Future<Output = Result<Option<IncomingMessageMap>>> + Send>>,
+            Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>,
         > = Some(Box::pin(SessionStreamStep::run_superstep(
             Arc::clone(&state),
             input,
@@ -853,7 +872,7 @@ impl SessionStream {
 }
 
 impl Stream for SessionStream {
-    type Item = Result<IncomingMessageMap>;
+    type Item = Result<IPCMessageMap>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // Get the current iter
@@ -870,7 +889,7 @@ impl Stream for SessionStream {
                 match ready!(fut.poll_unpin(cx)) {
                     Ok(Some(res)) => res,
                     Ok(None) => return Poll::Ready(None),
-                    _ => HashMap::<String, ArrowIncomingMessage>::new(),
+                    _ => HashMap::<String, IPCMessage>::new(),
                 }
             } else {
                 return Poll::Ready(None);
@@ -879,7 +898,7 @@ impl Stream for SessionStream {
             // Prepare the next itme
             self.next = Some(Box::pin(SessionStreamStep::run_superstep(
                 Arc::clone(&self.state),
-                HashMap::<String, ArrowIncomingMessage>::new(),
+                HashMap::<String, IPCMessage>::new(),
             )));
             iter = self.state.try_read().unwrap().get_iter();
 
@@ -913,14 +932,14 @@ impl Stream for SessionStream {
 mod tests {
     use super::*;
     use crate::metrics::HashSet;
-    use crate::table::arrow_table::test_table::make_test_table_schema;
+    use crate::table::table::test_table::make_test_table_schema;
     use crate::{
         session::session_context_builder::test_session_context_builder::{
             make_test_session_context_parallel_task, make_test_session_context_parallel_task_empty,
             make_test_session_context_sequential_task,
         },
-        table::arrow_table_publish::ArrowTablePublish,
-        task::arrow_task::test_task::make_test_input_message,
+        table::table_publish::TablePublish,
+        task::task::test_task::make_test_input_message,
     };
     #[cfg(not(target_family = "wasm"))]
     use tempfile::{tempdir, tempfile};
@@ -936,7 +955,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &ArrowTablePublish::None,
+            &TablePublish::None,
         )?;
         let session_stream_step = SessionStreamState::new(session_context);
         let updates = session_stream_step.update_state_from_messages(input);
@@ -1000,7 +1019,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &ArrowTablePublish::Extend {
+            &TablePublish::Extend {
                 table_name: "state_1".to_string(),
             },
         )?;
@@ -1088,7 +1107,7 @@ mod tests {
         let updates = session_stream_state.update_state_from_json_str(
             &schema,
             json_str,
-            &ArrowTablePublish::Extend {
+            &TablePublish::Extend {
                 table_name: "config_1".to_string(),
             },
         )?;
@@ -1131,7 +1150,7 @@ mod tests {
         let updates = session_stream_state.update_state_from_json_str(
             &schema,
             json_str,
-            &ArrowTablePublish::Extend {
+            &TablePublish::Extend {
                 table_name: "config_1".to_string(),
             },
         );
@@ -1165,7 +1184,7 @@ mod tests {
         let updates = session_stream_state.update_state_from_csv_str(
             &schema,
             csv_str,
-            &ArrowTablePublish::Extend {
+            &TablePublish::Extend {
                 table_name: "config_1".to_string(),
             },
             b',',
@@ -1214,7 +1233,7 @@ mod tests {
         let updates = session_stream_state.update_state_from_csv_str(
             &schema,
             csv_str,
-            &ArrowTablePublish::Extend {
+            &TablePublish::Extend {
                 table_name: "config_1".to_string(),
             },
             b',',
@@ -1223,37 +1242,7 @@ mod tests {
         )?;
 
         // check the response
-        assert_eq!(updates.len(), 1);
-        assert_eq!(updates.get("config_1").unwrap().len(), 1);
-        assert_eq!(
-            updates.get("config_1").unwrap().first().unwrap(),
-            "session_1"
-        );
-        assert_eq!(
-            session_stream_state
-                .get_session_context()
-                .get_states()
-                .get("config_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .count_rows(),
-            3
-        ); // Originally 1
-        assert_eq!(
-            session_stream_state
-                .get_session_context()
-                .get_states()
-                .get("config_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            2
-        ); // Unchanged
+        assert_eq!(updates.len(), 0);
 
         // Case 3: valid csv string but mismatched schema
         let csv_str = r#"
@@ -1263,7 +1252,7 @@ mod tests {
         let updates = session_stream_state.update_state_from_csv_str(
             &schema,
             csv_str,
-            &ArrowTablePublish::Extend {
+            &TablePublish::Extend {
                 table_name: "config_1".to_string(),
             },
             b',',
@@ -1272,37 +1261,7 @@ mod tests {
         )?;
 
         // check the response
-        assert_eq!(updates.len(), 1);
-        assert_eq!(updates.get("config_1").unwrap().len(), 1);
-        assert_eq!(
-            updates.get("config_1").unwrap().first().unwrap(),
-            "session_1"
-        );
-        assert_eq!(
-            session_stream_state
-                .get_session_context()
-                .get_states()
-                .get("config_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .count_rows(),
-            3
-        ); // Originally 1
-        assert_eq!(
-            session_stream_state
-                .get_session_context()
-                .get_states()
-                .get("config_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            2
-        ); // Unchanged
+        assert_eq!(updates.len(), 0);
 
         Ok(())
     }
@@ -1560,7 +1519,7 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &ArrowTablePublish::None,
+                &TablePublish::None,
             )?,
         )
         .await?;
@@ -1650,7 +1609,7 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &ArrowTablePublish::Extend {
+                &TablePublish::Extend {
                     table_name: "state_1".to_string(),
                 },
             )?,
@@ -1750,7 +1709,7 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &ArrowTablePublish::Replace {
+                &TablePublish::Replace {
                     table_name: "state_1".to_string(),
                 },
             )?,
@@ -1848,7 +1807,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &ArrowTablePublish::Replace {
+            &TablePublish::Replace {
                 table_name: "state_1".to_string(),
             },
         )?;
@@ -1857,7 +1816,7 @@ mod tests {
             "session_1",
             "state_2",
             "state_2",
-            &ArrowTablePublish::Replace {
+            &TablePublish::Replace {
                 table_name: "state_2".to_string(),
             },
         )?);
@@ -1866,7 +1825,7 @@ mod tests {
             "session_1",
             "state_3",
             "state_3",
-            &ArrowTablePublish::Replace {
+            &TablePublish::Replace {
                 table_name: "state_3".to_string(),
             },
         )?);
@@ -1982,7 +1941,7 @@ mod tests {
         // Superstep 2
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
-            HashMap::<String, ArrowIncomingMessage>::new(),
+            HashMap::<String, IPCMessage>::new(),
         )
         .await?
         .unwrap();
@@ -2015,15 +1974,18 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: "state_1".to_string()
             }
         );
 
-        let partitions = response
+        let bytes = response
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
+        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+            .with_name("")
+            .build()?;
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 6);
 
@@ -2053,15 +2015,18 @@ mod tests {
                 .get("from_session_1_on_state_2")
                 .unwrap()
                 .get_update(),
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: "state_2".to_string()
             }
         );
 
-        let partitions = response
+        let bytes = response
             .remove("from_session_1_on_state_2")
             .unwrap()
             .get_message_own();
+        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+            .with_name("")
+            .build()?;
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 6);
 
@@ -2091,15 +2056,18 @@ mod tests {
                 .get("from_session_1_on_state_3")
                 .unwrap()
                 .get_update(),
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: "state_3".to_string()
             }
         );
 
-        let partitions = response
+        let bytes = response
             .remove("from_session_1_on_state_3")
             .unwrap()
             .get_message_own();
+        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+            .with_name("")
+            .build()?;
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 6);
 
@@ -2224,7 +2192,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &ArrowTablePublish::Replace {
+            &TablePublish::Replace {
                 table_name: "state_1".to_string(),
             },
         )?;
@@ -2280,7 +2248,7 @@ mod tests {
         // Supersteps 2, 3, and 4
         let _ = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
-            HashMap::<String, ArrowIncomingMessage>::new(),
+            HashMap::<String, IPCMessage>::new(),
         )
         .await?;
         assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 2);
@@ -2294,7 +2262,7 @@ mod tests {
         );
         let _ = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
-            HashMap::<String, ArrowIncomingMessage>::new(),
+            HashMap::<String, IPCMessage>::new(),
         )
         .await?;
         assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 3);
@@ -2308,7 +2276,7 @@ mod tests {
         );
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
-            HashMap::<String, ArrowIncomingMessage>::new(),
+            HashMap::<String, IPCMessage>::new(),
         )
         .await?
         .unwrap();
@@ -2341,15 +2309,18 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: "state_1".to_string()
             }
         );
 
-        let partitions = response
+        let bytes = response
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
+        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+            .with_name("")
+            .build()?;
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 8);
 
@@ -2413,13 +2384,13 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &ArrowTablePublish::Replace {
+            &TablePublish::Replace {
                 table_name: "state_1".to_string(),
             },
         )?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let session_stream = SessionStream::new(input, session_stream_state.clone());
-        let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+        let mut response: Vec<HashMap<String, IPCMessage>> =
             session_stream.try_collect().await?;
 
         // check the response
@@ -2459,16 +2430,19 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: "state_1".to_string()
             }
         );
-        let partitions = response
+        let bytes = response
             .get_mut(0)
             .unwrap()
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
+        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+            .with_name("")
+            .build()?;
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 6);
 

@@ -7,25 +7,24 @@ use std::{
 use crate::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap},
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap},
         runtime_env::RuntimeEnv,
     },
     table::{
-        arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
+        table::{Table, TableBuilderTrait, TableTrait},
+        table_publish::TablePublish,
+        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     },
     task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
-            ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
+        message::{
+            MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
         },
         publish_subscribe::PubSubTrait,
     },
 };
 
-use super::arrow_processor::ArrowProcessorTrait;
+use super::processor::ProcessorTrait;
 
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -44,25 +43,25 @@ use tracing::{Level, event};
 ///   messages is preserved
 /// - All incoming meessages MUST have the same schema
 #[derive(Debug)]
-pub struct ArrowAggregatorProcessor {
+pub struct AggregatorProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
-impl MappableTrait for ArrowAggregatorProcessor {
+impl MappableTrait for AggregatorProcessor {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl PubSubTrait for ArrowAggregatorProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+impl PubSubTrait for AggregatorProcessor {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect::<Vec<_>>()
     }
 
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect::<Vec<_>>()
     }
     fn check_subscriptions(
@@ -75,13 +74,13 @@ impl PubSubTrait for ArrowAggregatorProcessor {
     }
 }
 
-impl ArrowProcessorTrait for ArrowAggregatorProcessor {
+impl ProcessorTrait for AggregatorProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -90,11 +89,11 @@ impl ArrowProcessorTrait for ArrowAggregatorProcessor {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -109,16 +108,16 @@ impl ArrowProcessorTrait for ArrowAggregatorProcessor {
 
     fn process(
         &self,
-        message: OutgoingMessageMap,
+        message: SendableRecordBatchStreamMessageMap,
         metrics: ArrowTaskMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Assert that each message has the same schema
         let mut schema = Arc::new(Schema::empty());
         let mut subject = String::new();
-        let mut update = ArrowTablePublish::None;
+        let mut update = TablePublish::None;
         let mut input = Vec::with_capacity(message.len());
         for (i, (_k, v)) in message.into_iter().enumerate() {
             if i == 0 {
@@ -142,27 +141,27 @@ impl ArrowProcessorTrait for ArrowAggregatorProcessor {
         }
 
         // Make the outbox and send
-        let out = Box::pin(ArrowAggregatorStream {
+        let out = Box::pin(AggregatorStream {
             schema,
             input,
             runtime_env: Arc::clone(&runtime_env),
             baseline_metrics: BaselineMetrics::new(&metrics, self.get_name()),
         });
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.get_name())
             .with_publisher(self.get_name())
             .with_subject(subject.as_str())
             .with_message(out)
             .with_update(&update)
             .build()?;
-        let mut outbox = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = outbox.insert(self.get_name().to_string(), out_m);
         Ok(outbox)
     }
 }
 
 #[allow(dead_code)]
-pub struct ArrowAggregatorStream {
+pub struct AggregatorStream {
     /// Output schema (role and content)
     schema: SchemaRef,
     /// The input message to process
@@ -173,7 +172,7 @@ pub struct ArrowAggregatorStream {
     baseline_metrics: BaselineMetrics,
 }
 
-impl Stream for ArrowAggregatorStream {
+impl Stream for AggregatorStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -196,7 +195,7 @@ impl Stream for ArrowAggregatorStream {
             self.input.clear();
 
             // Concatenate into a single record batch
-            let batch = ArrowTable::get_builder()
+            let batch = Table::get_builder()
                 .with_name("")
                 .with_record_batches(batches)?
                 .build()?
@@ -217,7 +216,7 @@ impl Stream for ArrowAggregatorStream {
     }
 }
 
-impl RecordBatchStream for ArrowAggregatorStream {
+impl RecordBatchStream for AggregatorStream {
     fn schema(&self) -> SchemaRef {
         Arc::clone(&self.schema)
     }
@@ -225,21 +224,21 @@ impl RecordBatchStream for ArrowAggregatorStream {
 
 #[cfg(test)]
 mod tests {
-    use crate::table::arrow_table::{ArrowTableBuilder, test_table::make_test_table};
+    use crate::table::table::{TableBuilder, test_table::make_test_table};
 
     use super::*;
 
     #[tokio::test]
     async fn test_arrow_aggregator_processor() -> Result<()> {
         // Case 1: mismatch between update targets
-        let mut message_1 = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message_1 = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message_1.insert(
             "m1".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("m1")
                 .with_publisher("s1")
                 .with_subject("task_1")
-                .with_update(&ArrowTablePublish::Extend {
+                .with_update(&TablePublish::Extend {
                     table_name: "t1".to_string(),
                 })
                 .with_message(make_test_table("t1", 4, 8, 3)?.to_record_batch_stream())
@@ -247,11 +246,11 @@ mod tests {
         );
         let _ = message_1.insert(
             "m2".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("m2")
                 .with_publisher("s1")
                 .with_subject("task_1")
-                .with_update(&ArrowTablePublish::Extend {
+                .with_update(&TablePublish::Extend {
                     table_name: "t2".to_string(),
                 })
                 .with_message(make_test_table("t2", 4, 8, 3)?.to_record_batch_stream())
@@ -269,7 +268,7 @@ mod tests {
         }));
 
         // Create the aggregator and run
-        let agg_arc_1 = ArrowAggregatorProcessor::new_arc("aggregator_processor");
+        let agg_arc_1 = AggregatorProcessor::new_arc("aggregator_processor");
         match agg_arc_1.process(message_1, metrics.clone(), Arc::clone(&runtime_env)) {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -279,14 +278,14 @@ mod tests {
         }
 
         // Case 2: no mismatches
-        let mut message_1 = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message_1 = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message_1.insert(
             "m1".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("m1")
                 .with_publisher("s1")
                 .with_subject("task_1")
-                .with_update(&ArrowTablePublish::Extend {
+                .with_update(&TablePublish::Extend {
                     table_name: "t1".to_string(),
                 })
                 .with_message(make_test_table("t1", 4, 8, 3)?.to_record_batch_stream())
@@ -294,11 +293,11 @@ mod tests {
         );
         let _ = message_1.insert(
             "m2".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("m2")
                 .with_publisher("s1")
                 .with_subject("task_1")
-                .with_update(&ArrowTablePublish::Extend {
+                .with_update(&TablePublish::Extend {
                     table_name: "t1".to_string(),
                 })
                 .with_message(make_test_table("t1", 4, 8, 3)?.to_record_batch_stream())
@@ -306,12 +305,12 @@ mod tests {
         );
 
         // Create the aggregator and run
-        let agg_arc_1 = ArrowAggregatorProcessor::new_arc("aggregator_processor");
+        let agg_arc_1 = AggregatorProcessor::new_arc("aggregator_processor");
         let mut agg_stream =
             agg_arc_1.process(message_1, metrics.clone(), Arc::clone(&runtime_env))?;
 
         // Wrap the results in a table
-        let partitions = ArrowTableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             agg_stream
                 .remove("aggregator_processor")
                 .unwrap()

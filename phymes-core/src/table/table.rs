@@ -38,6 +38,7 @@ use arrow::{
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
 use num_traits::{Bounded, Num, NumCast};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Cursor, Seek};
@@ -49,11 +50,8 @@ use futures::TryStreamExt;
 use serde_json::{Map, Value};
 use tracing::{event, instrument, Level};
 
-/// Traits for an arrow table
-/// All record batches are guaranteed to have the same schema
-/// An optional config can be added that can be consumed by downstream task on the table
-/// The user needs to overload all default methods needed in their implementation
-pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
+/// Traits for a columnar table where all [RecordBatch]es are guaranteed to have the same [Schema]
+pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     fn get_schema(&self) -> SchemaRef;
     fn get_record_batches(&self) -> &Vec<RecordBatch>;
     fn get_record_batches_own(self) -> Vec<RecordBatch>;
@@ -180,6 +178,25 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
         let content = serde_json::to_string(&object)?;
         let buf = Bytes::from(content);
         Ok(buf)
+    }
+
+    /// Convert to a vector of structs
+    fn to_struct<T>(&self) -> Result<Vec<T>>
+    where 
+        T: Sized + for<'a> Deserialize<'a> 
+    {
+        let buf = Vec::new();
+        let mut writer = ArrayWriter::new(buf);
+        for batch in self.get_record_batches() {
+            writer.write(batch)?;
+        }
+        writer.finish()?;
+        let json_data = writer.into_inner();
+        let content = match serde_json::from_reader::<_, Vec<T>>(json_data.as_slice()) {
+            Ok(content) => content,
+            Err(err) => return Err(anyhow!("{err}")),
+        };
+        Ok(content)
     }
 
     /// Count the number of rows
@@ -632,13 +649,13 @@ pub trait ArrowTableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync 
 }
 
 #[derive(Debug, Clone)]
-pub struct ArrowTable {
+pub struct Table {
     name: String,
     schema: SchemaRef,
     pub(crate) record_batches: Vec<RecordBatch>,
 }
 
-impl Default for ArrowTable {
+impl Default for Table {
     fn default() -> Self {
         Self {
             name: "".to_string(),
@@ -648,7 +665,7 @@ impl Default for ArrowTable {
     }
 }
 
-impl ArrowTable {
+impl Table {
     /// Concatenate multiple record batches into a single record batch
     pub fn concat_record_batches(mut self) -> Result<Self> {
         let concatenated = concat_batches(&self.schema, &self.record_batches)?;
@@ -657,14 +674,14 @@ impl ArrowTable {
     }
 }
 
-impl MappableTrait for ArrowTable {
+impl MappableTrait for Table {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl BuildableTrait for ArrowTable {
-    type T = ArrowTableBuilder;
+impl BuildableTrait for Table {
+    type T = TableBuilder;
     fn get_builder() -> Self::T
     where
         Self: Sized,
@@ -673,7 +690,7 @@ impl BuildableTrait for ArrowTable {
     }
 }
 
-impl ArrowTableTrait for ArrowTable {
+impl TableTrait for Table {
     fn get_schema(&self) -> SchemaRef {
         self.schema.clone()
     }
@@ -687,7 +704,7 @@ impl ArrowTableTrait for ArrowTable {
     }
 }
 
-pub trait ArrowTableBuilderTrait: BuilderTrait + Debug + Send + Sync {
+pub trait TableBuilderTrait: BuilderTrait + Debug + Send + Sync {
     /// The schema for all record batches in the table
     fn with_schema(self, schema: SchemaRef) -> Self;
 
@@ -755,17 +772,22 @@ pub trait ArrowTableBuilderTrait: BuilderTrait + Debug + Send + Sync {
     ) -> Result<Self>
     where
         Self: Sized;
+
+    fn with_struct<T>(self, s: &Vec<T>, batch_size: usize) -> Result<Self>
+    where 
+        Self: Sized,
+        T: Sized + Serialize;
 }
 
 #[derive(Default, Debug, PartialEq, Clone)]
-pub struct ArrowTableBuilder {
+pub struct TableBuilder {
     pub name: Option<String>,
     pub schema: Option<SchemaRef>,
     pub record_batches: Option<Vec<RecordBatch>>,
 }
 
-impl BuilderTrait for ArrowTableBuilder {
-    type T = ArrowTable;
+impl BuilderTrait for TableBuilder {
+    type T = Table;
     fn new() -> Self {
         Self {
             name: None,
@@ -794,7 +816,7 @@ impl BuilderTrait for ArrowTableBuilder {
     }
 }
 
-impl ArrowTableBuilderTrait for ArrowTableBuilder {
+impl TableBuilderTrait for TableBuilder {
     fn with_schema(mut self, schema: SchemaRef) -> Self {
         self.schema = Some(schema);
         self
@@ -884,11 +906,14 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
     fn new_from_ipc_stream(bytes: &[u8]) -> Result<Self> {
         let cursor = Cursor::new(bytes);
         let mut reader = StreamReader::try_new(cursor, None)?;
-        let mut record_batches = vec![];
+        let mut record_batches = Vec::new();
         while let Some(Ok(read_batch)) = reader.next() {
             record_batches.push(read_batch);
         }
-        let schema = record_batches.first().unwrap().schema();
+        let schema = match record_batches.first() {
+            Some(batch) => batch.schema(),
+            None => return Err(anyhow!("Failed to read the IPC stream.")),
+        };
         Self::new()
             .with_schema(schema.clone())
             .with_record_batches(record_batches)
@@ -897,7 +922,8 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
     #[instrument(level = "trace")]
     fn with_json(mut self, bytes: &[u8], batch_size: usize) -> Result<Self> {
         let mut cursor = Cursor::new(bytes);
-        // Potentially remove the need to define a schema first...
+
+        // Infer the schema if not already provided
         let schema = match self.schema.as_ref() {
             Some(schema) => schema.clone(),
             None => {
@@ -908,17 +934,12 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
                 schema
             }
         };
-        // let schema = self.schema.clone().unwrap_or_else(|| {
-        //     let (schema, _) = infer_json_schema(&mut cursor, None).unwrap();
-        //     cursor.rewind().unwrap();
-        //     let schema = Arc::new(schema);
-        //     self.schema = Some(schema.clone());
-        //     schema
-        // });
+
+        // Read in the batches
         let mut reader = ReaderBuilder::new(schema)
             .with_batch_size(batch_size)
             .build(cursor)?;
-        let mut record_batches = vec![];
+        let mut record_batches = Vec::new();
         while let Some(Ok(read_batch)) = reader.next() {
             record_batches.push(read_batch);
         }
@@ -1206,6 +1227,14 @@ impl ArrowTableBuilderTrait for ArrowTableBuilder {
             .collect::<Vec<_>>();
         Self::new_from_ipc_stream(&bytes) //This only works for single record batch streams!
     }
+
+    fn with_struct<T>(self, s: &Vec<T>, batch_size: usize) -> Result<Self>
+    where 
+        Self: Sized,
+        T: Sized + Serialize {        
+        let bytes = serde_json::to_vec::<Vec<T>>(s)?;
+        self.with_json(&bytes, batch_size)
+    }
 }
 
 /// Mock objects and functions for table testing
@@ -1218,6 +1247,19 @@ pub mod test_table {
         record_batch::RecordBatch,
     };
     use chrono::{DateTime, Utc};
+
+    /// Test table struct
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+    pub struct TestTable {
+        id: u32,
+        collection: String,
+        title: String,
+        text: String,
+        metadata: String,
+        score: f32,
+        // DM: nested types are not yet supported in JSON Reader
+        // embedding: Vec<Vec<f32>>,
+    }
 
     /// Make a test record batch schema with fields for id, title, text, metadata, score, and embeddings
     pub fn make_test_table_schema(embed_end: u32) -> Result<SchemaRef> {
@@ -1240,7 +1282,7 @@ pub mod test_table {
                 id, collection, title, text, metadata, score, embedding,
             ])
         } else {
-            Schema::new(vec![id, collection, title, text, score, metadata])
+            Schema::new(vec![id, collection, title, text, metadata, score])
         };
 
         Ok(Arc::new(schema))
@@ -1328,11 +1370,11 @@ pub mod test_table {
         seq_end: u32,
         embed_end: u32,
         n_batches: usize,
-    ) -> Result<ArrowTable> {
+    ) -> Result<Table> {
         let batch = make_test_record_batch(seq_end, embed_end)?;
         let schema = batch.schema();
         let batches: Vec<RecordBatch> = (0..n_batches).map(|_| batch.clone()).collect();
-        ArrowTableBuilder::new()
+        TableBuilder::new()
             .with_name(name)
             .with_schema(schema.clone())
             .with_record_batches(batches)?
@@ -1366,7 +1408,7 @@ pub mod test_table {
         }
 
         /// Get the test table by the test table size
-        pub fn get_test_table(&self, name: &str) -> Result<ArrowTable> {
+        pub fn get_test_table(&self, name: &str) -> Result<Table> {
             match self {
                 Self::XS => make_test_table(name, 1, 1512, 1),
                 Self::S => make_test_table(name, 100, 1512, 1),
@@ -1388,7 +1430,7 @@ pub mod test_table {
         }
 
         /// Get the test table by the name of the test table size
-        pub fn get_test_table_by_name(&self, name: &str) -> Result<ArrowTable> {
+        pub fn get_test_table_by_name(&self, name: &str) -> Result<Table> {
             if name == Self::XS.get_name() {
                 Self::XS.get_test_table(name)
             } else if name == Self::S.get_name() {
@@ -1405,7 +1447,7 @@ pub mod test_table {
         }
     }
 
-    pub fn make_test_table_chat(name: &str) -> Result<ArrowTable> {
+    pub fn make_test_table_chat(name: &str) -> Result<Table> {
         let role: ArrayRef = Arc::new(StringArray::from(vec![
             "user".to_string(),
             "assistant".to_string(),
@@ -1444,14 +1486,14 @@ pub mod test_table {
         ])?;
 
         let schema = batch.schema();
-        ArrowTableBuilder::new()
+        TableBuilder::new()
             .with_name(name)
             .with_schema(schema.clone())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    pub fn make_test_table_tool(name: &str) -> Result<ArrowTable> {
+    pub fn make_test_table_tool(name: &str) -> Result<Table> {
         let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
             "tool1".to_string(),
             "no_tool".to_string(),
@@ -1464,7 +1506,7 @@ pub mod test_table {
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)])?;
 
         let schema = batch.schema();
-        ArrowTableBuilder::new()
+        TableBuilder::new()
             .with_name(name)
             .with_schema(schema.clone())
             .with_record_batches(vec![batch])?
@@ -1492,7 +1534,7 @@ mod tests {
 
         // Write data to IPC file
         test_table.to_ipc_file(&mut file)?;
-        let test_table_read = ArrowTableBuilder::new_from_ipc_file(&file)?
+        let test_table_read = TableBuilder::new_from_ipc_file(&file)?
             .with_name("test_table")
             .build()?;
 
@@ -1518,7 +1560,7 @@ mod tests {
 
         // Read in the file with schema
         file.rewind().unwrap();
-        let test_table_read = ArrowTableBuilder::new()
+        let test_table_read = TableBuilder::new()
             .with_schema(test_table.get_schema())
             .with_csv_file(&file, b',', true, 4)?
             .with_name("test_table")
@@ -1532,7 +1574,7 @@ mod tests {
 
         // Read in the file without schema
         file.rewind().unwrap();
-        let test_table_read = ArrowTableBuilder::new()
+        let test_table_read = TableBuilder::new()
             .with_csv_file(&file, b',', true, 4)?
             .with_name("test_table")
             .build()?;
@@ -1562,7 +1604,7 @@ mod tests {
 
         // Write data to IPC file
         let bytes = test_table.to_ipc_stream()?;
-        let test_table_read = ArrowTableBuilder::new_from_ipc_stream(&bytes)?
+        let test_table_read = TableBuilder::new_from_ipc_stream(&bytes)?
             .with_name("test_table")
             .build()?;
 
@@ -1582,7 +1624,7 @@ mod tests {
 
         // Write data to json
         let bytes = test_table.to_json()?;
-        let test_table_read = ArrowTableBuilder::new()
+        let test_table_read = TableBuilder::new()
             .with_schema(test_table.get_schema().clone())
             .with_json(&bytes, 4)?
             .with_name("test_table")
@@ -1596,7 +1638,7 @@ mod tests {
         );
 
         // Test again but without the schema
-        let test_table_read = ArrowTableBuilder::new()
+        let test_table_read = TableBuilder::new()
             .with_json(&bytes, 4)?
             .with_name("test_table")
             .build()?;
@@ -1625,7 +1667,7 @@ mod tests {
 
         // Write data to json
         let bytes = test_table.to_csv(b',', true)?;
-        let test_table_read = ArrowTableBuilder::new()
+        let test_table_read = TableBuilder::new()
             .with_schema(test_table.get_schema().clone())
             .with_csv(&bytes, b',', true, 4)?
             .with_name("test_table")
@@ -1639,7 +1681,7 @@ mod tests {
         );
 
         // Test again but without the schema
-        let test_table_read = ArrowTableBuilder::new()
+        let test_table_read = TableBuilder::new()
             .with_csv(&bytes, b',', true, 4)?
             .with_name("test_table")
             .build()?;
@@ -1691,7 +1733,7 @@ mod tests {
         let b: ArrayRef = Arc::new(UInt32Array::from(vec![0, 0, 0]));
         let c: ArrayRef = Arc::new(UInt16Array::from(vec![0, 0, 0]));
         let batch = RecordBatch::try_from_iter(vec![("a", a), ("b", b), ("c", c)])?;
-        let test_table = ArrowTableBuilder::new()
+        let test_table = TableBuilder::new()
             .with_name("test_table")
             .with_record_batches(vec![batch])?
             .build()?;
@@ -1701,7 +1743,7 @@ mod tests {
         let json_values: Vec<Value> = serde_json::from_str(json_str)?;
 
         // Build a new table from json
-        let test_table_read = ArrowTableBuilder::new()
+        let test_table_read = TableBuilder::new()
             .with_schema(test_table.get_schema())
             .with_json_values(&json_values)?
             .with_name("test_table")
@@ -1741,7 +1783,7 @@ mod tests {
 
         // Write data to IPC file
         let stream = test_table.to_record_batch_stream();
-        let test_table_read = ArrowTableBuilder::new_from_sendable_record_batch_stream(stream)
+        let test_table_read = TableBuilder::new_from_sendable_record_batch_stream(stream)
             .await?
             .with_name("test_table")
             .build()?;
@@ -1762,7 +1804,7 @@ mod tests {
 
         // Write data to IPC file
         let stream = test_table.to_record_batch_stream_last_record_batch();
-        let test_table_read = ArrowTableBuilder::new_from_sendable_record_batch_stream(stream)
+        let test_table_read = TableBuilder::new_from_sendable_record_batch_stream(stream)
             .await?
             .with_name("test_table")
             .build()?;
@@ -1773,6 +1815,28 @@ mod tests {
         assert_eq!(
             test_table.get_record_batches().last().unwrap(),
             test_table_read.get_record_batches().first().unwrap()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_from_struct() -> Result<()> {
+        let test_table = test_table::make_test_table("test_table", 4, 0, 3)?;
+
+        // Write data struct
+        let s = test_table.to_struct::<test_table::TestTable>()?;
+        let test_table_read = TableBuilder::new()
+            .with_schema(test_table::make_test_table_schema(0)?)
+            .with_name("test_table")
+            .with_struct::<test_table::TestTable>(&s, 4)?
+            .build()?;
+
+        assert_eq!(test_table.get_name(), test_table_read.get_name());
+        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(
+            test_table.get_record_batches(),
+            test_table_read.get_record_batches()
         );
 
         Ok(())

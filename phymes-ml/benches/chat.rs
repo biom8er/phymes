@@ -1,7 +1,7 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, get_metrics_as_pivot_table},
-    table::arrow_table::ArrowTableTrait,
+    table::table::TableTrait,
 };
 use phymes_ml::{
     candle_assets::available_candle_assets::AvailableCandleAssets,

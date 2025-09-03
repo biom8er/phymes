@@ -17,12 +17,12 @@ use phymes_core::{
         },
     },
     table::{
-        arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{ArrowTableSubscribe, from_str_to_subscribe},
+        table::{Table, TableBuilderTrait, TableTrait},
+        table_publish::TablePublish,
+        table_subscribe::{TableSubscribe, from_str_to_subscribe},
     },
-    task::arrow_processor::{
-        ArrowProcessorBuilder, ArrowProcessorEcho, test_processor::ArrowProcessorMock,
+    task::processor::{
+        ProcessorBuilder, ProcessorEcho, test_processor::ProcessorMock,
     },
 };
 use phymes_data::candle_data::{
@@ -341,7 +341,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
     fn from_mermaid_flowchart(flowchart: &str, agent_subjects: bool) -> Result<Self> {
         // The members that we will build
         let mut task_plan_builders = HashMap::<String, TaskPlanBuilder>::new();
-        let mut processor_builders = HashMap::<String, ArrowProcessorBuilder>::new();
+        let mut processor_builders = HashMap::<String, ProcessorBuilder>::new();
 
         // Track consistency of subjects and processors between subgraphs and labels
         let mut task_names = HashSet::new();
@@ -360,27 +360,27 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                      iter: usize,
                                      subject: &str,
                                      task: &str|
-         -> Result<ArrowTableSubscribe> {
+         -> Result<TableSubscribe> {
             if line.contains("-.") & line.contains(".->") & line.contains("FullTable") {
-                Ok(ArrowTableSubscribe::OnUpdateFullTable {
+                Ok(TableSubscribe::OnUpdateFullTable {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("--") & line.contains("-->") & line.contains("FullTable") {
-                Ok(ArrowTableSubscribe::AlwaysFullTable {
+                Ok(TableSubscribe::AlwaysFullTable {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("-.") & line.contains(".->") & line.contains("LastRecordBatch")
             {
-                Ok(ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                Ok(TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("--") & line.contains("-->") & line.contains("LastRecordBatch")
             {
-                Ok(ArrowTableSubscribe::AlwaysLastRecordBatch {
+                Ok(TableSubscribe::AlwaysLastRecordBatch {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("None") {
-                Ok(ArrowTableSubscribe::None {})
+                Ok(TableSubscribe::None {})
             } else {
                 Err(anyhow!(
                     "Parsing Error on line {iter}: {line}. Variant for ArrowTableSubscribe with subject {subject} for task {task} was not recognized."
@@ -391,26 +391,26 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                     iter: usize,
                                     subject: &str,
                                     task: &str|
-         -> Result<ArrowTablePublish> {
+         -> Result<TablePublish> {
             if line.contains("--") & line.contains("-->") & line.contains("ExtendChunks") {
-                Ok(ArrowTablePublish::ExtendChunks {
+                Ok(TablePublish::ExtendChunks {
                     table_name: subject.to_string(),
                     col_name: "content".to_string(),
                 })
             } else if line.contains("--") & line.contains("-->") & line.contains("Extend") {
-                Ok(ArrowTablePublish::Extend {
+                Ok(TablePublish::Extend {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("--") & line.contains("-->") & line.contains("ReplaceLast") {
-                Ok(ArrowTablePublish::ReplaceLast {
+                Ok(TablePublish::ReplaceLast {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("--") & line.contains("-->") & line.contains("Replace") {
-                Ok(ArrowTablePublish::Replace {
+                Ok(TablePublish::Replace {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("None") {
-                Ok(ArrowTablePublish::None {})
+                Ok(TablePublish::None {})
             } else {
                 Err(anyhow!(
                     "Parsing Error on line {iter}: {line}. Variant for ArrowTablePublish with subject {subject} for task {task} was not recognized."
@@ -418,10 +418,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             }
         };
         let processor_from_str = |line: &str, iter: usize, processor: &str| -> Result<String> {
-            if line.contains(ArrowProcessorMock::get_static_name()) {
-                Ok(ArrowProcessorMock::get_static_name().to_string())
-            } else if line.contains(ArrowProcessorEcho::get_static_name()) {
-                Ok(ArrowProcessorEcho::get_static_name().to_string())
+            if line.contains(ProcessorMock::get_static_name()) {
+                Ok(ProcessorMock::get_static_name().to_string())
+            } else if line.contains(ProcessorEcho::get_static_name()) {
+                Ok(ProcessorEcho::get_static_name().to_string())
             } else if line.contains(CandleDataProcessor::get_static_name()) {
                 Ok(CandleDataProcessor::get_static_name().to_string())
             } else if line.contains(DataSummaryProcessor::get_static_name()) {
@@ -526,7 +526,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             .collect::<Vec<_>>();
                         let processor = split_line.first().unwrap().trim().to_string();
                         if !processor_builders.contains_key(&processor) {
-                            let mut builder = ArrowProcessorBuilder::default();
+                            let mut builder = ProcessorBuilder::default();
                             builder.processor_name.replace(processor.to_owned());
                             builder.subscriptions.replace(vec![subscription]);
                             processor_builders.insert(processor.to_owned(), builder);
@@ -598,7 +598,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         }
                         let processor_1 = split_line.first().unwrap().trim().to_string();
                         if !processor_builders.contains_key(&processor_1) {
-                            let mut builder = ArrowProcessorBuilder::default();
+                            let mut builder = ProcessorBuilder::default();
                             builder.processor_name.replace(processor_1.to_owned());
                             processor_builders.insert(processor_1.to_owned(), builder);
                         }
@@ -651,7 +651,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         }
                         let processor_1 = split_line.first().unwrap().trim().to_string();
                         if !processor_builders.contains_key(&processor_1) {
-                            let mut builder = ArrowProcessorBuilder::default();
+                            let mut builder = ProcessorBuilder::default();
                             builder.processor_name.replace(processor_1.to_owned());
                             processor_builders.insert(processor_1.to_owned(), builder);
                         }
@@ -725,7 +725,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             &task_name,
                         )?;
                         if !processor_builders.contains_key(&processor) {
-                            let mut builder = ArrowProcessorBuilder::default();
+                            let mut builder = ProcessorBuilder::default();
                             builder.processor_name.replace(processor.to_owned());
                             builder.publications.replace(vec![publication]);
                             processor_builders.insert(processor.to_owned(), builder);
@@ -898,7 +898,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
                 // Update
                 if !processor_builders.contains_key(&processor_name) {
-                    let mut builder = ArrowProcessorBuilder::default();
+                    let mut builder = ProcessorBuilder::default();
                     builder.processor_name.replace(processor_name.to_owned());
                     builder.processor_type.replace(processor_type);
                     processor_builders.insert(processor_name.to_owned(), builder);
@@ -956,7 +956,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     }
                 };
                 if !processor_builders.contains_key(&processor_name) {
-                    let mut builder = ArrowProcessorBuilder::default();
+                    let mut builder = ProcessorBuilder::default();
                     builder.processor_name.replace(processor_name.to_owned());
                     processor_builders.insert(processor_name.to_owned(), builder);
                 }
@@ -1019,7 +1019,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
                 if !processor_builders.contains_key(&processor_name) {
-                    let mut builder = ArrowProcessorBuilder::default();
+                    let mut builder = ProcessorBuilder::default();
                     builder.processor_name.replace(processor_name.to_owned());
                     processor_builders.insert(processor_name.to_owned(), builder);
                 }
@@ -1163,7 +1163,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         // Build and add the table to the subjects list
                         let schema = Arc::new(Schema::new(fields));
                         let batch = RecordBatch::new_empty(schema);
-                        let table = ArrowTable::get_builder()
+                        let table = Table::get_builder()
                             .with_record_batches(vec![batch])?
                             .with_name(subject_name)
                             .build()?;
@@ -1233,7 +1233,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 mod tests {
     use phymes_core::{
         session::session_context_builder::test_session_context_builder::make_test_session_builder_parallel_task,
-        task::arrow_task::test_task::{make_runtime_env, make_state_tables},
+        task::task::test_task::{make_runtime_env, make_state_tables},
     };
 
     use crate::{

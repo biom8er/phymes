@@ -84,7 +84,7 @@ mod tests {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+    use phymes_core::table::table_publish::TablePublish;
     use phymes_data::candle_data::summary_config::DataSummaryFormat;
     use serde_json::{Map, Value};
 
@@ -161,7 +161,7 @@ mod tests {
             session_name: session_name.clone(),
             subject_name: "".to_string(),
             format: DataSummaryFormat::Bytes,
-            publish: ArrowTablePublish::None,
+            publish: TablePublish::None,
             content: "".to_string().into(),
             metadata: "".to_string(),
             stream: false,
@@ -222,7 +222,7 @@ mod tests {
             session_name: session_name.clone(),
             subject_name: "".to_string(),
             format: DataSummaryFormat::Bytes,
-            publish: ArrowTablePublish::None,
+            publish: TablePublish::None,
             content: "".to_string().into(),
             metadata: "".to_string(),
             stream: false,
@@ -252,7 +252,7 @@ mod tests {
             session_name: session_name.clone(),
             subject_name: "".to_string(),
             format: DataSummaryFormat::Bytes,
-            publish: ArrowTablePublish::None,
+            publish: TablePublish::None,
             content: "".to_string().into(),
             metadata: "".to_string(),
             stream: false,
@@ -282,7 +282,7 @@ mod tests {
             session_name: session_name.clone(),
             subject_name: "".to_string(),
             format: DataSummaryFormat::Bytes,
-            publish: ArrowTablePublish::None,
+            publish: TablePublish::None,
             content: "".to_string().into(),
             metadata: "".to_string(),
             stream: false,
@@ -312,7 +312,7 @@ mod tests {
             session_name: session_name.clone(),
             subject_name: "messages".to_string(),
             format: DataSummaryFormat::Bytes,
-            publish: ArrowTablePublish::Extend {
+            publish: TablePublish::Extend {
                 table_name: "messages".to_string(),
             },
             content: "What is the world's tallest mountain?".to_string().into(),

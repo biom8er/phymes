@@ -6,10 +6,10 @@ use phymes_core::{
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     }, table::{
-        arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
-    }, task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait}
+        table::{Table, TableBuilder, TableBuilderTrait},
+        table_publish::TablePublish,
+        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
+    }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
 use phymes_data::{candle_data::data_config::DataConfig, candle_operators::available_candle_operators::AvailableCandleOperators};
 use phymes_ml::{
@@ -99,23 +99,23 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         Some(tasks)
     }
 
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ArrowProcessorTrait>>> {
+    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
 
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_1_name,
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: self.chat_task_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateFullTable {
+                TableSubscribe::OnUpdateFullTable {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_1_name.to_string(),
                 },
             ],
@@ -123,17 +123,17 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         ));
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_2_name,
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
                 },
             ],
@@ -143,16 +143,16 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
+                &[TablePublish::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
-                    ArrowTableSubscribe::None,
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::None,
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
@@ -161,33 +161,33 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         } else {
             processors.push(CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
+                &[TablePublish::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
-                    ArrowTableSubscribe::None,
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::None,
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
             ));
         }
-        processors.push(ArrowProcessorEcho::new_arc_with_pub_sub(
+        processors.push(ProcessorEcho::new_arc_with_pub_sub(
             self.session_context_name,
             &[
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
             ],
-            &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
+            &[TableSubscribe::OnUpdateLastRecordBatch {
                 table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
@@ -204,7 +204,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         ])
     }
 
-    fn make_state_tables(&self) -> Option<Vec<ArrowTable>> {
+    fn make_state_tables(&self) -> Option<Vec<Table>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -257,7 +257,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             candle_chat_config.api_url = self.chat_api_url.map(|s| s.to_string());
         }
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
-        let config = ArrowTableBuilder::new()
+        let config = TableBuilder::new()
             .with_name(self.chat_processor_name)
             .with_json(&candle_chat_config_json, 1)
             .unwrap()
@@ -275,13 +275,13 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
-        let aggregator_1_state = ArrowTableBuilder::new()
+        let aggregator_1_state = TableBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
             .with_json(&aggregator_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
-        let aggregator_2_state = ArrowTableBuilder::new()
+        let aggregator_2_state = TableBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
             .with_json(&aggregator_config_json, 1)
             .unwrap()
@@ -308,7 +308,7 @@ mod tests {
         metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
             session_context::{SessionStream, SessionStreamState},
             session_context_builder::SessionContextBuilderTrait,
-        }, table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait}
+        }, table::table::TableTrait, task::message::{IPCMessage, ArrowIncomingMessageTrait}
     };
 
     use crate::{session_plans::available_interface_subjects::{create_incoming_message_map, MessageInterface}, session_traits::agents::SessionContextBuilderAgentsTrait};
@@ -345,7 +345,7 @@ mod tests {
                 AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+            let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
             // Update the chat history with the response
@@ -393,7 +393,7 @@ mod tests {
                 AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+            let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
             // Update the chat history with the response

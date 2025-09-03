@@ -10,7 +10,7 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_core::table::arrow_table::ArrowTableTrait;
+use phymes_core::table::table::TableTrait;
 use phymes_data::candle_data::summary_config::DataSummaryFormat;
 
 // Library imports

@@ -4,20 +4,20 @@ use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::AvailableSubjects, session::{
         common_traits::{
-            device, BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, TokenWrapper
+            device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, TokenWrapper
         },
         runtime_env::RuntimeEnv,
     }, table::{
-        arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
+        table::{Table, TableBuilder, TableBuilderTrait, TableTrait},
+        table_publish::TablePublish,
+        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
     }, task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
+        message::{
+            MessageBuilderTrait, SendableRecordBatchStreamMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait,
+        processor::ProcessorTrait,
         publish_subscribe::PubSubTrait,
     }
 };
@@ -43,8 +43,8 @@ use super::embed_config::CandleEmbedConfig;
 #[derive(Debug)]
 pub struct CandleEmbedProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
@@ -55,10 +55,10 @@ impl MappableTrait for CandleEmbedProcessor {
 }
 
 impl PubSubTrait for CandleEmbedProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect()
     }
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
@@ -67,13 +67,13 @@ impl PubSubTrait for CandleEmbedProcessor {
     }
 }
 
-impl ArrowProcessorTrait for CandleEmbedProcessor {
+impl ProcessorTrait for CandleEmbedProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -82,11 +82,11 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -102,10 +102,10 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
     #[instrument(skip(self, message, metrics, runtime_env))]
     fn process(
         &self,
-        mut message: OutgoingMessageMap,
+        mut message: SendableRecordBatchStreamMessageMap,
         metrics: ArrowTaskMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Extract out the documents and config
@@ -125,7 +125,7 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),
         )?);
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
@@ -213,7 +213,7 @@ impl CandleEmbedStream {
         Ok(())
     }
 
-    fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
+    fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
             let config: CandleEmbedConfig = serde_json::from_value(serde_json::Value::Object(
                 config_table.to_json_object()?.first().unwrap().to_owned(),
@@ -265,7 +265,7 @@ impl Stream for CandleEmbedStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = ArrowTableBuilder::new()
+            let config_table = TableBuilder::new()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -278,7 +278,7 @@ impl Stream for CandleEmbedStream {
             };
 
             // Convert to a list of queries
-            let table = ArrowTableBuilder::new()
+            let table = TableBuilder::new()
                 .with_name("queries")
                 .with_record_batches(vec![batch])?
                 .build()?;
@@ -345,7 +345,7 @@ impl Stream for CandleEmbedStream {
             };
 
             // Convert to a list of queries
-            let table = ArrowTableBuilder::new()
+            let table = TableBuilder::new()
                 .with_name("queries")
                 .with_record_batches(vec![batch])?
                 .build()?;
@@ -723,7 +723,7 @@ mod tests {
         };
 
         // Make the config
-        let config_table = ArrowTable::get_builder()
+        let config_table = Table::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config.clone())?, 1)?
             .build()?;
@@ -756,7 +756,7 @@ mod tests {
         ];
         let text: ArrayRef = Arc::new(StringArray::from(query_vec));
         let batch = RecordBatch::try_from_iter(vec![("text", text)])?;
-        let document_table = ArrowTableBuilder::new()
+        let document_table = TableBuilder::new()
             .with_name("text")
             .with_record_batches(vec![batch])?
             .build()?;
@@ -841,7 +841,7 @@ mod tests {
             let embeddings2: ArrayRef = Arc::new(StringArray::from(query_vec2));
             let batch1 = RecordBatch::try_from_iter(vec![("text", embeddings1)])?;
             let batch2 = RecordBatch::try_from_iter(vec![("text", embeddings2)])?;
-            let document_table = ArrowTableBuilder::new()
+            let document_table = TableBuilder::new()
                 .with_name("text")
                 .with_record_batches(vec![batch1, batch2])?
                 .build()?;
@@ -911,7 +911,7 @@ mod tests {
         ];
         let text: ArrayRef = Arc::new(StringArray::from(query_vec));
         let batch = RecordBatch::try_from_iter(vec![("text", text)])?;
-        let document_table = ArrowTableBuilder::new()
+        let document_table = TableBuilder::new()
             .with_name("text")
             .with_record_batches(vec![batch])?
             .build()?;
@@ -941,7 +941,7 @@ mod tests {
             ),
             ..Default::default()
         };
-        let config_table = ArrowTable::get_builder()
+        let config_table = Table::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config)?, 1)?
             .build()?;

@@ -12,10 +12,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::session::common_traits::MappableTrait;
 
-use super::arrow_table::{ArrowTable, ArrowTableTrait};
+use super::table::{Table, TableTrait};
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
-pub enum ArrowTablePublish {
+pub enum TablePublish {
     /// Push a new vector of record batches onto the table
     Extend { table_name: String },
     /// Push a new vector of record batches onto the table
@@ -35,7 +35,7 @@ pub enum ArrowTablePublish {
     Custom(String),
 }
 
-impl ArrowTablePublish {
+impl TablePublish {
     pub fn get_short_name(&self) -> &str {
         match self {
             Self::Extend { table_name: _tn } => "Extend",
@@ -78,21 +78,21 @@ impl ArrowTablePublish {
         }
     }
 
-    pub fn from_str(name: &str, subject: &str) -> Result<ArrowTablePublish> {
+    pub fn from_str(name: &str, subject: &str) -> Result<TablePublish> {
         let publication = if name.contains("Extend") {
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: subject.to_string(),
             }
         } else if name.contains("Replace") {
-            ArrowTablePublish::Replace {
+            TablePublish::Replace {
                 table_name: subject.to_string(),
             }
         } else if name.contains("ReplaceLast") {
-            ArrowTablePublish::ReplaceLast {
+            TablePublish::ReplaceLast {
                 table_name: subject.to_string(),
             }
         } else if name.contains("None") {
-            ArrowTablePublish::None {}
+            TablePublish::None {}
         } else {
             return Err(anyhow!(
                 "Variant for ArrowTablePublish {name} with subject {subject} was not recognized."
@@ -102,25 +102,25 @@ impl ArrowTablePublish {
     }
 }
 
-impl MappableTrait for ArrowTablePublish {
+impl MappableTrait for TablePublish {
     fn get_name(&self) -> &str {
         self.get_short_name()
     }
 }
 
 /// Update an arrow table with record batches coming from a new table
-pub trait ArrowTableUpdateTrait: ArrowTableTrait {
+pub trait TableUpdateTrait: TableTrait {
     fn get_record_batches_mut(&mut self) -> &mut Vec<RecordBatch>;
-    fn update_table(&mut self, new: Vec<RecordBatch>, update: ArrowTablePublish) -> Result<()>;
+    fn update_table(&mut self, new: Vec<RecordBatch>, update: TablePublish) -> Result<()>;
 }
 
-impl ArrowTableUpdateTrait for ArrowTable {
+impl TableUpdateTrait for Table {
     fn get_record_batches_mut(&mut self) -> &mut Vec<RecordBatch> {
         &mut self.record_batches
     }
-    fn update_table(&mut self, new: Vec<RecordBatch>, update: ArrowTablePublish) -> Result<()> {
+    fn update_table(&mut self, new: Vec<RecordBatch>, update: TablePublish) -> Result<()> {
         match update {
-            ArrowTablePublish::Extend { table_name: tn } => {
+            TablePublish::Extend { table_name: tn } => {
                 if self.get_name() != tn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
@@ -142,7 +142,7 @@ impl ArrowTableUpdateTrait for ArrowTable {
                 }
                 Ok(())
             }
-            ArrowTablePublish::ExtendChunks {
+            TablePublish::ExtendChunks {
                 table_name: tn,
                 col_name: cn,
             } => {
@@ -176,7 +176,7 @@ impl ArrowTableUpdateTrait for ArrowTable {
                 self.get_record_batches_mut().push(new_first_row);
                 Ok(())
             }
-            ArrowTablePublish::Replace { table_name: tn } => {
+            TablePublish::Replace { table_name: tn } => {
                 if self.get_name() != tn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
@@ -198,7 +198,7 @@ impl ArrowTableUpdateTrait for ArrowTable {
                 self.get_record_batches_mut().extend(new);
                 Ok(())
             }
-            ArrowTablePublish::ReplaceLast { table_name: tn } => {
+            TablePublish::ReplaceLast { table_name: tn } => {
                 if self.get_name() != tn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
@@ -218,8 +218,8 @@ impl ArrowTableUpdateTrait for ArrowTable {
                 self.get_record_batches_mut().last().replace(last);
                 Ok(())
             }
-            ArrowTablePublish::None => Ok(()),
-            ArrowTablePublish::Custom(_) => Ok(()),
+            TablePublish::None => Ok(()),
+            TablePublish::Custom(_) => Ok(()),
         }
     }
 }
@@ -363,7 +363,7 @@ fn create_record_batch_from_first_row(
 mod tests {
     use arrow::datatypes::Schema;
 
-    use crate::table::arrow_table::test_table::{make_test_table, make_test_table_chat};
+    use crate::table::table::test_table::{make_test_table, make_test_table_chat};
 
     use super::*;
 
@@ -433,7 +433,7 @@ mod tests {
         let new = make_test_table("test_table", 1, 0, 1)?;
         match old.update_table(
             new.clone().get_record_batches_own(),
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: "missing".to_string(),
             },
         ) {
@@ -445,7 +445,7 @@ mod tests {
         }
         match old.update_table(
             new.clone().get_record_batches_own(),
-            ArrowTablePublish::Replace {
+            TablePublish::Replace {
                 table_name: "missing".to_string(),
             },
         ) {
@@ -457,7 +457,7 @@ mod tests {
         }
         match old.update_table(
             new.clone().get_record_batches_own(),
-            ArrowTablePublish::ReplaceLast {
+            TablePublish::ReplaceLast {
                 table_name: "missing".to_string(),
             },
         ) {
@@ -469,7 +469,7 @@ mod tests {
         }
         match old.update_table(
             new.clone().get_record_batches_own(),
-            ArrowTablePublish::ExtendChunks {
+            TablePublish::ExtendChunks {
                 table_name: "missing".to_string(),
                 col_name: "missing".to_string(),
             },
@@ -489,7 +489,7 @@ mod tests {
         let new = make_test_table("test_table", 1, 0, 1)?;
         old.update_table(
             new.get_record_batches_own(),
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: "test_table".to_string(),
             },
         )?;
@@ -503,7 +503,7 @@ mod tests {
         let new = make_test_table("test_table", 1, 0, 1)?;
         old.update_table(
             new.get_record_batches_own(),
-            ArrowTablePublish::Replace {
+            TablePublish::Replace {
                 table_name: "test_table".to_string(),
             },
         )?;
@@ -515,7 +515,7 @@ mod tests {
     fn test_none_update() -> Result<()> {
         let mut old = make_test_table("test_table", 4, 0, 3)?;
         let new = make_test_table("test_table", 1, 0, 1)?;
-        old.update_table(new.get_record_batches_own(), ArrowTablePublish::None)?;
+        old.update_table(new.get_record_batches_own(), TablePublish::None)?;
         assert_eq!(old.count_rows(), 12);
         Ok(())
     }
@@ -540,7 +540,7 @@ mod tests {
         let new_2 = RecordBatch::try_from_iter(vec![("role", role_2), ("content", content_2)])?;
         old.update_table(
             vec![new_1, new_2],
-            ArrowTablePublish::ExtendChunks {
+            TablePublish::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             },

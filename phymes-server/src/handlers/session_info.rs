@@ -14,7 +14,7 @@ use phymes_agents::session_plans::available_interface_subjects::{AttachmentInter
 use phymes_core::session::common_traits::MappableTrait;
 use phymes_core::{
     session::session_context::SessionContextTableNames,
-    table::arrow_table::ArrowTableTrait,
+    table::table::TableTrait,
 };
 use serde::{Deserialize, Serialize};
 

@@ -11,7 +11,7 @@ use phymes_core::{
     metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
         common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::arrow_table::ArrowTableTrait, task::arrow_message::ArrowIncomingMessage
+    }, table::table::TableTrait, task::message::IPCMessage
 };
 use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 
@@ -166,7 +166,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     ]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
-                        .try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>()
+                        .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
                 });
                 let _messages = rt.block_on(async {
@@ -181,7 +181,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     ]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
-                        .try_collect::<Vec<HashMap<String, ArrowIncomingMessage>>>()
+                        .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
                 });
                 timer.done();

@@ -7,9 +7,9 @@ use phymes_core::session::common_traits::MappableTrait;
 use phymes_core::session::session_context::SessionStream;
 use phymes_core::session::session_context::SessionStreamState;
 use phymes_core::session::session_context_builder::test_session_context_builder::make_test_session_context_sequential_task;
-use phymes_core::table::arrow_table_publish::ArrowTablePublish;
-use phymes_core::task::arrow_message::ArrowIncomingMessage;
-use phymes_core::task::arrow_task::test_task::make_test_input_message;
+use phymes_core::table::table_publish::TablePublish;
+use phymes_core::task::message::IPCMessage;
+use phymes_core::task::task::test_task::make_test_input_message;
 use std::sync::Arc;
 
 #[tokio::main(flavor = "current_thread")]
@@ -33,13 +33,13 @@ async fn main() -> Result<()> {
         "session_1",
         "state_1",
         "state_1",
-        &ArrowTablePublish::Replace {
+        &TablePublish::Replace {
             table_name: "state_1".to_string(),
         },
     )?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
     let session_stream = SessionStream::new(input, session_stream_state.clone());
-    let response: Vec<HashMap<String, ArrowIncomingMessage>> = session_stream.try_collect().await?;
+    let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // check the response
     println!(

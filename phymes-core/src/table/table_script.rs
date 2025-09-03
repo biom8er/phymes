@@ -12,7 +12,7 @@ pub(crate) fn raise_exception(err_text: String) -> Result<String, minijinja::Err
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub struct ArrowTableScript {
+pub struct TableScript {
     template: Template<'static, 'static>,
 }
 
@@ -26,7 +26,7 @@ pub struct ArrowTableScript {
 ///   i.e., \" as the opening quotation does not work and instead ' or " should be used
 ///   Recommend testing problematic templates using the Minijinja playground
 ///   <https://github.com/mitsuhiko/minijinja>
-impl ArrowTableScript {
+impl TableScript {
     /// Write record batches to a script described by a template
     /// calls `to_json_object` to populate the template
     #[instrument(level = "trace")]
@@ -57,7 +57,7 @@ impl ArrowTableScript {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::table::arrow_table::{ArrowTableTrait, test_table::make_test_table_chat};
+    use crate::table::table::{TableTrait, test_table::make_test_table_chat};
 
     #[test]
     fn test_to_from_script_with_template() -> Result<()> {
@@ -95,7 +95,7 @@ mod tests {
         });
 
         let script_string =
-            ArrowTableScript::new_from_template(template).apply_template(&chat_template_inputs)?;
+            TableScript::new_from_template(template).apply_template(&chat_template_inputs)?;
 
         assert_eq!(
             script_string,

@@ -380,7 +380,7 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
 mod tests {
     use phymes_core::{
         session::common_traits::{BuildableTrait, BuilderTrait},
-        table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+        table::table::{Table, TableBuilderTrait, TableTrait},
     };
 
     use super::*;
@@ -396,7 +396,7 @@ mod tests {
         let batch = extract_pdf_text(&docs).unwrap();
 
         // Check the results
-        let table = ArrowTable::get_builder()
+        let table = Table::get_builder()
             .with_name("")
             .with_record_batches(vec![batch])
             .unwrap()

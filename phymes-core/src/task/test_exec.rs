@@ -31,7 +31,7 @@ use tokio::task::JoinSet;
 
 // Required for documentation
 #[allow(unused_imports)]
-use super::arrow_task::ArrowTask;
+use super::task::Task;
 
 use crate::table::{
     stream::{RecordBatchStream, SendableRecordBatchStream},

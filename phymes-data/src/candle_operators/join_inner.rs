@@ -12,7 +12,7 @@ use phymes_core::{
 };
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    table::table::{Table, TableBuilderTrait, TableTrait},
 };
 use std::{collections::HashMap, sync::Arc};
 use tracing::{event, instrument, Level};
@@ -231,11 +231,11 @@ pub fn join_inner(
     let rhs_sorted = sort_column_and_indices(rhs_fk, rhs_args, true, device)?;
 
     // Wrap the lhs and rhs into an ArrowTable
-    let lhs_table = ArrowTable::get_builder()
+    let lhs_table = Table::get_builder()
         .with_record_batches(vec![lhs_sorted])?
         .with_name("")
         .build()?;
-    let rhs_table = ArrowTable::get_builder()
+    let rhs_table = Table::get_builder()
         .with_record_batches(vec![rhs_sorted])?
         .with_name("")
         .build()?;

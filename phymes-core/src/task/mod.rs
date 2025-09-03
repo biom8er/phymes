@@ -1,7 +1,7 @@
-pub mod arrow_aggregator;
-pub mod arrow_message;
-pub mod arrow_processor;
-pub mod arrow_task;
+pub mod aggregator;
+pub mod message;
+pub mod processor;
+pub mod task;
 pub mod coalesce;
 pub mod limit;
 pub mod publish_subscribe;

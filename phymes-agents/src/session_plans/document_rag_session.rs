@@ -8,11 +8,11 @@ use phymes_core::{
         session_context_builder::TaskPlan,
     },
     table::{
-        arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
+        table::{Table, TableBuilder, TableBuilderTrait},
+        table_publish::TablePublish,
+        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
     },
-    task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
+    task::processor::{ProcessorEcho, ProcessorTrait},
 };
 use phymes_data::{
     candle_data::{
@@ -199,26 +199,26 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         Some(tasks)
     }
 
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ArrowProcessorTrait>>> {
+    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
 
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_1_name,
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: self.chat_task_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateFullTable {
+                TableSubscribe::OnUpdateFullTable {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateFullTable {
+                TableSubscribe::OnUpdateFullTable {
                     table_name: self.state_top_k_docs_table_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_1_name.to_string(),
                 },
             ],
@@ -226,17 +226,17 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         ));
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_2_name,
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
+                TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
                 },
             ],
@@ -246,16 +246,16 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
+                &[TablePublish::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
-                    ArrowTableSubscribe::None,
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::None,
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
@@ -264,16 +264,16 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         } else {
             processors.push(CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
+                &[TablePublish::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
-                    ArrowTableSubscribe::None,
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::None,
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
@@ -283,14 +283,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.extract_pdf_processor_name,
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: self.document_chunk_task_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.extract_pdf_processor_name.to_string(),
                 },
             ],
@@ -298,14 +298,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         ));
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.document_chunk_processor_name,
-            &[ArrowTablePublish::Extend {
+            &[TablePublish::Extend {
                 table_name: self.state_documents_table_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.document_chunk_task_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.document_chunk_processor_name.to_string(),
                 },
             ],
@@ -316,14 +316,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_documents_processor_name,
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscribe::OnUpdateLastRecordBatch {
                         table_name: self.state_documents_table_name.to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.embed_documents_processor_name.to_string(),
                     },
                 ],
@@ -332,14 +332,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_query_processor_name,
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: self.state_q_embed_table_name.to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscribe::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.embed_query_processor_name.to_string(),
                     },
                 ],
@@ -348,14 +348,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         } else {
             processors.push(CandleEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_documents_processor_name,
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscribe::OnUpdateLastRecordBatch {
                         table_name: self.state_documents_table_name.to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.embed_documents_processor_name.to_string(),
                     },
                 ],
@@ -363,14 +363,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ));
             processors.push(CandleEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_query_processor_name,
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: self.state_q_embed_table_name.to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscribe::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: self.embed_query_processor_name.to_string(),
                     },
                 ],
@@ -380,17 +380,17 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.relative_similarity_processor_name,
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.state_doc_embed_table_name.to_string(),
                 },
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: self.state_q_embed_table_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.relative_similarity_processor_name.to_string(),
                 },
             ],
@@ -398,14 +398,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         ));
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.sort_scores_processor_name,
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: self.state_scores_table_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.sort_scores_processor_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.state_scores_table_name.to_string(),
                 },
             ],
@@ -413,17 +413,17 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         ));
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.join_chunks_processor_name,
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: self.state_scores_chunks_join_table_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.state_documents_table_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.state_scores_table_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.join_chunks_processor_name.to_string(),
                 },
             ],
@@ -431,37 +431,37 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         ));
         processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
             self.top_k_processor_name,
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: self.state_top_k_docs_table_name.to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self.top_k_processor_name.to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: self
                         .state_scores_chunks_join_table_name.to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
         ));
-        processors.push(ArrowProcessorEcho::new_arc_with_pub_sub(
+        processors.push(ProcessorEcho::new_arc_with_pub_sub(
             self.session_context_name,
             &[
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: self.state_documents_table_name.to_string(),
                 },
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                 },
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
             ],
-            &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
+            &[TableSubscribe::OnUpdateLastRecordBatch {
                 table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
@@ -480,7 +480,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         ])
     }
 
-    fn make_state_tables(&self) -> Option<Vec<ArrowTable>> {
+    fn make_state_tables(&self) -> Option<Vec<Table>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -534,7 +534,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         }
 
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
-        let candle_chat_state = ArrowTableBuilder::new()
+        let candle_chat_state = TableBuilder::new()
             .with_name(self.chat_processor_name)
             .with_json(&candle_chat_config_json, 1)
             .unwrap()
@@ -612,13 +612,13 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             candle_embed_config.input_type = "query".to_string();
         }
         let candle_embed_config_json = serde_json::to_vec(&candle_embed_config).unwrap();
-        let candle_doc_embed_state = ArrowTableBuilder::new()
+        let candle_doc_embed_state = TableBuilder::new()
             .with_name(self.embed_documents_processor_name)
             .with_json(&candle_embed_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let candle_query_embed_state = ArrowTableBuilder::new()
+        let candle_query_embed_state = TableBuilder::new()
             .with_name(self.embed_query_processor_name)
             .with_json(&candle_embed_config_json, 1)
             .unwrap()
@@ -636,13 +636,13 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
-        let aggregator_1_state = ArrowTableBuilder::new()
+        let aggregator_1_state = TableBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
             .with_json(&aggregator_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
-        let aggregator_2_state = ArrowTableBuilder::new()
+        let aggregator_2_state = TableBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
             .with_json(&aggregator_config_json, 1)
             .unwrap()
@@ -658,7 +658,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let extract_pdf_config_json = serde_json::to_vec(&extract_pdf_config).unwrap();
-        let extract_pdf_state = ArrowTableBuilder::new()
+        let extract_pdf_state = TableBuilder::new()
             .with_name(self.extract_pdf_processor_name)
             .with_json(&extract_pdf_config_json, 1)
             .unwrap()
@@ -675,7 +675,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let chunk_document_config_json = serde_json::to_vec(&chunk_document_config).unwrap();
-        let chunk_document_state = ArrowTableBuilder::new()
+        let chunk_document_state = TableBuilder::new()
             .with_name(self.document_chunk_processor_name)
             .with_json(&chunk_document_config_json, 1)
             .unwrap()
@@ -696,7 +696,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let rel_sim_config_json = serde_json::to_vec(&rel_sim_config).unwrap();
-        let rel_sim_state = ArrowTableBuilder::new()
+        let rel_sim_state = TableBuilder::new()
             .with_name(self.relative_similarity_processor_name)
             .with_json(&rel_sim_config_json, 1)
             .unwrap()
@@ -713,7 +713,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let sort_scores_config_json = serde_json::to_vec(&sort_scores_config).unwrap();
-        let sort_scores_state = ArrowTableBuilder::new()
+        let sort_scores_state = TableBuilder::new()
             .with_name(self.sort_scores_processor_name)
             .with_json(&sort_scores_config_json, 1)
             .unwrap()
@@ -734,7 +734,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let join_chunks_config_json = serde_json::to_vec(&join_chunks_config).unwrap();
-        let join_chunks_state = ArrowTableBuilder::new()
+        let join_chunks_state = TableBuilder::new()
             .with_name(self.join_chunks_processor_name)
             .with_json(&join_chunks_config_json, 1)
             .unwrap()
@@ -749,7 +749,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             format: DataSummaryFormat::Message,
         };
         let top_k_config_json = serde_json::to_vec(&top_k_config).unwrap();
-        let top_k_state = ArrowTableBuilder::new()
+        let top_k_state = TableBuilder::new()
             .with_name(self.top_k_processor_name)
             .with_json(&top_k_config_json, 1)
             .unwrap()
@@ -807,7 +807,7 @@ mod tests {
         metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
             session_context::{SessionStream, SessionStreamState},
             session_context_builder::SessionContextBuilderTrait,
-        }, table::arrow_table::ArrowTableTrait, task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait}
+        }, table::table::TableTrait, task::message::{IPCMessage, ArrowIncomingMessageTrait}
     };
     use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 
@@ -872,7 +872,7 @@ mod tests {
                 AvailableInterfaceSubjects::UserPdf.to_incoming_message(None, Some(vec![attachment_interface]), doc_rag_session.session_context_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-            let _response: Vec<HashMap<String, ArrowIncomingMessage>> =
+            let _response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
             // Embed the query and invoke a response
@@ -881,7 +881,7 @@ mod tests {
                 AvailableInterfaceSubjects::UserQueries.to_incoming_message(Some(vec![message_interface]), None, doc_rag_session.session_context_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+            let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
             // Update the chat history with the response

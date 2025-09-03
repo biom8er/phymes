@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
-use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+use phymes_core::table::table_publish::TablePublish;
 use phymes_data::candle_data::summary_config::{CsvFormat, DataSummaryFormat, JsonFormat};
 use phymes_server::handlers::{
     session_info::SessionResponse,
@@ -143,7 +143,7 @@ pub fn subjects_modal() -> Element {
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
         format: DataSummaryFormat::Bytes,
-        publish: ArrowTablePublish::None,
+        publish: TablePublish::None,
         content: "".to_string().into(),
         metadata: "".to_string(),
         stream: false,
@@ -417,7 +417,7 @@ pub fn subjects_modal() -> Element {
         )
     });
 
-    let read_files = move |file_engine: Arc<dyn FileEngine>, publish: ArrowTablePublish| async move {
+    let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublish| async move {
         let files = file_engine.files();
         for file_name in &files {
             // Determine the file type
@@ -475,7 +475,7 @@ pub fn subjects_modal() -> Element {
         if let Some(file_engine) = evt.files() {
             read_files(
                 file_engine,
-                ArrowTablePublish::Extend {
+                TablePublish::Extend {
                     table_name: subject_shown.read().to_string(),
                 },
             )
@@ -487,7 +487,7 @@ pub fn subjects_modal() -> Element {
         if let Some(file_engine) = evt.files() {
             read_files(
                 file_engine,
-                ArrowTablePublish::Replace {
+                TablePublish::Replace {
                     table_name: subject_shown.read().to_string(),
                 },
             )
@@ -656,7 +656,7 @@ pub fn subjects_modal() -> Element {
                                             session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
                                             subject_name: subject_shown.read().to_string(),
                                             format: DataSummaryFormat::Csv( CsvFormat { delimiter: b',', header: true, batch_size: 1024 }),
-                                            publish: ArrowTablePublish::None,
+                                            publish: TablePublish::None,
                                             content: "".to_string().into(),
                                             metadata: "".to_string(),
                                             stream: false,

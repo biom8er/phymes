@@ -6,7 +6,7 @@ extern crate accelerate_src;
 
 use anyhow::Result;
 use clap::Parser;
-use phymes_core::{metrics::ArrowTaskMetricsSet, table::arrow_table::ArrowTableTrait};
+use phymes_core::{metrics::ArrowTaskMetricsSet, table::table::TableTrait};
 
 use phymes_ml::candle_chat::{
     chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor,

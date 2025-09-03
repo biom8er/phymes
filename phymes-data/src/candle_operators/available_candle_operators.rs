@@ -6,7 +6,7 @@ use arrow::array::{ArrayRef, RecordBatch, StringArray};
 use clap::ValueEnum;
 use phymes_core::{
     session::common_traits::{BuilderTrait, MappableTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
+    table::table::{Table, TableBuilder, TableBuilderTrait},
 };
 use serde::{Deserialize, Serialize};
 
@@ -127,7 +127,7 @@ impl AvailableCandleOperators {
     }
 }
 
-pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Option<ArrowTable> {
+pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Option<Table> {
     let mut tool_id_vec = Vec::new();
     let mut tool_vec = Vec::new();
     for destination in destinations.iter() {
@@ -142,7 +142,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
         let tool_id: ArrayRef = Arc::new(StringArray::from(tool_id_vec));
         let tool: ArrayRef = Arc::new(StringArray::from(tool_vec));
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)]).unwrap();
-        let table = ArrowTableBuilder::new()
+        let table = TableBuilder::new()
             .with_name(name)
             .with_record_batches(vec![batch])
             .unwrap()
@@ -154,7 +154,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::table::arrow_table::ArrowTableTrait;
+    use phymes_core::table::table::TableTrait;
 
     use super::*;
 

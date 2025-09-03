@@ -10,18 +10,18 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        arrow_table::{
-            ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait, test_table::TestTableSizes,
+        table::{
+            Table, TableBuilderTrait, TableTrait, test_table::TestTableSizes,
         },
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
+        table_publish::TablePublish,
+        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
     },
     task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
+        message::{
+            MessageBuilderTrait, SendableRecordBatchStreamMessage, ArrowOutgoingMessageBuilderTrait,
             ArrowOutgoingMessageTrait,
         },
-        arrow_processor::ArrowProcessorTrait,
+        processor::ProcessorTrait,
     },
 };
 use phymes_data::{
@@ -176,14 +176,14 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         let name = format!("ops-processor_{id}_{iter}");
 
                         // Build the input messages
-                        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+                        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
                         let _ = messages.insert(
                             lhs_name.to_owned(),
-                            ArrowOutgoingMessage::get_builder()
+                            SendableRecordBatchStreamMessage::get_builder()
                                 .with_name(lhs_name.as_str())
                                 .with_publisher("s1")
                                 .with_subject("d1")
-                                .with_update(&ArrowTablePublish::None)
+                                .with_update(&TablePublish::None)
                                 .with_message(
                                     TestTableSizes::new_from_name(lhs_size)
                                         .unwrap()
@@ -196,11 +196,11 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         );
                         let _ = messages.insert(
                             rhs_name.to_owned(),
-                            ArrowOutgoingMessage::get_builder()
+                            SendableRecordBatchStreamMessage::get_builder()
                                 .with_name(rhs_name.as_str())
                                 .with_publisher("s1")
                                 .with_subject("d1")
-                                .with_update(&ArrowTablePublish::None)
+                                .with_update(&TablePublish::None)
                                 .with_message(
                                     TestTableSizes::new_from_name(rhs_size)
                                         .unwrap()
@@ -213,7 +213,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         );
 
                         // Build the ops config
-                        let config_table = ArrowTable::get_builder()
+                        let config_table = Table::get_builder()
                             .with_name(name.as_str())
                             .with_json(&serde_json::to_vec(&config).unwrap(), 1)
                             .unwrap()
@@ -221,11 +221,11 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                             .unwrap();
                         let _ = messages.insert(
                             name.to_owned(),
-                            ArrowOutgoingMessage::get_builder()
+                            SendableRecordBatchStreamMessage::get_builder()
                                 .with_name(name.as_str())
                                 .with_publisher("")
                                 .with_subject("")
-                                .with_update(&ArrowTablePublish::None)
+                                .with_update(&TablePublish::None)
                                 .with_message(config_table.to_record_batch_stream())
                                 .build()
                                 .unwrap(),
@@ -247,14 +247,14 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         let _result = rt.block_on(async {
                             let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
                                 name.as_str(),
-                                &[ArrowTablePublish::Replace {
+                                &[TablePublish::Replace {
                                     table_name: "results".to_string(),
                                 }],
                                 &[
-                                    ArrowTableSubscribe::AlwaysFullTable {
+                                    TableSubscribe::AlwaysFullTable {
                                         table_name: lhs_name.clone(),
                                     },
-                                    ArrowTableSubscribe::AlwaysFullTable {
+                                    TableSubscribe::AlwaysFullTable {
                                         table_name: rhs_name.clone(),
                                     },
                                 ],

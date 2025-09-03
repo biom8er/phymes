@@ -6,11 +6,10 @@ use parking_lot::{Mutex, RwLock};
 use tracing::{Level, event};
 
 use super::{
-    arrow_message::{
-        ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
-        ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
+    message::{
+        MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     },
-    arrow_processor::ArrowProcessorTrait,
+    processor::ProcessorTrait,
     publish_subscribe::PubSubTrait,
 };
 
@@ -26,12 +25,12 @@ use crate::{
     metrics::{ArrowTaskMetricsSet, HashMap, MetricsSet},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, RunnableTrait,
+            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, RunnableTrait,
             StateMap,
         },
         runtime_env::RuntimeEnv,
     },
-    table::{arrow_table_publish::ArrowTablePublish, arrow_table_subscribe::ArrowTableSubscribe},
+    table::{table_publish::TablePublish, table_subscribe::TableSubscribe},
 };
 
 /// Trait to implement the actual task which could involve one or
@@ -70,7 +69,7 @@ use crate::{
 ///    as a single stream using [`collect_task_runs`]
 ///
 /// Parallel execution could be integrated into any uses case to improve execution speed
-pub trait ArrowTaskTrait:
+pub trait TaskTrait:
     MappableTrait + BuildableTrait + RunnableTrait + PubSubTrait + Sync + Send
 {
     /// Make the outbox
@@ -79,8 +78,8 @@ pub trait ArrowTaskTrait:
     ///
     /// A unique name to protect against collisions when building
     ///   the final message map
-    fn make_outbox(&self, outbox: OutgoingMessageMap) -> OutgoingMessageMap {
-        let mut map = HashMap::<String, ArrowOutgoingMessage>::new();
+    fn make_outbox(&self, outbox: SendableRecordBatchStreamMessageMap) -> SendableRecordBatchStreamMessageMap {
+        let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         for (name, message) in outbox.into_iter() {
             let publications = self.get_publications();
             let update = publications
@@ -101,7 +100,7 @@ pub trait ArrowTaskTrait:
             }
 
             // Build the output message
-            let out = ArrowOutgoingMessage::get_builder()
+            let out = SendableRecordBatchStreamMessage::get_builder()
                 // .with_name(name.as_str())
                 .with_publisher(self.get_name())
                 .with_subject(message.get_subject())
@@ -117,7 +116,7 @@ pub trait ArrowTaskTrait:
     }
 
     /// Get an immutable reference to the processors
-    fn get_processors(&self) -> &Vec<Arc<dyn ArrowProcessorTrait>>;
+    fn get_processors(&self) -> &Vec<Arc<dyn ProcessorTrait>>;
 
     /// Get an immutable reference to the runtime env
     fn get_runtime_env(&self) -> &Arc<Mutex<RuntimeEnv>>;
@@ -141,7 +140,7 @@ pub trait ArrowTaskTrait:
 
 /// The actual task to execute
 #[derive(Default, Debug)]
-pub struct ArrowTask {
+pub struct Task {
     /// Name of the task
     name: String,
     /// Metrics for the task and processors
@@ -149,17 +148,17 @@ pub struct ArrowTask {
     /// Runtime environment for the task and processors
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Entry processor
-    processor: Vec<Arc<dyn ArrowProcessorTrait>>,
+    processor: Vec<Arc<dyn ProcessorTrait>>,
 }
 
-impl MappableTrait for ArrowTask {
+impl MappableTrait for Task {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl BuildableTrait for ArrowTask {
-    type T = ArrowTaskBuilder;
+impl BuildableTrait for Task {
+    type T = TaskBuilder;
     fn get_builder() -> Self::T
     where
         Self: Sized,
@@ -168,8 +167,8 @@ impl BuildableTrait for ArrowTask {
     }
 }
 
-impl RunnableTrait for ArrowTask {
-    fn run(&self, mut messages: OutgoingMessageMap) -> Result<OutgoingMessageMap> {
+impl RunnableTrait for Task {
+    fn run(&self, mut messages: SendableRecordBatchStreamMessageMap) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
 
         // Process the incoming message resulting in a `SendableRecordBatchStream`
@@ -184,30 +183,30 @@ impl RunnableTrait for ArrowTask {
     }
 }
 
-impl ArrowTaskTrait for ArrowTask {
+impl TaskTrait for Task {
     fn get_runtime_env(&self) -> &Arc<Mutex<RuntimeEnv>> {
         &self.runtime_env
     }
     fn get_metrics(&self) -> MetricsSet {
         self.metrics.clone_inner()
     }
-    fn get_processors(&self) -> &Vec<Arc<dyn ArrowProcessorTrait>> {
+    fn get_processors(&self) -> &Vec<Arc<dyn ProcessorTrait>> {
         &self.processor
     }
 }
 
-impl PubSubTrait for ArrowTask {
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+impl PubSubTrait for Task {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.get_processors()
             .iter()
             .flat_map(|p| p.get_subscriptions())
-            .collect::<Vec<&ArrowTableSubscribe>>()
+            .collect::<Vec<&TableSubscribe>>()
     }
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.get_processors()
             .iter()
             .flat_map(|p| p.get_publications())
-            .collect::<Vec<&ArrowTablePublish>>()
+            .collect::<Vec<&TablePublish>>()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
         for processor in self.get_processors() {
@@ -219,14 +218,14 @@ impl PubSubTrait for ArrowTask {
     }
 }
 
-pub trait ArrowTaskBuilderTrait: BuilderTrait {
+pub trait TaskBuilderTrait: BuilderTrait {
     fn with_metrics(self, metrics: ArrowTaskMetricsSet) -> Self;
     fn with_runtime_env(self, runtime_env: Arc<Mutex<RuntimeEnv>>) -> Self;
-    fn with_processor(self, processor: Vec<Arc<dyn ArrowProcessorTrait>>) -> Self;
+    fn with_processor(self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self;
 }
 
 #[derive(Default)]
-pub struct ArrowTaskBuilder {
+pub struct TaskBuilder {
     /// Task name
     pub name: Option<String>,
     /// Metrics for the task
@@ -234,11 +233,11 @@ pub struct ArrowTaskBuilder {
     /// Runtime environment for the task
     pub runtime_env: Option<Arc<Mutex<RuntimeEnv>>>,
     /// Function that implements the logic
-    pub processor: Option<Vec<Arc<dyn ArrowProcessorTrait>>>,
+    pub processor: Option<Vec<Arc<dyn ProcessorTrait>>>,
 }
 
-impl BuilderTrait for ArrowTaskBuilder {
-    type T = ArrowTask;
+impl BuilderTrait for TaskBuilder {
+    type T = Task;
     fn new() -> Self {
         Self {
             name: None,
@@ -264,7 +263,7 @@ impl BuilderTrait for ArrowTaskBuilder {
     }
 }
 
-impl ArrowTaskBuilderTrait for ArrowTaskBuilder {
+impl TaskBuilderTrait for TaskBuilder {
     fn with_metrics(mut self, metrics: ArrowTaskMetricsSet) -> Self {
         self.metrics = Some(metrics);
         self
@@ -273,7 +272,7 @@ impl ArrowTaskBuilderTrait for ArrowTaskBuilder {
         self.runtime_env = Some(runtime_env);
         self
     }
-    fn with_processor(mut self, processor: Vec<Arc<dyn ArrowProcessorTrait>>) -> Self {
+    fn with_processor(mut self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self {
         self.processor = Some(processor);
         self
     }
@@ -329,35 +328,34 @@ pub mod test_task {
     use super::*;
     use crate::{
         session::{
-            common_traits::{BuildableTrait, BuilderTrait, IncomingMessageMap, MappableTrait},
+            common_traits::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait},
             runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         },
         table::{
-            arrow_table::{
-                ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, test_table::make_test_table,
+            table::{
+                test_table::make_test_table, Table, TableBuilder, TableBuilderTrait, TableTrait
             },
-            arrow_table_publish::ArrowTablePublish,
-            arrow_table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
+            table_publish::TablePublish,
+            table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
         },
         task::{
-            arrow_message::{
-                ArrowIncomingMessage, ArrowIncomingMessageBuilder,
-                ArrowIncomingMessageBuilderTrait, ArrowMessageBuilderTrait,
+            message::{
+                IPCMessage, IPCMessageBuilder, MessageBuilderTrait,
             },
-            arrow_processor::test_processor::ArrowProcessorMock,
+            processor::test_processor::ProcessorMock,
         },
     };
 
     use arrow::array::{ArrayRef, StringArray, UInt16Array, UInt32Array};
     use std::sync::Arc;
 
-    pub fn make_state_tables(table_name: &str, config_name: &str) -> Result<Vec<ArrowTable>> {
+    pub fn make_state_tables(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
         // mock config for the task
         let a: ArrayRef = Arc::new(StringArray::from(vec!["a".to_string()]));
         let b: ArrayRef = Arc::new(UInt32Array::from(vec![1]));
         let c: ArrayRef = Arc::new(UInt16Array::from(vec![1]));
         let batch = RecordBatch::try_from_iter(vec![("a", a), ("b", b), ("c", c)])?;
-        let config = ArrowTableBuilder::new()
+        let config = TableBuilder::new()
             .with_name(config_name)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -367,13 +365,13 @@ pub mod test_task {
         Ok(vec![config, table])
     }
 
-    pub fn make_state_tables_empty(table_name: &str, config_name: &str) -> Result<Vec<ArrowTable>> {
+    pub fn make_state_tables_empty(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
         // mock config for the task
         let a: ArrayRef = Arc::new(StringArray::from(vec!["".to_string()]));
         let b: ArrayRef = Arc::new(UInt32Array::from(vec![0]));
         let c: ArrayRef = Arc::new(UInt16Array::from(vec![0]));
         let batch = RecordBatch::try_from_iter(vec![("a", a), ("b", b), ("c", c)])?;
-        let config = ArrowTableBuilder::new()
+        let config = TableBuilder::new()
             .with_name(config_name)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -387,7 +385,7 @@ pub mod test_task {
         let tables = make_state_tables(table_name, config_name)?;
 
         // add mock config and table to the state
-        let mut state = HashMap::<String, Arc<RwLock<ArrowTable>>>::new();
+        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
         for table in tables.into_iter() {
             state.insert(table.get_name().to_string(), Arc::new(RwLock::new(table)));
         }
@@ -413,22 +411,22 @@ pub mod test_task {
         table_name: &str,
         config_name: &str,
         metrics: ArrowTaskMetricsSet,
-    ) -> Result<ArrowTask> {
+    ) -> Result<Task> {
         let processor_name = format!("{name}_processor");
-        ArrowTask::get_builder()
+        Task::get_builder()
             .with_name(name)
             .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ArrowProcessorMock::new_arc_with_pub_sub(
+            .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
                 processor_name.as_str(),
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: table_name.to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: table_name.to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: config_name.to_string(),
                     },
                 ],
@@ -444,25 +442,25 @@ pub mod test_task {
         table_name_2: &str,
         config_name: &str,
         metrics: ArrowTaskMetricsSet,
-    ) -> Result<ArrowTask> {
+    ) -> Result<Task> {
         let processor_name = format!("{name}_processor");
-        ArrowTask::get_builder()
+        Task::get_builder()
             .with_name(name)
             .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ArrowProcessorMock::new_arc_with_pub_sub(
+            .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
                 processor_name.as_str(),
-                &[ArrowTablePublish::Extend {
+                &[TablePublish::Extend {
                     table_name: table_name_1.to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: table_name_1.to_string(),
                     },
-                    ArrowTableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateFullTable {
                         table_name: table_name_2.to_string(),
                     },
-                    ArrowTableSubscribe::AlwaysFullTable {
+                    TableSubscribe::AlwaysFullTable {
                         table_name: config_name.to_string(),
                     },
                 ],
@@ -477,32 +475,32 @@ pub mod test_task {
         table_name: &str,
         config_name: &str,
         metrics: ArrowTaskMetricsSet,
-    ) -> Result<ArrowTask> {
+    ) -> Result<Task> {
         let processor_name_1 = format!("{name}_processor_1");
         let processor_name_2 = format!("{name}_processor_2");
         let processor_name_3 = format!("{name}_processor_3");
-        ArrowTask::get_builder()
+        Task::get_builder()
             .with_name(name)
             .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![
-                ArrowProcessorMock::new_arc_with_pub_sub(
+                ProcessorMock::new_arc_with_pub_sub(
                     processor_name_1.as_str(),
-                    &[ArrowTablePublish::Extend {
+                    &[TablePublish::Extend {
                         table_name: table_name.to_string(),
                     }],
                     &[
-                        ArrowTableSubscribe::OnUpdateFullTable {
+                        TableSubscribe::OnUpdateFullTable {
                             table_name: table_name.to_string(),
                         },
-                        ArrowTableSubscribe::AlwaysFullTable {
+                        TableSubscribe::AlwaysFullTable {
                             table_name: config_name.to_string(),
                         },
                     ],
                     AllTableNamesSubscribe::new_box(),
                 ),
-                ArrowProcessorMock::new_arc(processor_name_2.as_str()),
-                ArrowProcessorMock::new_arc(processor_name_3.as_str()),
+                ProcessorMock::new_arc(processor_name_2.as_str()),
+                ProcessorMock::new_arc(processor_name_3.as_str()),
             ])
             .build()
     }
@@ -512,22 +510,22 @@ pub mod test_task {
         publisher: &str,
         subject: &str,
         table_name: &str,
-        update: &ArrowTablePublish,
-    ) -> Result<IncomingMessageMap> {
+        update: &TablePublish,
+    ) -> Result<IPCMessageMap> {
         // mock table as input
         let table = make_test_table(table_name, 4, 8, 3)?;
 
         // build the message
-        let message = ArrowIncomingMessageBuilder::new()
+        let message = IPCMessageBuilder::new()
             .with_name(name)
             .with_subject(subject)
             .with_publisher(publisher)
-            .with_message(table)
+            .with_message(table.to_ipc_stream()?)
             .with_update(update)
             .build()?;
 
         // finish the message map
-        let mut map = HashMap::<String, ArrowIncomingMessage>::new();
+        let mut map = HashMap::<String, IPCMessage>::new();
         map.insert(message.get_name().to_string(), message);
         Ok(map)
     }
@@ -536,13 +534,13 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::table::arrow_table::ArrowTableTrait;
-    use crate::table::arrow_table::test_table::make_test_table;
+    use crate::table::table::TableTrait;
+    use crate::table::table::test_table::make_test_table;
     use crate::table::{
-        arrow_table::{ArrowTableBuilder, ArrowTableBuilderTrait},
-        arrow_table_publish::ArrowTablePublish,
+        table::{TableBuilder, TableBuilderTrait},
+        table_publish::TablePublish,
     };
-    use crate::task::arrow_message::{ArrowMessageTrait, ArrowOutgoingMessageTrait};
+    use crate::task::message::MessageTrait;
     use arrow::array::{Array, DictionaryArray, Int32Array, NullArray, RunArray};
     use arrow::datatypes::{DataType, Field, Schema};
     use hashbrown::HashMap;
@@ -550,7 +548,7 @@ mod tests {
     /// A compilation test to ensure that the `ArrowTask::get_name()` method can
     /// be called from a trait object.
     #[allow(dead_code)]
-    fn use_task_name_as_trait_object(plan: &dyn ArrowTaskTrait<T = ArrowTaskBuilder>) {
+    fn use_task_name_as_trait_object(plan: &dyn TaskTrait<T = TaskBuilder>) {
         let _ = plan.get_name();
     }
 
@@ -762,14 +760,14 @@ mod tests {
         )?;
 
         // Case 1: Message has subject that the task does not publish on
-        let mut message = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
             "test_message".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("test_message")
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&ArrowTablePublish::Extend {
+                .with_update(&TablePublish::Extend {
                     table_name: "test_table".to_string(),
                 })
                 .with_message(make_test_table("test_table", 1, 8, 2)?.to_record_batch_stream())
@@ -779,14 +777,14 @@ mod tests {
         assert_eq!(inbox.len(), 0);
 
         // Case 2: Message has subject that the task does not publish on
-        let mut message = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
             "test_message".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("test_message")
                 .with_publisher("s1")
                 .with_subject("test_table")
-                .with_update(&ArrowTablePublish::Extend {
+                .with_update(&TablePublish::Extend {
                     table_name: "test_table".to_string(),
                 })
                 .with_message(make_test_table("test_table", 1, 8, 2)?.to_record_batch_stream())
@@ -820,7 +818,7 @@ mod tests {
                 .get("from_test_task_on_test_table")
                 .unwrap()
                 .get_update(),
-            ArrowTablePublish::Extend {
+            TablePublish::Extend {
                 table_name: "test_table".to_string()
             }
         );
@@ -867,7 +865,7 @@ mod tests {
         );
         let stream = response.remove("from_test_task_on_test_table").unwrap();
         let partitions =
-            ArrowTableBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
+            TableBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
                 .await?
                 .with_name("")
                 .build()?;
@@ -918,7 +916,7 @@ mod tests {
         );
         let stream = response.remove("from_test_task_on_test_table").unwrap();
         let partitions =
-            ArrowTableBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
+            TableBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
                 .await?
                 .with_name("")
                 .build()?;
