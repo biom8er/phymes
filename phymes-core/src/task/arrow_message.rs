@@ -1,25 +1,18 @@
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll, ready};
 
 use crate::metrics::HashMap;
 use crate::session::common_traits::{
     BuildableTrait, BuilderTrait, IncomingMessageMap, MappableTrait,
 };
 use crate::table::{
-    arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
+    arrow_table::{ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
     arrow_table_publish::ArrowTablePublish,
-    stream::{
-        IPCRecordBatchStream, RecordBatchStream, SendableIPCRecordBatchStream,
-        SendableRecordBatchStream,
-    },
+    stream::SendableRecordBatchStream,
 };
 
 use anyhow::{Result, anyhow};
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
-use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use futures::{Stream, StreamExt};
-use serde::{Deserialize, Serialize};
+use arrow::datatypes::{DataType, Field, Fields};
 
 /// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
 /// metadata for subject, publisher, and update
@@ -31,30 +24,6 @@ pub trait ArrowMessageTrait: MappableTrait + BuildableTrait + Send {
     fn get_message(&self) -> &<Self as ArrowMessageTrait>::T;
     fn get_message_own(self) -> <Self as ArrowMessageTrait>::T;
     fn get_message_mut(&mut self) -> &mut <Self as ArrowMessageTrait>::T; 
-}
-
-pub trait ArrowIncomingMessageTrait: ArrowMessageTrait {
-    fn get_message(&self) -> &ArrowTable;
-    fn get_message_own(self) -> ArrowTable;
-    fn get_message_mut(&mut self) -> &mut ArrowTable;
-}
-
-pub trait ArrowOutgoingMessageTrait: ArrowMessageTrait {
-    fn get_message(&self) -> &SendableRecordBatchStream;
-    fn get_message_own(self) -> SendableRecordBatchStream;
-    fn get_message_mut(&mut self) -> &mut SendableRecordBatchStream;
-}
-
-pub trait ArrowIncomingIPCMessageTrait: ArrowMessageTrait + Sync {
-    fn get_message(&self) -> &Vec<u8>;
-    fn get_message_own(self) -> Vec<u8>;
-    fn get_message_mut(&mut self) -> &mut Vec<u8>;
-}
-
-pub trait ArrowOutgoingIPCMessageTrait: ArrowMessageTrait {
-    fn get_message(&self) -> &SendableIPCRecordBatchStream;
-    fn get_message_own(self) -> SendableIPCRecordBatchStream;
-    fn get_message_mut(&mut self) -> &mut SendableIPCRecordBatchStream;
 }
 
 #[derive(Clone, Default, Debug)]
@@ -462,27 +431,19 @@ mod tests {
             .with_subject("subject")
             .with_publisher("publisher")
             .with_update(&ArrowTablePublish::None)
-            .with_message(test_table.clone())
+            .with_message(test_table.to_ipc_stream()?)
             .build()?;
         assert_eq!(incoming_message.get_name(), "name");
         assert_eq!(incoming_message.get_subject(), "subject");
         assert_eq!(incoming_message.get_publisher(), "publisher");
         assert_eq!(*incoming_message.get_update(), ArrowTablePublish::None);
-        assert_eq!(
-            incoming_message.get_message().get_name(),
-            test_table.get_name()
-        );
-        assert_eq!(
-            incoming_message.get_message().get_schema(),
-            test_table.get_schema()
-        );
 
         let outgoing_message = ArrowOutgoingMessageBuilder::new()
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
             .with_update(&ArrowTablePublish::None)
-            .with_message(test_table.clone().to_record_batch_stream())
+            .with_message(test_table.to_record_batch_stream())
             .build()?;
         assert_eq!(outgoing_message.get_name(), "name");
         assert_eq!(outgoing_message.get_subject(), "subject");
@@ -499,27 +460,19 @@ mod tests {
             .with_publisher("publisher")
             .with_update(&ArrowTablePublish::None)
             .make_name()?
-            .with_message(test_table.clone())
+            .with_message(test_table.to_ipc_stream()?)
             .build()?;
         assert_eq!(incoming_message.get_name(), "from_publisher_on_subject");
         assert_eq!(incoming_message.get_subject(), "subject");
         assert_eq!(incoming_message.get_publisher(), "publisher");
         assert_eq!(*incoming_message.get_update(), ArrowTablePublish::None);
-        assert_eq!(
-            incoming_message.get_message().get_name(),
-            test_table.get_name()
-        );
-        assert_eq!(
-            incoming_message.get_message().get_schema(),
-            test_table.get_schema()
-        );
 
         let outgoing_message = ArrowOutgoingMessageBuilder::new()
             .with_subject("subject")
             .with_publisher("publisher")
             .with_update(&ArrowTablePublish::None)
             .make_name()?
-            .with_message(test_table.clone().to_record_batch_stream())
+            .with_message(test_table.to_record_batch_stream())
             .build()?;
         assert_eq!(outgoing_message.get_name(), "from_publisher_on_subject");
         assert_eq!(outgoing_message.get_subject(), "subject");
@@ -561,7 +514,7 @@ mod tests {
             .with_publisher("")
             .with_subject("")
             .with_update(&ArrowTablePublish::None)
-            .with_message(table)
+            .with_message(table.to_ipc_stream()?)
             .build()?;
         let message_map = message.to_map()?;
         assert_eq!(message_map.len(), 2);
@@ -574,12 +527,14 @@ mod tests {
                 table_name: "d1".to_string()
             }
         );
-        assert_eq!(
-            *message_map
+        let test_table = ArrowTableBuilder::new_from_ipc_stream(message_map
                 .get("data")
                 .unwrap()
-                .get_message()
-                .get_column_as_vec_str("values")
+                .get_message())?
+                .with_name("")
+                .build()?;
+        assert_eq!(
+            *test_table.get_column_as_vec_str("values")
                 .first()
                 .unwrap(),
             json_str_1
@@ -593,12 +548,14 @@ mod tests {
                 table_name: "d2".to_string()
             }
         );
-        assert_eq!(
-            *message_map
+        let test_table = ArrowTableBuilder::new_from_ipc_stream(message_map
                 .get("chat")
                 .unwrap()
-                .get_message()
-                .get_column_as_vec_str("values")
+                .get_message())?
+                .with_name("")
+                .build()?;
+        assert_eq!(
+            *test_table.get_column_as_vec_str("values")
                 .first()
                 .unwrap(),
             json_str_2
