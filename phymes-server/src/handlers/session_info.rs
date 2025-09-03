@@ -23,23 +23,6 @@ use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_r
 use crate::handlers::sign_in::CurrentUser;
 use crate::server::server_state::ServerState;
 
-/// Server session request
-#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
-pub struct SessionResponse {
-    /// The name of the session plan
-    pub session_plan: String,
-    /// The name of the session
-    pub session_name: String,
-    /// The subject name if known else blank
-    pub subject_name: Option<String>,
-    /// The message content
-    pub messaging: Option<MessageInterface>,
-    /// The attachment content
-    pub attachment: Option<AttachmentInterface>,
-    /// Stream the response
-    pub stream: bool,
-}
-
 /// Session information endpoint for subjects
 #[axum::debug_handler]
 pub async fn session_mermaid_js(

@@ -65,13 +65,6 @@ pub enum SessionInterfaceDirection {
     Subscribe
 }
 
-/// The session interface composed of a type and direction
-#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
-pub struct SessionInterface {
-    pub mode: SessionInterfaceMode,
-    pub direction: SessionInterfaceDirection,
-}
-
 /// The available subjects that the user can publish on from the messaging interface
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableInterfaceSubjects {
@@ -142,6 +135,7 @@ pub struct AttachmentInterface {
     pub bytes: Vec<u8>, 
     pub extension: String, 
     pub metadata: String,
+    pub timestamp: i64,
 }
 
 impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
@@ -326,15 +320,38 @@ impl AvailableInterfaceSubjects {
                 let extension = message.get_message().get_column_as_vec_nonprimitive::<String>("extension")?;
                 let bytes = message.get_message().get_column_as_vec_nested_primitive::<u8>("bytes")?;
                 let metadata = message.get_message().get_column_as_vec_nonprimitive::<String>("metadata")?;
+                let timestamp = message.get_message().get_column_as_vec_primitive::<i64>("timestamp")?;
                 let attachment = filename.into_iter()
                     .zip(extension.into_iter())
                     .zip(bytes.into_iter())
                     .zip(metadata.into_iter())
-                    .map(|(((filename, extension), bytes), metadata)| AttachmentInterface {filename, extension, bytes, metadata})
+                    .zip(timestamp.into_iter())
+                    .map(|((((filename, extension), bytes), metadata), timestamp)| AttachmentInterface {filename, extension, bytes, metadata, timestamp})
                     .collect::<Vec<_>>();
                 Ok((None, Some(attachment)))
             },
             _ => return Err(anyhow!("Cannot extract from an incoming message for a poublication subject.")),
         }
     }
+}
+
+/// Server session request
+#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
+pub struct SessionInterface {
+    /// The name of the session plan
+    pub session_plan: String,
+    /// The name of the session
+    pub session_name: String,
+    /// Message or Attachment
+    pub mode: SessionInterfaceMode,
+    /// Publish or Subscribe
+    pub direction: SessionInterfaceDirection,
+    /// The subject name
+    pub subject_name: Option<String>,
+    /// The message content
+    pub messaging: Option<MessageInterface>,
+    /// The attachment content
+    pub attachment: Option<AttachmentInterface>,
+    /// Stream the response
+    pub stream: bool,
 }
