@@ -773,7 +773,7 @@ pub trait TableBuilderTrait: BuilderTrait + Debug + Send + Sync {
     where
         Self: Sized;
 
-    fn with_struct<T>(self, s: &Vec<T>, batch_size: usize) -> Result<Self>
+    fn with_struct<T>(self, s: &[T]) -> Result<Self>
     where 
         Self: Sized,
         T: Sized + Serialize;
@@ -1228,12 +1228,15 @@ impl TableBuilderTrait for TableBuilder {
         Self::new_from_ipc_stream(&bytes) //This only works for single record batch streams!
     }
 
-    fn with_struct<T>(self, s: &Vec<T>, batch_size: usize) -> Result<Self>
+    fn with_struct<T>(self, s: &[T]) -> Result<Self>
     where 
         Self: Sized,
-        T: Sized + Serialize {        
-        let bytes = serde_json::to_vec::<Vec<T>>(s)?;
-        self.with_json(&bytes, batch_size)
+        T: Sized + Serialize {
+        let mut values = Vec::new();
+        for row in s {
+            values.push(serde_json::to_value(row)?);
+        }
+        self.with_json_values(&values)
     }
 }
 
@@ -1829,13 +1832,13 @@ mod tests {
         let test_table_read = TableBuilder::new()
             .with_schema(test_table::make_test_table_schema(0)?)
             .with_name("test_table")
-            .with_struct::<test_table::TestTable>(&s, 4)?
+            .with_struct::<test_table::TestTable>(&s)?
             .build()?;
 
         assert_eq!(test_table.get_name(), test_table_read.get_name());
         assert_eq!(test_table.get_schema(), test_table_read.get_schema());
         assert_eq!(
-            test_table.get_record_batches(),
+            test_table.concat_record_batches()?.get_record_batches(),
             test_table_read.get_record_batches()
         );
 
