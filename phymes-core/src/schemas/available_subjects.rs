@@ -381,6 +381,10 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             Some(name) => name.to_string(),
             None => self.to_string(),
         };
+        let batches = match batches {
+            Some(batches) => batches,
+            None => Vec::new(),
+        };
         match self {
             AvailableSubjects::Messages => {
                 create_table_from_fields(name.as_str(), batches, &create_chat_fields)
