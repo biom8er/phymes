@@ -375,7 +375,7 @@ impl Stream for DataSummaryStream {
                     let poll = Poll::Ready(Some(Ok(batch)));
                     return metrics.record_poll(poll);
                 }
-                DataFormat::JsonObject => {
+                DataFormat::Bytes => {
                     // Convert to Values representation
                     let mut values = Vec::new();
                     for row in batch_limit.iter() {
@@ -389,8 +389,8 @@ impl Stream for DataSummaryStream {
                         .build()?;
 
                     // Convert to CSV and wrap into a blob batch
-                    let bytes = table.to_json()?;
-                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".json".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
+                    let bytes = table.to_bytes()?;
+                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".json".to_string()], vec![bytes.to_vec()], vec!["".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -419,9 +419,6 @@ impl Stream for DataSummaryStream {
                 }
                 DataFormat::Pdf => {
                     todo!("Implement PDF output");
-                }
-                DataFormat::Bytes => {
-                    todo!("Implement Bytes output");
                 }
                 DataFormat::Ipc => {
                     todo!("Implement Arrow IPC output");

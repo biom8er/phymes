@@ -3,7 +3,7 @@ use futures::StreamExt;
 use phymes_core::table::table_publish::TablePublish;
 use phymes_data::candle_data::summary_config::{CsvFormat, DataFormat, JsonFormat};
 use phymes_server::handlers::{
-    session_info::SessionResponse,
+    session_info::SessionInterfaceMessage,
     sign_in::create_session_name,
 };
 
@@ -138,25 +138,26 @@ pub fn subjects_modal() -> Element {
     use_coroutine(clear_subject_num_rows_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
-        session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-        session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
-        subject_name: "".to_string(),
-        format: DataFormat::Bytes,
-        publish: TablePublish::None,
-        content: "".to_string().into(),
-        metadata: "".to_string(),
-        stream: false,
-    });
+    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessageBuilder
+        .with_session_name(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+        .with_format(DataFormat::Bytes)
+        .with_publisher(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+        .with_publish(TablePublish::None)
+        .with_stream(false)
+    );
 
     // Get the active session schema for the subject view
     let clear_subjects_schema_state = use_coroutine_handle::<ClearSubjectSchemaState>();
     let sync_current_subjects_schema_state =
         use_coroutine_handle::<SyncCurrentSubjectSchemaState>();
     let _ = use_resource(move || async move {
-        let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
         clear_subjects_schema_state.send(ClearSubjectSchemaState {});
-        let route = "/app/v1/subjects_schema";
+        let route = "/app/v1/get_state";
+        let data_serialized = serde_json::to_string(&get_session_state()
+            .with_subject(SessionContextTableNames::Subjects.get_name())
+            .make_name()
+            .build()
+            .unwrap()).unwrap();
 
         #[cfg(not(feature = "serverless"))]
         let addr = format!("{ADDR_BACKEND}{route}");
@@ -260,9 +261,13 @@ pub fn subjects_modal() -> Element {
     let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
     let sync_current_subjects_rows_state = use_coroutine_handle::<SyncCurrentSubjectNumRowsState>();
     let _ = use_resource(move || async move {
-        let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
         clear_subjects_num_rows_state.send(ClearSubjectNumRowsState {});
-        let route = "/app/v1/subjects_num_rows";
+        let route = "/app/v1/get_state";
+        let data_serialized = serde_json::to_string(&get_session_state()
+            .with_subject(SessionContextTableNames::SubjectsNumRows.get_name())
+            .make_name()
+            .build()
+            .unwrap()).unwrap();
 
         #[cfg(not(feature = "serverless"))]
         let addr = format!("{ADDR_BACKEND}{route}");
@@ -406,7 +411,7 @@ pub fn subjects_modal() -> Element {
     // File upload signals
     #[allow(unused_mut)]
     let mut enable_directory_upload = use_signal(|| false);
-    let mut files_uploaded = use_signal(|| Vec::new() as Vec<SessionResponse>);
+    let mut files_uploaded = use_signal(|| Vec::new() as Vec<SessionInterfaceMessage>);
     let file_names = use_memo(move || {
         get_non_duplicated_sorted_subjects(
             &files_uploaded
@@ -428,7 +433,7 @@ pub fn subjects_modal() -> Element {
                     Some("csv") => {
                         // Read the file as CSV
                         if let Some(contents) = file_engine.read_file_to_string(file_name).await {
-                            files_uploaded.write().push(SessionResponse {
+                            files_uploaded.write().push(SessionInterfaceMessage {
                                 session_plan: ACTIVE_SESSION_NAME.read().to_string(),
                                 session_name: create_session_name(
                                     EMAIL.read().as_str(),
@@ -450,7 +455,7 @@ pub fn subjects_modal() -> Element {
                     Some("json") => {
                         // Read the file as JSON
                         if let Some(contents) = file_engine.read_file_to_string(file_name).await {
-                            files_uploaded.write().push(SessionResponse {
+                            files_uploaded.write().push(SessionInterfaceMessage {
                                 session_plan: ACTIVE_SESSION_NAME.read().to_string(),
                                 session_name: create_session_name(
                                     EMAIL.read().as_str(),
@@ -651,7 +656,7 @@ pub fn subjects_modal() -> Element {
                                     onclick: move |_evt| async move {
                                         // Get csv file from the server
                                         files_downloaded.write().clear();
-                                        let data = SessionResponse {
+                                        let data = SessionInterfaceMessage {
                                             session_plan: ACTIVE_SESSION_NAME.read().to_string(),
                                             session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
                                             subject_name: subject_shown.read().to_string(),

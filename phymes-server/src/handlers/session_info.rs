@@ -28,7 +28,7 @@ use crate::server::server_state::ServerState;
 pub async fn session_mermaid_js(
     Extension(current_user): Extension<CurrentUser>,
     State(mut state): State<ServerState>,
-    payload: Result<Json<SessionResponse>, JsonRejection>,
+    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {
@@ -36,7 +36,7 @@ pub async fn session_mermaid_js(
             // We got a valid JSON payload
             tracing::debug!(
                 "Getting mermaid.js strings for session_name {}",
-                payload.session_name.as_str()
+                payload.get_session_name()
             );
             if !state.check_email_in_state(&current_user.email)
                 && let Err(e) = state.read_state_by_email(
@@ -59,7 +59,7 @@ pub async fn session_mermaid_js(
                 .session_contexts
                 .try_write()
                 .unwrap()
-                .get(payload.session_name.as_str())
+                .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {
                     let buf = session_stream_state
@@ -78,7 +78,7 @@ pub async fn session_mermaid_js(
                 None => {
                     tracing::debug!(
                         "session_name {} not found in sessions {:?}",
-                        payload.session_name.as_str(),
+                        payload.get_session_name(),
                         state.session_contexts.try_read().unwrap().keys()
                     );
                     JsonError::new("Failed to get the session".to_string())
@@ -121,7 +121,7 @@ pub async fn session_mermaid_js(
 pub async fn session_subjects_num_rows(
     Extension(current_user): Extension<CurrentUser>,
     State(mut state): State<ServerState>,
-    payload: Result<Json<SessionResponse>, JsonRejection>,
+    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {
@@ -129,7 +129,7 @@ pub async fn session_subjects_num_rows(
             // We got a valid JSON payload
             tracing::debug!(
                 "Getting subjects number of rows for session_name {}",
-                payload.session_name.as_str()
+                payload.get_session_name()
             );
             if !state.check_email_in_state(&current_user.email)
                 && let Err(e) = state.read_state_by_email(
@@ -152,7 +152,7 @@ pub async fn session_subjects_num_rows(
                 .session_contexts
                 .try_write()
                 .unwrap()
-                .get(payload.session_name.as_str())
+                .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {
                     let info = session_stream_state
@@ -171,7 +171,7 @@ pub async fn session_subjects_num_rows(
                 None => {
                     tracing::debug!(
                         "session_name {} not found in sessions {:?}",
-                        payload.session_name.as_str(),
+                        payload.get_session_name(),
                         state.session_contexts.try_read().unwrap().keys()
                     );
                     JsonError::new("Failed to get the session".to_string())
@@ -214,7 +214,7 @@ pub async fn session_subjects_num_rows(
 pub async fn session_subjects_schema(
     Extension(current_user): Extension<CurrentUser>,
     State(mut state): State<ServerState>,
-    payload: Result<Json<SessionResponse>, JsonRejection>,
+    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {
@@ -222,7 +222,7 @@ pub async fn session_subjects_schema(
             // We got a valid JSON payload
             tracing::debug!(
                 "Getting subjects schema for session_name {}",
-                payload.session_name.as_str()
+                payload.get_session_name()
             );
             if !state.check_email_in_state(&current_user.email)
                 && let Err(e) = state.read_state_by_email(
@@ -245,7 +245,7 @@ pub async fn session_subjects_schema(
                 .session_contexts
                 .try_write()
                 .unwrap()
-                .get(payload.session_name.as_str())
+                .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {
                     let buf = session_stream_state
@@ -264,7 +264,7 @@ pub async fn session_subjects_schema(
                 None => {
                     tracing::debug!(
                         "session_name {} not found in sessions {:?}",
-                        payload.session_name.as_str(),
+                        payload.get_session_name(),
                         state.session_contexts.try_read().unwrap().keys()
                     );
                     JsonError::new("Failed to get the session".to_string())
@@ -307,7 +307,7 @@ pub async fn session_subjects_schema(
 pub async fn session_metrics_info(
     Extension(current_user): Extension<CurrentUser>,
     State(mut state): State<ServerState>,
-    payload: Result<Json<SessionResponse>, JsonRejection>,
+    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {
@@ -315,7 +315,7 @@ pub async fn session_metrics_info(
             // We got a valid JSON payload
             tracing::debug!(
                 "Getting metrics info for session_name {}",
-                payload.session_name.as_str()
+                payload.get_session_name()
             );
             if !state.check_email_in_state(&current_user.email)
                 && let Err(e) = state.read_state_by_email(
@@ -338,7 +338,7 @@ pub async fn session_metrics_info(
                 .session_contexts
                 .try_write()
                 .unwrap()
-                .get(payload.session_name.as_str())
+                .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {
                     // Add the metrics to the state just in case...
@@ -366,7 +366,7 @@ pub async fn session_metrics_info(
                 None => {
                     tracing::debug!(
                         "session_name {} not found in sessions {:?}",
-                        payload.session_name.as_str(),
+                        payload.get_session_name(),
                         state.session_contexts.try_read().unwrap().keys()
                     );
                     JsonError::new("Failed to get the session".to_string())

@@ -89,7 +89,7 @@ mod tests {
     use serde_json::{Map, Value};
 
     use crate::handlers::{
-        session_info::SessionResponse,
+        session_info::SessionInterfaceMessage,
         sign_in::{basic_auth, create_session_name},
     };
 
@@ -156,7 +156,7 @@ mod tests {
         // Create the session state JSON value
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
-        let session_response = SessionResponse {
+        let session_response = SessionInterfaceMessage {
             session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "".to_string(),
@@ -217,7 +217,7 @@ mod tests {
         let bearer = token.to_string();
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
-        let session_response = SessionResponse {
+        let session_response = SessionInterfaceMessage {
             session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "".to_string(),
@@ -247,7 +247,7 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_num_rows using serverless_app
-        let session_response = SessionResponse {
+        let session_response = SessionInterfaceMessage {
             session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "".to_string(),
@@ -277,7 +277,7 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test mermaid_js using serverless_app
-        let session_response = SessionResponse {
+        let session_response = SessionInterfaceMessage {
             session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "".to_string(),
@@ -307,7 +307,7 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test session_stream using serverless_app
-        let session_response = SessionResponse {
+        let session_response = SessionInterfaceMessage {
             session_plan: "Chat".to_string(),
             session_name: session_name.clone(),
             subject_name: "messages".to_string(),
@@ -342,7 +342,7 @@ mod tests {
 
         // DM: error on wasm32-wasip2
         // // Test metrics using serverless_app
-        // let session_response = SessionResponse {
+        // let session_response = SessionInterfaceMessage {
         //     session_plan: "Chat".to_string(),
         //     session_name: session_name.clone(),
         //     subject_name: "".to_string(),

@@ -3,7 +3,7 @@ use futures::StreamExt;
 use phymes_core::table::table_publish::TablePublish;
 use phymes_data::candle_data::summary_config::DataFormat;
 use phymes_server::handlers::{
-    session_info::SessionResponse,
+    session_info::SessionInterfaceMessage,
     sign_in::create_session_name,
 };
 use serde_json::{Map, Value};
@@ -45,23 +45,24 @@ pub fn metrics_modal() -> Element {
     use_coroutine(sync_current_metrics_mermaid_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
-        session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-        session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
-        subject_name: "".to_string(),
-        format: DataFormat::Bytes,
-        publish: TablePublish::None,
-        content: "".to_string().into(),
-        metadata: "".to_string(),
-        stream: false,
-    });
+    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessageBuilder
+        .with_session_name(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+        .with_format(DataFormat::Bytes)
+        .with_publisher(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+        .with_publish(TablePublish::None)
+        .with_stream(false)
+    );
 
     // Get the active session info for the metrics view
     let sync_current_metrics_mermaid_state =
         use_coroutine_handle::<SyncCurrentMetricsMermaidJSState>();
     let _ = use_resource(move || async move {
-        let data_serialized = serde_json::to_string(&get_session_state()).unwrap();
-        let route = "/app/v1/metrics_info";
+        let route = "/app/v1/get_state";
+        let data_serialized = serde_json::to_string(&get_session_state()
+            .with_subject(SessionContextTableNames::MetricsGantt.get_name())
+            .make_name()
+            .build()
+            .unwrap()).unwrap();
 
         #[cfg(not(feature = "serverless"))]
         let addr = format!("{ADDR_BACKEND}{route}");

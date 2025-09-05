@@ -18,14 +18,14 @@ use crate::handlers::sign_in::CurrentUser;
 use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};
 use crate::server::server_state::ServerState;
 
-use super::session_info::SessionResponse;
+use super::session_info::SessionInterfaceMessage;
 
 /// Chat inference endpoint
 #[axum::debug_handler]
 pub async fn session_put_state(
     Extension(current_user): Extension<CurrentUser>,
     State(mut state): State<ServerState>,
-    payload: Result<Json<SessionResponse>, JsonRejection>,
+    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {
@@ -33,7 +33,7 @@ pub async fn session_put_state(
             // We got a valid JSON payload
             tracing::debug!(
                 "Put session state for session_name {}",
-                payload.session_name.as_str()
+                payload.get_session_name()
             );
             if !state.check_email_in_state(&current_user.email)
                 && let Err(e) = state.read_state_by_email(
@@ -56,7 +56,7 @@ pub async fn session_put_state(
                 .session_contexts
                 .try_write()
                 .unwrap()
-                .get(payload.session_name.as_str())
+                .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {
                     let schema = session_stream_state
@@ -64,16 +64,16 @@ pub async fn session_put_state(
                         .unwrap()
                         .get_session_context()
                         .get_states()
-                        .get(payload.subject_name.as_str())
+                        .get(payload.get_subject())
                         .unwrap()
                         .try_read()
                         .unwrap()
                         .get_schema();
-                    let bytes = match payload.format {
+                    let bytes = match payload.get_format() {
                         DataFormat::Csv(csv_format) => TableBuilder::new()
                             .with_schema(schema)
-                            .with_name(payload.publish.get_table_name())
-                            .with_csv(&payload.content, csv_format.delimiter, csv_format.header, csv_format.batch_size)?
+                            .with_name(payload.get_publisher().get_table_name())
+                            .with_csv(payload.get_message(), csv_format.delimiter, csv_format.header, csv_format.batch_size)?
                             .build()
                             .unwrap()
                             .to_ipc_stream()?,
@@ -81,18 +81,18 @@ pub async fn session_put_state(
                             let csv_format = CsvFormat::default();
                             TableBuilder::new()
                                 .with_schema(schema)
-                                .with_name(payload.publish.get_table_name())
-                                .with_csv(&payload.content, csv_format.delimiter, csv_format.header, csv_format.batch_size)?
+                                .with_name(payload.get_publisher().get_table_name())
+                                .with_csv(payload.get_message(), csv_format.delimiter, csv_format.header, csv_format.batch_size)?
                                 .build()
                                 .unwrap()
                                 .to_ipc_stream()?
                         },
                         DataFormat::Json(_json_format) | DataFormat::Json => {                            
-                            let json_value: Vec<serde_json::Value> = serde_json::from_slice(&payload.content)?;                            
+                            let json_value: Vec<serde_json::Value> = serde_json::from_slice(payload.get_message())?;                            
                             TableBuilder::new()
                                 .with_schema(schema)
-                                .with_name(payload.publish.get_table_name())
-                                .with_json_values(&payload.content)?
+                                .with_name(payload.get_publisher().get_table_name())
+                                .with_json_values(payload.get_message())?
                                 .build()
                                 .unwrap()
                                 .to_ipc_stream()?
@@ -100,8 +100,8 @@ pub async fn session_put_state(
                         DataFormat::Bytes => {                                                       
                             TableBuilder::new()
                                 .with_schema(schema)
-                                .with_name(payload.publish.get_table_name())
-                                .with_bytes(&payload.content)?
+                                .with_name(payload.get_publisher().get_table_name())
+                                .with_bytes(payload.get_message())?
                                 .build()
                                 .unwrap()
                                 .to_ipc_stream()?
@@ -109,12 +109,12 @@ pub async fn session_put_state(
                         SessionResponseFormat::Pdf => {
                             // Load the PDF document and extract text
                             let pdf =
-                                filter_pdf(load_pdf_document(payload.content.as_slice()).unwrap());
+                                filter_pdf(load_pdf_document(payload.get_message()).unwrap());
                             let batch =
                                 extract_pdf_text([(payload.metadata.clone(), pdf)].as_slice())
                                     .unwrap();
                             ArrowTable::get_builder()
-                                .with_name(payload.subject_name.as_str())
+                                .with_name(payload.get_subject())
                                 .with_record_batches(vec![batch])
                                 .unwrap()
                                 .build()
@@ -126,11 +126,11 @@ pub async fn session_put_state(
 
                     // Create the update message
                     let incoming_message = ArrowIncomingMessageBuilder::new()
-                        .with_name(payload.subject_name.as_str())
-                        .with_subject(payload.subject_name.as_str())
-                        .with_publisher(payload.session_name.as_str())
+                        .with_name(payload.get_subject())
+                        .with_subject(payload.get_subject())
+                        .with_publisher(payload.get_session_name())
                         .with_message(bytes)
-                        .with_update(&payload.publish)
+                        .with_update(&payload.get_publisher())
                         .build()
                         .unwrap();
                     let mut incoming_message_map =
@@ -203,7 +203,7 @@ pub async fn session_put_state(
 pub async fn session_get_state(
     Extension(current_user): Extension<CurrentUser>,
     State(mut state): State<ServerState>,
-    payload: Result<Json<SessionResponse>, JsonRejection>,
+    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {
@@ -211,7 +211,7 @@ pub async fn session_get_state(
             // We got a valid JSON payload
             tracing::debug!(
                 "Get session state for session_name {}",
-                payload.session_name.as_str()
+                payload.get_session_name()
             );
             if !state.check_email_in_state(&current_user.email)
                 && let Err(e) = state.read_state_by_email(
@@ -234,9 +234,9 @@ pub async fn session_get_state(
                 .session_contexts
                 .try_write()
                 .unwrap()
-                .get(payload.session_name.as_str())
+                .get(payload.get_session_name())
             {
-                Some(session_stream_state) => match payload.format {
+                Some(session_stream_state) => match payload.get_format() {
                     DataFormat::Bytes => {
                         // Get the subject table as a json object
                         let buf = session_stream_state
@@ -244,7 +244,7 @@ pub async fn session_get_state(
                             .unwrap()
                             .get_session_context()
                             .get_states()
-                            .get(payload.subject_name.as_str())
+                            .get(payload.get_subject())
                             .unwrap()
                             .try_read()
                             .unwrap()
@@ -259,7 +259,7 @@ pub async fn session_get_state(
                             .unwrap()
                             .get_session_context()
                             .get_states()
-                            .get(payload.subject_name.as_str())
+                            .get(payload.get_subject())
                             .unwrap()
                             .try_read()
                             .unwrap()
@@ -276,7 +276,7 @@ pub async fn session_get_state(
                             .unwrap()
                             .get_session_context()
                             .get_states()
-                            .get(payload.subject_name.as_str())
+                            .get(payload.get_subject())
                             .unwrap()
                             .try_read()
                             .unwrap()
@@ -292,7 +292,7 @@ pub async fn session_get_state(
                             .unwrap()
                             .get_session_context()
                             .get_states()
-                            .get(payload.subject_name.as_str())
+                            .get(payload.get_subject())
                             .unwrap()
                             .try_read()
                             .unwrap()
@@ -308,7 +308,7 @@ pub async fn session_get_state(
                             .unwrap()
                             .get_session_context()
                             .get_states()
-                            .get(payload.subject_name.as_str())
+                            .get(payload.get_subject())
                             .unwrap()
                             .try_read()
                             .unwrap()

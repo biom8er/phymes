@@ -20,13 +20,13 @@ pub struct SessionInterfaceMessage {
     subject: String,
     /// The name of the publishing task
     publisher: String,
-    /// The actual message as an IPC stream
+    /// The actual message as byte stream
     message: Vec<u8>,
     /// How to update the state
     update: TablePublish,
     /// The name of the session
     session_name: String,
-    /// Format of the message or request
+    /// Format of the message
     format: DataFormat,
     /// Stream the response
     stream: bool,
@@ -126,7 +126,7 @@ pub struct SessionInterfaceMessageBuilder {
     pub update: Option<TablePublish>,
     /// The name of the session
     pub session_name: Option<String>,
-    /// Format of the message or request
+    /// Format of the message
     pub format: Option<DataFormat>,
     /// Stream the response
     pub stream: Option<bool>,

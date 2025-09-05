@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::table::arrow_table_publish::ArrowTablePublish;
 use phymes_server::handlers::{
-    session_info::{SessionResponse, SessionResponseFormat},
+    session_info::{SessionInterfaceMessage, SessionResponseFormat},
     sign_in::create_session_name,
 };
 use serde_json::{Map, Value};
@@ -71,7 +71,7 @@ pub fn tasks_modal() -> Element {
     use_coroutine(clear_task_info_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionResponse> = use_memo(move || SessionResponse {
+    let get_session_state: Memo<SessionInterfaceMessage> = use_memo(move || SessionInterfaceMessage {
         session_plan: ACTIVE_SESSION_NAME.read().to_string(),
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),

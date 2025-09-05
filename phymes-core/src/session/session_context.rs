@@ -47,6 +47,9 @@ pub enum SessionContextTableNames {
     Subjects,
     RuntimeEnvironments,
     MermaidJS,
+    SubjectsNumRows,
+    MetricsGantt,
+
 }
 
 impl MappableTrait for SessionContextTableNames {
@@ -58,6 +61,8 @@ impl MappableTrait for SessionContextTableNames {
             Self::Subjects => "SUBJECTS",
             Self::RuntimeEnvironments => "RUNTIME_ENVIRONMENTS",
             Self::MermaidJS => "MERMAID_JS",
+            Self::SubjectsNumRows => "SUBJECTSNUMROWS",
+            Self::MetricsGantt => "METRICSGANTT",
         }
     }
 }
@@ -438,96 +443,6 @@ impl SessionStreamState {
             }
         }
         subjects_updated
-    }
-
-    /// Update the state from serde_json::Value
-    /// and return a map of changed subscriptions along with their publishers
-    ///
-    /// # Notes
-    ///
-    /// We assume that the caller is often a server that will
-    ///   intercept error calls e.g., from bad JSON strings
-    ///
-    /// # Arguments
-    ///
-    /// * `schema` - the RecordBatch schema
-    /// * `json_str` - JSON string
-    /// * `publish` - the publication protocol
-    pub fn update_state_from_json_str(
-        &self,
-        schema: &SchemaRef,
-        json_str: &str,
-        publish: &TablePublish,
-    ) -> Result<HashMap<String, Vec<String>>> {
-        // Convert to json value
-        let json_value: Vec<serde_json::Value> = serde_json::from_str(json_str)?;
-
-        // Create the incoming message
-        let bytes = TableBuilder::new()
-            .with_schema(schema.clone())
-            .with_name(publish.get_table_name())
-            .with_json_values(&json_value)?
-            .build()
-            .unwrap()
-            .to_ipc_stream()?;
-        let incoming_message = IPCMessageBuilder::new()
-            .with_name(publish.get_table_name())
-            .with_subject(publish.get_table_name())
-            .with_publisher(self.session_context.get_name())
-            .with_message(bytes)
-            .with_update(publish)
-            .build()
-            .unwrap();
-        let mut incoming_message_map = HashMap::<String, IPCMessage>::new();
-        incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
-
-        // Update the state
-        Ok(self.update_state_from_messages(incoming_message_map))
-    }
-
-    /// Update the state from string formated as a CSV
-    /// and return a map of changed subscriptions along with their publishers
-    ///
-    /// # Notes
-    ///
-    /// We assume that the caller is often a server that will
-    ///   intercept error calls e.g., from badly formatted CSV
-    ///
-    /// # Arguments
-    ///
-    /// * `schema` - the RecordBatch schema
-    /// * `csv_str` - CSV string
-    /// * `publish` - the publication protocol
-    pub fn update_state_from_csv_str(
-        &self,
-        schema: &SchemaRef,
-        csv_str: &str,
-        publish: &TablePublish,
-        delimiter: u8,
-        header: bool,
-        batch_size: usize,
-    ) -> Result<HashMap<String, Vec<String>>> {
-        // Create the incoming message
-        let bytes = TableBuilder::new()
-            .with_schema(schema.clone())
-            .with_name(publish.get_table_name())
-            .with_csv(csv_str.as_bytes(), delimiter, header, batch_size)?
-            .build()
-            .unwrap()
-            .to_ipc_stream()?;
-        let incoming_message = IPCMessageBuilder::new()
-            .with_name(publish.get_table_name())
-            .with_subject(publish.get_table_name())
-            .with_publisher(self.session_context.get_name())
-            .with_message(bytes)
-            .with_update(publish)
-            .build()
-            .unwrap();
-        let mut incoming_message_map = HashMap::<String, IPCMessage>::new();
-        incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
-
-        // Update the state
-        Ok(self.update_state_from_messages(incoming_message_map))
     }
 
     /// Write superstep updates to file
@@ -1082,186 +997,6 @@ mod tests {
                 .len(),
             3
         );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_session_update_state_from_json_str() -> Result<()> {
-        // make the session state
-        let metrics = ArrowTaskMetricsSet::new();
-        let session_context =
-            make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
-        let session_stream_state = SessionStreamState::new(session_context);
-
-        // Case 1: valid json str
-        let json_str = r#"[{"a": "a", "b": 0, "c": 0}]"#;
-        let schema = session_stream_state
-            .get_session_context()
-            .get_states()
-            .get("config_1")
-            .unwrap()
-            .try_read()
-            .unwrap()
-            .get_schema();
-        let updates = session_stream_state.update_state_from_json_str(
-            &schema,
-            json_str,
-            &TablePublish::Extend {
-                table_name: "config_1".to_string(),
-            },
-        )?;
-
-        // check the response
-        assert_eq!(updates.len(), 1);
-        assert_eq!(updates.get("config_1").unwrap().len(), 1);
-        assert_eq!(
-            updates.get("config_1").unwrap().first().unwrap(),
-            "session_1"
-        );
-        assert_eq!(
-            session_stream_state
-                .get_session_context()
-                .get_states()
-                .get("config_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .count_rows(),
-            2
-        ); // Originally 1
-        assert_eq!(
-            session_stream_state
-                .get_session_context()
-                .get_states()
-                .get("config_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            1
-        ); // Unchanged
-
-        // Case 2: invalid json str
-        let json_str = r#"{"a": "a", "b": 0, "c": 1}"#;
-        let updates = session_stream_state.update_state_from_json_str(
-            &schema,
-            json_str,
-            &TablePublish::Extend {
-                table_name: "config_1".to_string(),
-            },
-        );
-        assert!(updates.is_err());
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_session_update_state_from_csv_str() -> Result<()> {
-        // make the session state
-        let metrics = ArrowTaskMetricsSet::new();
-        let session_context =
-            make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
-        let session_stream_state = SessionStreamState::new(session_context);
-
-        // Case 1: valid json str
-        let csv_str = r#"
-            a,b,c
-            a,0,0
-            a,0,0"#;
-        let csv_str = csv_str.trim();
-        let schema = session_stream_state
-            .get_session_context()
-            .get_states()
-            .get("config_1")
-            .unwrap()
-            .try_read()
-            .unwrap()
-            .get_schema();
-        let updates = session_stream_state.update_state_from_csv_str(
-            &schema,
-            csv_str,
-            &TablePublish::Extend {
-                table_name: "config_1".to_string(),
-            },
-            b',',
-            true,
-            2,
-        )?;
-
-        // check the response
-        assert_eq!(updates.len(), 1);
-        assert_eq!(updates.get("config_1").unwrap().len(), 1);
-        assert_eq!(
-            updates.get("config_1").unwrap().first().unwrap(),
-            "session_1"
-        );
-        assert_eq!(
-            session_stream_state
-                .get_session_context()
-                .get_states()
-                .get("config_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .count_rows(),
-            3
-        ); // Originally 1
-        assert_eq!(
-            session_stream_state
-                .get_session_context()
-                .get_states()
-                .get("config_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            2
-        ); // Unchanged
-
-        // Case 2: valid csv string more headers than in the schema
-        let csv_str = r#"
-            a,b,c,d
-            a,0,0,a
-            a,0,0,a"#;
-        let updates = session_stream_state.update_state_from_csv_str(
-            &schema,
-            csv_str,
-            &TablePublish::Extend {
-                table_name: "config_1".to_string(),
-            },
-            b',',
-            true,
-            4,
-        )?;
-
-        // check the response
-        assert_eq!(updates.len(), 0);
-
-        // Case 3: valid csv string but mismatched schema
-        let csv_str = r#"
-            a,b,
-            a,0,
-            a,0,"#;
-        let updates = session_stream_state.update_state_from_csv_str(
-            &schema,
-            csv_str,
-            &TablePublish::Extend {
-                table_name: "config_1".to_string(),
-            },
-            b',',
-            true,
-            4,
-        )?;
-
-        // check the response
-        assert_eq!(updates.len(), 0);
 
         Ok(())
     }

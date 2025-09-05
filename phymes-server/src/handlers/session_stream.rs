@@ -27,7 +27,7 @@ use std::sync::Arc;
 use crate::{
     handlers::{
         json_error::{ErrorToResponse, JsonError, serde_json_error_response},
-        session_info::SessionResponse,
+        session_info::SessionInterfaceMessage,
         sign_in::CurrentUser,
     },
     server::server_state::ServerState,
@@ -41,7 +41,7 @@ use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans
 pub async fn session_stream(
     Extension(current_user): Extension<CurrentUser>,
     State(mut state): State<ServerState>,
-    payload: Result<Json<SessionResponse>, JsonRejection>,
+    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {
@@ -49,7 +49,7 @@ pub async fn session_stream(
             // We got a valid JSON payload
             tracing::debug!(
                 "Running chat session for session_name {}",
-                payload.session_name.as_str()
+                payload.get_session_name()
             );
             if !state.check_email_in_state(&current_user.email)
                 && let Err(e) = state.read_state_by_email(
@@ -72,7 +72,7 @@ pub async fn session_stream(
                 .session_contexts
                 .try_write()
                 .unwrap()
-                .get(payload.session_name.as_str())
+                .get(payload.get_session_name())
             {
                 // Continue an existing session
                 Some(session) => {
@@ -95,24 +95,17 @@ pub async fn session_stream(
                 AvailableInterfaceSubjects::UserMessages.to_incoming_message(message, attachment, session_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-            let session_stream = AvailableSessionPlans::get_session_stream_by_name(
-                payload.session_plan.as_str(),
-                payload.session_name.as_str(),
-                Arc::clone(&session_stream_state),
-                payload.messaging,
-                payload.attachment,
-            )
             .unwrap();
 
             // Run and update the session and convert the output to the user specified format
             // Note: that we cannot write state updates to disk for
             //   streaming responses since we need to execute the stream first
-            match (&payload.format, payload.stream) {
+            match (&payload.get_format(), payload.get_stream()) {
                 (DataFormat::Bytes, true) => {
                     // Convert the output to bytes
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
-                            .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
+                            .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
                             .flat_map(|(_k, v)| v.get_message_own().to_bytes().unwrap())
                             .collect::<Vec<_>>()
                     });
@@ -127,7 +120,7 @@ pub async fn session_stream(
                     let response = response
                         .into_iter()
                         .flatten()
-                        .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
+                        .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
                         .flat_map(|(_k, v)| v.get_message_own().to_json_object().unwrap())
                         .collect::<Vec<_>>();
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
@@ -158,7 +151,7 @@ pub async fn session_stream(
                     // Convert the output to IPC
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
-                            .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
+                            .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
                             .flat_map(|(_k, v)| v.get_message_own().to_ipc_stream().unwrap())
                             .collect::<Vec<_>>()
                     });
@@ -173,7 +166,7 @@ pub async fn session_stream(
                     let response = response
                         .into_iter()
                         .flatten()
-                        .filter(|(_k, v)| v.get_name().contains(payload.session_name.as_str()))
+                        .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
                         .flat_map(|(_k, v)| v.get_message_own().to_ipc_stream().unwrap())
                         .collect::<Vec<_>>();
 

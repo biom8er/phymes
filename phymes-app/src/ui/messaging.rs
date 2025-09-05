@@ -15,7 +15,7 @@ use phymes_core::{
     table::table_publish::TablePublish,
 };
 use phymes_server::handlers::{
-    session_info::SessionResponse,
+    session_info::SessionInterfaceMessage,
     sign_in::create_session_name,
 };
 
@@ -62,19 +62,16 @@ pub fn messaging_interface_view() -> Element {
     let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
     let _ = use_resource(move || async move {
         clear_current_message_state.send(ClearCurrentMessageState {});
-        let data = SessionResponse {
-            session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-            session_name: create_session_name(
-                EMAIL.read().as_str(),
-                ACTIVE_SESSION_NAME.read().as_str(),
-            ),
-            subject_name: MESSAGES_SUBJECT_NAME.to_string(),
-            format: DataFormat::Bytes,
-            publish: TablePublish::None,
-            content: "".to_string().into(),
-            metadata: "".to_string(),
-            stream: false,
-        };
+        let data = SessionInterfaceMessageBuilder
+            .with_session_name(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+            .with_format(DataFormat::Bytes)
+            .with_publisher(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+            .with_publish(TablePublish::None)
+            .with_stream(false)
+            .with_subject(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+            .make_name()
+            .build()
+            .unwrap();
         let data_serialized = serde_json::to_string(&data).unwrap();
         let route = "/app/v1/get_state";
 
@@ -288,19 +285,19 @@ pub fn messaging_interface_footer() -> Element {
                                 });
 
                                 // create the message
-                                let data = SessionResponse {
-                                    session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-                                    session_name: create_session_name(
-                                        EMAIL.read().as_str(),
-                                        ACTIVE_SESSION_NAME.read().as_str(),
-                                    ),
-                                    subject_name: MESSAGES_SUBJECT_NAME.to_string(),
-                                    format: DataFormat::Bytes,
-                                    publish: TablePublish::None,
-                                    content: prompt.to_string().into(),
-                                    metadata: "".to_string(),
-                                    stream: false,
-                                };
+                                let chat = SyncCurrentMessageState { role: "user".to_string(), content: prompt.to_string(), timestamp: create_timestamp_str() };
+                                let bytes = Bytes::from(serde_json::to_string(&chat).unwrap());
+                                let data = SessionInterfaceMessageBuilder
+                                    .with_session_name(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                    .with_format(DataFormat::Bytes)
+                                    .with_publisher(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                    .with_publish(TablePublish::Extend { table_name: AvailableInterfaceSubjects::UserMessages.to_string() })
+                                    .with_stream(false)
+                                    .with_subject(AvailableInterfaceSubjects::UserMessages.to_string().as_str())
+                                    .with_message(bytes)
+                                    .make_name()
+                                    .build()
+                                    .unwrap();
                                 prompt.write().clear();
                                 let data_serialized = serde_json::to_string(&data).unwrap();
                                 let route = "/app/v1/chat";
