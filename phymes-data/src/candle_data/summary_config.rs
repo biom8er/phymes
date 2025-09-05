@@ -38,9 +38,6 @@ pub enum DataSummaryFormat {
     #[clap(skip)]
     #[value(name = "Csv")]
     Csv(CsvFormat),
-    /// Json Object
-    #[value(name = "JsonObject")]
-    JsonObject,
     /// Json attachment
     #[value(name = "JsonDefault")]
     JsonDefault,
@@ -80,7 +77,7 @@ impl DataSummaryFormat {
     pub fn to_extension(&self) -> &str {
         match self {
             Self::Csv(_) | Self::CsvDefault => ".csv",
-            Self::Json(_) | Self::JsonObject | Self::JsonDefault => ".json",
+            Self::Json(_) | Self::JsonDefault => ".json",
             Self::Bytes => ".bytes",
             Self::Ipc => ".ipc",
             Self::Pdf => ".pdf",

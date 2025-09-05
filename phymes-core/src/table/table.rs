@@ -773,10 +773,18 @@ pub trait TableBuilderTrait: BuilderTrait + Debug + Send + Sync {
     where
         Self: Sized;
 
+    /// Create a new stream table with the provided batches
+    /// from a vector of structs
     fn with_struct<T>(self, s: &[T]) -> Result<Self>
     where 
         Self: Sized,
         T: Sized + Serialize;
+
+    /// Create a new stream table with the provided batches
+    /// from a JSON object in byte format
+    fn with_bytes(self, bytes: &[u8]) -> Result<Self>
+    where
+        Self: Sized;
 }
 
 #[derive(Default, Debug, PartialEq, Clone)]
@@ -1236,6 +1244,13 @@ impl TableBuilderTrait for TableBuilder {
         for row in s {
             values.push(serde_json::to_value(row)?);
         }
+        self.with_json_values(&values)
+    }
+
+    fn with_bytes(self, bytes: &[u8]) -> Result<Self>
+    where 
+        Self: Sized {
+        let values: Vec<serde_json::Value> = serde_json::from_slice(&bytes)?;
         self.with_json_values(&values)
     }
 }
@@ -1775,6 +1790,19 @@ mod tests {
             serde_json::json!({"collection": "collection0".to_string(),
                 "id": 0, "metadata": "metadata0".to_string(), "score": 0.0, "text": "text0".to_string(), "title": "title0".to_string()
             }),
+        );
+
+        // Build a new table from json
+        let test_table_read = TableBuilder::new()
+            .with_schema(test_table.get_schema())
+            .with_bytes(&json_bytes)?
+            .with_name("test_table")
+            .build()?;
+
+        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(
+            test_table.get_record_batches(),
+            test_table_read.get_record_batches()
         );
 
         Ok(())

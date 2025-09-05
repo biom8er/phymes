@@ -62,7 +62,7 @@ pub async fn session_mermaid_js(
                 .get(payload.session_name.as_str())
             {
                 Some(session_stream_state) => {
-                    let object = session_stream_state
+                    let buf = session_stream_state
                         .try_read()
                         .unwrap()
                         .get_session_context()
@@ -71,10 +71,8 @@ pub async fn session_mermaid_js(
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .to_json_object()
+                        .to_bytes()
                         .unwrap();
-                    let content = serde_json::to_string(&object).unwrap();
-                    let buf = Bytes::from(content);
                     Body::from(buf).into_response()
                 }
                 None => {
@@ -167,9 +165,7 @@ pub async fn session_subjects_num_rows(
                     // DM: Reqwest `byte_stream` will automatically chunk the stream sent to it
                     //  therefore we need to use the serde_json object to ensure the chunks are broken
                     //  and formatted properly for decoding on the app side
-                    let object = info.to_json_object().unwrap();
-                    let content = serde_json::to_string(&object).unwrap();
-                    let buf = Bytes::from(content);
+                    let buf = info.to_bytes().unwrap();
                     Body::from(buf).into_response()
                 }
                 None => {
@@ -252,7 +248,7 @@ pub async fn session_subjects_schema(
                 .get(payload.session_name.as_str())
             {
                 Some(session_stream_state) => {
-                    let object = session_stream_state
+                    let buf = session_stream_state
                         .try_read()
                         .unwrap()
                         .get_session_context()
@@ -261,10 +257,8 @@ pub async fn session_subjects_schema(
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .to_json_object()
+                        .to_bytes()
                         .unwrap();
-                    let content = serde_json::to_string(&object).unwrap();
-                    let buf = Bytes::from(content);
                     Body::from(buf).into_response()
                 }
                 None => {
@@ -366,9 +360,7 @@ pub async fn session_metrics_info(
                     // DM: Reqwest `byte_stream` will automatically chunk the stream sent to it
                     //  therefore we need to use the serde_json object to ensure the chunks are broken
                     //  and formatted properly for decoding on the app side
-                    let object = info.to_json_object().unwrap();
-                    let content = serde_json::to_string(&object).unwrap();
-                    let buf = Bytes::from(content);
+                    let buf = info.to_bytes().unwrap();
                     Body::from(buf).into_response()
                 }
                 None => {
