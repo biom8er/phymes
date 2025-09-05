@@ -32,9 +32,6 @@ impl Default for JsonFormat {
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, Serialize, ValueEnum, Deserialize, Default)]
 pub enum DataSummaryFormat {
-    /// ToolMessage format
-    #[value(name = "Message")]
-    Message,
     /// Comma Seperated Values string
     #[value(name = "CsvDefault")]
     CsvDefault,
@@ -56,9 +53,10 @@ pub enum DataSummaryFormat {
     /// JSON Object written to Bytes
     #[value(name = "Bytes")]
     Bytes,
-    /// Arrow IPC
+    /// Arrow IPC stream
     #[value(name = "Ipc")]
     Ipc,
+    /// The raw [RecordBatch]
     #[default]
     #[value(name = "None")]
     None,
@@ -81,7 +79,6 @@ impl DataSummaryFormat {
     /// The file extension for the format
     pub fn to_extension(&self) -> &str {
         match self {
-            Self::Message => "",
             Self::Csv(_) | Self::CsvDefault => ".csv",
             Self::Json(_) | Self::JsonObject | Self::JsonDefault => ".json",
             Self::Bytes => ".bytes",

@@ -16,15 +16,11 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        table::{Table, TableBuilderTrait, TableTrait},
-        table_publish::TablePublish,
-        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
-        stream::{RecordBatchStream, SendableRecordBatchStream},
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::{
         message::{
-            MessageBuilderTrait, SendableRecordBatchStreamMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
+            MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage
         },
         processor::ProcessorTrait,
         publish_subscribe::PubSubTrait,
@@ -322,7 +318,7 @@ impl Stream for DataSummaryStream {
 
             // Convert to the desired format
             match self.config.as_ref().unwrap().format {
-                DataSummaryFormat::Message | DataSummaryFormat::None => {
+                DataSummaryFormat::None => {
                     // Wrap into a record batch
                     let content = serde_json::to_string(&batch_limit)?;
                     let batch = create_chat_record_batch(
@@ -448,9 +444,9 @@ impl RecordBatchStream for DataSummaryStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::table::{
+    use phymes_core::{table::{
         table::TableBuilder, table_publish::TablePublish,
-    };
+    }, task::message::MessageTrait};
 
     use crate::candle_data::{data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32, summary_config::CsvFormat};
 
@@ -477,7 +473,7 @@ mod tests {
             num_rows: Some(2),
             num_batches: Some(1),
             col_names: Some(vec!["embedding".to_string(),"lhs_pk".to_string()]),
-            format: DataSummaryFormat::Message,
+            format: DataSummaryFormat::None,
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()

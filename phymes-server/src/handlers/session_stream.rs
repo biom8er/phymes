@@ -90,6 +90,11 @@ pub async fn session_stream(
             };
 
             // Make the session stream
+            // DM: we assume only a single message per request
+            let incoming_message_map = create_incoming_message_map(vec![
+                AvailableInterfaceSubjects::UserMessages.to_incoming_message(message, attachment, session_name)?,
+            ]);
+            let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let session_stream = AvailableSessionPlans::get_session_stream_by_name(
                 payload.session_plan.as_str(),
                 payload.session_name.as_str(),

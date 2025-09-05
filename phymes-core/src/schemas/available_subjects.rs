@@ -1,6 +1,6 @@
-use crate::{session::common_traits::BuilderTrait, table::table::{Table, TableBuilder, TableBuilderTrait, TableTrait}};
+use crate::{session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilderTrait}};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use arrow::{
     array::{ArrayRef, Int64Array, ListBuilder, StringArray, UInt8Builder},
     datatypes::{DataType, Field, Fields, Schema, SchemaRef},
@@ -38,47 +38,6 @@ pub fn convert_timestamp_micros_to_str(timestamp_micros: i64) -> String {
 
 pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
     Arc::new(Schema::new(f()))
-}
-
-pub fn create_table_from_fields(
-    name: &str,
-    batches: Option<Vec<RecordBatch>>,
-    f: &dyn Fn() -> Fields,
-) -> Result<Table> {
-    TableBuilder::new()
-        .with_name(name)
-        .with_schema(create_schema_from_fields(f))
-        .with_record_batches(batches.unwrap_or(Vec::new()))?
-        .build()
-}
-
-pub fn create_table_from_fields_and_struct<T>(
-    name: &str,
-    s: &[T],
-    f: &dyn Fn() -> Fields,
-) -> Result<Table> 
-where
-    T: Sized + Serialize,
-{
-    let batch_size = s.iter().len();
-    let bytes = serde_json::to_vec(s)?;
-    TableBuilder::new()
-        .with_name(name)
-        .with_schema(create_schema_from_fields(f))
-        .with_json(&bytes, batch_size)?
-        .build()
-}
-
-pub fn extract_struct_from_table<T>(table: &Table) -> Result<Vec<T>>
-where
-    T: Sized + for<'a> Deserialize<'a>
-{
-    let bytes = table.to_json()?;
-    let content = match serde_json::from_slice::<Vec<T>>(&bytes) {
-        Ok(content) => content,
-        Err(err) => return Err(anyhow!("{err}")),
-    };
-    Ok(content)
 }
 
 pub fn create_chat_fields() -> Fields {
@@ -326,7 +285,6 @@ pub fn create_blob_batch(
 pub trait AvailableSubjectsTrait {
     fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table>;
     fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<Table> where T: Sized + Serialize;
-    fn to_struct_from_table<T>(&self, table: &Table) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a>;
 }
 
 /// The available subject schmeas
@@ -385,83 +343,14 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             Some(batches) => batches,
             None => Vec::new(),
         };
-        match self {
-            AvailableSubjects::Messages => {
-                create_table_from_fields(name.as_str(), batches, &create_chat_fields)
-            }
-            AvailableSubjects::Values => {
-                create_table_from_fields(name.as_str(), batches, &create_values_fields)
-            }
-            AvailableSubjects::Configs => {
-                create_table_from_fields(name.as_str(), batches, &create_config_fields)
-            }
-            AvailableSubjects::Tools => {
-                create_table_from_fields(name.as_str(), batches, &create_tools_fields)
-            }
-            AvailableSubjects::Documents => {
-                create_table_from_fields(name.as_str(), batches, &create_documents_fields)
-            }
-            AvailableSubjects::Queries => {
-                create_table_from_fields(name.as_str(), batches, &create_queries_fields)
-            }
-            AvailableSubjects::DocumentEmbeddings => create_table_from_fields(
-                name.as_str(), batches,
-                &create_document_embeddings_fields,
-            ),
-            AvailableSubjects::QueryEmbeddings => create_table_from_fields(
-                name.as_str(), batches,
-                &create_query_embeddings_fields,
-            ),
-            AvailableSubjects::EmbeddingScores => create_table_from_fields(
-                name.as_str(), batches,
-                &create_embeddings_scores_fields,
-            ),
-            AvailableSubjects::JoinChunksScores => create_table_from_fields(
-                name.as_str(), batches,
-                &create_join_chunks_scores_fields,
-            ),
-            AvailableSubjects::Blob => create_table_from_fields(
-                name.as_str(), batches,
-                &create_blob_fields,
-            ),
-        }
+        Table::get_builder().with_name(&name).with_schema(self.to_schema()).with_record_batches(batches)?.build()
     }
     fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<Table> where T: Sized + Serialize {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),
         };
-        match self {
-            AvailableSubjects::Messages => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_chat_fields),
-            AvailableSubjects::Values => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_values_fields),
-            AvailableSubjects::Configs => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_config_fields),
-            AvailableSubjects::Tools => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_tools_fields),
-            AvailableSubjects::Documents => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_documents_fields),
-            AvailableSubjects::Queries => create_table_from_fields_and_struct::<T>(name.as_str(), s, &create_queries_fields),
-            AvailableSubjects::DocumentEmbeddings => create_table_from_fields_and_struct::<T>(
-                name.as_str(), s,
-                &create_document_embeddings_fields,
-            ),
-            AvailableSubjects::QueryEmbeddings => create_table_from_fields_and_struct::<T>(
-                name.as_str(), s,
-                &create_query_embeddings_fields,
-            ),
-            AvailableSubjects::EmbeddingScores => create_table_from_fields_and_struct::<T>(
-                name.as_str(), s,
-                &create_embeddings_scores_fields,
-            ),
-            AvailableSubjects::JoinChunksScores => create_table_from_fields_and_struct::<T>(
-                name.as_str(), s,
-                &create_join_chunks_scores_fields,
-            ),
-            AvailableSubjects::Blob => create_table_from_fields_and_struct::<T>(
-                name.as_str(), s,
-                &create_blob_fields,
-            ),
-        }
-    }
-    fn to_struct_from_table<T>(&self, table: &Table) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a> {
-        extract_struct_from_table::<T>(table)
+        Table::get_builder().with_name(&name).with_schema(self.to_schema()).with_struct::<T>(s)?.build()
     }
 }
 

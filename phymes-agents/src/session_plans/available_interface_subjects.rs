@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::{anyhow, Result};
 use arrow::array::RecordBatch;
 use clap::{Parser, ValueEnum};
-use phymes_core::{metrics::HashMap, schemas::available_subjects::{create_chat_fields, create_table_from_fields_and_struct, AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{ArrowIncomingIPCMessage, IPCMessage, IPCMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, MessageBuilderTrait}};
+use phymes_core::{metrics::HashMap, schemas::available_subjects::{create_chat_fields, AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{ArrowIncomingIPCMessage, IPCMessage, IPCMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, MessageBuilderTrait}};
 use phymes_data::candle_data::summary_config::DataSummaryFormat;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -17,10 +17,12 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
 
     for subject in subjects.iter() {
         if let Ok(interface_subject) = AvailableInterfaceSubjects::from_str(subject, false) {
-            if interface_subject.get_mode() == SessionInterfaceMode::Message && interface_subject.get_direction() == SessionInterfaceDirection::Publish {
+            if interface_subject == AvailableInterfaceSubjects::UserMessages {
                 has_messaging_publish = true;
             }
-            if interface_subject.get_mode() == SessionInterfaceMode::Message && interface_subject.get_direction() == SessionInterfaceDirection::Subscribe {
+            if interface_subject == AvailableInterfaceSubjects::AssistantMessages 
+            || interface_subject == AvailableInterfaceSubjects::AggregatedMessages
+            || interface_subject == AvailableInterfaceSubjects::ToolMessages {
                 has_message_subscribe = true;
             }
         }
@@ -148,41 +150,19 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantScript => AvailableSubjects::Blob.to_table_from_struct::<T>(name, s),
         } 
     }
-    fn to_struct_from_table<T>(&self, table: &Table) -> Result<Vec<T>> where T: Sized + for<'a> Deserialize<'a> {
-        match self {
-            Self::UserMessages 
-            | Self::AggregatedMessages
-            | Self::AssistantMessages
-            | Self::ToolMessages => AvailableSubjects::Messages.to_struct_from_table::<T>(table),
-            Self::UserQueries => AvailableSubjects::Queries.to_struct_from_table::<T>(table),
-            Self::UserPdf 
-            | Self::UserAudio 
-            | Self::UserVideo
-            | Self::UserImage 
-            | Self::UserScript 
-            | Self::UserCsv 
-            | Self::AssistantImage 
-            | Self::AssistantCsv
-            | Self::AssistantScript => AvailableSubjects::Blob.to_struct_from_table::<T>(table),
-        } 
-    }
 }
 
 /// Server session request
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
-pub struct SessionInterface<T> {
-    /// The name of the session plan
-    pub session_plan: String,
+pub struct SessionInterfaceRequest {
     /// The name of the session
     pub session_name: String,
     /// Format of the message or request
-    pub format: DataSummaryFormat,
+    pub format: Option<DataSummaryFormat>,
     /// The subject name
     pub subject_name: Option<String>,
     /// The message content
-    pub message: Option<ArrowIncomingIPCMessage>,
-    /// The attachment content
-    pub attachment: Option<AttachmentInterface>,
+    pub message: Option<IPCMessage>,
     /// Stream the response
     pub stream: bool,
 }
