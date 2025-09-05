@@ -19,7 +19,7 @@ use phymes_core::{
 
 // General imports
 use anyhow::{Error, Result};
-use phymes_data::candle_data::summary_config::DataSummaryFormat;
+use phymes_data::candle_data::summary_config::DataFormat;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -108,7 +108,7 @@ pub async fn session_stream(
             // Note: that we cannot write state updates to disk for
             //   streaming responses since we need to execute the stream first
             match (&payload.format, payload.stream) {
-                (DataSummaryFormat::Bytes, true) => {
+                (DataFormat::Bytes, true) => {
                     // Convert the output to bytes
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
@@ -120,7 +120,7 @@ pub async fn session_stream(
                     // Send the stream
                     Body::from_stream(response).into_response()
                 }
-                (DataSummaryFormat::Bytes, false) => {
+                (DataFormat::Bytes, false) => {
                     // Convert the output to bytes
                     let response: Vec<HashMap<String, IPCMessage>> =
                         session_stream.try_collect().await.unwrap();
@@ -154,7 +154,7 @@ pub async fn session_stream(
                     // Send the stream
                     Body::from(response).into_response()
                 }
-                (DataSummaryFormat::Ipc, true) => {
+                (DataFormat::Ipc, true) => {
                     // Convert the output to IPC
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
@@ -166,7 +166,7 @@ pub async fn session_stream(
                     // Send the stream
                     Body::from_stream(response).into_response()
                 }
-                (DataSummaryFormat::Ipc, false) => {
+                (DataFormat::Ipc, false) => {
                     // Convert the output to bytes
                     let response: Vec<HashMap<String, IPCMessage>> =
                         session_stream.try_collect().await.unwrap();

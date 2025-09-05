@@ -35,7 +35,7 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
 
-use crate::candle_data::summary_config::{CsvFormat, DataSummaryFormat};
+use crate::candle_data::summary_config::{CsvFormat, DataFormat};
 
 use super::summary_config::DataSummaryConfig;
 
@@ -318,7 +318,7 @@ impl Stream for DataSummaryStream {
 
             // Convert to the desired format
             match self.config.as_ref().unwrap().format {
-                DataSummaryFormat::None => {
+                DataFormat::None => {
                     // Wrap into a record batch
                     let content = serde_json::to_string(&batch_limit)?;
                     let batch = create_chat_record_batch(
@@ -332,7 +332,7 @@ impl Stream for DataSummaryStream {
                     metrics.record_poll(poll)
 
                 }
-                DataSummaryFormat::Csv(csv_format) => {
+                DataFormat::Csv(csv_format) => {
                     // Convert to Values representation
                     let mut values = Vec::new();
                     for row in batch_limit.iter() {
@@ -353,7 +353,7 @@ impl Stream for DataSummaryStream {
                     let poll = Poll::Ready(Some(Ok(batch)));
                     return metrics.record_poll(poll);
                 }
-                DataSummaryFormat::CsvDefault => {
+                DataFormat::CsvDefault => {
                     // Convert to Values representation
                     let mut values = Vec::new();
                     for row in batch_limit.iter() {
@@ -375,7 +375,7 @@ impl Stream for DataSummaryStream {
                     let poll = Poll::Ready(Some(Ok(batch)));
                     return metrics.record_poll(poll);
                 }
-                DataSummaryFormat::JsonObject => {
+                DataFormat::JsonObject => {
                     // Convert to Values representation
                     let mut values = Vec::new();
                     for row in batch_limit.iter() {
@@ -396,7 +396,7 @@ impl Stream for DataSummaryStream {
                     let poll = Poll::Ready(Some(Ok(batch)));
                     return metrics.record_poll(poll);
                 }
-                DataSummaryFormat::Json(_) | DataSummaryFormat::JsonDefault => {
+                DataFormat::Json(_) | DataFormat::JsonDefault => {
                     // Convert to Values representation
                     let mut values = Vec::new();
                     for row in batch_limit.iter() {
@@ -417,13 +417,13 @@ impl Stream for DataSummaryStream {
                     let poll = Poll::Ready(Some(Ok(batch)));
                     return metrics.record_poll(poll);
                 }
-                DataSummaryFormat::Pdf => {
+                DataFormat::Pdf => {
                     todo!("Implement PDF output");
                 }
-                DataSummaryFormat::Bytes => {
+                DataFormat::Bytes => {
                     todo!("Implement Bytes output");
                 }
-                DataSummaryFormat::Ipc => {
+                DataFormat::Ipc => {
                     todo!("Implement Arrow IPC output");
                 }
             }
@@ -473,7 +473,7 @@ mod tests {
             num_rows: Some(2),
             num_batches: Some(1),
             col_names: Some(vec!["embedding".to_string(),"lhs_pk".to_string()]),
-            format: DataSummaryFormat::None,
+            format: DataFormat::None,
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()
@@ -568,7 +568,7 @@ mod tests {
             num_rows: Some(2),
             num_batches: Some(1),
             col_names: Some(vec!["lhs_pk".to_string()]),
-            format: DataSummaryFormat::Csv(CsvFormat { ..Default::default() }),
+            format: DataFormat::Csv(CsvFormat { ..Default::default() }),
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()

@@ -9,13 +9,13 @@ use phymes_core::{
 };
 use tracing::{Level, event, instrument};
 
-use crate::{candle_data::summary_config::DataSummaryFormat, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
+use crate::{candle_data::summary_config::DataFormat, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
 
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[derive(Debug)]
 pub struct ExtractTabularData {
     lhs_values: String,
-    format: DataSummaryFormat,
+    format: DataFormat,
 }
 
 impl MappableTrait for ExtractTabularData {
@@ -42,12 +42,12 @@ impl DataOperatorTrait for ExtractTabularData {
                 Ok(format) => format,
                 Err(err) => {
                     event!(Level::ERROR, "Failed to parse ExtractTabularData kwargs: {err}, using default.");
-                    DataSummaryFormat::default()
+                    DataFormat::default()
                 }
             },
             None => {
                 event!(Level::ERROR, "No ExtractTabularData kwargs were provided, using default.");
-                DataSummaryFormat::default()
+                DataFormat::default()
             }
         };
         ExtractTabularData {
@@ -125,26 +125,26 @@ impl DataOperatorTrait for ExtractTabularData {
 
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[instrument(skip(lhs_values, lhs_args))]
-pub fn extract_tabular_data(lhs_values: &str, lhs_args: &[RecordBatch], format: &DataSummaryFormat) -> Result<RecordBatch> {
+pub fn extract_tabular_data(lhs_values: &str, lhs_args: &[RecordBatch], format: &DataFormat) -> Result<RecordBatch> {
     let args_table = Table::get_builder()
         .with_name("")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
     let table = match format {
-        DataSummaryFormat::Csv(csv_format) => {
+        DataFormat::Csv(csv_format) => {
             Table::get_builder()
             .with_name("attachment")
             .with_csv(values_vec.last().unwrap(), csv_format.delimiter, csv_format.header, csv_format.batch_size)?
             .build()?
         }
-        DataSummaryFormat::Json(json_format) => {
+        DataFormat::Json(json_format) => {
             Table::get_builder()
             .with_name("attachment")
             .with_json(values_vec.last().unwrap(), json_format.batch_size)?
             .build()?
         }
-        DataSummaryFormat::Ipc => {
+        DataFormat::Ipc => {
             TableBuilder::new_from_ipc_stream(values_vec.last().unwrap())?
             .with_name("attachment")
             .build()?
@@ -198,7 +198,7 @@ mod tests {
         let extracted = extract_tabular_data(
             "bytes",
             &vec![csv_batch],
-            &DataSummaryFormat::Csv(csv_format),
+            &DataFormat::Csv(csv_format),
         ).unwrap();
 
         // Check the dimensions of the extracted data
@@ -231,7 +231,7 @@ mod tests {
         let extracted = extract_tabular_data(
             "bytes",
             &vec![json_batch],
-            &&DataSummaryFormat::Json(json_format),
+            &&DataFormat::Json(json_format),
         ).unwrap();
 
         // Check the dimensions of the extracted data

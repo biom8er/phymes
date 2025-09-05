@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::table::table_publish::TablePublish;
-use phymes_data::candle_data::summary_config::{CsvFormat, DataSummaryFormat, JsonFormat};
+use phymes_data::candle_data::summary_config::{CsvFormat, DataFormat, JsonFormat};
 use phymes_server::handlers::{
     session_info::SessionResponse,
     sign_in::create_session_name,
@@ -142,7 +142,7 @@ pub fn subjects_modal() -> Element {
         session_plan: ACTIVE_SESSION_NAME.read().to_string(),
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
-        format: DataSummaryFormat::Bytes,
+        format: DataFormat::Bytes,
         publish: TablePublish::None,
         content: "".to_string().into(),
         metadata: "".to_string(),
@@ -438,7 +438,7 @@ pub fn subjects_modal() -> Element {
                                 metadata: file_name.clone(),
                                 content: contents.into_bytes(),
                                 publish: publish.to_owned(),
-                                format: DataSummaryFormat::Csv(CsvFormat {
+                                format: DataFormat::Csv(CsvFormat {
                                     delimiter: b',',
                                     header: true,
                                     batch_size: 1024,
@@ -460,7 +460,7 @@ pub fn subjects_modal() -> Element {
                                 metadata: file_name.clone(),
                                 content: contents.into_bytes(),
                                 publish: publish.to_owned(),
-                                format: DataSummaryFormat::Json(JsonFormat{ batch_size: 1024 }),
+                                format: DataFormat::Json(JsonFormat{ batch_size: 1024 }),
                                 stream: false,
                             });
                         }
@@ -655,7 +655,7 @@ pub fn subjects_modal() -> Element {
                                             session_plan: ACTIVE_SESSION_NAME.read().to_string(),
                                             session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
                                             subject_name: subject_shown.read().to_string(),
-                                            format: DataSummaryFormat::Csv( CsvFormat { delimiter: b',', header: true, batch_size: 1024 }),
+                                            format: DataFormat::Csv( CsvFormat { delimiter: b',', header: true, batch_size: 1024 }),
                                             publish: TablePublish::None,
                                             content: "".to_string().into(),
                                             metadata: "".to_string(),

@@ -17,7 +17,7 @@ use phymes_core::{
 use phymes_data::{
     candle_data::{
         data_config::DataConfig, data_processor::CandleDataProcessor,
-        summary_config::{DataSummaryConfig, DataSummaryFormat}, summary_processor::DataSummaryProcessor,
+        summary_config::{DataSummaryConfig, DataFormat}, summary_processor::DataSummaryProcessor,
     },
     candle_operators::available_candle_operators::AvailableCandleOperators,
 };
@@ -746,7 +746,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             col_names: Some(vec!["text".to_string()]),
             num_rows: Some(3),
             num_batches: Some(1),
-            format: DataSummaryFormat::Message,
+            format: DataFormat::Message,
         };
         let top_k_config_json = serde_json::to_vec(&top_k_config).unwrap();
         let top_k_state = TableBuilder::new()

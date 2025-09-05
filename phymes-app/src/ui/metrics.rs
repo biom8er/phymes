@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::table::table_publish::TablePublish;
-use phymes_data::candle_data::summary_config::DataSummaryFormat;
+use phymes_data::candle_data::summary_config::DataFormat;
 use phymes_server::handlers::{
     session_info::SessionResponse,
     sign_in::create_session_name,
@@ -49,7 +49,7 @@ pub fn metrics_modal() -> Element {
         session_plan: ACTIVE_SESSION_NAME.read().to_string(),
         session_name: create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()),
         subject_name: "".to_string(),
-        format: DataSummaryFormat::Bytes,
+        format: DataFormat::Bytes,
         publish: TablePublish::None,
         content: "".to_string().into(),
         metadata: "".to_string(),

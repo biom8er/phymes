@@ -21,7 +21,7 @@ use phymes_core::{
 use phymes_data::{
     candle_data::{
         data_config::DataConfig, data_processor::CandleDataProcessor,
-        summary_config::{CsvFormat, DataSummaryConfig, DataSummaryFormat}, summary_processor::DataSummaryProcessor,
+        summary_config::{CsvFormat, DataSummaryConfig, DataFormat}, summary_processor::DataSummaryProcessor,
     },
     candle_operators::available_candle_operators::AvailableCandleOperators,
 };
@@ -532,7 +532,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap();
 
         // Extract tabular data config        
-        let csv_format = DataSummaryFormat::Csv(CsvFormat { ..Default::default() });
+        let csv_format = DataFormat::Csv(CsvFormat { ..Default::default() });
         let csv_format_str = serde_json::to_string(&csv_format).unwrap();
         let extract_tabular_data_config = DataConfig {
             lhs_name: AvailableInterfaceSubjects::UserCsv.to_string(),
@@ -551,7 +551,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Attachment config
         let attachment_config = DataSummaryConfig {
-            format: DataSummaryFormat::CsvDefault,
+            format: DataFormat::CsvDefault,
             ..Default::default()
         };
         let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();

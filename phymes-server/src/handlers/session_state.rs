@@ -11,7 +11,7 @@ use axum::{
 use anyhow::Result;
 use bytes::Bytes;
 use phymes_core::table::table::TableTrait;
-use phymes_data::candle_data::summary_config::{CsvFormat, DataSummaryFormat};
+use phymes_data::candle_data::summary_config::{CsvFormat, DataFormat};
 
 // Library imports
 use crate::handlers::sign_in::CurrentUser;
@@ -70,14 +70,14 @@ pub async fn session_put_state(
                         .unwrap()
                         .get_schema();
                     let bytes = match payload.format {
-                        DataSummaryFormat::Csv(csv_format) => TableBuilder::new()
+                        DataFormat::Csv(csv_format) => TableBuilder::new()
                             .with_schema(schema)
                             .with_name(payload.publish.get_table_name())
                             .with_csv(&payload.content, csv_format.delimiter, csv_format.header, csv_format.batch_size)?
                             .build()
                             .unwrap()
                             .to_ipc_stream()?,
-                        DataSummaryFormat::CsvDefault => {
+                        DataFormat::CsvDefault => {
                             let csv_format = CsvFormat::default();
                             TableBuilder::new()
                                 .with_schema(schema)
@@ -87,7 +87,7 @@ pub async fn session_put_state(
                                 .unwrap()
                                 .to_ipc_stream()?
                         },
-                        DataSummaryFormat::Json(_json_format) | DataSummaryFormat::Json => {                            
+                        DataFormat::Json(_json_format) | DataFormat::Json => {                            
                             let json_value: Vec<serde_json::Value> = serde_json::from_slice(&payload.content)?;                            
                             TableBuilder::new()
                                 .with_schema(schema)
@@ -97,7 +97,7 @@ pub async fn session_put_state(
                                 .unwrap()
                                 .to_ipc_stream()?
                         },
-                        DataSummaryFormat::Bytes => {                                                       
+                        DataFormat::Bytes => {                                                       
                             TableBuilder::new()
                                 .with_schema(schema)
                                 .with_name(payload.publish.get_table_name())
@@ -237,7 +237,7 @@ pub async fn session_get_state(
                 .get(payload.session_name.as_str())
             {
                 Some(session_stream_state) => match payload.format {
-                    DataSummaryFormat::Bytes => {
+                    DataFormat::Bytes => {
                         // Get the subject table as a json object
                         let buf = session_stream_state
                             .try_read()
@@ -252,7 +252,7 @@ pub async fn session_get_state(
                             .unwrap();
                         Body::from(buf).into_response()
                     }
-                    DataSummaryFormat::Csv(csv_format) => {
+                    DataFormat::Csv(csv_format) => {
                         // Get the subject table as a csv string
                         let out = session_stream_state
                             .try_read()
@@ -268,7 +268,7 @@ pub async fn session_get_state(
                         let buf = Bytes::from(out);
                         Body::from(buf).into_response()
                     }
-                    DataSummaryFormat::CsvDefault => {
+                    DataFormat::CsvDefault => {
                         // Get the subject table as a csv string
                         let csv_format = CsvFormat::default();
                         let out = session_stream_state
@@ -285,7 +285,7 @@ pub async fn session_get_state(
                         let buf = Bytes::from(out);
                         Body::from(buf).into_response()
                     }
-                    DataSummaryFormat::Json(_json_format) | DataSummaryFormat::JsonDefault => {
+                    DataFormat::Json(_json_format) | DataFormat::JsonDefault => {
                         // Get the subject table as a json string
                         let out = session_stream_state
                             .try_read()
@@ -301,7 +301,7 @@ pub async fn session_get_state(
                         let buf = Bytes::from(out);
                         Body::from(buf).into_response()
                     }
-                    DataSummaryFormat::Ipc => {
+                    DataFormat::Ipc => {
                         // Get the subject table as a csv string
                         let out = session_stream_state
                             .try_read()

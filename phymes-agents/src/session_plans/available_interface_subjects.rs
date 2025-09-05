@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use arrow::array::RecordBatch;
 use clap::{Parser, ValueEnum};
 use phymes_core::{metrics::HashMap, schemas::available_subjects::{create_chat_fields, AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{ArrowIncomingIPCMessage, IPCMessage, IPCMessageBuilder, ArrowIncomingMessageBuilderTrait, ArrowIncomingMessageTrait, MessageBuilderTrait}};
-use phymes_data::candle_data::summary_config::DataSummaryFormat;
+use phymes_data::candle_data::summary_config::DataFormat;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -150,19 +150,4 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantScript => AvailableSubjects::Blob.to_table_from_struct::<T>(name, s),
         } 
     }
-}
-
-/// Server session request
-#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
-pub struct SessionInterfaceRequest {
-    /// The name of the session
-    pub session_name: String,
-    /// Format of the message or request
-    pub format: Option<DataSummaryFormat>,
-    /// The subject name
-    pub subject_name: Option<String>,
-    /// The message content
-    pub message: Option<IPCMessage>,
-    /// Stream the response
-    pub stream: bool,
 }
