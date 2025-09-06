@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    schemas::available_subjects::{create_table_from_fields, create_tools_record_batch, AvailableSubjects, AvailableSubjectsTrait},
+    schemas::available_subjects::{create_tools_record_batch, AvailableSubjects, AvailableSubjectsTrait},
     session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},

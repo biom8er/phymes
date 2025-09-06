@@ -37,20 +37,23 @@ pub async fn run_main() -> Result<()> {
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // ----- Query #1 -----
-    let message_interface = MessageInterface { 
-        role: "user".to_string(), 
-        content: "Write a function to count prime numbers up to N.".to_string(), 
-        timestamp: create_timestamp_micros()
-    };
-    let incoming_message_map = create_incoming_message_map(vec![
-        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
-    ]);
+    let chat = Table::get_builder()
+        .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")?
+        .build()?;
+    let message = IPCMessage::get_builder()
+        .with_message(chat.to_ipc_stream()?)
+        .with_subject(chat.get_name())
+        .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
+        .with_publisher(chat_agent_session.session_context_name)
+        .make_name()?
+        .build()?;
+    let incoming_message_map = create_incoming_message_map(vec![message]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, IPCMessage>> =
         session_stream.try_collect().await?;
 
     // Update the chat history with the response
-    let json_data = response
+    let bytes = response
         .last_mut()
         .unwrap()
         .remove(&format!(
@@ -59,7 +62,10 @@ pub async fn run_main() -> Result<()> {
             AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
-        .get_message_own()
+        .get_message_own();
+    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+        .with_name("")
+        .build()?
         .to_json_object()?;
     for row in &json_data {
         if row["role"] != "system" {
@@ -69,21 +75,24 @@ pub async fn run_main() -> Result<()> {
 
     // ----- Query #2 -----
     session_stream_state.try_write().unwrap().set_iter(0);
-    let message_interface = MessageInterface { 
-        role: "user".to_string(), 
-        content: "Please provide an example using the functions.".to_string(), 
-        timestamp: create_timestamp_micros()
-    };
-    let incoming_message_map = create_incoming_message_map(vec![
-        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, chat_agent_session.session_context_name)?,
-    ]);
+    let chat = Table::get_builder()
+        .append_new_user_query_str("Please provide an example using the functions.", "user")?
+        .build()?;
+    let message = IPCMessage::get_builder()
+        .with_message(chat.to_ipc_stream()?)
+        .with_subject(chat.get_name())
+        .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
+        .with_publisher(chat_agent_session.session_context_name)
+        .make_name()?
+        .build()?;
+    let incoming_message_map = create_incoming_message_map(vec![message]);
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, IPCMessage>> =
         session_stream.try_collect().await?;
 
     // Update the chat history with the response
-    let json_data = response
-        .first_mut()
+    let bytes = response
+        .last_mut()
         .unwrap()
         .remove(&format!(
             "from_{}_on_{}",
@@ -91,7 +100,10 @@ pub async fn run_main() -> Result<()> {
             AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
-        .get_message_own()
+        .get_message_own();
+    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+        .with_name("")
+        .build()?
         .to_json_object()?;
     for row in &json_data {
         if row["role"] != "system" {

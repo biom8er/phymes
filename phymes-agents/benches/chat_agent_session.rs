@@ -93,14 +93,17 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                 let timer = baseline_metrics.elapsed_compute().timer();
                 let _messages = rt.block_on(async {
-                    let message_interface = MessageInterface { 
-                        role: "user".to_string(), 
-                        content: user_content.0.to_string(), 
-                        timestamp: create_timestamp_micros()
-                    };
-                    let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, config.session_context_name)?,
-                    ]);
+                    let chat = Table::get_builder()
+                        .append_new_user_query_str(user_content.0, "user")?
+                        .build()?;
+                    let message = IPCMessage::get_builder()
+                        .with_message(chat.to_ipc_stream()?)
+                        .with_subject(chat.get_name())
+                        .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
+                        .with_publisher(session_context_name)
+                        .make_name()?
+                        .build()?;
+                    let incoming_message_map = create_incoming_message_map(vec![message]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
@@ -108,14 +111,17 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 });
                 let _messages = rt.block_on(async {
                     session_stream_state.try_write().unwrap().set_iter(0);
-                    let message_interface = MessageInterface { 
-                        role: "user".to_string(), 
-                        content: user_content.1.to_string(), 
-                        timestamp: create_timestamp_micros()
-                    };
-                    let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, config.session_context_name)?,
-                    ]);
+                    let chat = Table::get_builder()
+                        .append_new_user_query_str(user_content.1, "user")?
+                        .build()?;
+                    let message = IPCMessage::get_builder()
+                        .with_message(chat.to_ipc_stream()?)
+                        .with_subject(chat.get_name())
+                        .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
+                        .with_publisher(session_context_name)
+                        .make_name()?
+                        .build()?;
+                    let incoming_message_map = create_incoming_message_map(vec![message]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
