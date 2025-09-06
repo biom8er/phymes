@@ -9,19 +9,16 @@ use phymes_core::{
         session_context_builder::TaskPlan,
     },
     table::{
-        table::{Table, TableBuilder, TableBuilderTrait},
-        table_publish::TablePublish,
-        table_subscribe::{
-            AllTableNamesSubscribe, AnyTableNameSubscribe, TableSubscribe,
-            ChatContentSubscribe, SubscribeTrait,
-        },
+        data_format::DataFormat, table::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{
+            AllTableNamesSubscribe, AnyTableNameSubscribe, ChatContentSubscribe, SubscribeTrait, TableSubscribe
+        }
     },
     task::processor::{ProcessorEcho, ProcessorTrait},
 };
 use phymes_data::{
     candle_data::{
         data_config::DataConfig, data_processor::CandleDataProcessor,
-        summary_config::{CsvFormat, DataSummaryConfig, DataFormat}, summary_processor::DataSummaryProcessor,
+        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
     },
     candle_operators::available_candle_operators::AvailableCandleOperators,
 };
@@ -532,8 +529,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap();
 
         // Extract tabular data config        
-        let csv_format = DataFormat::Csv(CsvFormat { ..Default::default() });
-        let csv_format_str = serde_json::to_string(&csv_format).unwrap();
+        let csv_format_str = serde_json::to_string(&DataFormat::CsvDefault).unwrap();
         let extract_tabular_data_config = DataConfig {
             lhs_name: AvailableInterfaceSubjects::UserCsv.to_string(),
             lhs_values: "bytes".to_string(),
@@ -600,16 +596,16 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             create_table_from_fields(self.state_scores_table_name, &create_scores_fields).unwrap(),
             create_table_from_fields(self.tool_summary_task_name, &create_scores_fields).unwrap(),
             self.make_tools_table().unwrap(),
-            AvailableInterfaceSubjects::AggregatedMessages.to_table(None).unwrap(),
-            AvailableInterfaceSubjects::UserMessages.to_table(None).unwrap(),
-            AvailableInterfaceSubjects::UserCsv.to_table(None).unwrap(),
-            AvailableInterfaceSubjects::AssistantMessages.to_table(None).unwrap(),
-            AvailableInterfaceSubjects::ToolMessages.to_table(None).unwrap(),
-            AvailableSubjects::Messages.to_table(Some(self.chat_task_name)).unwrap(),      
-            AvailableSubjects::Messages.to_table(Some(self.message_parser_task_name)).unwrap(),
-            AvailableSubjects::Configs.to_table(Some(self.tool_task_name)).unwrap(),
-            AvailableSubjects::Configs.to_table(Some(self.hitl_task_name)).unwrap(),
-            AvailableInterfaceSubjects::AssistantCsv.to_table(None).unwrap(),
+            AvailableInterfaceSubjects::AggregatedMessages.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::UserMessages.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::UserCsv.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::AssistantMessages.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::ToolMessages.to_table(None, None).unwrap(),
+            AvailableSubjects::Messages.to_table(Some(self.chat_task_name), None).unwrap(),      
+            AvailableSubjects::Messages.to_table(Some(self.message_parser_task_name), None).unwrap(),
+            AvailableSubjects::Configs.to_table(Some(self.tool_task_name), None).unwrap(),
+            AvailableSubjects::Configs.to_table(Some(self.hitl_task_name), None).unwrap(),
+            AvailableInterfaceSubjects::AssistantCsv.to_table(None, None).unwrap(),
         ])
     }
 }
@@ -622,11 +618,11 @@ mod tests {
         metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
             session_context::{SessionStream, SessionStreamState},
             session_context_builder::SessionContextBuilderTrait,
-        }, table::table::TableTrait, task::message::{IPCMessage, ArrowIncomingMessageTrait}
+        }, table::{data_format::CsvFormat, table::TableTrait}, task::message::{IPCMessage, MessageTrait}
     };
     use phymes_data::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
 
-    use crate::{session_plans::available_interface_subjects::{create_incoming_message_map, AttachmentInterface, MessageInterface}, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::available_interface_subjects::create_incoming_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
 
     use super::*;
 
@@ -645,7 +641,7 @@ mod tests {
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Make the tabular data
-        let csv_format = CsvFormat { ..Default::default() };
+        let csv_format = CsvFormat::default();
         let tabular_data = make_scores_table()?;
         let bytes = tabular_data.to_csv(csv_format.delimiter, csv_format.header)?;
         

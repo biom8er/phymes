@@ -11,7 +11,7 @@ use phymes_core::{
     schemas::{
         available_subjects::{
             create_chat_record_batch, create_timestamp_micros, AvailableSubjects
-        }, chat_completion::Tool, chat::ChatTraitExt
+        }, chat::ChatTraitExt, chat_completion::Tool
     },
     session::{
         common_traits::{
@@ -20,16 +20,10 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        table::{Table, TableBuilder, TableBuilderTrait, TableTrait},
-        table_publish::TablePublish,
-        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
-        stream::{RecordBatchStream, SendableRecordBatchStream},
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::{
-        message::{
-            MessageBuilderTrait, SendableRecordBatchStreamMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
-        },
+        message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
         processor::ProcessorTrait,
         publish_subscribe::PubSubTrait,
     },

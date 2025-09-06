@@ -5,11 +5,11 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
     schemas::{chat_completion, types},
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::table::{Table, TableBuilder, TableBuilderTrait, TableTrait},
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{data_format::DataFormat, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
 };
 use tracing::{Level, event, instrument};
 
-use crate::{candle_data::summary_config::DataFormat, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
+use crate::candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait};
 
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[derive(Debug)]
@@ -178,21 +178,21 @@ pub mod test_extract_tabular_data {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        schemas::available_subjects::create_blob_batch, session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilderTrait, TableTrait}
+        schemas::available_subjects::{create_blob_batch, create_timestamp_micros}, session::common_traits::{BuildableTrait, BuilderTrait}, table::{data_format::{CsvFormat, DataFormat, JsonFormat}, table::{Table, TableBuilderTrait, TableTrait}}
     };
 
-    use crate::{candle_data::summary_config::{CsvFormat, JsonFormat}, candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table};
+    use crate::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
 
     use super::*;
 
     #[test]
     fn test_extract_tabular_data_csv_format() {
-        let csv_format = CsvFormat { ..Default::default() };
+        let csv_format = CsvFormat::default();
 
         // Make the tabular data
         let tabular_data = make_scores_table().unwrap();
         let bytes = tabular_data.to_csv(csv_format.delimiter, csv_format.header).unwrap();
-        let csv_batch = create_blob_batch(vec!["attachment".to_string()], vec!["csv".to_string()], vec![bytes], vec!["".to_string()]).unwrap();
+        let csv_batch = create_blob_batch(vec!["attachment".to_string()], vec!["csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()]).unwrap();
 
         // Extract the tabular data
         let extracted = extract_tabular_data(
@@ -220,12 +220,12 @@ mod tests {
 
     #[test]
     fn test_extract_tabular_data_json_format() {
-        let json_format = JsonFormat { ..Default::default() };
+        let json_format = JsonFormat::default();
 
         // Make the tabular data
         let tabular_data = make_scores_table().unwrap();
         let bytes = tabular_data.to_json().unwrap();
-        let json_batch = create_blob_batch(vec!["attachment".to_string()], vec!["csv".to_string()], vec![bytes], vec!["".to_string()]).unwrap();
+        let json_batch = create_blob_batch(vec!["attachment".to_string()], vec!["csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()]).unwrap();
 
         // Extract the tabular data
         let extracted = extract_tabular_data(

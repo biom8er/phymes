@@ -8,16 +8,14 @@ use phymes_core::{
         session_context_builder::TaskPlan,
     },
     table::{
-        table::{Table, TableBuilder, TableBuilderTrait},
-        table_publish::TablePublish,
-        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
+        data_format::DataFormat, table::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::processor::{ProcessorEcho, ProcessorTrait},
 };
 use phymes_data::{
     candle_data::{
         data_config::DataConfig, data_processor::CandleDataProcessor,
-        summary_config::{DataSummaryConfig, DataFormat}, summary_processor::DataSummaryProcessor,
+        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
     },
     candle_operators::available_candle_operators::AvailableCandleOperators,
 };
@@ -746,7 +744,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             col_names: Some(vec!["text".to_string()]),
             num_rows: Some(3),
             num_batches: Some(1),
-            format: DataFormat::Message,
+            format: DataFormat::None,
         };
         let top_k_config_json = serde_json::to_vec(&top_k_config).unwrap();
         let top_k_state = TableBuilder::new()
@@ -768,19 +766,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             sort_scores_state,
             join_chunks_state,
             top_k_state,
-            AvailableSubjects::Messages.to_table(Some(self.chat_task_name)).unwrap(),
-            AvailableInterfaceSubjects::AggregatedMessages.to_table(None).unwrap(),
-            AvailableInterfaceSubjects::UserMessages.to_table(None).unwrap(),
-            AvailableInterfaceSubjects::AssistantMessages.to_table(None).unwrap(),
-            AvailableSubjects::Messages.to_table(Some(self.state_top_k_docs_table_name)).unwrap(),
-            AvailableInterfaceSubjects::UserPdf.to_table(None).unwrap(),
-            AvailableSubjects::Documents.to_table(Some(self.state_documents_table_name)).unwrap(),
-            AvailableSubjects::Documents.to_table(Some(self.document_chunk_task_name)).unwrap(),
-            AvailableInterfaceSubjects::UserQueries.to_table(None).unwrap(),
-            AvailableSubjects::DocumentEmbeddings.to_table(Some(self.state_doc_embed_table_name)).unwrap(), 
-            AvailableSubjects::QueryEmbeddings.to_table(Some(self.state_q_embed_table_name)).unwrap(),       
-            AvailableSubjects::EmbeddingScores.to_table(Some(self.state_scores_table_name)).unwrap(),         
-            AvailableSubjects::JoinChunksScores.to_table(Some(self.state_scores_chunks_join_table_name)).unwrap(),
+            AvailableSubjects::Messages.to_table(Some(self.chat_task_name), None).unwrap(),
+            AvailableInterfaceSubjects::AggregatedMessages.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::UserMessages.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::AssistantMessages.to_table(None, None).unwrap(),
+            AvailableSubjects::Messages.to_table(Some(self.state_top_k_docs_table_name), None).unwrap(),
+            AvailableInterfaceSubjects::UserPdf.to_table(None, None).unwrap(),
+            AvailableSubjects::Documents.to_table(Some(self.state_documents_table_name), None).unwrap(),
+            AvailableSubjects::Documents.to_table(Some(self.document_chunk_task_name), None).unwrap(),
+            AvailableInterfaceSubjects::UserQueries.to_table(None, None).unwrap(),
+            AvailableSubjects::DocumentEmbeddings.to_table(Some(self.state_doc_embed_table_name), None).unwrap(), 
+            AvailableSubjects::QueryEmbeddings.to_table(Some(self.state_q_embed_table_name), None).unwrap(),       
+            AvailableSubjects::EmbeddingScores.to_table(Some(self.state_scores_table_name), None).unwrap(),         
+            AvailableSubjects::JoinChunksScores.to_table(Some(self.state_scores_chunks_join_table_name), None).unwrap(),
         ])
     }
 }
@@ -807,11 +805,11 @@ mod tests {
         metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
             session_context::{SessionStream, SessionStreamState},
             session_context_builder::SessionContextBuilderTrait,
-        }, table::table::TableTrait, task::message::{IPCMessage, ArrowIncomingMessageTrait}
+        }, table::table::TableTrait, task::message::{IPCMessage, MessageTrait}
     };
     use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 
-    use crate::{session_plans::available_interface_subjects::{create_incoming_message_map, AttachmentInterface, MessageInterface}, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::available_interface_subjects::create_incoming_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
 
     use super::*;
 

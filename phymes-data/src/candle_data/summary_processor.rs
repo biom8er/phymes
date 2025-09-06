@@ -16,7 +16,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, data_format::{CsvFormat, DataFormat}
     },
     task::{
         message::{
@@ -34,8 +34,6 @@ use arrow::{
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
-
-use crate::candle_data::summary_config::{CsvFormat, DataFormat};
 
 use super::summary_config::DataSummaryConfig;
 
@@ -445,7 +443,7 @@ mod tests {
         table::TableBuilder, table_publish::TablePublish,
     }, task::message::MessageTrait};
 
-    use crate::candle_data::{data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32, summary_config::CsvFormat};
+    use crate::candle_data::{data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32};
 
     use super::*;
 

@@ -4,23 +4,20 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap, get_metrics_as_pivot_table},
+    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, device},
+        common_traits::{device, BuildableTrait, BuilderTrait},
         runtime_env::RuntimeEnv,
     },
     table::{
         table::{
-            Table, TableBuilderTrait, TableTrait, test_table::TestTableSizes,
+            test_table::TestTableSizes, Table, TableBuilderTrait, TableTrait
         },
         table_publish::TablePublish,
-        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
+        table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe},
     },
     task::{
-        message::{
-            MessageBuilderTrait, SendableRecordBatchStreamMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
-        },
+        message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
         processor::ProcessorTrait,
     },
 };

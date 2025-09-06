@@ -11,32 +11,22 @@ use parking_lot::Mutex;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     schemas::{
-        chat_completion::{
-            ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType,
-        },
-        message_history::{
-            MessageHistoryTraitExt, create_messages_record_batch, create_messages_schema,
-            create_timestamp_micros,
-        },
+        available_subjects::{
+            create_chat_record_batch, create_timestamp_micros, AvailableSubjects
+        }, chat::ChatTraitExt, chat_completion::{ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType}
     },
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
+            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap,
         },
         runtime_env::RuntimeEnv,
     },
     table::{
-        arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
-        stream::{RecordBatchStream, SendableRecordBatchStream},
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
-        },
-        arrow_processor::ArrowProcessorTrait,
+        message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
+        processor::ProcessorTrait,
         publish_subscribe::PubSubTrait,
     },
 };
@@ -48,8 +38,8 @@ use crate::{candle_chat::chat_config::CandleChatConfig, openai_asset::OpenAIRequ
 #[derive(Debug)]
 pub struct OpenAIChatProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
@@ -60,11 +50,11 @@ impl MappableTrait for OpenAIChatProcessor {
 }
 
 impl PubSubTrait for OpenAIChatProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
@@ -73,13 +63,13 @@ impl PubSubTrait for OpenAIChatProcessor {
     }
 }
 
-impl ArrowProcessorTrait for OpenAIChatProcessor {
+impl ProcessorTrait for OpenAIChatProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -88,11 +78,11 @@ impl ArrowProcessorTrait for OpenAIChatProcessor {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -107,10 +97,10 @@ impl ArrowProcessorTrait for OpenAIChatProcessor {
 
     fn process(
         &self,
-        mut message: OutgoingMessageMap,
+        mut message: SendableRecordBatchStreamMessageMap,
         metrics: ArrowTaskMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Extract out the messages, documents, tools, and config
@@ -134,7 +124,7 @@ impl ArrowProcessorTrait for OpenAIChatProcessor {
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics.clone(), self.get_name()),
         )?);
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
@@ -174,7 +164,7 @@ impl OpenAIChatStream {
         baseline_metrics: BaselineMetrics,
     ) -> Result<Self> {
         Ok(Self {
-            schema: create_messages_schema(),
+            schema: AvailableSubjects::Messages.to_schema(),
             message_stream,
             tools_stream,
             baseline_metrics,
@@ -186,7 +176,7 @@ impl OpenAIChatStream {
     }
 
     /// Initialize the config for text generation inference
-    fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
+    fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
             let config: CandleChatConfig = serde_json::from_value(serde_json::Value::Object(
                 config_table.to_json_object()?.first().unwrap().to_owned(),
@@ -199,7 +189,7 @@ impl OpenAIChatStream {
     /// Create the request
     fn make_request(
         &self,
-        messages: ArrowTable,
+        messages: Table,
         tools: Option<Vec<Tool>>,
     ) -> ChatCompletionRequest {
         // Convert messages to openAI schema
@@ -244,7 +234,7 @@ impl Stream for OpenAIChatStream {
                 while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
                     batches.push(batch);
                 }
-                let messages = ArrowTable::get_builder()
+                let messages = Table::get_builder()
                     .with_name("messages")
                     .with_record_batches(batches)?
                     .build()?;
@@ -256,7 +246,7 @@ impl Stream for OpenAIChatStream {
                         while let Some(Ok(batch)) = ready!(tools.poll_next_unpin(cx)) {
                             batches.push(batch);
                         }
-                        let tool_table = ArrowTable::get_builder()
+                        let tool_table = Table::get_builder()
                             .with_name("messages")
                             .with_record_batches(batches)?
                             .build()?;
@@ -278,7 +268,7 @@ impl Stream for OpenAIChatStream {
                 while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                     batches.push(batch);
                 }
-                let config_table = ArrowTable::get_builder()
+                let config_table = Table::get_builder()
                     .with_name("config")
                     .with_record_batches(batches)?
                     .build()?;
@@ -355,7 +345,7 @@ impl Stream for OpenAIChatStream {
                     );
 
                     // Wrap into a record batch
-                    let batch = create_messages_record_batch(
+                    let batch = create_chat_record_batch(
                         vec!["assistant".to_string()],
                         vec![content.to_string()],
                         vec![create_timestamp_micros()],
@@ -392,13 +382,15 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use phymes_core::{
-        metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt,
-        session::runtime_env::RuntimeEnvTrait, table::arrow_table::ArrowTableBuilder,
+        metrics::HashMap, schemas::chat::ChatBuilderTraitExt,
+        table::table::TableBuilder,
     };
 
     #[cfg(not(feature = "candle"))]
     #[tokio::test]
     async fn test_openai_chat_processor() -> Result<()> {
+        use phymes_core::session::runtime_env::RuntimeEnvTrait;
+
         let name = "OpenAIChatProcessor";
         let messages = "messages";
 
@@ -419,13 +411,13 @@ mod tests {
             ..Default::default()
         };
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;
-        let candle_chat_config_table = ArrowTableBuilder::new()
+        let candle_chat_config_table = TableBuilder::new()
             .with_name(name)
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = ArrowTableBuilder::new()
+        let message_builder = TableBuilder::new()
             .with_name(messages)
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(
@@ -434,24 +426,24 @@ mod tests {
             )?;
 
         // Build the current message state
-        let mut message = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
             messages.to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
         let _ = message.insert(
             candle_chat_config_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(candle_chat_config_table.get_name())
                 .with_publisher("")
                 .with_subject(candle_chat_config_table.get_name())
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(candle_chat_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -459,16 +451,16 @@ mod tests {
         // Build the chat task
         let chat_processor = OpenAIChatProcessor::new_arc_with_pub_sub(
             name,
-            &[ArrowTablePublish::ExtendChunks {
+            &[TablePublish::ExtendChunks {
                 table_name: messages.to_string(),
                 col_name: "content".to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateFullTable {
+                TableSubscribe::OnUpdateFullTable {
                     table_name: messages.to_string(),
                 },
-                ArrowTableSubscribe::None,
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::None,
+                TableSubscribe::AlwaysFullTable {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],

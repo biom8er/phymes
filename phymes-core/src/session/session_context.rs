@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use arrow::array::{ArrayRef, UInt64Array};
 use arrow::array::{BooleanArray, StringArray};
 use arrow::datatypes::SchemaRef;
@@ -723,7 +723,7 @@ impl SessionStreamStep {
     ///
     /// # Returns
     ///
-    /// `OutgoingMessageMap` streams if the the `Session` subsject was updated and None otherwise.
+    /// `SendableRecordBatchStreamMessageMap` streams if the the `Session` subsject was updated and None otherwise.
     #[instrument(skip(state, messages))]
     pub async fn run_superstep(
         state: Arc<RwLock<SessionStreamState>>,

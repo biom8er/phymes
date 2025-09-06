@@ -17,7 +17,6 @@ use phymes_core::{
     task::{
         message::{
             MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-            ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
         },
         processor::ProcessorTrait,
         publish_subscribe::PubSubTrait,

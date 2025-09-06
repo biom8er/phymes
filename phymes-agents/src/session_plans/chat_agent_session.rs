@@ -291,10 +291,10 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         Some(vec![config, 
             aggregator_1_state,
             aggregator_2_state,            
-            AvailableSubjects::Messages.to_table(Some(self.chat_task_name)).unwrap(),
-            AvailableInterfaceSubjects::UserMessages.to_table(None).unwrap(),
-            AvailableInterfaceSubjects::AssistantMessages.to_table(None).unwrap(),
-            AvailableInterfaceSubjects::AggregatedMessages.to_table(None).unwrap(),
+            AvailableSubjects::Messages.to_table(Some(self.chat_task_name), None).unwrap(),
+            AvailableInterfaceSubjects::UserMessages.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::AssistantMessages.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::AggregatedMessages.to_table(None, None).unwrap(),
         ])
     }
 }
@@ -308,10 +308,10 @@ mod tests {
         metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
             session_context::{SessionStream, SessionStreamState},
             session_context_builder::SessionContextBuilderTrait,
-        }, table::table::TableTrait, task::message::{IPCMessage, ArrowIncomingMessageTrait}
+        }, table::table::TableTrait, task::message::{IPCMessage, MessageTrait}
     };
 
-    use crate::{session_plans::available_interface_subjects::{create_incoming_message_map, MessageInterface}, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::available_interface_subjects::create_incoming_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
 
     use super::*;
 

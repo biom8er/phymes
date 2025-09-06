@@ -35,7 +35,7 @@ pub trait PubSubTrait {
     /// * `state` - [StateMap] with the subjects
     ///
     /// # Returns
-    /// [OutgoingMessageMap] with unique names to prevent collisions in the `HashMap`
+    /// [SendableRecordBatchStreamMessageMap] with unique names to prevent collisions in the `HashMap`
     fn get_subscriptions_from_state(
         &self,
         updates: &HashMap<String, bool>,

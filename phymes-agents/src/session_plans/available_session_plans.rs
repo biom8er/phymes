@@ -7,13 +7,13 @@ use phymes_core::{
     metrics::ArrowTaskMetricsSet,
     session::{
         common_traits::BuilderTrait,
-        session_context::{SessionStream, SessionStreamState},
+        session_context::SessionStreamState,
         session_context_builder::SessionContextBuilderTrait,
     },
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{session_plans::available_interface_subjects::{create_incoming_message_map, AvailableInterfaceSubjects}, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
+use crate::session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
 
 use super::{
     chat_agent_session::ChatAgentSession,
