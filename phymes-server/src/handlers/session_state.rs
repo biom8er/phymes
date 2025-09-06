@@ -236,88 +236,105 @@ pub async fn session_get_state(
                 .unwrap()
                 .get(payload.get_session_name())
             {
-                Some(session_stream_state) => match payload.get_format() {
-                    DataFormat::Bytes => {
-                        // Get the subject table as a json object
-                        let buf = session_stream_state
-                            .try_read()
-                            .unwrap()
-                            .get_session_context()
-                            .get_states()
-                            .get(payload.get_subject())
-                            .unwrap()
-                            .try_read()
-                            .unwrap()
-                            .to_bytes()
-                            .unwrap();
-                        Body::from(buf).into_response()
+                Some(session_stream_state) => {
+                    
+                    // Update the metrics and row counts just in case...
+                    session_stream_state
+                        .try_write()
+                        .unwrap()
+                        .get_session_context_mut()
+                        .update_metrics_table()
+                        .unwrap();
+                    session_stream_state
+                        .try_write()
+                        .unwrap()
+                        .get_session_context_mut()
+                        .update_subject_num_rows_table()
+                        .unwrap();
+
+                    match payload.get_format() {
+                        DataFormat::Bytes => {
+                            // Get the subject table as a json object
+                            let buf = session_stream_state
+                                .try_read()
+                                .unwrap()
+                                .get_session_context()
+                                .get_states()
+                                .get(payload.get_subject())
+                                .unwrap()
+                                .try_read()
+                                .unwrap()
+                                .to_bytes()
+                                .unwrap();
+                            Body::from(buf).into_response()
+                        }
+                        DataFormat::Csv(csv_format) => {
+                            // Get the subject table as a csv string
+                            let out = session_stream_state
+                                .try_read()
+                                .unwrap()
+                                .get_session_context()
+                                .get_states()
+                                .get(payload.get_subject())
+                                .unwrap()
+                                .try_read()
+                                .unwrap()
+                                .to_csv(csv_format.delimiter, csv_format.header)
+                                .unwrap();
+                            let buf = Bytes::from(out);
+                            Body::from(buf).into_response()
+                        }
+                        DataFormat::CsvDefault => {
+                            // Get the subject table as a csv string
+                            let csv_format = CsvFormat::default();
+                            let out = session_stream_state
+                                .try_read()
+                                .unwrap()
+                                .get_session_context()
+                                .get_states()
+                                .get(payload.get_subject())
+                                .unwrap()
+                                .try_read()
+                                .unwrap()
+                                .to_csv(csv_format.delimiter, csv_format.header)
+                                .unwrap();
+                            let buf = Bytes::from(out);
+                            Body::from(buf).into_response()
+                        }
+                        DataFormat::Json(_json_format) | DataFormat::JsonDefault => {
+                            // Get the subject table as a json string
+                            let out = session_stream_state
+                                .try_read()
+                                .unwrap()
+                                .get_session_context()
+                                .get_states()
+                                .get(payload.get_subject())
+                                .unwrap()
+                                .try_read()
+                                .unwrap()
+                                .to_json()
+                                .unwrap();
+                            let buf = Bytes::from(out);
+                            Body::from(buf).into_response()
+                        }
+                        DataFormat::Ipc => {
+                            // Get the subject table as a csv string
+                            let out = session_stream_state
+                                .try_read()
+                                .unwrap()
+                                .get_session_context()
+                                .get_states()
+                                .get(payload.get_subject())
+                                .unwrap()
+                                .try_read()
+                                .unwrap()
+                                .to_ipc_stream()
+                                .unwrap();
+                            let buf = Bytes::from(out);
+                            Body::from(buf).into_response()
+                        }
+                        _ => unimplemented!(),
                     }
-                    DataFormat::Csv(csv_format) => {
-                        // Get the subject table as a csv string
-                        let out = session_stream_state
-                            .try_read()
-                            .unwrap()
-                            .get_session_context()
-                            .get_states()
-                            .get(payload.get_subject())
-                            .unwrap()
-                            .try_read()
-                            .unwrap()
-                            .to_csv(csv_format.delimiter, csv_format.header)
-                            .unwrap();
-                        let buf = Bytes::from(out);
-                        Body::from(buf).into_response()
-                    }
-                    DataFormat::CsvDefault => {
-                        // Get the subject table as a csv string
-                        let csv_format = CsvFormat::default();
-                        let out = session_stream_state
-                            .try_read()
-                            .unwrap()
-                            .get_session_context()
-                            .get_states()
-                            .get(payload.get_subject())
-                            .unwrap()
-                            .try_read()
-                            .unwrap()
-                            .to_csv(csv_format.delimiter, csv_format.header)
-                            .unwrap();
-                        let buf = Bytes::from(out);
-                        Body::from(buf).into_response()
-                    }
-                    DataFormat::Json(_json_format) | DataFormat::JsonDefault => {
-                        // Get the subject table as a json string
-                        let out = session_stream_state
-                            .try_read()
-                            .unwrap()
-                            .get_session_context()
-                            .get_states()
-                            .get(payload.get_subject())
-                            .unwrap()
-                            .try_read()
-                            .unwrap()
-                            .to_json()
-                            .unwrap();
-                        let buf = Bytes::from(out);
-                        Body::from(buf).into_response()
-                    }
-                    DataFormat::Ipc => {
-                        // Get the subject table as a csv string
-                        let out = session_stream_state
-                            .try_read()
-                            .unwrap()
-                            .get_session_context()
-                            .get_states()
-                            .get(payload.get_subject())
-                            .unwrap()
-                            .try_read()
-                            .unwrap()
-                            .to_ipc_stream()
-                            .unwrap();
-                        let buf = Bytes::from(out);
-                        Body::from(buf).into_response()
-                    }
-                    _ => unimplemented!(),
                 },
                 None => JsonError::new("Failed to get the session stream state".to_string())
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR),

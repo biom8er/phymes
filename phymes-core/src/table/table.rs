@@ -1801,7 +1801,7 @@ mod tests {
 
         assert_eq!(test_table.get_schema(), test_table_read.get_schema());
         assert_eq!(
-            test_table.get_record_batches(),
+            test_table.concat_record_batches()?.get_record_batches(),
             test_table_read.get_record_batches()
         );
 

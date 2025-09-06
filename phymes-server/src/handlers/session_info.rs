@@ -159,7 +159,7 @@ pub async fn session_subjects_num_rows(
                         .try_read()
                         .unwrap()
                         .get_session_context()
-                        .get_subject_num_rows_as_table("")
+                        .update_subject_num_rows_table("")
                         .unwrap();
 
                     // DM: Reqwest `byte_stream` will automatically chunk the stream sent to it

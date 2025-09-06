@@ -95,7 +95,6 @@ pub async fn session_stream(
                 AvailableInterfaceSubjects::UserMessages.to_incoming_message(message, attachment, session_name)?,
             ]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-            .unwrap();
 
             // Run and update the session and convert the output to the user specified format
             // Note: that we cannot write state updates to disk for
@@ -125,12 +124,18 @@ pub async fn session_stream(
                         .collect::<Vec<_>>();
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
-                    // Add the metrics to the state
+                    // Update the metrics and row counts
                     session_stream_state
                         .try_write()
                         .unwrap()
                         .get_session_context_mut()
                         .update_metrics_table()
+                        .unwrap();
+                    session_stream_state
+                        .try_write()
+                        .unwrap()
+                        .get_session_context_mut()
+                        .update_subject_num_rows_table()
                         .unwrap();
 
                     // Write the updates to disk
@@ -170,12 +175,18 @@ pub async fn session_stream(
                         .flat_map(|(_k, v)| v.get_message_own().to_ipc_stream().unwrap())
                         .collect::<Vec<_>>();
 
-                    // Add the metrics to the state
+                    // Update the metrics and row counts
                     session_stream_state
                         .try_write()
                         .unwrap()
                         .get_session_context_mut()
                         .update_metrics_table()
+                        .unwrap();
+                    session_stream_state
+                        .try_write()
+                        .unwrap()
+                        .get_session_context_mut()
+                        .update_subject_num_rows_table()
                         .unwrap();
 
                     // Write the updates to disk

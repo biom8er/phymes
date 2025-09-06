@@ -49,7 +49,6 @@ pub enum SessionContextTableNames {
     MermaidJS,
     SubjectsNumRows,
     MetricsGantt,
-
 }
 
 impl MappableTrait for SessionContextTableNames {
@@ -127,6 +126,8 @@ impl SessionContext {
 
         // update the state with the metrics
         if pivot_table.count_rows() > 0 {
+
+            // Add the metrics pivot table to the state or update
             if self
                 .state
                 .contains_key(SessionContextTableNames::Metrics.get_name())
@@ -148,21 +149,37 @@ impl SessionContext {
                     Arc::new(RwLock::new(pivot_table)),
                 );
             }
+
+            // Create the gantt view
+            let gantt_table = get_metrics_as_gantt_table(self.state.get(SessionContextTableNames::Metrics.get_name()).unwrap().try_read().unwrap().clone())?;
+            let mermaid_gantt_table = get_metrics_as_mermaid_gantt(gantt_table)?;
+
+            // Add the metrics gantt table to the state or update
+            if self
+                .state
+                .contains_key(SessionContextTableNames::MetricsGantt.get_name())
+            {
+                self.state
+                    .get_mut(SessionContextTableNames::MetricsGantt.get_name())
+                    .unwrap()
+                    .try_write()
+                    .unwrap()
+                    .update_table(
+                        mermaid_gantt_table.get_record_batches_own(),
+                        TablePublish::Extend {
+                            table_name: SessionContextTableNames::MetricsGantt.get_name().to_string(),
+                        },
+                    )?;
+            } else {
+                self.state.insert(
+                    SessionContextTableNames::MetricsGantt.get_name().to_string(),
+                    Arc::new(RwLock::new(mermaid_gantt_table)),
+                );
+            }
+
             Ok(true)
         } else {
             Ok(false)
-        }
-    }
-
-    /// Get the metrics as a gantt for the session
-    pub fn get_metrics_as_mermaid_gantt(&self) -> Result<Table> {
-        if let Some(pivot_table) = self.state.get(SessionContextTableNames::Metrics.get_name()) {
-            let pivot_table = get_metrics_as_gantt_table(pivot_table.try_read().unwrap().clone())?;
-            get_metrics_as_mermaid_gantt(pivot_table)
-        } else {
-            Err(anyhow!(
-                "Metrics table not in state. Run `update_metrics_table` first."
-            ))
         }
     }
 
@@ -171,8 +188,8 @@ impl SessionContext {
         self.max_iter
     }
 
-    /// Get the subject schema
-    pub fn get_subject_num_rows_as_table(&self, table_name: &str) -> Result<Table> {
+    /// Update the row counts for the subjects
+    pub fn update_subject_num_rows_table(&mut self) {
         let mut subject_names = Vec::new();
         let mut num_rows = Vec::new();
 
@@ -192,13 +209,37 @@ impl SessionContext {
         let batch = RecordBatch::try_from_iter(vec![
             ("subject_name", subject_names),
             ("num_rows", num_rows),
-        ])?;
+        ]).unwrap();
 
         // create the table
-        Table::get_builder()
-            .with_name(table_name)
-            .with_record_batches(vec![batch])?
+        let subject_num_rows_table = Table::get_builder()
+            .with_name(SessionContextTableNames::SubjectsNumRows.get_name())
+            .with_record_batches(vec![batch]).unwrap()
             .build()
+            .unwrap();
+
+        // Add the metrics pivot table to the state or update
+        if self
+            .state
+            .contains_key(SessionContextTableNames::SubjectsNumRows.get_name())
+        {
+            self.state
+                .get_mut(SessionContextTableNames::SubjectsNumRows.get_name())
+                .unwrap()
+                .try_write()
+                .unwrap()
+                .update_table(
+                    subject_num_rows_table.get_record_batches_own(),
+                    TablePublish::Replace {
+                        table_name: SessionContextTableNames::SubjectsNumRows.get_name().to_string(),
+                    },
+                ).unwrap();
+        } else {
+            self.state.insert(
+                SessionContextTableNames::SubjectsNumRows.get_name().to_string(),
+                Arc::new(RwLock::new(subject_num_rows_table)),
+            );
+        }
     }
 
     /// Find the table by matching schemas
@@ -1020,12 +1061,13 @@ mod tests {
     }
 
     #[test]
-    fn test_session_get_subject_num_rows_as_table() -> Result<()> {
+    fn test_session_update_subject_num_rows_table() -> Result<()> {
         let metrics = ArrowTaskMetricsSet::new();
-        let session_context =
+        let mut session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
-        let info = session_context.get_subject_num_rows_as_table("table")?;
-        assert_eq!(info.get_name(), "table");
+        session_context.update_subject_num_rows_table();
+        let info = session_context.get_states().get(SessionContextTableNames::SubjectsNumRows.get_name()).unwrap().try_read().unwrap();
+
         assert_eq!(
             info.get_column_as_vec_str("subject_name"),
             [
@@ -2255,7 +2297,7 @@ mod tests {
         assert_eq!(output_rows_sum, output_rows_sum_test);
 
         // Check pivot and gantt
-        let gantt = sss.get_session_context().get_metrics_as_mermaid_gantt()?;
+        let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricsGantt.get_name()).unwrap().try_read().unwrap();
         assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
         assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
         assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));
