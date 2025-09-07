@@ -7,18 +7,18 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_data::{candle_data::summary_config::CsvFormat, candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table};
+use phymes_data::{candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table};
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::{available_interface_subjects::{create_incoming_message_map, AttachmentInterface, AvailableInterfaceSubjects, MessageInterface}, tool_agent_session::ToolAgentSession},
+    session_plans::{available_interface_subjects::{create_message_map, AvailableInterfaceSubjects}, tool_agent_session::ToolAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
-        common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
+    metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::table::TableTrait, task::message::{IPCMessage, ArrowIncomingMessageTrait}
+    }, table::{data_format::CsvFormat, table::{TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {
@@ -35,33 +35,38 @@ pub async fn run_main() -> Result<()> {
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // Make the tabular data
-    let csv_format = CsvFormat { ..Default::default() };
+    let csv_format = CsvFormat::default();
     let tabular_data = make_scores_table()?;
     let bytes = tabular_data.to_csv(csv_format.delimiter, csv_format.header)?;
         
-    // Wrap into the message/attachment interfaces
-    let message_interface = MessageInterface { 
-        role: "user".to_string(), 
-        content: "Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.".to_string(), 
-        timestamp: create_timestamp_micros()
-    };
-    let attachment_interface = AttachmentInterface {
-        filename: "data".to_string(),
-        bytes,
-        extension: ".csv".to_string(),
-        metadata: String::new(),
-    };
-
-    let incoming_message_map = create_incoming_message_map(vec![
-            AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface]), None, tool_agent_session.session_context_name)?,
-            AvailableInterfaceSubjects::UserCsv.to_incoming_message(None, Some(vec![attachment_interface]), tool_agent_session.session_context_name)?,
-    ]);
-    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+    // Wrap into the message
+    let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
+        .build()?;
+    let chat_message = IPCMessage::get_builder()
+        .with_message(chat.to_ipc_stream()?)
+        .with_subject(chat.get_name())
+        .with_update(&TablePublish::Extend { table_name: chat.get_name().to_string() })
+        .with_publisher(tool_agent_session.session_context_name)
+        .make_name()?
+        .build()?;
+    let blob = AvailableInterfaceSubjects::UserCsv.to_table_builder(None)
+        .with_blob(None, Some(".csv"), &bytes, None)?
+        .build()?;
+    let blob_message = IPCMessage::get_builder()
+        .with_message(blob.to_ipc_stream()?)
+        .with_subject(blob.get_name())
+        .with_update(&TablePublish::Extend { table_name: blob.get_name().to_string() })
+        .with_publisher(tool_agent_session.session_context_name)
+        .make_name()?
+        .build()?;
+    let message_map = create_message_map(vec![chat_message, blob_message]);
+    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, IPCMessage>> =
         session_stream.try_collect().await?;
 
     // Update the chat history with the response
-    let json_data = response
+    let bytes = response
         .last_mut()
         .unwrap()
         .remove(&format!(
@@ -70,7 +75,10 @@ pub async fn run_main() -> Result<()> {
             AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
-        .get_message_own()
+        .get_message_own();
+    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+        .with_name("")
+        .build()?
         .to_json_object()?;
     for row in &json_data {
         if row["role"] != "system" {
@@ -78,7 +86,7 @@ pub async fn run_main() -> Result<()> {
         }
     }
 
-    let attachment_data = response
+    let bytes = response
         .last_mut()
         .unwrap()
         .remove(&format!(
@@ -87,7 +95,10 @@ pub async fn run_main() -> Result<()> {
             AvailableInterfaceSubjects::AssistantCsv
         ))
         .unwrap()
-        .get_message_own()
+        .get_message_own();
+    let attachment_data = TableBuilder::new_from_ipc_stream(&bytes)?
+        .with_name("")
+        .build()?
         .to_json_object()?;
     for row in &attachment_data {
         let bytes = row["bytes"].as_array().unwrap()

@@ -1,8 +1,8 @@
-use crate::{session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilderTrait}};
+use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, queries::create_queries_fields}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilder, TableBuilderTrait}};
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, ListBuilder, StringArray, UInt8Builder},
+    array::{ArrayRef, StringArray},
     datatypes::{DataType, Field, Fields, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
@@ -38,41 +38,6 @@ pub fn convert_timestamp_micros_to_str(timestamp_micros: i64) -> String {
 
 pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
     Arc::new(Schema::new(f()))
-}
-
-pub fn create_chat_fields() -> Fields {
-    let field_names = ["role", "content"];
-    let mut fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    fields_vec.push(Field::new("timestamp", DataType::Int64, false));
-    Fields::from(fields_vec)
-}
-
-/// In combination with [MessagesTraitExt]
-/// 
-/// MessagesTraitExt: phymes-core/src/schemas/messages.rs
-pub struct ChatSubject {
-    pub role: String,
-    pub content: String,
-    pub timestamp: i64,
-}
-
-pub fn create_chat_record_batch(
-    role: Vec<String>,
-    content: Vec<String>,
-    timestamp: Vec<i64>,
-) -> Result<RecordBatch> {
-    let role: ArrayRef = Arc::new(StringArray::from(role));
-    let content: ArrayRef = Arc::new(StringArray::from(content));
-    let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("role", role),
-        ("content", content),
-        ("timestamp", timestamp),
-    ])?;
-    Ok(batch)
 }
 
 pub fn create_values_fields() -> Fields {
@@ -143,49 +108,6 @@ pub fn create_documents_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_queries_fields() -> Fields {
-    let field_names = ["query_id", "text"];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    Fields::from(fields_vec)
-}
-
-pub struct QueriesSubject {
-    pub query_id: String,
-    pub text: String,
-}
-
-impl QueriesSubject {
-    pub fn new(text: &str) -> Self {
-        let content = if cfg!(feature = "hf_hub") {
-            // DM: note that the prompt for the query is specific to Qwen!
-            format!(
-                "{}{}",
-                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ",
-                text
-            )
-        } else {
-            text.to_string()
-        };
-        Self { query_id: create_timestamp_str(), text: content }
-    }
-}
-
-pub fn create_queries_batch(
-    query_ids: Vec<String>,
-    text: Vec<String>,
-) -> Result<RecordBatch> {
-    let query_ids: ArrayRef = Arc::new(StringArray::from(query_ids));
-    let text: ArrayRef = Arc::new(StringArray::from(text));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("query_id", query_ids),
-        ("text", text),
-    ])?;
-    Ok(batch)
-}
-
 pub fn create_document_embeddings_fields() -> Fields {
     let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
     let document_id = Field::new("document_id", DataType::Utf8, false);
@@ -227,64 +149,9 @@ pub fn create_join_chunks_scores_fields() -> Fields {
     ])
 }
 
-pub fn create_blob_fields() -> Fields {
-    let filename = Field::new("filename", DataType::Utf8, false);
-    let extension = Field::new("extension", DataType::Utf8, false);
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::UInt8, false))
-    );
-    let bytes = Field::new("bytes", list_data_type, false);
-    let metadata = Field::new("metadata", DataType::Utf8, false);
-    let timestamp = Field::new("timestamp", DataType::Int64, false);
-    Fields::from(vec![
-        filename,
-        extension,
-        bytes,
-        metadata,
-        timestamp,
-    ])
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct BlobSubject {
-    pub filename: String, 
-    pub bytes: Vec<u8>, 
-    pub extension: String, 
-    pub metadata: String,
-    pub timestamp: i64,
-}
-
-pub fn create_blob_batch(
-    filename: Vec<String>,
-    extension: Vec<String>,
-    bytes: Vec<Vec<u8>>,
-    metadata: Vec<String>,
-    timestamp: Vec<i64>,
-) -> Result<RecordBatch> {
-    let filename: ArrayRef = Arc::new(StringArray::from(filename));
-    let extension: ArrayRef = Arc::new(StringArray::from(extension));
-    let value_builder = UInt8Builder::new();
-    let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::UInt8, false));
-    for values in bytes.into_iter() {
-        list_builder.values().append_slice(&values);
-        list_builder.append(true);
-    }
-    let bytes: ArrayRef = Arc::new(list_builder.finish());
-    let metadata: ArrayRef = Arc::new(StringArray::from(metadata));
-    let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("filename", filename),
-        ("extension", extension),
-        ("bytes", bytes),
-        ("metadata", metadata),
-        ("timestamp", timestamp),
-    ])?;
-    Ok(batch)
-}
-
 pub trait AvailableSubjectsTrait {
     fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table>;
-    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<Table> where T: Sized + Serialize;
+    fn to_table_builder(&self, name: Option<&str>) -> TableBuilder;
 }
 
 /// The available subject schmeas
@@ -335,22 +202,19 @@ impl Display for AvailableSubjects {
 
 impl AvailableSubjectsTrait for AvailableSubjects {
     fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table> {
-        let name = match name {
-            Some(name) => name.to_string(),
-            None => self.to_string(),
-        };
+        let builder = self.to_table_builder(name);
         let batches = match batches {
             Some(batches) => batches,
             None => Vec::new(),
         };
-        Table::get_builder().with_name(&name).with_schema(self.to_schema()).with_record_batches(batches)?.build()
+        builder.with_record_batches(batches)?.build()
     }
-    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<Table> where T: Sized + Serialize {
+    fn to_table_builder(&self, name: Option<&str>) -> TableBuilder {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),
         };
-        Table::get_builder().with_name(&name).with_schema(self.to_schema()).with_struct::<T>(s)?.build()
+        Table::get_builder().with_name(&name).with_schema(self.to_schema())
     }
 }
 

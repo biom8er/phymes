@@ -4,14 +4,14 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    session_plans::{available_interface_subjects::{create_incoming_message_map, AvailableInterfaceSubjects, MessageInterface}, chat_agent_session::ChatAgentSession},
+    session_plans::{available_interface_subjects::{create_message_map, AvailableInterfaceSubjects}, chat_agent_session::ChatAgentSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
-        common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
+    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::table::TableTrait, task::message::IPCMessage
+    }, table::{table::TableTrait, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait}
 };
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {
@@ -93,17 +93,17 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                 let timer = baseline_metrics.elapsed_compute().timer();
                 let _messages = rt.block_on(async {
-                    let chat = Table::get_builder()
+                    let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
                         .append_new_user_query_str(user_content.0, "user")?
                         .build()?;
                     let message = IPCMessage::get_builder()
                         .with_message(chat.to_ipc_stream()?)
                         .with_subject(chat.get_name())
                         .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
-                        .with_publisher(session_context_name)
+                        .with_publisher(&session_context_name)
                         .make_name()?
                         .build()?;
-                    let incoming_message_map = create_incoming_message_map(vec![message]);
+                    let incoming_message_map = create_message_map(vec![message]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
@@ -111,17 +111,17 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 });
                 let _messages = rt.block_on(async {
                     session_stream_state.try_write().unwrap().set_iter(0);
-                    let chat = Table::get_builder()
+                    let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
                         .append_new_user_query_str(user_content.1, "user")?
                         .build()?;
                     let message = IPCMessage::get_builder()
                         .with_message(chat.to_ipc_stream()?)
                         .with_subject(chat.get_name())
                         .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
-                        .with_publisher(session_context_name)
+                        .with_publisher(&session_context_name)
                         .make_name()?
                         .build()?;
-                    let incoming_message_map = create_incoming_message_map(vec![message]);
+                    let incoming_message_map = create_message_map(vec![message]);
                     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()

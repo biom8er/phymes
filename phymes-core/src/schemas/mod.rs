@@ -1,4 +1,6 @@
+pub mod blob;
 pub mod chat;
+pub mod queries;
 pub mod available_subjects;
 
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>

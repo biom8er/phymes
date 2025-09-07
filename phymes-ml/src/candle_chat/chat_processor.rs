@@ -9,9 +9,7 @@ use crate::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     schemas::{
-        available_subjects::{
-            create_chat_record_batch, create_timestamp_micros, AvailableSubjects
-        }, chat::ChatTraitExt, chat_completion::Tool
+        available_subjects::{create_timestamp_micros, AvailableSubjects}, chat::{ChatTraitExt, create_chat_record_batch}, chat_completion::Tool
     },
     session::{
         common_traits::{

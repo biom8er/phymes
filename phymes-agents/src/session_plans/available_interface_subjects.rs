@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use clap::ValueEnum;
-use phymes_core::{metrics::HashMap, schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::MappableTrait, table::table::Table, task::message::IPCMessage};
+use phymes_core::{metrics::HashMap, schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::MappableTrait, table::table::Table};
 use serde::{Deserialize, Serialize};
 
 /// Check that one or more of the [AvailableinterfaceSubjects], one or more of the [AvailableinterfaceSubjects],
@@ -38,9 +38,12 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// Helper function to create the incoming message map from a vector of incoming messages
-pub fn create_incoming_message_map(messages: Vec<IPCMessage>) -> HashMap<String, IPCMessage> {
-    let mut incoming_message_map = HashMap::<String, IPCMessage>::new();
+/// Helper function to create the message map from a vector of messages
+pub fn create_message_map<T>(messages: Vec<T>) -> HashMap<String, T>
+where
+    T: MappableTrait
+{
+    let mut incoming_message_map = HashMap::<String, T>::new();
     for message in messages {
         incoming_message_map.insert(message.get_name().to_string(), message);
     }
@@ -79,15 +82,6 @@ pub enum AvailableInterfaceSubjects {
     AssistantCsv,
     #[value(name = "AssistantScript")]
     AssistantScript,
-    // #[value(name = "SessionMetrics")]
-    // SessionMetrics,
-    // #[value(name = "SessionSchema")]
-    // SessionMetricsAsGantt,
-    // #[value(name = "SessionSchema")]
-    // SessionSchema,
-    // #[value(name = "SessionSchemaWithRows")]
-    // SessionSchemaWithRows,
-
 }
 
 impl Display for AvailableInterfaceSubjects {
@@ -130,13 +124,13 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantScript => AvailableSubjects::Blob.to_table(name, batches),
         }        
     }
-    fn to_table_from_struct<T>(&self, name: Option<&str>, s: &[T]) -> Result<Table> where T: Sized + Serialize {
+    fn to_table_builder(&self, name: Option<&str>) -> phymes_core::table::table::TableBuilder {
         match self {
             Self::UserMessages 
             | Self::AggregatedMessages
             | Self::AssistantMessages
-            | Self::ToolMessages => AvailableSubjects::Messages.to_table_from_struct::<T>(name, s),
-            Self::UserQueries => AvailableSubjects::Queries.to_table_from_struct::<T>(name, s),
+            | Self::ToolMessages => AvailableSubjects::Messages.to_table_builder(name),
+            Self::UserQueries => AvailableSubjects::Queries.to_table_builder(name),
             Self::UserPdf 
             | Self::UserAudio 
             | Self::UserVideo
@@ -145,7 +139,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::UserCsv 
             | Self::AssistantImage 
             | Self::AssistantCsv
-            | Self::AssistantScript => AvailableSubjects::Blob.to_table_from_struct::<T>(name, s),
-        } 
+            | Self::AssistantScript => AvailableSubjects::Blob.to_table_builder(name),
+        }        
     }
 }

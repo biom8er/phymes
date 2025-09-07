@@ -12,14 +12,13 @@ use bytes::Bytes;
 use futures::prelude::*;
 use phymes_core::{
     metrics::HashMap,
-    session::common_traits::MappableTrait,
-    table::table::TableTrait,
-    task::message::{IPCMessage, ArrowIncomingMessageTrait},
+    session::{common_traits::MappableTrait, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}, session_context::SessionStream},
+    table::{data_format::DataFormat, table::TableTrait},
+    task::message::IPCMessage,
 };
 
 // General imports
 use anyhow::{Error, Result};
-use phymes_data::candle_data::summary_config::DataFormat;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -27,7 +26,6 @@ use std::sync::Arc;
 use crate::{
     handlers::{
         json_error::{ErrorToResponse, JsonError, serde_json_error_response},
-        session_info::SessionInterfaceMessage,
         sign_in::CurrentUser,
     },
     server::server_state::ServerState,
@@ -91,10 +89,8 @@ pub async fn session_stream(
 
             // Make the session stream
             // DM: we assume only a single message per request
-            let incoming_message_map = create_incoming_message_map(vec![
-                AvailableInterfaceSubjects::UserMessages.to_incoming_message(message, attachment, session_name)?,
-            ]);
-            let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+            let message_map;
+            let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
 
             // Run and update the session and convert the output to the user specified format
             // Note: that we cannot write state updates to disk for

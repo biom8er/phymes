@@ -6,9 +6,7 @@ use std::{
 
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    schemas::available_subjects::{
-        create_blob_batch, create_chat_record_batch, create_timestamp_micros, AvailableSubjects
-    },
+    schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects}, blob::create_blob_batch, chat::create_chat_record_batch},
     session::{
         common_traits::{
             BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap,
@@ -16,7 +14,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, data_format::{CsvFormat, DataFormat}
+        data_format::{CsvFormat, DataFormat}, stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::{
         message::{

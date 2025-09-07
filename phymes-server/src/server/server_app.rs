@@ -29,10 +29,6 @@ use tokio::net::TcpListener;
 #[allow(unused_imports)]
 use super::{server_config::ServerConfig, server_state::ServerState};
 use crate::handlers::{
-    session_info::{
-        session_mermaid_js, session_metrics_info, session_subjects_num_rows,
-        session_subjects_schema,
-    },
     session_state::{session_get_state, session_put_state},
     session_stream::session_stream,
     sign_in::{authorize, sign_in},
@@ -54,22 +50,6 @@ impl AppBuilder {
             .route(
                 "/app/v1/chat",
                 post(session_stream).layer(middleware::from_fn(authorize)),
-            )
-            .route(
-                "/app/v1/subjects_schema",
-                post(session_subjects_schema).layer(middleware::from_fn(authorize)),
-            )
-            .route(
-                "/app/v1/subjects_num_rows",
-                post(session_subjects_num_rows).layer(middleware::from_fn(authorize)),
-            )
-            .route(
-                "/app/v1/mermaid_js",
-                post(session_mermaid_js).layer(middleware::from_fn(authorize)),
-            )
-            .route(
-                "/app/v1/metrics_info",
-                post(session_metrics_info).layer(middleware::from_fn(authorize)),
             )
             .route(
                 "/app/v1/put_state",

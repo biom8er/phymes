@@ -1,19 +1,53 @@
-use crate::{schemas::available_subjects::{create_chat_record_batch, create_timestamp_micros}, table::{
+use std::sync::Arc;
+
+use crate::{schemas::available_subjects::create_timestamp_micros, table::{
     table_script::TableScript,
     table::{Table, TableBuilder, TableBuilderTrait, TableTrait},
     stream::SendableRecordBatchStream,
     stream_adapter::RecordBatchReceiverStream,
 }};
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use arrow::{
-    array::{Int64Array, StringArray},
-    record_batch::RecordBatch,
+    array::{ArrayRef, Int64Array, StringArray}, datatypes::{DataType, Field, Fields}, record_batch::RecordBatch
 };
 use futures::StreamExt;
 use tracing::{Level, event};
 
 use super::chat_completion::{self, ChatCompletionMessage, Content, MessageRole, ToolCall};
+
+pub fn create_chat_fields() -> Fields {
+    let field_names = ["role", "content"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    fields_vec.push(Field::new("timestamp", DataType::Int64, false));
+    Fields::from(fields_vec)
+}
+
+/// In combination with [ChatTraitExt]
+pub struct ChatSubject {
+    pub role: String,
+    pub content: String,
+    pub timestamp: i64,
+}
+
+pub fn create_chat_record_batch(
+    role: Vec<String>,
+    content: Vec<String>,
+    timestamp: Vec<i64>,
+) -> Result<RecordBatch> {
+    let role: ArrayRef = Arc::new(StringArray::from(role));
+    let content: ArrayRef = Arc::new(StringArray::from(content));
+    let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("role", role),
+        ("content", content),
+        ("timestamp", timestamp),
+    ])?;
+    Ok(batch)
+}
 
 pub trait ChatTraitExt: Sized {
     /// Apply a template to build the message
@@ -121,9 +155,6 @@ pub trait ChatBuilderTraitExt: Sized {
     /// Append the user query to the chat history
     fn append_new_user_query_str(self, content: &str, role: &str) -> Result<Self>;
 
-    /// Append the user query to the chat history
-    fn append_new_user_query(self, user_query: RecordBatch) -> Result<Self>;
-
     /// Stream print the chat response to the console and update the chat history
     #[allow(async_fn_in_trait)]
     async fn append_chat_response_sendable_record_batch_stream(
@@ -174,27 +205,6 @@ impl ChatBuilderTraitExt for TableBuilder {
                 );
                 self.schema = Some(batch.schema());
                 self.record_batches = Some(vec![batch]);
-                Ok(self)
-            }
-        }
-    }
-
-    fn append_new_user_query(mut self, user_query: RecordBatch) -> Result<Self> {
-        match self.record_batches {
-            Some(ref mut batches) => {
-                if !self.schema.clone().unwrap().eq(&user_query.schema()) {
-                    return Err(anyhow!("Mismatch between schema and batches!"));
-                }
-                batches.push(user_query);
-                Ok(self)
-            }
-            None => {
-                event!(
-                    Level::DEBUG,
-                    "Could not append new user query to missing chat history!"
-                );
-                self.schema = Some(user_query.schema());
-                self.record_batches = Some(vec![user_query]);
                 Ok(self)
             }
         }

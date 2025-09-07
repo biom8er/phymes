@@ -6,7 +6,7 @@ use std::{
 
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    schemas::available_subjects::{create_chat_fields, AvailableSubjects},
+    schemas::{available_subjects::AvailableSubjects, chat::create_chat_fields},
     session::{
         common_traits::{
             device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap

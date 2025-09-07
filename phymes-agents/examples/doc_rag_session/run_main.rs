@@ -11,14 +11,14 @@ use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::{available_interface_subjects::{create_incoming_message_map, AttachmentInterface, AvailableInterfaceSubjects, MessageInterface}, document_rag_session::DocumentRAGSession},
+    session_plans::{available_interface_subjects::{create_message_map, AvailableInterfaceSubjects}, document_rag_session::DocumentRAGSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
-        common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
+    metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt, queries::QueriesBuilderTraitExt}, session::{
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::table::TableTrait, task::message::{IPCMessage, ArrowIncomingMessageTrait}
+    }, table::{table::{TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {
@@ -48,40 +48,54 @@ pub async fn run_main() -> Result<()> {
     let mut pdf = make_pdf_document(document_texts);
     let mut bytes = Vec::new();
     pdf.save_to(&mut bytes)?;
-        
-    // Wrap into the message/attachment interfaces
-    let message_interface = MessageInterface { 
-        role: "user".to_string(), 
-        content: "What are the four molecules that compose DNA?".to_string(), 
-        timestamp: create_timestamp_micros()
-    };
-    let attachment_interface = AttachmentInterface {
-        filename: "wiki".to_string(),
-        bytes,
-        extension: ".pdf".to_string(),
-        metadata: String::new(),
-    };
+
+    // Wrap into the message
+    let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        .append_new_user_query_str("What are the four molecules that compose DNA?", "user")?
+        .build()?;
+    let chat_message = IPCMessage::get_builder()
+        .with_message(chat.to_ipc_stream()?)
+        .with_subject(chat.get_name())
+        .with_update(&TablePublish::Extend { table_name: chat.get_name().to_string() })
+        .with_publisher(doc_rag_session.session_context_name)
+        .make_name()?
+        .build()?;
+    let query = AvailableInterfaceSubjects::UserQueries.to_table_builder(None)
+        .with_text("What are the four molecules that compose DNA?")?
+        .build()?;
+    let query_message = IPCMessage::get_builder()
+        .with_message(query.to_ipc_stream()?)
+        .with_subject(query.get_name())
+        .with_update(&TablePublish::Extend { table_name: query.get_name().to_string() })
+        .with_publisher(doc_rag_session.session_context_name)
+        .make_name()?
+        .build()?;
+    let blob = AvailableInterfaceSubjects::UserPdf.to_table_builder(None)
+        .with_blob(None, Some(".pdf"), &bytes, None)?
+        .build()?;
+    let blob_message = IPCMessage::get_builder()
+        .with_message(blob.to_ipc_stream()?)
+        .with_subject(blob.get_name())
+        .with_update(&TablePublish::Extend { table_name: blob.get_name().to_string() })
+        .with_publisher(doc_rag_session.session_context_name)
+        .make_name()?
+        .build()?;
 
     // ----- Query #1 -----
     // Embed the documents
-    let incoming_message_map = create_incoming_message_map(vec![
-        AvailableInterfaceSubjects::UserPdf.to_incoming_message(None, Some(vec![attachment_interface]), doc_rag_session.session_context_name)?,
-    ]);
-    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+    let message_map = create_message_map(vec![blob_message]);
+    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
     let _response: Vec<HashMap<String, IPCMessage>> =
         session_stream.try_collect().await?;
 
     // Embed the query and invoke a response
-    let incoming_message_map = create_incoming_message_map(vec![
-        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface.clone()]), None, doc_rag_session.session_context_name)?,
-        AvailableInterfaceSubjects::UserQueries.to_incoming_message(Some(vec![message_interface]), None, doc_rag_session.session_context_name)?,
-    ]);
-    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+    let message_map = create_message_map(vec![chat_message, query_message]);
+    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, IPCMessage>> =
         session_stream.try_collect().await?;
 
     // Update the chat history with the response
-    let json_data = response
+    let bytes = response
         .last_mut()
         .unwrap()
         .remove(&format!(
@@ -90,7 +104,10 @@ pub async fn run_main() -> Result<()> {
             AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
-        .get_message_own()
+        .get_message_own();
+    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+        .with_name("")
+        .build()?
         .to_json_object()?;
     for row in &json_data {
         if row["role"] != "system" {

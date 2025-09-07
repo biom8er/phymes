@@ -4,14 +4,14 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    session_plans::{available_interface_subjects::{create_incoming_message_map, AttachmentInterface, AvailableInterfaceSubjects, MessageInterface}, document_rag_session:: DocumentRAGSession},
+    session_plans::{available_interface_subjects::{create_message_map, AvailableInterfaceSubjects}, document_rag_session:: DocumentRAGSession},
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::create_timestamp_micros, session::{
-        common_traits::BuilderTrait, session_context::{SessionStream, SessionStreamState},
+    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt, queries::QueriesBuilderTraitExt}, session::{
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::table::TableTrait, task::message::IPCMessage
+    }, table::{table::TableTrait, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait}
 };
 use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 
@@ -155,31 +155,45 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
                 let timer = baseline_metrics.elapsed_compute().timer();
                 let _messages = rt.block_on(async {
-                    let attachment_interface = AttachmentInterface {
-                        filename: "wiki".to_string(),
-                        bytes: bytes.to_vec(),
-                        extension: ".pdf".to_string(),
-                        metadata: String::new(),
-                    };
-                    let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableInterfaceSubjects::UserPdf.to_incoming_message(None, Some(vec![attachment_interface]), session_context_name.as_str())?,
-                    ]);
-                    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+                    let blob = AvailableInterfaceSubjects::UserPdf.to_table_builder(None)
+                        .with_blob(None, Some(".pdf"), bytes, None)?
+                        .build()?;
+                    let blob_message = IPCMessage::get_builder()
+                        .with_message(blob.to_ipc_stream()?)
+                        .with_subject(blob.get_name())
+                        .with_update(&TablePublish::Extend { table_name: blob.get_name().to_string() })
+                        .with_publisher(session_context_name.as_str())
+                        .make_name()?
+                        .build()?;
+                    let message_map = create_message_map(vec![blob_message]);
+                    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
                 });
                 let _messages = rt.block_on(async {
-                    let message_interface = MessageInterface { 
-                        role: "user".to_string(), 
-                        content: user_query.to_string(), 
-                        timestamp: create_timestamp_micros()
-                    };
-                    let incoming_message_map = create_incoming_message_map(vec![
-                        AvailableInterfaceSubjects::UserMessages.to_incoming_message(Some(vec![message_interface.clone()]), None, session_context_name.as_str())?,
-                        AvailableInterfaceSubjects::UserQueries.to_incoming_message(Some(vec![message_interface]), None, session_context_name.as_str())?,
-                    ]);
-                    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+                    let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+                        .append_new_user_query_str(user_query, "user")?
+                        .build()?;
+                    let chat_message = IPCMessage::get_builder()
+                        .with_message(chat.to_ipc_stream()?)
+                        .with_subject(chat.get_name())
+                        .with_update(&TablePublish::Extend { table_name: chat.get_name().to_string() })
+                        .with_publisher(session_context_name.as_str())
+                        .make_name()?
+                        .build()?;
+                    let query = AvailableInterfaceSubjects::UserQueries.to_table_builder(None)
+                        .with_text(user_query)?
+                        .build()?;
+                    let query_message = IPCMessage::get_builder()
+                        .with_message(query.to_ipc_stream()?)
+                        .with_subject(query.get_name())
+                        .with_update(&TablePublish::Extend { table_name: query.get_name().to_string() })
+                        .with_publisher(session_context_name.as_str())
+                        .make_name()?
+                        .build()?;
+                    let message_map = create_message_map(vec![chat_message, query_message]);
+                    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await

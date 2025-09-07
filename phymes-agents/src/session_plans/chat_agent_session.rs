@@ -310,7 +310,7 @@ mod tests {
         }, table::table::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
 
-    use crate::{session_plans::available_interface_subjects::create_incoming_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
 
     use super::*;
 
@@ -335,7 +335,7 @@ mod tests {
             feature = "gpu"
         )) {
             // ----- Query #1 -----
-            let chat = Table::get_builder()
+            let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
                 .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")?
                 .build()?;
             let message = IPCMessage::get_builder()
@@ -345,7 +345,7 @@ mod tests {
                 .with_publisher(chat_agent_session.session_context_name)
                 .make_name()?
                 .build()?;
-            let incoming_message_map = create_incoming_message_map(vec![message]);
+            let incoming_message_map = create_message_map(vec![message]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
@@ -389,7 +389,7 @@ mod tests {
 
             // ----- Query #2 -----
             session_stream_state.try_write().unwrap().set_iter(0);
-            let chat = Table::get_builder()
+            let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
                 .append_new_user_query_str("Please provide an example using the functions.", "user")?
                 .build()?;
             let message = IPCMessage::get_builder()
@@ -399,7 +399,7 @@ mod tests {
                 .with_publisher(chat_agent_session.session_context_name)
                 .make_name()?
                 .build()?;
-            let incoming_message_map = create_incoming_message_map(vec![message]);
+            let incoming_message_map = create_message_map(vec![message]);
             let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;

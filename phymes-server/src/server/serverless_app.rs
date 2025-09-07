@@ -85,13 +85,9 @@ mod tests {
     use futures::TryStreamExt;
     use futures_executor::block_on;
     use phymes_core::table::table_publish::TablePublish;
-    use phymes_data::candle_data::summary_config::DataFormat;
     use serde_json::{Map, Value};
 
-    use crate::handlers::{
-        session_info::SessionInterfaceMessage,
-        sign_in::{basic_auth, create_session_name},
-    };
+    use crate::handlers::sign_in::{basic_auth, create_session_name};
 
     use super::*;
 
