@@ -161,7 +161,7 @@ impl BuilderTrait for SessionInterfaceMessageBuilder {
             name: self.name.unwrap_or_default(),
             subject: self.subject.unwrap_or_default(),
             publisher: self.publisher.unwrap_or_default(),
-            message: self.message.unwrap(),
+            message: self.message.unwrap_or_default(),
             update: self.update.unwrap(),
             session_name: self.session_name.unwrap_or_default(),
             format: self.format.unwrap(),
