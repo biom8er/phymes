@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 
 // General imports
 use futures::StreamExt;
-use phymes_data::candle_data::summary_config::DataFormat;
+use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
 use serde_json::{self, Map, Value};
 
 #[cfg(not(feature = "serverless"))]
@@ -11,16 +11,9 @@ use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
 use phymes_core::{
-    schemas::available_subjects::{convert_timestamp_micros_to_str, create_timestamp_str},
-    table::table_publish::TablePublish,
+    schemas::{available_subjects::{convert_timestamp_micros_to_str, create_timestamp_str, AvailableSubjectsTrait}, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table::TableTrait, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
-use phymes_server::handlers::{
-    session_info::SessionInterfaceMessage,
-    sign_in::create_session_name,
-};
-
-/// DM: we need to find a better way to synchronize this between the front-end and server...
-const MESSAGES_SUBJECT_NAME: &str = "messages";
+use phymes_server::handlers::sign_in::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
@@ -62,14 +55,15 @@ pub fn messaging_interface_view() -> Element {
     let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
     let _ = use_resource(move || async move {
         clear_current_message_state.send(ClearCurrentMessageState {});
-        let data = SessionInterfaceMessageBuilder
-            .with_session_name(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-            .with_format(DataFormat::Bytes)
-            .with_publisher(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-            .with_publish(TablePublish::None)
+        let data = SessionInterfaceMessage::get_builder()
+            .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+            .with_update(&TablePublish::None)
             .with_stream(false)
             .with_subject(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
             .make_name()
+            .unwrap()
             .build()
             .unwrap();
         let data_serialized = serde_json::to_string(&data).unwrap();
@@ -285,17 +279,21 @@ pub fn messaging_interface_footer() -> Element {
                                 });
 
                                 // create the message
-                                let chat = SyncCurrentMessageState { role: "user".to_string(), content: prompt.to_string(), timestamp: create_timestamp_str() };
-                                let bytes = Bytes::from(serde_json::to_string(&chat).unwrap());
-                                let data = SessionInterfaceMessageBuilder
-                                    .with_session_name(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                                    .with_format(DataFormat::Bytes)
-                                    .with_publisher(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                                    .with_publish(TablePublish::Extend { table_name: AvailableInterfaceSubjects::UserMessages.to_string() })
+                                let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+                                    .append_new_user_query_str(&prompt.read(), "user")
+                                    .unwrap()
+                                    .build()
+                                    .unwrap();
+                                let data = SessionInterfaceMessage::get_builder()
+                                    .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                    .with_format(&DataFormat::Bytes)
+                                    .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                    .with_update(&TablePublish::Extend { table_name: AvailableInterfaceSubjects::UserMessages.to_string() })
                                     .with_stream(false)
-                                    .with_subject(AvailableInterfaceSubjects::UserMessages.to_string().as_str())
-                                    .with_message(bytes)
+                                    .with_subject(chat.get_name())
+                                    .with_message(chat.to_bytes().unwrap().to_vec())
                                     .make_name()
+                                    .unwrap()
                                     .build()
                                     .unwrap();
                                 prompt.write().clear();

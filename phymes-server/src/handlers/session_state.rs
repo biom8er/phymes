@@ -10,7 +10,8 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_core::{session::message::SessionInterfaceMessage, table::table::TableTrait};
+use phymes_agents::session_plans::available_interface_subjects::create_message_map;
+use phymes_core::{session::{common_traits::BuilderTrait, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}}, table::{data_format::{CsvFormat, DataFormat}, table::{TableBuilder, TableBuilderTrait, TableTrait}}, task::message::{IPCMessageBuilder, MessageBuilderTrait, MessageTrait}};
 
 // Library imports
 use crate::handlers::sign_in::CurrentUser;
@@ -69,77 +70,67 @@ pub async fn session_put_state(
                     let bytes = match payload.get_format() {
                         DataFormat::Csv(csv_format) => TableBuilder::new()
                             .with_schema(schema)
-                            .with_name(payload.get_publisher().get_table_name())
-                            .with_csv(payload.get_message(), csv_format.delimiter, csv_format.header, csv_format.batch_size)?
+                            .with_name(payload.get_subject())
+                            .with_csv(payload.get_message(), csv_format.delimiter, csv_format.header, csv_format.batch_size)
+                            .unwrap()
                             .build()
                             .unwrap()
-                            .to_ipc_stream()?,
+                            .to_ipc_stream()
+                            .unwrap(),
                         DataFormat::CsvDefault => {
                             let csv_format = CsvFormat::default();
                             TableBuilder::new()
                                 .with_schema(schema)
-                                .with_name(payload.get_publisher().get_table_name())
-                                .with_csv(payload.get_message(), csv_format.delimiter, csv_format.header, csv_format.batch_size)?
+                                .with_name(payload.get_subject())
+                                .with_csv(payload.get_message(), csv_format.delimiter, csv_format.header, csv_format.batch_size)
+                                .unwrap()
                                 .build()
                                 .unwrap()
-                                .to_ipc_stream()?
+                                .to_ipc_stream()
+                                .unwrap()
                         },
-                        DataFormat::Json(_json_format) | DataFormat::Json => {                            
-                            let json_value: Vec<serde_json::Value> = serde_json::from_slice(payload.get_message())?;                            
+                        DataFormat::JsonDefault => {                            
+                            let json_value: Vec<serde_json::Value> = serde_json::from_slice(payload.get_message()).unwrap();                            
                             TableBuilder::new()
                                 .with_schema(schema)
-                                .with_name(payload.get_publisher().get_table_name())
-                                .with_json_values(payload.get_message())?
+                                .with_name(payload.get_subject())
+                                .with_json_values(&json_value)
+                                .unwrap()
                                 .build()
                                 .unwrap()
-                                .to_ipc_stream()?
+                                .to_ipc_stream()
+                                .unwrap()
                         },
                         DataFormat::Bytes => {                                                       
                             TableBuilder::new()
                                 .with_schema(schema)
-                                .with_name(payload.get_publisher().get_table_name())
-                                .with_bytes(payload.get_message())?
-                                .build()
-                                .unwrap()
-                                .to_ipc_stream()?
-                        },
-                        SessionResponseFormat::Pdf => {
-                            // Load the PDF document and extract text
-                            let pdf =
-                                filter_pdf(load_pdf_document(payload.get_message()).unwrap());
-                            let batch =
-                                extract_pdf_text([(payload.metadata.clone(), pdf)].as_slice())
-                                    .unwrap();
-                            ArrowTable::get_builder()
                                 .with_name(payload.get_subject())
-                                .with_record_batches(vec![batch])
+                                .with_bytes(payload.get_message())
                                 .unwrap()
                                 .build()
                                 .unwrap()
-                                .to_ipc_stream()?
-                        }
+                                .to_ipc_stream()
+                                .unwrap()
+                        },
                         _ => unimplemented!(),
                     };
 
                     // Create the update message
-                    let incoming_message = ArrowIncomingMessageBuilder::new()
+                    let message = IPCMessageBuilder::new()
                         .with_name(payload.get_subject())
                         .with_subject(payload.get_subject())
-                        .with_publisher(payload.get_session_name())
+                        .with_publisher(payload.get_publisher())
                         .with_message(bytes)
-                        .with_update(&payload.get_publisher())
+                        .with_update(payload.get_update())
                         .build()
                         .unwrap();
-                    let mut incoming_message_map =
-                        HashMap::<String, ArrowIncomingMessage>::new();
-                    incoming_message_map
-                        .insert(incoming_message.get_name().to_string(), incoming_message);
+                    let message_map = create_message_map(vec![message]);
 
                     // Update the session state with the new message
-                    session_stream_state
+                    let update = session_stream_state
                         .try_write()
                         .unwrap()
-                        .update_state_from_messages(incoming_message_map);
+                        .update_state_from_messages(message_map);
 
                     // Update the superstep
                     session_stream_state
@@ -246,8 +237,7 @@ pub async fn session_get_state(
                         .try_write()
                         .unwrap()
                         .get_session_context_mut()
-                        .update_subject_num_rows_table()
-                        .unwrap();
+                        .update_subject_num_rows_table();
 
                     match payload.get_format() {
                         DataFormat::Bytes => {
@@ -298,7 +288,7 @@ pub async fn session_get_state(
                             let buf = Bytes::from(out);
                             Body::from(buf).into_response()
                         }
-                        DataFormat::Json(_json_format) | DataFormat::JsonDefault => {
+                        DataFormat::Json(_) | DataFormat::JsonDefault => {
                             // Get the subject table as a json string
                             let out = session_stream_state
                                 .try_read()

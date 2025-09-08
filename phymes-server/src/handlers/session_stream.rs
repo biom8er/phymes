@@ -10,11 +10,12 @@ use axum::{
 // Streaming imports
 use bytes::Bytes;
 use futures::prelude::*;
+use phymes_agents::session_plans::available_interface_subjects::create_message_map;
 use phymes_core::{
     metrics::HashMap,
-    session::{common_traits::MappableTrait, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}, session_context::SessionStream},
-    table::{data_format::DataFormat, table::TableTrait},
-    task::message::IPCMessage,
+    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}, session_context::SessionStream},
+    table::{data_format::DataFormat, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
+    task::message::{IPCMessage, MessageBuilderTrait, MessageTrait},
 };
 
 // General imports
@@ -30,9 +31,6 @@ use crate::{
     },
     server::server_state::ServerState,
 };
-
-// Crate imports
-use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
 
 /// Chat inference endpoint
 #[axum::debug_handler]
@@ -87,9 +85,26 @@ pub async fn session_stream(
                 }
             };
 
+            // Convert the message to IPC if not already
+            // DM: this can be optimized so that the message payload is consumed...
+            let bytes = match &payload.get_format() {
+                DataFormat::Ipc => payload.get_message().to_owned(),
+                DataFormat::Bytes => Table::get_builder().with_name(payload.get_subject()).with_bytes(payload.get_message()).unwrap().build().unwrap().to_ipc_stream().unwrap(),
+                _ => unimplemented!()
+            };
+            let message = IPCMessage::get_builder()
+                .with_message(bytes)
+                .with_subject(payload.get_subject())
+                .with_update(payload.get_update())
+                .with_publisher(payload.get_publisher())
+                .make_name()
+                .unwrap()
+                .build()
+                .unwrap();
+
             // Make the session stream
             // DM: we assume only a single message per request
-            let message_map;
+            let message_map = create_message_map(vec![message]);
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
 
             // Run and update the session and convert the output to the user specified format
@@ -101,7 +116,10 @@ pub async fn session_stream(
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
                             .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
-                            .flat_map(|(_k, v)| v.get_message_own().to_bytes().unwrap())
+                            .flat_map(|(_k, v)| {
+                                let name = v.get_name().to_string();
+                                TableBuilder::new_from_ipc_stream(&v.get_message_own()).unwrap().with_name(name.as_str()).build().unwrap().to_bytes().unwrap()
+                            })
                             .collect::<Vec<_>>()
                     });
 
@@ -116,7 +134,10 @@ pub async fn session_stream(
                         .into_iter()
                         .flatten()
                         .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
-                        .flat_map(|(_k, v)| v.get_message_own().to_json_object().unwrap())
+                        .flat_map(|(_k, v)| {
+                            let name = v.get_name().to_string();
+                            TableBuilder::new_from_ipc_stream(&v.get_message_own()).unwrap().with_name(name.as_str()).build().unwrap().to_json_object().unwrap()
+                        })
                         .collect::<Vec<_>>();
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
@@ -131,8 +152,7 @@ pub async fn session_stream(
                         .try_write()
                         .unwrap()
                         .get_session_context_mut()
-                        .update_subject_num_rows_table()
-                        .unwrap();
+                        .update_subject_num_rows_table();
 
                     // Write the updates to disk
                     if let Err(e) = state.write_state_by_email(
@@ -153,7 +173,7 @@ pub async fn session_stream(
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
                             .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
-                            .flat_map(|(_k, v)| v.get_message_own().to_ipc_stream().unwrap())
+                            .flat_map(|(_k, v)| v.get_message_own())
                             .collect::<Vec<_>>()
                     });
 
@@ -168,7 +188,7 @@ pub async fn session_stream(
                         .into_iter()
                         .flatten()
                         .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
-                        .flat_map(|(_k, v)| v.get_message_own().to_ipc_stream().unwrap())
+                        .flat_map(|(_k, v)| v.get_message_own())
                         .collect::<Vec<_>>();
 
                     // Update the metrics and row counts
@@ -182,8 +202,7 @@ pub async fn session_stream(
                         .try_write()
                         .unwrap()
                         .get_session_context_mut()
-                        .update_subject_num_rows_table()
-                        .unwrap();
+                        .update_subject_num_rows_table();
 
                     // Write the updates to disk
                     if let Err(e) = state.write_state_by_email(

@@ -31,11 +31,11 @@ use serde::{Deserialize, Serialize};
 /// The available session plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableProcessors {
-    #[value(name = "ArrowProcessorMock")]
-    ArrowProcessorMock,
-    #[value(name = "ArrowProcessorEcho")]
+    #[value(name = "ProcessorMock")]
+    ProcessorMock,
+    #[value(name = "ProcessorEcho")]
     #[default]
-    ArrowProcessorEcho,
+    ProcessorEcho,
     #[value(name = "CandleDataProcessor")]
     CandleDataProcessor,
     #[value(name = "DataSummaryProcessor")]
@@ -59,8 +59,8 @@ pub enum AvailableProcessors {
 impl Display for AvailableProcessors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ArrowProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
-            Self::ArrowProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
+            Self::ProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
+            Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
             Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
             Self::DataSummaryProcessor => write!(f, "{}", DataSummaryProcessor::get_static_name()),
             Self::CandleChatProcessor => write!(f, "{}", CandleChatProcessor::get_static_name()),
@@ -79,8 +79,8 @@ impl AvailableProcessors {
     /// Get all available processor plans
     pub fn get_all_processor_names() -> Vec<String> {
         let processor_names = [
-            AvailableProcessors::ArrowProcessorMock.to_string(),
-            AvailableProcessors::ArrowProcessorEcho.to_string(),
+            AvailableProcessors::ProcessorMock.to_string(),
+            AvailableProcessors::ProcessorEcho.to_string(),
             AvailableProcessors::CandleDataProcessor.to_string(),
             AvailableProcessors::DataSummaryProcessor.to_string(),
             AvailableProcessors::CandleChatProcessor.to_string(),
@@ -106,13 +106,13 @@ impl AvailableProcessors {
         subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         match self {
-            Self::ArrowProcessorMock => ProcessorMock::new_arc_with_pub_sub(
+            Self::ProcessorMock => ProcessorMock::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
                 subscribe,
             ),
-            Self::ArrowProcessorEcho => ProcessorEcho::new_arc_with_pub_sub(
+            Self::ProcessorEcho => ProcessorEcho::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,

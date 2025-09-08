@@ -63,11 +63,11 @@ impl DataFormat {
     /// Convert from a filename extension
     pub fn from_extension(extension: &str) -> Result<Self> {
         let format = match extension {
-            ".csv" => DataFormat::CsvDefault,
-            ".json" => DataFormat::JsonDefault,
-            ".pdf" => DataFormat::Pdf,
-            ".bytes" => DataFormat::Bytes,
-            ".ipc" => DataFormat::Ipc,
+            "csv" => DataFormat::CsvDefault,
+            "json" => DataFormat::JsonDefault,
+            "pdf" => DataFormat::Pdf,
+            "bytes" => DataFormat::Bytes,
+            "ipc" => DataFormat::Ipc,
             _ => return Err(anyhow!("File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, and .ipc")),
         };
         Ok(format)
@@ -76,11 +76,11 @@ impl DataFormat {
     /// The file extension for the format
     pub fn to_extension(&self) -> &str {
         match self {
-            Self::Csv(_) | Self::CsvDefault => ".csv",
-            Self::Json(_) | Self::JsonDefault => ".json",
-            Self::Bytes => ".bytes",
-            Self::Ipc => ".ipc",
-            Self::Pdf => ".pdf",
+            Self::Csv(_) | Self::CsvDefault => "csv",
+            Self::Json(_) | Self::JsonDefault => "json",
+            Self::Bytes => "bytes",
+            Self::Ipc => "ipc",
+            Self::Pdf => "pdf",
             Self::None => "",
         }
     }

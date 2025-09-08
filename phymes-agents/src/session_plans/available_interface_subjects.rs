@@ -107,12 +107,16 @@ impl Display for AvailableInterfaceSubjects {
 
 impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
     fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table> {
+        let name = match name {
+            Some(name) => name.to_string(),
+            None => self.to_string(),
+        };
         match self {
             Self::UserMessages 
             | Self::AggregatedMessages
             | Self::AssistantMessages
-            | Self::ToolMessages => AvailableSubjects::Messages.to_table(name, batches),
-            Self::UserQueries => AvailableSubjects::Queries.to_table(name, batches),
+            | Self::ToolMessages => AvailableSubjects::Messages.to_table(Some(name.as_str()), batches),
+            Self::UserQueries => AvailableSubjects::Queries.to_table(Some(name.as_str()), batches),
             Self::UserPdf 
             | Self::UserAudio 
             | Self::UserVideo
@@ -121,16 +125,20 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::UserCsv 
             | Self::AssistantImage 
             | Self::AssistantCsv
-            | Self::AssistantScript => AvailableSubjects::Blob.to_table(name, batches),
+            | Self::AssistantScript => AvailableSubjects::Blob.to_table(Some(name.as_str()), batches),
         }        
     }
     fn to_table_builder(&self, name: Option<&str>) -> phymes_core::table::table::TableBuilder {
+        let name = match name {
+            Some(name) => name.to_string(),
+            None => self.to_string(),
+        };
         match self {
             Self::UserMessages 
             | Self::AggregatedMessages
             | Self::AssistantMessages
-            | Self::ToolMessages => AvailableSubjects::Messages.to_table_builder(name),
-            Self::UserQueries => AvailableSubjects::Queries.to_table_builder(name),
+            | Self::ToolMessages => AvailableSubjects::Messages.to_table_builder(Some(name.as_str())),
+            Self::UserQueries => AvailableSubjects::Queries.to_table_builder(Some(name.as_str())),
             Self::UserPdf 
             | Self::UserAudio 
             | Self::UserVideo
@@ -139,7 +147,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::UserCsv 
             | Self::AssistantImage 
             | Self::AssistantCsv
-            | Self::AssistantScript => AvailableSubjects::Blob.to_table_builder(name),
+            | Self::AssistantScript => AvailableSubjects::Blob.to_table_builder(Some(name.as_str())),
         }        
     }
 }

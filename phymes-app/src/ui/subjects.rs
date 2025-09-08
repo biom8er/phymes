@@ -1,11 +1,9 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
-use phymes_core::table::table_publish::TablePublish;
-use phymes_data::candle_data::summary_config::{CsvFormat, DataFormat, JsonFormat};
-use phymes_server::handlers::{
-    session_info::SessionInterfaceMessage,
-    sign_in::create_session_name,
+use phymes_core::{
+    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::BlobBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table::TableTrait, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
+use phymes_server::handlers::sign_in::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -138,11 +136,11 @@ pub fn subjects_modal() -> Element {
     use_coroutine(clear_subject_num_rows_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessageBuilder
-        .with_session_name(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_format(DataFormat::Bytes)
-        .with_publisher(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_publish(TablePublish::None)
+    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
+        .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+        .with_format(&DataFormat::Bytes)
+        .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+        .with_update(&TablePublish::None)
         .with_stream(false)
     );
 
@@ -156,6 +154,7 @@ pub fn subjects_modal() -> Element {
         let data_serialized = serde_json::to_string(&get_session_state()
             .with_subject(SessionContextTableNames::Subjects.get_name())
             .make_name()
+            .unwrap()
             .build()
             .unwrap()).unwrap();
 
@@ -266,6 +265,7 @@ pub fn subjects_modal() -> Element {
         let data_serialized = serde_json::to_string(&get_session_state()
             .with_subject(SessionContextTableNames::SubjectsNumRows.get_name())
             .make_name()
+            .unwrap()
             .build()
             .unwrap()).unwrap();
 
@@ -412,15 +412,7 @@ pub fn subjects_modal() -> Element {
     #[allow(unused_mut)]
     let mut enable_directory_upload = use_signal(|| false);
     let mut files_uploaded = use_signal(|| Vec::new() as Vec<SessionInterfaceMessage>);
-    let file_names = use_memo(move || {
-        get_non_duplicated_sorted_subjects(
-            &files_uploaded
-                .read()
-                .iter()
-                .map(|s| s.metadata.as_str())
-                .collect::<Vec<_>>(),
-        )
-    });
+    let mut file_names = use_signal(|| Vec::new() as Vec<String>);
 
     let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublish| async move {
         let files = file_engine.files();
@@ -429,48 +421,32 @@ pub fn subjects_modal() -> Element {
             let file_path = std::path::Path::new(file_name);
             match file_path.extension() {
                 None => tracing::error!("File {file_name} has no extension."),
-                Some(ext) => match ext.to_str() {
-                    Some("csv") => {
+                Some(ext) => match DataFormat::from_extension(ext.to_str().unwrap()) {
+                    Ok(data_format) => {
                         // Read the file as CSV
-                        if let Some(contents) = file_engine.read_file_to_string(file_name).await {
-                            files_uploaded.write().push(SessionInterfaceMessage {
-                                session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-                                session_name: create_session_name(
-                                    EMAIL.read().as_str(),
-                                    ACTIVE_SESSION_NAME.read().as_str(),
-                                ),
-                                subject_name: subject_shown.read().to_string(),
-                                metadata: file_name.clone(),
-                                content: contents.into_bytes(),
-                                publish: publish.to_owned(),
-                                format: DataFormat::Csv(CsvFormat {
-                                    delimiter: b',',
-                                    header: true,
-                                    batch_size: 1024,
-                                }),
-                                stream: false,
-                            });
+                        if let Some(contents) = file_engine.read_file_to_string(file_name).await {                            
+                            let blob = AvailableSubjects::Blob.to_table_builder(Some(&subject_shown.read()))
+                                .with_blob(Some(file_name), Some(ext.to_str().unwrap()), &contents.into_bytes(), None)
+                                .unwrap()
+                                .build()
+                                .unwrap();
+                            let data = SessionInterfaceMessage::get_builder()
+                                .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                .with_format(&data_format)
+                                .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                .with_update(&publish)
+                                .with_stream(false)
+                                .with_subject(blob.get_name())
+                                .with_message(blob.to_bytes().unwrap().to_vec())
+                                .make_name()
+                                .unwrap()
+                                .build()
+                                .unwrap();
+                            files_uploaded.write().push(data);
+                            file_names.write().push(file_name.to_string());
                         }
                     }
-                    Some("json") => {
-                        // Read the file as JSON
-                        if let Some(contents) = file_engine.read_file_to_string(file_name).await {
-                            files_uploaded.write().push(SessionInterfaceMessage {
-                                session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-                                session_name: create_session_name(
-                                    EMAIL.read().as_str(),
-                                    ACTIVE_SESSION_NAME.read().as_str(),
-                                ),
-                                subject_name: subject_shown.read().to_string(),
-                                metadata: file_name.clone(),
-                                content: contents.into_bytes(),
-                                publish: publish.to_owned(),
-                                format: DataFormat::Json(JsonFormat{ batch_size: 1024 }),
-                                stream: false,
-                            });
-                        }
-                    }
-                    _ => tracing::error!("File {file_name} has unsupported extension {ext:?}."),
+                    Err(err) => tracing::error!("{err:?}"),
                 },
             }
         }
@@ -656,16 +632,17 @@ pub fn subjects_modal() -> Element {
                                     onclick: move |_evt| async move {
                                         // Get csv file from the server
                                         files_downloaded.write().clear();
-                                        let data = SessionInterfaceMessage {
-                                            session_plan: ACTIVE_SESSION_NAME.read().to_string(),
-                                            session_name: create_session_name(EMAIL.read().as_str(), ACTIVE_SESSION_NAME.read().as_str()),
-                                            subject_name: subject_shown.read().to_string(),
-                                            format: DataFormat::Csv( CsvFormat { delimiter: b',', header: true, batch_size: 1024 }),
-                                            publish: TablePublish::None,
-                                            content: "".to_string().into(),
-                                            metadata: "".to_string(),
-                                            stream: false,
-                                        };
+                                        let data = SessionInterfaceMessage::get_builder()
+                                            .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                            .with_format(&DataFormat::CsvDefault)
+                                            .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                            .with_update(&TablePublish::None)
+                                            .with_stream(false)
+                                            .with_subject(&subject_shown.read())
+                                            .make_name()
+                                            .unwrap()
+                                            .build()
+                                            .unwrap();
                                         let data_serialized = serde_json::to_string(&data).unwrap();
                                         let route = "/app/v1/get_state";
 
@@ -806,13 +783,17 @@ pub fn subjects_modal() -> Element {
                                 }
 
                                 // Clean up the files
-                                files_uploaded.write().clear()
+                                files_uploaded.write().clear();
+                                file_names.write().clear();
                             },
                             "Submit files"
                         },
                         button {
                             id: "clear_uploaded_files",
-                            onclick: move |_| files_uploaded.write().clear(),
+                            onclick: move |_| {
+                                files_uploaded.write().clear();
+                                file_names.write().clear();
+                            },
                             "Clear files"
                         },
                     }

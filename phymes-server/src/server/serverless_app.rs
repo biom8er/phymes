@@ -84,7 +84,8 @@ mod tests {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_core::table::table_publish::TablePublish;
+    use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
+    use phymes_core::{schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table::TableTrait, table_publish::TablePublish}, task::message::MessageBuilderTrait};
     use serde_json::{Map, Value};
 
     use crate::handlers::sign_in::{basic_auth, create_session_name};
@@ -152,22 +153,23 @@ mod tests {
         // Create the session state JSON value
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
-        let session_response = SessionInterfaceMessage {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "".to_string(),
-            format: DataFormat::Bytes,
-            publish: TablePublish::None,
-            content: "".to_string().into(),
-            metadata: "".to_string(),
-            stream: false,
-        };
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+            .with_subject(SessionContextTableNames::Subjects.get_name())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         // Make the request for the subjects_schema
         let request: Request<String> = Request::builder()
             .method("POST")
-            .uri("http://127.0.0.1:8000/app/v1/subjects_schema")
+            .uri("http://127.0.0.1:8000/app/v1/get_state")
             .header("Content-type", "application/json")
             .header("Authorization", bearer.as_str())
             .body(data)
@@ -213,20 +215,21 @@ mod tests {
         let bearer = token.to_string();
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
-        let session_response = SessionInterfaceMessage {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "".to_string(),
-            format: DataFormat::Bytes,
-            publish: TablePublish::None,
-            content: "".to_string().into(),
-            metadata: "".to_string(),
-            stream: false,
-        };
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+            .with_subject(SessionContextTableNames::Subjects.get_name())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         let config = ServerlessConfig {
-            route: "app/v1/subjects_schema".to_string(),
+            route: "app/v1/get_state".to_string(),
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
@@ -243,20 +246,21 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_num_rows using serverless_app
-        let session_response = SessionInterfaceMessage {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "".to_string(),
-            format: DataFormat::Bytes,
-            publish: TablePublish::None,
-            content: "".to_string().into(),
-            metadata: "".to_string(),
-            stream: false,
-        };
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+            .with_subject(SessionContextTableNames::SubjectsNumRows.get_name())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         let config = ServerlessConfig {
-            route: "app/v1/subjects_num_rows".to_string(),
+            route: "app/v1/get_state".to_string(),
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
@@ -273,20 +277,21 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test mermaid_js using serverless_app
-        let session_response = SessionInterfaceMessage {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "".to_string(),
-            format: DataFormat::Bytes,
-            publish: TablePublish::None,
-            content: "".to_string().into(),
-            metadata: "".to_string(),
-            stream: false,
-        };
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+            .with_subject(SessionContextTableNames::MermaidJS.get_name())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         let config = ServerlessConfig {
-            route: "app/v1/mermaid_js".to_string(),
+            route: "app/v1/get_state".to_string(),
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
@@ -303,18 +308,23 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test session_stream using serverless_app
-        let session_response = SessionInterfaceMessage {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "messages".to_string(),
-            format: DataFormat::Bytes,
-            publish: TablePublish::Extend {
-                table_name: "messages".to_string(),
-            },
-            content: "What is the world's tallest mountain?".to_string().into(),
-            metadata: "".to_string(),
-            stream: true,
-        };
+        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+            .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")
+            .unwrap()
+            .build()
+            .unwrap();
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
+            .with_stream(true)
+            .with_subject(chat.get_name())
+            .with_message(chat.to_bytes().unwrap().to_vec())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         let config = ServerlessConfig {

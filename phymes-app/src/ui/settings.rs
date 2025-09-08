@@ -2,12 +2,10 @@ use std::collections::HashSet;
 
 use dioxus::prelude::*;
 use futures::StreamExt;
-use phymes_core::table::table_publish::TablePublish;
-use phymes_data::candle_data::summary_config::DataFormat;
-use phymes_server::handlers::{
-    session_info::SessionInterfaceMessage,
-    sign_in::create_session_name,
+use phymes_core::{
+    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
+use phymes_server::handlers::sign_in::create_session_name;
 use serde_json::{Map, Value};
 
 use crate::{
@@ -62,11 +60,11 @@ pub fn settings_interface_view() -> Element {
     use_coroutine(sync_current_session_mermaid_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessageBuilder
-        .with_session_name(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_format(DataFormat::Bytes)
-        .with_publisher(create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_publish(TablePublish::None)
+    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
+        .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+        .with_format(&DataFormat::Bytes)
+        .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+        .with_update(&TablePublish::None)
         .with_stream(false)
     );
 
@@ -78,6 +76,7 @@ pub fn settings_interface_view() -> Element {
         let data_serialized = serde_json::to_string(&get_session_state()
             .with_subject(SessionContextTableNames::MermaidJS.get_name())
             .make_name()
+            .unwrap()
             .build()
             .unwrap()).unwrap();
 

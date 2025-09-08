@@ -112,7 +112,7 @@ pub trait SessionInterfaceMessageBuilderTrait: MessageBuilderTrait {
     fn with_stream(self, stream: bool) -> Self;
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq)]
 pub struct SessionInterfaceMessageBuilder {
     /// Name of the message
     pub name: Option<String>,
