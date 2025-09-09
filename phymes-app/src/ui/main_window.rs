@@ -126,42 +126,42 @@ pub fn main_window() -> Element {
                     },
                     svg { dangerous_inner_html: person_icon_svg() }
                 }
-                // if BUILDER() {
-                //     button {
-                //         onclick: move |_| async move {
-                //             header_menu.set(HeaderMenu::Builds);
-                //         },
-                //         svg { dangerous_inner_html: tools_icon_svg() }
-                //     }
-                // } else {
-                //     button {
-                //         onclick: move |_| async move {
-                //             header_menu.set(HeaderMenu::Apps);
-                //         },
-                //         // svg { dangerous_inner_html: settings_icon_svg() }
-                //         svg { dangerous_inner_html: apps_icon_svg() }
-                //     }
-                //     button {
-                //         onclick: move |_| async move {
-                //             header_menu.set(HeaderMenu::Message);
-                //         },
-                //         svg { dangerous_inner_html: message_icon_svg() }
-                //     }
-                // }
-                // if DEBUGGER() {
-                //     button {
-                //         onclick: move |_| async move {
-                //             header_menu.set(HeaderMenu::Subjects);
-                //         },
-                //         svg { dangerous_inner_html: database_icon_svg() }
-                //     }
-                //     button {
-                //         onclick: move |_| async move {
-                //             header_menu.set(HeaderMenu::Metrics);
-                //         },
-                //         svg { dangerous_inner_html: top_speed_icon_svg() }
-                //     }
-                // }                
+                if BUILDER() {
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Builds);
+                        },
+                        svg { dangerous_inner_html: tools_icon_svg() }
+                    }
+                } else {
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Apps);
+                        },
+                        // svg { dangerous_inner_html: settings_icon_svg() }
+                        svg { dangerous_inner_html: apps_icon_svg() }
+                    }
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Message);
+                        },
+                        svg { dangerous_inner_html: message_icon_svg() }
+                    }
+                }
+                if DEBUGGER() {
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Subjects);
+                        },
+                        svg { dangerous_inner_html: database_icon_svg() }
+                    }
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Metrics);
+                        },
+                        svg { dangerous_inner_html: top_speed_icon_svg() }
+                    }
+                }                
             }
 
             // DM: required because each component is its own type!

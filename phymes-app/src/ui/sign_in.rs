@@ -1,6 +1,6 @@
 use crate::state::{
     settings::{sync_current_active_session_state, SyncCurrentActiveSessionState},
-    sign_in::{sync_builder_state, sync_debugger_state, sync_jwt_state, SyncBuilderState, SyncDebuggerState, SyncJWTState, BUILDER, DEBUGGER, EMAIL},
+    sign_in::{clear_jwt_state, sync_builder_state, sync_debugger_state, sync_jwt_state, ClearJWTState, SyncBuilderState, SyncDebuggerState, SyncJWTState, BUILDER, DEBUGGER, EMAIL},
 };
 use dioxus::prelude::*;
 
@@ -23,6 +23,19 @@ use phymes_server::server::{
 /// View for the user to sign-in
 #[component]
 pub fn sign_in_view() -> Element {
+    rsx! {
+        sign_in_form {}
+        // if !EMAIL.read().is_empty() {
+        //     sign_in_mode {}
+        // } else {
+        //     sign_in_form {}
+        // }
+    }
+}
+
+/// View for the user to sign-in
+#[component]
+pub fn sign_in_form() -> Element {
     // Sign-in signals
     #[allow(clippy::redundant_closure)]
     let mut email = use_signal(|| String::new());
@@ -35,125 +48,116 @@ pub fn sign_in_view() -> Element {
     use_coroutine(sync_jwt_state);
     use_coroutine(sync_current_active_session_state);
 
+    // DM: Refactor the login to include a registration and forgot password
+    //  1. enter email
+    //  2. if email is not found in the server, Register new password
+    //  3. if email is found in the server, enter existing password
+    //  4. if password does not match existing password, provide message and try again
+    //  5. if password is forgotten, send a reset password link to the registered email address
+    //  6. After clicking on reset password link, a password reset page is provided
+    //  7. Send follow-up email notifying the user that their password was reset
     rsx! {
-        // Sign-in modal
-        if !EMAIL.read().is_empty() {
-            div {
-                class: "messaging_list",
-                p { "Signed in as {EMAIL.read().to_string()}." },
-                sign_in_mode {}
-            }
-        } else {
-            // DM: Refactor the login to include a registration and forgot password
-            //  1. enter email
-            //  2. if email is not found in the server, Register new password
-            //  3. if email is found in the server, enter existing password
-            //  4. if password does not match existing password, provide message and try again
-            //  5. if password is forgotten, send a reset password link to the registered email address
-            //  6. After clicking on reset password link, a password reset page is provided
-            //  7. Send follow-up email notifying the user that their password was reset
-            div {
-                class: "messaging_list",
-                form {
-                    class: "sign_in_form",
-                    div {
-                        label { "Email" }
-                        input {
-                            r#type: "email",
-                            placeholder: "email",
-                            oninput: move |event| email.set(event.value()),
-                        }
-                        label { "Password" }
-                        input {
-                            r#type: "password",
-                            placeholder: "password",
-                            oninput: move |event| password.set(event.value()),
-                        }
-                        // label { "Remember me" }
-                        // input {
-                        //     r#type: "checkbox",
-                        //     checked: "checked",
-                        // }
+        div {
+            class: "messaging_list",
+            form {
+                class: "sign_in_form",
+                div {
+                    label { "Email" }
+                    input {
+                        r#type: "email",
+                        placeholder: "email",
+                        oninput: move |event| email.set(event.value()),
                     }
+                    label { "Password" }
+                    input {
+                        r#type: "password",
+                        placeholder: "password",
+                        oninput: move |event| password.set(event.value()),
+                    }
+                    // label { "Remember me" }
+                    // input {
+                    //     r#type: "checkbox",
+                    //     checked: "checked",
+                    // }
                 }
-                button {
-                    onclick: move |_| async move {
-                        let sync_jwt = use_coroutine_handle::<SyncJWTState>();
-                        let route = "/app/v1/sign_in";
-
-                        #[cfg(not(feature = "serverless"))]
-                        let addr = format!("{ADDR_BACKEND}{route}");
-                        #[cfg(not(feature = "serverless"))]
-                        match reqwest::Client::new()
-                            .post(addr)
-                            .basic_auth(email, Some(password))
-                            .header(CONTENT_TYPE, "text/plain; charset=utf-8")
-                            .send()
-                            .await {
-                            Ok(response) => match response.json::<SyncJWTState>()
-                                .await {
-                                    Ok(jwt_json) => {
-                                        // Set the active session
-                                        let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
-                                        sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_plans.first().unwrap().to_string() });
-
-                                        // Set the sign-in credentials
-                                        sync_jwt.send(jwt_json);
-                                    }
-                                    Err(err) => {
-                                        let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
-                                        content.write().push_str(msg.as_str());
-                                    }
-                                },
-                            Err(err) =>  {
-                                let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
-                                content.write().push_str(msg.as_str());
-                            }
-                        }
-
-                        #[cfg(feature = "serverless")]
-                        let config = ServerlessConfig {
-                            route: route.to_string(),
-                            basic_auth: Some(format!("{email}:{password}")),
-                            bearer_auth: None,
-                            data: None,
-                        };
-                        #[cfg(feature = "serverless")]
-                        let mut serverless = Serverless::new();
-                        #[cfg(feature = "serverless")]
-                        match serverless_app(config, &mut serverless).await {
-                            Ok(response) => {
-                                let bytes: Vec<Bytes> = response
-                                    .into_body()
-                                    .into_data_stream()
-                                    .try_collect()
-                                    .await
-                                    .unwrap();
-                                let jwt_json: SyncJWTState = serde_json::from_slice(bytes.first().unwrap()).unwrap();
-
-                                // Set the active session
-                                let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
-                                sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_plans.first().unwrap().to_string() });
-
-                                // Set the sign-in credentials
-                                sync_jwt.send(jwt_json);
-                            }
-                            Err(err) =>  {
-                                let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
-                                content.write().push_str(msg.as_str());
-                            }
-                        }
-                    },
-                    "sign-in"
-                }
-                button {
-                    onclick: move |_| async move {
-                        // TODO
-                    },
-                    "forgot password"
-                }
-                p { "{content.to_string()}" }
             }
+            button {
+                onclick: move |_| async move {
+                    let sync_jwt = use_coroutine_handle::<SyncJWTState>();
+                    let route = "/app/v1/sign_in";
+
+                    #[cfg(not(feature = "serverless"))]
+                    let addr = format!("{ADDR_BACKEND}{route}");
+                    #[cfg(not(feature = "serverless"))]
+                    match reqwest::Client::new()
+                        .post(addr)
+                        .basic_auth(email, Some(password))
+                        .header(CONTENT_TYPE, "text/plain; charset=utf-8")
+                        .send()
+                        .await {
+                        Ok(response) => match response.json::<SyncJWTState>()
+                            .await {
+                                Ok(jwt_json) => {
+                                    // Set the active session
+                                    let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
+                                    sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_plans.first().unwrap().to_string() });
+
+                                    // Set the sign-in credentials
+                                    sync_jwt.send(jwt_json);
+                                }
+                                Err(err) => {
+                                    let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
+                                    content.write().push_str(msg.as_str());
+                                }
+                            },
+                        Err(err) =>  {
+                            let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
+                            content.write().push_str(msg.as_str());
+                        }
+                    }
+
+                    #[cfg(feature = "serverless")]
+                    let config = ServerlessConfig {
+                        route: route.to_string(),
+                        basic_auth: Some(format!("{email}:{password}")),
+                        bearer_auth: None,
+                        data: None,
+                    };
+                    #[cfg(feature = "serverless")]
+                    let mut serverless = Serverless::new();
+                    #[cfg(feature = "serverless")]
+                    match serverless_app(config, &mut serverless).await {
+                        Ok(response) => {
+                            let bytes: Vec<Bytes> = response
+                                .into_body()
+                                .into_data_stream()
+                                .try_collect()
+                                .await
+                                .unwrap();
+                            let jwt_json: SyncJWTState = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+
+                            // Set the active session
+                            let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
+                            sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_plans.first().unwrap().to_string() });
+
+                            // Set the sign-in credentials
+                            sync_jwt.send(jwt_json);
+                        }
+                        Err(err) =>  {
+                            let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
+                            content.write().push_str(msg.as_str());
+                        }
+                    }
+                },
+                "sign-in"
+            }
+            button {
+                onclick: move |_| async move {
+                    // TODO
+                },
+                "forgot password"
+            }
+            p { "{content.to_string()}" }
         }
     }
 }
@@ -163,38 +167,50 @@ pub fn sign_in_view() -> Element {
 #[component]
 pub fn sign_in_mode() -> Element {
     // intialize state and coroutines
+    use_coroutine(clear_jwt_state);
     use_coroutine(sync_builder_state);
     use_coroutine(sync_debugger_state);
 
-    // memos for handling global state
-    let builder = use_memo(move || BUILDER());
-    let debugger = use_memo(move || DEBUGGER());
+    let builder = use_memo(move || {
+        if BUILDER() {
+            "disable builder mode"
+        } else {
+            "enable builder mode"
+        }
+    });
+    let debugger = use_memo(move || {
+        if DEBUGGER() {
+            "disable debugger mode"
+        } else {
+            "enable debugger mode"
+        }
+    });
 
     rsx! {
         div {
-            h2 { "Builder mode" },
-            label { r#for: "builder-slider", "Builder mode" }
-            input {
-                r#type: "checkbox",
-                id: "builder-slider",
-                checked: builder(),
-                oninput: move |evt| async move {
+            class: "messaging_list",
+            p { "Signed in as {EMAIL.read().to_string()}." },
+            button {
+                onclick: move |_| async move {
+                    let clear_jwt_state = use_coroutine_handle::<ClearJWTState>();
+                    clear_jwt_state.send(ClearJWTState {});
+                },
+                "sign-out"
+            },
+            p { "Application modes" }
+            button {
+                onclick: move |_evt| async move {                    
                     let sync_builder_state = use_coroutine_handle::<SyncBuilderState>();
-                    sync_builder_state.send(SyncBuilderState { show: evt.checked()});
+                    sync_builder_state.send(SyncBuilderState { show: !BUILDER()});
                 },
-            }
-        }                    
-        div {
-            h2 { "Debugger mode" },
-            label { r#for: "debugger-slider", "Debugger mode" }
-            input {
-                r#type: "checkbox",
-                id: "debugger-slider",
-                checked: debugger(),
-                oninput: move |evt| async move {
+                "{builder}"
+            },
+            button {
+                onclick: move |_evt| async move {
                     let sync_debugger_state = use_coroutine_handle::<SyncDebuggerState>();
-                    sync_debugger_state.send(SyncDebuggerState { show: evt.checked()});
+                    sync_debugger_state.send(SyncDebuggerState { show: !DEBUGGER()});
                 },
+                "{debugger}"
             }
         }
     }

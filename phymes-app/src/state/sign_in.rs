@@ -26,6 +26,15 @@ pub async fn sync_jwt_state(mut rx: UnboundedReceiver<SyncJWTState>) {
         (*EMAIL.write()).push_str(updated_state.email.as_str());
     }
     (*SESSION_NAMES.write()).sort();
+
+
+}#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct ClearJWTState {}
+
+pub async fn clear_jwt_state(mut _rx: UnboundedReceiver<ClearJWTState>) {
+    (*SESSION_NAMES.write()).clear();
+    (*JWT.write()).clear();
+    (*EMAIL.write()).clear();
 }
 
 #[allow(clippy::redundant_closure)]
