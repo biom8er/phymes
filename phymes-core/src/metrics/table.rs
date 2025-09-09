@@ -164,7 +164,7 @@ pub fn get_metrics_as_table(metrics: ArrowTaskMetricsSet, table_name: &str) -> R
 }
 
 /// Add normalized start and end time for use in gantt or barplot visualizations
-pub fn get_metrics_as_gantt_table(pivot_table: Table) -> Result<Table> {
+pub fn get_metrics_as_gantt_table(pivot_table: Table, table_name: &str,) -> Result<Table> {
     // determine the minimum start time
     let start_time_arr: ArrayRef = pivot_table.get_column_as_array("start_timestamp");
     let start_time_arr_prim = start_time_arr
@@ -196,7 +196,7 @@ pub fn get_metrics_as_gantt_table(pivot_table: Table) -> Result<Table> {
     }
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Table::get_builder()
-        .with_name(pivot_table.get_name())
+        .with_name(table_name)
         .with_record_batches(vec![batch])?
         .build()
 }

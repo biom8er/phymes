@@ -114,14 +114,14 @@ impl ProcessorTrait for CandleChatProcessor {
         // Extract out the messages, documents, tools, and config
         let messages = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
             Some(i) => i.get_message_own(),
-            None => return Err(anyhow!("Messages not provided for {}.", self.get_name())),
+            None => return Err(anyhow!("Messages not provided for {}. Available messages are {:?}", self.get_name(), message.keys())),
         };
         let tools = message
             .remove(self.subscriptions.get(1).unwrap().get_table_name())
             .map(|i| i.get_message_own());
         let config = match message.remove(self.get_name()) {
             Some(s) => s.get_message_own(),
-            None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
+            None => return Err(anyhow!("Config not provided for {}. Available messages are {:?}", self.get_name(), message.keys())),
         };
 
         // Run the chat stream

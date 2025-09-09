@@ -151,7 +151,7 @@ impl SessionContext {
             }
 
             // Create the gantt view
-            let gantt_table = get_metrics_as_gantt_table(self.state.get(SessionContextTableNames::Metrics.get_name()).unwrap().try_read().unwrap().clone())?;
+            let gantt_table = get_metrics_as_gantt_table(self.state.get(SessionContextTableNames::Metrics.get_name()).unwrap().try_read().unwrap().clone(), SessionContextTableNames::MetricsGantt.get_name())?;
             let mermaid_gantt_table = get_metrics_as_mermaid_gantt(gantt_table)?;
 
             // Add the metrics gantt table to the state or update
@@ -741,7 +741,7 @@ impl SessionStreamStep {
         let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let mut tasks = Vec::new();
         for (task_name, task) in state.try_read().unwrap().session_context.get_tasks().iter() {
-            // Continue to the next task all subscribed subjects are not updated
+            // Continue to the next task if all subscribed subjects are not updated
             let state_rwlock = state.try_read().unwrap();
             let updates = state_rwlock.get_superstep_updates().get(task_name).unwrap();
             let states = state_rwlock.session_context.get_states();
