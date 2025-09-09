@@ -2,7 +2,7 @@ use candle_core::{DType, Tensor};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::AvailableSubjects, session::{
+    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{
         common_traits::{
             device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, TokenWrapper
         },

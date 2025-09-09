@@ -150,4 +150,22 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantScript => AvailableSubjects::Blob.to_table_builder(Some(name.as_str())),
         }        
     }
+    fn to_schema(&self) -> arrow::datatypes::SchemaRef {
+        match self {
+            Self::UserMessages 
+            | Self::AggregatedMessages
+            | Self::AssistantMessages
+            | Self::ToolMessages => AvailableSubjects::Messages.to_schema(),
+            Self::UserQueries => AvailableSubjects::Queries.to_schema(),
+            Self::UserPdf 
+            | Self::UserAudio 
+            | Self::UserVideo
+            | Self::UserImage 
+            | Self::UserScript 
+            | Self::UserCsv 
+            | Self::AssistantImage 
+            | Self::AssistantCsv
+            | Self::AssistantScript => AvailableSubjects::Blob.to_schema(),
+        } 
+    }
 }

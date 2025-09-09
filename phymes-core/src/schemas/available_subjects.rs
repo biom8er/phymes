@@ -152,6 +152,7 @@ pub fn create_join_chunks_scores_fields() -> Fields {
 pub trait AvailableSubjectsTrait {
     fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table>;
     fn to_table_builder(&self, name: Option<&str>) -> TableBuilder;
+    fn to_schema(&self) -> SchemaRef;
 }
 
 /// The available subject schmeas
@@ -216,10 +217,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
         };
         Table::get_builder().with_name(&name).with_schema(self.to_schema())
     }
-}
-
-impl AvailableSubjects {
-    pub fn to_schema(&self) -> SchemaRef {
+    fn to_schema(&self) -> SchemaRef {
         match self {
             AvailableSubjects::Messages => create_schema_from_fields(&create_chat_fields),
             AvailableSubjects::Values => create_schema_from_fields(&create_values_fields),

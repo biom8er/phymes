@@ -1073,6 +1073,54 @@ impl TableBuilderTrait for TableBuilder {
                     let array_ref: ArrayRef = Arc::new(UInt64Array::from(array_vec));
                     batch_vec.push((field.name(), array_ref));
                 }
+                DataType::Int8 => {
+                    let mut array_vec: Vec<i8> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Number(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.as_i64().unwrap().try_into().unwrap());
+                        }
+                    }
+                    let array_ref: ArrayRef = Arc::new(Int8Array::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
+                }
+                DataType::Int16 => {
+                    let mut array_vec: Vec<i16> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Number(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.as_i64().unwrap().try_into().unwrap());
+                        }
+                    }
+                    let array_ref: ArrayRef = Arc::new(Int16Array::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
+                }
+                DataType::Int32 => {
+                    let mut array_vec: Vec<i32> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Number(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.as_i64().unwrap().try_into().unwrap());
+                        }
+                    }
+                    let array_ref: ArrayRef = Arc::new(Int32Array::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
+                }
+                DataType::Int64 => {
+                    let mut array_vec: Vec<i64> = Vec::with_capacity(n_rows);
+                    for value in json_values {
+                        if let Value::Object(map) = value
+                            && let Some(Value::Number(val)) = map.get(field.name())
+                        {
+                            array_vec.push(val.as_i64().unwrap());
+                        }
+                    }
+                    let array_ref: ArrayRef = Arc::new(Int64Array::from(array_vec));
+                    batch_vec.push((field.name(), array_ref));
+                }
                 DataType::Float16 => {
                     // let mut array_vec: Vec<f16> = Vec::with_capacity(n_rows);
                     // for value in json_values {

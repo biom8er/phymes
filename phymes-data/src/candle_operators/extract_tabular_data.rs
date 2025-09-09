@@ -5,7 +5,7 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
     schemas::{chat_completion, types},
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{data_format::DataFormat, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{data_format::{CsvFormat, DataFormat, JsonFormat}, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
 };
 use tracing::{Level, event, instrument};
 
@@ -138,7 +138,21 @@ pub fn extract_tabular_data(lhs_values: &str, lhs_args: &[RecordBatch], format: 
             .with_csv(values_vec.last().unwrap(), csv_format.delimiter, csv_format.header, csv_format.batch_size)?
             .build()?
         }
+        DataFormat::CsvDefault => {
+            let csv_format = CsvFormat::default();
+            Table::get_builder()
+            .with_name("attachment")
+            .with_csv(values_vec.last().unwrap(), csv_format.delimiter, csv_format.header, csv_format.batch_size)?
+            .build()?
+        }
         DataFormat::Json(json_format) => {
+            Table::get_builder()
+            .with_name("attachment")
+            .with_json(values_vec.last().unwrap(), json_format.batch_size)?
+            .build()?
+        }
+        DataFormat::JsonDefault => {
+            let json_format = JsonFormat::default();
             Table::get_builder()
             .with_name("attachment")
             .with_json(values_vec.last().unwrap(), json_format.batch_size)?

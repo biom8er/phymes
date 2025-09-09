@@ -11,9 +11,9 @@ use parking_lot::Mutex;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     schemas::{
-        available_subjects::{
-            create_chat_record_batch, create_timestamp_micros, AvailableSubjects
-        }, chat::ChatTraitExt, chat_completion::{ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType}
+        available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, 
+        chat::{create_chat_record_batch, ChatTraitExt}, 
+        chat_completion::{ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType}
     },
     session::{
         common_traits::{

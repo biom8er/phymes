@@ -9,10 +9,12 @@ use axum::{
 
 // Streaming imports
 use bytes::Bytes;
+use clap::ValueEnum;
 use futures::prelude::*;
-use phymes_agents::session_plans::available_interface_subjects::create_message_map;
+use phymes_agents::session_plans::available_interface_subjects::{create_message_map, AvailableInterfaceSubjects};
 use phymes_core::{
     metrics::HashMap,
+    schemas::available_subjects::AvailableSubjectsTrait,
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}, session_context::SessionStream},
     table::{data_format::DataFormat, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
     task::message::{IPCMessage, MessageBuilderTrait, MessageTrait},
@@ -89,7 +91,22 @@ pub async fn session_stream(
             // DM: this can be optimized so that the message payload is consumed...
             let bytes = match &payload.get_format() {
                 DataFormat::Ipc => payload.get_message().to_owned(),
-                DataFormat::Bytes => Table::get_builder().with_name(payload.get_subject()).with_bytes(payload.get_message()).unwrap().build().unwrap().to_ipc_stream().unwrap(),
+                DataFormat::Bytes => {
+                    let schema = match AvailableInterfaceSubjects::from_str(payload.get_subject(), false) {
+                        Ok(subject) => subject.to_schema(),
+                        Err(err) => return JsonError::new(format!("{err}"))
+                            .to_response(StatusCode::INTERNAL_SERVER_ERROR),
+                    };
+                    Table::get_builder()
+                        .with_name(payload.get_subject())
+                        .with_schema(schema)
+                        .with_bytes(payload.get_message())
+                        .unwrap()
+                        .build()
+                        .unwrap()
+                        .to_ipc_stream()
+                        .unwrap()
+                }
                 _ => unimplemented!()
             };
             let message = IPCMessage::get_builder()
