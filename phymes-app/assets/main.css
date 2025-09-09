@@ -494,6 +494,7 @@ main .messaging_list .help_li_item p, main .messaging_list .help_li_item span, m
 	text-align: left;
 }
 
+/* mermaid.js visualizations */
 #graphDiv {
     width: 99%;
     height: 90%;

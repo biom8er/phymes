@@ -1,6 +1,6 @@
 use crate::state::{
     settings::{sync_current_active_session_state, SyncCurrentActiveSessionState},
-    sign_in::{sync_jwt_state, SyncJWTState, EMAIL},
+    sign_in::{sync_builder_state, sync_debugger_state, sync_jwt_state, SyncBuilderState, SyncDebuggerState, SyncJWTState, BUILDER, DEBUGGER, EMAIL},
 };
 use dioxus::prelude::*;
 
@@ -22,7 +22,7 @@ use phymes_server::server::{
 
 /// View for the user to sign-in
 #[component]
-pub fn sign_in_modal() -> Element {
+pub fn sign_in_view() -> Element {
     // Sign-in signals
     #[allow(clippy::redundant_closure)]
     let mut email = use_signal(|| String::new());
@@ -41,6 +41,7 @@ pub fn sign_in_modal() -> Element {
             div {
                 class: "messaging_list",
                 p { "Signed in as {EMAIL.read().to_string()}." },
+                sign_in_mode {}
             }
         } else {
             // DM: Refactor the login to include a registration and forgot password
@@ -152,6 +153,48 @@ pub fn sign_in_modal() -> Element {
                     "forgot password"
                 }
                 p { "{content.to_string()}" }
+            }
+        }
+    }
+}
+
+
+/// View for the user to sign-in
+#[component]
+pub fn sign_in_mode() -> Element {
+    // intialize state and coroutines
+    use_coroutine(sync_builder_state);
+    use_coroutine(sync_debugger_state);
+
+    // memos for handling global state
+    let builder = use_memo(move || BUILDER());
+    let debugger = use_memo(move || DEBUGGER());
+
+    rsx! {
+        div {
+            h2 { "Builder mode" },
+            label { r#for: "builder-slider", "Builder mode" }
+            input {
+                r#type: "checkbox",
+                id: "builder-slider",
+                checked: builder(),
+                oninput: move |evt| async move {
+                    let sync_builder_state = use_coroutine_handle::<SyncBuilderState>();
+                    sync_builder_state.send(SyncBuilderState { show: evt.checked()});
+                },
+            }
+        }                    
+        div {
+            h2 { "Debugger mode" },
+            label { r#for: "debugger-slider", "Debugger mode" }
+            input {
+                r#type: "checkbox",
+                id: "debugger-slider",
+                checked: debugger(),
+                oninput: move |evt| async move {
+                    let sync_debugger_state = use_coroutine_handle::<SyncDebuggerState>();
+                    sync_debugger_state.send(SyncDebuggerState { show: evt.checked()});
+                },
             }
         }
     }

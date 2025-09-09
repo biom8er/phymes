@@ -1,14 +1,16 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
+use crate::state::sign_in::{BUILDER, DEBUGGER};
+
 use super::messaging::{messaging_interface_footer, messaging_interface_view};
 use super::metrics::metrics_modal;
 use super::settings::{settings_interface_footer, settings_interface_view};
-use super::sign_in::sign_in_modal;
+use super::sign_in::sign_in_view;
 use super::subjects::subjects_modal;
 use super::svg_icons::{
     database_icon_svg, help_icon_svg, logo_icon_svg, menu_icon_svg, message_icon_svg,
-    person_icon_svg, apps_icon_svg, top_speed_icon_svg,
+    person_icon_svg, apps_icon_svg, top_speed_icon_svg, tools_icon_svg
 };
 
 #[component]
@@ -21,7 +23,8 @@ pub fn title() -> Element {
 pub enum HeaderMenu {
     Help,
     Account,
-    Settings,
+    Apps,
+    Builds,
     Subjects,
     Message,
     Metrics,
@@ -32,7 +35,8 @@ impl HeaderMenu {
         match self {
             Self::Help => "Help",
             Self::Account => "Account",
-            Self::Settings => "Settings",
+            Self::Apps => "Apps",
+            Self::Builds => "Builds",
             Self::Subjects => "Subjects",
             Self::Message => "Message",
             Self::Metrics => "Metrics",
@@ -42,6 +46,7 @@ impl HeaderMenu {
 
 #[component]
 pub fn main_window() -> Element {
+    // View control signals
     let mut header_menu: Signal<HeaderMenu> = use_signal(|| HeaderMenu::Account);
     let mut navbar_toggle: Signal<bool> = use_signal(|| false);
 
@@ -108,15 +113,6 @@ pub fn main_window() -> Element {
                         rel: "noopener noreferrer",
                         svg { dangerous_inner_html: logo_icon_svg() }
                     }
-                    // form {
-                    //     id: "search_form",
-                    //     input {
-                    //         r#type: "text",
-                    //         placeholder: "search messages",
-                    //     }
-                    // }
-                    // // DM: convert to buttons that actually do something
-                    // button { svg { dangerous_inner_html: search_icon_svg() } }
                 }
             }
 
@@ -130,39 +126,50 @@ pub fn main_window() -> Element {
                     },
                     svg { dangerous_inner_html: person_icon_svg() }
                 }
-                button {
-                    onclick: move |_| async move {
-                        header_menu.set(HeaderMenu::Settings);
-                    },
-                    // svg { dangerous_inner_html: settings_icon_svg() }
-                    svg { dangerous_inner_html: apps_icon_svg() }
-                }
-                button {
-                    onclick: move |_| async move {
-                        header_menu.set(HeaderMenu::Subjects);
-                    },
-                    svg { dangerous_inner_html: database_icon_svg() }
-                }
-                button {
-                    onclick: move |_| async move {
-                        header_menu.set(HeaderMenu::Message);
-                    },
-                    svg { dangerous_inner_html: message_icon_svg() }
-                }
-                button {
-                    onclick: move |_| async move {
-                        header_menu.set(HeaderMenu::Metrics);
-                    },
-                    svg { dangerous_inner_html: top_speed_icon_svg() }
-                }
+                // if BUILDER() {
+                //     button {
+                //         onclick: move |_| async move {
+                //             header_menu.set(HeaderMenu::Builds);
+                //         },
+                //         svg { dangerous_inner_html: tools_icon_svg() }
+                //     }
+                // } else {
+                //     button {
+                //         onclick: move |_| async move {
+                //             header_menu.set(HeaderMenu::Apps);
+                //         },
+                //         // svg { dangerous_inner_html: settings_icon_svg() }
+                //         svg { dangerous_inner_html: apps_icon_svg() }
+                //     }
+                //     button {
+                //         onclick: move |_| async move {
+                //             header_menu.set(HeaderMenu::Message);
+                //         },
+                //         svg { dangerous_inner_html: message_icon_svg() }
+                //     }
+                // }
+                // if DEBUGGER() {
+                //     button {
+                //         onclick: move |_| async move {
+                //             header_menu.set(HeaderMenu::Subjects);
+                //         },
+                //         svg { dangerous_inner_html: database_icon_svg() }
+                //     }
+                //     button {
+                //         onclick: move |_| async move {
+                //             header_menu.set(HeaderMenu::Metrics);
+                //         },
+                //         svg { dangerous_inner_html: top_speed_icon_svg() }
+                //     }
+                // }                
             }
 
             // DM: required because each component is its own type!
             if header_menu.read().as_str() == "Help" {
                 about_text_modal {},
             } else if header_menu.read().as_str() == "Account" {
-                sign_in_modal {},
-            } else if header_menu.read().as_str() == "Settings" {
+                sign_in_view {},
+            } else if header_menu.read().as_str() == "Apps" {
                 settings_interface_view {},
                 split_panel_drag_handle {}, 
                 settings_interface_footer {},
@@ -320,18 +327,17 @@ pub fn about_text_modal() -> Element {
                 li {
                     div {
                         class: "help_li_item",
-                        h2 { "{HeaderMenu::Settings.as_str()}" }
-                        // svg { dangerous_inner_html: settings_icon_svg() }
-                        svg { dangerous_inner_html: apps_icon_svg() }
+                        h2 { "{HeaderMenu::Builds.as_str()}" }
+                        svg { dangerous_inner_html: tools_icon_svg() }
                         p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
                     }
                 }
                 li {
                     div {
                         class: "help_li_item",
-                        h2 { "{HeaderMenu::Subjects.as_str()}" }
-                        svg { dangerous_inner_html: database_icon_svg() }
-                        p { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
+                        h2 { "{HeaderMenu::Apps.as_str()}" }
+                        svg { dangerous_inner_html: apps_icon_svg() }
+                        p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
                     }
                 }
                 li {
@@ -340,6 +346,14 @@ pub fn about_text_modal() -> Element {
                         h2 { "{HeaderMenu::Message.as_str()}" }
                         svg { dangerous_inner_html: message_icon_svg() }
                         p { "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated." }
+                    }
+                }
+                li {
+                    div {
+                        class: "help_li_item",
+                        h2 { "{HeaderMenu::Subjects.as_str()}" }
+                        svg { dangerous_inner_html: database_icon_svg() }
+                        p { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
                     }
                 }
                 li {

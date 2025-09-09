@@ -2,7 +2,6 @@ use dioxus::prelude::*;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
-// Sign-in State
 #[allow(clippy::redundant_closure)]
 pub static JWT: GlobalSignal<String> = Signal::global(|| String::new());
 #[allow(clippy::redundant_closure)]
@@ -27,4 +26,32 @@ pub async fn sync_jwt_state(mut rx: UnboundedReceiver<SyncJWTState>) {
         (*EMAIL.write()).push_str(updated_state.email.as_str());
     }
     (*SESSION_NAMES.write()).sort();
+}
+
+#[allow(clippy::redundant_closure)]
+pub static BUILDER: GlobalSignal<bool> = Signal::global(|| false);
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SyncBuilderState {
+    pub show: bool,
+}
+
+pub async fn sync_builder_state(mut rx: UnboundedReceiver<SyncBuilderState>) {
+    while let Some(updated_state) = rx.next().await {
+        (*BUILDER.write()) = updated_state.show;
+    }
+}
+
+#[allow(clippy::redundant_closure)]
+pub static DEBUGGER: GlobalSignal<bool> = Signal::global(|| false);
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SyncDebuggerState {
+    pub show: bool,
+}
+
+pub async fn sync_debugger_state(mut rx: UnboundedReceiver<SyncDebuggerState>) {
+    while let Some(updated_state) = rx.next().await {
+        (*DEBUGGER.write()) = updated_state.show;
+    }
 }
