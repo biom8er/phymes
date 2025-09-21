@@ -25,10 +25,11 @@ use phymes_server::server::{
 pub fn sign_in_view() -> Element {
     rsx! {
         sign_in_form {}
-        // if !EMAIL.read().is_empty() {
-        //     sign_in_mode {}
-        // } else {
+        // sign_in_mode {}
+        // if EMAIL.read().is_empty() {
         //     sign_in_form {}
+        // } else {
+        //     sign_in_mode {}
         // }
     }
 }
@@ -158,10 +159,19 @@ pub fn sign_in_form() -> Element {
                 "forgot password"
             }
             p { "{content.to_string()}" }
+            if !EMAIL.read().is_empty() {
+                p { "Signed in as {EMAIL.read().to_string()}." },
+                button {
+                    onclick: move |_| async move {
+                        let clear_jwt_state = use_coroutine_handle::<ClearJWTState>();
+                        clear_jwt_state.send(ClearJWTState {});
+                    },
+                    "sign-out"
+                },
+            }            
         }
     }
 }
-
 
 /// View for the user to sign-in
 #[component]
@@ -189,14 +199,6 @@ pub fn sign_in_mode() -> Element {
     rsx! {
         div {
             class: "messaging_list",
-            p { "Signed in as {EMAIL.read().to_string()}." },
-            button {
-                onclick: move |_| async move {
-                    let clear_jwt_state = use_coroutine_handle::<ClearJWTState>();
-                    clear_jwt_state.send(ClearJWTState {});
-                },
-                "sign-out"
-            },
             p { "Application modes" }
             button {
                 onclick: move |_evt| async move {                    
