@@ -5,7 +5,7 @@ use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans
 use std::sync::Arc;
 
 // From crates
-use phymes_core::{metrics::HashMap, session::session_context::SessionStreamState};
+use phymes_core::{metrics::HashMap, session::{session_context::SessionStreamState, session_context_builder::SessionContextBuilder}};
 
 use crate::handlers::sign_in::{create_session_name, test_sign_in_handler};
 
@@ -15,6 +15,10 @@ pub struct ServerState {
     /// HashMap of sessions indexed by session name
     ///   where the session name = session_name + user_name
     pub session_contexts: Arc<RwLock<HashMap<String, Arc<RwLock<SessionStreamState>>>>>,
+    // /// Session builders
+    // /// HashMap of sessions builders indexed by session name
+    // ///   where the session name = session_name + user_name
+    // pub session_context_builders: Arc<RwLock<HashMap<String, Arc<RwLock<SessionContextBuilder>>>>>,
 }
 
 impl Default for ServerState {

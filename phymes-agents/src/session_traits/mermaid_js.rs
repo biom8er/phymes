@@ -41,6 +41,7 @@ use phymes_ml::{
     openai_chat::chat_processor::OpenAIChatProcessor,
     openai_embed::embed_processor::OpenAIEmbedProcessor,
 };
+use serde::{Deserialize, Serialize};
 
 /// Helper function to convert an arrow [DataType] to a [String]
 pub fn from_data_type_to_str(data_type: &DataType) -> String {
@@ -1226,6 +1227,29 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }        
 
         Ok(self.with_state(subjects))
+    }
+}
+
+#[derive(Default, Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct SessionContextBuilderMermaid {
+    pub name: Option<String>,
+    pub flowchart: Option<String>,
+    pub erdiagram: Option<String>,
+}
+
+impl BuilderTrait for SessionContextBuilderMermaid {
+    type T = SessionContext;
+    fn new() -> Self {
+        Self {
+            name: None,
+            flowchart: None,
+            erdiagram: None,
+        }
+    }
+
+    fn with_name(mut self, name: &str) -> Self {
+        self.name = Some(name.to_string());
+        self
     }
 }
 
