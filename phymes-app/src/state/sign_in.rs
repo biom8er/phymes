@@ -31,10 +31,12 @@ pub async fn sync_jwt_state(mut rx: UnboundedReceiver<SyncJWTState>) {
 }#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ClearJWTState {}
 
-pub async fn clear_jwt_state(mut _rx: UnboundedReceiver<ClearJWTState>) {
-    (*SESSION_NAMES.write()).clear();
-    (*JWT.write()).clear();
-    (*EMAIL.write()).clear();
+pub async fn clear_jwt_state(mut rx: UnboundedReceiver<ClearJWTState>) {
+    while let Some(updated_state) = rx.next().await {
+        (*SESSION_NAMES.write()).clear();
+        (*JWT.write()).clear();
+        (*EMAIL.write()).clear();
+    }
 }
 
 #[allow(clippy::redundant_closure)]

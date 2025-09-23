@@ -79,6 +79,9 @@ pub fn main_window() -> Element {
         );
     });
 
+    let is_debugger = use_memo(move || DEBUGGER());
+    let is_builder = use_memo(move || BUILDER());
+
     rsx! {
         main {
             id: "chat_main",
@@ -126,7 +129,7 @@ pub fn main_window() -> Element {
                     },
                     svg { dangerous_inner_html: person_icon_svg() }
                 }
-                if BUILDER() {
+                if is_builder() {
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Builds);
@@ -148,7 +151,7 @@ pub fn main_window() -> Element {
                         svg { dangerous_inner_html: message_icon_svg() }
                     }
                 }
-                if DEBUGGER() {
+                if is_debugger() {
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Subjects);
