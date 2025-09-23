@@ -36,7 +36,7 @@ use crate::{
             sync_current_message_state, ClearCurrentMessageState, SyncCurrentMessageContentState,
             SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
         },
-        settings::ACTIVE_SESSION_NAME,
+        apps::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
     },
     ui::svg_icons::{assistant_icon_svg, attachment_icon_svg, microphone_icon_svg, send_icon_svg, user_icon_svg},

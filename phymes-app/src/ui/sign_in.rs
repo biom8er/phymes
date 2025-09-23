@@ -1,5 +1,5 @@
 use crate::state::{
-    settings::{sync_current_active_session_state, SyncCurrentActiveSessionState},
+    apps::{sync_current_active_session_state, SyncCurrentActiveSessionState},
     sign_in::{clear_jwt_state, sync_builder_state, sync_debugger_state, sync_jwt_state, ClearJWTState, SyncBuilderState, SyncDebuggerState, SyncJWTState, BUILDER, DEBUGGER, EMAIL, JWT},
 };
 use dioxus::prelude::*;

@@ -2,10 +2,11 @@
 use dioxus::prelude::*;
 
 use crate::state::sign_in::{BUILDER, DEBUGGER};
+use crate::ui::builds::builds_interface_footer;
 
 use super::messaging::{messaging_interface_footer, messaging_interface_view};
 use super::metrics::metrics_modal;
-use super::settings::{settings_interface_footer, settings_interface_view};
+use super::apps::apps_interface_view;
 use super::sign_in::sign_in_view;
 use super::subjects::subjects_modal;
 use super::svg_icons::{
@@ -50,8 +51,8 @@ pub fn main_window() -> Element {
     let mut header_menu: Signal<HeaderMenu> = use_signal(|| HeaderMenu::Account);
     let mut navbar_toggle: Signal<bool> = use_signal(|| false);
 
+    // Toggle the sidebar visibility
     use_effect(move || {
-        // Toggle the sidebar visibility
         let navbar_toggle = navbar_toggle.read();
         document::eval(
             format!(
@@ -79,6 +80,7 @@ pub fn main_window() -> Element {
         );
     });
 
+    // Determine sidebar menu items to show
     let is_debugger = use_memo(move || DEBUGGER());
     let is_builder = use_memo(move || BUILDER());
 
@@ -172,10 +174,12 @@ pub fn main_window() -> Element {
                 about_text_modal {},
             } else if header_menu.read().as_str() == "Account" {
                 sign_in_view {},
-            } else if header_menu.read().as_str() == "Apps" {
-                settings_interface_view {},
+            } else if header_menu.read().as_str() == "Builds" {
+                apps_interface_view {},
                 split_panel_drag_handle {}, 
-                settings_interface_footer {},
+                builds_interface_footer {},
+            } else if header_menu.read().as_str() == "Apps" {
+                apps_interface_view {},
             } else if header_menu.read().as_str() == "Subjects" {
                 subjects_modal {},
             } else if header_menu.read().as_str() == "Message" {

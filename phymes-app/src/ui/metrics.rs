@@ -29,10 +29,10 @@ use crate::{
             SyncCurrentActiveMetricState, SyncCurrentMetricsMermaidJSState, ACTIVE_METRIC,
             MERMAID_ELAPSED_COMPUTE, MERMAID_OUTPUT_ROWS, MERMAID_PROCESSOR_TRACES,
         },
-        settings::ACTIVE_SESSION_NAME,
+        apps::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
     },
-    ui::{settings::render_mermaid_svg, svg_icons::search_icon_svg},
+    ui::{apps::render_mermaid_svg, svg_icons::search_icon_svg},
 };
 
 const SESSION_METRICS_HEADERS: [&str; 3] = ["processor_traces", "elapsed_compute", "output_rows"];

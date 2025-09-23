@@ -11,16 +11,16 @@ use serde_json::{Map, Value};
 use crate::{
     state::{
         messaging::{clear_current_message_state, ClearCurrentMessageState},
-        settings::{
+        apps::{
             sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_MERMAID_ERDIAGRAM, SESSION_MERMAID_FLOWCHART
         },
         sign_in::{EMAIL, JWT, SESSION_NAMES},
     },
-    ui::svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, search_icon_svg, trash_icon_svg},
+    ui::svg_icons::{column_arrow_right_icon_svg, search_icon_svg},
 };
 
 #[cfg(feature = "mermaid_js")]
-use crate::state::settings::MermaidJsObject;
+use crate::state::apps::MermaidJsObject;
 #[cfg(feature = "mermaid_js")]
 use phymes_agents::session_traits::mermaid_js::SessionContextBuilderMermaidTrait;
 #[cfg(feature = "mermaid_js")]
@@ -55,7 +55,7 @@ pub fn get_non_duplicated_sorted_subjects(subjects: &[&str]) -> Vec<String> {
 
 /// View for the per runtime settings
 #[component]
-pub fn settings_interface_view() -> Element {
+pub fn apps_interface_view() -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_current_session_mermaid_state);
 
@@ -194,7 +194,7 @@ pub fn settings_interface_view() -> Element {
                     } else {
                         div {
                             class: "messaging_list",
-                            settings_dropdown_view {}
+                            apps_dropdown_view {}
                             p { "{error}" },
                         }
                     }
@@ -216,7 +216,7 @@ pub fn settings_interface_view() -> Element {
                     } else {
                         div {
                             class: "messaging_list",
-                            settings_dropdown_view {}
+                            apps_dropdown_view {}
                             p { "{error_mjs}" },
                             p { "{error_ctxb}" },
                         }
@@ -239,7 +239,7 @@ pub fn settings_interface_view() -> Element {
                     } else {
                         div {
                             class: "messaging_list",
-                            settings_dropdown_view {},
+                            apps_dropdown_view {},
                             div {
                                 id: "graphDiv",
                                 class: "mermaid",
@@ -265,7 +265,7 @@ pub fn settings_interface_view() -> Element {
                     } else {
                         div {
                             class: "messaging_list",
-                            settings_dropdown_view {},
+                            apps_dropdown_view {},
                         }
                     }
                 }
@@ -286,7 +286,7 @@ pub fn settings_interface_view() -> Element {
             } else {
                 div {
                     class: "messaging_list",
-                    settings_dropdown_view {},
+                    apps_dropdown_view {},
                 }
             }
         }
@@ -296,7 +296,7 @@ pub fn settings_interface_view() -> Element {
 
 /// View for the per runtime settings
 #[component]
-pub fn settings_dropdown_view() -> Element {
+pub fn apps_dropdown_view() -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_current_active_session_state);
     use_coroutine(clear_current_message_state);
@@ -325,7 +325,7 @@ pub fn settings_dropdown_view() -> Element {
                 class: "dropdown_form_input",
                 input {
                     r#type: "text",
-                    placeholder: "search session",
+                    placeholder: "search apps",
                     value: "{subject_dropdown}",
                     onclick: move |_| show_subject_dropdown.set(true),
                     onfocusout: move |_| show_subject_dropdown.set(false),
@@ -356,21 +356,12 @@ pub fn settings_dropdown_view() -> Element {
                 svg { dangerous_inner_html: search_icon_svg() },
             },
             button { 
-                svg { dangerous_inner_html: trash_icon_svg() },
-            },
-            button { 
                 onclick: move |_| async move {
                     let current = IS_FLOWCHART_SHOWN.read().to_owned();
                     let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
                     sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
                 },
                 svg { dangerous_inner_html: column_arrow_right_icon_svg() },
-            },
-            button { 
-                svg { dangerous_inner_html: edit_icon_svg() },
-            },
-            button { 
-                svg { dangerous_inner_html: deploy_icon_svg() },
             },
         }
 
@@ -379,7 +370,7 @@ pub fn settings_dropdown_view() -> Element {
             div {
                 class: "dropdown_list",
                 ul {
-                    id: "sessions_dropdown_list",
+                    id: "apps_dropdown_list",
                     {subjects_vec().iter().filter(|s| ACTIVE_SESSION_NAME.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
                         let sub = sub.clone();
                         rsx! {
@@ -498,62 +489,4 @@ pub fn render_mermaid_svg(
     });
 
     rendered_html
-}
-
-/// Diagram code editor
-#[component]
-pub fn settings_interface_footer() -> Element {
-    use_coroutine(sync_current_session_mermaid_state);
-    let diagram_code: Memo<String> = use_memo(move || {
-        if IS_FLOWCHART_SHOWN() {
-            SESSION_MERMAID_FLOWCHART.read().to_string()
-        } else {
-            SESSION_MERMAID_ERDIAGRAM.read().to_string()
-        }        
-    });
-
-    rsx! {
-        if !JWT.read().is_empty() && !ACTIVE_SESSION_NAME.read().is_empty() {
-            footer {
-                class: "resizable_text_input",
-                div {
-                    class: "text_input",
-                    form {
-                        id: "diagram_code_form",
-                        textarea {
-                            value: "{diagram_code.to_string()}",
-                            oninput: move |event| async move {
-                                let sync_current_session_mermaid_state = use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
-                                let current_session_mermaid_js = if IS_FLOWCHART_SHOWN() {
-                                    SyncCurrentSessionMermaidJSState {
-                                        flowchart: Some(event.value()),
-                                        erdiagram: None,
-                                    }
-                                } else {
-                                    SyncCurrentSessionMermaidJSState {
-                                        flowchart: None,
-                                        erdiagram: Some(event.value()),
-                                    }
-                                };
-                                sync_current_session_mermaid_state.send(current_session_mermaid_js);
-                            },
-                        }
-                    }
-                }
-
-                div {
-                    class: "submit_button",
-                    // This must be outside the form or it will be refreshed on each submit
-                    button {
-                        onclick: move |_| async move {
-                            // TODO: create new session
-                        },
-                        if !diagram_code().is_empty() {
-                            svg { dangerous_inner_html: save_icon_svg() }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

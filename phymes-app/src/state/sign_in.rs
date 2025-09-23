@@ -8,6 +8,8 @@ pub static JWT: GlobalSignal<String> = Signal::global(|| String::new());
 pub static EMAIL: GlobalSignal<String> = Signal::global(|| String::new());
 #[allow(clippy::redundant_closure)]
 pub static SESSION_NAMES: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+#[allow(clippy::redundant_closure)]
+pub static BUILD_NAMES: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyncJWTState {

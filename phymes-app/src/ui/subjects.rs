@@ -29,7 +29,7 @@ use phymes_server::server::{
 
 use crate::{
     state::{
-        settings::ACTIVE_SESSION_NAME,
+        apps::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
         subjects::{
             clear_subject_num_rows_state, clear_subject_schema_state,
@@ -40,7 +40,7 @@ use crate::{
         },
     },
     ui::{
-        settings::get_non_duplicated_sorted_subjects,
+        apps::get_non_duplicated_sorted_subjects,
         svg_icons::{
             arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg,
             table_icon_svg,
