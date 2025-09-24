@@ -4,8 +4,6 @@ use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, datatypes::
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::create_timestamp_micros, table::table::TableBuilder};
-
 pub fn create_user_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let first_name = Field::new("first_name", DataType::Utf8, false);
@@ -69,54 +67,6 @@ pub fn create_user_batch(
     Ok(batch)
 }
 
-pub trait UserBuilderTraitExt: Sized {
-    fn with_user(self, 
-        email: Option<&str>, 
-        first_name: Option<&str>, 
-        last_name: Option<&str>, 
-        password_hash: Option<&str>, 
-        // session_contexts: Option<Vec<String>>
-    ) -> Result<Self>;
-}
-
-impl UserBuilderTraitExt for TableBuilder {
-    fn with_user(mut self, 
-        email: Option<&str>, 
-        first_name: Option<&str>, 
-        last_name: Option<&str>, 
-        password_hash: Option<&str>, 
-        // session_contexts: Option<Vec<String>>
-    ) -> Result<Self> {
-        // Handle the metadata
-        let email = email.unwrap_or_default().to_string();
-        let first_name = first_name.unwrap_or_default().to_string();
-        let last_name = last_name.unwrap_or_default().to_string();
-        let password_hash = password_hash.unwrap_or_default().to_string();
-        // let session_contexts = session_contexts.unwrap_or_default();
-
-        // Add the record batch to the table
-        let batch = create_user_batch(
-            vec![email],
-            vec![first_name],
-            vec![last_name],
-            vec![password_hash],
-            vec![create_timestamp_micros()],
-            // vec![session_contexts],
-        )?;
-        match self.record_batches {
-            Some(ref mut batches) => {
-                batches.push(batch);
-                Ok(self)
-            }
-            None => {
-                self.schema = Some(batch.schema());
-                self.record_batches = Some(vec![batch]);
-                Ok(self)
-            }
-        }        
-    }
-}
-
 pub fn create_user_session_contexts_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
@@ -149,34 +99,4 @@ pub fn create_user_session_contexts_batch(
         ("timestamp", timestamp),
     ])?;
     Ok(batch)
-}
-
-pub trait UserSessionContextsBuilderTraitExt: Sized {
-    fn with_user_session_contexts(self, email: Option<&str>, session_context_name: Option<&str>) -> Result<Self>;
-}
-
-impl UserSessionContextsBuilderTraitExt for TableBuilder {
-    fn with_user_session_contexts(mut self, email: Option<&str>, session_context_name: Option<&str>) -> Result<Self> {
-        // Handle the metadata
-        let email = email.unwrap_or_default().to_string();
-        let session_context_name = session_context_name.unwrap_or_default().to_string();
-
-        // Add the record batch to the table
-        let batch = create_user_session_contexts_batch(
-            vec![email],
-            vec![session_context_name],
-            vec![create_timestamp_micros()],
-        )?;
-        match self.record_batches {
-            Some(ref mut batches) => {
-                batches.push(batch);
-                Ok(self)
-            }
-            None => {
-                self.schema = Some(batch.schema());
-                self.record_batches = Some(vec![batch]);
-                Ok(self)
-            }
-        }        
-    }
 }

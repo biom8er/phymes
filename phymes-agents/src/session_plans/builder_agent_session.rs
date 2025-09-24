@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    schemas::{available_subjects::AvailableSubjects, mermaid::MermaidBuilderTraitExt}, session::{
+    schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects}, mermaid::create_mermaid_batch}, session::{
         common_traits::{BuildableTrait, BuilderTrait},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     }, table::{
-        table::Table, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        table::{Table, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
 
@@ -74,19 +74,28 @@ impl CustomAgentsBuilderTrait for BuilderAgentSession<'_> {
 
     fn make_state_tables(&self) -> Option<Vec<Table>> {
         // Initialize with chat, doc, and tool agent session diagrams
-        let mut table_builder = Table::get_builder()
-            .with_name(AvailableSubjects::Mermaid.to_string().as_str());
+        let mut session_context_names = Vec::new();
+        let mut flowchart_diagram = Vec::new();
+        let mut er_diagram = Vec::new();
+        let mut timestamp = Vec::new();
         for session_context_name in AvailableSessionPlans::get_deployable_session_plan_names() {
             let builder = AvailableSessionPlans::get_session_context_builder_by_name(&session_context_name, &session_context_name).unwrap();
-            let flowchart_diagram = builder.to_mermaid_flowchart().unwrap();
-            let er_diagram = builder.to_mermaid_erdiagram().unwrap();
-            table_builder = table_builder.with_mermaid(
-                Some(AvailableSessionPlans::Chat.to_string().as_str()), 
-                Some(&flowchart_diagram), 
-                Some(&er_diagram)).unwrap();
+            flowchart_diagram.push(builder.to_mermaid_flowchart().unwrap());
+            er_diagram.push(builder.to_mermaid_erdiagram().unwrap());
+            session_context_names.push(session_context_name);
+            timestamp.push(create_timestamp_micros());
         }
+        
+        // Create the table
+        let batch = create_mermaid_batch(session_context_names, flowchart_diagram, er_diagram, timestamp).unwrap();
+        let table = Table::get_builder()
+            .with_name(AvailableSubjects::Mermaid.to_string().as_str())
+            .with_record_batches(vec![batch])
+            .unwrap()
+            .build()
+            .unwrap();
         Some(vec![           
-            table_builder.build().unwrap(),
+            table,
         ])
     }
 }

@@ -52,9 +52,8 @@ pub fn metrics_modal() -> Element {
     );
 
     // Get the active session info for the metrics view
+    let sync_current_metrics_mermaid_state = use_coroutine_handle::<SyncCurrentMetricsMermaidJSState>();
     let _ = use_resource(move || async move {
-        let sync_current_metrics_mermaid_state =
-            use_coroutine_handle::<SyncCurrentMetricsMermaidJSState>();
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
             .with_subject(SessionContextTableNames::MetricsGantt.get_name())

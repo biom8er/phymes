@@ -4,6 +4,8 @@ use crate::state::{
 };
 use dioxus::prelude::*;
 
+use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
+use phymes_core::schemas::available_subjects::AvailableSubjects;
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
@@ -23,15 +25,10 @@ use phymes_server::server::{
 /// View for the user to sign-in
 #[component]
 pub fn sign_in_view() -> Element {
-    // Memo to safetly determine sign-in
-    let is_signed_in = use_memo(move || {
-        !JWT.read().is_empty()
-    });
-
     rsx! {
         div {
             class: "messaging_list",
-            if is_signed_in() {
+            if !JWT.read().is_empty() {
                 sign_out_form {}
                 application_mode {}
             } else {
@@ -55,6 +52,8 @@ pub fn sign_in_form() -> Element {
     // intialize state and coroutines
     use_coroutine(sync_jwt_state);
     use_coroutine(sync_current_active_session_state);
+    let sync_jwt = use_coroutine_handle::<SyncJWTState>();
+    let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
 
     // DM: Refactor the login to include a registration and forgot password
     //  1. enter email
@@ -89,7 +88,6 @@ pub fn sign_in_form() -> Element {
         }
         button {
             onclick: move |_| async move {
-                let sync_jwt = use_coroutine_handle::<SyncJWTState>();
                 let route = "/app/v1/sign_in";
 
                 #[cfg(not(feature = "serverless"))]
@@ -105,7 +103,6 @@ pub fn sign_in_form() -> Element {
                         .await {
                             Ok(jwt_json) => {
                                 // Set the active session
-                                let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
                                 sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_plans.first().unwrap().to_string() });
 
                                 // Set the sign-in credentials
@@ -149,7 +146,6 @@ pub fn sign_in_form() -> Element {
                         let jwt_json: SyncJWTState = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
                         // Set the active session
-                        let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
                         sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_plans.first().unwrap().to_string() });
 
                         // Set the sign-in credentials
@@ -182,12 +178,12 @@ pub fn sign_in_form() -> Element {
 #[component]
 pub fn sign_out_form() -> Element {
     use_coroutine(clear_jwt_state);
+    let clear_jwt_state = use_coroutine_handle::<ClearJWTState>();
 
     rsx! {
         p { "Signed in as {EMAIL.read().to_string()}." },
         button {
             onclick: move |_| async move {
-                let clear_jwt_state = use_coroutine_handle::<ClearJWTState>();
                 clear_jwt_state.send(ClearJWTState {});
             },
             "sign-out"
@@ -201,7 +197,11 @@ pub fn application_mode() -> Element {
     // intialize state and coroutines
     use_coroutine(sync_builder_state);
     use_coroutine(sync_debugger_state);
+    use_coroutine(sync_current_active_session_state);
+    let sync_builder_state = use_coroutine_handle::<SyncBuilderState>();
+    let sync_debugger_state = use_coroutine_handle::<SyncDebuggerState>();
 
+    // Determine the button text
     let builder = use_memo(move || {
         if BUILDER() {
             "disable builder mode"
@@ -220,15 +220,13 @@ pub fn application_mode() -> Element {
     rsx! {
         p { "Application modes" }
         button {
-            onclick: move |_evt| async move {                    
-                let sync_builder_state = use_coroutine_handle::<SyncBuilderState>();
+            onclick: move |_evt| async move {
                 sync_builder_state.send(SyncBuilderState { show: !BUILDER()});
             },
             "{builder}"
         },
         button {
             onclick: move |_evt| async move {
-                let sync_debugger_state = use_coroutine_handle::<SyncDebuggerState>();
                 sync_debugger_state.send(SyncDebuggerState { show: !DEBUGGER()});
             },
             "{debugger}"

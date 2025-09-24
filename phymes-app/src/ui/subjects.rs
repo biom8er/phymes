@@ -134,6 +134,10 @@ pub fn subjects_modal() -> Element {
     use_coroutine(clear_subject_schema_state);
     use_coroutine(sync_current_subject_num_rows_state);
     use_coroutine(clear_subject_num_rows_state);
+    let clear_subjects_schema_state = use_coroutine_handle::<ClearSubjectSchemaState>();
+    let sync_current_subjects_schema_state = use_coroutine_handle::<SyncCurrentSubjectSchemaState>();
+    let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
+    let sync_current_subjects_rows_state = use_coroutine_handle::<SyncCurrentSubjectNumRowsState>();
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
@@ -145,9 +149,6 @@ pub fn subjects_modal() -> Element {
     );
 
     // Get the active session schema for the subject view
-    let clear_subjects_schema_state = use_coroutine_handle::<ClearSubjectSchemaState>();
-    let sync_current_subjects_schema_state =
-        use_coroutine_handle::<SyncCurrentSubjectSchemaState>();
     let _ = use_resource(move || async move {
         clear_subjects_schema_state.send(ClearSubjectSchemaState {});
         let route = "/app/v1/get_state";
@@ -258,8 +259,6 @@ pub fn subjects_modal() -> Element {
 
     // Get the active session row counts for the subject view
     let _ = use_resource(move || async move {
-        let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
-        let sync_current_subjects_rows_state = use_coroutine_handle::<SyncCurrentSubjectNumRowsState>();
         clear_subjects_num_rows_state.send(ClearSubjectNumRowsState {});
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()

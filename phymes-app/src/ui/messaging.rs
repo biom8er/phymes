@@ -47,12 +47,11 @@ use crate::{
 pub fn messaging_interface_view() -> Element {
     // intialize state and coroutines
     use_coroutine(sync_current_message_state);
-    use_coroutine(sync_current_message_content_state);
     use_coroutine(clear_current_message_state);
+    let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
+    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
 
     // Get the last 25 messages for the messages view
-    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
-    let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
     let _ = use_resource(move || async move {
         clear_current_message_state.send(ClearCurrentMessageState {});
         let data = SessionInterfaceMessage::get_builder()
@@ -85,9 +84,10 @@ pub fn messaging_interface_view() -> Element {
                 while let Some(Ok(bytes)) = stream.next().await {
                     let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                     let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|_err| {
-                            // DM: find a better way to give feedback to the user
-                            // content.write().push_str(format!("There was a error parsing SyncCurrentSubjectInfoState {err}.").as_str());
+                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
+                            tracing::error!(
+                                "There was a error parsing SyncCurrentSubjectInfoState {err}."
+                            );
                             Vec::new()
                         });
                     for row in json_rows.iter() {
@@ -103,7 +103,7 @@ pub fn messaging_interface_view() -> Element {
                     }
                 }
             }
-            Err(_err) => (), //content.write().push_str(format!("There was a error getting subjects info {err}.").as_str()),
+            Err(err) => tracing::error!("{err:?}"),
         }
 
         #[cfg(feature = "serverless")]
@@ -150,8 +150,7 @@ pub fn messaging_interface_view() -> Element {
     // initialize the first message (if the are no messages for the session)
     let num_messages = ROLE.len();
     if num_messages == 0 {
-        let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
-        sync_message.send(SyncCurrentMessageState {
+        sync_current_message_state.send(SyncCurrentMessageState {
             role: "assistant".to_string(), 
             content: "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊".to_string(),
             timestamp: create_timestamp_str(),
@@ -218,6 +217,8 @@ pub fn messaging_interface_footer() -> Element {
     // intialize state and coroutines
     use_coroutine(sync_current_message_state);
     use_coroutine(sync_current_message_content_state);
+    let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
+    let sync_message_content = use_coroutine_handle::<SyncCurrentMessageContentState>();
 
     #[allow(clippy::redundant_closure)]
     let mut prompt = use_signal(|| String::new());
@@ -261,18 +262,15 @@ pub fn messaging_interface_footer() -> Element {
                     } else {
                         button {
                             onclick: move |_| async move {
-                                let sync_message = use_coroutine_handle::<SyncCurrentMessageState>();
-                                let sync_message_content = use_coroutine_handle::<SyncCurrentMessageContentState>();
-
                                 // signed in and ready to chat
-                                sync_message.send(SyncCurrentMessageState {
+                                sync_current_message_state.send(SyncCurrentMessageState {
                                     role: "user".to_string(),
                                     content: prompt.to_string(),
                                     timestamp: create_timestamp_str()
                                 });
 
                                 // let the user know that the response is being prepared
-                                sync_message.send(SyncCurrentMessageState {
+                                sync_current_message_state.send(SyncCurrentMessageState {
                                     role: "assistant".to_string(),
                                     content: "Preparing response...".to_string(),
                                     timestamp: create_timestamp_str()

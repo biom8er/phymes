@@ -8,8 +8,6 @@ pub static JWT: GlobalSignal<String> = Signal::global(|| String::new());
 pub static EMAIL: GlobalSignal<String> = Signal::global(|| String::new());
 #[allow(clippy::redundant_closure)]
 pub static SESSION_NAMES: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
-#[allow(clippy::redundant_closure)]
-pub static BUILD_NAMES: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyncJWTState {
@@ -28,13 +26,13 @@ pub async fn sync_jwt_state(mut rx: UnboundedReceiver<SyncJWTState>) {
         (*EMAIL.write()).push_str(updated_state.email.as_str());
     }
     (*SESSION_NAMES.write()).sort();
+}
 
-
-}#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ClearJWTState {}
 
 pub async fn clear_jwt_state(mut rx: UnboundedReceiver<ClearJWTState>) {
-    while let Some(updated_state) = rx.next().await {
+    while let Some(_updated_state) = rx.next().await {
         (*SESSION_NAMES.write()).clear();
         (*JWT.write()).clear();
         (*EMAIL.write()).clear();

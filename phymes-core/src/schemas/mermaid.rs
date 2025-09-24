@@ -4,8 +4,6 @@ use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, datatypes::
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::create_timestamp_micros, table::table::TableBuilder};
-
 pub fn create_mermaid_fields() -> Fields {
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
     let flowchart_diagram = Field::new("flowchart_diagram", DataType::Utf8, false);
@@ -44,36 +42,4 @@ pub fn create_mermaid_batch(
         ("timestamp", timestamp),
     ])?;
     Ok(batch)
-}
-
-pub trait MermaidBuilderTraitExt: Sized {
-    fn with_mermaid(self, session_context_name: Option<&str>, flowchart_diagram: Option<&str>, er_diagram: Option<&str>) -> Result<Self>;
-}
-
-impl MermaidBuilderTraitExt for TableBuilder {
-    fn with_mermaid(mut self, session_context_name: Option<&str>, flowchart_diagram: Option<&str>, er_diagram: Option<&str>) -> Result<Self> {
-        // Handle the er_diagram
-        let session_context_name = session_context_name.unwrap_or_default().to_string();
-        let flowchart_diagram = flowchart_diagram.unwrap_or_default().to_string();
-        let er_diagram = er_diagram.unwrap_or_default().to_string();
-
-        // Add the record batch to the table
-        let batch = create_mermaid_batch(
-            vec![session_context_name],
-            vec![flowchart_diagram],
-            vec![er_diagram],
-            vec![create_timestamp_micros()],
-        )?;
-        match self.record_batches {
-            Some(ref mut batches) => {
-                batches.push(batch);
-                Ok(self)
-            }
-            None => {
-                self.schema = Some(batch.schema());
-                self.record_batches = Some(vec![batch]);
-                Ok(self)
-            }
-        }        
-    }
 }

@@ -1,71 +1,13 @@
-use std::collections::HashSet;
-
 use dioxus::prelude::*;
-use futures::StreamExt;
-use phymes_core::{
-    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
-};
-use phymes_server::handlers::sign_in::create_session_name;
-use serde_json::{Map, Value};
 
 use crate::{
     state::{
         apps::{
             sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM
-        }, builds::{BUILDER_ER_DIAGRAM, BUILDER_FLOWCHART_DIAGRAM, BUILDER_SESSION_CONTEXT_NAME}, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{EMAIL, JWT, SESSION_NAMES}
+        }, builds::MERMAID_SESSION_CONTEXT_NAME, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::JWT
     },
-    ui::{apps::get_non_duplicated_sorted_subjects, svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, search_icon_svg, trash_icon_svg}},
+    ui::{apps::get_non_duplicated_sorted_subjects, svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, trash_icon_svg}},
 };
-
-#[cfg(feature = "mermaid_js")]
-use crate::state::apps::MermaidJsObject;
-#[cfg(feature = "mermaid_js")]
-use phymes_agents::session_traits::mermaid::SessionContextBuilderMermaidTrait;
-#[cfg(feature = "mermaid_js")]
-use phymes_core::session::session_context_builder::SessionContextBuilder;
-
-#[cfg(not(feature = "serverless"))]
-use reqwest::{self, header::CONTENT_TYPE};
-
-#[cfg(not(feature = "serverless"))]
-use super::backend::ADDR_BACKEND;
-
-#[cfg(feature = "serverless")]
-use bytes::Bytes;
-#[cfg(feature = "serverless")]
-use futures::TryStreamExt;
-#[cfg(feature = "serverless")]
-use phymes_server::server::{
-    serverless_app::{serverless_app, Serverless},
-    serverless_config::ServerlessConfig,
-};
-
-fn get_builder_name_and_diagrams_by_subject_name(
-    active_session_context_names: &str,
-    builder_session_context_names: &[&str],
-    builder_flowchart_diagram: &[&str],
-    builder_er_diagram: &[&str],
-) -> (Vec<String>, Vec<String>) {
-    let indices = builder_session_context_names
-        .iter()
-        .enumerate()
-        .filter(|(_i, s)| **s == active_session_context_names)
-        .map(|(i, _s)| i)
-        .collect::<Vec<_>>();
-    let flowchart_diagram = builder_flowchart_diagram
-        .iter()
-        .enumerate()
-        .filter(|(i, _s)| indices.contains(i))
-        .map(|(_i, s)| s.to_string())
-        .collect::<Vec<_>>();
-    let er_diagram = builder_er_diagram
-        .iter()
-        .enumerate()
-        .filter(|(i, _s)| indices.contains(i))
-        .map(|(_i, s)| s.to_string())
-        .collect::<Vec<_>>();
-    (flowchart_diagram, er_diagram)
-}
 
 /// View for the builds drop down menu
 #[component]
@@ -74,6 +16,9 @@ pub fn builds_dropdown_view() -> Element {
     use_coroutine(sync_current_active_session_state);
     use_coroutine(clear_current_message_state);
     use_coroutine(sync_is_flowchart_shown_state);
+    let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
+    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
+    let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
 
     // Dropdown signals
     let mut show_subject_dropdown = use_signal(|| false);
@@ -82,7 +27,7 @@ pub fn builds_dropdown_view() -> Element {
 
     let subjects_vec = use_memo(move || {
         get_non_duplicated_sorted_subjects(
-            &BUILDER_SESSION_CONTEXT_NAME
+            &MERMAID_SESSION_CONTEXT_NAME
                 .read()
                 .iter()
                 .map(|s| s.as_str())
@@ -91,29 +36,6 @@ pub fn builds_dropdown_view() -> Element {
     });
     #[allow(clippy::redundant_closure)]
     let mut subjects_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
-
-    let mut flowchart_diagrams = Vec::new();
-    let mut er_diagrams = Vec::new();
-    if flowchart_diagrams.is_empty() {
-        (flowchart_diagrams, er_diagrams) = get_builder_name_and_diagrams_by_subject_name(
-            ACTIVE_SESSION_NAME.read().as_str(),
-            &BUILDER_SESSION_CONTEXT_NAME
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-            &BUILDER_FLOWCHART_DIAGRAM
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-            &BUILDER_ER_DIAGRAM
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-        );
-    }
 
     rsx! {
         div {
@@ -143,11 +65,9 @@ pub fn builds_dropdown_view() -> Element {
                     subject_dropdown.set(String::new());
 
                     // Set the active session
-                    let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
                     sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
 
                     // Reset the current session messaging
-                    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
                     clear_current_message_state.send(ClearCurrentMessageState {});
                 },
                 svg { dangerous_inner_html: edit_icon_svg() },
@@ -158,7 +78,6 @@ pub fn builds_dropdown_view() -> Element {
             button { 
                 onclick: move |_| async move {
                     let current = IS_FLOWCHART_SHOWN.read().to_owned();
-                    let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
                     sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
                 },
                 svg { dangerous_inner_html: column_arrow_right_icon_svg() },

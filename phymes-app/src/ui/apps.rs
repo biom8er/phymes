@@ -2,22 +2,22 @@ use std::collections::HashSet;
 
 use dioxus::prelude::*;
 use futures::StreamExt;
+use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
 use phymes_core::{
-    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
+    schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
 use phymes_server::handlers::sign_in::create_session_name;
 use serde_json::{Map, Value};
 
 use crate::{
     state::{
-        messaging::{clear_current_message_state, ClearCurrentMessageState},
         apps::{
             sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM
-        },
-        sign_in::{EMAIL, JWT, SESSION_NAMES},
+        }, builds::{clear_current_mermaid_state, sync_current_mermaid_state, ClearCurrentMermaidState, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME}, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{BUILDER, EMAIL, JWT, SESSION_NAMES}
     },
-    ui::svg_icons::{column_arrow_right_icon_svg, search_icon_svg},
+    ui::{builds::builds_dropdown_view, svg_icons::{column_arrow_right_icon_svg, search_icon_svg}},
 };
+
 
 #[cfg(feature = "mermaid_js")]
 use crate::state::apps::MermaidJsObject;
@@ -42,6 +42,34 @@ use phymes_server::server::{
     serverless_config::ServerlessConfig,
 };
 
+/// Filter inactive mermaid diagrams
+fn get_mermaid_diagrams_by_session_name(
+    active_session_context_names: &str,
+    builder_session_context_names: &[&str],
+    builder_flowchart_diagram: &[&str],
+    builder_er_diagram: &[&str],
+) -> (Vec<String>, Vec<String>) {
+    let indices = builder_session_context_names
+        .iter()
+        .enumerate()
+        .filter(|(_i, s)| **s == active_session_context_names)
+        .map(|(i, _s)| i)
+        .collect::<Vec<_>>();
+    let flowchart_diagram = builder_flowchart_diagram
+        .iter()
+        .enumerate()
+        .filter(|(i, _s)| indices.contains(i))
+        .map(|(_i, s)| s.to_string())
+        .collect::<Vec<_>>();
+    let er_diagram = builder_er_diagram
+        .iter()
+        .enumerate()
+        .filter(|(i, _s)| indices.contains(i))
+        .map(|(_i, s)| s.to_string())
+        .collect::<Vec<_>>();
+    (flowchart_diagram, er_diagram)
+}
+
 /// Get a non duplicated list of sorted subject names
 pub fn get_non_duplicated_sorted_subjects(subjects: &[&str]) -> Vec<String> {
     let subjects_set = subjects
@@ -58,24 +86,43 @@ pub fn get_non_duplicated_sorted_subjects(subjects: &[&str]) -> Vec<String> {
 pub fn apps_interface_view() -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_current_session_mermaid_state);
-    use_coroutine(sync_current_builder_state);
+    use_coroutine(sync_current_mermaid_state);
+    use_coroutine(clear_current_mermaid_state);
+    let sync_current_mermaid_state = use_coroutine_handle::<SyncCurrentMermaidState>();
+    let clear_current_mermaid_state = use_coroutine_handle::<ClearCurrentMermaidState>();
+    let sync_current_session_mermaid_state = use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
-        .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_format(&DataFormat::Bytes)
-        .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_update(&TablePublish::None)
-        .with_stream(false)
-    );
+    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
+        let session_name = if BUILDER() {
+            // DM: this can be better optimized to prevent redundant API calls each time the active session is changed in Builder mode
+            create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str())
+        } else {
+            create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
+        };
+        SessionInterfaceMessage::get_builder()
+            .with_session_name(&session_name)
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(&session_name)
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+    });
 
-    // Get the active mermaid.js diagrams for the settings view
+    // Get the mermaid.js diagrams for the session
     let _ = use_resource(move || async move {
-        let sync_current_session_mermaid_state =
-            use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
+        
+        // clear the current mermaid state
+        clear_current_mermaid_state.send(ClearCurrentMermaidState {});
+
+        // get the mermaid state
         let route = "/app/v1/get_state";
+        let subject = if BUILDER() {
+            AvailableSubjects::Mermaid.to_string()
+        } else {
+            SessionContextTableNames::MermaidJS.get_name().to_string()
+        };
         let data_serialized = serde_json::to_string(&get_session_state()
-            .with_subject(SessionContextTableNames::MermaidJS.get_name())
+            .with_subject(subject.as_str())
             .make_name()
             .unwrap()
             .build()
@@ -99,24 +146,36 @@ pub fn apps_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
                             tracing::error!(
-                                "There was a error parsing SyncCurrentSubjectInfoState {err}."
+                                "There was a error parsing SyncCurrentMermaidState {err}."
                             );
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        sync_current_session_mermaid_state.send(SyncCurrentSessionMermaidJSState {
-                            flowchart_diagram: Some(row
+                        let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
+                            val.as_u64().unwrap().try_into().unwrap()
+                        } else {
+                            0
+                        };
+                        sync_current_mermaid_state.send(SyncCurrentMermaidState {
+                            session_context_name: row
+                                .get("session_context_name")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            flowchart_diagram: row
                                 .get("flowchart_diagram")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
-                                .to_string()),
-                            er_diagram: Some(row
+                                .to_string(),
+                            er_diagram: row
                                 .get("er_diagram")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
-                                .to_string()),
+                                .to_string(),
+                            timestamp: timestamp
                         });
                     }
                 }
@@ -146,25 +205,71 @@ pub fn apps_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
-                        sync_current_session_mermaid_state.send(SyncCurrentSessionMermaidJSState {
-                            flowchart: Some(row
+                        let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
+                            val.as_u64().unwrap().try_into().unwrap()
+                        } else {
+                            0
+                        };
+                        sync_current_mermaid_state.send(SyncCurrentMermaidState {
+                            session_context_name: row
+                                .get("session_context_name")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                            flowchart_diagram: row
                                 .get("flowchart_diagram")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
-                                .to_string()),
-                            erdiagram: Some(row
+                                .to_string(),
+                            er_diagram: row
                                 .get("er_diagram")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
-                                .to_string()),
+                                .to_string(),
+                            timestamp: timestamp
                         });
                     }
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
         }
+    });
+
+    // Filter the mermaid.js diagrams for the session 
+    let filtered_diagrams = use_memo(move || {        
+        let session_name = if BUILDER() {
+            ACTIVE_SESSION_NAME()
+        } else {
+            create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
+        };
+        get_mermaid_diagrams_by_session_name(
+            &session_name,
+            &MERMAID_SESSION_CONTEXT_NAME
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &MERMAID_FLOWCHART_DIAGRAM
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &MERMAID_ER_DIAGRAM
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>())
+    });
+
+    // Update the active mermaid.js diagrams for the session
+    let _ = use_resource(move || async move {
+        sync_current_session_mermaid_state.send(SyncCurrentSessionMermaidJSState {
+            flowchart_diagram: filtered_diagrams().0.first().cloned(),
+            er_diagram: filtered_diagrams().1.first().cloned(),
+        });
     });
 
     // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
@@ -177,6 +282,7 @@ pub fn apps_interface_view() -> Element {
     });    
     let is_flowchart_shown: Memo<bool> = use_memo(move || IS_FLOWCHART_SHOWN());    
     let rendered_html = render_mermaid_svg(diagram_code, "graphDiv", true, is_flowchart_shown);
+
     let out = if let Some(result) = &*rendered_html.read() {
         match result {
             // Mermaid.js or SessionContextBuilder error
@@ -187,7 +293,7 @@ pub fn apps_interface_view() -> Element {
                             class: "messaging_list",
                             p { "Please sign-in before activating a session." },
                         }
-                    } else if SESSION_NAMES.is_empty(){
+                    } else if SESSION_NAMES.read().is_empty() {
                         div {
                             class: "messaging_list",
                             p { "Waiting to retrieve available session plans..." },
@@ -195,7 +301,11 @@ pub fn apps_interface_view() -> Element {
                     } else {
                         div {
                             class: "messaging_list",
-                            apps_dropdown_view {}
+                            if BUILDER() {
+                                builds_dropdown_view {}
+                            } else {
+                                apps_dropdown_view {}
+                            }                            
                             p { "{error}" },
                         }
                     }
@@ -209,7 +319,7 @@ pub fn apps_interface_view() -> Element {
                             class: "messaging_list",
                             p { "Please sign-in before activating a session." },
                         }
-                    } else if SESSION_NAMES.is_empty(){
+                    } else if SESSION_NAMES.read().is_empty() {
                         div {
                             class: "messaging_list",
                             p { "Waiting to retrieve available session plans..." },
@@ -217,7 +327,11 @@ pub fn apps_interface_view() -> Element {
                     } else {
                         div {
                             class: "messaging_list",
-                            apps_dropdown_view {}
+                            if BUILDER() {
+                                builds_dropdown_view {}
+                            } else {
+                                apps_dropdown_view {}
+                            } 
                             p { "{error_mjs}" },
                             p { "{error_ctxb}" },
                         }
@@ -232,7 +346,7 @@ pub fn apps_interface_view() -> Element {
                             class: "messaging_list",
                             p { "Please sign-in before activating a session." },
                         }
-                    } else if SESSION_NAMES.is_empty(){
+                    } else if SESSION_NAMES.read().is_empty() {
                         div {
                             class: "messaging_list",
                             p { "Waiting to retrieve available session plans..." },
@@ -240,7 +354,11 @@ pub fn apps_interface_view() -> Element {
                     } else {
                         div {
                             class: "messaging_list",
-                            apps_dropdown_view {},
+                            if BUILDER() {
+                                builds_dropdown_view {}
+                            } else {
+                                apps_dropdown_view {}
+                            } 
                             div {
                                 id: "graphDiv",
                                 class: "mermaid",
@@ -258,7 +376,7 @@ pub fn apps_interface_view() -> Element {
                             class: "messaging_list",
                             p { "Please sign-in before activating a session." },
                         }
-                    } else if SESSION_NAMES.is_empty(){
+                    } else if SESSION_NAMES.read().is_empty() {
                         div {
                             class: "messaging_list",
                             p { "Waiting to retrieve available session plans..." },
@@ -266,7 +384,11 @@ pub fn apps_interface_view() -> Element {
                     } else {
                         div {
                             class: "messaging_list",
-                            apps_dropdown_view {},
+                            if BUILDER() {
+                                builds_dropdown_view {}
+                            } else {
+                                apps_dropdown_view {}
+                            } 
                         }
                     }
                 }
@@ -279,7 +401,7 @@ pub fn apps_interface_view() -> Element {
                     class: "messaging_list",
                     p { "Please sign-in before activating a session." },
                 }
-            } else if SESSION_NAMES.is_empty(){
+            } else if SESSION_NAMES.read().is_empty() {
                 div {
                     class: "messaging_list",
                     p { "Waiting to retrieve available session plans..." },
@@ -287,7 +409,11 @@ pub fn apps_interface_view() -> Element {
             } else {
                 div {
                     class: "messaging_list",
-                    apps_dropdown_view {},
+                    if BUILDER() {
+                        builds_dropdown_view {}
+                    } else {
+                        apps_dropdown_view {}
+                    } 
                 }
             }
         }
@@ -302,6 +428,9 @@ pub fn apps_dropdown_view() -> Element {
     use_coroutine(sync_current_active_session_state);
     use_coroutine(clear_current_message_state);
     use_coroutine(sync_is_flowchart_shown_state);
+    let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
+    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
+    let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
 
     // Dropdown signals
     let mut show_subject_dropdown = use_signal(|| false);
@@ -347,11 +476,9 @@ pub fn apps_dropdown_view() -> Element {
                     subject_dropdown.set(String::new());
 
                     // Set the active session
-                    let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
                     sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
 
                     // Reset the current session messaging
-                    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
                     clear_current_message_state.send(ClearCurrentMessageState {});
                 },
                 svg { dangerous_inner_html: search_icon_svg() },
@@ -359,7 +486,6 @@ pub fn apps_dropdown_view() -> Element {
             button { 
                 onclick: move |_| async move {
                     let current = IS_FLOWCHART_SHOWN.read().to_owned();
-                    let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
                     sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
                 },
                 svg { dangerous_inner_html: column_arrow_right_icon_svg() },
