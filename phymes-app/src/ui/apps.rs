@@ -105,13 +105,13 @@ pub fn apps_interface_view() -> Element {
                     for row in json_rows.iter() {
                         sync_current_session_mermaid_state.send(SyncCurrentSessionMermaidJSState {
                             flowchart: Some(row
-                                .get("mermaid_js_flowchart")
+                                .get("flowchart_diagram")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
                                 .to_string()),
                             erdiagram: Some(row
-                                .get("mermaid_js_erdiagram")
+                                .get("er_diagram")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
@@ -147,13 +147,13 @@ pub fn apps_interface_view() -> Element {
                     for row in json_rows.iter() {
                         sync_current_session_mermaid_state.send(SyncCurrentSessionMermaidJSState {
                             flowchart: Some(row
-                                .get("mermaid_js_flowchart")
+                                .get("flowchart_diagram")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
                                 .to_string()),
                             erdiagram: Some(row
-                                .get("mermaid_js_erdiagram")
+                                .get("er_diagram")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()

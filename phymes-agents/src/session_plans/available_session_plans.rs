@@ -8,12 +8,12 @@ use phymes_core::{
     session::{
         common_traits::BuilderTrait,
         session_context::SessionStreamState,
-        session_context_builder::SessionContextBuilderTrait,
+        session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait},
     },
 };
 use serde::{Deserialize, Serialize};
 
-use crate::session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
+use crate::{session_plans::builder_agent_session::BuilderAgentSession, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
 
 use super::{
     chat_agent_session::ChatAgentSession,
@@ -30,6 +30,8 @@ pub enum AvailableSessionPlans {
     DocChat,
     #[value(name = "ToolChat")]
     ToolChat,
+    #[value(name = "Builder")]
+    Builder,
 }
 
 impl Display for AvailableSessionPlans {
@@ -38,6 +40,7 @@ impl Display for AvailableSessionPlans {
             Self::Chat => write!(f, "Chat"),
             Self::DocChat => write!(f, "DocChat"),
             Self::ToolChat => write!(f, "ToolChat"),
+            Self::Builder => write!(f, "Builder"),
         }
     }
 }
@@ -45,11 +48,42 @@ impl Display for AvailableSessionPlans {
 impl AvailableSessionPlans {
     /// Get all available session plans
     pub fn get_all_session_plan_names() -> Vec<String> {
-        let session_plans = ["Chat", "DocChat", "ToolChat"];
+        let session_plans = ["Chat", "DocChat", "ToolChat", "Builder"];
         session_plans
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>()
+    }
+
+    /// Get the session stream state
+    pub fn get_session_context_builder(&self, session_name: &str) -> SessionContextBuilder {
+        // Initialize the session context builder
+        match self {
+            Self::Chat => ChatAgentSession::new_with_session_name(session_name).build(),
+            Self::DocChat => DocumentRAGSession::new_with_session_name(session_name).build(),
+            Self::ToolChat => ToolAgentSession::new_with_session_name(session_name).build(),
+            Self::Builder => BuilderAgentSession::new_with_session_name(session_name).build(),
+        }
+    }
+
+    /// Get the session stream state by name
+    pub fn get_session_context_builder_by_name(
+        session_plan_name: &str,
+        session_name: &str,
+    ) -> Result<SessionContextBuilder> {
+        if session_plan_name == Self::Chat.to_string() {
+            Ok(Self::Chat.get_session_context_builder(session_name))
+        } else if session_plan_name == Self::DocChat.to_string() {
+            Ok(Self::DocChat.get_session_context_builder(session_name))
+        } else if session_plan_name == Self::ToolChat.to_string() {
+            Ok(Self::ToolChat.get_session_context_builder(session_name))
+        } else if session_plan_name == Self::Builder.to_string() {
+            Ok(Self::Builder.get_session_context_builder(session_name))
+        } else {
+            Err(anyhow!(
+                "Plan name {session_plan_name} was not found in the available session plans."
+            ))
+        }
     }
 
     /// Get the session stream state
@@ -58,38 +92,12 @@ impl AvailableSessionPlans {
         let metrics = ArrowTaskMetricsSet::new();
 
         // Initialize the session
-        match self {
-            Self::Chat => {
-                let session = ChatAgentSession::new_with_session_name(session_name);
-                let session_ctx = session
-                    .build()
-                    .with_metrics(metrics.clone())
-                    .with_name(session_name)
-                    .build_with_tables()
-                    .unwrap();
-                Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
-            }
-            Self::DocChat => {
-                let session = DocumentRAGSession::new_with_session_name(session_name);
-                let session_ctx = session
-                    .build()
-                    .with_metrics(metrics.clone())
-                    .with_name(session_name)
-                    .build_with_tables()
-                    .unwrap();
-                Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
-            }
-            Self::ToolChat => {
-                let session = ToolAgentSession::new_with_session_name(session_name);
-                let session_ctx = session
-                    .build()
-                    .with_metrics(metrics.clone())
-                    .with_name(session_name)
-                    .build_with_tables()
-                    .unwrap();
-                Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
-            }
-        }
+        let builder = self.get_session_context_builder(session_name);
+        let session_ctx = builder.with_metrics(metrics.clone())
+            .with_name(session_name)
+            .build_with_tables()
+            .unwrap();
+        Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
     }
 
     /// Get the session stream state by name
@@ -103,6 +111,8 @@ impl AvailableSessionPlans {
             Ok(Self::DocChat.get_session_stream_state(session_name))
         } else if session_plan_name == Self::ToolChat.to_string() {
             Ok(Self::ToolChat.get_session_stream_state(session_name))
+        } else if session_plan_name == Self::Builder.to_string() {
+            Ok(Self::Builder.get_session_stream_state(session_name))
         } else {
             Err(anyhow!(
                 "Plan name {session_plan_name} was not found in the available session plans."

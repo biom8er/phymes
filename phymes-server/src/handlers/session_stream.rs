@@ -14,7 +14,7 @@ use futures::prelude::*;
 use phymes_agents::session_plans::available_interface_subjects::{create_message_map, AvailableInterfaceSubjects};
 use phymes_core::{
     metrics::HashMap,
-    schemas::available_subjects::AvailableSubjectsTrait,
+    schemas::{available_subjects::AvailableSubjectsTrait, user::UserSubject},
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}, session_context::SessionStream},
     table::{data_format::DataFormat, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
     task::message::{IPCMessage, MessageBuilderTrait, MessageTrait},
@@ -27,17 +27,14 @@ use std::sync::Arc;
 
 // Library imports
 use crate::{
-    handlers::{
-        json_error::{ErrorToResponse, JsonError, serde_json_error_response},
-        sign_in::User,
-    },
+    handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response},
     state::server_state::ServerState,
 };
 
 /// Chat inference endpoint
 #[axum::debug_handler]
 pub async fn session_stream(
-    Extension(current_user): Extension<User>,
+    Extension(current_user): Extension<UserSubject>,
     State(mut state): State<ServerState>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
@@ -284,7 +281,7 @@ pub mod test_chat_handler {
 
     /// Chat inference endpoint
     pub async fn stream_bytes(
-        Extension(_current_user): Extension<User>,
+        Extension(_current_user): Extension<UserSubject>,
         payload: Result<Json<StreamBytesInput>, JsonRejection>,
     ) -> impl IntoResponse {
         // Extract and process the payload

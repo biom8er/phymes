@@ -350,8 +350,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let flowchart: ArrayRef = Arc::new(StringArray::from(vec![flowchart]));
         let erdiagram: ArrayRef = Arc::new(StringArray::from(vec![erdiagram]));
         let batch = RecordBatch::try_from_iter(vec![
-            ("mermaid_js_flowchart", flowchart),
-            ("mermaid_js_erdiagram", erdiagram),
+            ("flowchart_diagram", flowchart),
+            ("er_diagram", erdiagram),
         ])?;
 
         // create the table
@@ -623,8 +623,8 @@ mod tests {
             tables.get(4).unwrap().get_name(),
             SessionContextTableNames::MermaidJS.get_name()
         );
-        // assert_eq!(tables.get(4).unwrap().get_column_as_vec_str("mermaid_js_flowchart"), [""]);
-        // assert_eq!(tables.get(4).unwrap().get_column_as_vec_str("mermaid_js_erdiagram"), [""]);
+        // assert_eq!(tables.get(4).unwrap().get_column_as_vec_str("flowchart_diagram"), [""]);
+        // assert_eq!(tables.get(4).unwrap().get_column_as_vec_str("er_diagram"), [""]);
 
         // Test from tables
         let (tables_test, _state_test) =
@@ -797,21 +797,21 @@ mod tests {
             tables_test
                 .get(4)
                 .unwrap()
-                .get_column_as_vec_str("mermaid_js_flowchart"),
+                .get_column_as_vec_str("flowchart_diagram"),
             tables
                 .get(4)
                 .unwrap()
-                .get_column_as_vec_str("mermaid_js_flowchart")
+                .get_column_as_vec_str("flowchart_diagram")
         );
         assert_eq!(
             tables_test
                 .get(4)
                 .unwrap()
-                .get_column_as_vec_str("mermaid_js_erdiagram"),
+                .get_column_as_vec_str("er_diagram"),
             tables
                 .get(4)
                 .unwrap()
-                .get_column_as_vec_str("mermaid_js_erdiagram")
+                .get_column_as_vec_str("er_diagram")
         );
 
         Ok(())

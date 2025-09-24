@@ -126,7 +126,7 @@ pub async fn run_main() -> Result<()> {
     //     .unwrap()
     //     .try_read()
     //     .unwrap()
-    //     .get_column_as_vec_str("mermaid_js_flowchart")
+    //     .get_column_as_vec_str("flowchart_diagram")
     //     .join(""));
 
     Ok(())

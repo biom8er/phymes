@@ -1,7 +1,7 @@
 // General imports
 use anyhow::{Result, anyhow};
 use parking_lot::RwLock;
-use phymes_agents::{session_plans::available_session_plans::AvailableSessionPlans, session_traits::mermaid::SessionContextBuilderMermaid};
+use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
 use std::sync::Arc;
 
 // From crates
@@ -15,14 +15,10 @@ pub struct ServerState {
     /// HashMap of sessions indexed by session name
     ///   where the session name = session_name + user_name
     pub session_contexts: Arc<RwLock<HashMap<String, Arc<RwLock<SessionStreamState>>>>>,
-    /// Session builders
-    /// HashMap of sessions builders indexed by session name
-    ///   where the session name = session_name + user_name
-    pub session_context_builders: Arc<RwLock<HashMap<String, Arc<RwLock<SessionContextBuilderMermaid>>>>>,
     /// Users
     /// HashMap of users indexed by user name
     ///   where the session name = session_name + user_name
-    pub users: Arc<RwLock<HashMap<String, Arc<RwLock<SessionContextBuilderMermaid>>>>>,
+    pub users: Arc<RwLock<HashMap<String, Arc<RwLock<SessionStreamState>>>>>,
 }
 
 impl Default for ServerState {
@@ -38,9 +34,9 @@ impl ServerState {
                 String,
                 Arc<RwLock<SessionStreamState>>,
             >::new())),
-            session_context_builders: Arc::new(RwLock::new(HashMap::<
+            users: Arc::new(RwLock::new(HashMap::<
                 String,
-                Arc<RwLock<SessionContextBuilderMermaid>>,
+                Arc<RwLock<SessionStreamState>>,
             >::new())),
         }
     }
@@ -93,7 +89,7 @@ impl ServerState {
     ///
     /// `Option<(Vec<String>, Vec<String>)>` of created (session_plans, session_names)
     pub fn get_session_names_by_email(&self, email: &str) -> Option<(Vec<String>, Vec<String>)> {
-        match test_sign_in_handler::retrieve_session_plans_by_email(email) {
+        match test_sign_in_handler::retrieve_user_by_email(email) {
             Some(session_plans) => {
                 let mut session_names = Vec::new();
                 for session_plan in session_plans.iter() {

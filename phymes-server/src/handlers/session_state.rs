@@ -11,17 +11,20 @@ use axum::{
 use anyhow::Result;
 use bytes::Bytes;
 use phymes_agents::session_plans::available_interface_subjects::create_message_map;
-use phymes_core::{session::{common_traits::BuilderTrait, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}}, table::{data_format::{CsvFormat, DataFormat}, table::{TableBuilder, TableBuilderTrait, TableTrait}}, task::message::{IPCMessageBuilder, MessageBuilderTrait, MessageTrait}};
+use phymes_core::{
+    schemas::user::UserSubject,
+    session::{common_traits::BuilderTrait, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}}, 
+    table::{data_format::{CsvFormat, DataFormat}, table::{TableBuilder, TableBuilderTrait, TableTrait}}, 
+    task::message::{IPCMessageBuilder, MessageBuilderTrait, MessageTrait}};
 
 // Library imports
-use crate::handlers::sign_in::User;
 use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};
 use crate::state::server_state::ServerState;
 
 /// Chat inference endpoint
 #[axum::debug_handler]
 pub async fn session_put_state(
-    Extension(current_user): Extension<User>,
+    Extension(current_user): Extension<UserSubject>,
     State(mut state): State<ServerState>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
@@ -189,7 +192,7 @@ pub async fn session_put_state(
 /// Chat inference endpoint
 #[axum::debug_handler]
 pub async fn session_get_state(
-    Extension(current_user): Extension<User>,
+    Extension(current_user): Extension<UserSubject>,
     State(mut state): State<ServerState>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {

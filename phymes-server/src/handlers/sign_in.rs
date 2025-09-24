@@ -29,8 +29,9 @@ use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-// Agent imports
+// Phymes imports
 use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
+use phymes_core::schemas::user::UserSubject;
 
 /// From <https://github.com/seanmonstar/reqwest/blob/v0.12.22/src/util.rs#L4>
 pub fn basic_auth<U, P>(username: U, password: Option<P>) -> HeaderValue
@@ -159,7 +160,7 @@ pub async fn sign_in(
                 StatusCode::UNAUTHORIZED,
                 Json(json!({"error": "Unauthorized"})),
             );
-        } // User not found
+        } // UserSubject not found
     };
 
     // Compare the password
@@ -243,13 +244,15 @@ pub mod test_sign_in_handler {
     use super::*;
 
     // DM: this should be migrated to persistent storage
-    pub fn retrieve_user_by_email(email: &str) -> Option<User> {
+    pub fn retrieve_user_by_email(email: &str) -> Option<UserSubject> {
         let password_hash = hash_password(email).unwrap();
-        let current_user: User = User {
+        let current_user: UserSubject = UserSubject {
             email: "myemail@gmail.com".to_string(),
             first_name: "Eze".to_string(),
             last_name: "Sunday".to_string(),
             password_hash,
+            timestamp: create_timestamp_micros(),
+            session_contexts: AvailableSessionPlans::get_all_session_plan_names()            
         };
         Some(current_user)
     }
@@ -257,10 +260,5 @@ pub mod test_sign_in_handler {
     // DM: this should be migrated to persistent storage
     pub fn retrieve_session_plans_by_email(_email: &str) -> Option<Vec<String>> {
         Some(AvailableSessionPlans::get_all_session_plan_names())
-    }
-
-    // DM: this should be migrated to persistent storage
-    pub fn retrieve_session_builders_by_email(_email: &str) -> Option<Vec<String>> {
-        Some(Vec::new())
     }
 }

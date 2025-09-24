@@ -1,4 +1,5 @@
 pub mod blob;
+pub mod builder;
 pub mod chat;
 pub mod queries;
 pub mod user;

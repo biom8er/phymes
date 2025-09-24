@@ -1,4 +1,4 @@
-use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, queries::create_queries_fields, user::create_user_fields}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilder, TableBuilderTrait}};
+use crate::{schemas::{blob::create_blob_fields, builder::create_builder_fields, chat::create_chat_fields, queries::create_queries_fields, user::create_user_fields}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilder, TableBuilderTrait}};
 
 use anyhow::Result;
 use arrow::{
@@ -183,6 +183,8 @@ pub enum AvailableSubjects {
     Blob,
     #[value(name = "User")]
     User,
+    #[value(name = "Builder")]
+    Builder,
 }
 
 impl Display for AvailableSubjects {
@@ -200,6 +202,7 @@ impl Display for AvailableSubjects {
             AvailableSubjects::JoinChunksScores => write!(f, "JoinChunksScores"),
             AvailableSubjects::Blob => write!(f, "Blob"),
             AvailableSubjects::User => write!(f, "User"),
+            AvailableSubjects::Builder => write!(f, "Builder"),
         }
     }
 }
@@ -244,6 +247,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             }
             AvailableSubjects::Blob => create_schema_from_fields(&create_blob_fields),
             AvailableSubjects::User => create_schema_from_fields(&create_user_fields),
+            AvailableSubjects::Builder => create_schema_from_fields(&create_builder_fields),
         }
     }
 }
