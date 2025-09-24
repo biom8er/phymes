@@ -11,7 +11,7 @@ pub mod sign_in;
 mod tests {
     use crate::{
         handlers::session_stream::test_chat_handler::{StreamBytesInput, StreamBytesOutput},
-        server::server_state::ServerState,
+        state::server_state::ServerState,
     };
 
     use super::*;

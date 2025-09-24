@@ -23,7 +23,7 @@ use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, deco
 // General imports
 use crate::{
     handlers::json_error::{ErrorToResponse, JsonError},
-    server::server_state::ServerState,
+    state::server_state::ServerState,
 };
 use http::HeaderValue;
 use serde::{Deserialize, Serialize};
@@ -56,7 +56,7 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Cliams {
+pub struct Claims {
     pub exp: usize,
     pub iat: usize,
     pub email: String,
@@ -79,7 +79,7 @@ pub fn encode_jwt(email: String) -> Result<String, StatusCode> {
     let exp: usize = (now + expire).timestamp() as usize;
     let iat: usize = now.timestamp() as usize;
 
-    let claim = Cliams { iat, exp, email };
+    let claim = Claims { iat, exp, email };
 
     encode(
         &Header::default(),
@@ -89,25 +89,16 @@ pub fn encode_jwt(email: String) -> Result<String, StatusCode> {
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub fn decode_jwt(jwt: String) -> Result<TokenData<Cliams>, StatusCode> {
+pub fn decode_jwt(jwt: String) -> Result<TokenData<Claims>, StatusCode> {
     let secret = "randomstring".to_string();
 
-    let result: Result<TokenData<Cliams>, StatusCode> = decode(
+    let result: Result<TokenData<Claims>, StatusCode> = decode(
         &jwt,
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::default(),
     )
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
     result
-}
-
-/// Information of the user
-#[derive(Clone)]
-pub struct CurrentUser {
-    pub email: String,
-    pub first_name: String,
-    pub last_name: String,
-    pub password_hash: String,
 }
 
 /// Remove all non alphanumeric characters
@@ -203,7 +194,7 @@ pub async fn sign_in(
             &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
             creds.username(),
         ) {
-            match state.create_session_names_by_email(creds.username()) {
+            match state.create_session_plans_by_email(creds.username()) {
                 Some(session_plans) => session_plans,
                 None => {
                     return (
@@ -252,9 +243,9 @@ pub mod test_sign_in_handler {
     use super::*;
 
     // DM: this should be migrated to persistent storage
-    pub fn retrieve_user_by_email(email: &str) -> Option<CurrentUser> {
+    pub fn retrieve_user_by_email(email: &str) -> Option<User> {
         let password_hash = hash_password(email).unwrap();
-        let current_user: CurrentUser = CurrentUser {
+        let current_user: User = User {
             email: "myemail@gmail.com".to_string(),
             first_name: "Eze".to_string(),
             last_name: "Sunday".to_string(),
@@ -266,5 +257,10 @@ pub mod test_sign_in_handler {
     // DM: this should be migrated to persistent storage
     pub fn retrieve_session_plans_by_email(_email: &str) -> Option<Vec<String>> {
         Some(AvailableSessionPlans::get_all_session_plan_names())
+    }
+
+    // DM: this should be migrated to persistent storage
+    pub fn retrieve_session_builders_by_email(_email: &str) -> Option<Vec<String>> {
+        Some(Vec::new())
     }
 }

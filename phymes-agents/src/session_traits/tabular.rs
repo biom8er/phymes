@@ -26,7 +26,7 @@ use phymes_core::{
 
 use crate::{
     session_plans::available_processors::AvailableProcessors,
-    session_traits::mermaid_js::{
+    session_traits::mermaid::{
         SessionContextBuilderMermaidTrait, from_data_type_to_str, from_str_to_data_type,
     },
 };

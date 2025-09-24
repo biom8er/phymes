@@ -8,21 +8,19 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    metrics::{HashMap, HashSet},
+    metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
     session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-        runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context_builder::{
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, runtime_env::{RuntimeEnv, RuntimeEnvTrait}, session_context::SessionContext, session_context_builder::{
             SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
-        },
+        }
     },
     table::{
         table::{Table, TableBuilderTrait, TableTrait},
         table_publish::TablePublish,
-        table_subscribe::{TableSubscribe, from_str_to_subscribe},
+        table_subscribe::{from_str_to_subscribe, TableSubscribe},
     },
     task::processor::{
-        ProcessorBuilder, ProcessorEcho, test_processor::ProcessorMock,
+        test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho
     },
 };
 use phymes_data::candle_data::{
@@ -1230,11 +1228,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
     }
 }
 
+/// [SessionContextBuilder] specialized for Mermaid diagrams
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct SessionContextBuilderMermaid {
     pub name: Option<String>,
     pub flowchart: Option<String>,
     pub erdiagram: Option<String>,
+    pub max_iter: Option<usize>,
 }
 
 impl BuilderTrait for SessionContextBuilderMermaid {
@@ -1244,12 +1244,40 @@ impl BuilderTrait for SessionContextBuilderMermaid {
             name: None,
             flowchart: None,
             erdiagram: None,
+            max_iter: None,
         }
     }
 
     fn with_name(mut self, name: &str) -> Self {
         self.name = Some(name.to_string());
         self
+    }
+
+    fn build(self) -> Result<Self::T>
+        where
+            Self: Sized {
+        // Handle the mermaid.js input
+        let flowchart = match self.flowchart {
+            Some(flowchart) => flowchart,
+            None => return Err(anyhow!("Please add a mermaid.js flowchart diagram before trying to build the `SessionContext`.")),
+        };
+        let name = match self.name {
+            Some(name) => name,
+            None => return Err(anyhow!("Please provide a for the `SessionContext` before trying to build the `SessionContext`.")),
+        };
+        let erdiagram = match self.erdiagram {
+            Some(erdiagram) => erdiagram,
+            None => return Err(anyhow!("Please add a mermaid.js ER diagram before trying to build the `SessionContext`.")),
+        };
+        let builder = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_name(&name)
+            .with_state_from_mermaid_erdiagram(&erdiagram, true)?;
+
+        // Use defaults for metrics and max iters
+        let max_iter = self.max_iter.unwrap_or(25);
+        let builder = builder.with_metrics(ArrowTaskMetricsSet::new())
+            .with_max_iter(max_iter);
+        builder.build()
     }
 }
 

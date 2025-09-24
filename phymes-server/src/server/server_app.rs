@@ -26,12 +26,12 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 
 // From lib
-#[allow(unused_imports)]
-use super::{server_config::ServerConfig, server_state::ServerState};
-use crate::handlers::{
+use crate::{handlers::{
     session_state::{session_get_state, session_put_state},
     session_stream::session_stream,
-    sign_in::{authorize, sign_in},
+    sign_in::{authorize, sign_in}},
+    state::server_state::ServerState,
+    server::server_config::ServerConfig,
 };
 
 #[derive(Default)]

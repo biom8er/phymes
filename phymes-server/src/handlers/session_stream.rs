@@ -29,15 +29,15 @@ use std::sync::Arc;
 use crate::{
     handlers::{
         json_error::{ErrorToResponse, JsonError, serde_json_error_response},
-        sign_in::CurrentUser,
+        sign_in::User,
     },
-    server::server_state::ServerState,
+    state::server_state::ServerState,
 };
 
 /// Chat inference endpoint
 #[axum::debug_handler]
 pub async fn session_stream(
-    Extension(current_user): Extension<CurrentUser>,
+    Extension(current_user): Extension<User>,
     State(mut state): State<ServerState>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
@@ -59,7 +59,7 @@ pub async fn session_stream(
                     "Failed to read the session stream state {e:?}. Creating new session stream state."
                 );
                 if state
-                    .create_session_names_by_email(&current_user.email)
+                    .create_session_plans_by_email(&current_user.email)
                     .is_none()
                 {
                     return JsonError::new("Failed to get the session stream state".to_string())
@@ -284,7 +284,7 @@ pub mod test_chat_handler {
 
     /// Chat inference endpoint
     pub async fn stream_bytes(
-        Extension(_current_user): Extension<CurrentUser>,
+        Extension(_current_user): Extension<User>,
         payload: Result<Json<StreamBytesInput>, JsonRejection>,
     ) -> impl IntoResponse {
         // Extract and process the payload

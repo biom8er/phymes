@@ -20,7 +20,7 @@ use crate::{
 #[cfg(feature = "mermaid_js")]
 use crate::state::apps::MermaidJsObject;
 #[cfg(feature = "mermaid_js")]
-use phymes_agents::session_traits::mermaid_js::SessionContextBuilderMermaidTrait;
+use phymes_agents::session_traits::mermaid::SessionContextBuilderMermaidTrait;
 #[cfg(feature = "mermaid_js")]
 use phymes_core::session::session_context_builder::SessionContextBuilder;
 

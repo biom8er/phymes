@@ -1,11 +1,11 @@
 // General imports
 use anyhow::{Result, anyhow};
 use parking_lot::RwLock;
-use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
+use phymes_agents::{session_plans::available_session_plans::AvailableSessionPlans, session_traits::mermaid::SessionContextBuilderMermaid};
 use std::sync::Arc;
 
 // From crates
-use phymes_core::{metrics::HashMap, session::{session_context::SessionStreamState, session_context_builder::SessionContextBuilder}};
+use phymes_core::{metrics::HashMap, session::session_context::SessionStreamState};
 
 use crate::handlers::sign_in::{create_session_name, test_sign_in_handler};
 
@@ -15,10 +15,14 @@ pub struct ServerState {
     /// HashMap of sessions indexed by session name
     ///   where the session name = session_name + user_name
     pub session_contexts: Arc<RwLock<HashMap<String, Arc<RwLock<SessionStreamState>>>>>,
-    // /// Session builders
-    // /// HashMap of sessions builders indexed by session name
-    // ///   where the session name = session_name + user_name
-    // pub session_context_builders: Arc<RwLock<HashMap<String, Arc<RwLock<SessionContextBuilder>>>>>,
+    /// Session builders
+    /// HashMap of sessions builders indexed by session name
+    ///   where the session name = session_name + user_name
+    pub session_context_builders: Arc<RwLock<HashMap<String, Arc<RwLock<SessionContextBuilderMermaid>>>>>,
+    /// Users
+    /// HashMap of users indexed by user name
+    ///   where the session name = session_name + user_name
+    pub users: Arc<RwLock<HashMap<String, Arc<RwLock<SessionContextBuilderMermaid>>>>>,
 }
 
 impl Default for ServerState {
@@ -33,6 +37,10 @@ impl ServerState {
             session_contexts: Arc::new(RwLock::new(HashMap::<
                 String,
                 Arc<RwLock<SessionStreamState>>,
+            >::new())),
+            session_context_builders: Arc::new(RwLock::new(HashMap::<
+                String,
+                Arc<RwLock<SessionContextBuilderMermaid>>,
             >::new())),
         }
     }
@@ -107,13 +115,13 @@ impl ServerState {
     /// # Returns
     ///
     /// `Option<(Vec<String>, Vec<String>)>` of created (session_plans, session_names)
-    pub fn create_session_names_by_email(
+    pub fn create_session_plans_by_email(
         &mut self,
         email: &str,
     ) -> Option<(Vec<String>, Vec<String>)> {
         match test_sign_in_handler::retrieve_session_plans_by_email(email) {
             Some(session_plans) => {
-                // Add user sessions to the state if it does not exist
+                // Add user sessions to the state
                 let mut session_names = Vec::new();
                 for session_plan in session_plans.iter() {
                     let session_name = create_session_name(email, session_plan.as_str());
@@ -145,7 +153,7 @@ impl ServerState {
     /// `path` - &str, the path to the files
     /// `email` - &str, the user email
     pub fn read_state_by_email(&mut self, path: &str, email: &str) -> Result<()> {
-        if let Some((_session_plans, session_names)) = self.create_session_names_by_email(email) {
+        if let Some((_session_plans, session_names)) = self.create_session_plans_by_email(email) {
             for session_name in session_names.iter() {
                 self.session_contexts
                     .try_write()
@@ -192,10 +200,10 @@ mod tests {
     use super::*;
     use phymes_core::metrics::HashSet;
 
-    #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+    #[cfg(not(target_family = "wasm"))]
     use phymes_core::{session::common_traits::MappableTrait, table::table::TableTrait};
 
-    #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+    #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;
 
     #[test]
@@ -221,7 +229,7 @@ mod tests {
 
         // Test creation of state
         let (session_plans, session_names) = state
-            .create_session_names_by_email("myemail@gmail.com")
+            .create_session_plans_by_email("myemail@gmail.com")
             .unwrap();
         assert_eq!(session_plans, &["Chat", "DocChat", "ToolChat"]);
         assert_eq!(
@@ -267,13 +275,13 @@ mod tests {
         assert_eq!(missing, &["myemailgmailcomChat"]);
     }
 
-    #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+    #[cfg(not(target_family = "wasm"))]
     #[test]
     fn test_server_state_read_write_state() -> Result<()> {
         // Create the state
         let mut state = ServerState::new();
         let (_session_plans, _session_names) = state
-            .create_session_names_by_email("myemail@gmail.com")
+            .create_session_plans_by_email("myemail@gmail.com")
             .unwrap();
 
         // Write the state to disk
