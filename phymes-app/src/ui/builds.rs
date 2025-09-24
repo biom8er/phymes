@@ -1,12 +1,13 @@
 use dioxus::prelude::*;
+use phymes_core::schemas::available_subjects::create_timestamp_micros;
 
 use crate::{
     state::{
         apps::{
             sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM
-        }, builds::MERMAID_SESSION_CONTEXT_NAME, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::JWT
+        }, builds::{sync_current_mermaid_state, SyncCurrentMermaidState, MERMAID_SESSION_CONTEXT_NAME}, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::JWT
     },
-    ui::{apps::get_non_duplicated_sorted_subjects, svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, trash_icon_svg}},
+    ui::{apps::get_non_duplicated_sorted_subjects, svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, sync_icon_svg, trash_icon_svg}},
 };
 
 /// View for the builds drop down menu
@@ -16,9 +17,11 @@ pub fn builds_dropdown_view() -> Element {
     use_coroutine(sync_current_active_session_state);
     use_coroutine(clear_current_message_state);
     use_coroutine(sync_is_flowchart_shown_state);
+    use_coroutine(sync_current_mermaid_state);
     let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
     let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
     let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
+    let sync_current_mermaid_state = use_coroutine_handle::<SyncCurrentMermaidState>();
 
     // Dropdown signals
     let mut show_subject_dropdown = use_signal(|| false);
@@ -73,6 +76,29 @@ pub fn builds_dropdown_view() -> Element {
                 svg { dangerous_inner_html: edit_icon_svg() },
             },
             button { 
+                class: "dropdown_form_button",
+                onclick: move |_evt| async move {
+                    // Update the dropdown
+                    let active_session = format!("{}-copy", subject_dropdown.try_read().unwrap().to_string());
+                    subject_dropdown.set(active_session.clone());
+
+                    // Copy the diagrams
+                    sync_current_mermaid_state.send(SyncCurrentMermaidState {
+                        session_context_name: active_session.clone(),
+                        flowchart_diagram: SESSION_FLOWCHART_DIAGRAM.read().to_string(),
+                        er_diagram: SESSION_ER_DIAGRAM.read().to_string(),
+                        timestamp: create_timestamp_micros()
+                    });
+
+                    // Set the active session
+                    sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
+
+                    // Reset the current session messaging
+                    clear_current_message_state.send(ClearCurrentMessageState {});
+                },
+                svg { dangerous_inner_html: column_arrow_right_icon_svg() },
+            },
+            button { 
                 svg { dangerous_inner_html: trash_icon_svg() },
             },
             button { 
@@ -80,7 +106,7 @@ pub fn builds_dropdown_view() -> Element {
                     let current = IS_FLOWCHART_SHOWN.read().to_owned();
                     sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
                 },
-                svg { dangerous_inner_html: column_arrow_right_icon_svg() },
+                svg { dangerous_inner_html: sync_icon_svg() },
             },
             button { 
                 svg { dangerous_inner_html: deploy_icon_svg() },

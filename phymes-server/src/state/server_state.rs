@@ -15,6 +15,8 @@ pub struct ServerState {
     /// HashMap of sessions indexed by session name
     ///   where the session name = session_name + user_name
     pub session_contexts: Arc<RwLock<HashMap<String, Arc<RwLock<SessionStreamState>>>>>,
+    // /// Users information
+    // pub users: Arc<RwLock<SessionStreamState>>,
 }
 
 impl Default for ServerState {
