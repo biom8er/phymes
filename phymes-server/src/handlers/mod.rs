@@ -65,7 +65,7 @@ mod tests {
                 .contains("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9")
         );
         assert_eq!(response.email, "myemail@gmail.com");
-        assert_eq!(response.session_plans, ["Chat", "DocChat", "ToolChat"]);
+        assert_eq!(response.session_plans, ["Chat", "DocChat", "ToolChat", "Builder"]);
 
         // Request some dummy data stream
         let data = StreamBytesInput {

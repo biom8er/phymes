@@ -241,23 +241,24 @@ pub async fn sign_in(
 }
 
 pub mod test_sign_in_handler {
+    use phymes_core::schemas::available_subjects::create_timestamp_micros;
+
     use super::*;
 
-    // DM: this should be migrated to persistent storage
+    // DM: this should be migrated to phymes_core::schemas::user::UserSubject
     pub fn retrieve_user_by_email(email: &str) -> Option<UserSubject> {
         let password_hash = hash_password(email).unwrap();
-        let current_user: UserSubject = UserSubject {
+        let current_user = UserSubject {
             email: "myemail@gmail.com".to_string(),
             first_name: "Eze".to_string(),
             last_name: "Sunday".to_string(),
             password_hash,
-            timestamp: create_timestamp_micros(),
-            session_contexts: AvailableSessionPlans::get_all_session_plan_names()            
+            timestamp: create_timestamp_micros(),         
         };
         Some(current_user)
     }
 
-    // DM: this should be migrated to persistent storage
+    // DM: this should be migrated to phymes_core::schemas::user::UserSessionContextsSubject
     pub fn retrieve_session_plans_by_email(_email: &str) -> Option<Vec<String>> {
         Some(AvailableSessionPlans::get_all_session_plan_names())
     }

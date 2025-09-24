@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use arrow::{array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, UInt8Builder}, datatypes::{DataType, Field, Fields}};
+use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 

@@ -89,7 +89,7 @@ impl ServerState {
     ///
     /// `Option<(Vec<String>, Vec<String>)>` of created (session_plans, session_names)
     pub fn get_session_names_by_email(&self, email: &str) -> Option<(Vec<String>, Vec<String>)> {
-        match test_sign_in_handler::retrieve_user_by_email(email) {
+        match test_sign_in_handler::retrieve_session_plans_by_email(email) {
             Some(session_plans) => {
                 let mut session_names = Vec::new();
                 for session_plan in session_plans.iter() {
@@ -208,13 +208,14 @@ mod tests {
         let (session_plans, session_names) = state
             .get_session_names_by_email("myemail@gmail.com")
             .unwrap();
-        assert_eq!(session_plans, &["Chat", "DocChat", "ToolChat"]);
+        assert_eq!(session_plans, &["Chat", "DocChat", "ToolChat", "Builder"]);
         assert_eq!(
             session_names,
             &[
                 "myemailgmailcomChat",
                 "myemailgmailcomDocChat",
-                "myemailgmailcomToolChat"
+                "myemailgmailcomToolChat",
+                "myemailgmailcomBuilder"
             ]
         );
     }
@@ -227,7 +228,7 @@ mod tests {
         let (session_plans, session_names) = state
             .create_session_plans_by_email("myemail@gmail.com")
             .unwrap();
-        assert_eq!(session_plans, &["Chat", "DocChat", "ToolChat"]);
+        assert_eq!(session_plans, &["Chat", "DocChat", "ToolChat", "Builder"]);
         assert_eq!(
             session_names
                 .iter()
@@ -236,7 +237,8 @@ mod tests {
             [
                 "myemailgmailcomDocChat",
                 "myemailgmailcomToolChat",
-                "myemailgmailcomChat"
+                "myemailgmailcomChat",
+                "myemailgmailcomBuilder"
             ]
             .iter()
             .map(|s| s.to_string())

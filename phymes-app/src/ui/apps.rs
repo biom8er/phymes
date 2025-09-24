@@ -12,7 +12,7 @@ use crate::{
     state::{
         messaging::{clear_current_message_state, ClearCurrentMessageState},
         apps::{
-            sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_MERMAID_ERDIAGRAM, SESSION_MERMAID_FLOWCHART
+            sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM
         },
         sign_in::{EMAIL, JWT, SESSION_NAMES},
     },
@@ -104,13 +104,13 @@ pub fn apps_interface_view() -> Element {
                         });
                     for row in json_rows.iter() {
                         sync_current_session_mermaid_state.send(SyncCurrentSessionMermaidJSState {
-                            flowchart: Some(row
+                            flowchart_diagram: Some(row
                                 .get("flowchart_diagram")
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
                                 .to_string()),
-                            erdiagram: Some(row
+                            er_diagram: Some(row
                                 .get("er_diagram")
                                 .unwrap()
                                 .as_str()
@@ -169,9 +169,9 @@ pub fn apps_interface_view() -> Element {
     // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
     let diagram_code: Memo<String> = use_memo(move || {
         if IS_FLOWCHART_SHOWN() {
-            SESSION_MERMAID_FLOWCHART.read().to_string()
+            SESSION_FLOWCHART_DIAGRAM.read().to_string()
         } else {
-            SESSION_MERMAID_ERDIAGRAM.read().to_string()
+            SESSION_ER_DIAGRAM.read().to_string()
         }        
     });    
     let is_flowchart_shown: Memo<bool> = use_memo(move || IS_FLOWCHART_SHOWN());    

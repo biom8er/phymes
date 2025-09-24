@@ -10,7 +10,7 @@ use phymes_core::{
     }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
 
-use crate::{session_plans::{available_session_plans::AvailableSessionPlans, chat_agent_session::ChatAgentSession, document_rag_session::DocumentRAGSession, tool_agent_session::ToolAgentSession}, session_traits::{agents::CustomAgentsBuilderTrait, mermaid::SessionContextBuilderMermaidTrait}};
+use crate::{session_plans::available_session_plans::AvailableSessionPlans, session_traits::{agents::CustomAgentsBuilderTrait, mermaid::SessionContextBuilderMermaidTrait}};
 
 pub struct BuilderAgentSession<'a> {
     /// Session and state

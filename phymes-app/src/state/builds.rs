@@ -3,67 +3,29 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
 #[allow(clippy::redundant_closure)]
-pub static ACTIVE_SESSION_NAME: GlobalSignal<String> = Signal::global(|| String::new());
+pub static BUILDER_SESSION_CONTEXT_NAME: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+#[allow(clippy::redundant_closure)]
+pub static BUILDER_FLOWCHART_DIAGRAM: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+#[allow(clippy::redundant_closure)]
+pub static BUILDER_ER_DIAGRAM: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+#[allow(clippy::redundant_closure)]
+pub static BUILDER_TIMESTAMP: GlobalSignal<Vec<i64>> = Signal::global(|| Vec::new());
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SyncCurrentActiveSessionState {
-    pub name: String,
+pub struct SyncCurrentBuilderState {
+    pub session_context_name: String,
+    pub flowchart_diagram: String,
+    pub er_diagram: String,
+    pub timestamp: i64,
 }
 
-pub async fn sync_current_active_session_state(
-    mut rx: UnboundedReceiver<SyncCurrentActiveSessionState>,
+pub async fn sync_current_builder_state(
+    mut rx: UnboundedReceiver<SyncCurrentBuilderState>,
 ) {
     while let Some(updated_state) = rx.next().await {
-        (*ACTIVE_SESSION_NAME.write()).clear();
-        (*ACTIVE_SESSION_NAME.write()).push_str(updated_state.name.as_str());
-    }
-}
-
-#[allow(clippy::redundant_closure)]
-pub static SESSION_MERMAID_FLOWCHART: GlobalSignal<String> = Signal::global(|| String::new());
-#[allow(clippy::redundant_closure)]
-pub static SESSION_MERMAID_ERDIAGRAM: GlobalSignal<String> = Signal::global(|| String::new());
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SyncCurrentSessionMermaidJSState {
-    pub flowchart: Option<String>,
-    pub erdiagram: Option<String>,
-}
-
-pub async fn sync_current_session_mermaid_state(
-    mut rx: UnboundedReceiver<SyncCurrentSessionMermaidJSState>,
-) {
-    while let Some(updated_state) = rx.next().await {
-        if let Some(flowchart) = updated_state.flowchart {
-            (*SESSION_MERMAID_FLOWCHART.write()).clear();
-            (*SESSION_MERMAID_FLOWCHART.write()).push_str(flowchart.as_str());
-        }
-        if let Some(erdiagram) = updated_state.erdiagram {
-            (*SESSION_MERMAID_ERDIAGRAM.write()).clear();
-            (*SESSION_MERMAID_ERDIAGRAM.write()).push_str(erdiagram.as_str());
-        }
-    }
-}
-
-#[cfg(feature = "mermaid_js")]
-#[derive(Debug, Deserialize, Serialize)]
-pub struct MermaidJsObject {
-    pub svg: Option<String>,
-    pub error: Option<String>,
-}
-
-#[allow(clippy::redundant_closure)]
-pub static IS_FLOWCHART_SHOWN: GlobalSignal<bool> = Signal::global(|| true);
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SyncIsFlowchartShownState {
-    pub is_shown: bool,
-}
-
-pub async fn sync_is_flowchart_shown_state(
-    mut rx: UnboundedReceiver<SyncIsFlowchartShownState>,
-) {
-    while let Some(updated_state) = rx.next().await {
-        (*IS_FLOWCHART_SHOWN.write()) = updated_state.is_shown;
+        (*BUILDER_SESSION_CONTEXT_NAME.write()).push(updated_state.session_context_name);
+        (*BUILDER_FLOWCHART_DIAGRAM.write()).push(updated_state.flowchart_diagram);
+        (*BUILDER_ER_DIAGRAM.write()).push(updated_state.er_diagram);
+        (*BUILDER_TIMESTAMP.write()).push(updated_state.timestamp);
     }
 }

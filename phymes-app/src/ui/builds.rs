@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 use crate::{
     state::{
         apps::{
-            sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_MERMAID_ERDIAGRAM, SESSION_MERMAID_FLOWCHART
+            sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM
         }, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{EMAIL, JWT, SESSION_NAMES}
     },
     ui::{apps::get_non_duplicated_sorted_subjects, svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, search_icon_svg, trash_icon_svg}},
@@ -153,9 +153,9 @@ pub fn builds_interface_footer() -> Element {
     use_coroutine(sync_current_session_mermaid_state);
     let diagram_code: Memo<String> = use_memo(move || {
         if IS_FLOWCHART_SHOWN() {
-            SESSION_MERMAID_FLOWCHART.read().to_string()
+            SESSION_FLOWCHART_DIAGRAM.read().to_string()
         } else {
-            SESSION_MERMAID_ERDIAGRAM.read().to_string()
+            SESSION_ER_DIAGRAM.read().to_string()
         }        
     });
 
@@ -173,13 +173,13 @@ pub fn builds_interface_footer() -> Element {
                                 let sync_current_session_mermaid_state = use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
                                 let current_session_mermaid_js = if IS_FLOWCHART_SHOWN() {
                                     SyncCurrentSessionMermaidJSState {
-                                        flowchart: Some(event.value()),
-                                        erdiagram: None,
+                                        flowchart_diagram: Some(event.value()),
+                                        er_diagram: None,
                                     }
                                 } else {
                                     SyncCurrentSessionMermaidJSState {
-                                        flowchart: None,
-                                        erdiagram: Some(event.value()),
+                                        flowchart_diagram: None,
+                                        er_diagram: Some(event.value()),
                                     }
                                 };
                                 sync_current_session_mermaid_state.send(current_session_mermaid_js);

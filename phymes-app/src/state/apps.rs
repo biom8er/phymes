@@ -20,27 +20,27 @@ pub async fn sync_current_active_session_state(
 }
 
 #[allow(clippy::redundant_closure)]
-pub static SESSION_MERMAID_FLOWCHART: GlobalSignal<String> = Signal::global(|| String::new());
+pub static SESSION_FLOWCHART_DIAGRAM: GlobalSignal<String> = Signal::global(|| String::new());
 #[allow(clippy::redundant_closure)]
-pub static SESSION_MERMAID_ERDIAGRAM: GlobalSignal<String> = Signal::global(|| String::new());
+pub static SESSION_ER_DIAGRAM: GlobalSignal<String> = Signal::global(|| String::new());
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyncCurrentSessionMermaidJSState {
-    pub flowchart: Option<String>,
-    pub erdiagram: Option<String>,
+    pub flowchart_diagram: Option<String>,
+    pub er_diagram: Option<String>,
 }
 
 pub async fn sync_current_session_mermaid_state(
     mut rx: UnboundedReceiver<SyncCurrentSessionMermaidJSState>,
 ) {
     while let Some(updated_state) = rx.next().await {
-        if let Some(flowchart) = updated_state.flowchart {
-            (*SESSION_MERMAID_FLOWCHART.write()).clear();
-            (*SESSION_MERMAID_FLOWCHART.write()).push_str(flowchart.as_str());
+        if let Some(flowchart) = updated_state.flowchart_diagram {
+            (*SESSION_FLOWCHART_DIAGRAM.write()).clear();
+            (*SESSION_FLOWCHART_DIAGRAM.write()).push_str(flowchart.as_str());
         }
-        if let Some(erdiagram) = updated_state.erdiagram {
-            (*SESSION_MERMAID_ERDIAGRAM.write()).clear();
-            (*SESSION_MERMAID_ERDIAGRAM.write()).push_str(erdiagram.as_str());
+        if let Some(erdiagram) = updated_state.er_diagram {
+            (*SESSION_ER_DIAGRAM.write()).clear();
+            (*SESSION_ER_DIAGRAM.write()).push_str(erdiagram.as_str());
         }
     }
 }
