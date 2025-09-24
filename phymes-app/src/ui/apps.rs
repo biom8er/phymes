@@ -58,6 +58,7 @@ pub fn get_non_duplicated_sorted_subjects(subjects: &[&str]) -> Vec<String> {
 pub fn apps_interface_view() -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_current_session_mermaid_state);
+    use_coroutine(sync_current_builder_state);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
@@ -69,9 +70,9 @@ pub fn apps_interface_view() -> Element {
     );
 
     // Get the active mermaid.js diagrams for the settings view
-    let sync_current_session_mermaid_state =
-        use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
     let _ = use_resource(move || async move {
+        let sync_current_session_mermaid_state =
+            use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
             .with_subject(SessionContextTableNames::MermaidJS.get_name())

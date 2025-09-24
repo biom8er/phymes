@@ -15,10 +15,6 @@ pub struct ServerState {
     /// HashMap of sessions indexed by session name
     ///   where the session name = session_name + user_name
     pub session_contexts: Arc<RwLock<HashMap<String, Arc<RwLock<SessionStreamState>>>>>,
-    /// Users
-    /// HashMap of users indexed by user name
-    ///   where the session name = session_name + user_name
-    pub users: Arc<RwLock<HashMap<String, Arc<RwLock<SessionStreamState>>>>>,
 }
 
 impl Default for ServerState {
@@ -31,10 +27,6 @@ impl ServerState {
     pub fn new() -> Self {
         Self {
             session_contexts: Arc::new(RwLock::new(HashMap::<
-                String,
-                Arc<RwLock<SessionStreamState>>,
-            >::new())),
-            users: Arc::new(RwLock::new(HashMap::<
                 String,
                 Arc<RwLock<SessionStreamState>>,
             >::new())),

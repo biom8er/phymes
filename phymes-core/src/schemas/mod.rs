@@ -1,5 +1,5 @@
 pub mod blob;
-pub mod builder;
+pub mod mermaid;
 pub mod chat;
 pub mod queries;
 pub mod user;

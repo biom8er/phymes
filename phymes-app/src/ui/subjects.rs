@@ -257,9 +257,9 @@ pub fn subjects_modal() -> Element {
     });
 
     // Get the active session row counts for the subject view
-    let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
-    let sync_current_subjects_rows_state = use_coroutine_handle::<SyncCurrentSubjectNumRowsState>();
     let _ = use_resource(move || async move {
+        let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
+        let sync_current_subjects_rows_state = use_coroutine_handle::<SyncCurrentSubjectNumRowsState>();
         clear_subjects_num_rows_state.send(ClearSubjectNumRowsState {});
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()

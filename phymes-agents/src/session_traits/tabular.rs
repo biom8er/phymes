@@ -7,21 +7,18 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    metrics::HashSet,
-    session::{
+    metrics::HashSet, schemas::{available_subjects::create_timestamp_micros, mermaid::create_mermaid_batch}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context::SessionContextTableNames,
         session_context_builder::{
             SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
         },
-    },
-    table::{
+    }, table::{
         table::{Table, TableBuilderTrait, TableTrait},
         table_publish::TablePublish,
-        table_subscribe::{TableSubscribe, from_str_to_subscribe},
-    },
-    task::processor::ProcessorBuilder,
+        table_subscribe::{from_str_to_subscribe, TableSubscribe},
+    }, task::processor::ProcessorBuilder
 };
 
 use crate::{
@@ -343,16 +340,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
     }
 
     fn get_mermaid_js_as_table(&self) -> Result<Table> {
-        let flowchart = self.to_mermaid_flowchart()?;
-        let erdiagram = self.to_mermaid_erdiagram()?;
+        let flowchart_diagram = self.to_mermaid_flowchart()?;
+        let er_diagram = self.to_mermaid_erdiagram()?;
+        let session_context_name = self.name.as_ref().unwrap().to_string();
+        let timestamp = create_timestamp_micros();
 
         // create the record batch
-        let flowchart: ArrayRef = Arc::new(StringArray::from(vec![flowchart]));
-        let erdiagram: ArrayRef = Arc::new(StringArray::from(vec![erdiagram]));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("flowchart_diagram", flowchart),
-            ("er_diagram", erdiagram),
-        ])?;
+        let batch = create_mermaid_batch(
+            vec![session_context_name], 
+            vec![flowchart_diagram], 
+            vec![er_diagram], 
+            vec![timestamp])?;
 
         // create the table
         Table::get_builder()
@@ -792,6 +790,16 @@ mod tests {
         assert_eq!(
             tables_test.get(4).unwrap().get_name(),
             tables.get(4).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test
+                .get(4)
+                .unwrap()
+                .get_column_as_vec_str("session_context_name"),
+            tables
+                .get(4)
+                .unwrap()
+                .get_column_as_vec_str("session_context_name")
         );
         assert_eq!(
             tables_test

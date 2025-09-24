@@ -29,3 +29,13 @@ pub async fn sync_current_builder_state(
         (*BUILDER_TIMESTAMP.write()).push(updated_state.timestamp);
     }
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct ClearBuilderState {}
+
+pub async fn clear_builder_schema_state(mut _rx: UnboundedReceiver<ClearBuilderState>) {
+    (*BUILDER_SESSION_CONTEXT_NAME.write()).clear();
+    (*BUILDER_FLOWCHART_DIAGRAM.write()).clear();
+    (*BUILDER_ER_DIAGRAM.write()).clear();
+    (*BUILDER_TIMESTAMP.write()).clear();
+}

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    schemas::{available_subjects::AvailableSubjects, builder::BuilderBuilderTraitExt}, session::{
+    schemas::{available_subjects::AvailableSubjects, mermaid::MermaidBuilderTraitExt}, session::{
         common_traits::{BuildableTrait, BuilderTrait},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
@@ -54,11 +54,11 @@ impl CustomAgentsBuilderTrait for BuilderAgentSession<'_> {
             self.session_context_name,
             &[
                 TablePublish::Extend {
-                    table_name: AvailableSubjects::Builder.to_string(),
+                    table_name: AvailableSubjects::Mermaid.to_string(),
                 },
             ],
             &[TableSubscribe::OnUpdateLastRecordBatch {
-                table_name: AvailableSubjects::Builder.to_string(),
+                table_name: AvailableSubjects::Mermaid.to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
         ));
@@ -75,12 +75,12 @@ impl CustomAgentsBuilderTrait for BuilderAgentSession<'_> {
     fn make_state_tables(&self) -> Option<Vec<Table>> {
         // Initialize with chat, doc, and tool agent session diagrams
         let mut table_builder = Table::get_builder()
-            .with_name(AvailableSubjects::Builder.to_string().as_str());
-        for session_context_name in ["Chat", "DocChat", "ToolChat"] {
-            let builder = AvailableSessionPlans::get_session_context_builder_by_name(session_context_name, session_context_name).unwrap();
+            .with_name(AvailableSubjects::Mermaid.to_string().as_str());
+        for session_context_name in AvailableSessionPlans::get_deployable_session_plan_names() {
+            let builder = AvailableSessionPlans::get_session_context_builder_by_name(&session_context_name, &session_context_name).unwrap();
             let flowchart_diagram = builder.to_mermaid_flowchart().unwrap();
             let er_diagram = builder.to_mermaid_erdiagram().unwrap();
-            table_builder = table_builder.with_builder(
+            table_builder = table_builder.with_mermaid(
                 Some(AvailableSessionPlans::Chat.to_string().as_str()), 
                 Some(&flowchart_diagram), 
                 Some(&er_diagram)).unwrap();

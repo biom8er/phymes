@@ -32,6 +32,8 @@ pub enum AvailableSessionPlans {
     ToolChat,
     #[value(name = "Builder")]
     Builder,
+    #[value(name = "User")]
+    User,
 }
 
 impl Display for AvailableSessionPlans {
@@ -41,6 +43,7 @@ impl Display for AvailableSessionPlans {
             Self::DocChat => write!(f, "DocChat"),
             Self::ToolChat => write!(f, "ToolChat"),
             Self::Builder => write!(f, "Builder"),
+            Self::User => write!(f, "User"),
         }
     }
 }
@@ -48,7 +51,16 @@ impl Display for AvailableSessionPlans {
 impl AvailableSessionPlans {
     /// Get all available session plans
     pub fn get_all_session_plan_names() -> Vec<String> {
-        let session_plans = ["Chat", "DocChat", "ToolChat", "Builder"];
+        let session_plans = ["Chat", "DocChat", "ToolChat", "Builder", "User"];
+        session_plans
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+    }
+
+    /// Get all available session plans
+    pub fn get_deployable_session_plan_names() -> Vec<String> {
+        let session_plans = ["Chat", "DocChat", "ToolChat"];
         session_plans
             .iter()
             .map(|s| s.to_string())
@@ -63,6 +75,7 @@ impl AvailableSessionPlans {
             Self::DocChat => DocumentRAGSession::new_with_session_name(session_name).build(),
             Self::ToolChat => ToolAgentSession::new_with_session_name(session_name).build(),
             Self::Builder => BuilderAgentSession::new_with_session_name(session_name).build(),
+            Self::User => BuilderAgentSession::new_with_session_name(session_name).build(),
         }
     }
 
@@ -79,6 +92,8 @@ impl AvailableSessionPlans {
             Ok(Self::ToolChat.get_session_context_builder(session_name))
         } else if session_plan_name == Self::Builder.to_string() {
             Ok(Self::Builder.get_session_context_builder(session_name))
+        } else if session_plan_name == Self::User.to_string() {
+            Ok(Self::User.get_session_context_builder(session_name))
         } else {
             Err(anyhow!(
                 "Plan name {session_plan_name} was not found in the available session plans."
@@ -113,6 +128,8 @@ impl AvailableSessionPlans {
             Ok(Self::ToolChat.get_session_stream_state(session_name))
         } else if session_plan_name == Self::Builder.to_string() {
             Ok(Self::Builder.get_session_stream_state(session_name))
+        } else if session_plan_name == Self::User.to_string() {
+            Ok(Self::User.get_session_stream_state(session_name))
         } else {
             Err(anyhow!(
                 "Plan name {session_plan_name} was not found in the available session plans."

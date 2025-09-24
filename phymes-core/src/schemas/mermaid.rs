@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{schemas::available_subjects::create_timestamp_micros, table::table::TableBuilder};
 
-pub fn create_builder_fields() -> Fields {
+pub fn create_mermaid_fields() -> Fields {
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
     let flowchart_diagram = Field::new("flowchart_diagram", DataType::Utf8, false);
     let er_diagram = Field::new("er_diagram", DataType::Utf8, false);
@@ -20,14 +20,14 @@ pub fn create_builder_fields() -> Fields {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct BuilderSubject {
+pub struct MermaidSubject {
     pub session_context_name: String, 
     pub flowchart_diagram: String, 
     pub er_diagram: String,
     pub timestamp: i64,
 }
 
-pub fn create_builder_batch(
+pub fn create_mermaid_batch(
     session_context_name: Vec<String>,
     flowchart_diagram: Vec<String>,
     er_diagram: Vec<String>,
@@ -46,19 +46,19 @@ pub fn create_builder_batch(
     Ok(batch)
 }
 
-pub trait BuilderBuilderTraitExt: Sized {
-    fn with_builder(self, session_context_name: Option<&str>, flowchart_diagram: Option<&str>, er_diagram: Option<&str>) -> Result<Self>;
+pub trait MermaidBuilderTraitExt: Sized {
+    fn with_mermaid(self, session_context_name: Option<&str>, flowchart_diagram: Option<&str>, er_diagram: Option<&str>) -> Result<Self>;
 }
 
-impl BuilderBuilderTraitExt for TableBuilder {
-    fn with_builder(mut self, session_context_name: Option<&str>, flowchart_diagram: Option<&str>, er_diagram: Option<&str>) -> Result<Self> {
+impl MermaidBuilderTraitExt for TableBuilder {
+    fn with_mermaid(mut self, session_context_name: Option<&str>, flowchart_diagram: Option<&str>, er_diagram: Option<&str>) -> Result<Self> {
         // Handle the er_diagram
         let session_context_name = session_context_name.unwrap_or_default().to_string();
         let flowchart_diagram = flowchart_diagram.unwrap_or_default().to_string();
         let er_diagram = er_diagram.unwrap_or_default().to_string();
 
         // Add the record batch to the table
-        let batch = create_builder_batch(
+        let batch = create_mermaid_batch(
             vec![session_context_name],
             vec![flowchart_diagram],
             vec![er_diagram],

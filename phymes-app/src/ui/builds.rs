@@ -12,7 +12,7 @@ use crate::{
     state::{
         apps::{
             sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM
-        }, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{EMAIL, JWT, SESSION_NAMES}
+        }, builds::{BUILDER_ER_DIAGRAM, BUILDER_FLOWCHART_DIAGRAM, BUILDER_SESSION_CONTEXT_NAME}, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{EMAIL, JWT, SESSION_NAMES}
     },
     ui::{apps::get_non_duplicated_sorted_subjects, svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, search_icon_svg, trash_icon_svg}},
 };
@@ -40,6 +40,33 @@ use phymes_server::server::{
     serverless_config::ServerlessConfig,
 };
 
+fn get_builder_name_and_diagrams_by_subject_name(
+    active_session_context_names: &str,
+    builder_session_context_names: &[&str],
+    builder_flowchart_diagram: &[&str],
+    builder_er_diagram: &[&str],
+) -> (Vec<String>, Vec<String>) {
+    let indices = builder_session_context_names
+        .iter()
+        .enumerate()
+        .filter(|(_i, s)| **s == active_session_context_names)
+        .map(|(i, _s)| i)
+        .collect::<Vec<_>>();
+    let flowchart_diagram = builder_flowchart_diagram
+        .iter()
+        .enumerate()
+        .filter(|(i, _s)| indices.contains(i))
+        .map(|(_i, s)| s.to_string())
+        .collect::<Vec<_>>();
+    let er_diagram = builder_er_diagram
+        .iter()
+        .enumerate()
+        .filter(|(i, _s)| indices.contains(i))
+        .map(|(_i, s)| s.to_string())
+        .collect::<Vec<_>>();
+    (flowchart_diagram, er_diagram)
+}
+
 /// View for the builds drop down menu
 #[component]
 pub fn builds_dropdown_view() -> Element {
@@ -52,9 +79,10 @@ pub fn builds_dropdown_view() -> Element {
     let mut show_subject_dropdown = use_signal(|| false);
     #[allow(clippy::redundant_closure)]
     let mut subject_dropdown = use_signal(|| String::new());
+
     let subjects_vec = use_memo(move || {
         get_non_duplicated_sorted_subjects(
-            &SESSION_NAMES
+            &BUILDER_SESSION_CONTEXT_NAME
                 .read()
                 .iter()
                 .map(|s| s.as_str())
@@ -63,6 +91,29 @@ pub fn builds_dropdown_view() -> Element {
     });
     #[allow(clippy::redundant_closure)]
     let mut subjects_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
+
+    let mut flowchart_diagrams = Vec::new();
+    let mut er_diagrams = Vec::new();
+    if flowchart_diagrams.is_empty() {
+        (flowchart_diagrams, er_diagrams) = get_builder_name_and_diagrams_by_subject_name(
+            ACTIVE_SESSION_NAME.read().as_str(),
+            &BUILDER_SESSION_CONTEXT_NAME
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &BUILDER_FLOWCHART_DIAGRAM
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &BUILDER_ER_DIAGRAM
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+        );
+    }
 
     rsx! {
         div {
