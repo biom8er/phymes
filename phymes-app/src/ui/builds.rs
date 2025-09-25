@@ -6,13 +6,11 @@ use phymes_server::handlers::sign_in::create_session_name;
 use crate::{
     state::{
         apps::{
-            sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM
-        }, builds::{sync_current_mermaid_state, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME, MERMAID_TIMESTAMP}, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{EMAIL, JWT}
+            sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM, get_non_duplicated_sorted_subjects, filter_in_mermaid_diagrams_by_session_name},
+        builds::{sync_current_mermaid_state, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME, MERMAID_TIMESTAMP, filter_out_mermaid_diagrams_by_session_name}, 
+        messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{EMAIL, JWT}
     },
-    ui::{
-        apps::{get_non_duplicated_sorted_subjects, filter_in_mermaid_diagrams_by_session_name}, 
-        svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, sync_icon_svg, trash_icon_svg}
-    },
+    ui::svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, sync_icon_svg, trash_icon_svg},
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -30,47 +28,6 @@ use phymes_server::server::{
     serverless_app::{serverless_app, Serverless},
     serverless_config::ServerlessConfig,
 };
-
-/// Filter out mermaid diagrams by session name
-fn filter_out_mermaid_diagrams_by_session_name(
-    active_session_context_names: &str,
-    builder_session_context_names: &[&str],
-    builder_flowchart_diagram: &[&str],
-    builder_er_diagram: &[&str],
-    builder_timestamp: &[i64],
-) -> (Vec<String>, Vec<String>, Vec<String>, Vec<i64>) {
-    let indices = builder_session_context_names
-        .iter()
-        .enumerate()
-        .filter(|(_i, s)| **s != active_session_context_names)
-        .map(|(i, _s)| i)
-        .collect::<Vec<_>>();
-    let session_context_name = builder_session_context_names
-        .iter()
-        .enumerate()
-        .filter(|(i, _s)| indices.contains(i))
-        .map(|(_i, s)| s.to_string())
-        .collect::<Vec<_>>();
-    let flowchart_diagram = builder_flowchart_diagram
-        .iter()
-        .enumerate()
-        .filter(|(i, _s)| indices.contains(i))
-        .map(|(_i, s)| s.to_string())
-        .collect::<Vec<_>>();
-    let er_diagram = builder_er_diagram
-        .iter()
-        .enumerate()
-        .filter(|(i, _s)| indices.contains(i))
-        .map(|(_i, s)| s.to_string())
-        .collect::<Vec<_>>();
-    let timestamp = builder_timestamp
-        .iter()
-        .enumerate()
-        .filter(|(i, _s)| indices.contains(i))
-        .map(|(_i, s)| s.to_owned())
-        .collect::<Vec<_>>();
-    (session_context_name, flowchart_diagram, er_diagram, timestamp)
-}
 
 /// View for the builds drop down menu
 #[component]

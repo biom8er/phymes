@@ -249,9 +249,9 @@ pub mod test_sign_in_handler {
     pub fn retrieve_user_by_email(email: &str) -> Option<UserSubject> {
         let password_hash = hash_password(email).unwrap();
         let current_user = UserSubject {
-            email: "myemail@gmail.com".to_string(),
-            first_name: "Eze".to_string(),
-            last_name: "Sunday".to_string(),
+            email: "contact@biom8er.com".to_string(),
+            first_name: "Contact".to_string(),
+            last_name: "Biom8er".to_string(),
             password_hash,
             timestamp: create_timestamp_micros(),         
         };

@@ -1,5 +1,5 @@
 use std::sync::Arc;
-
+use anyhow::Result;
 use phymes_core::{
     schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects}, mermaid::create_mermaid_batch}, session::{
         common_traits::{BuildableTrait, BuilderTrait},
@@ -9,32 +9,55 @@ use phymes_core::{
         table::{Table, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
-
 use crate::{session_plans::available_session_plans::AvailableSessionPlans, session_traits::{agents::CustomAgentsBuilderTrait, mermaid::SessionContextBuilderMermaidTrait}};
 
-pub struct BuilderAgentSession<'a> {
+/// Example Mermaid diagrams for chat, doc, and tool agent sessions
+pub fn make_example_mermaid_table() -> Result<Table> {
+    // Initialize with chat, doc, and tool agent session diagrams
+    let mut session_context_names = Vec::new();
+    let mut flowchart_diagram = Vec::new();
+    let mut er_diagram = Vec::new();
+    let mut timestamp = Vec::new();
+    for session_context_name in AvailableSessionPlans::get_deployable_session_plan_names() {
+        let builder = AvailableSessionPlans::get_session_context_builder_by_name(&session_context_name, &session_context_name)?;
+        flowchart_diagram.push(builder.to_mermaid_flowchart()?);
+        er_diagram.push(builder.to_mermaid_erdiagram()?);
+        session_context_names.push(session_context_name);
+        timestamp.push(create_timestamp_micros());
+    }
+    
+    // Create the table
+    let batch = create_mermaid_batch(session_context_names, flowchart_diagram, er_diagram, timestamp)?;
+    Table::get_builder()
+        .with_name(AvailableSubjects::Mermaid.to_string().as_str())
+        .with_record_batches(vec![batch])?
+        .build()
+}
+
+/// Session for building new sessions via Mermaid diagrams
+pub struct BuilderSession<'a> {
     /// Session and state
     pub session_context_name: &'a str,
 }
 
-impl Default for BuilderAgentSession<'_> {
+impl Default for BuilderSession<'_> {
     fn default() -> Self {
-        BuilderAgentSession {
+        BuilderSession {
             session_context_name: "session_context_1",
         }
     }
 }
 
-impl<'a> BuilderAgentSession<'a> {
+impl<'a> BuilderSession<'a> {
     pub fn new_with_session_name(session_context_name: &'a str) -> Self {
-        BuilderAgentSession {
+        BuilderSession {
             session_context_name,
             ..Default::default()
         }
     }
 }
 
-impl CustomAgentsBuilderTrait for BuilderAgentSession<'_> {
+impl CustomAgentsBuilderTrait for BuilderSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let mut tasks = Vec::new();
 
@@ -73,29 +96,8 @@ impl CustomAgentsBuilderTrait for BuilderAgentSession<'_> {
     }
 
     fn make_state_tables(&self) -> Option<Vec<Table>> {
-        // Initialize with chat, doc, and tool agent session diagrams
-        let mut session_context_names = Vec::new();
-        let mut flowchart_diagram = Vec::new();
-        let mut er_diagram = Vec::new();
-        let mut timestamp = Vec::new();
-        for session_context_name in AvailableSessionPlans::get_deployable_session_plan_names() {
-            let builder = AvailableSessionPlans::get_session_context_builder_by_name(&session_context_name, &session_context_name).unwrap();
-            flowchart_diagram.push(builder.to_mermaid_flowchart().unwrap());
-            er_diagram.push(builder.to_mermaid_erdiagram().unwrap());
-            session_context_names.push(session_context_name);
-            timestamp.push(create_timestamp_micros());
-        }
-        
-        // Create the table
-        let batch = create_mermaid_batch(session_context_names, flowchart_diagram, er_diagram, timestamp).unwrap();
-        let table = Table::get_builder()
-            .with_name(AvailableSubjects::Mermaid.to_string().as_str())
-            .with_record_batches(vec![batch])
-            .unwrap()
-            .build()
-            .unwrap();
-        Some(vec![           
-            table,
+        Some(vec![
+            make_example_mermaid_table().unwrap(),
         ])
     }
 }
@@ -116,7 +118,7 @@ mod tests {
         let metrics = ArrowTaskMetricsSet::new();
 
         // initialize the session
-        let builder_agent_session = BuilderAgentSession::default();
+        let builder_agent_session = BuilderSession::default();
         let session_ctx = builder_agent_session
             .build()
             .with_metrics(metrics.clone())

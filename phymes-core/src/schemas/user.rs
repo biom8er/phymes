@@ -70,11 +70,9 @@ pub fn create_user_batch(
 pub fn create_user_session_contexts_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
-    let timestamp = Field::new("timestamp", DataType::Int64, false);
     Fields::from(vec![
         email,
         session_context_name,
-        timestamp
     ])
 }
 
@@ -82,21 +80,63 @@ pub fn create_user_session_contexts_fields() -> Fields {
 pub struct UserSessionContextsSubject {
     pub email: String,
     pub session_context_name: String,
-    pub timestamp: i64,
 }
 
 pub fn create_user_session_contexts_batch(
     email: Vec<String>,
     session_context_name: Vec<String>,
-    timestamp: Vec<i64>,
 ) -> Result<RecordBatch> {
     let email: ArrayRef = Arc::new(StringArray::from(email));
     let session_context_name: ArrayRef = Arc::new(StringArray::from(session_context_name));
-    let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
     let batch = RecordBatch::try_from_iter(vec![
         ("email", email),
         ("session_context_name", session_context_name),
-        ("timestamp", timestamp),
     ])?;
     Ok(batch)
+}
+
+pub fn create_user_inbox_fields() -> Fields {
+    let email = Field::new("email", DataType::Utf8, false);
+    Fields::from(vec![
+        email,
+    ])
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct UserInboxSubject {
+    pub email: String,
+}
+
+pub fn create_user_inbox_batch(
+    email: Vec<String>,
+) -> Result<RecordBatch> {
+    let email: ArrayRef = Arc::new(StringArray::from(email));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("email", email),
+    ])?;
+    Ok(batch)
+}
+
+pub fn create_join_user_inbox_session_contexts_fields() -> Fields {
+    let email = Field::new("email", DataType::Utf8, false);
+    let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
+    Fields::from(vec![
+        email,
+        session_context_name,
+    ])
+}
+
+pub fn create_join_user_inbox_session_contexts_mermaid_diagrams_fields() -> Fields {
+    let email = Field::new("email", DataType::Utf8, false);
+    let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
+    let flowchart_diagram = Field::new("flowchart_diagram", DataType::Utf8, false);
+    let er_diagram = Field::new("er_diagram", DataType::Utf8, false);
+    let timestamp = Field::new("timestamp", DataType::Int64, false);
+    Fields::from(vec![
+        email,
+        session_context_name,
+        flowchart_diagram,
+        er_diagram,
+        timestamp,
+    ])
 }

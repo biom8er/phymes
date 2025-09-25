@@ -1,4 +1,4 @@
-use crate::{schemas::{blob::create_blob_fields, mermaid::create_mermaid_fields, chat::create_chat_fields, queries::create_queries_fields, user::{create_user_fields, create_user_session_contexts_fields}}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilder, TableBuilderTrait}};
+use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, mermaid::create_mermaid_fields, queries::create_queries_fields, user::{create_join_user_inbox_session_contexts_fields, create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields, create_user_inbox_fields, create_user_session_contexts_fields}}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilder, TableBuilderTrait}};
 
 use anyhow::Result;
 use arrow::{
@@ -185,6 +185,12 @@ pub enum AvailableSubjects {
     User,
     #[value(name = "UserSessionContexts")]
     UserSessionContexts,
+    #[value(name = "UserInbox")]
+    UserInbox,
+    #[value(name = "JoinUserInboxSessionContexts")]
+    JoinUserInboxSessionContexts,
+    #[value(name = "JoinUserInboxSessionContextsMermaid")]
+    JoinUserInboxSessionContextsMermaid,
     #[value(name = "Mermaid")]
     Mermaid,
 }
@@ -205,6 +211,9 @@ impl Display for AvailableSubjects {
             AvailableSubjects::Blob => write!(f, "Blob"),
             AvailableSubjects::User => write!(f, "User"),
             AvailableSubjects::UserSessionContexts => write!(f, "UserSessionContexts"),
+            AvailableSubjects::UserInbox => write!(f, "UserInbox"),
+            AvailableSubjects::JoinUserInboxSessionContexts => write!(f, "JoinUserInboxSessionContexts"),
+            AvailableSubjects::JoinUserInboxSessionContextsMermaid => write!(f, "JoinUserInboxSessionContextsMermaid"),
             AvailableSubjects::Mermaid => write!(f, "Mermaid"),
         }
     }
@@ -251,6 +260,9 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::Blob => create_schema_from_fields(&create_blob_fields),
             AvailableSubjects::User => create_schema_from_fields(&create_user_fields),
             AvailableSubjects::UserSessionContexts => create_schema_from_fields(&create_user_session_contexts_fields),
+            AvailableSubjects::UserInbox => create_schema_from_fields(&create_user_inbox_fields),
+            AvailableSubjects::JoinUserInboxSessionContexts => create_schema_from_fields(&create_join_user_inbox_session_contexts_fields),
+            AvailableSubjects::JoinUserInboxSessionContextsMermaid => create_schema_from_fields(&create_join_user_inbox_session_contexts_mermaid_diagrams_fields),
             AvailableSubjects::Mermaid => create_schema_from_fields(&create_mermaid_fields),
         }
     }

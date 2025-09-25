@@ -13,7 +13,7 @@ use phymes_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{session_plans::builder_agent_session::BuilderAgentSession, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
+use crate::{session_plans::builder_session::BuilderSession, session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
 
 use super::{
     chat_agent_session::ChatAgentSession,
@@ -71,7 +71,7 @@ impl AvailableSessionPlans {
             Self::Chat => ChatAgentSession::new_with_session_name(session_name).build(),
             Self::DocChat => DocumentRAGSession::new_with_session_name(session_name).build(),
             Self::ToolChat => ToolAgentSession::new_with_session_name(session_name).build(),
-            Self::Builder => BuilderAgentSession::new_with_session_name(session_name).build(),
+            Self::Builder => BuilderSession::new_with_session_name(session_name).build(),
         }
     }
 

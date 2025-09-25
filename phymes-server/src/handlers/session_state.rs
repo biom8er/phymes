@@ -21,7 +21,7 @@ use phymes_core::{
 use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};
 use crate::state::server_state::ServerState;
 
-/// Chat inference endpoint
+/// Put state input
 #[axum::debug_handler]
 pub async fn session_put_state(
     Extension(current_user): Extension<UserSubject>,
@@ -190,7 +190,7 @@ pub async fn session_put_state(
     }
 }
 
-/// Chat inference endpoint
+/// Get state endpoint
 #[axum::debug_handler]
 pub async fn session_get_state(
     Extension(current_user): Extension<UserSubject>,

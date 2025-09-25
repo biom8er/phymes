@@ -9,6 +9,15 @@ use phymes_core::{metrics::HashMap, session::session_context::SessionStreamState
 
 use crate::handlers::sign_in::{create_session_name, test_sign_in_handler};
 
+/// The server state
+/// 
+/// # Notes
+/// 
+/// The server state is composed of two parts:
+/// 1. the session contexts which store the available sessions for each user
+/// 2. the users which store the information about each user
+/// 
+/// A default user "contact at biom8er dot com" is created upon initialization
 #[derive(Clone)]
 pub struct ServerState {
     /// Session context
@@ -109,26 +118,35 @@ impl ServerState {
         &mut self,
         email: &str,
     ) -> Option<(Vec<String>, Vec<String>)> {
-        match test_sign_in_handler::retrieve_session_plans_by_email(email) {
-            Some(session_plans) => {
-                // Add user sessions to the state
-                let mut session_names = Vec::new();
-                for session_plan in session_plans.iter() {
-                    let session_name = create_session_name(email, session_plan.as_str());
-                    session_names.push(session_name.clone());
-                    let _ = self.session_contexts.try_write().unwrap().insert(
-                        session_name.clone(),
-                        AvailableSessionPlans::get_session_stream_state_by_name(
-                            session_plan.as_str(),
-                            session_name.as_str(),
-                        )
-                        .unwrap(),
-                    );
-                    tracing::debug!(
-                        "Creating session_plan {} for session_name {}",
-                        session_plan.as_str(),
-                        session_name.as_str()
-                    );
+        match self.get_session_names_by_email(email) {
+            Some((session_plans, session_names)) => {
+                let combined = session_plans
+                    .iter()
+                    .zip(session_names.iter())
+                    .map(|(a, b)| (a, b))
+                    .collect::<Vec<_>>();
+                for (session_plan, session_name) in combined {
+                    if self.session_contexts.try_read().unwrap().contains_key(session_name) {
+                        tracing::debug!(
+                            "Session_plan {} already exists for session_name {}",
+                            session_plan,
+                            session_name
+                        );
+                    } else {
+                        let _ = self.session_contexts.try_write().unwrap().insert(
+                            session_name.to_string(),
+                            AvailableSessionPlans::get_session_stream_state_by_name(
+                                session_plan.as_str(),
+                                session_name.as_str(),
+                            )
+                            .unwrap(),
+                        );
+                        tracing::debug!(
+                            "Creating session_plan {} for session_name {}",
+                            session_plan,
+                            session_name
+                        );
+                    }
                 }
                 Some((session_plans, session_names))
             }

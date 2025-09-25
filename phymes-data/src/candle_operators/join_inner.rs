@@ -374,12 +374,29 @@ pub fn join_inner(
         lhs_asort_tensor,
         device,
     )?);
-    let rhs_columns: Vec<String> = rhs_table
-        .get_schema()
-        .fields()
-        .iter()
-        .map(|field| field.name().to_owned())
-        .collect();
+
+    // Skip the rhs_fk if it matches the lhs_fk
+    let rhs_columns: Vec<String> = if lhs_fk == rhs_fk {
+        rhs_table
+            .get_schema()
+            .fields()
+            .iter()
+            .filter_map(|field| {
+                if field.name() == rhs_fk {
+                    None
+                } else {
+                    Some(field.name().to_owned())
+                }
+            })
+            .collect()
+    } else {
+        rhs_table
+            .get_schema()
+            .fields()
+            .iter()
+            .map(|field| field.name().to_owned())
+            .collect()
+    };
     batch_vec.extend(take_columns_by_indices(
         &rhs_columns,
         &rhs_table,

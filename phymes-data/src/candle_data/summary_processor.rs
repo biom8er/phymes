@@ -119,18 +119,18 @@ impl ProcessorTrait for DataSummaryProcessor {
 
         // Extract out the messages to be summarized
         let mut subscriptions = Vec::new();
+        let mut table_names = Vec::new();
         for subs in self.subscriptions.iter() {
             if subs.get_table_name() != self.get_name() {
                 match message.remove(subs.get_table_name()) {
                     Some(m) => {
                         subscriptions.push(m);
+                        table_names.push(subs.get_table_name())
                     }
                     None => {
-                        return Err(anyhow!(
-                            "Subscription {} not provided for {}.",
+                        event!(Level::WARN, "Subscription {} not provided for {}.",
                             subs.get_table_name(),
-                            self.get_name()
-                        ));
+                            self.get_name());
                     }
                 }
             }
@@ -144,6 +144,7 @@ impl ProcessorTrait for DataSummaryProcessor {
         // Make the outbox and send
         let out = Box::pin(DataSummaryStream::new(
             subscriptions.swap_remove(0).get_message_own(),
+            table_names.swap_remove(0).to_string(),
             config,
             Arc::clone(&runtime_env),
             BaselineMetrics::new(&metrics, self.get_name()),
@@ -167,6 +168,8 @@ pub struct DataSummaryStream {
     schema: SchemaRef,
     /// The input message to process
     message_stream: SendableRecordBatchStream,
+    /// The table name of the subscription
+    table_name: String,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The Candle model assets needed for inference
@@ -180,6 +183,7 @@ pub struct DataSummaryStream {
 impl DataSummaryStream {
     pub fn new(
         message_stream: SendableRecordBatchStream,
+        table_name: String,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         baseline_metrics: BaselineMetrics,
@@ -187,6 +191,7 @@ impl DataSummaryStream {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),
             message_stream,
+            table_name,
             config_stream,
             runtime_env,
             baseline_metrics,
@@ -336,14 +341,14 @@ impl Stream for DataSummaryStream {
                         values.push(v);
                     }
                     let table = Table::get_builder()
-                        .with_name("attachment")
+                        .with_name(&self.table_name)
                         .with_schema(schema)
                         .with_json_values(&values)?
                         .build()?;
 
                     // Convert to CSV and wrap into a blob batch
                     let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
+                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -357,7 +362,7 @@ impl Stream for DataSummaryStream {
                         values.push(v);
                     }
                     let table = Table::get_builder()
-                        .with_name("attachment")
+                        .with_name(&self.table_name)
                         .with_schema(schema)
                         .with_json_values(&values)?
                         .build()?;
@@ -365,7 +370,7 @@ impl Stream for DataSummaryStream {
                     // Convert to CSV and wrap into a blob batch
                     let csv_format = CsvFormat { ..Default::default()};
                     let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
+                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -379,14 +384,14 @@ impl Stream for DataSummaryStream {
                         values.push(v);
                     }
                     let table = Table::get_builder()
-                        .with_name("attachment")
+                        .with_name(&self.table_name)
                         .with_schema(schema)
                         .with_json_values(&values)?
                         .build()?;
 
                     // Convert to CSV and wrap into a blob batch
                     let bytes = table.to_bytes()?;
-                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".json".to_string()], vec![bytes.to_vec()], vec!["".to_string()], vec![create_timestamp_micros()])?;
+                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![".json".to_string()], vec![bytes.to_vec()], vec!["".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -400,14 +405,14 @@ impl Stream for DataSummaryStream {
                         values.push(v);
                     }
                     let table = Table::get_builder()
-                        .with_name("attachment")
+                        .with_name(&self.table_name)
                         .with_schema(schema)
                         .with_json_values(&values)?
                         .build()?;
 
                     // Convert to CSV and wrap into a blob batch
                     let bytes = table.to_json()?;
-                    let batch = create_blob_batch(vec!["attachment".to_string()], vec![".json".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
+                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![".json".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -627,7 +632,7 @@ mod tests {
         assert_eq!(partitions.count_rows(), 1);
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
-        assert_eq!(partitions.get_column_as_vec_str("filename"), ["attachment"]);
+        assert_eq!(partitions.get_column_as_vec_str("filename"), ["lhs_name"]);
         assert_eq!(partitions.get_column_as_vec_str("extension"), [".csv"]);
         assert_eq!(partitions.get_column_as_vec_str("metadata"), [""]);
         let contents_vec = partitions.get_column_as_vec_nested_primitive::<u8>("bytes")?;
