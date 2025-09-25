@@ -13,9 +13,9 @@ use crate::{
     state::{
         apps::{
             sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM
-        }, builds::{clear_current_mermaid_state, sync_current_mermaid_state, ClearCurrentMermaidState, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME}, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{BUILDER, EMAIL, JWT, SESSION_NAMES}
+        }, builds::{clear_current_mermaid_state, sync_current_mermaid_state, ClearCurrentMermaidState, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME, MERMAID_TIMESTAMP}, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{BUILDER, EMAIL, JWT, SESSION_NAMES}
     },
-    ui::{builds::builds_dropdown_view, svg_icons::{sync_icon_svg, search_icon_svg}},
+    ui::{builds::builds_dropdown_view, svg_icons::{search_icon_svg, sync_icon_svg}},
 };
 
 
@@ -42,18 +42,25 @@ use phymes_server::server::{
     serverless_config::ServerlessConfig,
 };
 
-/// Filter inactive mermaid diagrams
-fn get_mermaid_diagrams_by_session_name(
+/// Filter in mermaid diagrams by session name
+pub fn filter_in_mermaid_diagrams_by_session_name(
     active_session_context_names: &str,
     builder_session_context_names: &[&str],
     builder_flowchart_diagram: &[&str],
     builder_er_diagram: &[&str],
-) -> (Vec<String>, Vec<String>) {
+    builder_timestamp: &[i64],
+) -> (Vec<String>, Vec<String>, Vec<String>, Vec<i64>) {
     let indices = builder_session_context_names
         .iter()
         .enumerate()
         .filter(|(_i, s)| **s == active_session_context_names)
         .map(|(i, _s)| i)
+        .collect::<Vec<_>>();
+    let session_context_name = builder_session_context_names
+        .iter()
+        .enumerate()
+        .filter(|(i, _s)| indices.contains(i))
+        .map(|(_i, s)| s.to_string())
         .collect::<Vec<_>>();
     let flowchart_diagram = builder_flowchart_diagram
         .iter()
@@ -67,7 +74,13 @@ fn get_mermaid_diagrams_by_session_name(
         .filter(|(i, _s)| indices.contains(i))
         .map(|(_i, s)| s.to_string())
         .collect::<Vec<_>>();
-    (flowchart_diagram, er_diagram)
+    let timestamp = builder_timestamp
+        .iter()
+        .enumerate()
+        .filter(|(i, _s)| indices.contains(i))
+        .map(|(_i, s)| s.to_owned())
+        .collect::<Vec<_>>();
+    (session_context_name, flowchart_diagram, er_diagram, timestamp)
 }
 
 /// Get a non duplicated list of sorted subject names
@@ -151,32 +164,38 @@ pub fn apps_interface_view() -> Element {
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
-                            val.as_u64().unwrap().try_into().unwrap()
-                        } else {
-                            0
-                        };
-                        sync_current_mermaid_state.send(SyncCurrentMermaidState {
-                            session_context_name: row
-                                .get("session_context_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            flowchart_diagram: row
-                                .get("flowchart_diagram")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            er_diagram: row
-                                .get("er_diagram")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            timestamp: timestamp
-                        });
+                        // Check for deleted sessions
+                        let session_context_name = row
+                            .get("session_context_name")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string();
+                        if !session_context_name.contains("__deleted__") {
+
+                            // Update the mermaid state
+                            let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
+                                val.as_u64().unwrap().try_into().unwrap()
+                            } else {
+                                0
+                            };
+                            sync_current_mermaid_state.send(SyncCurrentMermaidState {
+                                session_context_name,
+                                flowchart_diagram: row
+                                    .get("flowchart_diagram")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                                er_diagram: row
+                                    .get("er_diagram")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                                timestamp: timestamp
+                            });
+                        }
                     }
                 }
             }
@@ -205,32 +224,38 @@ pub fn apps_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
-                        let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
-                            val.as_u64().unwrap().try_into().unwrap()
-                        } else {
-                            0
-                        };
-                        sync_current_mermaid_state.send(SyncCurrentMermaidState {
-                            session_context_name: row
-                                .get("session_context_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            flowchart_diagram: row
-                                .get("flowchart_diagram")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            er_diagram: row
-                                .get("er_diagram")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            timestamp: timestamp
-                        });
+                        // Check for deleted sessions
+                        let session_context_name = row
+                            .get("session_context_name")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string();
+                        if !session_context_name.contains("__deleted__") {
+
+                            // Update the mermaid state
+                            let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
+                                val.as_u64().unwrap().try_into().unwrap()
+                            } else {
+                                0
+                            };
+                            sync_current_mermaid_state.send(SyncCurrentMermaidState {
+                                session_context_name,
+                                flowchart_diagram: row
+                                    .get("flowchart_diagram")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                                er_diagram: row
+                                    .get("er_diagram")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                                timestamp: timestamp
+                            });
+                        }
                     }
                 }
             }
@@ -239,13 +264,16 @@ pub fn apps_interface_view() -> Element {
     });
 
     // Filter the mermaid.js diagrams for the session 
-    let filtered_diagrams = use_memo(move || {        
+    let filtered_diagrams = use_memo(move || { 
+        // The builder session names do not contain the email      
         let session_name = if BUILDER() {
             ACTIVE_SESSION_NAME()
         } else {
             create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
         };
-        get_mermaid_diagrams_by_session_name(
+
+        // Filter in the active diagrams
+        let (_session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_in_mermaid_diagrams_by_session_name(
             &session_name,
             &MERMAID_SESSION_CONTEXT_NAME
                 .read()
@@ -261,14 +289,30 @@ pub fn apps_interface_view() -> Element {
                 .read()
                 .iter()
                 .map(|s| s.as_str())
-                .collect::<Vec<_>>())
+                .collect::<Vec<_>>(),
+            &MERMAID_TIMESTAMP());
+
+        // Sort by timestamp
+        let mut combined = flowchart_diagrams
+            .into_iter()
+            .zip(er_diagrams.into_iter())
+            .zip(timestamps.into_iter())
+            .map(|((a, b), c)| (a, b, c, ))
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.2.cmp(&b.2));
+
+        // last is most recent
+        match combined.last() {
+            Some(diagrams) => (Some(diagrams.0.to_owned()), Some(diagrams.1.to_owned())),
+            None => (None, None)
+        }
     });
 
     // Update the active mermaid.js diagrams for the session
     let _ = use_resource(move || async move {
         sync_current_session_mermaid_state.send(SyncCurrentSessionMermaidJSState {
-            flowchart_diagram: filtered_diagrams().0.first().cloned(),
-            er_diagram: filtered_diagrams().1.first().cloned(),
+            flowchart_diagram: filtered_diagrams().0,
+            er_diagram: filtered_diagrams().1,
         });
     });
 
@@ -516,7 +560,7 @@ pub fn apps_dropdown_view() -> Element {
 
         if !ACTIVE_SESSION_NAME().is_empty() {
             div {
-                p { "Active session {ACTIVE_SESSION_NAME().to_string()}" },
+                p { "{ACTIVE_SESSION_NAME().to_string()}" },
             }
         }
     }

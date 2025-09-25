@@ -115,6 +115,7 @@ pub async fn session_put_state(
                                 .to_ipc_stream()
                                 .unwrap()
                         },
+                        DataFormat::Ipc => payload.get_message().to_owned(),
                         _ => unimplemented!(),
                     };
 
