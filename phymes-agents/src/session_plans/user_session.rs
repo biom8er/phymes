@@ -58,7 +58,7 @@ impl<'a> UserSession<'a> {
     }
 
     pub fn make_user_table(&self) -> Result<Table> {
-        let batch = create_user_batch(vec!["contact@bioma8er.com".to_string()], vec!["con".to_string()], vec!["tact".to_string()], vec!["".to_string()], vec![create_timestamp_micros()])?;
+        let batch = create_user_batch(vec!["contact@biom8er.com".to_string()], vec!["con".to_string()], vec!["tact".to_string()], vec!["".to_string()], vec![create_timestamp_micros()])?;
         TableBuilder::new()
             .with_name(AvailableSubjects::User.to_string().as_str())
             .with_record_batches(vec![batch])?
@@ -69,7 +69,7 @@ impl<'a> UserSession<'a> {
         let mut email = Vec::new();
         let mut session_context_name = Vec::new();
         for name in AvailableSessionPlans::get_deployable_session_plan_names() {
-            email.push("contact@bioma8er.com".to_string());
+            email.push("contact@biom8er.com".to_string());
             session_context_name.push(name);
         }
         let batch = create_user_session_contexts_batch(email, session_context_name)?;
