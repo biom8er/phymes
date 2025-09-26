@@ -18,7 +18,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::{data_format::CsvFormat, table::{TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
+    }, table::{data_format::CsvFormat, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {
@@ -102,7 +102,7 @@ pub async fn run_main() -> Result<()> {
         .to_json_object()?;
     for row in &attachment_data {
         let bytes = row["bytes"].as_array().unwrap()
-            .into_iter()
+            .iter()
             .map(|v| v.as_u64().unwrap() as u8)
             .collect::<Vec<u8>>();
         println!("attachment {}.{}: {}", row["filename"], row["extension"], String::from_utf8_lossy(bytes.as_ref()).into_owned())

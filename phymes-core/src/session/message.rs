@@ -33,6 +33,7 @@ pub struct SessionInterfaceMessage {
 }
 
 impl SessionInterfaceMessage {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: &str,
         subject: &str,

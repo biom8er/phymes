@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 // Server related imports
 use axum::{
     Extension,
@@ -10,11 +12,11 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
+use parking_lot::RwLock;
 use phymes_agents::session_plans::available_interface_subjects::create_message_map;
 use phymes_core::{
-    schemas::user::UserSubject,
     session::{common_traits::BuilderTrait, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}}, 
-    table::{data_format::{CsvFormat, DataFormat}, table::{TableBuilder, TableBuilderTrait, TableTrait}}, 
+    table::{data_format::{CsvFormat, DataFormat}, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}}, 
     task::message::{IPCMessageBuilder, MessageBuilderTrait, MessageTrait}};
 
 // Library imports
@@ -24,8 +26,8 @@ use crate::state::server_state::ServerState;
 /// Put state input
 #[axum::debug_handler]
 pub async fn session_put_state(
-    Extension(current_user): Extension<UserSubject>,
-    State(mut state): State<ServerState>,
+    Extension(current_user): Extension<String>,
+    State(state): State<Arc<RwLock<ServerState>>>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
@@ -36,27 +38,11 @@ pub async fn session_put_state(
                 "Put session state for session_name {}",
                 payload.get_session_name()
             );
-            if !state.check_email_in_state(&current_user.email)
-                && let Err(e) = state.read_state_by_email(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user.email,
-                )
-            {
-                tracing::error!(
-                    "Failed to read the session stream state {e:?}. Creating new session stream state."
-                );
-                if state
-                    .create_session_plans_by_email(&current_user.email)
-                    .is_none()
-                {
-                    return JsonError::new("Failed to get the session stream state".to_string())
-                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-                }
-            }
+
             match state
-                .session_contexts
                 .try_write()
                 .unwrap()
+                .session_contexts
                 .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {
@@ -149,9 +135,9 @@ pub async fn session_put_state(
             };
 
             // Write the updates to disk
-            if let Err(e) = state.write_state_by_email(
+            if let Err(e) = state.try_read().unwrap().write_session_contexts(
                 &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                &current_user.email,
+                &current_user,
             ) {
                 return JsonError::new(format!("Failed to write the session stream state {e:?}"))
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
@@ -193,8 +179,8 @@ pub async fn session_put_state(
 /// Get state endpoint
 #[axum::debug_handler]
 pub async fn session_get_state(
-    Extension(current_user): Extension<UserSubject>,
-    State(mut state): State<ServerState>,
+    Extension(_current_user): Extension<String>,
+    State(state): State<Arc<RwLock<ServerState>>>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
@@ -205,27 +191,11 @@ pub async fn session_get_state(
                 "Get session state for session_name {}",
                 payload.get_session_name()
             );
-            if !state.check_email_in_state(&current_user.email)
-                && let Err(e) = state.read_state_by_email(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user.email,
-                )
-            {
-                tracing::error!(
-                    "Failed to read the session stream state {e:?}. Creating new session stream state."
-                );
-                if state
-                    .create_session_plans_by_email(&current_user.email)
-                    .is_none()
-                {
-                    return JsonError::new("Failed to get the session stream state".to_string())
-                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-                }
-            }
+
             match state
-                .session_contexts
                 .try_write()
                 .unwrap()
+                .session_contexts
                 .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {

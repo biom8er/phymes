@@ -11,7 +11,7 @@ use crate::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        table::{Table, TableBuilderTrait, TableTrait},
+        table_trait::{Table, TableBuilderTrait, TableTrait},
         table_publish::TablePublish,
         table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
         stream::{RecordBatchStream, SendableRecordBatchStream},
@@ -224,7 +224,7 @@ impl RecordBatchStream for AggregatorStream {
 
 #[cfg(test)]
 mod tests {
-    use crate::table::table::{TableBuilder, test_table::make_test_table};
+    use crate::table::table_trait::{TableBuilder, test_table::make_test_table};
 
     use super::*;
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     metrics::{ArrowTaskMetricsSet, HashMap},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::table::{Table, TableBuilderTrait, TableTrait},
+    table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 use anyhow::Result;
 use arrow::{

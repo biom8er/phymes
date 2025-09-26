@@ -11,7 +11,7 @@ use phymes_core::{
     metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt, queries::QueriesBuilderTraitExt}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::{table::TableTrait, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait}
+    }, table::{table_trait::TableTrait, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait}
 };
 use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 
@@ -36,7 +36,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     let mut bytes_2 = Vec::new();
     pdf.save_to(&mut bytes_2).unwrap();
 
-    let bytes_vec = vec![("short", bytes_1), ("long",bytes_2)];
+    let bytes_vec = [("short", bytes_1), ("long",bytes_2)];
     let user_query = "What are the four molecules that compose DNA?";
 
     // Get the target and GPU configuration
@@ -56,10 +56,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     let mut metrics_vec = Vec::new();
     for (length, bytes) in bytes_vec.iter() {
         // Create a unique tag and id for each benchmark
-        let tag = format!(
-            "{}_{wasm}_{gpu}_{candle}",
-            length
-        );
+        let tag = format!("{length}_{wasm}_{gpu}_{candle}");
         let id = format!("doc-rag-session_{tag}");
         let mut iter = 0; // DM: not so useful as there is only one configuration we test at this point in time
 

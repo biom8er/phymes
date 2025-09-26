@@ -10,7 +10,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        table::{
+        table_trait::{
             test_table::TestTableSizes, Table, TableBuilderTrait, TableTrait
         },
         table_publish::TablePublish,

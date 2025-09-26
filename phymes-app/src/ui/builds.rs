@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use phymes_agents::{session_plans::available_session_plans::AvailableSessionPlans, session_traits::mermaid::SessionContextBuilderMermaidTrait};
-use phymes_core::{schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects}, mermaid::create_mermaid_batch}, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context_builder::SessionContextBuilder}, table::{data_format::DataFormat, table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::MessageBuilderTrait};
+use phymes_core::{schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects}, mermaid::create_mermaid_batch}, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context_builder::SessionContextBuilder}, table::{data_format::DataFormat, table_trait::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::MessageBuilderTrait};
 use phymes_server::handlers::sign_in::create_session_name;
 
 use crate::{
@@ -60,6 +60,7 @@ pub fn builds_dropdown_view() -> Element {
     let mut subjects_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
 
     // Error message signal    
+    #[allow(clippy::redundant_closure)]
     let mut build_errors = use_signal(|| String::new());
 
     rsx! {
@@ -101,7 +102,7 @@ pub fn builds_dropdown_view() -> Element {
                 class: "dropdown_form_button",
                 onclick: move |_evt| async move {
                     // Make a defualt name for the copy of the active session
-                    let active_session = format!("{}-copy", ACTIVE_SESSION_NAME.read().to_string());
+                    let active_session = format!("{}-copy", ACTIVE_SESSION_NAME.read());
 
                     // Copy the diagrams
                     sync_current_mermaid_state.send(SyncCurrentMermaidState {
@@ -264,7 +265,7 @@ pub fn builds_dropdown_view() -> Element {
                             return;
                         },
                     };
-                    let session = match builder.with_name(&ACTIVE_SESSION_NAME()).build() {
+                    let _session = match builder.with_name(&ACTIVE_SESSION_NAME()).build() {
                         Ok(session) => session,
                         Err(err) => {
                             build_errors.write().push_str(format!("{err:?}").as_str());
@@ -276,7 +277,7 @@ pub fn builds_dropdown_view() -> Element {
                     let route = "/app/v1/deploy_session";
                     let batch = create_mermaid_batch(vec![ACTIVE_SESSION_NAME()], vec![SESSION_FLOWCHART_DIAGRAM()], vec![SESSION_ER_DIAGRAM()], vec![create_timestamp_micros()]).unwrap();
                     let message = Table::get_builder()
-                        .with_name(&AvailableSubjects::Mermaid.to_string().as_str())
+                        .with_name(AvailableSubjects::Mermaid.to_string().as_str())
                         .with_record_batches(vec![batch])
                         .unwrap()
                         .build()
@@ -378,8 +379,6 @@ pub fn builds_dropdown_view() -> Element {
 pub fn builds_interface_footer() -> Element {
     use_coroutine(sync_current_session_mermaid_state);
     let sync_current_session_mermaid_state = use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
-    use_coroutine(sync_current_mermaid_state);
-    let sync_current_mermaid_state = use_coroutine_handle::<SyncCurrentMermaidState>();
     
     let mut is_saved = use_signal(|| true);
 

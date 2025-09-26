@@ -4,7 +4,7 @@ use arrow::{array::{ArrayRef, RecordBatch, StringArray}, datatypes::{DataType, F
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::create_timestamp_str, table::table::TableBuilder};
+use crate::{schemas::available_subjects::create_timestamp_str, table::table_trait::TableBuilder};
 
 pub fn create_queries_fields() -> Fields {
     let field_names = ["query_id", "text"];

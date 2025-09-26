@@ -15,7 +15,7 @@ use phymes_core::{
 };
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
-    table::table::{Table, TableBuilderTrait, TableTrait},
+    table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 use std::{collections::HashMap, sync::Arc};
 use tracing::{event, instrument, Level};

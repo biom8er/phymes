@@ -380,7 +380,7 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
 mod tests {
     use phymes_core::{
         session::common_traits::{BuildableTrait, BuilderTrait},
-        table::table::{Table, TableBuilderTrait, TableTrait},
+        table::table_trait::{Table, TableBuilderTrait, TableTrait},
     };
 
     use super::*;

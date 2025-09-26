@@ -366,7 +366,7 @@ pub mod test_processor {
     use crate::{
         metrics::BaselineMetrics,
         session::common_traits::{BuildableTrait, BuilderTrait},
-        table::table::test_table::make_test_record_batch,
+        table::table_trait::test_table::make_test_record_batch,
         task::message::{
             MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
         },
@@ -550,7 +550,7 @@ mod tests {
             runtime_env::RuntimeEnv,
         },
         table::{
-            table::{
+            table_trait::{
                 test_table::make_test_table, TableBuilder, TableBuilderTrait, TableTrait
             },
             table_publish::TablePublish,

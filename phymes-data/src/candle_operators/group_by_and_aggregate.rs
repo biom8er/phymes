@@ -18,7 +18,7 @@ use phymes_core::{
 };
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
-    table::table::{Table, TableBuilderTrait, TableTrait},
+    table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 use tracing::{event, instrument, Level};
 
@@ -761,7 +761,7 @@ pub fn group_by_and_aggregate(
                 ));
             }
         };
-        let columns_name = format!("{agg_column}-{}", agg_operator);
+        let columns_name = format!("{agg_column}-{agg_operator}");
         batch_vec.push((columns_name, lhs_agg));
     }
 

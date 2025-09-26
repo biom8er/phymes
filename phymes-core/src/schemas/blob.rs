@@ -4,7 +4,7 @@ use arrow::{array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray,
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::create_timestamp_micros, table::table::TableBuilder};
+use crate::{schemas::available_subjects::create_timestamp_micros, table::table_trait::TableBuilder};
 
 pub fn create_blob_fields() -> Fields {
     let filename = Field::new("filename", DataType::Utf8, false);

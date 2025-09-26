@@ -6,7 +6,7 @@ use arrow::array::{ArrayRef, RecordBatch, StringArray};
 use clap::ValueEnum;
 use phymes_core::{
     session::common_traits::{BuilderTrait, MappableTrait},
-    table::table::{Table, TableBuilder, TableBuilderTrait},
+    table::table_trait::{Table, TableBuilder, TableBuilderTrait},
 };
 use serde::{Deserialize, Serialize};
 
@@ -154,7 +154,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::table::table::TableTrait;
+    use phymes_core::table::table_trait::TableTrait;
 
     use super::*;
 

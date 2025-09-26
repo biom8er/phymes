@@ -1,10 +1,10 @@
 use crate::metrics::HashMap;
 use crate::session::runtime_env::RuntimeEnv;
-use crate::table::table::Table;
+use crate::table::table_trait::Table;
 use crate::task::{
     message::{IPCMessage, SendableRecordBatchStreamMessage},
     processor::ProcessorTrait,
-    task::Task,
+    task_trait::Task,
 };
 
 /// General imports

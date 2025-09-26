@@ -15,7 +15,7 @@ use phymes_core::{
         }
     },
     table::{
-        table::{Table, TableBuilderTrait, TableTrait},
+        table_trait::{Table, TableBuilderTrait, TableTrait},
         table_publish::TablePublish,
         table_subscribe::{from_str_to_subscribe, TableSubscribe},
     },
@@ -1285,7 +1285,7 @@ impl BuilderTrait for SessionContextBuilderMermaid {
 mod tests {
     use phymes_core::{
         session::session_context_builder::test_session_context_builder::make_test_session_builder_parallel_task,
-        task::task::test_task::{make_runtime_env, make_state_tables},
+        task::task_trait::test_task::{make_runtime_env, make_state_tables},
     };
 
     use crate::{

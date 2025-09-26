@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{schemas::available_subjects::create_timestamp_micros, table::{
     table_script::TableScript,
-    table::{Table, TableBuilder, TableBuilderTrait, TableTrait},
+    table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait},
     stream::SendableRecordBatchStream,
     stream_adapter::RecordBatchReceiverStream,
 }};
@@ -563,7 +563,7 @@ mod tests {
             runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         },
         table::{
-            table::test_table::{make_test_table_chat, make_test_table_tool},
+            table_trait::test_table::{make_test_table_chat, make_test_table_tool},
             table_publish::TablePublish,
         },
         task::{

@@ -18,7 +18,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt, queries::QueriesBuilderTraitExt}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::{table::{TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
+    }, table::{table_trait::{TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {

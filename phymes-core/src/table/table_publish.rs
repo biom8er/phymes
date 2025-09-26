@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::session::common_traits::MappableTrait;
 
-use super::table::{Table, TableTrait};
+use super::table_trait::{Table, TableTrait};
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
 pub enum TablePublish {
@@ -363,7 +363,7 @@ fn create_record_batch_from_first_row(
 mod tests {
     use arrow::datatypes::Schema;
 
-    use crate::table::table::test_table::{make_test_table, make_test_table_chat};
+    use crate::table::table_trait::test_table::{make_test_table, make_test_table_chat};
 
     use super::*;
 

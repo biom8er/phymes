@@ -16,9 +16,9 @@ pub struct Serverless {
 }
 
 impl Serverless {
-    pub fn new() -> Self {
+    pub fn new(user_session_context_name: Option<&str>) -> Self {
         Self {
-            router: AppBuilder::new().build(),
+            router: AppBuilder::new(user_session_context_name).build(),
         }
     }
 
@@ -85,7 +85,7 @@ mod tests {
     use futures::TryStreamExt;
     use futures_executor::block_on;
     use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
-    use phymes_core::{schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table::TableTrait, table_publish::TablePublish}, task::message::MessageBuilderTrait};
+    use phymes_core::{schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_trait::TableTrait, table_publish::TablePublish}, task::message::MessageBuilderTrait};
     use serde_json::{Map, Value};
 
     use crate::handlers::sign_in::{basic_auth, create_session_name};
@@ -118,10 +118,10 @@ mod tests {
     #[tokio::test]
     async fn test_serverless_call() {
         // Check sign_in
-        let mut server = Serverless::new();
+        let mut server = Serverless::new(None);
 
         // Make the credentials with basic authorization
-        let credentials = basic_auth("myemail@gmail.com", Some("myemail@gmail.com"));
+        let credentials = basic_auth("contact@biom8er.com", Some("contact@biom8er.com"));
 
         // Make the sign_in request
         let request: Request<String> = Request::builder()
@@ -144,7 +144,7 @@ mod tests {
         let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_schema
-        let mut server = Serverless::new();
+        let mut server = Serverless::new(None);
 
         // Extract out the JWT token
         let token = values.get("jwt").unwrap().as_str().unwrap();
@@ -189,12 +189,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_serverless_app() {
-        let mut serverless = Serverless::new();
+        let mut serverless = Serverless::new(None);
 
         // Sign in using serverless_app
         let config = ServerlessConfig {
             route: "app/v1/sign_in".to_string(),
-            basic_auth: Some("myemail@gmail.com:myemail@gmail.com".to_string()),
+            basic_auth: Some("contact@biom8er.com:contact@biom8er.com".to_string()),
             bearer_auth: None,
             data: None,
         };

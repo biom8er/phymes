@@ -1,4 +1,4 @@
-use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, mermaid::create_mermaid_fields, queries::create_queries_fields, user::{create_join_user_inbox_session_contexts_fields, create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields, create_user_inbox_fields, create_user_session_contexts_fields}}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilder, TableBuilderTrait}};
+use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, mermaid::create_mermaid_fields, queries::create_queries_fields, user::{create_join_user_inbox_session_contexts_fields, create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields, create_user_inbox_fields, create_user_session_contexts_fields}}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table_trait::{Table, TableBuilder, TableBuilderTrait}};
 
 use anyhow::Result;
 use arrow::{
@@ -222,10 +222,7 @@ impl Display for AvailableSubjects {
 impl AvailableSubjectsTrait for AvailableSubjects {
     fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table> {
         let builder = self.to_table_builder(name);
-        let batches = match batches {
-            Some(batches) => batches,
-            None => Vec::new(),
-        };
+        let batches = batches.unwrap_or_default();
         builder.with_record_batches(batches)?.build()
     }
     fn to_table_builder(&self, name: Option<&str>) -> TableBuilder {

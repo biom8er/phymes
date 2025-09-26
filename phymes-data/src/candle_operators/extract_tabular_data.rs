@@ -5,7 +5,7 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
     schemas::{chat_completion, types},
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{data_format::{CsvFormat, DataFormat, JsonFormat}, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{data_format::{CsvFormat, DataFormat, JsonFormat}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
 };
 use tracing::{Level, event, instrument};
 
@@ -175,7 +175,7 @@ pub mod test_extract_tabular_data {
     use std::sync::Arc;
 
     use arrow::array::{ArrayRef, Float32Array, StringArray};
-    use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::table::{Table, TableBuilderTrait}
+    use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait}, table::table_trait::{Table, TableBuilderTrait}
     }; 
     
     pub fn make_scores_table() -> Result<Table> {
@@ -192,7 +192,7 @@ pub mod test_extract_tabular_data {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        schemas::{available_subjects::create_timestamp_micros, blob::create_blob_batch}, session::common_traits::{BuildableTrait, BuilderTrait}, table::{data_format::{CsvFormat, DataFormat, JsonFormat}, table::{Table, TableBuilderTrait, TableTrait}}
+        schemas::{available_subjects::create_timestamp_micros, blob::create_blob_batch}, session::common_traits::{BuildableTrait, BuilderTrait}, table::{data_format::{CsvFormat, DataFormat, JsonFormat}, table_trait::{Table, TableBuilderTrait, TableTrait}}
     };
 
     use crate::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
@@ -211,7 +211,7 @@ mod tests {
         // Extract the tabular data
         let extracted = extract_tabular_data(
             "bytes",
-            &vec![csv_batch],
+            &[csv_batch],
             &DataFormat::Csv(csv_format),
         ).unwrap();
 
@@ -244,7 +244,7 @@ mod tests {
         // Extract the tabular data
         let extracted = extract_tabular_data(
             "bytes",
-            &vec![json_batch],
+            &[json_batch],
             &DataFormat::Json(json_format),
         ).unwrap();
 

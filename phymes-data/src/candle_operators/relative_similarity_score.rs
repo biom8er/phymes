@@ -7,7 +7,7 @@ use arrow::{
 };
 use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::table::{Table, TableBuilderTrait, TableTrait},
+    table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 
 use crate::candle_operators::data_operator::make_error_record_batch;

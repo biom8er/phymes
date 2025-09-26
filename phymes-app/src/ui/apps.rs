@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
@@ -141,7 +139,7 @@ pub fn apps_interface_view() -> Element {
                                     .as_str()
                                     .unwrap()
                                     .to_string(),
-                                timestamp: timestamp
+                                timestamp
                             });
                         }
                     }
@@ -271,7 +269,8 @@ pub fn apps_interface_view() -> Element {
         } else {
             SESSION_ER_DIAGRAM.read().to_string()
         }        
-    });    
+    });
+    #[allow(clippy::redundant_closure)]
     let is_flowchart_shown: Memo<bool> = use_memo(move || IS_FLOWCHART_SHOWN());    
     let rendered_html = render_mermaid_svg(diagram_code, "graphDiv", true, is_flowchart_shown);
 

@@ -14,7 +14,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
@@ -316,7 +316,7 @@ impl RecordBatchStream for MessageAggregatorStream {
 mod tests {
     use phymes_core::{
         metrics::HashMap,
-        table::table::{
+        table::table_trait::{
             TableBuilder,
             test_table::{make_test_table, make_test_table_chat},
         },

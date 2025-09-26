@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    table::{Table, TableTrait},
+    table_trait::{Table, TableTrait},
     stream::SendableRecordBatchStream,
 };
 
@@ -453,7 +453,7 @@ mod test_subscribe {
 
     use parking_lot::RwLock;
 
-    use crate::table::table::test_table::make_test_table;
+    use crate::table::table_trait::test_table::make_test_table;
 
     use super::*;
 

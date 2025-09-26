@@ -14,7 +14,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        data_format::{CsvFormat, DataFormat}, stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        data_format::{CsvFormat, DataFormat}, stream::{RecordBatchStream, SendableRecordBatchStream}, table_trait::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::{
         message::{
@@ -352,7 +352,7 @@ impl Stream for DataSummaryStream {
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    return metrics.record_poll(poll);
+                    metrics.record_poll(poll)
                 }
                 DataFormat::CsvDefault => {
                     // Convert to Values representation
@@ -374,7 +374,7 @@ impl Stream for DataSummaryStream {
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    return metrics.record_poll(poll);
+                    metrics.record_poll(poll)
                 }
                 DataFormat::Bytes => {
                     // Convert to Values representation
@@ -395,7 +395,7 @@ impl Stream for DataSummaryStream {
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    return metrics.record_poll(poll);
+                    metrics.record_poll(poll)
                 }
                 DataFormat::Json(_) | DataFormat::JsonDefault => {
                     // Convert to Values representation
@@ -416,7 +416,7 @@ impl Stream for DataSummaryStream {
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    return metrics.record_poll(poll);
+                    metrics.record_poll(poll)
                 }
                 DataFormat::Pdf => {
                     todo!("Implement PDF output");
@@ -443,7 +443,7 @@ impl RecordBatchStream for DataSummaryStream {
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
     use phymes_core::{table::{
-        table::TableBuilder, table_publish::TablePublish,
+        table_trait::TableBuilder, table_publish::TablePublish,
     }, task::message::MessageTrait};
 
     use crate::candle_data::{data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32};

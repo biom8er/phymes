@@ -7,7 +7,7 @@ use phymes_core::{
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     }, table::{
-        data_format::DataFormat, table::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}
+        data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}
     }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
 use phymes_data::{candle_data::{data_config::DataConfig, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor}, candle_operators::available_candle_operators::AvailableCandleOperators};
@@ -82,7 +82,7 @@ impl<'a> UserSession<'a> {
     }
 
     pub fn make_user_table(&self) -> Result<Table> {
-        let batch = create_user_batch(vec!["contact@biom8er.com".to_string()], vec!["con".to_string()], vec!["tact".to_string()], vec!["".to_string()], vec![create_timestamp_micros()])?;
+        let batch = create_user_batch(vec!["contact@biom8er.com".to_string()], vec!["con".to_string()], vec!["tact".to_string()], vec!["$2b$12$qJGwWR2rSZ9oBFZff0o2w.RXViv.Mf.BwfsWZTfVm4DmjjVfsaHzi".to_string()], vec![create_timestamp_micros()])?;
         TableBuilder::new()
             .with_name(AvailableSubjects::User.to_string().as_str())
             .with_record_batches(vec![batch])?
@@ -92,7 +92,7 @@ impl<'a> UserSession<'a> {
     pub fn make_user_session_context_table(&self) -> Result<Table> {
         let mut email = Vec::new();
         let mut session_context_name = Vec::new();
-        for name in AvailableSessionPlans::get_deployable_session_plan_names() {
+        for name in AvailableSessionPlans::get_all_session_plan_names() {
             email.push("contact@biom8er.com".to_string());
             session_context_name.push(name);
         }
@@ -106,133 +106,113 @@ impl<'a> UserSession<'a> {
 
 impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
-        let mut tasks = Vec::new();
-
-        tasks.push(TaskPlan {
-            task_name: self.filter_and_join_session_contexts_by_email_inbox_task_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
-            processor_names: vec![self.filter_and_join_session_contexts_by_email_inbox_processor_name.to_string()],
-        });
-
-        tasks.push(TaskPlan {
-            task_name: self.filter_session_contexts_by_email_task_name.to_string(),
-            runtime_env_name: self.filter_and_join_session_contexts_by_email_runtime_env_name.to_string(),
-            processor_names: vec![self.filter_session_contexts_by_email_processor_name.to_string()],
-        });
-
-        tasks.push(TaskPlan {
-            task_name: self.join_session_contexts_with_mermaid_diagrams_task_name.to_string(),
-            runtime_env_name: self.filter_and_join_session_contexts_by_email_runtime_env_name.to_string(),
-            processor_names: vec![self.join_session_contexts_with_mermaid_diagrams_processor_name.to_string()],
-        });
-
-        tasks.push(TaskPlan {
-            task_name: self.filter_and_join_session_contexts_by_email_outbox_task_name.to_string(),
-            runtime_env_name: self.filter_and_join_session_contexts_by_email_runtime_env_name.to_string(),
-            processor_names: vec![self.filter_and_join_session_contexts_by_email_outbox_processor_name.to_string()],
-        });
-
-        tasks.push(TaskPlan {
-            task_name: self.session_context_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
-            processor_names: vec![self.session_context_name.to_string()],
-        });
-
-        tasks.push(TaskPlan {
-            task_name: self.filter_user_info_by_email_task_name.to_string(),
-            runtime_env_name: self.filter_user_info_by_email_runtime_env_name.to_string(),
-            processor_names: vec![self.filter_user_info_by_email_processor_name.to_string()],
-        });
+        let tasks = vec![
+            TaskPlan {
+                task_name: self.filter_and_join_session_contexts_by_email_inbox_task_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![self.filter_and_join_session_contexts_by_email_inbox_processor_name.to_string()],
+            }, TaskPlan {
+                task_name: self.filter_session_contexts_by_email_task_name.to_string(),
+                runtime_env_name: self.filter_and_join_session_contexts_by_email_runtime_env_name.to_string(),
+                processor_names: vec![self.filter_session_contexts_by_email_processor_name.to_string()],
+            }, TaskPlan {
+                task_name: self.join_session_contexts_with_mermaid_diagrams_task_name.to_string(),
+                runtime_env_name: self.filter_and_join_session_contexts_by_email_runtime_env_name.to_string(),
+                processor_names: vec![self.join_session_contexts_with_mermaid_diagrams_processor_name.to_string()],
+            }, TaskPlan {
+                task_name: self.filter_and_join_session_contexts_by_email_outbox_task_name.to_string(),
+                runtime_env_name: self.filter_and_join_session_contexts_by_email_runtime_env_name.to_string(),
+                processor_names: vec![self.filter_and_join_session_contexts_by_email_outbox_processor_name.to_string()],
+            }, TaskPlan {
+                task_name: self.session_context_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![self.session_context_name.to_string()],
+            }, TaskPlan {
+                task_name: self.filter_user_info_by_email_task_name.to_string(),
+                runtime_env_name: self.filter_user_info_by_email_runtime_env_name.to_string(),
+                processor_names: vec![self.filter_user_info_by_email_processor_name.to_string()],
+            }
+        ];
 
         Some(tasks)
     }
 
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
-        let mut processors = Vec::new();
-
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.filter_and_join_session_contexts_by_email_inbox_processor_name,
-            &[TablePublish::Replace {
-                table_name: AvailableSubjects::UserInbox.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateFullTable {
-                    table_name: AvailableInterfaceSubjects::UserJson.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.filter_and_join_session_contexts_by_email_inbox_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.filter_session_contexts_by_email_processor_name,
-            &[
-                TablePublish::Replace { table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string() },
-            ],
-            &[
-                TableSubscribe::AlwaysLastRecordBatch { table_name: self.filter_session_contexts_by_email_processor_name.to_string() },
-                TableSubscribe::OnUpdateFullTable { table_name: AvailableSubjects::UserInbox.to_string() },
-                TableSubscribe::AlwaysFullTable { table_name: AvailableSubjects::UserSessionContexts.to_string() },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.join_session_contexts_with_mermaid_diagrams_processor_name,
-            &[
-                TablePublish::Replace { table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string() },
-            ],
-            &[
-                TableSubscribe::AlwaysLastRecordBatch { table_name: self.join_session_contexts_with_mermaid_diagrams_processor_name.to_string() },
-                TableSubscribe::OnUpdateFullTable { table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string() },
-                TableSubscribe::AlwaysFullTable { table_name: AvailableSubjects::Mermaid.to_string() },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.filter_user_info_by_email_processor_name,
-            &[
-                TablePublish::Replace { table_name: self.filter_user_info_by_email_table_name.to_string() },
-            ],
-            &[
-                TableSubscribe::AlwaysLastRecordBatch { table_name: self.filter_user_info_by_email_processor_name.to_string() },
-                TableSubscribe::OnUpdateFullTable { table_name: AvailableSubjects::UserInbox.to_string() },
-                TableSubscribe::AlwaysFullTable { table_name: AvailableSubjects::User.to_string() },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-
-        processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
-            self.filter_and_join_session_contexts_by_email_outbox_processor_name,
-            &[
-                TablePublish::Replace { table_name: AvailableInterfaceSubjects::AssistantJson.to_string() }
-            ],
-            &[
-                TableSubscribe::AlwaysLastRecordBatch { table_name: self.filter_and_join_session_contexts_by_email_outbox_processor_name.to_string() },
-                TableSubscribe::OnUpdateFullTable { table_name: self.filter_user_info_by_email_table_name.to_string() },
-                TableSubscribe::OnUpdateFullTable { table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string() },
-            ],
-            AnyTableNameSubscribe::new_box(),
-        ));
-
-        processors.push(ProcessorEcho::new_arc_with_pub_sub(
-            self.session_context_name,
-            &[
-                TablePublish::Extend { table_name: AvailableSubjects::Mermaid.to_string() },
-                TablePublish::Extend { table_name: AvailableSubjects::User.to_string() },
-                TablePublish::Extend { table_name: AvailableSubjects::UserSessionContexts.to_string() },
-                TablePublish::Replace { table_name: AvailableInterfaceSubjects::UserJson.to_string() },
-                TablePublish::Replace { table_name: AvailableInterfaceSubjects::AssistantJson.to_string() },
-            ],
-            &[
-                TableSubscribe::OnUpdateFullTable { table_name: AvailableInterfaceSubjects::AssistantJson.to_string() },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
+        let processors = vec![
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.filter_and_join_session_contexts_by_email_inbox_processor_name,
+                &[TablePublish::Replace {
+                    table_name: AvailableSubjects::UserInbox.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: AvailableInterfaceSubjects::UserJson.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.filter_and_join_session_contexts_by_email_inbox_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ), CandleDataProcessor::new_arc_with_pub_sub(
+                self.filter_session_contexts_by_email_processor_name,
+                &[
+                    TablePublish::Replace { table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string() },
+                ],
+                &[
+                    TableSubscribe::AlwaysLastRecordBatch { table_name: self.filter_session_contexts_by_email_processor_name.to_string() },
+                    TableSubscribe::OnUpdateFullTable { table_name: AvailableSubjects::UserInbox.to_string() },
+                    TableSubscribe::AlwaysFullTable { table_name: AvailableSubjects::UserSessionContexts.to_string() },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ), CandleDataProcessor::new_arc_with_pub_sub(
+                self.join_session_contexts_with_mermaid_diagrams_processor_name,
+                &[
+                    TablePublish::Replace { table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string() },
+                ],
+                &[
+                    TableSubscribe::AlwaysLastRecordBatch { table_name: self.join_session_contexts_with_mermaid_diagrams_processor_name.to_string() },
+                    TableSubscribe::OnUpdateFullTable { table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string() },
+                    TableSubscribe::AlwaysFullTable { table_name: AvailableSubjects::Mermaid.to_string() },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ), CandleDataProcessor::new_arc_with_pub_sub(
+                self.filter_user_info_by_email_processor_name,
+                &[
+                    TablePublish::Replace { table_name: self.filter_user_info_by_email_table_name.to_string() },
+                ],
+                &[
+                    TableSubscribe::AlwaysLastRecordBatch { table_name: self.filter_user_info_by_email_processor_name.to_string() },
+                    TableSubscribe::OnUpdateFullTable { table_name: AvailableSubjects::UserInbox.to_string() },
+                    TableSubscribe::AlwaysFullTable { table_name: AvailableSubjects::User.to_string() },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ), DataSummaryProcessor::new_arc_with_pub_sub(
+                self.filter_and_join_session_contexts_by_email_outbox_processor_name,
+                &[
+                    TablePublish::Replace { table_name: AvailableInterfaceSubjects::AssistantJson.to_string() }
+                ],
+                &[
+                    TableSubscribe::AlwaysLastRecordBatch { table_name: self.filter_and_join_session_contexts_by_email_outbox_processor_name.to_string() },
+                    TableSubscribe::OnUpdateFullTable { table_name: self.filter_user_info_by_email_table_name.to_string() },
+                    TableSubscribe::OnUpdateFullTable { table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string() },
+                ],
+                AnyTableNameSubscribe::new_box(),
+            ), ProcessorEcho::new_arc_with_pub_sub(
+                self.session_context_name,
+                &[
+                    TablePublish::Extend { table_name: AvailableSubjects::Mermaid.to_string() },
+                    TablePublish::Extend { table_name: AvailableSubjects::User.to_string() },
+                    TablePublish::Extend { table_name: AvailableSubjects::UserSessionContexts.to_string() },
+                    TablePublish::Replace { table_name: AvailableInterfaceSubjects::UserJson.to_string() },
+                    TablePublish::Replace { table_name: AvailableInterfaceSubjects::AssistantJson.to_string() },
+                ],
+                &[
+                    TableSubscribe::OnUpdateFullTable { table_name: AvailableInterfaceSubjects::AssistantJson.to_string() },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            )
+        ];
 
         Some(processors)
     }
@@ -347,7 +327,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             AvailableSubjects::UserInbox.to_table(None, None).unwrap(),
             AvailableSubjects::JoinUserInboxSessionContexts.to_table(None, None).unwrap(),
             AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_table(None, None).unwrap(),
-            make_example_mermaid_table().unwrap(),
+            make_example_mermaid_table(false).unwrap(),
         ])
     }
 }
@@ -357,7 +337,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState}, session_context_builder::SessionContextBuilderTrait}, table::{data_format::{CsvFormat, JsonFormat}, table::TableTrait}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
+    use phymes_core::{metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState}, session_context_builder::SessionContextBuilderTrait}, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
 
     use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
 
@@ -409,20 +389,16 @@ mod tests {
                 AvailableInterfaceSubjects::AssistantJson
             )))
             .filter_map(|m| {
-                if m.is_none() {
-                    None
-                } else {
-                    Some(TableBuilder::new_from_ipc_stream(&m.unwrap().get_message_own()).unwrap()
-                        .with_name("")
-                        .build().unwrap()
-                        .to_json_object().unwrap())
-                }
+                m.map(|message| TableBuilder::new_from_ipc_stream(&message.get_message_own()).unwrap()
+                    .with_name("")
+                    .build().unwrap()
+                    .to_json_object().unwrap())
             })
             .flatten()
             .collect::<Vec<_>>();
         for row in &attachment_data {
             let bytes = row["bytes"].as_array().unwrap()
-                .into_iter()
+                .iter()
                 .map(|v| v.as_u64().unwrap() as u8)
                 .collect::<Vec<u8>>();
             println!("attachment {}{}: {}", row["filename"].as_str().unwrap(), row["extension"].as_str().unwrap(), String::from_utf8_lossy(bytes.as_ref()).into_owned())

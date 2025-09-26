@@ -332,7 +332,7 @@ pub mod test_task {
             runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         },
         table::{
-            table::{
+            table_trait::{
                 test_table::make_test_table, Table, TableBuilder, TableBuilderTrait, TableTrait
             },
             table_publish::TablePublish,
@@ -534,10 +534,10 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::table::table::TableTrait;
-    use crate::table::table::test_table::make_test_table;
+    use crate::table::table_trait::TableTrait;
+    use crate::table::table_trait::test_table::make_test_table;
     use crate::table::{
-        table::{TableBuilder, TableBuilderTrait},
+        table_trait::{TableBuilder, TableBuilderTrait},
         table_publish::TablePublish,
     };
     use crate::task::message::MessageTrait;

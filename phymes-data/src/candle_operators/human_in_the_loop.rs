@@ -13,7 +13,7 @@ use phymes_core::{
         types,
     },
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::table::{Table, TableBuilderTrait, TableTrait},
+    table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 use std::collections::HashMap;
 

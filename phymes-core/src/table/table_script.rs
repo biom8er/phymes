@@ -57,7 +57,7 @@ impl TableScript {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::table::table::{TableTrait, test_table::make_test_table_chat};
+    use crate::table::table_trait::{TableTrait, test_table::make_test_table_chat};
 
     #[test]
     fn test_to_from_script_with_template() -> Result<()> {

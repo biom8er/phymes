@@ -5,7 +5,7 @@ use crate::session::common_traits::{
     BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait,
 };
 use crate::table::{
-    table::{TableBuilder, TableBuilderTrait, TableTrait},
+    table_trait::{TableBuilder, TableBuilderTrait, TableTrait},
     table_publish::TablePublish,
     stream::SendableRecordBatchStream,
 };
@@ -416,7 +416,7 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::table::table::test_table::{self, make_test_table, make_test_table_chat};
+    use crate::table::table_trait::test_table::{self, make_test_table, make_test_table_chat};
 
     use super::*;
 

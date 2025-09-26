@@ -1307,7 +1307,7 @@ impl TableBuilderTrait for TableBuilder {
     fn with_bytes(self, bytes: &[u8]) -> Result<Self>
     where 
         Self: Sized {
-        let values: Vec<serde_json::Value> = serde_json::from_slice(&bytes)?;
+        let values: Vec<serde_json::Value> = serde_json::from_slice(bytes)?;
         self.with_json_values(&values)
     }
 }

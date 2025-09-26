@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 // Server related imports
 use axum::{
     body::Body,
@@ -19,6 +21,7 @@ use axum_extra::{
 use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
+use parking_lot::RwLock;
 
 // General imports
 use crate::{
@@ -28,10 +31,6 @@ use crate::{
 use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-
-// Phymes imports
-use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
-use phymes_core::schemas::user::UserSubject;
 
 /// From <https://github.com/seanmonstar/reqwest/blob/v0.12.22/src/util.rs#L4>
 pub fn basic_auth<U, P>(username: U, password: Option<P>) -> HeaderValue
@@ -120,6 +119,7 @@ pub fn create_session_name(email: &str, session_plan: &str) -> String {
 /// authorization middleware
 pub async fn authorize(
     TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
+    State(state): State<Arc<RwLock<ServerState>>>,
     mut req: Request,
     next: Next,
 ) -> Result<Response<Body>, impl IntoResponse> {
@@ -133,50 +133,89 @@ pub async fn authorize(
         }
     };
 
-    // Fetch the user details from the database
-    let current_user = match test_sign_in_handler::retrieve_user_by_email(&token_data.claims.email)
-    {
-        Some(user) => user,
-        None => {
-            return Err(JsonError::new("You are not an authorized user".to_string())
-                .to_response(StatusCode::UNAUTHORIZED));
-        }
+    // Retrieve user from the database
+    let state_copy = state.try_read().unwrap().clone();
+    let (user_info, user_session_contexts) = match state_copy.get_user_by_email(&token_data.claims.email).await {
+        Ok((user_info, user_session_contexts)) => (user_info, user_session_contexts),
+        Err(err) => return Err(JsonError::new(format!("{err}"))
+            .to_response(StatusCode::INTERNAL_SERVER_ERROR)),
     };
+    if user_info.is_empty() {
+        return Err(JsonError::new("You are not an authorized user".to_string())
+            .to_response(StatusCode::UNAUTHORIZED));
+    }
+    if user_session_contexts.is_empty() {
+        return Err(JsonError::new("Failed to find session plans for user {token_data.claims.email}".to_string())
+            .to_response(StatusCode::UNAUTHORIZED));
+    }
 
-    req.extensions_mut().insert(current_user);
+    // Add user state if it does not exist already
+    if !state_copy.user_session_names.contains_key(&token_data.claims.email) {
+
+        // Initialize the user session contexts
+        let _session_names = match state.try_write().unwrap().make_session_contexts_from_mermaid_diagrams(&user_session_contexts, true) {
+            Ok(session_names) => session_names,
+            Err(err) => 
+                return Err(JsonError::new(format!("{err}"))
+                    .to_response(StatusCode::INTERNAL_SERVER_ERROR)),
+        };
+
+        // Read in any updates to the session context
+        match state.try_write().unwrap().read_session_contexts(
+            &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
+            &token_data.claims.email,
+        ) {
+            Ok(()) => tracing::info!("Read state for {}", token_data.claims.email),
+            Err(e) => tracing::error!("Failed to read the session stream state {e:?}"),
+        }
+    }
+
+    req.extensions_mut().insert(user_info.first().unwrap().email.to_owned());
     Ok(next.run(req).await)
 }
 
 /// sign in endpoint
+#[axum::debug_handler]
 pub async fn sign_in(
     TypedHeader(Authorization(creds)): TypedHeader<Authorization<Basic>>,
-    State(mut state): State<ServerState>,
+    State(state): State<Arc<RwLock<ServerState>>>,
 ) -> impl IntoResponse {
     // Retrieve user from the database
-    let user = match test_sign_in_handler::retrieve_user_by_email(creds.username()) {
-        Some(user) => user,
-        None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(json!({"error": "Unauthorized"})),
-            );
-        } // UserSubject not found
+    let state_copy = state.try_read().unwrap().clone();
+    let (user_info, user_session_contexts) = match state_copy.get_user_by_email(creds.username()).await {
+        Ok((user_info, user_session_contexts)) => (user_info, user_session_contexts),
+        Err(err) => return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": format!("{err}")})))
     };
 
+    // Check that the user exists and has session plans
+    if user_info.is_empty() {
+        return (StatusCode::UNAUTHORIZED, Json(json!({"error": "Unauthorized"})));
+    }
+    if user_session_contexts.is_empty() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(
+                json!({"error": "Failed to find session plans for user {creds.username()}"}),
+            ),
+        );
+    }
+
     // Compare the password
-    match verify_password(creds.password(), &user.password_hash) {
+    match verify_password(creds.password(), &user_info.first().unwrap().password_hash) {
         Ok(result) => {
             if !result {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error": "Failed to generate token"})),
+                    Json(json!({"error": "Wrong password"})),
                 ); // Wrong password
             }
         }
         Err(_) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "Failed to generate token"})),
+                Json(json!({"error": "Failed to verify the password"})),
             );
         }
     }
@@ -189,77 +228,12 @@ pub async fn sign_in(
         );
     };
 
-    // Add user state if it does not exist already
-    let (session_plans, _session_names) = if !state.check_email_in_state(creds.username()) {
-        if let Err(_e) = state.read_state_by_email(
-            &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-            creds.username(),
-        ) {
-            match state.create_session_plans_by_email(creds.username()) {
-                Some(session_plans) => session_plans,
-                None => {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(
-                            json!({"error": "Failed to find session plans for user {creds.username()}"}),
-                        ),
-                    );
-                }
-            }
-        } else {
-            match state.get_session_names_by_email(creds.username()) {
-                Some(session_plans) => session_plans,
-                None => {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(
-                            json!({"error": "Failed to find session plans for user {creds.username()}"}),
-                        ),
-                    );
-                }
-            }
-        }
-    } else {
-        match state.get_session_names_by_email(creds.username()) {
-            Some(session_plans) => session_plans,
-            None => {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(
-                        json!({"error": "Failed to find session plans for user {creds.username()}"}),
-                    ),
-                );
-            }
-        }
-    };
-
-    // Return the token
+    // Return the sign-in confirmation
+    let session_plans = user_session_contexts.iter()
+        .map(|ctx| ctx.session_context_name.to_string())
+        .collect::<Vec<_>>();
     (
         StatusCode::OK,
-        Json(json!({"jwt": jwt, "email": user.email, "session_plans": session_plans})),
+        Json(json!({"jwt": jwt, "email": creds.username().to_string(), "session_plans": session_plans})),
     )
-}
-
-pub mod test_sign_in_handler {
-    use phymes_core::schemas::available_subjects::create_timestamp_micros;
-
-    use super::*;
-
-    // DM: this should be migrated to phymes_core::schemas::user::UserSubject
-    pub fn retrieve_user_by_email(email: &str) -> Option<UserSubject> {
-        let password_hash = hash_password(email).unwrap();
-        let current_user = UserSubject {
-            email: "contact@biom8er.com".to_string(),
-            first_name: "con".to_string(),
-            last_name: "tact".to_string(),
-            password_hash,
-            timestamp: create_timestamp_micros(),         
-        };
-        Some(current_user)
-    }
-
-    // DM: this should be migrated to phymes_core::schemas::user::UserSessionContextsSubject
-    pub fn retrieve_session_plans_by_email(_email: &str) -> Option<Vec<String>> {
-        Some(AvailableSessionPlans::get_all_session_plan_names())
-    }
 }

@@ -126,6 +126,15 @@ pub fn create_join_user_inbox_session_contexts_fields() -> Fields {
     ])
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct JoinUserInboxSessionContextsMermaidDiagrams {
+    pub email: String,
+    pub session_context_name: String,
+    pub flowchart_diagram: String,
+    pub er_diagram: String,
+    pub timestamp: i64,
+}
+
 pub fn create_join_user_inbox_session_contexts_mermaid_diagrams_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);

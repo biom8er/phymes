@@ -11,7 +11,7 @@ use phymes_core::{
     metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::{table::TableTrait, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait}
+    }, table::{table_trait::TableTrait, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait}
 };
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {

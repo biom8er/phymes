@@ -1,5 +1,5 @@
 pub mod table_script;
-pub mod table;
+pub mod table_trait;
 pub mod table_publish;
 pub mod table_subscribe;
 pub mod stream;

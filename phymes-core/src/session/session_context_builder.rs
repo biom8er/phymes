@@ -8,12 +8,12 @@ use crate::{
     metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
     session::common_traits::{StateMap, TaskMap},
     table::{
-        table::Table, table_publish::TablePublish,
+        table_trait::Table, table_publish::TablePublish,
         table_subscribe::TableSubscribe,
     },
     task::{
         processor::ProcessorTrait,
-        task::{Task, TaskBuilderTrait},
+        task_trait::{Task, TaskBuilderTrait},
     },
 };
 
@@ -437,7 +437,7 @@ pub mod test_session_context_builder {
         table::table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
         task::{
             processor::{ProcessorEcho, test_processor::ProcessorMock},
-            task::test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
+            task_trait::test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
         },
     };
 
@@ -697,7 +697,7 @@ mod tests {
         table::table_subscribe::TableSubscribe,
         task::{
             processor::{ProcessorTrait, test_processor::ProcessorMock},
-            task::test_task::{make_runtime_env, make_state_tables},
+            task_trait::test_task::{make_runtime_env, make_state_tables},
         },
     };
 

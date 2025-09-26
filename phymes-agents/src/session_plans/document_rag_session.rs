@@ -8,7 +8,7 @@ use phymes_core::{
         session_context_builder::TaskPlan,
     },
     table::{
-        data_format::DataFormat, table::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::processor::{ProcessorEcho, ProcessorTrait},
 };
@@ -140,59 +140,51 @@ impl<'a> DocumentRAGSession<'a> {
 
 impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
-        let mut tasks = Vec::new();
-
         // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
         //  when chained or nested within other streams.
-        tasks.push(TaskPlan {
-            task_name: self.message_aggregator_task_1_name.to_string(),
-            runtime_env_name: self.vector_search_runtime_env_name.to_string(),
-            processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.message_aggregator_task_2_name.to_string(),
-            runtime_env_name: self.vector_search_runtime_env_name.to_string(),
-            processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.chat_task_name.to_string(),
-            runtime_env_name: self.chat_runtime_env_name.to_string(),
-            processor_names: vec![self.chat_processor_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.extract_pdf_task_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
-            processor_names: vec![
-                self.extract_pdf_processor_name.to_string(),
-                self.document_chunk_processor_name.to_string(),
-            ],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.embed_documents_task_name.to_string(),
-            runtime_env_name: self.embed_documents_runtime_env_name.to_string(),
-            processor_names: vec![self.embed_documents_processor_name.to_string()],
-        });
-
-        tasks.push(TaskPlan {
-            task_name: self.embed_query_task_name.to_string(),
-            runtime_env_name: self.embed_query_runtime_env_name.to_string(),
-            processor_names: vec![self.embed_query_processor_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.vector_search_task_name.to_string(),
-            runtime_env_name: self.vector_search_runtime_env_name.to_string(),
-            processor_names: vec![
-                self.relative_similarity_processor_name.to_string(),
-                self.sort_scores_processor_name.to_string(),
-                self.join_chunks_processor_name.to_string(),
-                self.top_k_processor_name.to_string(),
-            ],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.session_context_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
-            processor_names: vec![self.session_context_name.to_string()],
-        });
+        let tasks = vec![
+            TaskPlan {
+                task_name: self.message_aggregator_task_1_name.to_string(),
+                runtime_env_name: self.vector_search_runtime_env_name.to_string(),
+                processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
+            },TaskPlan {
+                task_name: self.message_aggregator_task_2_name.to_string(),
+                runtime_env_name: self.vector_search_runtime_env_name.to_string(),
+                processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
+            },TaskPlan {
+                task_name: self.chat_task_name.to_string(),
+                runtime_env_name: self.chat_runtime_env_name.to_string(),
+                processor_names: vec![self.chat_processor_name.to_string()],
+            },TaskPlan {
+                task_name: self.extract_pdf_task_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![
+                    self.extract_pdf_processor_name.to_string(),
+                    self.document_chunk_processor_name.to_string(),
+                ],
+            },TaskPlan {
+                task_name: self.embed_documents_task_name.to_string(),
+                runtime_env_name: self.embed_documents_runtime_env_name.to_string(),
+                processor_names: vec![self.embed_documents_processor_name.to_string()],
+            },TaskPlan {
+                task_name: self.embed_query_task_name.to_string(),
+                runtime_env_name: self.embed_query_runtime_env_name.to_string(),
+                processor_names: vec![self.embed_query_processor_name.to_string()],
+            },TaskPlan {
+                task_name: self.vector_search_task_name.to_string(),
+                runtime_env_name: self.vector_search_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.relative_similarity_processor_name.to_string(),
+                    self.sort_scores_processor_name.to_string(),
+                    self.join_chunks_processor_name.to_string(),
+                    self.top_k_processor_name.to_string(),
+                ],
+            },TaskPlan {
+                task_name: self.session_context_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![self.session_context_name.to_string()],
+            }
+        ];
 
         Some(tasks)
     }
@@ -804,7 +796,7 @@ mod tests {
     use phymes_core::{
         metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt, queries::QueriesBuilderTraitExt}, session::{
             common_traits::{BuildableTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState}, session_context_builder::SessionContextBuilderTrait
-        }, table::table::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
+        }, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
     use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
 
@@ -819,8 +811,6 @@ mod tests {
 
         // initialize the session
         let mut doc_rag_session = DocumentRAGSession::default();
-        if cfg!(feature = "hf_hub") {
-        }
         if cfg!(not(feature = "candle")) {
             doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
             doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");

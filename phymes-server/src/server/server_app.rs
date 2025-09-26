@@ -24,6 +24,8 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
 use tokio::net::TcpListener;
+#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+use crate::server::server_config::ServerConfig;
 
 // From lib
 use crate::{handlers::{
@@ -31,7 +33,6 @@ use crate::{handlers::{
     session_stream::session_stream,
     sign_in::{authorize, sign_in}},
     state::server_state::ServerState,
-    server::server_config::ServerConfig,
 };
 
 #[derive(Default)]
@@ -40,24 +41,24 @@ pub struct AppBuilder {
 }
 
 impl AppBuilder {
-    pub fn new() -> Self {
+    pub fn new(user_session_context_name: Option<&str>) -> Self {
         // Application state
-        let state = ServerState::new();
+        let state = Arc::new(RwLock::new(ServerState::new(user_session_context_name)));
 
         // Router
         let app: Router = Router::new()
             .route("/app/v1/sign_in", post(sign_in))
             .route(
                 "/app/v1/chat",
-                post(session_stream).layer(middleware::from_fn(authorize)),
+                post(session_stream).layer(middleware::from_fn_with_state(state.clone(), authorize)),
             )
             .route(
                 "/app/v1/put_state",
-                post(session_put_state).layer(middleware::from_fn(authorize)),
+                post(session_put_state).layer(middleware::from_fn_with_state(state.clone(), authorize)),
             )
             .route(
                 "/app/v1/get_state",
-                post(session_get_state).layer(middleware::from_fn(authorize)),
+                post(session_get_state).layer(middleware::from_fn_with_state(state.clone(), authorize)),
             )
             .with_state(state);
         Self { app }
@@ -127,7 +128,7 @@ impl Server {
     pub async fn run(&self) -> Result<()> {
         // initialize the front-end
         let frontend = async {
-            let app: Router = AppBuilder::new()
+            let app: Router = AppBuilder::new(None)
                 .with_fallback(self.config.try_read().unwrap().assets_dir.as_str())
                 .with_trace_layer()
                 .with_cors_layer()

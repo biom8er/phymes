@@ -18,7 +18,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table_trait::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
@@ -395,7 +395,7 @@ mod tests {
     use arrow::array::{ArrayRef, StringArray};
     use phymes_core::{
         metrics::HashMap,
-        table::{table::TableBuilder, table_publish::TablePublish},
+        table::{table_trait::TableBuilder, table_publish::TablePublish},
     };
 
     use super::*;

@@ -6,7 +6,7 @@ use phymes_core::{
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     }, table::{
-        table::{Table, TableBuilder, TableBuilderTrait},
+        table_trait::{Table, TableBuilder, TableBuilderTrait},
         table_publish::TablePublish,
         table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
     }, task::processor::{ProcessorEcho, ProcessorTrait}
@@ -70,31 +70,27 @@ impl<'a> ChatAgentSession<'a> {
 
 impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
-        let mut tasks = Vec::new();
-
         // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
         //  when chained or nested within other streams.
-        tasks.push(TaskPlan {
-            task_name: self.message_aggregator_task_1_name.to_string(),
-            runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
-            processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.message_aggregator_task_2_name.to_string(),
-            runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
-            processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.chat_task_name.to_string(),
-            runtime_env_name: self.chat_runtime_env_name.to_string(),
-            processor_names: vec![self.chat_processor_name.to_string()],
-        });
-
-        tasks.push(TaskPlan {
-            task_name: self.session_context_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
-            processor_names: vec![self.session_context_name.to_string()],
-        });
+        let tasks = vec![
+            TaskPlan {
+                task_name: self.message_aggregator_task_1_name.to_string(),
+                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
+                processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
+            }, TaskPlan {
+                task_name: self.message_aggregator_task_2_name.to_string(),
+                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
+                processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
+            }, TaskPlan {
+                task_name: self.chat_task_name.to_string(),
+                runtime_env_name: self.chat_runtime_env_name.to_string(),
+                processor_names: vec![self.chat_processor_name.to_string()],
+            }, TaskPlan {
+                task_name: self.session_context_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![self.session_context_name.to_string()],
+            }
+        ];
 
         Some(tasks)
     }
@@ -307,7 +303,7 @@ mod tests {
     use phymes_core::{
         metrics::{ArrowTaskMetricsSet, HashMap}, schemas::chat::ChatBuilderTraitExt, session::{
             common_traits::{BuildableTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState}, session_context_builder::SessionContextBuilderTrait
-        }, table::table::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
+        }, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
 
     use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};

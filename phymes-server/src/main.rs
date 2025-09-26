@@ -17,7 +17,7 @@ async fn main() -> Result<()> {
     let config = ServerlessConfig::parse();
 
     // call the serverless application
-    let mut serverless = Serverless::new();
+    let mut serverless = Serverless::new(None);
     let response = serverless_app(config, &mut serverless).await.unwrap();
 
     // Parse the response

@@ -27,7 +27,7 @@ use crate::metrics::{
 };
 use crate::table::table_publish::TablePublish;
 use crate::table::{
-    table::{Table, TableBuilder, TableBuilderTrait, TableTrait},
+    table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait},
     table_publish::TableUpdateTrait,
 };
 use crate::task::{
@@ -69,7 +69,7 @@ impl MappableTrait for SessionContextTableNames {
 /// The `SessionContext` creates an execution graph based on a
 /// `SessionPlan` and manages the running of individual tasks
 /// and the messages passed between tasks.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 #[allow(dead_code)]
 pub struct SessionContext {
     /// A unique UUID that identifies the session
@@ -338,7 +338,7 @@ impl BuildableTrait for SessionContext {
 }
 
 /// State tracked during the course of running a [`SessionStream`]
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct SessionStreamState {
     /// The session context
     session_context: SessionContext,
@@ -888,14 +888,14 @@ impl Stream for SessionStream {
 mod tests {
     use super::*;
     use crate::metrics::HashSet;
-    use crate::table::table::test_table::make_test_table_schema;
+    use crate::table::table_trait::test_table::make_test_table_schema;
     use crate::{
         session::session_context_builder::test_session_context_builder::{
             make_test_session_context_parallel_task, make_test_session_context_parallel_task_empty,
             make_test_session_context_sequential_task,
         },
         table::table_publish::TablePublish,
-        task::task::test_task::make_test_input_message,
+        task::task_trait::test_task::make_test_input_message,
     };
     #[cfg(not(target_family = "wasm"))]
     use tempfile::{tempdir, tempfile};

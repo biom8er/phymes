@@ -9,7 +9,7 @@ use candle_core::Device;
 use phymes_core::{
     schemas::{chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::table::{Table, TableBuilderTrait, TableTrait},
+    table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 use std::{collections::HashMap, sync::Arc};
 use tracing::{event, instrument, Level};

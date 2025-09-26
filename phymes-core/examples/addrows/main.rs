@@ -9,7 +9,7 @@ use phymes_core::session::session_context::SessionStreamState;
 use phymes_core::session::session_context_builder::test_session_context_builder::make_test_session_context_sequential_task;
 use phymes_core::table::table_publish::TablePublish;
 use phymes_core::task::message::IPCMessage;
-use phymes_core::task::task::test_task::make_test_input_message;
+use phymes_core::task::task_trait::test_task::make_test_input_message;
 use std::sync::Arc;
 
 #[tokio::main(flavor = "current_thread")]

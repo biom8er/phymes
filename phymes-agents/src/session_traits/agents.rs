@@ -10,7 +10,7 @@ use phymes_core::{
         session_context::SessionContext,
         session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
     },
-    table::table::Table,
+    table::table_trait::Table,
     task::processor::ProcessorTrait,
 };
 

@@ -4,8 +4,6 @@ use crate::state::{
 };
 use dioxus::prelude::*;
 
-use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
-use phymes_core::schemas::available_subjects::AvailableSubjects;
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 

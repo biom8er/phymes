@@ -17,7 +17,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::{table::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
+    }, table::{table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {
@@ -65,20 +65,16 @@ pub async fn run_main() -> Result<()> {
             AvailableInterfaceSubjects::AssistantJson
         )))
         .filter_map(|m| {
-            if m.is_none() {
-                None
-            } else {
-                Some(TableBuilder::new_from_ipc_stream(&m.unwrap().get_message_own()).unwrap()
-                    .with_name("")
-                    .build().unwrap()
-                    .to_json_object().unwrap())
-            }
+            m.map(|message| TableBuilder::new_from_ipc_stream(&message.get_message_own()).unwrap()
+                .with_name("")
+                .build().unwrap()
+                .to_json_object().unwrap())
         })
         .flatten()
         .collect::<Vec<_>>();
     for row in &attachment_data {
         let bytes = row["bytes"].as_array().unwrap()
-            .into_iter()
+            .iter()
             .map(|v| v.as_u64().unwrap() as u8)
             .collect::<Vec<u8>>();
         println!("attachment {}{}: {}", row["filename"].as_str().unwrap(), row["extension"].as_str().unwrap(), String::from_utf8_lossy(bytes.as_ref()).into_owned())
