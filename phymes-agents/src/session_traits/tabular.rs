@@ -579,6 +579,7 @@ mod tests {
 
         // Make the builder
         let builder = make_test_session_builder_parallel_task()
+            .with_name("")
             .with_runtime_envs(runtime_envs)
             .with_state(state);
 
@@ -627,6 +628,7 @@ mod tests {
         // Test from tables
         let (tables_test, _state_test) =
             SessionContextBuilder::from_arrow_tables(&tables.iter().collect::<Vec<_>>(), state)?
+                .with_name("")
                 .to_arrow_tables(false, true)?;
 
         // Check the tables

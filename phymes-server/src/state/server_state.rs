@@ -80,6 +80,9 @@ impl ServerState {
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
+        
+        // Reset the iter
+        self.users.try_write().unwrap().set_iter(0);
 
         // Run the tasks for the user session
         let session_stream = SessionStream::new(message_map, Arc::clone(&self.users));
@@ -144,8 +147,22 @@ impl ServerState {
                         &user_session_context.session_context_name,
                         &session_name
                     );
+                } else if AvailableSessionPlans::get_all_session_plan_names().contains(&user_session_context.session_context_name) {
+                    // Prioritize the available session plans with initialized configs and other state
+                    let session_stream_state = AvailableSessionPlans::get_session_stream_state_by_name(
+                        &user_session_context.session_context_name, 
+                        &session_name)?;
+
+                    // Add the session stream state to the state
+                    let _ = self.session_contexts.insert(session_name.to_string(),session_stream_state);
+                    tracing::debug!(
+                        "Creating session_context {} for session_name {} from AvailableSessionPlans",
+                        &user_session_context.session_context_name,
+                        &session_name
+                    );
                 } else {
-                    // Build the session stream state with tables                
+                    // Build the session stream state with tables from Mermaid
+                    // and leave the upload of configs and other initial session state to another step          
                     let metrics = ArrowTaskMetricsSet::new();
                     // DM: turn agent subject tests back on after refactoring BuilderSession
                     let session_context = SessionContextBuilder::from_mermaid_flowchart(&user_session_context.flowchart_diagram, false)?
@@ -158,7 +175,7 @@ impl ServerState {
                     // Add the session stream state to the state
                     let _ = self.session_contexts.insert(session_name.to_string(),session_stream_state);
                     tracing::debug!(
-                        "Creating session_context {} for session_name {}",
+                        "Creating session_context {} for session_name {} from mermaid diagrams.",
                         &user_session_context.session_context_name,
                         &session_name
                     );

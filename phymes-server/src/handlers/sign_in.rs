@@ -137,7 +137,7 @@ pub async fn authorize(
     let state_copy = state.try_read().unwrap().clone();
     let (user_info, user_session_contexts) = match state_copy.get_user_by_email(&token_data.claims.email).await {
         Ok((user_info, user_session_contexts)) => (user_info, user_session_contexts),
-        Err(err) => return Err(JsonError::new(format!("{err}"))
+        Err(err) => return Err(JsonError::new(err.to_string())
             .to_response(StatusCode::INTERNAL_SERVER_ERROR)),
     };
     if user_info.is_empty() {
@@ -156,7 +156,7 @@ pub async fn authorize(
         let _session_names = match state.try_write().unwrap().make_session_contexts_from_mermaid_diagrams(&user_session_contexts, true) {
             Ok(session_names) => session_names,
             Err(err) => 
-                return Err(JsonError::new(format!("{err}"))
+                return Err(JsonError::new(err.to_string())
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR)),
         };
 
@@ -166,11 +166,11 @@ pub async fn authorize(
             &token_data.claims.email,
         ) {
             Ok(()) => tracing::info!("Read state for {}", token_data.claims.email),
-            Err(e) => tracing::error!("Failed to read the session stream state {e:?}"),
+            Err(e) => tracing::info!("Failed to read the session stream state {e:?} for {}", token_data.claims.email),
         }
     }
 
-    req.extensions_mut().insert(user_info.first().unwrap().email.to_owned());
+    req.extensions_mut().insert(token_data.claims.email.to_owned());
     Ok(next.run(req).await)
 }
 
