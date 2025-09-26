@@ -313,7 +313,6 @@ pub fn messaging_interface_footer() -> Element {
                                         let mut stream = stream.bytes_stream();
                                         while let Some(Ok(bytes)) = stream.next().await {
                                             let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                                            tracing::debug!("{json_str}");
                                             let json_rows: Vec<Map<String, Value>> = serde_json::from_str(json_str.trim_end_matches(char::from(0)))
                                                 .unwrap_or_else(|e| {
                                                     let mut m = Map::new();

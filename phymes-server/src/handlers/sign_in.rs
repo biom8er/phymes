@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 // Server related imports
 use axum::{
     body::Body,
@@ -21,12 +19,11 @@ use axum_extra::{
 use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
-use parking_lot::RwLock;
 
 // General imports
 use crate::{
     handlers::json_error::{ErrorToResponse, JsonError},
-    state::server_state::ServerState,
+    state::server_state::{ServerState, UserState},
 };
 use http::HeaderValue;
 use serde::{Deserialize, Serialize};
@@ -119,7 +116,7 @@ pub fn create_session_name(email: &str, session_plan: &str) -> String {
 /// authorization middleware
 pub async fn authorize(
     TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
-    State(state): State<Arc<RwLock<ServerState>>>,
+    State(state): State<UserState>,
     mut req: Request,
     next: Next,
 ) -> Result<Response<Body>, impl IntoResponse> {
@@ -134,8 +131,7 @@ pub async fn authorize(
     };
 
     // Retrieve user from the database
-    let state_copy = state.try_read().unwrap().clone();
-    let (user_info, user_session_contexts) = match state_copy.get_user_by_email(&token_data.claims.email).await {
+    let (user_info, user_session_contexts) = match state.get_user_by_email(&token_data.claims.email).await {
         Ok((user_info, user_session_contexts)) => (user_info, user_session_contexts),
         Err(err) => return Err(JsonError::new(err.to_string())
             .to_response(StatusCode::INTERNAL_SERVER_ERROR)),
@@ -149,28 +145,7 @@ pub async fn authorize(
             .to_response(StatusCode::UNAUTHORIZED));
     }
 
-    // Add user state if it does not exist already
-    if !state_copy.user_session_names.contains_key(&token_data.claims.email) {
-
-        // Initialize the user session contexts
-        let _session_names = match state.try_write().unwrap().make_session_contexts_from_mermaid_diagrams(&user_session_contexts, true) {
-            Ok(session_names) => session_names,
-            Err(err) => 
-                return Err(JsonError::new(err.to_string())
-                    .to_response(StatusCode::INTERNAL_SERVER_ERROR)),
-        };
-
-        // Read in any updates to the session context
-        match state.try_write().unwrap().read_session_contexts(
-            &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-            &token_data.claims.email,
-        ) {
-            Ok(()) => tracing::info!("Read state for {}", token_data.claims.email),
-            Err(e) => tracing::info!("Failed to read the session stream state {e:?} for {}", token_data.claims.email),
-        }
-    }
-
-    req.extensions_mut().insert(token_data.claims.email.to_owned());
+    req.extensions_mut().insert((token_data.claims.email.to_owned(), user_session_contexts));
     Ok(next.run(req).await)
 }
 
@@ -178,11 +153,10 @@ pub async fn authorize(
 #[axum::debug_handler]
 pub async fn sign_in(
     TypedHeader(Authorization(creds)): TypedHeader<Authorization<Basic>>,
-    State(state): State<Arc<RwLock<ServerState>>>,
+    State((state, _)): State<(UserState, ServerState)>,
 ) -> impl IntoResponse {
     // Retrieve user from the database
-    let state_copy = state.try_read().unwrap().clone();
-    let (user_info, user_session_contexts) = match state_copy.get_user_by_email(creds.username()).await {
+    let (user_info, user_session_contexts) = match state.get_user_by_email(creds.username()).await {
         Ok((user_info, user_session_contexts)) => (user_info, user_session_contexts),
         Err(err) => return (
             StatusCode::INTERNAL_SERVER_ERROR,

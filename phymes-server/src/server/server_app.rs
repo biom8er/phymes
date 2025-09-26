@@ -32,7 +32,7 @@ use crate::{handlers::{
     session_state::{session_get_state, session_put_state},
     session_stream::session_stream,
     sign_in::{authorize, sign_in}},
-    state::server_state::ServerState,
+    state::server_state::{ServerState, UserState},
 };
 
 #[derive(Default)]
@@ -43,24 +43,25 @@ pub struct AppBuilder {
 impl AppBuilder {
     pub fn new(user_session_context_name: Option<&str>) -> Self {
         // Application state
-        let state = Arc::new(RwLock::new(ServerState::new(user_session_context_name)));
+        let user_state = UserState::new(user_session_context_name);
+        let server_state = ServerState::new();
 
         // Router
         let app: Router = Router::new()
             .route("/app/v1/sign_in", post(sign_in))
             .route(
                 "/app/v1/chat",
-                post(session_stream).layer(middleware::from_fn_with_state(state.clone(), authorize)),
+                post(session_stream).layer(middleware::from_fn_with_state(user_state.clone(), authorize)),
             )
             .route(
                 "/app/v1/put_state",
-                post(session_put_state).layer(middleware::from_fn_with_state(state.clone(), authorize)),
+                post(session_put_state).layer(middleware::from_fn_with_state(user_state.clone(), authorize)),
             )
             .route(
                 "/app/v1/get_state",
-                post(session_get_state).layer(middleware::from_fn_with_state(state.clone(), authorize)),
+                post(session_get_state).layer(middleware::from_fn_with_state(user_state.clone(), authorize)),
             )
-            .with_state(state);
+            .with_state((user_state.clone(), server_state));
         Self { app }
     }
 

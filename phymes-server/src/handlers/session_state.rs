@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 // Server related imports
 use axum::{
     Extension,
@@ -12,22 +10,22 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use parking_lot::RwLock;
 use phymes_agents::session_plans::available_interface_subjects::create_message_map;
 use phymes_core::{
+    schemas::user::JoinUserInboxSessionContextsMermaidDiagrams, 
     session::{common_traits::BuilderTrait, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}}, 
     table::{data_format::{CsvFormat, DataFormat}, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}}, 
     task::message::{IPCMessageBuilder, MessageBuilderTrait, MessageTrait}};
 
 // Library imports
-use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};
+use crate::{handlers::json_error::{serde_json_error_response, ErrorToResponse, JsonError}, state::server_state::UserState};
 use crate::state::server_state::ServerState;
 
 /// Put state input
 #[axum::debug_handler]
 pub async fn session_put_state(
-    Extension(current_user): Extension<String>,
-    State(state): State<Arc<RwLock<ServerState>>>,
+    Extension((current_user, user_session_contexts)): Extension<(String, Vec<JoinUserInboxSessionContextsMermaidDiagrams>)>,
+    State((_, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
@@ -39,10 +37,31 @@ pub async fn session_put_state(
                 payload.get_session_name()
             );
 
+            // Add user state if it does not exist already
+            if !state.user_session_names.try_read().unwrap().contains_key(&current_user) {
+
+                // Initialize the user session contexts
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true) {
+                    Ok(session_names) => session_names,
+                    Err(err) =>                     
+                        return JsonError::new(err.to_string())
+                            .to_response(StatusCode::INTERNAL_SERVER_ERROR),
+                };
+
+                // Read in any updates to the session context
+                match state.read_session_contexts(
+                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
+                    &current_user,
+                ) {
+                    Ok(()) => tracing::info!("Read state for {}", current_user),
+                    Err(e) => tracing::info!("Failed to read the session stream state {e:?} for {}", current_user),
+                }
+            }
+
             match state
+                .session_contexts
                 .try_write()
                 .unwrap()
-                .session_contexts
                 .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {
@@ -135,7 +154,7 @@ pub async fn session_put_state(
             };
 
             // Write the updates to disk
-            if let Err(e) = state.try_read().unwrap().write_session_contexts(
+            if let Err(e) = state.write_session_contexts(
                 &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
                 &current_user,
             ) {
@@ -179,8 +198,8 @@ pub async fn session_put_state(
 /// Get state endpoint
 #[axum::debug_handler]
 pub async fn session_get_state(
-    Extension(_current_user): Extension<String>,
-    State(state): State<Arc<RwLock<ServerState>>>,
+    Extension((current_user, user_session_contexts)): Extension<(String, Vec<JoinUserInboxSessionContextsMermaidDiagrams>)>,
+    State((_, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
@@ -192,10 +211,31 @@ pub async fn session_get_state(
                 payload.get_session_name()
             );
 
+            // Add user state if it does not exist already
+            if !state.user_session_names.try_read().unwrap().contains_key(&current_user) {
+
+                // Initialize the user session contexts
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true) {
+                    Ok(session_names) => session_names,
+                    Err(err) =>                     
+                        return JsonError::new(err.to_string())
+                            .to_response(StatusCode::INTERNAL_SERVER_ERROR),
+                };
+
+                // Read in any updates to the session context
+                match state.read_session_contexts(
+                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
+                    &current_user,
+                ) {
+                    Ok(()) => tracing::info!("Read state for {}", current_user),
+                    Err(e) => tracing::info!("Failed to read the session stream state {e:?} for {}", current_user),
+                }
+            }
+
             match state
+                .session_contexts
                 .try_write()
                 .unwrap()
-                .session_contexts
                 .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {

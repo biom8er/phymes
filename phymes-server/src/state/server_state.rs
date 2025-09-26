@@ -15,46 +15,33 @@ use phymes_core::{
 
 use crate::handlers::sign_in::create_session_name;
 
-/// The server state
+/// The user state
 /// 
 /// # Notes
 /// 
-/// The server state is composed of two parts:
-/// 1. the session contexts which store the available sessions for each user
-/// 2. the users which store the information about each user
+/// The user state is independent of the [ServerState] so that it can be safetly
+///   copied to middleware without creating locks
 /// 
 /// A default user "contact at biom8er dot com" is created upon initialization
 #[derive(Clone)]
-pub struct ServerState {
-    /// Session context
-    /// HashMap of sessions indexed by session name
-    ///   where the session name = session_name + user_name
-    pub session_contexts: HashMap<String, Arc<RwLock<SessionStreamState>>>,
+pub struct UserState {
     /// Users information
     pub users: Arc<RwLock<SessionStreamState>>,
-    /// Cache of user session_names indexed by user_name
-    pub user_session_names: HashMap<String, Vec<String>>,
 }
 
-impl Default for ServerState {
+impl Default for UserState {
     fn default() -> Self {
         Self::new(None)
     }
 }
 
-impl ServerState {
-    /// Make a new server state with an optional name for the user state
+impl UserState {
+    /// Make a new [UserState] with an optional name for the user state
+    ///   and initialize with the default user
     pub fn new(user_session_context_name: Option<&str>) -> Self {
-        // Initialize with the default user
         let session_name = user_session_context_name.unwrap_or("Users");
         let users = AvailableSessionPlans::get_session_stream_state_by_name("Users", session_name).unwrap();
-
-        // Make the state
-        Self {
-            session_contexts: HashMap::<String, Arc<RwLock<SessionStreamState>>>::new(),
-            users,
-            user_session_names: HashMap::<String, Vec<String>>::new()
-        }
+        Self { users }
     }
 
     /// Get the user information by their email
@@ -118,6 +105,41 @@ impl ServerState {
 
         Ok((user, join))
     }
+}
+
+/// The server state
+/// 
+/// # Notes
+/// 
+/// The server state is composed of two parts:
+/// 1. the session contexts which store the available sessions for each user
+/// 2. the user session names cache which store session context names per user
+/// 
+/// A default user "contact at biom8er dot com" is created upon initialization
+#[derive(Clone)]
+pub struct ServerState {
+    /// Session context
+    /// HashMap of sessions indexed by session name
+    ///   where the session name = session_name + user_name
+    pub session_contexts: Arc<RwLock<HashMap<String, Arc<RwLock<SessionStreamState>>>>>,
+    /// Cache of user session_names indexed by user_name
+    pub user_session_names: Arc<RwLock<HashMap<String, Vec<String>>>>,
+}
+
+impl Default for ServerState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ServerState {
+    /// Make a new server state
+    pub fn new() -> Self {
+        Self {
+            session_contexts: Arc::new(RwLock::new(HashMap::<String, Arc<RwLock<SessionStreamState>>>::new())),
+            user_session_names: Arc::new(RwLock::new(HashMap::<String, Vec<String>>::new()))
+        }
+    }
 
     /// Create the sessions
     ///
@@ -129,7 +151,7 @@ impl ServerState {
     /// # Returns
     ///
     /// `Vec<String>` of created session_names
-    pub fn make_session_contexts_from_mermaid_diagrams(
+    pub fn make_session_contexts(
         &mut self,
         user_session_contexts: &[JoinUserInboxSessionContextsMermaidDiagrams],
         make_session_contexts: bool,
@@ -141,7 +163,7 @@ impl ServerState {
 
             if make_session_contexts {
                 // Create the session stream state if it does not yet exist
-                if self.session_contexts.contains_key(&session_name) {
+                if self.session_contexts.try_read().unwrap().contains_key(&session_name) {
                     tracing::debug!(
                         "Session_context {} already exists for session_name {}",
                         &user_session_context.session_context_name,
@@ -154,7 +176,7 @@ impl ServerState {
                         &session_name)?;
 
                     // Add the session stream state to the state
-                    let _ = self.session_contexts.insert(session_name.to_string(),session_stream_state);
+                    let _ = self.session_contexts.try_write().unwrap().insert(session_name.to_string(),session_stream_state);
                     tracing::debug!(
                         "Creating session_context {} for session_name {} from AvailableSessionPlans",
                         &user_session_context.session_context_name,
@@ -173,7 +195,7 @@ impl ServerState {
                     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
 
                     // Add the session stream state to the state
-                    let _ = self.session_contexts.insert(session_name.to_string(),session_stream_state);
+                    let _ = self.session_contexts.try_write().unwrap().insert(session_name.to_string(),session_stream_state);
                     tracing::debug!(
                         "Creating session_context {} for session_name {} from mermaid diagrams.",
                         &user_session_context.session_context_name,
@@ -182,10 +204,10 @@ impl ServerState {
                 }
 
                 // Update the cache if it exists
-                if self.user_session_names.contains_key(&user_session_context.email) {
-                    self.user_session_names.get_mut(&user_session_context.email).unwrap().push(session_name.to_string());
+                if self.user_session_names.try_read().unwrap().contains_key(&user_session_context.email) {
+                    self.user_session_names.try_write().unwrap().get_mut(&user_session_context.email).unwrap().push(session_name.to_string());
                 } else {
-                    let _ = self.user_session_names.insert(user_session_context.email.to_string(), vec![session_name.to_string()]);
+                    let _ = self.user_session_names.try_write().unwrap().insert(user_session_context.email.to_string(), vec![session_name.to_string()]);
                 }
             }            
             session_names.push(session_name);
@@ -200,9 +222,9 @@ impl ServerState {
     /// `path` - &str, the path to the files
     /// `email` - &str, the user email
     pub fn read_session_contexts(&mut self, path: &str, email: &str) -> Result<()> {
-        if let Some(session_names) = self.user_session_names.get(email) {
+        if let Some(session_names) = self.user_session_names.try_read().unwrap().get(email) {
             for session_name in session_names.iter() {
-                self.session_contexts
+                self.session_contexts.try_write().unwrap()
                     .get_mut(session_name)
                     .unwrap()
                     .try_write()
@@ -222,9 +244,9 @@ impl ServerState {
     /// `path` - &str, the path to the files
     /// `email` - &str, the user email
     pub fn write_session_contexts(&self, path: &str, email: &str) -> Result<()> {
-        if let Some(session_names) = self.user_session_names.get(email) {
+        if let Some(session_names) = self.user_session_names.try_read().unwrap().get(email) {
             for session_name in session_names.iter() {
-                self.session_contexts
+                self.session_contexts.try_read().unwrap()
                     .get(session_name)
                     .unwrap()
                     .try_read()
@@ -251,10 +273,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_state_make_session_contexts_from_mermaid_diagrams() -> Result<()> {
-        let mut state = ServerState::new(None);
-
         // Test get_user_by_email
-        let (user_info, user_session_contexts) = state.get_user_by_email("contact@biom8er.com").await?;
+        let user = UserState::new(None);
+        let (user_info, user_session_contexts) = user.get_user_by_email("contact@biom8er.com").await?;
         assert_eq!(user_info.len(), 1);
         assert_eq!(user_session_contexts.len(), 4);
         assert_eq!(user_info.first().unwrap().email, "contact@biom8er.com");
@@ -270,7 +291,8 @@ mod tests {
         assert_eq!(user_session_contexts.get(3).unwrap().session_context_name, "ToolChat");
 
         // Test make_session_contexts_from_mermaid_diagrams
-        let session_names = state.make_session_contexts_from_mermaid_diagrams(&user_session_contexts, true)?;
+        let mut state = ServerState::new();
+        let session_names = state.make_session_contexts(&user_session_contexts, true)?;
         assert_eq!(
             session_names
                 .iter()
@@ -289,6 +311,8 @@ mod tests {
         assert_eq!(
             state
                 .session_contexts
+                .try_read()
+                .unwrap()
                 .keys()
                 .map(|s| s.to_owned())
                 .collect::<HashSet<_>>(),
@@ -305,31 +329,35 @@ mod tests {
     #[tokio::test]
     async fn test_server_state_read_write_state() -> Result<()> {
         // Create the state
-        let mut state = ServerState::new(None);
-        let (_user_info, user_session_contexts) = state.get_user_by_email("contact@biom8er.com").await?;
-        let _session_names = state.make_session_contexts_from_mermaid_diagrams(&user_session_contexts, true)?;
+        let user = UserState::new(None);
+        let (_user_info, user_session_contexts) = user.get_user_by_email("contact@biom8er.com").await?;
+        let mut state = ServerState::new();
+        let _session_names = state.make_session_contexts(&user_session_contexts, true)?;
 
         // Write the state to disk
         let tmp_dir = tempdir()?;
         state.write_session_contexts(tmp_dir.path().to_str().unwrap(), "contact@biom8er.com")?;
 
         // Read in the state
-        let mut state_empty = ServerState::new(None);
+        let mut state_empty = ServerState::new();
         assert!(state_empty.read_session_contexts(tmp_dir.path().to_str().unwrap(), "contact@biom8er.com").is_err());
 
         // Read in the state after initializing the cache
-        let (_user_info, user_session_contexts) = state_empty.get_user_by_email("contact@biom8er.com").await?;
-        let _session_names = state_empty.make_session_contexts_from_mermaid_diagrams(&user_session_contexts, true)?;
+        let _session_names = state_empty.make_session_contexts(&user_session_contexts, true)?;
         state_empty.read_session_contexts(tmp_dir.path().to_str().unwrap(), "contact@biom8er.com")?;
 
         let state_keys = state
             .session_contexts
+            .try_read()
+            .unwrap()
             .keys()
             .map(|s| s.to_owned())
             .collect::<Vec<_>>();
         for key in state_keys.iter() {
             let subjects = state
                 .session_contexts
+                .try_read()
+                .unwrap()
                 .get(key)
                 .unwrap()
                 .try_read()
@@ -343,6 +371,8 @@ mod tests {
                 assert_eq!(
                     state
                         .session_contexts
+                        .try_read()
+                        .unwrap()
                         .get(key)
                         .unwrap()
                         .try_read()
@@ -356,6 +386,8 @@ mod tests {
                         .get_record_batches(),
                     state_empty
                         .session_contexts
+                        .try_read()
+                        .unwrap()
                         .get(key)
                         .unwrap()
                         .try_read()
@@ -371,6 +403,8 @@ mod tests {
                 assert_eq!(
                     state
                         .session_contexts
+                        .try_read()
+                        .unwrap()
                         .get(key)
                         .unwrap()
                         .try_read()
@@ -384,6 +418,8 @@ mod tests {
                         .get_schema(),
                     state_empty
                         .session_contexts
+                        .try_read()
+                        .unwrap()
                         .get(key)
                         .unwrap()
                         .try_read()
@@ -399,6 +435,8 @@ mod tests {
                 assert_eq!(
                     state
                         .session_contexts
+                        .try_read()
+                        .unwrap()
                         .get(key)
                         .unwrap()
                         .try_read()
@@ -412,6 +450,8 @@ mod tests {
                         .get_name(),
                     state_empty
                         .session_contexts
+                        .try_read()
+                        .unwrap()
                         .get(key)
                         .unwrap()
                         .try_read()

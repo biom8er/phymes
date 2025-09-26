@@ -11,11 +11,10 @@ use axum::{
 use bytes::Bytes;
 use clap::ValueEnum;
 use futures::prelude::*;
-use parking_lot::RwLock;
 use phymes_agents::session_plans::available_interface_subjects::{create_message_map, AvailableInterfaceSubjects};
 use phymes_core::{
     metrics::HashMap,
-    schemas::{available_subjects::AvailableSubjectsTrait, user::UserSubject},
+    schemas::{available_subjects::AvailableSubjectsTrait, user::{JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}, session_context::SessionStream},
     table::{data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
     task::message::{IPCMessage, MessageBuilderTrait, MessageTrait},
@@ -28,15 +27,15 @@ use std::sync::Arc;
 
 // Library imports
 use crate::{
-    handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response},
-    state::server_state::ServerState,
+    handlers::json_error::{serde_json_error_response, ErrorToResponse, JsonError},
+    state::server_state::{ServerState, UserState},
 };
 
 /// Chat inference endpoint
 #[axum::debug_handler]
 pub async fn session_stream(
-    Extension(current_user): Extension<String>,
-    State(state): State<Arc<RwLock<ServerState>>>,
+    Extension((current_user, user_session_contexts)): Extension<(String, Vec<JoinUserInboxSessionContextsMermaidDiagrams>)>,
+    State((_, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
@@ -48,10 +47,31 @@ pub async fn session_stream(
                 payload.get_session_name()
             );
 
+            // Add user state if it does not exist already
+            if !state.user_session_names.try_read().unwrap().contains_key(&current_user) {
+
+                // Initialize the user session contexts
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true) {
+                    Ok(session_names) => session_names,
+                    Err(err) =>                     
+                        return JsonError::new(err.to_string())
+                            .to_response(StatusCode::INTERNAL_SERVER_ERROR),
+                };
+
+                // Read in any updates to the session context
+                match state.read_session_contexts(
+                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
+                    &current_user,
+                ) {
+                    Ok(()) => tracing::info!("Read state for {}", current_user),
+                    Err(e) => tracing::info!("Failed to read the session stream state {e:?} for {}", current_user),
+                }
+            }
+
             let session_stream_state = match state
+                .session_contexts
                 .try_write()
                 .unwrap()
-                .session_contexts
                 .get(payload.get_session_name())
             {
                 // Continue an existing session
@@ -154,7 +174,7 @@ pub async fn session_stream(
                         .update_subject_num_rows_table();
 
                     // Write the updates to disk
-                    if let Err(e) = state.try_read().unwrap().write_session_contexts(
+                    if let Err(e) = state.write_session_contexts(
                         &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
                         &current_user,
                     ) {
@@ -204,7 +224,7 @@ pub async fn session_stream(
                         .update_subject_num_rows_table();
 
                     // Write the updates to disk
-                    if let Err(e) = state.try_read().unwrap().write_session_contexts(
+                    if let Err(e) = state.write_session_contexts(
                         &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
                         &current_user,
                     ) {
