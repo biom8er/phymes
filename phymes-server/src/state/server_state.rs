@@ -1,7 +1,7 @@
 // General imports
 use anyhow::{Result, anyhow};
 use parking_lot::RwLock;
-use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
+use phymes_agents::{session_plans::{available_session_plans::AvailableSessionPlans, user_session::UserSession}, session_traits::agents::CustomAgentsBuilderTrait};
 use std::sync::Arc;
 
 // From crates
@@ -24,23 +24,29 @@ pub struct ServerState {
     /// HashMap of sessions indexed by session name
     ///   where the session name = session_name + user_name
     pub session_contexts: Arc<RwLock<HashMap<String, Arc<RwLock<SessionStreamState>>>>>,
-    // /// Users information
-    // pub users: Arc<RwLock<SessionStreamState>>,
+    /// Users information
+    pub users: Arc<RwLock<SessionStreamState>>,
 }
 
 impl Default for ServerState {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl ServerState {
-    pub fn new() -> Self {
+    pub fn new(user_session_context_name: Option<&str>) -> Self {
+        // Initialize with the default user
+        let session_name = user_session_context_name.unwrap_or_else(|| "Users");
+        let users = AvailableSessionPlans::get_session_stream_state_by_name("Users", session_name).unwrap();
+
+        // Make the state
         Self {
             session_contexts: Arc::new(RwLock::new(HashMap::<
                 String,
                 Arc<RwLock<SessionStreamState>>,
             >::new())),
+            users
         }
     }
 
@@ -218,27 +224,27 @@ mod tests {
     fn test_server_state_get_session_names_by_email() {
         let state = ServerState::new();
         let (session_plans, session_names) = state
-            .get_session_names_by_email("myemail@gmail.com")
+            .get_session_names_by_email("contact@biom8er.com")
             .unwrap();
         assert_eq!(session_plans, &["Chat", "DocChat", "ToolChat", "Builder"]);
         assert_eq!(
             session_names,
             &[
-                "myemailgmailcomChat",
-                "myemailgmailcomDocChat",
-                "myemailgmailcomToolChat",
-                "myemailgmailcomBuilder"
+                "contactbiom8ercomChat",
+                "contactbiom8ercomDocChat",
+                "contactbiom8ercomToolChat",
+                "contactbiom8ercomBuilder"
             ]
         );
     }
 
     #[test]
     fn test_server_state_create_session_names_by_email() {
-        let mut state = ServerState::new();
+        let mut state = ServerState::new(None);
 
         // Test creation of state
         let (session_plans, session_names) = state
-            .create_session_plans_by_email("myemail@gmail.com")
+            .create_session_plans_by_email("contact@biom8er.com")
             .unwrap();
         assert_eq!(session_plans, &["Chat", "DocChat", "ToolChat", "Builder"]);
         assert_eq!(
@@ -247,10 +253,10 @@ mod tests {
                 .map(|s| s.to_string())
                 .collect::<HashSet<_>>(),
             [
-                "myemailgmailcomDocChat",
-                "myemailgmailcomToolChat",
-                "myemailgmailcomChat",
-                "myemailgmailcomBuilder"
+                "contactbiom8ercomDocChat",
+                "contactbiom8ercomToolChat",
+                "contactbiom8ercomChat",
+                "contactbiom8ercomBuilder"
             ]
             .iter()
             .map(|s| s.to_string())
@@ -279,10 +285,10 @@ mod tests {
             .session_contexts
             .try_write()
             .unwrap()
-            .remove("myemailgmailcomChat")
+            .remove("contactbiom8ercomChat")
             .unwrap();
         let missing = state.find_session_names_not_in_state(&session_names);
-        assert_eq!(missing, &["myemailgmailcomChat"]);
+        assert_eq!(missing, &["contactbiom8ercomChat"]);
     }
 
     #[cfg(not(target_family = "wasm"))]
@@ -291,16 +297,16 @@ mod tests {
         // Create the state
         let mut state = ServerState::new();
         let (_session_plans, _session_names) = state
-            .create_session_plans_by_email("myemail@gmail.com")
+            .create_session_plans_by_email("contact@biom8er.com")
             .unwrap();
 
         // Write the state to disk
         let tmp_dir = tempdir()?;
-        state.write_state_by_email(tmp_dir.path().to_str().unwrap(), "myemail@gmail.com")?;
+        state.write_state_by_email(tmp_dir.path().to_str().unwrap(), "contact@biom8er.com")?;
 
         // Read in the state
         let mut state_empty = ServerState::new();
-        state_empty.read_state_by_email(tmp_dir.path().to_str().unwrap(), "myemail@gmail.com")?;
+        state_empty.read_state_by_email(tmp_dir.path().to_str().unwrap(), "contact@biom8er.com")?;
 
         let state_keys = state
             .session_contexts

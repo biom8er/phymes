@@ -935,9 +935,18 @@ impl TableBuilderTrait for TableBuilder {
         let schema = match self.schema.as_ref() {
             Some(schema) => schema.clone(),
             None => {
+                // Attempt to infer the schema
                 let (schema, _) = infer_json_schema(&mut cursor, None)?;
                 cursor.rewind().unwrap();
-                let schema = Arc::new(schema);
+
+                // Change nullable = true to false
+                let mut fields = Vec::new();
+                for field in schema.fields() {
+                    fields.push(Field::new(field.name(), field.data_type().clone(), false));
+                }
+
+                // Make the Schema
+                let schema = Arc::new(Schema::new(fields));
                 self.schema = Some(schema.clone());
                 schema
             }

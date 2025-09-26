@@ -250,8 +250,8 @@ pub mod test_sign_in_handler {
         let password_hash = hash_password(email).unwrap();
         let current_user = UserSubject {
             email: "contact@biom8er.com".to_string(),
-            first_name: "Contact".to_string(),
-            last_name: "Biom8er".to_string(),
+            first_name: "con".to_string(),
+            last_name: "tact".to_string(),
             password_hash,
             timestamp: create_timestamp_micros(),         
         };

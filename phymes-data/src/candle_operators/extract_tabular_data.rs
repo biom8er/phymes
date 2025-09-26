@@ -239,13 +239,13 @@ mod tests {
         // Make the tabular data
         let tabular_data = make_scores_table().unwrap();
         let bytes = tabular_data.to_json().unwrap();
-        let json_batch = create_blob_batch(vec!["attachment".to_string()], vec!["csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()]).unwrap();
+        let json_batch = create_blob_batch(vec!["attachment".to_string()], vec!["json".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()]).unwrap();
 
         // Extract the tabular data
         let extracted = extract_tabular_data(
             "bytes",
             &vec![json_batch],
-            &&DataFormat::Json(json_format),
+            &DataFormat::Json(json_format),
         ).unwrap();
 
         // Check the dimensions of the extracted data

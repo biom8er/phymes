@@ -17,7 +17,7 @@ use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
-    }, table::{data_format::CsvFormat, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
+    }, table::{table::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {
@@ -34,17 +34,16 @@ pub async fn run_main() -> Result<()> {
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // Make the tabular data
-    let csv_format = CsvFormat::default();
     let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;
     let bytes = Table::get_builder()
         .with_record_batches(vec![batch])?
-        .with_name(AvailableInterfaceSubjects::UserCsv.to_string().as_str())
+        .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
         .build()?
-        .to_csv(csv_format.delimiter, csv_format.header)?;
+        .to_json()?;
 
     // Wrap into the message
-    let blob = AvailableInterfaceSubjects::UserCsv.to_table_builder(None)
-        .with_blob(None, Some("csv"), &bytes, None)?
+    let blob = AvailableInterfaceSubjects::UserJson.to_table_builder(None)
+        .with_blob(None, Some("json"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
@@ -63,7 +62,7 @@ pub async fn run_main() -> Result<()> {
         .map(|mut r| r.remove(&format!(
             "from_{}_on_{}",
             user_agent_session.session_context_name,
-            AvailableInterfaceSubjects::AssistantCsv
+            AvailableInterfaceSubjects::AssistantJson
         )))
         .filter_map(|m| {
             if m.is_none() {

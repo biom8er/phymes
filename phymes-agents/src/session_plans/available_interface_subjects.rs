@@ -70,6 +70,8 @@ pub enum AvailableInterfaceSubjects {
     UserScript,
     #[value(name = "UserCsv")]
     UserCsv,
+    #[value(name = "UserJson")]
+    UserJson,
     #[value(name = "AggregatedMessages")]
     AggregatedMessages,
     #[value(name = "AssistantMessages")]
@@ -80,6 +82,8 @@ pub enum AvailableInterfaceSubjects {
     AssistantImage,
     #[value(name = "AssistantCsv")]
     AssistantCsv,
+    #[value(name = "AssistantJson")]
+    AssistantJson,
     #[value(name = "AssistantScript")]
     AssistantScript,
 }
@@ -95,11 +99,13 @@ impl Display for AvailableInterfaceSubjects {
             Self::UserImage => write!(f, "UserImage"),
             Self::UserScript => write!(f, "UserScript"),
             Self::UserCsv => write!(f, "UserCsv"),
+            Self::UserJson => write!(f, "UserJson"),
             Self::AggregatedMessages => write!(f, "AggregatedMessages"),
             Self::AssistantMessages => write!(f, "AssistantMessages"),
             Self::ToolMessages => write!(f, "ToolMessages"),
             Self::AssistantImage => write!(f, "AssistantImage"),
             Self::AssistantCsv => write!(f, "AssistantCsv"),
+            Self::AssistantJson => write!(f, "AssistantJson"),
             Self::AssistantScript => write!(f, "AssistantScript"),
         }
     }
@@ -123,8 +129,10 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::UserImage 
             | Self::UserScript 
             | Self::UserCsv 
+            | Self::UserJson 
             | Self::AssistantImage 
             | Self::AssistantCsv
+            | Self::AssistantJson
             | Self::AssistantScript => AvailableSubjects::Blob.to_table(Some(name.as_str()), batches),
         }        
     }
@@ -145,8 +153,10 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::UserImage 
             | Self::UserScript 
             | Self::UserCsv 
+            | Self::UserJson 
             | Self::AssistantImage 
             | Self::AssistantCsv
+            | Self::AssistantJson
             | Self::AssistantScript => AvailableSubjects::Blob.to_table_builder(Some(name.as_str())),
         }        
     }
@@ -163,8 +173,10 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::UserImage 
             | Self::UserScript 
             | Self::UserCsv 
+            | Self::UserJson 
             | Self::AssistantImage 
             | Self::AssistantCsv
+            | Self::AssistantJson
             | Self::AssistantScript => AvailableSubjects::Blob.to_schema(),
         } 
     }
