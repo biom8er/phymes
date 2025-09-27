@@ -113,12 +113,12 @@ pub fn sign_in_form() -> Element {
 
                             }
                             Err(err) => {
-                                let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
+                                let msg = format!("There was a problem with Authentication \n{err:?}.\nLet's try again.");
                                 content.write().push_str(msg.as_str());
                             }
                         },
                     Err(err) =>  {
-                        let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
+                        let msg = format!("There was a problem with Authentication \n{err:?}.\nLet's try again.");
                         content.write().push_str(msg.as_str());
                     }
                 }

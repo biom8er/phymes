@@ -8,10 +8,10 @@ use std::sync::Arc;
 // From crates
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap}, 
-    schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, user::{create_user_inbox_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
+    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::BlobBuilderTraitExt, mermaid::create_mermaid_batch, user::{create_user_inbox_batch, create_user_session_contexts_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState}, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait}}, 
-    table::{data_format::JsonFormat, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, 
-    task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
+    table::{data_format::JsonFormat, table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, 
+    task::message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait}};
 
 use crate::handlers::sign_in::create_session_name;
 
@@ -104,6 +104,59 @@ impl UserState {
         let join = attachment_data.swap_remove(0).to_struct::<JoinUserInboxSessionContextsMermaidDiagrams>()?;
 
         Ok((user, join))
+    }
+
+    /// Get the user information by their email
+    pub fn update_user_session_contexts(&self, email: &str, session_context_name: &[String], flowchart_diagram: &[String], er_diagram: &[String], timestamp: &[i64]) -> Result<()> {
+        // To prevent locks and other performance issues
+        let session_plan = self.users.try_read().unwrap().get_session_context().get_name().to_string();
+
+        // Prepare the update messages
+        let email_vec = session_context_name.iter().map(|_| email.to_string()).collect::<Vec<_>>();
+        let user_session_contexts = create_user_session_contexts_batch(email_vec, session_context_name.to_owned())?;
+        let user_session_contexts_bytes = Table::get_builder()
+            .with_record_batches(vec![user_session_contexts])?
+            .with_name(AvailableSubjects::UserSessionContexts.to_string().as_str())
+            .build()?
+            .to_ipc_stream()?;
+        let mermaid = create_mermaid_batch(session_context_name.to_owned(), flowchart_diagram.to_owned(), er_diagram.to_owned(), timestamp.to_owned())?;
+        let mermaid_bytes = Table::get_builder()
+            .with_record_batches(vec![mermaid])?
+            .with_name(AvailableSubjects::Mermaid.to_string().as_str())
+            .build()?
+            .to_ipc_stream()?;
+
+        // Create the update message
+        let user_session_contexts_message = IPCMessageBuilder::new()
+            .with_subject(AvailableSubjects::UserSessionContexts.to_string().as_str())
+            .with_publisher(&create_session_name(email, session_plan.as_str()))
+            .with_message(user_session_contexts_bytes)
+            .with_update(&TablePublish::Extend { table_name: AvailableSubjects::UserSessionContexts.to_string() })
+            .make_name()?
+            .build()?;
+        let mermaid_message = IPCMessageBuilder::new()
+            .with_subject(AvailableSubjects::Mermaid.to_string().as_str())
+            .with_publisher(&create_session_name(email, session_plan.as_str()))
+            .with_message(mermaid_bytes)
+            .with_update(&TablePublish::Extend { table_name: AvailableSubjects::Mermaid.to_string() })
+            .make_name()?
+            .build()?;
+        let message_map = create_message_map(vec![user_session_contexts_message, mermaid_message]);
+
+        // Update the session state with the new message
+        let update = self.users
+            .try_write()
+            .unwrap()
+            .update_state_from_messages(message_map);
+        dbg!(&update);
+
+        // Update the superstep
+        self.users
+            .try_write()
+            .unwrap()
+            .extend_superstep_updates(update);
+
+        Ok(())
     }
 }
 
@@ -263,6 +316,7 @@ impl ServerState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use phymes_agents::session_plans::builder_session::make_example_mermaid_table;
     use phymes_core::metrics::HashSet;
 
     #[cfg(not(target_family = "wasm"))]
@@ -271,9 +325,26 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;
 
+    #[test]
+    fn test_server_state_update_user_session_contexts() -> Result<()> {
+        let user = UserState::new(None);
+        let table = make_example_mermaid_table(true)?;
+        user.update_user_session_contexts("user@biom8er.com",
+            &table.get_column_as_vec_nonprimitive::<String>("session_context_name")?,
+            &table.get_column_as_vec_nonprimitive::<String>("flowchart_diagram")?,
+            &table.get_column_as_vec_nonprimitive::<String>("er_diagram")?,
+            &table.get_column_as_vec_primitive::<i64>("timestamp")?,
+        )?;
+
+        assert_eq!(user.users.try_read().unwrap().get_session_context().get_states().get("UserSessionContexts").unwrap().try_read().unwrap().get_column_as_vec_str("email"), ["contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "user@biom8er.com", "user@biom8er.com", "user@biom8er.com"]);
+        assert_eq!(user.users.try_read().unwrap().get_session_context().get_states().get("UserSessionContexts").unwrap().try_read().unwrap().get_column_as_vec_str("session_context_name"), ["Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"]);
+        assert_eq!(user.users.try_read().unwrap().get_session_context().get_states().get("Mermaid").unwrap().try_read().unwrap().get_column_as_vec_str("session_context_name"), ["Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"]);
+
+        Ok(())
+    }
+
     #[tokio::test]
-    async fn test_server_state_make_session_contexts_from_mermaid_diagrams() -> Result<()> {
-        // Test get_user_by_email
+    async fn test_server_state_get_user_by_email() -> Result<()> {
         let user = UserState::new(None);
         let (user_info, user_session_contexts) = user.get_user_by_email("contact@biom8er.com").await?;
         assert_eq!(user_info.len(), 1);
@@ -290,7 +361,13 @@ mod tests {
         assert_eq!(user_session_contexts.get(3).unwrap().email, "contact@biom8er.com");
         assert_eq!(user_session_contexts.get(3).unwrap().session_context_name, "ToolChat");
 
-        // Test make_session_contexts_from_mermaid_diagrams
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_server_state_make_session_contexts_from_mermaid_diagrams() -> Result<()> {
+        let user = UserState::new(None);
+        let (_user_info, user_session_contexts) = user.get_user_by_email("contact@biom8er.com").await?;
         let mut state = ServerState::new();
         let session_names = state.make_session_contexts(&user_session_contexts, true)?;
         assert_eq!(

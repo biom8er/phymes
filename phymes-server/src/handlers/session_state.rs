@@ -126,11 +126,11 @@ pub async fn session_put_state(
 
                     // Create the update message
                     let message = IPCMessageBuilder::new()
-                        .with_name(payload.get_subject())
                         .with_subject(payload.get_subject())
                         .with_publisher(payload.get_publisher())
                         .with_message(bytes)
                         .with_update(payload.get_update())
+                        .make_name().unwrap()
                         .build()
                         .unwrap();
                     let message_map = create_message_map(vec![message]);
@@ -163,7 +163,7 @@ pub async fn session_put_state(
             }
 
             // Send the response
-            Body::from(serde_json::to_string("State updated").unwrap()).into_response()
+            Body::from(serde_json::to_string("State updated with subject content.").unwrap()).into_response()
         }
         Err(JsonRejection::MissingJsonContentType(_err)) => {
             // Request didn't have `Content-Type: application/json`

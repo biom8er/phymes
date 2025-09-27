@@ -274,7 +274,7 @@ pub fn builds_dropdown_view() -> Element {
                     };
 
                     // Update the server
-                    let route = "/app/v1/deploy_session";
+                    let route = "/app/v1/build";
                     let batch = create_mermaid_batch(vec![ACTIVE_SESSION_NAME()], vec![SESSION_FLOWCHART_DIAGRAM()], vec![SESSION_ER_DIAGRAM()], vec![create_timestamp_micros()]).unwrap();
                     let message = Table::get_builder()
                         .with_name(AvailableSubjects::Mermaid.to_string().as_str())
