@@ -151,7 +151,7 @@ impl SessionContext {
             }
 
             // Create the gantt view
-            let gantt_table = get_metrics_as_gantt_table(self.state.get(SessionContextTableNames::Metrics.get_name()).unwrap().try_read().unwrap().clone(), SessionContextTableNames::MetricsGantt.get_name())?;
+            let gantt_table = get_metrics_as_gantt_table(self.state.get(SessionContextTableNames::Metrics.get_name()).unwrap().read().clone(), SessionContextTableNames::MetricsGantt.get_name())?;
             let mermaid_gantt_table = get_metrics_as_mermaid_gantt(gantt_table)?;
 
             // Add the metrics gantt table to the state or update
@@ -162,8 +162,7 @@ impl SessionContext {
                 self.state
                     .get_mut(SessionContextTableNames::MetricsGantt.get_name())
                     .unwrap()
-                    .try_write()
-                    .unwrap()
+                    .write()
                     .update_table(
                         mermaid_gantt_table.get_record_batches_own(),
                         TablePublish::Extend {
@@ -197,8 +196,8 @@ impl SessionContext {
         let mut sorted_map = self.state.iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.0.cmp(b.0));
         for (_name, state) in sorted_map.iter() {
-            let name = state.try_read().unwrap().get_name().to_string();
-            let num_row = state.try_read().unwrap().count_rows() as u64;
+            let name = state.read().get_name().to_string();
+            let num_row = state.read().count_rows() as u64;
             subject_names.push(name.clone());
             num_rows.push(num_row);
         }
@@ -226,8 +225,7 @@ impl SessionContext {
             self.state
                 .get_mut(SessionContextTableNames::SubjectsNumRows.get_name())
                 .unwrap()
-                .try_write()
-                .unwrap()
+                .write()
                 .update_table(
                     subject_num_rows_table.get_record_batches_own(),
                     TablePublish::Replace {
@@ -247,7 +245,7 @@ impl SessionContext {
         let mut sorted_map = self.state.iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.0.cmp(b.0));
         for (name, table) in sorted_map.iter() {
-            if schema.eq(&table.try_read().unwrap().get_schema()) {
+            if schema.eq(&table.read().get_schema()) {
                 return Some(name);
             }
         }
@@ -265,8 +263,7 @@ impl SessionContext {
             .state
             .get(name)
             .unwrap()
-            .try_read()
-            .unwrap()
+            .read()
             .to_csv(delimiter, header)?;
         let csv_str = String::from_utf8_lossy(csv.as_ref()).into_owned();
         Ok(csv_str)
@@ -290,7 +287,7 @@ impl SessionContext {
         for (name, subject) in self.state.iter() {
             let pathname = format!("{path}/{tag}-{}-{name}", self.get_name());
             let mut file = std::fs::File::create(pathname)?;
-            match subject.try_read().unwrap().to_ipc_file(&mut file) {
+            match subject.read().to_ipc_file(&mut file) {
                 Ok(()) => (),
                 Err(e) => event!(Level::ERROR, "Error writing state: {e:?}"),
             };
@@ -310,8 +307,7 @@ impl SessionContext {
                         table_name: name.to_string(),
                     };
                     subject
-                        .try_write()
-                        .unwrap()
+                        .write()
                         .update_table(table.get_record_batches_own(), update)?;
                 }
                 Err(e) => event!(Level::ERROR, "Error reading state: {e:?}"),
@@ -467,17 +463,16 @@ impl SessionStreamState {
 
                 // Update the state
                 state
-                    .try_write()
-                    .unwrap()
+                    .write()
                     .update_table(batches, update)
                     .unwrap();
 
                 // Record the table name that was updated and the pubisher who updated it
-                if let Some(v) = subjects_updated.get_mut(state.try_read().unwrap().get_name()) {
+                if let Some(v) = subjects_updated.get_mut(state.read().get_name()) {
                     v.push(publisher);
                 } else {
                     subjects_updated.insert(
-                        state.try_read().unwrap().get_name().to_string(),
+                        state.read().get_name().to_string(),
                         vec![publisher],
                     );
                 }
@@ -731,18 +726,17 @@ impl SessionStreamStep {
     ) -> Result<Option<IPCMessageMap>> {
         // Update the state
         let update = state
-            .try_write()
-            .unwrap()
+            .write()
             .update_state_from_messages(messages);
-        state.try_write().unwrap().extend_superstep_updates(update);
+        state.write().extend_superstep_updates(update);
 
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let mut tasks = Vec::new();
-        for (task_name, task) in state.try_read().unwrap().session_context.get_tasks().iter() {
+        for (task_name, task) in state.read().session_context.get_tasks().iter() {
             // Continue to the next task if all subscribed subjects are not updated
-            let state_rwlock = state.try_read().unwrap();
+            let state_rwlock = state.read();
             let updates = state_rwlock.get_superstep_updates().get(task_name).unwrap();
             let states = state_rwlock.session_context.get_states();
             if !task.check_subscriptions(updates, states) {
@@ -757,7 +751,7 @@ impl SessionStreamStep {
             match task.run(messages) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
-                        if task_name == state.try_read().unwrap().session_context.get_name() {
+                        if task_name == state.read().session_context.get_name() {
                             session_streams.insert(resp_name, resp);
                         } else {
                             response_streams.insert(resp_name, resp);
@@ -776,8 +770,7 @@ impl SessionStreamStep {
         // Remove the ran tasks from the update
         for task_name in tasks.iter() {
             state
-                .try_write()
-                .unwrap()
+                .write()
                 .clear_subjects_from_task_for_superstep_updates(task_name.as_str());
         }
 
@@ -786,14 +779,13 @@ impl SessionStreamStep {
 
         // Update the state
         let update = state
-            .try_write()
-            .unwrap()
+            .write()
             .update_state_from_messages(response_batches);
-        state.try_write().unwrap().extend_superstep_updates(update);
+        state.write().extend_superstep_updates(update);
 
         // Increment the step
-        let iter = state.try_read().unwrap().get_iter() + 1;
-        state.try_write().unwrap().set_iter(iter);
+        let iter = state.read().get_iter() + 1;
+        state.write().set_iter(iter);
 
         // Return the session stream if any
         if session_streams.is_empty() {
@@ -832,11 +824,10 @@ impl Stream for SessionStream {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // Get the current iter
-        let mut iter = self.state.try_read().unwrap().get_iter();
+        let mut iter = self.state.read().get_iter();
         let max_iter = self
             .state
-            .try_read()
-            .unwrap()
+            .read()
             .get_session_context()
             .get_max_iter();
         while iter < max_iter {
@@ -856,7 +847,7 @@ impl Stream for SessionStream {
                 Arc::clone(&self.state),
                 HashMap::<String, IPCMessage>::new(),
             )));
-            iter = self.state.try_read().unwrap().get_iter();
+            iter = self.state.read().get_iter();
 
             // Return the poll
             if res.is_empty() {
@@ -875,8 +866,7 @@ impl Stream for SessionStream {
             1,
             Some(
                 self.state
-                    .try_read()
-                    .unwrap()
+                    .read()
                     .get_session_context()
                     .get_max_iter(),
             ),
@@ -1066,7 +1056,7 @@ mod tests {
         let mut session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
         session_context.update_subject_num_rows_table();
-        let info = session_context.get_states().get(SessionContextTableNames::SubjectsNumRows.get_name()).unwrap().try_read().unwrap();
+        let info = session_context.get_states().get(SessionContextTableNames::SubjectsNumRows.get_name()).unwrap().read();
 
         assert_eq!(
             info.get_column_as_vec_str("subject_name"),
@@ -1303,7 +1293,7 @@ mod tests {
         assert!(response.is_none());
 
         // check the session and state
-        assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 0);
+        assert_eq!(session_stream_state.read().get_iter(), 0);
 
         assert_eq!(
             session_stream_state
@@ -1396,7 +1386,7 @@ mod tests {
         assert!(response.is_empty());
 
         // check the session and state
-        assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 1);
+        assert_eq!(session_stream_state.read().get_iter(), 1);
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -1496,7 +1486,7 @@ mod tests {
         assert!(response.is_empty());
 
         // check the session and state
-        assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 1);
+        assert_eq!(session_stream_state.read().get_iter(), 1);
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -1613,7 +1603,7 @@ mod tests {
         assert!(response.is_empty());
 
         // check the session and state
-        assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 1);
+        assert_eq!(session_stream_state.read().get_iter(), 1);
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -1849,7 +1839,7 @@ mod tests {
         assert_eq!(n_rows, 6);
 
         // check the session and state
-        assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 2);
+        assert_eq!(session_stream_state.read().get_iter(), 2);
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -1980,7 +1970,7 @@ mod tests {
         assert!(response.is_empty());
 
         // check the session and state
-        assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 1);
+        assert_eq!(session_stream_state.read().get_iter(), 1);
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -2028,7 +2018,7 @@ mod tests {
             HashMap::<String, IPCMessage>::new(),
         )
         .await?;
-        assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 2);
+        assert_eq!(session_stream_state.read().get_iter(), 2);
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -2042,7 +2032,7 @@ mod tests {
             HashMap::<String, IPCMessage>::new(),
         )
         .await?;
-        assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 3);
+        assert_eq!(session_stream_state.read().get_iter(), 3);
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -2102,7 +2092,7 @@ mod tests {
         assert_eq!(n_rows, 8);
 
         // check the session and state
-        assert_eq!(session_stream_state.try_read().unwrap().get_iter(), 4);
+        assert_eq!(session_stream_state.read().get_iter(), 4);
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -2237,7 +2227,7 @@ mod tests {
         // Check the metrics tables
         assert!(metrics.clone_inner().output_rows().is_none());
         assert!(metrics.clone_inner().elapsed_compute().is_none());
-        let sss = session_stream_state.try_read().unwrap();
+        let sss = session_stream_state.read();
         let metrics_table = sss
             .get_session_context()
             .get_states()
@@ -2297,7 +2287,7 @@ mod tests {
         assert_eq!(output_rows_sum, output_rows_sum_test);
 
         // Check pivot and gantt
-        let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricsGantt.get_name()).unwrap().try_read().unwrap();
+        let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricsGantt.get_name()).unwrap().read();
         assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
         assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
         assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));

@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::{
@@ -366,40 +367,34 @@ pub fn subjects_modal() -> Element {
     #[allow(clippy::redundant_closure)]
     let mut subjects_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
 
-    let mut schema_columns = Vec::new();
-    let mut schema_types = Vec::new();
-    if schema_columns.is_empty() {
-        (schema_columns, schema_types) = get_subject_schema_col_type_by_subject_name(
-            subject_shown.read().as_str(),
-            &SUBJECT_SCHEMA_NAMES
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-            &SUBJECT_SCHEMA_COLUMNS
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-            &SUBJECT_SCHEMA_TYPES
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-        );
-    }
-    let mut num_rows = Vec::new();
-    if num_rows.is_empty() {
-        num_rows = get_subject_num_rows_by_subject_name(
-            subject_shown.read().as_str(),
-            &SUBJECT_NAMES
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-            &SUBJECT_NUM_ROWS.read().iter().collect::<Vec<_>>(),
-        );
-    }
+    let schema_columns_types = use_memo(move || get_subject_schema_col_type_by_subject_name(
+        subject_shown.read().as_str(),
+        &SUBJECT_SCHEMA_NAMES
+            .read()
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>(),
+        &SUBJECT_SCHEMA_COLUMNS
+            .read()
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>(),
+        &SUBJECT_SCHEMA_TYPES
+            .read()
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>(),
+    ));
+    
+    let num_rows = use_memo(move || get_subject_num_rows_by_subject_name(
+        subject_shown.read().as_str(),
+        &SUBJECT_NAMES
+            .read()
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>(),
+        &SUBJECT_NUM_ROWS.read().iter().collect::<Vec<_>>(),
+    ));
 
     // File upload signals
     #[allow(unused_mut)]
@@ -416,21 +411,15 @@ pub fn subjects_modal() -> Element {
                 None => tracing::error!("File {file_name} has no extension."),
                 Some(ext) => match DataFormat::from_extension(ext.to_str().unwrap()) {
                     Ok(data_format) => {
-                        // Read the file as CSV
-                        if let Some(contents) = file_engine.read_file_to_string(file_name).await {                            
-                            let blob = AvailableSubjects::Blob.to_table_builder(Some(&subject_shown.read()))
-                                .with_blob(Some(file_name), Some(ext.to_str().unwrap()), &contents.into_bytes(), None)
-                                .unwrap()
-                                .build()
-                                .unwrap();
+                        if let Some(contents) = file_engine.read_file_to_string(file_name).await {
                             let data = SessionInterfaceMessage::get_builder()
                                 .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                 .with_format(&data_format)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                 .with_update(&publish)
                                 .with_stream(false)
-                                .with_subject(blob.get_name())
-                                .with_message(blob.to_bytes().unwrap().to_vec())
+                                .with_subject(&subject_shown.read())
+                                .with_message(Bytes::from(contents).to_vec())
                                 .make_name()
                                 .unwrap()
                                 .build()
@@ -550,10 +539,10 @@ pub fn subjects_modal() -> Element {
                     table {
                         if subject_shown().is_empty() {
                             caption { "No subject selected." },
-                        } else if num_rows.is_empty() {
+                        } else if num_rows().is_empty() {
                             caption { "Schema for {subject_shown.to_string()}." },
                         } else {
-                            caption { "{subject_shown.to_string()}: {num_rows.first().unwrap()} rows." },
+                            caption { "{subject_shown.to_string()}: {num_rows().first().unwrap()} rows." },
                         }
                         tr {
                             {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {
@@ -562,9 +551,9 @@ pub fn subjects_modal() -> Element {
                                 }
                             })}
                         },
-                        {(0..schema_columns.len()).map(|i| {
-                            let subject_col = schema_columns.get(i).unwrap().to_string();
-                            let subject_type = schema_types.get(i).unwrap().to_string();
+                        {(0..schema_columns_types().0.len()).map(|i| {
+                            let subject_col = schema_columns_types().0.get(i).unwrap().to_string();
+                            let subject_type = schema_columns_types().1.get(i).unwrap().to_string();
                             rsx! {
                                 tr {
                                     td { "{subject_col}" },

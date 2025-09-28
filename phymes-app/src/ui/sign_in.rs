@@ -1,6 +1,6 @@
 use crate::state::{
     apps::{sync_current_active_session_state, SyncCurrentActiveSessionState},
-    sign_in::{clear_jwt_state, sync_builder_state, sync_debugger_state, sync_jwt_state, ClearJWTState, SyncBuilderState, SyncDebuggerState, SyncJWTState, BUILDER, DEBUGGER, EMAIL, JWT},
+    sign_in::{clear_jwt_state, clear_session_names_state, sync_builder_state, sync_debugger_state, sync_jwt_state, sync_session_names_state, ClearJWTState, ClearSessionNamesState, SignInState, SyncBuilderState, SyncDebuggerState, SyncJWTState, SyncSessionNamesState, BUILDER, DEBUGGER, EMAIL, JWT},
 };
 use dioxus::prelude::*;
 
@@ -49,8 +49,10 @@ pub fn sign_in_form() -> Element {
 
     // intialize state and coroutines
     use_coroutine(sync_jwt_state);
-    use_coroutine(sync_current_active_session_state);
     let sync_jwt = use_coroutine_handle::<SyncJWTState>();
+    use_coroutine(sync_session_names_state);
+    let sync_session_names = use_coroutine_handle::<SyncSessionNamesState>();
+    use_coroutine(sync_current_active_session_state);
     let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
 
     // DM: Refactor the login to include a registration and forgot password
@@ -97,14 +99,17 @@ pub fn sign_in_form() -> Element {
                     .header(CONTENT_TYPE, "text/plain; charset=utf-8")
                     .send()
                     .await {
-                    Ok(response) => match response.json::<SyncJWTState>()
+                    Ok(response) => match response.json::<SignInState>()
                         .await {
                             Ok(jwt_json) => {
                                 // Set the active session
-                                sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_plans.first().unwrap().to_string() });
+                                sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_names.session_plans.first().unwrap().to_string() });
+
+                                // Set the session names
+                                sync_session_names.send(SyncSessionNamesState { session_plans: jwt_json.session_names.session_plans });
 
                                 // Set the sign-in credentials
-                                sync_jwt.send(jwt_json);
+                                sync_jwt.send(SyncJWTState { jwt: jwt_json.jwt.jwt, email: jwt_json.jwt.email });
                                 
                                 // Clear the signals
                                 content.write().clear();
@@ -177,12 +182,15 @@ pub fn sign_in_form() -> Element {
 pub fn sign_out_form() -> Element {
     use_coroutine(clear_jwt_state);
     let clear_jwt_state = use_coroutine_handle::<ClearJWTState>();
+    use_coroutine(clear_session_names_state);
+    let clear_session_names_state = use_coroutine_handle::<ClearSessionNamesState>();
 
     rsx! {
         p { "Signed in as {EMAIL.read().to_string()}." },
         button {
             onclick: move |_| async move {
                 clear_jwt_state.send(ClearJWTState {});
+                clear_session_names_state.send(ClearSessionNamesState {});
             },
             "sign-out"
         },
@@ -194,9 +202,8 @@ pub fn sign_out_form() -> Element {
 pub fn application_mode() -> Element {
     // intialize state and coroutines
     use_coroutine(sync_builder_state);
-    use_coroutine(sync_debugger_state);
-    use_coroutine(sync_current_active_session_state);
     let sync_builder_state = use_coroutine_handle::<SyncBuilderState>();
+    use_coroutine(sync_debugger_state);
     let sync_debugger_state = use_coroutine_handle::<SyncDebuggerState>();
 
     // Determine the button text
@@ -220,6 +227,10 @@ pub fn application_mode() -> Element {
         button {
             onclick: move |_evt| async move {
                 sync_builder_state.send(SyncBuilderState { show: !BUILDER()});
+                if BUILDER() {
+                    // If we are enabling builder mode, disable debugger mode
+                    sync_debugger_state.send(SyncDebuggerState { show: false });
+                }
             },
             "{builder}"
         },
@@ -227,7 +238,10 @@ pub fn application_mode() -> Element {
             onclick: move |_evt| async move {
                 sync_debugger_state.send(SyncDebuggerState { show: !DEBUGGER()});
             },
-            "{debugger}"
+            // If we are enabling builder mode, disable debugger mode
+            if !BUILDER() { 
+                "{debugger}" 
+            }
         }
     }
 }

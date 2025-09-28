@@ -27,9 +27,6 @@ use crate::{session_plans::{available_interface_subjects::AvailableInterfaceSubj
 /// An inbox and outbox for each support task are provided
 ///   that trigger the task
 pub struct UserSession<'a> {
-    /// Filter session contexts by email and join with mermaid diagrams
-    pub filter_and_join_session_contexts_by_email_runtime_env_name_1: &'a str,
-    pub filter_and_join_session_contexts_by_email_runtime_env_name_2: &'a str,
     /// Extract data from inbox subtask
     pub filter_and_join_session_contexts_by_email_inbox_task_name: &'a str,
     pub filter_and_join_session_contexts_by_email_inbox_processor_name: &'a str,
@@ -37,9 +34,11 @@ pub struct UserSession<'a> {
     pub filter_and_join_session_contexts_by_email_outbox_task_name: &'a str,
     pub filter_and_join_session_contexts_by_email_outbox_processor_name: &'a str,
     /// Filter session contexts by email subtask
+    pub filter_session_contexts_by_email_runtime_env_name: &'a str,
     pub filter_session_contexts_by_email_task_name: &'a str,
     pub filter_session_contexts_by_email_processor_name: &'a str,
     /// Join session contexts by email subtask
+    pub join_session_contexts_with_mermaid_diagrams_runtime_env_name: &'a str,
     pub join_session_contexts_with_mermaid_diagrams_task_name: &'a str,
     pub join_session_contexts_with_mermaid_diagrams_processor_name: &'a str,
 
@@ -57,14 +56,14 @@ impl Default for UserSession<'_> {
     fn default() -> Self {
         UserSession {
             session_context_name: "session_context_name",
-            filter_and_join_session_contexts_by_email_runtime_env_name_1: "filter_and_join_session_contexts_by_email_runtime_env_name_1",
-            filter_and_join_session_contexts_by_email_runtime_env_name_2: "filter_and_join_session_contexts_by_email_runtime_env_name_2",
             filter_and_join_session_contexts_by_email_inbox_task_name: "filter_and_join_session_contexts_by_email_inbox_task_name",
             filter_and_join_session_contexts_by_email_inbox_processor_name: "filter_and_join_session_contexts_by_email_inbox_processor_name",
             filter_and_join_session_contexts_by_email_outbox_task_name: "filter_and_join_session_contexts_by_email_outbox_task_name",
             filter_and_join_session_contexts_by_email_outbox_processor_name: "filter_and_join_session_contexts_by_email_outbox_processor_name",
+            filter_session_contexts_by_email_runtime_env_name: "filter_session_contexts_by_email_runtime_env_name",
             filter_session_contexts_by_email_task_name: "filter_session_contexts_by_email_task_name",
             filter_session_contexts_by_email_processor_name: "filter_session_contexts_by_email_processor_name",
+            join_session_contexts_with_mermaid_diagrams_runtime_env_name: "join_session_contexts_with_mermaid_diagrams_runtime_env_name",
             join_session_contexts_with_mermaid_diagrams_task_name: "join_session_contexts_with_mermaid_diagrams_task_name",
             join_session_contexts_with_mermaid_diagrams_processor_name: "join_session_contexts_with_mermaid_diagrams_processor_name",
             filter_user_info_by_email_runtime_env_name: "filter_user_info_by_email_runtime_env_name",
@@ -115,15 +114,15 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 processor_names: vec![self.filter_and_join_session_contexts_by_email_inbox_processor_name.to_string()],
             }, TaskPlan {
                 task_name: self.filter_session_contexts_by_email_task_name.to_string(),
-                runtime_env_name: self.filter_and_join_session_contexts_by_email_runtime_env_name_1.to_string(),
+                runtime_env_name: self.filter_session_contexts_by_email_runtime_env_name.to_string(),
                 processor_names: vec![self.filter_session_contexts_by_email_processor_name.to_string()],
             }, TaskPlan {
                 task_name: self.join_session_contexts_with_mermaid_diagrams_task_name.to_string(),
-                runtime_env_name: self.filter_and_join_session_contexts_by_email_runtime_env_name_1.to_string(),
+                runtime_env_name: self.join_session_contexts_with_mermaid_diagrams_runtime_env_name.to_string(),
                 processor_names: vec![self.join_session_contexts_with_mermaid_diagrams_processor_name.to_string()],
             }, TaskPlan {
                 task_name: self.filter_and_join_session_contexts_by_email_outbox_task_name.to_string(),
-                runtime_env_name: self.filter_and_join_session_contexts_by_email_runtime_env_name_2.to_string(),
+                runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![self.filter_and_join_session_contexts_by_email_outbox_processor_name.to_string()],
             }, TaskPlan {
                 task_name: self.session_context_name.to_string(),
@@ -222,8 +221,8 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
             RuntimeEnv::new().with_name("rt_default"),
-            RuntimeEnv::new().with_name(self.filter_and_join_session_contexts_by_email_runtime_env_name_1),
-            RuntimeEnv::new().with_name(self.filter_and_join_session_contexts_by_email_runtime_env_name_2),
+            RuntimeEnv::new().with_name(self.filter_session_contexts_by_email_runtime_env_name),
+            RuntimeEnv::new().with_name(self.join_session_contexts_with_mermaid_diagrams_runtime_env_name),
             RuntimeEnv::new().with_name(self.filter_user_info_by_email_runtime_env_name),
         ])
     }

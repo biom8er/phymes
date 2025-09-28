@@ -172,7 +172,7 @@ impl CandleEmbedStream {
     #[instrument(skip(self))]
     fn init_token_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
-            if self.runtime_env.try_lock().unwrap().token_service.is_none() {
+            if self.runtime_env.lock().token_service.is_none() {
                 let device = device(config.cpu)?;
                 let mut asset = config.candle_asset.unwrap().build(
                     config.weights_config_file.clone(),
@@ -194,8 +194,7 @@ impl CandleEmbedStream {
                 // Concurrent embeddings can hold onto the lock simultaneous
                 let _ = self
                     .runtime_env
-                    .try_lock()
-                    .unwrap()
+                    .lock()
                     .token_service
                     .replace(Box::new(asset));
             }

@@ -211,8 +211,7 @@ impl MessageAggregatorStream {
         if let Some(ref config) = self.config {
             if self
                 .runtime_env
-                .try_lock()
-                .unwrap()
+                .lock()
                 .tensor_service
                 .is_none()
             {
@@ -220,8 +219,7 @@ impl MessageAggregatorStream {
                 let service = CandleTensorService::new(device);
                 let _ = self
                     .runtime_env
-                    .try_lock()
-                    .unwrap()
+                    .lock()
                     .tensor_service
                     .replace(Box::new(service));
             }

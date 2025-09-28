@@ -6,9 +6,9 @@ use phymes_server::handlers::sign_in::create_session_name;
 use crate::{
     state::{
         apps::{
-            sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM, get_non_duplicated_sorted_subjects, filter_in_mermaid_diagrams_by_session_name},
-        builds::{sync_current_mermaid_state, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME, MERMAID_TIMESTAMP, filter_out_mermaid_diagrams_by_session_name}, 
-        messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{EMAIL, JWT}
+            filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM},
+        builds::{filter_out_mermaid_diagrams_by_session_name, sync_current_mermaid_state, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME, MERMAID_TIMESTAMP}, 
+        messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES}
     },
     ui::svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, sync_icon_svg, trash_icon_svg},
 };
@@ -41,6 +41,8 @@ pub fn builds_dropdown_view() -> Element {
     let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
     use_coroutine(sync_current_mermaid_state);
     let sync_current_mermaid_state = use_coroutine_handle::<SyncCurrentMermaidState>();
+    use_coroutine(sync_session_names_state);
+    let sync_session_names = use_coroutine_handle::<SyncSessionNamesState>();
 
     // Dropdown signals
     let mut show_subject_dropdown = use_signal(|| false);
@@ -265,6 +267,10 @@ pub fn builds_dropdown_view() -> Element {
                             return;
                         },
                     };
+                    if SESSION_NAMES.read().iter().any(|s| s==&ACTIVE_SESSION_NAME()) {
+                        build_errors.write().push_str(format!("Session name '{}' already exists. Please choose a different name.", ACTIVE_SESSION_NAME()).as_str());
+                        return;
+                    }
                     let _session = match builder.with_name(&ACTIVE_SESSION_NAME()).build() {
                         Ok(session) => session,
                         Err(err) => {
@@ -273,7 +279,7 @@ pub fn builds_dropdown_view() -> Element {
                         },
                     };
 
-                    // Update the server
+                    // Update the server with the new session
                     let route = "/app/v1/build";
                     let batch = create_mermaid_batch(vec![ACTIVE_SESSION_NAME()], vec![SESSION_FLOWCHART_DIAGRAM()], vec![SESSION_ER_DIAGRAM()], vec![create_timestamp_micros()]).unwrap();
                     let message = Table::get_builder()
@@ -336,6 +342,12 @@ pub fn builds_dropdown_view() -> Element {
                         }
                         Err(err) => tracing::error!("{err:?}"),
                     }
+
+                    // Update the frontend state with the new session so as not to require the user to re-signin
+                    let mut session_plans = vec![ACTIVE_SESSION_NAME().to_string()];
+                    session_plans.extend(SESSION_NAMES.read().iter().filter(|s| *s!=&ACTIVE_SESSION_NAME()).cloned());
+                    sync_session_names.send(SyncSessionNamesState { session_plans });
+
                 },
                 svg { dangerous_inner_html: deploy_icon_svg() },
             },

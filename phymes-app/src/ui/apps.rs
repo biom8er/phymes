@@ -9,9 +9,10 @@ use serde_json::{Map, Value};
 
 use crate::{
     state::{
-        apps::{
-            filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM
-        }, builds::{clear_current_mermaid_state, sync_current_mermaid_state, ClearCurrentMermaidState, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME, MERMAID_TIMESTAMP}, messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{BUILDER, EMAIL, JWT, SESSION_NAMES}
+        apps::{filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM}, 
+        builds::{clear_current_mermaid_state, sync_current_mermaid_state, ClearCurrentMermaidState, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME, MERMAID_TIMESTAMP}, 
+        messaging::{clear_current_message_state, ClearCurrentMessageState}, 
+        sign_in::{BUILDER, EMAIL, JWT, SESSION_NAMES}
     },
     ui::{builds::builds_dropdown_view, svg_icons::{search_icon_svg, sync_icon_svg}},
 };

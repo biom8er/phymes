@@ -234,8 +234,7 @@ pub async fn session_get_state(
 
             match state
                 .session_contexts
-                .try_write()
-                .unwrap()
+                .write()
                 .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {

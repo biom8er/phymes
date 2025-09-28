@@ -47,7 +47,7 @@ impl UserState {
     /// Get the user information by their email
     pub async fn get_user_by_email(&self, email: &str) -> Result<(Vec<UserSubject>, Vec<JoinUserInboxSessionContextsMermaidDiagrams>)> {
         // To prevent locks and other performance issues
-        let session_context_name = self.users.try_read().unwrap().get_session_context().get_name().to_string();
+        let session_context_name = self.users.read().get_session_context().get_name().to_string();
 
         // Prepare the input message
         let batch = create_user_inbox_batch(vec![email.to_string()])?;
@@ -67,12 +67,9 @@ impl UserState {
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
-        
-        // Reset the iter
-        self.users.try_write().unwrap().set_iter(0);
 
         // Run the tasks for the user session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&self.users));
+        let session_stream = SessionStream::new(message_map, self.users.clone());
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Parse the response
@@ -102,6 +99,9 @@ impl UserState {
             .collect::<Vec<_>>();
         let user = attachment_data.swap_remove(0).to_struct::<UserSubject>()?;
         let join = attachment_data.swap_remove(0).to_struct::<JoinUserInboxSessionContextsMermaidDiagrams>()?;
+        
+        // Reset the iter
+        self.users.write().set_iter(0);
 
         Ok((user, join))
     }
@@ -148,7 +148,6 @@ impl UserState {
             .try_write()
             .unwrap()
             .update_state_from_messages(message_map);
-        dbg!(&update);
 
         // Update the superstep
         self.users
