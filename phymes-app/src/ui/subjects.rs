@@ -286,39 +286,107 @@ pub fn subjects_interface_view() -> Element {
                 class: "messaging_list",
                 p { "Waiting to retrieve session plan subject schemas..." },
             }
-        } else {
+        } else if ACTIVE_SUBJECT_NAME.read().is_empty() {
             div {
                 class: "messaging_list",
                 subjects_dropdown_menu {}
                 subjects_schema_table {}
-
-                if !ACTIVE_SUBJECT_NAME.read().is_empty() {
+            }
+        } else if FILES_UPLOADED.read().is_empty() && FILES_DOWNLOADED.read().is_empty() {
+            div {
+                class: "messaging_list",
+                subjects_dropdown_menu {}
+                subjects_schema_table {}
+            }
+            div {
+                class: "file_upload_form",
+                div {
+                    id: "file_upload_extend_form",
+                    h2 { "Add data to subject {ACTIVE_SUBJECT_NAME}" },
+                    attach_files_button {}
+                }
+                div {
+                    id: "file_download_form",
+                    h2 { "Download data from subject {ACTIVE_SUBJECT_NAME}" },
                     div {
-                        class: "file_upload_form",
+                        class: "drop_box",
+                        p { "CSV (comma delimiter with headers)" },
+                        download_files_button {}
+                    }
+                }
+            }
+        } else if !FILES_UPLOADED.read().is_empty() && FILES_DOWNLOADED.read().is_empty() {
+            div {
+                class: "messaging_list",
+                subjects_dropdown_menu {}
+                subjects_schema_table {}                
+                div {
+                    class: "file_upload_form",
+                    div {
+                        id: "file_upload_extend_form",
+                        h2 { "Add data to subject {ACTIVE_SUBJECT_NAME}" },
+                        attach_files_button {}
+                    }
+                    div {
+                        id: "file_download_form",
+                        h2 { "Download data from subject {ACTIVE_SUBJECT_NAME}" },
                         div {
-                            id: "file_upload_extend_form",
-                            h2 { "Add data to subject {ACTIVE_SUBJECT_NAME}" },
-                            attach_files_button {}
-                        }
-                        div {
-                            id: "file_download_form",
-                            h2 { "Download data from subject {ACTIVE_SUBJECT_NAME}" },
-                            div {
-                                class: "drop_box",
-                                p { "CSV (comma delimiter with headers)" },
-                                download_files_button {}
-                            }
+                            class: "drop_box",
+                            p { "CSV (comma delimiter with headers)" },
+                            download_files_button {}
                         }
                     }
                 }
-
-                if !FILES_UPLOADED.read().is_empty() {
-                    upload_files_list {}
+                upload_files_list {}
+                download_files_list {}
+            }
+        } else if !FILES_UPLOADED.read().is_empty(){
+            div {
+                class: "messaging_list",
+                subjects_dropdown_menu {}
+                subjects_schema_table {}
+                div {
+                    class: "file_upload_form",
+                    div {
+                        id: "file_upload_extend_form",
+                        h2 { "Add data to subject {ACTIVE_SUBJECT_NAME}" },
+                        attach_files_button {}
+                    }
+                    div {
+                        id: "file_download_form",
+                        h2 { "Download data from subject {ACTIVE_SUBJECT_NAME}" },
+                        div {
+                            class: "drop_box",
+                            p { "CSV (comma delimiter with headers)" },
+                            download_files_button {}
+                        }
+                    }
                 }
-
-                if !FILES_DOWNLOADED.read().is_empty() {
-                    download_files_list {}
+                upload_files_list {}
+            }
+        } else if !FILES_DOWNLOADED.read().is_empty(){
+            div {
+                class: "messaging_list",
+                subjects_dropdown_menu {}
+                subjects_schema_table {}
+                div {
+                    class: "file_upload_form",
+                    div {
+                        id: "file_upload_extend_form",
+                        h2 { "Add data to subject {ACTIVE_SUBJECT_NAME}" },
+                        attach_files_button {}
+                    }
+                    div {
+                        id: "file_download_form",
+                        h2 { "Download data from subject {ACTIVE_SUBJECT_NAME}" },
+                        div {
+                            class: "drop_box",
+                            p { "CSV (comma delimiter with headers)" },
+                            download_files_button {}
+                        }
+                    }
                 }
+                download_files_list {}
             }
         }
     }
