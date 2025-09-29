@@ -3,6 +3,23 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
 #[allow(clippy::redundant_closure)]
+pub static ACTIVE_SUBJECT_NAME: GlobalSignal<String> = Signal::global(|| String::new());
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SyncCurrentActiveSubjectState {
+    pub name: String,
+}
+
+pub async fn sync_current_active_subject_state(
+    mut rx: UnboundedReceiver<SyncCurrentActiveSubjectState>,
+) {
+    while let Some(updated_state) = rx.next().await {
+        (*ACTIVE_SUBJECT_NAME.write()).clear();
+        (*ACTIVE_SUBJECT_NAME.write()).push_str(updated_state.name.as_str());
+    }
+}
+
+#[allow(clippy::redundant_closure)]
 pub static SUBJECT_SCHEMA_NAMES: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 #[allow(clippy::redundant_closure)]
 pub static SUBJECT_SCHEMA_COLUMNS: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());

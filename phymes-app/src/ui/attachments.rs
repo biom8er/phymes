@@ -31,36 +31,44 @@ use phymes_server::server::{
 // mod imports
 use crate::{
     state::{
-        messaging::{
-            clear_current_message_state, sync_current_message_content_state,
-            sync_current_message_state, ClearCurrentMessageState, SyncCurrentMessageContentState,
-            SyncCurrentMessageState, CONTENT, INDEX, ROLE, TIMESTAMP,
-        },
-        apps::ACTIVE_SESSION_NAME,
-        sign_in::{EMAIL, JWT},
+        apps::ACTIVE_SESSION_NAME, attachments::{
+            clear_current_attachments_state, sync_current_attachments_state, ClearCurrentAttachmentsState, SyncCurrentAttachmentsState, ATTACHMENTS_CONTENT, ATTACHMENTS_EXTENSION, ATTACHMENTS_FILENAME, ATTACHMENTS_INDEX, ATTACHMENTS_ROLE, ATTACHMENTS_TIMESTAMP
+        }, sign_in::{EMAIL, JWT}
     },
-    ui::svg_icons::{aws_assistant_icon_svg, ms_document_text_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, aws_user_icon_svg},
+    ui::svg_icons::{aws_assistant_icon_svg, aws_table_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, ms_arrow_download_icon_svg, ms_attachment_icon_svg, ms_code_icon_svg, ms_document_icon_svg, ms_image_icon_svg, ms_video_icon_svg},
 };
 
-/// View for messaging between the user and AI assistant
-#[component]
-pub fn messaging_interface_view() -> Element {
-    // intialize state and coroutines
-    use_coroutine(sync_current_message_state);
-    use_coroutine(clear_current_message_state);
-    let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
-    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
+pub fn extension_to_icon_svg(extension: &str) -> String {
+    match extension.to_lowercase().as_str() {
+        "pdf" => ms_document_icon_svg(),
+        "mp3" | "wav" | "flac" | "aac" => b8_microphone_icon_svg(),
+        "mp4" | "mov" | "avi" | "mkv" => ms_video_icon_svg(),
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" => ms_image_icon_svg(),
+        "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" => ms_code_icon_svg(),
+        "csv" | "tsv" => aws_table_icon_svg(),
+        _ => ms_attachment_icon_svg(), // default icon for unknown file types
+    }
+}
 
-    // Get the last 25 messages for the messages view
+/// View for attachments between the user and AI assistant
+#[component]
+pub fn attachments_interface_view() -> Element {
+    // intialize state and coroutines
+    use_coroutine(sync_current_attachments_state);
+    use_coroutine(clear_current_attachments_state);
+    let sync_current_attachments_state = use_coroutine_handle::<SyncCurrentAttachmentsState>();
+    let clear_current_attachments_state = use_coroutine_handle::<ClearCurrentAttachmentsState>();
+
+    // Get the last 25 attachments (without the actual blob content) for the attachments view
     let _ = use_resource(move || async move {
-        clear_current_message_state.send(ClearCurrentMessageState {});
+        clear_current_attachments_state.send(ClearCurrentAttachmentsState {});
         let data = SessionInterfaceMessage::get_builder()
             .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
             .with_format(&DataFormat::Bytes)
             .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
             .with_update(&TablePublish::None)
             .with_stream(false)
-            .with_subject(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+            .with_subject(AvailableInterfaceSubjects::AggregatedAttachments.to_string().as_str())
             .make_name()
             .unwrap()
             .build()
@@ -86,18 +94,20 @@ pub fn messaging_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
                             tracing::error!(
-                                "There was a error parsing SyncCurrentSubjectInfoState {err}."
+                                "There was a error parsing SyncCurrentAttachmentsState {err}."
                             );
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        if row.get("role").is_some() {
-                            sync_current_message_state.send(SyncCurrentMessageState {
-                                role: row.get("role").unwrap().as_str().unwrap().to_string(),
-                                content: row.get("content").unwrap().as_str().unwrap().to_string(),
+                        if row.get("metadata").is_some() {
+                            sync_current_attachments_state.send(SyncCurrentAttachmentsState {
+                                role: row.get("metadata").unwrap().as_str().unwrap().to_string(),
+                                content: "".to_string(),
                                 timestamp: convert_timestamp_micros_to_str(
                                     row.get("timestamp").unwrap().as_i64().unwrap(),
                                 ),
+                                filename: row.get("filename").unwrap().as_str().unwrap().to_string(),
+                                extension: row.get("extension").unwrap().as_str().unwrap().to_string(),
                             });
                         }
                     }
@@ -128,16 +138,15 @@ pub fn messaging_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
-                        if row.get("role").is_some() {
-                            sync_current_message_state.send(SyncCurrentMessageState {
-                                role: row.get("role").unwrap().as_str().unwrap().to_string(),
-                                content: row.get("content").unwrap().as_str().unwrap().to_string(),
-                                timestamp: row
-                                    .get("timestamp")
-                                    .unwrap()
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string(),
+                        if row.get("metadata").is_some() {
+                            sync_current_attachments_state.send(SyncCurrentAttachmentsState {
+                                role: row.get("metadata").unwrap().as_str().unwrap().to_string(),
+                                content: "".to_string(),
+                                timestamp: convert_timestamp_micros_to_str(
+                                    row.get("timestamp").unwrap().as_i64().unwrap(),
+                                ),
+                                filename: row.get("filename").unwrap().as_str().unwrap().to_string(),
+                                extension: row.get("extension").unwrap().as_str().unwrap().to_string(),
                             });
                         }
                     }
@@ -147,61 +156,62 @@ pub fn messaging_interface_view() -> Element {
         }
     });
 
-    // initialize the first message (if the are no messages for the session)
-    let num_messages = ROLE.len();
-    if num_messages == 0 {
-        sync_current_message_state.send(SyncCurrentMessageState {
-            role: "assistant".to_string(), 
-            content: "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊".to_string(),
-            timestamp: create_timestamp_str(),
-        });
-    }
-
     // render the chat messages
     rsx! {
         // Check for sign-in
         if JWT.read().is_empty() {
             div {
                 class: "messaging_list",
-                p { "Please sign-in before messaging." },
+                p { "Please sign-in before attachments." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
                 class: "messaging_list",
-                p { "Please activate a session before messaging." },
+                p { "Please activate a session before attachments." },
             }
         } else {
             ul {
-                id: "messaging",
+                id: "attachments",
                 class: "messaging_list",
-                {(0..num_messages).map(|i| {
-                    let role = ROLE.get(i).unwrap().to_string();
-                    let index = INDEX.get(i).unwrap();
-                    let timestamp = TIMESTAMP.get(i).unwrap().to_string();
-                    let content = CONTENT.get(i).unwrap().to_string();
+                {(0..ATTACHMENTS_ROLE.len()).map(|i| {
+                    let role = ATTACHMENTS_ROLE.get(i).unwrap().to_string();
+                    let index = ATTACHMENTS_INDEX.get(i).unwrap();
+                    let timestamp = ATTACHMENTS_TIMESTAMP.get(i).unwrap().to_string();
+                    let content = ATTACHMENTS_CONTENT.get(i).unwrap().to_string();
+                    let filename = ATTACHMENTS_FILENAME.get(i).unwrap().to_string();
+                    let extension = ATTACHMENTS_EXTENSION.get(i).unwrap().to_string();
                     rsx! {
                         li {
                             key: "{index}",
-                            class: "{role}", // either assistant or user
-                            if role == *"assistant" {
-                                div {
-                                    class: "entete",
+                            class: "assistant", // we borrow the assistant class for styling
+                            div {
+                                class: "entete",
+                                if role == *"assistant" {
                                     svg { dangerous_inner_html: aws_assistant_icon_svg() }
                                     h2 { "AI Assistant" }
-                                    h3 { "{timestamp}" }
-                                }
-                            } else {
-                                div {
-                                    class: "entete",
-                                    h3 { "{timestamp}" }
-                                    h2 { "User" }
+                                } else {
                                     svg { dangerous_inner_html: aws_user_icon_svg() }
+                                    h2 { "User" }
                                 }
-                            }
-                            div {
-                                class: "message",
-                                dangerous_inner_html: "{content}"
-                                // dangerous_inner_html: "<p>{content}</p>"
+                                h3 { "{timestamp}" }
+                                svg { dangerous_inner_html: extension_to_icon_svg(extension) }
+                                if content.is_empty() {
+                                    h3 { "{filename}.{extension}" },
+                                    button {
+                                        id: "submit_files",
+                                        svg { dangerous_inner_html: ms_arrow_download_icon_svg() }
+                                        // TODO: add support for downloading the file
+                                        // TODO: check if there is content and replace with a link to download the content
+                                    }
+                                } else {
+                                    // TODO: update when we have support for downloading the file
+                                    // a {
+                                    //     href: f.href.to_owned(),
+                                    //     download: f.download.to_owned(),
+                                    //     "{f.download.as_str()}"
+                                    // },
+                                }
+                                
                             }
                         }
                     }
@@ -211,14 +221,12 @@ pub fn messaging_interface_view() -> Element {
     }
 }
 
-/// View for messaging between the user and AI assistant
+/// View for attachments between the user and AI assistant
 #[component]
-pub fn messaging_interface_footer() -> Element {
+pub fn attachments_interface_footer() -> Element {
     // intialize state and coroutines
-    use_coroutine(sync_current_message_state);
-    use_coroutine(sync_current_message_content_state);
-    let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
-    let sync_message_content = use_coroutine_handle::<SyncCurrentMessageContentState>();
+    use_coroutine(sync_current_attachments_state);
+    let sync_current_attachments_state = use_coroutine_handle::<SyncCurrentAttachmentsState>();
 
     #[allow(clippy::redundant_closure)]
     let mut prompt = use_signal(|| String::new());
@@ -233,22 +241,31 @@ pub fn messaging_interface_footer() -> Element {
                     // This must be outside the form or it will be refreshed on each submit
                     button {
                         onclick: move |_| async move {
-                            // TODO: add support for adding attachments through the messaging interface
+                            // TODO: add support for adding attachments through the attachments interface
                         },
-                        svg { dangerous_inner_html: ms_document_text_icon_svg() }
+                        svg { dangerous_inner_html: ms_attachment_icon_svg() }
                     }
                 }
 
                 div {
-                    class: "text_input",
-                    form {
-                        id: "message_form",
-                        textarea {
-                            placeholder: "Type your message here...",
-                            // Text input
-                            value: "{prompt.to_string()}",
-                            oninput: move |event| prompt.set(event.value()),
-                        }
+                    class: "files",
+                    p { "Files to upload" },
+                    ul {
+                        id: "uploaded_subject_files",
+                        class: "file_list",
+                        {file_names.iter().enumerate().map(|(i, f)| {
+                            rsx! {
+                                li {
+                                    key: "{i}",
+                                    div {
+                                        class: "files",                                        
+                                        svg { dangerous_inner_html: extension_to_icon_svg(extension) }
+                                        h3 { "{f}" },
+                                        // div { class: "loader" },
+                                    }
+                                }
+                            }
+                        })}
                     }
                 }
 
@@ -263,14 +280,14 @@ pub fn messaging_interface_footer() -> Element {
                         button {
                             onclick: move |_| async move {
                                 // signed in and ready to chat
-                                sync_current_message_state.send(SyncCurrentMessageState {
+                                sync_current_attachments_state.send(SyncCurrentAttachmentsState {
                                     role: "user".to_string(),
                                     content: prompt.to_string(),
                                     timestamp: create_timestamp_str()
                                 });
 
                                 // let the user know that the response is being prepared
-                                sync_current_message_state.send(SyncCurrentMessageState {
+                                sync_current_attachments_state.send(SyncCurrentAttachmentsState {
                                     role: "assistant".to_string(),
                                     content: "Preparing response...".to_string(),
                                     timestamp: create_timestamp_str()
@@ -309,7 +326,7 @@ pub fn messaging_interface_footer() -> Element {
                                     .send()
                                     .await {
                                     Ok(stream) => {
-                                        sync_message_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
+                                        sync_attachments_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
                                         let mut stream = stream.bytes_stream();
                                         while let Some(Ok(bytes)) = stream.next().await {
                                             let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
@@ -321,7 +338,7 @@ pub fn messaging_interface_footer() -> Element {
                                                 });
                                             for row in json_rows.iter() {
                                                 if row.get("role").unwrap().as_str().unwrap() == "assistant" {
-                                                    sync_message_content.send(SyncCurrentMessageContentState {
+                                                    sync_attachments_content.send(SyncCurrentMessageContentState {
                                                         content: row.get("content").unwrap().as_str().unwrap().to_string(),
                                                         replace_last: false
                                                     });
@@ -330,7 +347,7 @@ pub fn messaging_interface_footer() -> Element {
                                         }
                                     },
                                     Err(e) => {
-                                        sync_message_content.send(SyncCurrentMessageContentState {content: format!("{e:?}"), replace_last: true});
+                                        sync_attachments_content.send(SyncCurrentMessageContentState {content: format!("{e:?}"), replace_last: true});
                                     }
                                 }
 
@@ -346,7 +363,7 @@ pub fn messaging_interface_footer() -> Element {
                                 #[cfg(feature = "serverless")]
                                 match serverless_app(config, &mut serverless).await {
                                     Ok(response) => {
-                                        sync_message_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
+                                        sync_attachments_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
                                         let bytes: Vec<Bytes> = response
                                             .into_body()
                                             .into_data_stream()
@@ -360,7 +377,7 @@ pub fn messaging_interface_footer() -> Element {
                                                 vec![m]
                                             });
                                             for row in json_rows.iter() {
-                                                sync_message_content.send(SyncCurrentMessageContentState {
+                                                sync_attachments_content.send(SyncCurrentMessageContentState {
                                                     content: row.get("content").unwrap().as_str().unwrap().to_string(),
                                                     replace_last: false
                                                 });
@@ -368,7 +385,7 @@ pub fn messaging_interface_footer() -> Element {
                                         }
                                     },
                                     Err(e) => {
-                                        sync_message_content.send(SyncCurrentMessageContentState {content: format!("Error: {e:?}"), replace_last: true});
+                                        sync_attachments_content.send(SyncCurrentMessageContentState {content: format!("Error: {e:?}"), replace_last: true});
                                     }
                                 }
                             },

@@ -404,7 +404,7 @@ pub fn ms_code_icon_svg() -> String {
 pub fn ms_image_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-        <g id="MSTeamsCode" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+        <g id="MSTeamsCode" stroke="none" stroke-width="2" fill="white" fill-rule="evenodd" clip-rule="evenodd">
             <path d="M6 12.25C6 8.79822 8.79822 6 12.25 6H35.75C39.2018 6 42 8.79822 42 12.25V35.75C42 37.1058 41.5683 38.3608 40.8348 39.385L26.475 25.0251C25.1081 23.6583 22.8921 23.6583 21.5252 25.0251L7.16525 39.3851C6.43174 38.3609 6 37.1059 6 35.75V12.25ZM30.5 21.5C32.7091 21.5 34.5 19.7091 34.5 17.5C34.5 15.2909 32.7091 13.5 30.5 13.5C28.2909 13.5 26.5 15.2909 26.5 17.5C26.5 19.7091 28.2909 21.5 30.5 21.5Z"/>
             <path d="M39.0024 41.0881L24.7072 26.7929C24.3167 26.4024 23.6835 26.4024 23.293 26.7929L8.99769 41.0882C9.94516 41.6667 11.0587 42 12.25 42H35.75C36.9414 42 38.0549 41.6666 39.0024 41.0881Z"/>
         </g>
@@ -415,7 +415,7 @@ pub fn ms_image_icon_svg() -> String {
 pub fn ms_video_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-        <g id="MSTeamsVideo" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+        <g id="MSTeamsVideo" stroke="none" stroke-width="2" fill="white" fill-rule="evenodd" clip-rule="evenodd">
             <path d="M31 15.25C31 11.7982 28.2018 9 24.75 9H10.25C6.79822 9 4 11.7982 4 15.25V32.75C4 36.2018 6.79822 39 10.25 39H24.75C28.2018 39 31 36.2018 31 32.75V15.25ZM33 29.5316L39.9612 34.9681C41.6027 36.25 44 35.0804 44 32.9978V15.0027C44 12.92 41.6026 11.7505 39.9612 13.0324L33 18.469V29.5316Z"/>
         </g>
     </svg>"##;
@@ -435,7 +435,7 @@ pub fn ms_filmstrip_icon_svg() -> String {
 pub fn ms_document_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-        <g id="MSTeamsDocument" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+        <g id="MSTeamsDocument" stroke="none" stroke-width="2" fill="white" fill-rule="evenodd" clip-rule="evenodd">
             <path d="M24 4V15.25C24 17.3211 25.6789 19 27.75 19H40V40C40 41.6569 38.6569 43 37 43H11C9.34315 43 8 41.6569 8 40V7C8 5.34315 9.34315 4 11 4H24ZM26.5 4.46429V15.25C26.5 15.9404 27.0596 16.5 27.75 16.5H39.4615L26.5 4.46429Z"/>
         </g>
     </svg>"##;
@@ -471,6 +471,26 @@ pub fn ms_window_icon_svg() -> String {
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsWindow" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
             <path d="M6 12.25C6 8.79822 8.79822 6 12.25 6H35.75C39.2018 6 42 8.79822 42 12.25V35.75C42 39.2018 39.2018 42 35.75 42H12.25C8.79822 42 6 39.2018 6 35.75V12.25ZM8.5 35.75C8.5 37.8211 10.1789 39.5 12.25 39.5H35.75C37.8211 39.5 39.5 37.8211 39.5 35.75V16.5H8.5V35.75Z" fill="#2A446F"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_folder_open_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsFolderOpen" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <path d="M4.00012 12.4984C4.00098 10.0138 6.01545 8 8.50012 8H16.4112C17.4622 8 18.4802 8.36793 19.2883 9.03995L24.0503 12.9998H35.5009C37.9862 12.9998 40.0009 15.0145 40.0009 17.4998V19.0039H12.8431C10.7775 19.0039 8.9772 20.4101 8.47701 22.4142L4.63297 37.8157C4.63097 37.8237 4.71887 37.4712 4.63297 37.8157C4.22589 37.1388 3.9919 36.3459 3.99219 35.4984L4.00012 12.4984ZM7.48993 38.7579C7.33243 39.3889 7.80976 40 8.46017 40H36.9395C38.5455 40 39.9454 38.9071 40.335 37.3491L43.8614 23.2465C44.0192 22.6153 43.5418 22.0039 42.8912 22.0039H12.8431C12.1546 22.0039 11.5545 22.4726 11.3877 23.1407L7.48993 38.7579Z"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_document_text_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsDocumentText" stroke="none" stroke-width="2" fill="white" fill-rule="evenodd" clip-rule="evenodd">
+            <path d="M24 16V4H12C9.79086 4 8 5.79086 8 8V40C8 42.2091 9.79086 44 12 44H36C38.2091 44 40 42.2091 40 40V20H28C25.7909 20 24 18.2091 24 16ZM16.5 23H31.5C32.3284 23 33 23.6716 33 24.5C33 25.3284 32.3284 26 31.5 26H16.5C15.6716 26 15 25.3284 15 24.5C15 23.6716 15.6716 23 16.5 23ZM16.5 28.5H31.5C32.3284 28.5 33 29.1716 33 30C33 30.8284 32.3284 31.5 31.5 31.5H16.5C15.6716 31.5 15 30.8284 15 30C15 29.1716 15.6716 28.5 16.5 28.5ZM16.5 34H31.5C32.3284 34 33 34.6716 33 35.5C33 36.3284 32.3284 37 31.5 37H16.5C15.6716 37 15 36.3284 15 35.5C15 34.6716 15.6716 34 16.5 34ZM27 16V5L39 17H28C27.4477 17 27 16.5523 27 16Z"/>
         </g>
     </svg>"##;
     svg.to_string()

@@ -74,6 +74,8 @@ pub enum AvailableInterfaceSubjects {
     UserJson,
     #[value(name = "AggregatedMessages")]
     AggregatedMessages,
+    #[value(name = "AggregatedAttachments")]
+    AggregatedAttachments,
     #[value(name = "AssistantMessages")]
     AssistantMessages,
     #[value(name = "ToolMessages")]
@@ -101,6 +103,7 @@ impl Display for AvailableInterfaceSubjects {
             Self::UserCsv => write!(f, "UserCsv"),
             Self::UserJson => write!(f, "UserJson"),
             Self::AggregatedMessages => write!(f, "AggregatedMessages"),
+            Self::AggregatedAttachments => write!(f, "AggregatedAttachments"),
             Self::AssistantMessages => write!(f, "AssistantMessages"),
             Self::ToolMessages => write!(f, "ToolMessages"),
             Self::AssistantImage => write!(f, "AssistantImage"),
@@ -133,6 +136,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantImage 
             | Self::AssistantCsv
             | Self::AssistantJson
+            | Self::AggregatedAttachments 
             | Self::AssistantScript => AvailableSubjects::Blob.to_table(Some(name.as_str()), batches),
         }        
     }
@@ -157,6 +161,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantImage 
             | Self::AssistantCsv
             | Self::AssistantJson
+            | Self::AggregatedAttachments 
             | Self::AssistantScript => AvailableSubjects::Blob.to_table_builder(Some(name.as_str())),
         }        
     }
@@ -177,6 +182,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantImage 
             | Self::AssistantCsv
             | Self::AssistantJson
+            | Self::AggregatedAttachments 
             | Self::AssistantScript => AvailableSubjects::Blob.to_schema(),
         } 
     }

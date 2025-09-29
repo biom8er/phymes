@@ -8,7 +8,7 @@ use super::messaging::{messaging_interface_footer, messaging_interface_view};
 use super::metrics::metrics_modal;
 use super::apps::apps_interface_view;
 use super::sign_in::sign_in_view;
-use super::subjects::subjects_modal;
+use super::subjects::subjects_interface_view;
 use super::svg_icons::{
     ms_database_icon_svg, aws_help_icon_svg, b8_logo_icon_svg, b8_menu_icon_svg, ms_message_icon_svg,
     ms_person_icon_svg, ms_apps_icon_svg, ms_top_speed_icon_svg, ms_tools_icon_svg
@@ -177,7 +177,7 @@ pub fn main_window() -> Element {
             } else if header_menu.read().as_str() == "Apps" {
                 apps_interface_view {},
             } else if header_menu.read().as_str() == "Subjects" {
-                subjects_modal {},
+                subjects_interface_view {},
             } else if header_menu.read().as_str() == "Message" {
                 messaging_interface_view {},
                 messaging_interface_footer {},
