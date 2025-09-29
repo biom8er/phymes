@@ -2,7 +2,7 @@ use bytes::Bytes;
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::BlobBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_trait::TableTrait, table_publish::TablePublish}, task::message::MessageBuilderTrait
+    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_trait::TableTrait, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
 use phymes_server::handlers::sign_in::create_session_name;
 
@@ -30,95 +30,14 @@ use phymes_server::server::{
 
 use crate::{
     state::{
-        apps::{ACTIVE_SESSION_NAME,get_non_duplicated_sorted_subjects},
+        apps::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME},
         sign_in::{EMAIL, JWT},
         subjects::{
-            clear_subject_num_rows_state, clear_subject_schema_state,
-            sync_current_subject_num_rows_state, sync_current_subject_schema_state,
-            ClearSubjectNumRowsState, ClearSubjectSchemaState, SyncCurrentSubjectNumRowsState,
-            SyncCurrentSubjectSchemaState, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS,
-            SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES,
+            clear_subject_num_rows_state, clear_subject_schema_state, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, sync_current_subject_num_rows_state, sync_current_subject_schema_state, ClearSubjectNumRowsState, ClearSubjectSchemaState, DownloadSubject, SyncCurrentSubjectNumRowsState, SyncCurrentSubjectSchemaState, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_HEADERS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES
         },
     },
     ui::svg_icons::{arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg, table_icon_svg},
 };
-
-const SUBJECT_SCHEMA_HEADERS: [&str; 2] = ["Column", "Type"];
-
-/// File download
-#[derive(Debug, Default, Serialize, Deserialize)]
-struct DownloadSubject {
-    pub download: String,
-    pub href: String,
-}
-
-/// Chunk a document
-///
-/// # Arguments
-///
-/// * `contents` - A string
-/// * `chunk_size` - The number of chars (each char is 4 bytes)
-///
-/// # Returns
-///
-/// * vector of chunks
-#[allow(dead_code)]
-fn chunk_document(mut doc: String, chunk_size: usize) -> Vec<String> {
-    let mut chunks = Vec::new();
-    while doc.len() > chunk_size {
-        let (s1, s2) = doc.split_at(chunk_size);
-        chunks.push(s1.to_string());
-        doc = s2.to_string();
-    }
-    chunks.push(doc);
-    chunks
-}
-
-fn get_subject_schema_col_type_by_subject_name(
-    active_subject: &str,
-    subject_schema_names: &[&str],
-    subject_schema_columns: &[&str],
-    subject_schema_types: &[&str],
-) -> (Vec<String>, Vec<String>) {
-    let indices = subject_schema_names
-        .iter()
-        .enumerate()
-        .filter(|(_i, s)| **s == active_subject)
-        .map(|(i, _s)| i)
-        .collect::<Vec<_>>();
-    let columns = subject_schema_columns
-        .iter()
-        .enumerate()
-        .filter(|(i, _s)| indices.contains(i))
-        .map(|(_i, s)| s.to_string())
-        .collect::<Vec<_>>();
-    let types = subject_schema_types
-        .iter()
-        .enumerate()
-        .filter(|(i, _s)| indices.contains(i))
-        .map(|(_i, s)| s.to_string())
-        .collect::<Vec<_>>();
-    (columns, types)
-}
-
-fn get_subject_num_rows_by_subject_name(
-    active_subject: &str,
-    subject_names: &[&str],
-    subject_num_rows: &[&usize],
-) -> Vec<usize> {
-    let indices = subject_names
-        .iter()
-        .enumerate()
-        .filter(|(_i, s)| **s == active_subject)
-        .map(|(i, _s)| i)
-        .collect::<Vec<_>>();
-    subject_num_rows
-        .iter()
-        .enumerate()
-        .filter(|(i, _s)| indices.contains(i))
-        .map(|(_i, s)| s.to_owned().to_owned())
-        .collect::<Vec<_>>()
-}
 
 /// View to display the subject tables for the session
 /// and to allow for easier upload by the user
@@ -143,8 +62,11 @@ pub fn subjects_modal() -> Element {
         .with_stream(false)
     );
 
-    // Get the active session schema for the subject view
+    // Get the active session schema for the subject view and
+    // Get the active session row counts for the subject view
+    // DM: these are combined into a single async block to prevent concurrent mutable borrows of the same user state
     let _ = use_resource(move || async move {
+        // Get the active session schema for the subject view
         clear_subjects_schema_state.send(ClearSubjectSchemaState {});
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
@@ -250,10 +172,8 @@ pub fn subjects_modal() -> Element {
             }
             Err(err) => tracing::error!("{err:?}"),
         }
-    });
 
-    // Get the active session row counts for the subject view
-    let _ = use_resource(move || async move {
+        // Get the active session row counts for the subject view
         clear_subjects_num_rows_state.send(ClearSubjectNumRowsState {});
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
@@ -812,14 +732,6 @@ pub fn subjects_modal() -> Element {
                         },
                     }
                 }
-
-                // File icon and loader
-                // see https://www.w3schools.com/howto/howto_css_loader.asp
-
-                // Draggable processor to task
-                // see https://www.w3schools.com/howto/howto_js_draggable.asp
-                // see https://www.w3schools.com/HTML/html5_draganddrop.asp
-
             }
         }
     }
