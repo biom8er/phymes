@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
+use phymes_core::session::message::SessionInterfaceMessage;
 use serde::{Deserialize, Serialize};
 
 #[allow(clippy::redundant_closure)]
@@ -80,6 +81,62 @@ pub async fn clear_subject_num_rows_state(mut _rx: UnboundedReceiver<ClearSubjec
     (*SUBJECT_NUM_ROWS.write()).clear();
 }
 
+#[allow(clippy::redundant_closure)]
+pub static FILES_UPLOADED: GlobalSignal<Vec<SessionInterfaceMessage>> = Signal::global(|| Vec::new());
+#[allow(clippy::redundant_closure)]
+pub static FILENAMES_UPLOADED: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct SyncFilesUploadedState {
+    pub files: SessionInterfaceMessage, 
+    pub filenames: String,
+}
+
+pub async fn sync_current_files_uploaded_state(
+    mut rx: UnboundedReceiver<SyncFilesUploadedState>,
+) {
+    while let Some(updated_state) = rx.next().await {
+        (*FILES_UPLOADED.write()).push(updated_state.files);
+        (*FILENAMES_UPLOADED.write()).push(updated_state.filenames);
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ClearFilesUploadedState {}
+
+pub async fn clear_files_uploaded_state(mut _rx: UnboundedReceiver<ClearFilesUploadedState>) {
+    (*FILES_UPLOADED.write()).clear();
+    (*FILENAMES_UPLOADED.write()).clear();
+}
+
+#[allow(clippy::redundant_closure)]
+pub static FILES_DOWNLOADED: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+#[allow(clippy::redundant_closure)]
+pub static FILENAMES_DOWNLOADED: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct SyncFilesDownloadedState { 
+    pub files: String,
+    pub filenames: String,
+}
+
+pub async fn sync_current_files_downloaded_state(
+    mut rx: UnboundedReceiver<SyncFilesDownloadedState>,
+) {
+    while let Some(updated_state) = rx.next().await {
+        (*FILES_DOWNLOADED.write()).push(updated_state.files);
+        (*FILENAMES_DOWNLOADED.write()).push(updated_state.filenames);
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ClearFilesDownloadedState {}
+
+pub async fn clear_files_downloaded_state(mut _rx: UnboundedReceiver<ClearFilesDownloadedState>) {
+    (*FILES_DOWNLOADED.write()).clear();
+    (*FILENAMES_DOWNLOADED.write()).clear();
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SyncCurrentAttachments {
     pub filename: String, 
@@ -92,7 +149,7 @@ pub struct SyncCurrentAttachments {
 pub const SUBJECT_SCHEMA_HEADERS: [&str; 2] = ["Column", "Type"];
 
 /// File download
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub struct DownloadSubject {
     pub download: String,
     pub href: String,

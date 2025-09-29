@@ -33,7 +33,7 @@ use crate::{
         apps::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME},
         sign_in::{EMAIL, JWT},
         subjects::{
-            clear_subject_num_rows_state, clear_subject_schema_state, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, sync_current_active_subject_state, sync_current_subject_num_rows_state, sync_current_subject_schema_state, ClearSubjectNumRowsState, ClearSubjectSchemaState, DownloadSubject, SyncCurrentActiveSubjectState, SyncCurrentSubjectNumRowsState, SyncCurrentSubjectSchemaState, ACTIVE_SUBJECT_NAME, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_HEADERS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES
+            clear_files_downloaded_state, clear_files_uploaded_state, clear_subject_num_rows_state, clear_subject_schema_state, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, sync_current_active_subject_state, sync_current_files_downloaded_state, sync_current_files_uploaded_state, sync_current_subject_num_rows_state, sync_current_subject_schema_state, ClearFilesDownloadedState, ClearFilesUploadedState, ClearSubjectNumRowsState, ClearSubjectSchemaState, DownloadSubject, SyncCurrentActiveSubjectState, SyncCurrentSubjectNumRowsState, SyncCurrentSubjectSchemaState, SyncFilesDownloadedState, SyncFilesUploadedState, ACTIVE_SUBJECT_NAME, FILENAMES_DOWNLOADED, FILENAMES_UPLOADED, FILES_DOWNLOADED, FILES_UPLOADED, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_HEADERS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES
         },
     },
     ui::svg_icons::{aws_table_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_search_icon_svg},
@@ -54,6 +54,14 @@ pub fn subjects_interface_view() -> Element {
     let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
     use_coroutine(sync_current_active_subject_state);
     let sync_current_active_subject_state = use_coroutine_handle::<SyncCurrentActiveSubjectState>();
+    use_coroutine(sync_current_files_uploaded_state);
+    let sync_current_files_uploaded_state = use_coroutine_handle::<SyncFilesUploadedState>();
+    use_coroutine(clear_files_uploaded_state);
+    let clear_files_uploaded_state = use_coroutine_handle::<ClearFilesUploadedState>();
+    use_coroutine(sync_current_files_downloaded_state);
+    let sync_current_files_downloaded_state = use_coroutine_handle::<SyncFilesDownloadedState>();
+    use_coroutine(clear_files_downloaded_state);
+    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
@@ -319,8 +327,6 @@ pub fn subjects_interface_view() -> Element {
     // File upload signals
     #[allow(unused_mut)]
     let mut enable_directory_upload = use_signal(|| false);
-    let mut files_uploaded = use_signal(|| Vec::new() as Vec<SessionInterfaceMessage>);
-    let mut file_names = use_signal(|| Vec::new() as Vec<String>);
 
     let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublish| async move {
         let files = file_engine.files();
@@ -344,8 +350,10 @@ pub fn subjects_interface_view() -> Element {
                                 .unwrap()
                                 .build()
                                 .unwrap();
-                            files_uploaded.write().push(data);
-                            file_names.write().push(file_name.to_string());
+                            sync_current_files_uploaded_state.send(SyncFilesUploadedState {
+                                files: data,
+                                filenames: file_name.to_string()
+                            });
                         }
                     }
                     Err(err) => tracing::error!("{err:?}"),
@@ -377,9 +385,6 @@ pub fn subjects_interface_view() -> Element {
             .await;
         }
     };
-
-    // File download signals
-    let mut files_downloaded = use_signal(|| Vec::new() as Vec<DownloadSubject>);
 
     rsx! {
         // Check for sign-in
@@ -535,7 +540,8 @@ pub fn subjects_interface_view() -> Element {
                                     class: "dropdown_form_button",
                                     onclick: move |_evt| async move {
                                         // Get csv file from the server
-                                        files_downloaded.write().clear();
+                                        clear_files_downloaded_state.send(ClearFilesDownloadedState{});
+
                                         let data = SessionInterfaceMessage::get_builder()
                                             .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                             .with_format(&DataFormat::CsvDefault)
@@ -567,11 +573,10 @@ pub fn subjects_interface_view() -> Element {
                                                     let csv_chunk = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                                                     csv_chunks.push(csv_chunk);
                                                 }
-                                                let data = DownloadSubject {
-                                                    download: format!("{}.csv", ACTIVE_SUBJECT_NAME.read().as_str()),
-                                                    href: format!("data:text/plain,{}", csv_chunks.join("").as_str()),
-                                                };
-                                                files_downloaded.write().push(data);
+                                                sync_current_files_downloaded_state.send(SyncFilesDownloadedState {
+                                                    files: csv_chunks.join(""),
+                                                    filenames: ACTIVE_SUBJECT_NAME.read().as_str().to_string()
+                                                });
                                             },
                                             Err(err) => tracing::error!("There was a error downloading subject {err}."),
                                         }
@@ -598,11 +603,10 @@ pub fn subjects_interface_view() -> Element {
                                                     .iter()
                                                     .map(|byte| String::from_utf8_lossy(byte).into_owned())
                                                     .collect();
-                                                let data = DownloadSubject {
-                                                    download: format!("{}.csv", ACTIVE_SUBJECT_NAME.read().as_str()),
-                                                    href: format!("data:text/plain,{}", csv_chunks.join("").as_str()),
-                                                };
-                                                files_downloaded.write().push(data);
+                                                sync_current_files_downloaded_state.send(SyncFilesDownloadedState {
+                                                    files: csv_chunks.join(""),
+                                                    filenames: ACTIVE_SUBJECT_NAME.read().as_str().to_string()
+                                                });
                                             }
                                             Err(err) => tracing::error!("There was a error downloading subject {err}."),
                                         }
@@ -614,7 +618,7 @@ pub fn subjects_interface_view() -> Element {
                     }
                 }
 
-                if !files_uploaded.read().is_empty() {
+                if !FILES_UPLOADED.read().is_empty() {
                     // Show uploaded files and their upload status
                     div {
                         class: "files",
@@ -622,7 +626,7 @@ pub fn subjects_interface_view() -> Element {
                         ul {
                             id: "uploaded_subject_files",
                             class: "file_list",
-                            {file_names.iter().enumerate().map(|(i, f)| {
+                            {FILENAMES_UPLOADED.read().iter().enumerate().map(|(i, f)| {
                                 rsx! {
                                     li {
                                         key: "{i}",
@@ -640,7 +644,7 @@ pub fn subjects_interface_view() -> Element {
                             id: "submit_files",
                             onclick: move |_| async move {
                                 // Send files to the server
-                                for file in files_uploaded.read().iter() {
+                                for file in FILES_UPLOADED.read().iter() {
                                     let data_serialized = serde_json::to_string(file).unwrap();
                                     let route = "/app/v1/put_state";
 
@@ -687,30 +691,30 @@ pub fn subjects_interface_view() -> Element {
                                 }
 
                                 // Clean up the files
-                                files_uploaded.write().clear();
-                                file_names.write().clear();
+                                clear_files_uploaded_state.send(ClearFilesUploadedState{});
                             },
                             "Submit files"
                         },
                         button {
                             id: "clear_uploaded_files",
                             onclick: move |_| {
-                                files_uploaded.write().clear();
-                                file_names.write().clear();
+                            clear_files_uploaded_state.send(ClearFilesUploadedState{});
                             },
                             "Clear files"
                         },
                     }
                 }
 
-                if !files_downloaded.read().is_empty() {
+                if !FILES_DOWNLOADED.read().is_empty() {
                     div {
                         class: "files",
                         p { "Files to download" },
                         ul {
                             id: "download_subject_files",
                             class: "file_list",
-                            {files_downloaded.read().iter().enumerate().map(|(i, f)| {
+                            {(0..FILES_DOWNLOADED.len()).map(|i| {
+                                let f_download = format!("{}.csv", FILENAMES_DOWNLOADED().get(i).unwrap());
+                                let f_href = format!("data:text/plain,{}", FILES_DOWNLOADED().get(i).unwrap());
                                 rsx! {
                                     li {
                                         key: "{i}",
@@ -718,9 +722,9 @@ pub fn subjects_interface_view() -> Element {
                                             class: "files",
                                             svg { dangerous_inner_html: aws_table_icon_svg() }, //color red if failure with error message
                                             a {
-                                                href: f.href.to_owned(),
-                                                download: f.download.to_owned(),
-                                                "{f.download.as_str()}"
+                                                href: f_href.to_owned(),
+                                                download: f_download.to_owned(),
+                                                "{f_download}"
                                             },
                                         }
                                     }
@@ -729,7 +733,9 @@ pub fn subjects_interface_view() -> Element {
                         },
                         button {
                             id: "clear_downloaded_files",
-                            onclick: move |_| files_downloaded.write().clear(),
+                            onclick: move |_| async move {
+                                clear_files_downloaded_state.send(ClearFilesDownloadedState{});
+                            },
                             "Clear files"
                         },
                     }
@@ -741,10 +747,12 @@ pub fn subjects_interface_view() -> Element {
 
 #[component]
 pub fn attach_files_button_view() -> Element {
+    // Intialize state and coroutines
+    use_coroutine(sync_current_files_uploaded_state);
+    let sync_current_files_uploaded_state = use_coroutine_handle::<SyncFilesUploadedState>();
+
     #[allow(unused_mut)]
     let mut enable_directory_upload = use_signal(|| false);
-    let mut files_uploaded = use_signal(|| Vec::new() as Vec<SessionInterfaceMessage>);
-    let mut file_names = use_signal(|| Vec::new() as Vec<String>);
     let extend_publish = true;
     let except_files = ".csv,.pdf,.json";
 
@@ -770,8 +778,10 @@ pub fn attach_files_button_view() -> Element {
                                 .unwrap()
                                 .build()
                                 .unwrap();
-                            files_uploaded.write().push(data);
-                            file_names.write().push(file_name.to_string());
+                            sync_current_files_uploaded_state.send(SyncFilesUploadedState {
+                                files: data,
+                                filenames: file_name.to_string()
+                            });
                         }
                     }
                     Err(err) => tracing::error!("{err:?}"),
@@ -833,16 +843,15 @@ pub fn attach_files_button_view() -> Element {
 }
 
 #[component]
-pub fn upload_files_button_view() -> Element {
-    let mut files_uploaded = use_signal(|| Vec::new() as Vec<SessionInterfaceMessage>);
-    let mut file_names = use_signal(|| Vec::new() as Vec<String>);
-
+pub fn upload_files_button_view() -> Element {    
+    use_coroutine(clear_files_uploaded_state);
+    let clear_files_uploaded_state = use_coroutine_handle::<ClearFilesUploadedState>();
     rsx! {
         button {
             id: "submit_files",
             onclick: move |_| async move {
                 // Send files to the server
-                for file in files_uploaded.read().iter() {
+                for file in FILES_UPLOADED.read().iter() {
                     let data_serialized = serde_json::to_string(file).unwrap();
                     let route = "/app/v1/put_state";
 
@@ -889,16 +898,14 @@ pub fn upload_files_button_view() -> Element {
                 }
 
                 // Clean up the files
-                files_uploaded.write().clear();
-                file_names.write().clear();
+                clear_files_uploaded_state.send(ClearFilesUploadedState{});
             },
             "Submit files"
         },
         button {
             id: "clear_uploaded_files",
             onclick: move |_| {
-                files_uploaded.write().clear();
-                file_names.write().clear();
+                clear_files_uploaded_state.send(ClearFilesUploadedState{});
             },
             "Clear files"
         },
@@ -907,8 +914,6 @@ pub fn upload_files_button_view() -> Element {
 
 #[component]
 pub fn upload_files_list() -> Element {
-    let mut file_names = use_signal(|| Vec::new() as Vec<String>);
-
     rsx! {        
         // Show uploaded files and their upload status
         div {
@@ -917,7 +922,7 @@ pub fn upload_files_list() -> Element {
             ul {
                 id: "uploaded_subject_files",
                 class: "file_list",
-                {file_names.iter().enumerate().map(|(i, f)| {
+                {FILENAMES_UPLOADED.read().iter().enumerate().map(|(i, f)| {
                     rsx! {
                         li {
                             key: "{i}",
@@ -937,15 +942,18 @@ pub fn upload_files_list() -> Element {
 
 #[component]
 pub fn download_files_button_view() -> Element {
-    // File download signals
-    let mut files_downloaded = use_signal(|| Vec::new() as Vec<DownloadSubject>);
+    use_coroutine(sync_current_files_downloaded_state);
+    let sync_current_files_downloaded_state = use_coroutine_handle::<SyncFilesDownloadedState>();
+    use_coroutine(clear_files_downloaded_state);
+    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
 
     rsx! {
         button {
             class: "dropdown_form_button",
             onclick: move |_evt| async move {
                 // Get csv file from the server
-                files_downloaded.write().clear();
+                clear_files_downloaded_state.send(ClearFilesDownloadedState{});
+
                 let data = SessionInterfaceMessage::get_builder()
                     .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                     .with_format(&DataFormat::CsvDefault)
@@ -977,11 +985,10 @@ pub fn download_files_button_view() -> Element {
                             let csv_chunk = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                             csv_chunks.push(csv_chunk);
                         }
-                        let data = DownloadSubject {
-                            download: format!("{}.csv", ACTIVE_SUBJECT_NAME.read().as_str()),
-                            href: format!("data:text/plain,{}", csv_chunks.join("").as_str()),
-                        };
-                        files_downloaded.write().push(data);
+                        sync_current_files_downloaded_state.send(SyncFilesDownloadedState {
+                            files: csv_chunks.join(""),
+                            filenames: ACTIVE_SUBJECT_NAME.read().as_str().to_string()
+                        });
                     },
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
                 }
@@ -1008,11 +1015,10 @@ pub fn download_files_button_view() -> Element {
                             .iter()
                             .map(|byte| String::from_utf8_lossy(byte).into_owned())
                             .collect();
-                        let data = DownloadSubject {
-                            download: format!("{}.csv", ACTIVE_SUBJECT_NAME.read().as_str()),
-                            href: format!("data:text/plain,{}", csv_chunks.join("").as_str()),
-                        };
-                        files_downloaded.write().push(data);
+                        sync_current_files_downloaded_state.send(SyncFilesDownloadedState {
+                            files: csv_chunks.join(""),
+                            filenames: ACTIVE_SUBJECT_NAME.read().as_str().to_string()
+                        });
                     }
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
                 }
@@ -1025,7 +1031,8 @@ pub fn download_files_button_view() -> Element {
 
 #[component]
 pub fn download_files_list() -> Element {
-    let mut files_downloaded = use_signal(|| Vec::new() as Vec<DownloadSubject>);
+    use_coroutine(clear_files_downloaded_state);
+    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
 
     rsx! {
         div {
@@ -1034,7 +1041,9 @@ pub fn download_files_list() -> Element {
             ul {
                 id: "download_subject_files",
                 class: "file_list",
-                {files_downloaded.read().iter().enumerate().map(|(i, f)| {
+                {(0..FILES_DOWNLOADED.len()).map(|i| {
+                    let f_download = format!("{}.csv", FILENAMES_DOWNLOADED().get(i).unwrap());
+                    let f_href = format!("data:text/plain,{}", FILES_DOWNLOADED().get(i).unwrap());
                     rsx! {
                         li {
                             key: "{i}",
@@ -1042,9 +1051,9 @@ pub fn download_files_list() -> Element {
                                 class: "files",
                                 svg { dangerous_inner_html: aws_table_icon_svg() }, //color red if failure with error message
                                 a {
-                                    href: f.href.to_owned(),
-                                    download: f.download.to_owned(),
-                                    "{f.download.as_str()}"
+                                    href: f_href.to_owned(),
+                                    download: f_download.to_owned(),
+                                    "{f_download}"
                                 },
                             }
                         }
@@ -1053,7 +1062,9 @@ pub fn download_files_list() -> Element {
             },
             button {
                 id: "clear_downloaded_files",
-                onclick: move |_| files_downloaded.write().clear(),
+                onclick: move |_| async move {
+                    clear_files_downloaded_state.send(ClearFilesDownloadedState{});
+                },
                 "Clear files"
             },
         }
