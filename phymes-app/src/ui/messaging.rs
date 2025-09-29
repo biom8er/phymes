@@ -39,7 +39,7 @@ use crate::{
         apps::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
     },
-    ui::svg_icons::{assistant_icon_svg, attachment_icon_svg, microphone_icon_svg, send_icon_svg, user_icon_svg},
+    ui::svg_icons::{aws_assistant_icon_svg, ms_attachment_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, aws_user_icon_svg},
 };
 
 /// View for messaging between the user and AI assistant
@@ -186,7 +186,7 @@ pub fn messaging_interface_view() -> Element {
                             if role == *"assistant" {
                                 div {
                                     class: "entete",
-                                    svg { dangerous_inner_html: assistant_icon_svg() }
+                                    svg { dangerous_inner_html: aws_assistant_icon_svg() }
                                     h2 { "AI Assistant" }
                                     h3 { "{timestamp}" }
                                 }
@@ -195,7 +195,7 @@ pub fn messaging_interface_view() -> Element {
                                     class: "entete",
                                     h3 { "{timestamp}" }
                                     h2 { "User" }
-                                    svg { dangerous_inner_html: user_icon_svg() }
+                                    svg { dangerous_inner_html: aws_user_icon_svg() }
                                 }
                             }
                             div {
@@ -235,7 +235,7 @@ pub fn messaging_interface_footer() -> Element {
                         onclick: move |_| async move {
                             // TODO: add support for adding attachments through the messaging interface
                         },
-                        svg { dangerous_inner_html: attachment_icon_svg() }
+                        svg { dangerous_inner_html: ms_attachment_icon_svg() }
                     }
                 }
 
@@ -257,7 +257,7 @@ pub fn messaging_interface_footer() -> Element {
                     // This must be outside the form or it will be refreshed on each submit
                     if prompt.read().is_empty() {
                         button {
-                            svg { dangerous_inner_html: microphone_icon_svg() }
+                            svg { dangerous_inner_html: b8_microphone_icon_svg() }
                         }
                     } else {
                         button {
@@ -372,7 +372,7 @@ pub fn messaging_interface_footer() -> Element {
                                     }
                                 }
                             },
-                            svg { dangerous_inner_html: send_icon_svg() }
+                            svg { dangerous_inner_html: b8_send_icon_svg() }
                         }
                     }
                 }

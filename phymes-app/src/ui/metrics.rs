@@ -32,7 +32,7 @@ use crate::{
         apps::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
     },
-    ui::{apps::render_mermaid_svg, svg_icons::search_icon_svg},
+    ui::{apps::render_mermaid_svg, svg_icons::ms_search_icon_svg},
 };
 
 const SESSION_METRICS_HEADERS: [&str; 3] = ["processor_traces", "elapsed_compute", "output_rows"];
@@ -338,7 +338,7 @@ pub fn metrics_dropdown() -> Element {
                     let sync_current_active_metric_state = use_coroutine_handle::<SyncCurrentActiveMetricState>();
                     sync_current_active_metric_state.send(SyncCurrentActiveMetricState { name: active_metric.clone() });
                 },
-                svg { dangerous_inner_html: search_icon_svg() },
+                svg { dangerous_inner_html: ms_search_icon_svg() },
             },
         }
 

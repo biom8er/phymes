@@ -36,7 +36,7 @@ use crate::{
             clear_subject_num_rows_state, clear_subject_schema_state, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, sync_current_subject_num_rows_state, sync_current_subject_schema_state, ClearSubjectNumRowsState, ClearSubjectSchemaState, DownloadSubject, SyncCurrentSubjectNumRowsState, SyncCurrentSubjectSchemaState, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_HEADERS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES
         },
     },
-    ui::svg_icons::{arrow_add_icon_svg, arrow_down_icon_svg, arrow_up_icon_svg, search_icon_svg, table_icon_svg},
+    ui::svg_icons::{ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_search_icon_svg, aws_table_icon_svg},
 };
 
 /// View to display the subject tables for the session
@@ -427,7 +427,7 @@ pub fn subjects_modal() -> Element {
                             subject_shown.set(subject_dropdown.to_string());
                             subject_dropdown.set(String::new());
                         },
-                        svg { dangerous_inner_html: search_icon_svg() },
+                        svg { dangerous_inner_html: ms_search_icon_svg() },
                     },
                 }
 
@@ -495,7 +495,7 @@ pub fn subjects_modal() -> Element {
                             div {
                                 class: "drop_box",
                                 p { "CSV (comma delimiter with headers)" },
-                                label { r#for: "textread_extend", svg { dangerous_inner_html: arrow_add_icon_svg() } }
+                                label { r#for: "textread_extend", svg { dangerous_inner_html: ms_cloud_add_icon_svg() } }
                                 input {
                                     r#type: "file",
                                     accept: ".csv,.pdf,.json",
@@ -512,7 +512,7 @@ pub fn subjects_modal() -> Element {
                             div {
                                 class: "drop_box",
                                 p { "CSV (comma delimiter with headers)" },
-                                label { r#for: "textread_replace", svg { dangerous_inner_html: arrow_up_icon_svg() } }
+                                label { r#for: "textread_replace", svg { dangerous_inner_html: ms_cloud_arrow_up_icon_svg() } }
                                 input {
                                     r#type: "file",
                                     accept: ".csv,.pdf,.json",
@@ -605,7 +605,7 @@ pub fn subjects_modal() -> Element {
                                             Err(err) => tracing::error!("There was a error downloading subject {err}."),
                                         }
                                     },
-                                    svg { dangerous_inner_html: arrow_down_icon_svg() },
+                                    svg { dangerous_inner_html: ms_cloud_arrow_down_icon_svg() },
                                 },
                             }
                         }
@@ -626,7 +626,7 @@ pub fn subjects_modal() -> Element {
                                         key: "{i}",
                                         div {
                                             class: "files",
-                                            svg { dangerous_inner_html: table_icon_svg() }, //color red if failure with error message
+                                            svg { dangerous_inner_html: aws_table_icon_svg() }, //color red if failure with error message
                                             h3 { "{f}" },
                                             // div { class: "loader" },
                                         }
@@ -714,7 +714,7 @@ pub fn subjects_modal() -> Element {
                                         key: "{i}",
                                         div {
                                             class: "files",
-                                            svg { dangerous_inner_html: table_icon_svg() }, //color red if failure with error message
+                                            svg { dangerous_inner_html: aws_table_icon_svg() }, //color red if failure with error message
                                             a {
                                                 href: f.href.to_owned(),
                                                 download: f.download.to_owned(),

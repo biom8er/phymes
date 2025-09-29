@@ -10,7 +10,7 @@ use crate::{
         builds::{filter_out_mermaid_diagrams_by_session_name, sync_current_mermaid_state, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME, MERMAID_TIMESTAMP}, 
         messaging::{clear_current_message_state, ClearCurrentMessageState}, sign_in::{sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES}
     },
-    ui::svg_icons::{column_arrow_right_icon_svg, deploy_icon_svg, edit_icon_svg, save_icon_svg, sync_icon_svg, trash_icon_svg},
+    ui::svg_icons::{ms_column_arrow_right_icon_svg, ms_deploy_icon_svg, ms_edit_icon_svg, b8_save_icon_svg, ms_sync_icon_svg, fa_trash_icon_svg},
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -98,7 +98,7 @@ pub fn builds_dropdown_view() -> Element {
                     // Reset the current session messaging
                     clear_current_message_state.send(ClearCurrentMessageState {});
                 },
-                svg { dangerous_inner_html: edit_icon_svg() },
+                svg { dangerous_inner_html: ms_edit_icon_svg() },
             },
             button { 
                 class: "dropdown_form_button",
@@ -120,7 +120,7 @@ pub fn builds_dropdown_view() -> Element {
                     // Reset the current session messaging
                     clear_current_message_state.send(ClearCurrentMessageState {});
                 },
-                svg { dangerous_inner_html: column_arrow_right_icon_svg() },
+                svg { dangerous_inner_html: ms_column_arrow_right_icon_svg() },
             },
             button {
                 class: "dropdown_form_button",
@@ -238,14 +238,14 @@ pub fn builds_dropdown_view() -> Element {
                     // Reset the current session messaging
                     clear_current_message_state.send(ClearCurrentMessageState {});
                 },
-                svg { dangerous_inner_html: trash_icon_svg() },
+                svg { dangerous_inner_html: fa_trash_icon_svg() },
             },
             button { 
                 onclick: move |_| async move {
                     let current = IS_FLOWCHART_SHOWN.read().to_owned();
                     sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
                 },
-                svg { dangerous_inner_html: sync_icon_svg() },
+                svg { dangerous_inner_html: ms_sync_icon_svg() },
             },
             button { 
                 onclick: move |_| async move {
@@ -349,7 +349,7 @@ pub fn builds_dropdown_view() -> Element {
                     sync_session_names.send(SyncSessionNamesState { session_plans });
 
                 },
-                svg { dangerous_inner_html: deploy_icon_svg() },
+                svg { dangerous_inner_html: ms_deploy_icon_svg() },
             },
         }
 
@@ -510,7 +510,7 @@ pub fn builds_interface_footer() -> Element {
                         },
                         // Show the save button only when modified
                         if !is_saved() && !diagram_code().is_empty() {
-                            svg { dangerous_inner_html: save_icon_svg() }
+                            svg { dangerous_inner_html: b8_save_icon_svg() }
                         }
                     }
                 }

@@ -14,7 +14,7 @@ use crate::{
         messaging::{clear_current_message_state, ClearCurrentMessageState}, 
         sign_in::{BUILDER, EMAIL, JWT, SESSION_NAMES}
     },
-    ui::{builds::builds_dropdown_view, svg_icons::{search_icon_svg, sync_icon_svg}},
+    ui::{builds::builds_dropdown_view, svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}},
 };
 
 
@@ -473,14 +473,14 @@ pub fn apps_dropdown_view() -> Element {
                     // Reset the current session messaging
                     clear_current_message_state.send(ClearCurrentMessageState {});
                 },
-                svg { dangerous_inner_html: search_icon_svg() },
+                svg { dangerous_inner_html: ms_search_icon_svg() },
             },
             button { 
                 onclick: move |_| async move {
                     let current = IS_FLOWCHART_SHOWN.read().to_owned();
                     sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
                 },
-                svg { dangerous_inner_html: sync_icon_svg() },
+                svg { dangerous_inner_html: ms_sync_icon_svg() },
             },
         }
 

@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-pub fn user_icon_svg() -> String {
+pub fn aws_user_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Resource/General-Resource/Res_User_48" stroke="white" stroke-width="2"  fill="none" fill-rule="evenodd">
@@ -9,7 +9,7 @@ pub fn user_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn assistant_icon_svg() -> String {
+pub fn aws_assistant_icon_svg() -> String {
     let svg = r##"
     <svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Architecture/48/Arch_Amazon-SageMaker_48" stroke="#34acb6ff" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -19,7 +19,7 @@ pub fn assistant_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn search_icon_svg() -> String {
+pub fn ms_search_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="MSTeamsSearch" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -29,7 +29,7 @@ pub fn search_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn send_icon_svg() -> String {
+pub fn b8_send_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="SendIcon" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round" transform="matrix(2,0,0,2,-1.2260357,0.06795572)">
@@ -40,7 +40,7 @@ pub fn send_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn document_icon_svg() -> String {
+pub fn aws_document_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Resource/General-Resource/Res_Document_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -50,7 +50,7 @@ pub fn document_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn media_icon_svg() -> String {
+pub fn aws_media_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Resource/General-Resource/Res_Multimedia_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -60,7 +60,17 @@ pub fn media_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn table_icon_svg() -> String {
+pub fn aws_image_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        <g id="Icon-Resource/Containers/Res_Amazon-Elastic-Container-Registry_Image_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
+            <path d="M19.9998,14.9998 C21.6538,14.9998 22.9998,16.3458 22.9998,17.9998 C22.9998,19.6538 21.6538,20.9998 19.9998,20.9998 C18.3458,20.9998 16.9998,19.6538 16.9998,17.9998 C16.9998,16.3458 18.3458,14.9998 19.9998,14.9998 L19.9998,14.9998 Z M19.9998,22.9998 C22.7568,22.9998 24.9998,20.7568 24.9998,17.9998 C24.9998,15.2428 22.7568,12.9998 19.9998,12.9998 C17.2428,12.9998 14.9998,15.2428 14.9998,17.9998 C14.9998,20.7568 17.2428,22.9998 19.9998,22.9998 L19.9998,22.9998 Z M3.9998,43.9998 L3.9998,34.4138 L11.9998,26.4138 L27.2928,41.7068 L28.7068,40.2928 L20.9138,32.4998 L31.9998,21.4138 L43.9998,33.4138 L43.9998,43.9998 L3.9998,43.9998 Z M43.9998,3.9998 L43.9998,30.5858 L32.7068,19.2928 C32.3158,18.9018 31.6838,18.9018 31.2928,19.2928 L19.4998,31.0858 L12.7068,24.2928 C12.3158,23.9018 11.6838,23.9018 11.2928,24.2928 L3.9998,31.5858 L3.9998,3.9998 L43.9998,3.9998 Z M44.9998,1.9998 L2.9998,1.9998 C2.4468,1.9998 1.9998,2.4468 1.9998,2.9998 L1.9998,44.9998 C1.9998,45.5528 2.4468,45.9998 2.9998,45.9998 L44.9998,45.9998 C45.5528,45.9998 45.9998,45.5528 45.9998,44.9998 L45.9998,2.9998 C45.9998,2.4468 45.5528,1.9998 44.9998,1.9998 L44.9998,1.9998 Z"></path>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn aws_table_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Resource/General-Resource/Res_Data-Table_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -70,7 +80,7 @@ pub fn table_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn script_icon_svg() -> String {
+pub fn aws_script_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Resource/General-Resource/Res_Source-Code_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -80,7 +90,17 @@ pub fn script_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn logs_icon_svg() -> String {
+pub fn aws_json_script_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        <g id="Icon-Resource/General-Resource/Res_JSON-Script_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
+            <path d="M25,22.512 C25,23.064 24.552,23.512 24,23.512 C23.448,23.512 23,23.064 23,22.512 C23,21.96 23.448,21.512 24,21.512 C24.552,21.512 25,21.96 25,22.512 L25,22.512 Z M24.943,27.93 L23.945,30.759 C23.8,31.17 23.414,31.427 23.002,31.427 C22.892,31.427 22.779,31.408 22.669,31.369 C22.148,31.186 21.875,30.615 22.059,30.094 L23.057,27.265 C23.241,26.744 23.811,26.469 24.333,26.655 C24.854,26.838 25.127,27.409 24.943,27.93 L24.943,27.93 Z M32.554,25.832 L32.848,25.832 L32.848,27.372 L32.554,27.372 C32.236,27.372 32.008,27.44 31.868,27.575 C31.728,27.71 31.658,27.932 31.658,28.24 L31.658,30.326 C31.658,31.157 31.434,31.81 30.986,32.286 C30.538,32.762 29.927,33 29.152,33 C28.657,33 28.237,32.921 27.892,32.762 L27.892,31.39 C28.172,31.436 28.452,31.46 28.732,31.46 C29.282,31.46 29.558,31.147 29.558,30.522 L29.558,28.282 C29.558,27.815 29.668,27.451 29.887,27.19 C30.106,26.929 30.463,26.733 30.958,26.602 C30.463,26.471 30.106,26.275 29.887,26.014 C29.668,25.753 29.558,25.388 29.558,24.922 L29.558,22.682 C29.558,22.056 29.282,21.744 28.732,21.744 C28.452,21.744 28.172,21.767 27.892,21.814 L27.892,20.442 C28.237,20.283 28.657,20.204 29.152,20.204 C29.927,20.204 30.538,20.442 30.986,20.918 C31.434,21.394 31.658,22.047 31.658,22.878 L31.658,24.964 C31.658,25.272 31.728,25.493 31.868,25.629 C32.008,25.764 32.236,25.832 32.554,25.832 L32.554,25.832 Z M18.848,20.204 C19.343,20.204 19.763,20.283 20.108,20.442 L20.108,21.814 C19.828,21.767 19.548,21.744 19.269,21.744 C18.717,21.744 18.442,22.056 18.442,22.682 L18.442,24.922 C18.442,25.379 18.332,25.741 18.113,26.007 C17.894,26.273 17.537,26.471 17.042,26.602 C17.537,26.733 17.894,26.931 18.113,27.197 C18.332,27.463 18.442,27.824 18.442,28.282 L18.442,30.522 C18.442,31.147 18.717,31.46 19.269,31.46 C19.548,31.46 19.828,31.436 20.108,31.39 L20.108,32.762 C19.763,32.921 19.343,33 18.848,33 C18.073,33 17.462,32.762 17.014,32.286 C16.566,31.81 16.342,31.157 16.342,30.326 L16.342,28.24 C16.342,27.932 16.272,27.71 16.132,27.575 C15.992,27.44 15.764,27.372 15.446,27.372 L15.152,27.372 L15.152,25.832 L15.446,25.832 C15.764,25.832 15.992,25.764 16.132,25.629 C16.272,25.493 16.342,25.272 16.342,24.964 L16.342,22.878 C16.342,22.047 16.566,21.394 17.014,20.918 C17.462,20.442 18.073,20.204 18.848,20.204 L18.848,20.204 Z M10,44 L10.007,4 L28,4 L28,13 C28,13.552 28.447,14 29,14 L38,14 L38,44 L10,44 Z M30,5.414 L36.586,12 L30,12 L30,5.414 Z M39.707,12.293 L29.707,2.293 C29.52,2.105 29.266,2 29,2 L10,2 C8.822,2 8,2.822 8,4 L8,44 C8,45.14 8.859,46 10,46 L38,46 C39.141,46 40,45.14 40,44 L40,13 C40,12.735 39.895,12.48 39.707,12.293 L39.707,12.293 Z"></path>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn aws_logs_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Resource/General-Resource/Res_Logs_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -90,7 +110,7 @@ pub fn logs_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn help_icon_svg() -> String {
+pub fn aws_help_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="MSBlueQuestionCircle" stroke="black" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -100,7 +120,7 @@ pub fn help_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn forecast_icon_svg() -> String {
+pub fn aws_forecast_icon_svg() -> String {
     let svg = r##"
     <svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Architecture/48/Arch_Amazon-Forecast_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -110,7 +130,7 @@ pub fn forecast_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn omics_icon_svg() -> String {
+pub fn aws_omics_icon_svg() -> String {
     let svg = r##"
     <svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Architecture/48/Arch_Amazon-Omics_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -120,7 +140,7 @@ pub fn omics_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn graph_icon_svg() -> String {
+pub fn aws_graph_icon_svg() -> String {
     let svg = r##"
     <svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Architecture/48/Arch_Amazon-Fraud-Detector_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -130,7 +150,7 @@ pub fn graph_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn alert_icon_svg() -> String {
+pub fn aws_alert_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="Icon-Resource/General-Resource/Res_Alert_48" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -140,7 +160,7 @@ pub fn alert_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn tools_icon_svg() -> String {
+pub fn ms_tools_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="MSTeamsWrench" stroke="none" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -150,7 +170,7 @@ pub fn tools_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn database_icon_svg() -> String {
+pub fn ms_database_icon_svg() -> String {
     let svg = r##"
     <svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <g id="MSBlueDatabase" stroke="none" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -161,7 +181,7 @@ pub fn database_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn message_icon_svg() -> String {
+pub fn ms_message_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsMessage" stroke="none" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -171,7 +191,7 @@ pub fn message_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn settings_icon_svg() -> String {
+pub fn ms_settings_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsSettings" stroke="none" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -181,7 +201,7 @@ pub fn settings_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn person_icon_svg() -> String {
+pub fn ms_person_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsPerson" stroke="none" stroke-width="2" fill="none" fill-rule="evenodd">
@@ -191,7 +211,7 @@ pub fn person_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn arrow_down_icon_svg() -> String {
+pub fn ms_cloud_arrow_down_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsCloudArrowDown" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
@@ -202,7 +222,7 @@ pub fn arrow_down_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn arrow_up_icon_svg() -> String {
+pub fn ms_cloud_arrow_up_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsCloudArrowUp" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
@@ -213,7 +233,7 @@ pub fn arrow_up_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn arrow_add_icon_svg() -> String {
+pub fn ms_cloud_add_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsCloudArrowAdd" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
@@ -224,7 +244,7 @@ pub fn arrow_add_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn top_speed_icon_svg() -> String {
+pub fn ms_top_speed_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsTopSpeed" stroke="none" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
@@ -234,7 +254,7 @@ pub fn top_speed_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn menu_icon_svg() -> String {
+pub fn b8_menu_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="HamburgerMenue" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd" transform="matrix(3,0,0,3,-12,-12)">
@@ -246,7 +266,7 @@ pub fn menu_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn logo_icon_svg() -> String {
+pub fn b8_logo_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 12.7 12.7" xmlns="http://www.w3.org/2000/svg">
         <g id="Biom8erLogo" transform="matrix(1.7736614,0,0,1.7736614,-73.128711,-92.844341)">
@@ -258,7 +278,7 @@ pub fn logo_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn attachment_icon_svg() -> String {
+pub fn ms_attachment_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsAttachment" stroke="none" stroke-width="0" fill="none" fill-rule="evenodd" clip-rule="evenodd">
@@ -268,7 +288,7 @@ pub fn attachment_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn microphone_icon_svg() -> String {
+pub fn b8_microphone_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="Microphone" stroke="none" stroke-width="2" fill="white" fill-rule="evenodd" clip-rule="evenodd">
@@ -279,7 +299,7 @@ pub fn microphone_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn trash_icon_svg() -> String {
+pub fn fa_trash_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" >
     <!--!Font Awesome Free v7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
@@ -290,7 +310,7 @@ pub fn trash_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn column_arrow_right_icon_svg() -> String {
+pub fn ms_column_arrow_right_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsColumnArrowRight" stroke="none" stroke-width="2" fill="white" fill-rule="evenodd" clip-rule="evenodd">
@@ -300,7 +320,7 @@ pub fn column_arrow_right_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn sync_icon_svg() -> String {
+pub fn ms_sync_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsSync" stroke="none" stroke-width="2" fill="white" fill-rule="evenodd" clip-rule="evenodd">
@@ -310,7 +330,7 @@ pub fn sync_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn edit_icon_svg() -> String {
+pub fn ms_edit_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsEdit" stroke="none" stroke-width="2" fill="white" fill-rule="evenodd" clip-rule="evenodd">
@@ -320,7 +340,7 @@ pub fn edit_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn save_icon_svg() -> String {
+pub fn b8_save_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="ionicons-v5-q" stroke="none" stroke-width="2" fill="white" fill-rule="evenodd" clip-rule="evenodd">
@@ -330,7 +350,7 @@ pub fn save_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn apps_icon_svg() -> String {
+pub fn ms_apps_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsApps" stroke="none" stroke-width="2" fill="white" fill-rule="evenodd" clip-rule="evenodd">
@@ -340,12 +360,117 @@ pub fn apps_icon_svg() -> String {
     svg.to_string()
 }
 
-pub fn deploy_icon_svg() -> String {
+pub fn ms_deploy_icon_svg() -> String {
     let svg = r##"
     <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <g id="MSTeamsDeploy" stroke="none" stroke-width="2" fill="white">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M12.25 6C8.79822 6 6 8.79822 6 12.25V19.75C6 20.4404 6.55964 21 7.25 21C7.94036 21 8.5 20.4404 8.5 19.75V12.25C8.5 10.1789 10.1789 8.5 12.25 8.5H24V18.75C24 21.6495 26.3505 24 29.25 24H39.5V35.75C39.5 37.8211 37.8211 39.5 35.75 39.5H28.25C27.5596 39.5 27 40.0596 27 40.75C27 41.4404 27.5596 42 28.25 42H35.75C39.2018 42 42 39.2018 42 35.75V12.25C42 8.79822 39.2018 6 35.75 6H12.25Z"/>
             <path d="M7.25 29.5C6.55964 29.5 6 28.9404 6 28.25C6 27.5596 6.55964 27 7.25 27H19.75C20.4404 27 21 27.5596 21 28.25V40.75C21 41.4404 20.4404 42 19.75 42C19.0596 42 18.5 41.4404 18.5 40.75V31.2678L8.13388 41.6339C7.64573 42.122 6.85427 42.122 6.36612 41.6339C5.87796 41.1457 5.87796 40.3543 6.36612 39.8661L16.7322 29.5H7.25Z"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_arrow_upload_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsArrowUpload" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <path d="M10.5 6.99121H37.4953C38.3238 6.99121 38.9953 6.31964 38.9953 5.49121C38.9953 4.73182 38.431 4.10423 37.6989 4.00491L37.4953 3.99121H10.5C9.67157 3.99121 9 4.66278 9 5.49121C9 6.2506 9.56431 6.87819 10.2965 6.97752L10.5 6.99121ZM23.7668 43.9866L24 44C25.0257 44 25.871 43.2279 25.9865 42.2333L26 42V16.82L32.5881 23.4056C33.3092 24.1265 34.4436 24.1818 35.2281 23.5717L35.4165 23.4053C36.1374 22.6842 36.1928 21.5498 35.5826 20.7652L35.4162 20.5769L25.421 10.5836C24.7003 9.86313 23.5666 9.8074 22.7821 10.4166L22.5936 10.5828L12.5868 20.576C11.8052 21.3565 11.8043 22.6229 12.5848 23.4045C13.3053 24.1259 14.4397 24.1822 15.2247 23.5726L15.4132 23.4064L22 16.83V42C22 43.0257 22.7721 43.871 23.7668 43.9866Z"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_arrow_download_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsArrowDownload" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <path d="M12.25 38.5H35.75C36.7165 38.5 37.5 39.2835 37.5 40.25C37.5 41.1682 36.7929 41.9212 35.8935 41.9942L35.75 42H12.25C11.2835 42 10.5 41.2165 10.5 40.25C10.5 39.3318 11.2071 38.5788 12.1065 38.5058L12.25 38.5H35.75H12.25ZM23.6065 6.2558L23.75 6.25C24.6682 6.25 25.4212 6.95711 25.4942 7.85647L25.5 8V29.333L30.2931 24.5407C30.9765 23.8573 32.0846 23.8573 32.768 24.5407C33.4514 25.2242 33.4514 26.3322 32.768 27.0156L24.9898 34.7938C24.3064 35.4772 23.1984 35.4772 22.515 34.7938L14.7368 27.0156C14.0534 26.3322 14.0534 25.2242 14.7368 24.5407C15.4202 23.8573 16.5282 23.8573 17.2117 24.5407L22 29.329V8C22 7.08183 22.7071 6.32881 23.6065 6.2558L23.75 6.25L23.6065 6.2558Z"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_code_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsCode" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+        <path d="M16.1711 37.2219L28.1633 9.21283C28.5981 8.19742 29.7737 7.7267 30.7891 8.16146C31.732 8.56516 32.2052 9.60765 31.9199 10.5675L31.8405 10.7872L19.8482 38.7963C19.4134 39.8117 18.2378 40.2824 17.2224 39.8476C16.2795 39.4439 15.8063 38.4014 16.0916 37.4416L16.1711 37.2219L28.1633 9.21283L16.1711 37.2219ZM4.58579 22.5858L12.5858 14.5858C13.3668 13.8048 14.6332 13.8048 15.4142 14.5858C16.1352 15.3068 16.1906 16.4412 15.5806 17.2258L15.4142 17.4142L8.82843 24L15.4142 30.5858C16.1953 31.3669 16.1953 32.6332 15.4142 33.4142C14.6932 34.1352 13.5588 34.1907 12.7742 33.5806L12.5858 33.4142L4.58579 25.4142C3.86482 24.6933 3.80936 23.5588 4.41941 22.7742L4.58579 22.5858L12.5858 14.5858L4.58579 22.5858ZM32.5842 14.5833C33.3052 13.8624 34.4396 13.807 35.2242 14.4171L35.4126 14.5835L43.4143 22.5859C44.1355 23.3072 44.1906 24.4423 43.5798 25.2268L43.4133 25.4152L35.4116 33.4062C34.63 34.1868 33.3637 34.1859 32.5832 33.4044C31.8627 32.6829 31.808 31.5484 32.4185 30.7642L32.585 30.5759L39.1707 23.999L32.584 17.4118C31.803 16.6307 31.8031 15.3643 32.5842 14.5833Z"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_image_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsCode" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <path d="M6 12.25C6 8.79822 8.79822 6 12.25 6H35.75C39.2018 6 42 8.79822 42 12.25V35.75C42 37.1058 41.5683 38.3608 40.8348 39.385L26.475 25.0251C25.1081 23.6583 22.8921 23.6583 21.5252 25.0251L7.16525 39.3851C6.43174 38.3609 6 37.1059 6 35.75V12.25ZM30.5 21.5C32.7091 21.5 34.5 19.7091 34.5 17.5C34.5 15.2909 32.7091 13.5 30.5 13.5C28.2909 13.5 26.5 15.2909 26.5 17.5C26.5 19.7091 28.2909 21.5 30.5 21.5Z"/>
+            <path d="M39.0024 41.0881L24.7072 26.7929C24.3167 26.4024 23.6835 26.4024 23.293 26.7929L8.99769 41.0882C9.94516 41.6667 11.0587 42 12.25 42H35.75C36.9414 42 38.0549 41.6666 39.0024 41.0881Z"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_video_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsVideo" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <path d="M31 15.25C31 11.7982 28.2018 9 24.75 9H10.25C6.79822 9 4 11.7982 4 15.25V32.75C4 36.2018 6.79822 39 10.25 39H24.75C28.2018 39 31 36.2018 31 32.75V15.25ZM33 29.5316L39.9612 34.9681C41.6027 36.25 44 35.0804 44 32.9978V15.0027C44 12.92 41.6026 11.7505 39.9612 13.0324L33 18.469V29.5316Z"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_filmstrip_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsFilmstripPlay" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <path d="M9.75 6C6.02208 6 3 9.02208 3 12.75V35.25C3 38.9779 6.02208 42 9.75 42H38.25C41.9779 42 45 38.9779 45 35.25V12.75C45 9.02208 41.9779 6 38.25 6H9.75ZM39 12C39.8284 12 40.5 12.6716 40.5 13.5V16.5C40.5 17.3284 39.8284 18 39 18C38.1716 18 37.5 17.3284 37.5 16.5V13.5C37.5 12.6716 38.1716 12 39 12ZM37.5 22.5C37.5 21.6716 38.1716 21 39 21C39.8284 21 40.5 21.6716 40.5 22.5V25.5C40.5 26.3284 39.8284 27 39 27C38.1716 27 37.5 26.3284 37.5 25.5V22.5ZM39 30C39.8284 30 40.5 30.6716 40.5 31.5V34.5C40.5 35.3284 39.8284 36 39 36C38.1716 36 37.5 35.3284 37.5 34.5V31.5C37.5 30.6716 38.1716 30 39 30ZM7.5 13.5C7.5 12.6716 8.17157 12 9 12C9.82843 12 10.5 12.6716 10.5 13.5V16.5C10.5 17.3284 9.82843 18 9 18C8.17157 18 7.5 17.3284 7.5 16.5V13.5ZM9 21C9.82843 21 10.5 21.6716 10.5 22.5V25.5C10.5 26.3284 9.82843 27 9 27C8.17157 27 7.5 26.3284 7.5 25.5V22.5C7.5 21.6716 8.17157 21 9 21ZM7.5 31.5C7.5 30.6716 8.17157 30 9 30C9.82843 30 10.5 30.6716 10.5 31.5V34.5C10.5 35.3284 9.82843 36 9 36C8.17157 36 7.5 35.3284 7.5 34.5V31.5ZM19.5 19.5738C19.5 18.3604 20.8168 17.6048 21.8644 18.2171L30.2628 23.1255C31.1498 23.6439 31.1498 24.9258 30.2628 25.4442L21.8643 30.3526C20.8167 30.9649 19.5 30.2093 19.5 28.9959V19.5738Z"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_document_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsDocument" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <path d="M24 4V15.25C24 17.3211 25.6789 19 27.75 19H40V40C40 41.6569 38.6569 43 37 43H11C9.34315 43 8 41.6569 8 40V7C8 5.34315 9.34315 4 11 4H24ZM26.5 4.46429V15.25C26.5 15.9404 27.0596 16.5 27.75 16.5H39.4615L26.5 4.46429Z"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_window_dev_edit_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsWindowDevEdit" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <path d="M14.25 6C9.69365 6 6 9.69365 6 14.25V32.25C6 36.8063 9.69365 40.5 14.25 40.5H21.515L22.0467 38.3732C22.253 37.5479 22.5506 36.7522 22.9318 36H14.25C12.1789 36 10.5 34.3211 10.5 32.25V15.0001H36V22.1362L37.8924 20.2438C38.6603 19.4759 39.5504 18.9045 40.5 18.5297V14.25C40.5 9.69365 36.8064 6 32.25 6H14.25Z" fill="#2A446F"/>
+            <path d="M46.6338 22.3651C44.8053 20.5367 41.8409 20.5367 40.0124 22.3651L27.1473 35.2302C26.0796 36.298 25.3221 37.6358 24.9558 39.1008L24.0475 42.7343C23.7127 44.0733 24.9256 45.2861 26.2646 44.9514L29.8981 44.043C31.363 43.6768 32.7009 42.9193 33.7686 41.8515L46.6338 28.9864C48.4622 27.158 48.4622 24.1935 46.6338 22.3651Z" fill="#2A446F"/>
+            <path d="M32.9636 25.1726C32.9016 24.8982 32.7631 24.6444 32.561 24.4423L26.561 18.4423C25.9752 17.8565 25.0255 17.8565 24.4397 18.4423C23.8539 19.0281 23.8539 19.9778 24.4397 20.5636L29.379 25.5029L24.4397 30.4423C23.8539 31.0281 23.8539 31.9778 24.4397 32.5636C24.648 32.7719 24.9023 32.9061 25.1699 32.9663L32.9636 25.1726Z" fill="#0078D4"/>
+            <path d="M20.5592 20.5636C21.145 19.9778 21.145 19.0281 20.5592 18.4423C19.9734 17.8565 19.0237 17.8565 18.4379 18.4423L12.4379 24.4423C12.1566 24.7236 11.9985 25.1051 11.9985 25.5029C11.9985 25.9008 12.1566 26.2823 12.4379 26.5636L18.4379 32.5636C19.0237 33.1494 19.9734 33.1494 20.5592 32.5636C21.145 31.9778 21.145 31.0281 20.5592 30.4423L15.6199 25.5029L20.5592 20.5636Z" fill="#0078D4"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_window_edit_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsWindowDev" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M14.4 7.20001C10.4235 7.20001 7.19995 10.4236 7.19995 14.4V33.6C7.19995 37.5765 10.4235 40.8 14.4 40.8H22.1291L22.6359 38.7729C22.6672 38.6475 22.7016 38.5232 22.7391 38.4H14.4C11.749 38.4 9.59995 36.251 9.59995 33.6V16.8H38.4V22.1559C39.1665 21.8275 39.9805 21.6446 40.8 21.6072V14.4C40.8 10.4236 37.5764 7.20001 33.6 7.20001H14.4Z" fill="#2A446F"/>
+            <path d="M26.3514 36.9053L37.942 25.3146C39.6948 23.5618 42.5367 23.5618 44.2896 25.3146C46.0424 27.0675 46.0424 29.9094 44.2896 31.6622L32.6989 43.2528C32.0231 43.9286 31.1764 44.408 30.2492 44.6398L26.6543 45.5386C25.0909 45.9294 23.6748 44.5133 24.0656 42.9499L24.9644 39.3549C25.1962 38.4278 25.6756 37.581 26.3514 36.9053Z" fill="#0078D4"/>
+        </g>
+    </svg>"##;
+    svg.to_string()
+}
+
+pub fn ms_window_icon_svg() -> String {
+    let svg = r##"
+    <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <g id="MSTeamsWindow" stroke="white" stroke-width="2" fill="none" fill-rule="evenodd" clip-rule="evenodd">
+            <path d="M6 12.25C6 8.79822 8.79822 6 12.25 6H35.75C39.2018 6 42 8.79822 42 12.25V35.75C42 39.2018 39.2018 42 35.75 42H12.25C8.79822 42 6 39.2018 6 35.75V12.25ZM8.5 35.75C8.5 37.8211 10.1789 39.5 12.25 39.5H35.75C37.8211 39.5 39.5 37.8211 39.5 35.75V16.5H8.5V35.75Z" fill="#2A446F"/>
         </g>
     </svg>"##;
     svg.to_string()
