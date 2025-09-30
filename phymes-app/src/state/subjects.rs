@@ -85,19 +85,23 @@ pub async fn clear_subject_num_rows_state(mut _rx: UnboundedReceiver<ClearSubjec
 pub static FILES_UPLOADED: GlobalSignal<Vec<SessionInterfaceMessage>> = Signal::global(|| Vec::new());
 #[allow(clippy::redundant_closure)]
 pub static FILENAMES_UPLOADED: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+#[allow(clippy::redundant_closure)]
+pub static EXTENSIONS_UPLOADED: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SyncFilesUploadedState {
-    pub files: SessionInterfaceMessage, 
-    pub filenames: String,
+    pub file: SessionInterfaceMessage, 
+    pub filename: String,
+    pub extension: String,
 }
 
 pub async fn sync_current_files_uploaded_state(
     mut rx: UnboundedReceiver<SyncFilesUploadedState>,
 ) {
     while let Some(updated_state) = rx.next().await {
-        (*FILES_UPLOADED.write()).push(updated_state.files);
-        (*FILENAMES_UPLOADED.write()).push(updated_state.filenames);
+        (*FILES_UPLOADED.write()).push(updated_state.file);
+        (*FILENAMES_UPLOADED.write()).push(updated_state.filename);
+        (*EXTENSIONS_UPLOADED.write()).push(updated_state.extension);
     }
 }
 
@@ -107,25 +111,30 @@ pub struct ClearFilesUploadedState {}
 pub async fn clear_files_uploaded_state(mut _rx: UnboundedReceiver<ClearFilesUploadedState>) {
     (*FILES_UPLOADED.write()).clear();
     (*FILENAMES_UPLOADED.write()).clear();
+    (*EXTENSIONS_UPLOADED.write()).clear();
 }
 
 #[allow(clippy::redundant_closure)]
 pub static FILES_DOWNLOADED: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 #[allow(clippy::redundant_closure)]
 pub static FILENAMES_DOWNLOADED: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+#[allow(clippy::redundant_closure)]
+pub static EXTENSIONS_DOWNLOADED: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SyncFilesDownloadedState { 
-    pub files: String,
-    pub filenames: String,
+    pub file: String,
+    pub filename: String,
+    pub extension: String,
 }
 
 pub async fn sync_current_files_downloaded_state(
     mut rx: UnboundedReceiver<SyncFilesDownloadedState>,
 ) {
     while let Some(updated_state) = rx.next().await {
-        (*FILES_DOWNLOADED.write()).push(updated_state.files);
-        (*FILENAMES_DOWNLOADED.write()).push(updated_state.filenames);
+        (*FILES_DOWNLOADED.write_unchecked()).push(updated_state.file);
+        (*FILENAMES_DOWNLOADED.write_unchecked()).push(updated_state.filename);
+        (*EXTENSIONS_DOWNLOADED.write_unchecked()).push(updated_state.extension);
     }
 }
 
@@ -133,8 +142,9 @@ pub async fn sync_current_files_downloaded_state(
 pub struct ClearFilesDownloadedState {}
 
 pub async fn clear_files_downloaded_state(mut _rx: UnboundedReceiver<ClearFilesDownloadedState>) {
-    (*FILES_DOWNLOADED.write()).clear();
-    (*FILENAMES_DOWNLOADED.write()).clear();
+    (*FILES_DOWNLOADED.write_unchecked()).clear();
+    (*FILENAMES_DOWNLOADED.write_unchecked()).clear();
+    (*EXTENSIONS_DOWNLOADED.write_unchecked()).clear();
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

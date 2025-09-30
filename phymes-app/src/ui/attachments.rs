@@ -38,18 +38,6 @@ use crate::{
     ui::svg_icons::{aws_assistant_icon_svg, aws_table_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, ms_arrow_download_icon_svg, ms_attachment_icon_svg, ms_code_icon_svg, ms_document_icon_svg, ms_image_icon_svg, ms_video_icon_svg},
 };
 
-pub fn extension_to_icon_svg(extension: &str) -> String {
-    match extension.to_lowercase().as_str() {
-        "pdf" => ms_document_icon_svg(),
-        "mp3" | "wav" | "flac" | "aac" => b8_microphone_icon_svg(),
-        "mp4" | "mov" | "avi" | "mkv" => ms_video_icon_svg(),
-        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" => ms_image_icon_svg(),
-        "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" => ms_code_icon_svg(),
-        "csv" | "tsv" => aws_table_icon_svg(),
-        _ => ms_attachment_icon_svg(), // default icon for unknown file types
-    }
-}
-
 /// View for attachments between the user and AI assistant
 #[component]
 pub fn attachments_interface_view() -> Element {

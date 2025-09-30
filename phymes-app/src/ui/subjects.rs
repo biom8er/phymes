@@ -33,11 +33,23 @@ use crate::{
         apps::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME},
         sign_in::{EMAIL, JWT},
         subjects::{
-            clear_files_downloaded_state, clear_files_uploaded_state, clear_subject_num_rows_state, clear_subject_schema_state, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, sync_current_active_subject_state, sync_current_files_downloaded_state, sync_current_files_uploaded_state, sync_current_subject_num_rows_state, sync_current_subject_schema_state, ClearFilesDownloadedState, ClearFilesUploadedState, ClearSubjectNumRowsState, ClearSubjectSchemaState, DownloadSubject, SyncCurrentActiveSubjectState, SyncCurrentSubjectNumRowsState, SyncCurrentSubjectSchemaState, SyncFilesDownloadedState, SyncFilesUploadedState, ACTIVE_SUBJECT_NAME, FILENAMES_DOWNLOADED, FILENAMES_UPLOADED, FILES_DOWNLOADED, FILES_UPLOADED, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_HEADERS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES
+            clear_files_downloaded_state, clear_files_uploaded_state, clear_subject_num_rows_state, clear_subject_schema_state, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, sync_current_active_subject_state, sync_current_files_downloaded_state, sync_current_files_uploaded_state, sync_current_subject_num_rows_state, sync_current_subject_schema_state, ClearFilesDownloadedState, ClearFilesUploadedState, ClearSubjectNumRowsState, ClearSubjectSchemaState, DownloadSubject, SyncCurrentActiveSubjectState, SyncCurrentSubjectNumRowsState, SyncCurrentSubjectSchemaState, SyncFilesDownloadedState, SyncFilesUploadedState, ACTIVE_SUBJECT_NAME, EXTENSIONS_DOWNLOADED, FILENAMES_DOWNLOADED, FILENAMES_UPLOADED, FILES_DOWNLOADED, FILES_UPLOADED, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_HEADERS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES
         },
     },
-    ui::svg_icons::{aws_table_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_search_icon_svg},
+    ui::svg_icons::{aws_table_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, fa_trash_icon_svg, ms_attachment_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_code_icon_svg, ms_document_icon_svg, ms_search_icon_svg, ms_video_icon_svg},
 };
+
+pub fn extension_to_icon_svg(extension: &str) -> String {
+    match extension.to_lowercase().as_str() {
+        "pdf" => ms_document_icon_svg(),
+        "mp3" | "wav" | "flac" | "aac" => b8_microphone_icon_svg(),
+        "mp4" | "mov" | "avi" | "mkv" => ms_video_icon_svg(),
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" => ms_search_icon_svg(),
+        "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" => ms_code_icon_svg(),
+        "csv" | "tsv" => aws_table_icon_svg(),
+        _ => ms_attachment_icon_svg(), // default icon for unknown file types
+    }
+}
 
 /// View to display the subject tables for the session
 /// and to allow for easier upload by the user
@@ -52,7 +64,13 @@ pub fn subjects_interface_view() -> Element {
     let sync_current_subjects_rows_state = use_coroutine_handle::<SyncCurrentSubjectNumRowsState>();
     use_coroutine(clear_subject_num_rows_state);
     let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
-    use_coroutine(sync_current_files_uploaded_state);
+    use_coroutine(clear_files_uploaded_state);
+    let clear_files_uploaded_state = use_coroutine_handle::<ClearFilesUploadedState>();
+    use_coroutine(clear_files_downloaded_state);
+    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
+
+    // Global signals
+    let mut active_subject_name = use_signal(String::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
@@ -267,10 +285,14 @@ pub fn subjects_interface_view() -> Element {
             }
             Err(err) => tracing::error!("{err:?}"),
         }
+        
+        // Clear downloaded and uploaded files whenever the active session changes
+        tracing::debug!("clear_files_downloaded_state");
+        clear_files_downloaded_state.send(ClearFilesDownloadedState{});
+        clear_files_uploaded_state.send(ClearFilesUploadedState{});
     });
 
     rsx! {
-        // Check for sign-in
         if JWT.read().is_empty() {
             div {
                 class: "messaging_list",
@@ -286,116 +308,52 @@ pub fn subjects_interface_view() -> Element {
                 class: "messaging_list",
                 p { "Waiting to retrieve session plan subject schemas..." },
             }
-        } else if ACTIVE_SUBJECT_NAME.read().is_empty() {
+        } else {
             div {
                 class: "messaging_list",
-                subjects_dropdown_menu {}
-                subjects_schema_table {}
-            }
-        } else if FILES_UPLOADED.read().is_empty() && FILES_DOWNLOADED.read().is_empty() {
-            div {
-                class: "messaging_list",
-                subjects_dropdown_menu {}
-                subjects_schema_table {}
-            }
-            div {
-                class: "file_upload_form",
-                div {
-                    id: "file_upload_extend_form",
-                    h2 { "Add data to subject {ACTIVE_SUBJECT_NAME}" },
-                    attach_files_button {}
-                }
-                div {
-                    id: "file_download_form",
-                    h2 { "Download data from subject {ACTIVE_SUBJECT_NAME}" },
+                subjects_dropdown_menu { active_subject_name: active_subject_name.clone() },
+                subjects_schema_table { active_subject_name: active_subject_name.clone() }
+
+                if !active_subject_name().is_empty() {
                     div {
-                        class: "drop_box",
-                        p { "CSV (comma delimiter with headers)" },
-                        download_files_button {}
-                    }
-                }
-            }
-        } else if !FILES_UPLOADED.read().is_empty() && FILES_DOWNLOADED.read().is_empty() {
-            div {
-                class: "messaging_list",
-                subjects_dropdown_menu {}
-                subjects_schema_table {}                
-                div {
-                    class: "file_upload_form",
-                    div {
-                        id: "file_upload_extend_form",
-                        h2 { "Add data to subject {ACTIVE_SUBJECT_NAME}" },
-                        attach_files_button {}
-                    }
-                    div {
-                        id: "file_download_form",
-                        h2 { "Download data from subject {ACTIVE_SUBJECT_NAME}" },
+                        class: "file_upload_form",
                         div {
-                            class: "drop_box",
-                            p { "CSV (comma delimiter with headers)" },
-                            download_files_button {}
+                            id: "file_upload_extend_form",
+                            h2 { "Upload data to subject {active_subject_name}" },
+                            attach_files_dropbox {active_subject_name: active_subject_name.clone()}
+                        }
+                        div {
+                            id: "file_download_form",
+                            h2 { "Download data from subject {active_subject_name}" },
+                            div {
+                                class: "drop_box",
+                                p { "CSV (comma delimiter with headers)" },
+                                download_files_button { data_format: use_signal(|| DataFormat::CsvDefault), active_subject_name: active_subject_name.clone()}
+                            }
                         }
                     }
-                }
-                upload_files_list {}
-                download_files_list {}
-            }
-        } else if !FILES_UPLOADED.read().is_empty(){
-            div {
-                class: "messaging_list",
-                subjects_dropdown_menu {}
-                subjects_schema_table {}
-                div {
-                    class: "file_upload_form",
-                    div {
-                        id: "file_upload_extend_form",
-                        h2 { "Add data to subject {ACTIVE_SUBJECT_NAME}" },
-                        attach_files_button {}
+
+                    if !FILES_UPLOADED.read().is_empty() {
+                        upload_files_list {}
                     }
-                    div {
-                        id: "file_download_form",
-                        h2 { "Download data from subject {ACTIVE_SUBJECT_NAME}" },
-                        div {
-                            class: "drop_box",
-                            p { "CSV (comma delimiter with headers)" },
-                            download_files_button {}
-                        }
+
+                    if !FILES_DOWNLOADED.read().is_empty() {
+                        download_files_list {}
                     }
                 }
-                upload_files_list {}
-            }
-        } else if !FILES_DOWNLOADED.read().is_empty(){
-            div {
-                class: "messaging_list",
-                subjects_dropdown_menu {}
-                subjects_schema_table {}
-                div {
-                    class: "file_upload_form",
-                    div {
-                        id: "file_upload_extend_form",
-                        h2 { "Add data to subject {ACTIVE_SUBJECT_NAME}" },
-                        attach_files_button {}
-                    }
-                    div {
-                        id: "file_download_form",
-                        h2 { "Download data from subject {ACTIVE_SUBJECT_NAME}" },
-                        div {
-                            class: "drop_box",
-                            p { "CSV (comma delimiter with headers)" },
-                            download_files_button {}
-                        }
-                    }
-                }
-                download_files_list {}
             }
         }
     }
 }
 
 #[component]
-pub fn subjects_dropdown_menu() -> Element {
+pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>) -> Element {
     use_coroutine(sync_current_active_subject_state);
     let sync_current_active_subject_state = use_coroutine_handle::<SyncCurrentActiveSubjectState>();
+    use_coroutine(clear_files_uploaded_state);
+    let clear_files_uploaded_state = use_coroutine_handle::<ClearFilesUploadedState>();
+    use_coroutine(clear_files_downloaded_state);
+    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
 
     let mut show_subject_dropdown = use_signal(|| false);
     #[allow(clippy::redundant_closure)]
@@ -436,10 +394,17 @@ pub fn subjects_dropdown_menu() -> Element {
             button {
                 class: "dropdown_form_button",
                 onclick: move |_evt| async move {
-                    sync_current_active_subject_state.send(SyncCurrentActiveSubjectState {
-                        name: subject_dropdown.read().to_string(),
-                    });
+                    // Set the active subject state
+                    // sync_current_active_subject_state.send(SyncCurrentActiveSubjectState {
+                    //     name: subject_dropdown.read().to_string(),
+                    // });
+                    active_subject_name.set(subject_dropdown.read().to_string());
                     subject_dropdown.set(String::new());
+        
+                    // Clear downloaded and uploaded files whenever the active session changes
+                    tracing::debug!("clear_files_downloaded_state");
+                    clear_files_downloaded_state.send(ClearFilesDownloadedState{});
+                    clear_files_uploaded_state.send(ClearFilesUploadedState{});
                 },
                 svg { dangerous_inner_html: ms_search_icon_svg() },
             },
@@ -451,7 +416,7 @@ pub fn subjects_dropdown_menu() -> Element {
                 class: "dropdown_list",
                 ul {
                     id: "search_subjects_dropdown",
-                    {subjects_vec().iter().filter(|s| ACTIVE_SUBJECT_NAME.to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
+                    {subjects_vec().iter().filter(|s| active_subject_name.to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
                         let sub = sub.clone();
                         rsx! {
                             li {
@@ -470,9 +435,9 @@ pub fn subjects_dropdown_menu() -> Element {
 }
 
 #[component]
-pub fn subjects_schema_table() -> Element {
+pub fn subjects_schema_table(active_subject_name: Signal<String>) -> Element {
     let schema_columns_types = use_memo(move || get_subject_schema_col_type_by_subject_name(
-        ACTIVE_SUBJECT_NAME.read().as_str(),
+        active_subject_name.read().as_str(),
         &SUBJECT_SCHEMA_NAMES
             .read()
             .iter()
@@ -491,7 +456,7 @@ pub fn subjects_schema_table() -> Element {
     ));
     
     let num_rows = use_memo(move || get_subject_num_rows_by_subject_name(
-        ACTIVE_SUBJECT_NAME.read().as_str(),
+        active_subject_name.read().as_str(),
         &SUBJECT_NAMES
             .read()
             .iter()
@@ -504,12 +469,12 @@ pub fn subjects_schema_table() -> Element {
         div {
             class: "output_table",
             table {
-                if ACTIVE_SUBJECT_NAME().is_empty() {
+                if active_subject_name().is_empty() {
                     caption { "No subject selected." },
                 } else if num_rows().is_empty() {
-                    caption { "Schema for {ACTIVE_SUBJECT_NAME.to_string()}." },
+                    caption { "Schema for {active_subject_name.to_string()}." },
                 } else {
-                    caption { "{ACTIVE_SUBJECT_NAME.to_string()}: {num_rows().first().unwrap()} rows." },
+                    caption { "{active_subject_name.to_string()}: {num_rows().first().unwrap()} rows." },
                 }
                 tr {
                     {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {
@@ -534,14 +499,24 @@ pub fn subjects_schema_table() -> Element {
 }
 
 #[component]
-pub fn attach_files_button() -> Element {
+pub fn attach_files_dropbox(active_subject_name: Signal<String>) -> Element {
+    rsx! {
+        div {
+            class: "drop_box",
+            p { "CSV (comma delimiter with headers)" },
+            attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: active_subject_name.clone() },
+            attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: active_subject_name.clone() },
+        }
+    }
+}
+
+#[component]
+pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<String>, active_subject_name: Signal<String>) -> Element {
     use_coroutine(sync_current_files_uploaded_state);
     let sync_current_files_uploaded_state = use_coroutine_handle::<SyncFilesUploadedState>();
 
     #[allow(unused_mut)]
     let mut enable_directory_upload = use_signal(|| false);
-    let extend_publish = true;
-    let except_files = ".csv,.pdf,.json";
 
     let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublish| async move {
         let files = file_engine.files();
@@ -559,15 +534,16 @@ pub fn attach_files_button() -> Element {
                                 .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                 .with_update(&publish)
                                 .with_stream(false)
-                                .with_subject(&ACTIVE_SUBJECT_NAME.read())
+                                .with_subject(&active_subject_name.read())
                                 .with_message(Bytes::from(contents).to_vec())
                                 .make_name()
                                 .unwrap()
                                 .build()
                                 .unwrap();
                             sync_current_files_uploaded_state.send(SyncFilesUploadedState {
-                                files: data,
-                                filenames: file_name.to_string()
+                                file: data,
+                                filename: file_name.to_string(),
+                                extension: ext.to_str().unwrap().to_string()
                             });
                         }
                     }
@@ -582,7 +558,7 @@ pub fn attach_files_button() -> Element {
             read_files(
                 file_engine,
                 TablePublish::Extend {
-                    table_name: ACTIVE_SUBJECT_NAME.read().to_string(),
+                    table_name: active_subject_name.read().to_string(),
                 },
             )
             .await;
@@ -594,7 +570,7 @@ pub fn attach_files_button() -> Element {
             read_files(
                 file_engine,
                 TablePublish::Replace {
-                    table_name: ACTIVE_SUBJECT_NAME.read().to_string(),
+                    table_name: active_subject_name.read().to_string(),
                 },
             )
             .await;
@@ -602,40 +578,64 @@ pub fn attach_files_button() -> Element {
     };
 
     rsx! {
-        div {
-            class: "drop_box",
-            p { "CSV (comma delimiter with headers)" },
+        if extend_publish() {
             label { r#for: "textread_extend", svg { dangerous_inner_html: ms_cloud_add_icon_svg() } }
-            if extend_publish {
-                input {
-                    r#type: "file",
-                    accept: "{except_files}",
-                    multiple: true,
-                    id: "textread_extend",
-                    directory: enable_directory_upload,
-                    onchange: upload_files_extend,                
-                },
-            } else {
-                input {
-                    r#type: "file",
-                    accept: "{except_files}",
-                    multiple: true,
-                    id: "textread_extend",
-                    directory: enable_directory_upload,
-                    onchange: upload_files_replace,
-                }                
+            input {
+                r#type: "file",
+                accept: "{except_files}",
+                multiple: true,
+                id: "textread_extend",
+                directory: enable_directory_upload,
+                onchange: upload_files_extend,                
             },
+        } else {
+            label { r#for: "textread_add", svg { dangerous_inner_html: ms_cloud_arrow_up_icon_svg() } }
+            input {
+                r#type: "file",
+                accept: "{except_files}",
+                multiple: true,
+                id: "textread_add",
+                directory: enable_directory_upload,
+                onchange: upload_files_replace,
+            }                
+        },
+    }
+}
+
+#[component]
+pub fn upload_files_list() -> Element {
+    rsx! {
+        div {
+            class: "files",
+            p { "Files to upload" },
+            ul {
+                class: "file_list",
+                {FILENAMES_UPLOADED().iter().enumerate().map(|(i, f)| {
+                    rsx! {
+                        li {
+                            key: "{i}",
+                            div {
+                                class: "files",
+                                svg { dangerous_inner_html: aws_table_icon_svg() }, // color red if failure with error message
+                                h3 { "{f}" },
+                                // div { class: "loader" },
+                            }
+                        }
+                    }
+                })}
+            },
+            upload_files_button {}
+            clear_upload_files_button {}
         }
     }
 }
 
 #[component]
-pub fn upload_files_button() -> Element {    
+pub fn upload_files_button() -> Element {
     use_coroutine(clear_files_uploaded_state);
     let clear_files_uploaded_state = use_coroutine_handle::<ClearFilesUploadedState>();
     rsx! {
         button {
-            id: "submit_files",
             onclick: move |_| async move {
                 // Send files to the server
                 for file in FILES_UPLOADED.read().iter() {
@@ -685,50 +685,31 @@ pub fn upload_files_button() -> Element {
                 }
 
                 // Clean up the files
+                tracing::debug!("clear_files_uploaded_state");
                 clear_files_uploaded_state.send(ClearFilesUploadedState{});
             },
-            "Submit files"
-        },
-        button {
-            id: "clear_uploaded_files",
-            onclick: move |_| {
-                clear_files_uploaded_state.send(ClearFilesUploadedState{});
-            },
-            "Clear files"
+            svg { dangerous_inner_html: b8_send_icon_svg() }
         },
     }
 }
 
 #[component]
-pub fn upload_files_list() -> Element {
+pub fn clear_upload_files_button() -> Element {
+    use_coroutine(clear_files_uploaded_state);
+    let clear_files_uploaded_state = use_coroutine_handle::<ClearFilesUploadedState>();
     rsx! {
-        div {
-            class: "files",
-            p { "Files to upload" },
-            ul {
-                id: "uploaded_subject_files",
-                class: "file_list",
-                {FILENAMES_UPLOADED.read().iter().enumerate().map(|(i, f)| {
-                    rsx! {
-                        li {
-                            key: "{i}",
-                            div {
-                                class: "files",
-                                svg { dangerous_inner_html: aws_table_icon_svg() }, // color red if failure with error message
-                                h3 { "{f}" },
-                                // div { class: "loader" },
-                            }
-                        }
-                    }
-                })}
+        button {
+            onclick: move |_| {
+                tracing::debug!("clear_files_uploaded_state");
+                clear_files_uploaded_state.send(ClearFilesUploadedState{});
             },
-            upload_files_button {}
-        }
+            svg { dangerous_inner_html: fa_trash_icon_svg() }
+        },
     }
 }
 
 #[component]
-pub fn download_files_button() -> Element {
+pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_name: Signal<String>) -> Element {
     use_coroutine(sync_current_files_downloaded_state);
     let sync_current_files_downloaded_state = use_coroutine_handle::<SyncFilesDownloadedState>();
     use_coroutine(clear_files_downloaded_state);
@@ -739,15 +720,16 @@ pub fn download_files_button() -> Element {
             class: "dropdown_form_button",
             onclick: move |_evt| async move {
                 // Get csv file from the server
+                tracing::debug!("clear_files_downloaded_state");
                 clear_files_downloaded_state.send(ClearFilesDownloadedState{});
 
                 let data = SessionInterfaceMessage::get_builder()
                     .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                    .with_format(&DataFormat::CsvDefault)
+                    .with_format(&data_format())
                     .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                     .with_update(&TablePublish::None)
                     .with_stream(false)
-                    .with_subject(&ACTIVE_SUBJECT_NAME.read())
+                    .with_subject(&active_subject_name.read())
                     .make_name()
                     .unwrap()
                     .build()
@@ -773,8 +755,9 @@ pub fn download_files_button() -> Element {
                             csv_chunks.push(csv_chunk);
                         }
                         sync_current_files_downloaded_state.send(SyncFilesDownloadedState {
-                            files: csv_chunks.join(""),
-                            filenames: ACTIVE_SUBJECT_NAME.read().as_str().to_string()
+                            file: csv_chunks.join(""),
+                            filename: active_subject_name.read().as_str().to_string(),
+                            extension: data_format().to_extension().to_string()
                         });
                     },
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
@@ -803,8 +786,9 @@ pub fn download_files_button() -> Element {
                             .map(|byte| String::from_utf8_lossy(byte).into_owned())
                             .collect();
                         sync_current_files_downloaded_state.send(SyncFilesDownloadedState {
-                            files: csv_chunks.join(""),
-                            filenames: ACTIVE_SUBJECT_NAME.read().as_str().to_string()
+                            file: csv_chunks.join(""),
+                            filename: active_subject_name.read().as_str().to_string(),
+                            extension: data_format.to_extension().to_string()
                         });
                     }
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
@@ -815,28 +799,23 @@ pub fn download_files_button() -> Element {
     }
 }
 
-
 #[component]
 pub fn download_files_list() -> Element {
-    use_coroutine(clear_files_downloaded_state);
-    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
-
     rsx! {
         div {
             class: "files",
             p { "Files to download" },
             ul {
-                id: "download_subject_files",
                 class: "file_list",
-                {(0..FILES_DOWNLOADED.len()).map(|i| {
-                    let f_download = format!("{}.csv", FILENAMES_DOWNLOADED().get(i).unwrap());
+                {(0..FILES_DOWNLOADED().len()).map(|i| {
+                    let f_download = format!("{}.{}", FILENAMES_DOWNLOADED().get(i).unwrap(), EXTENSIONS_DOWNLOADED().get(i).unwrap());
                     let f_href = format!("data:text/plain,{}", FILES_DOWNLOADED().get(i).unwrap());
                     rsx! {
                         li {
-                            key: "{i}",
+                            // key: "{i}",
                             div {
                                 class: "files",
-                                svg { dangerous_inner_html: aws_table_icon_svg() }, //color red if failure with error message
+                                svg { dangerous_inner_html: extension_to_icon_svg(EXTENSIONS_DOWNLOADED().get(i).unwrap()) },
                                 a {
                                     href: f_href.to_owned(),
                                     download: f_download.to_owned(),
@@ -847,13 +826,23 @@ pub fn download_files_list() -> Element {
                     }
                 })}
             },
-            button {
-                id: "clear_downloaded_files",
-                onclick: move |_| async move {
-                    clear_files_downloaded_state.send(ClearFilesDownloadedState{});
-                },
-                "Clear files"
-            },
+            clear_download_files_button {}
         }
+    }
+}
+
+#[component]
+pub fn clear_download_files_button() -> Element {
+    use_coroutine(clear_files_downloaded_state);
+    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
+
+    rsx! {
+        button {
+            onclick: move |_| async move {
+                tracing::debug!("clear_files_downloaded_state");
+                clear_files_downloaded_state.send(ClearFilesDownloadedState{});
+            },
+            svg { dangerous_inner_html: fa_trash_icon_svg() }
+        },
     }
 }
