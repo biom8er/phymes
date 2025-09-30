@@ -498,7 +498,7 @@ pub fn mermaid_view(
     let rendered_html = render_mermaid_svg(diagram_code, use_signal(|| "graphDiv".to_string()), check_build, is_flowchart_shown);
     add_pan_zoom_to_svg(rendered_html, use_signal(|| "graphDiv".to_string()));
 
-    let out = if let Some(result) = rendered_html() {
+    let out = if let Some(result) = &*rendered_html.read() {
         match result {
             // Mermaid.js or SessionContextBuilder error
             (_, Some(error), None) | (_, None, Some(error)) => {
@@ -529,9 +529,7 @@ pub fn mermaid_view(
             }
         }
     } else {
-        rsx! {
-            p { "Waiting to render svg..." },
-        }
+        rsx! {}
     };
     out
 }
