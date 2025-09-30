@@ -277,165 +277,34 @@ pub fn apps_interface_view() -> Element {
             active_er_diagram.read().to_string()
         }        
     });
-    let rendered_html = render_mermaid_svg(diagram_code, "graphDiv", true, is_flowchart_shown);
-    add_pan_zoom_to_svg(rendered_html, "graphDiv");
 
-    let out = if let Some(result) = &*rendered_html.read() {
-        match result {
-            // Mermaid.js or SessionContextBuilder error
-            (_, Some(error), None) | (_, None, Some(error)) => {
-                rsx! {
-                    if JWT.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please sign-in before activating a session." },
-                        }
-                    } else if SESSION_NAMES.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Waiting to retrieve available session plans..." },
-                        }
-                    } else {
-                        div {
-                            class: "messaging_list",
-                            if BUILDER() {
-                                builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
-                            } else {
-                                apps_dropdown_view { is_flowchart_shown }
-                            }                            
-                            p { "{error}" },
-                        }
-                        if BUILDER() {
-                            split_panel_drag_handle {}
-                            builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
-                        }
-                    }
-                }
+    rsx! {
+        if JWT.read().is_empty() {
+            div {
+                class: "messaging_list",
+                p { "Please sign-in before activating a session." },
             }
-            // Mermaid.js and SessionContextBuilder error
-            (_, Some(error_mjs), Some(error_ctxb)) => {
-                rsx! {
-                    if JWT.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please sign-in before activating a session." },
-                        }
-                    } else if SESSION_NAMES.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Waiting to retrieve available session plans..." },
-                        }
-                    } else {
-                        div {
-                            class: "messaging_list",
-                            if BUILDER() {
-                                builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
-                            } else {
-                                apps_dropdown_view {is_flowchart_shown}
-                            } 
-                            p { "{error_mjs}" },
-                            p { "{error_ctxb}" },
-                        }
-                        if BUILDER() {
-                            split_panel_drag_handle {}
-                            builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
-                        }
-                    }
-                }
+        } else if SESSION_NAMES.read().is_empty() {
+            div {
+                class: "messaging_list",
+                p { "Waiting to retrieve available session plans..." },
             }
-            // Valid SVG with no errors
-            (Some(svg), _, _) => {
-                rsx! {
-                    if JWT.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please sign-in before activating a session." },
-                        }
-                    } else if SESSION_NAMES.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Waiting to retrieve available session plans..." },
-                        }
-                    } else {
-                        div {
-                            class: "messaging_list",
-                            if BUILDER() {
-                                builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
-                            } else {
-                                apps_dropdown_view {is_flowchart_shown}
-                            } 
-                            div {
-                                id: "graphDiv",
-                                class: "mermaid",
-                                svg { dangerous_inner_html: svg.to_string() }
-                            }
-                        }
-                        if BUILDER() {
-                            split_panel_drag_handle {}
-                            builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
-                        }
-                    }
-                }
-            }
-            // All other cases
-            (_, _, _) => {
-                rsx! {
-                    if JWT.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please sign-in before activating a session." },
-                        }
-                    } else if SESSION_NAMES.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Waiting to retrieve available session plans..." },
-                        }
-                    } else {
-                        div {
-                            class: "messaging_list",
-                            if BUILDER() {
-                                builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
-                            } else {
-                                apps_dropdown_view {is_flowchart_shown}
-                            } 
-                        }
-                        if BUILDER() {
-                            split_panel_drag_handle {}
-                            builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        rsx! {
-            if JWT.read().is_empty() {
-                div {
-                    class: "messaging_list",
-                    p { "Please sign-in before activating a session." },
-                }
-            } else if SESSION_NAMES.read().is_empty() {
-                div {
-                    class: "messaging_list",
-                    p { "Waiting to retrieve available session plans..." },
-                }
-            } else {
-                div {
-                    class: "messaging_list",
-                    if BUILDER() {
-                        builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
-                    } else {
-                        apps_dropdown_view {is_flowchart_shown}
-                    } 
-                }
+        } else {
+            div {
+                class: "messaging_list",
                 if BUILDER() {
-                    split_panel_drag_handle {}
-                    builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
-                }
+                    builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
+                } else {
+                    apps_dropdown_view { is_flowchart_shown }
+                }                            
+                mermaid_view { diagram_code, check_build: use_signal(|| true), is_flowchart_shown }
+            }
+            if BUILDER() {
+                split_panel_drag_handle {}
+                builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
             }
         }
-    };
-    out
+    }
 }
 
 /// View for the per runtime settings
@@ -534,78 +403,72 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
 #[cfg(feature = "mermaid_js")]
 pub fn render_mermaid_svg(
     diagram_code: Memo<String>,
-    id: &str,
-    check_build: bool,
-    is_flowchart_shown: Signal<bool>,
+    id: Signal<String>,
+    check_build: Signal<bool>,
+    is_flowchart_shown: Signal<bool>
 ) -> Resource<(Option<String>, Option<String>, Option<String>)> {
-    let div_id = id.to_string();
-    use_resource(move || {
-        let div_id = div_id.clone();
-        async move {
-            // Render the mermaid.js diagram
-            let eval = document::eval(
-                format!(
-                    r#"
-            try {{
-                let code = await dioxus.recv();
-                const {{ svg }} = await mermaid.render("{div_id}", code);
-                return {{ svg: svg, error: null }};
-            }} catch (error) {{
-                return {{ svg: null, error: error.message }};
-            }}"#
-                )
-                .as_str(),
-            );
-            eval.send(diagram_code()).unwrap();
-            let mermaid_js_object = match eval.await {
-                Ok(res) => {
-                    let res: MermaidJsObject = serde_json::from_value(res).unwrap();
-                    res
+    use_resource(move || async move {
+        // Render the mermaid.js diagram
+        let eval = document::eval(
+            format!(
+                r#"
+        try {{
+            let code = await dioxus.recv();
+            const {{ svg }} = await mermaid.render("{id}", code);
+            return {{ svg: svg, error: null }};
+        }} catch (error) {{
+            return {{ svg: null, error: error.message }};
+        }}"#
+            )
+            .as_str(),
+        );
+        eval.send(diagram_code()).unwrap();
+        let mermaid_js_object = match eval.await {
+            Ok(res) => {
+                let res: MermaidJsObject = serde_json::from_value(res).unwrap();
+                res
+            }
+            Err(err) => {
+                tracing::error!("Mermaid.js err {err:?}");
+                MermaidJsObject {
+                    svg: None,
+                    error: Some(err.to_string()),
                 }
-                Err(err) => {
-                    tracing::error!("Mermaid.js err {err:?}");
-                    MermaidJsObject {
-                        svg: None,
-                        error: Some(err.to_string()),
-                    }
+            }
+        };
+
+        // Build the preliminary session context
+        if check_build() {
+            let builder_error = if is_flowchart_shown() {
+                match SessionContextBuilder::from_mermaid_flowchart(&diagram_code(), true) {
+                    Ok(_res) => None,
+                    Err(err) => Some(err.to_string()),
+                }
+            } else {
+                match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(&diagram_code(), true) {
+                    Ok(_res) => None,
+                    Err(err) => Some(err.to_string()),
                 }
             };
-
-            // Build the preliminary session context
-            if check_build {
-                let builder_error = if is_flowchart_shown() {
-                    match SessionContextBuilder::from_mermaid_flowchart(&diagram_code(), true) {
-                        Ok(_res) => None,
-                        Err(err) => Some(err.to_string()),
-                    }
-                } else {
-                    match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(&diagram_code(), true) {
-                        Ok(_res) => None,
-                        Err(err) => Some(err.to_string()),
-                    }
-                };
-                (
-                    mermaid_js_object.svg,
-                    mermaid_js_object.error,
-                    builder_error,
-                )
-            } else {
-                (mermaid_js_object.svg, mermaid_js_object.error, None)
-            }
+            (
+                mermaid_js_object.svg,
+                mermaid_js_object.error,
+                builder_error,
+            )
+        } else {
+            (mermaid_js_object.svg, mermaid_js_object.error, None)
         }
     })
 }
 
 #[cfg(feature = "mermaid_js")]
-pub fn add_pan_zoom_to_svg(rendered_html: Resource<(Option<String>, Option<String>, Option<String>)>, id: &str) {
-    let div_id = id.to_string();
+pub fn add_pan_zoom_to_svg(rendered_html: Resource<(Option<String>, Option<String>, Option<String>)>, id: Signal<String>) {
     use_effect(move || {
-        let div_id = div_id.clone();
         let _ = rendered_html(); // needed to triger the effect
         document::eval(
             format!(
                 r#"
-            const container = document.getElementById("{div_id}");
+            const container = document.getElementById("{id}");
             const svgElement = container.querySelector("svg");
 
             // Initialize Panzoom
@@ -624,4 +487,51 @@ pub fn add_pan_zoom_to_svg(rendered_html: Resource<(Option<String>, Option<Strin
             .as_str(),
         );
     });
+}
+
+#[component]
+pub fn mermaid_view(
+    diagram_code: Memo<String>,
+    check_build: Signal<bool>,
+    is_flowchart_shown: Signal<bool>
+) -> Element {
+    let rendered_html = render_mermaid_svg(diagram_code, use_signal(|| "graphDiv".to_string()), check_build, is_flowchart_shown);
+    add_pan_zoom_to_svg(rendered_html, use_signal(|| "graphDiv".to_string()));
+
+    let out = if let Some(result) = rendered_html() {
+        match result {
+            // Mermaid.js or SessionContextBuilder error
+            (_, Some(error), None) | (_, None, Some(error)) => {
+                rsx! {
+                    p { "{error}" },
+                }
+            }
+            // Mermaid.js and SessionContextBuilder error
+            (_, Some(error_mjs), Some(error_ctxb)) => {
+                rsx! {                    
+                    p { "{error_mjs}" },
+                    p { "{error_ctxb}" },
+                }
+            }
+            // Valid SVG with no errors
+            (Some(svg), _, _) => {
+                rsx! {
+                    div {
+                        id: "graphDiv",
+                        class: "mermaid",
+                        svg { dangerous_inner_html: svg.to_string() }
+                    }
+                }
+            }
+            // All other cases
+            (_, _, _) => {
+                rsx! {}
+            }
+        }
+    } else {
+        rsx! {
+            p { "Waiting to render svg..." },
+        }
+    };
+    out
 }
