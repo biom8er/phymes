@@ -177,7 +177,7 @@ pub fn metrics_modal() -> Element {
             "gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tWaiting to retrieve session plan metrics...".to_string()
         }
     });
-    let is_flowchart_shown: Memo<bool> = use_memo(move || false);
+    let is_flowchart_shown = use_signal(|| false);
     let rendered_html = render_mermaid_svg(diagram_code, "graphDiv", false, is_flowchart_shown);
     let out = if let Some(result) = &*rendered_html.read() {
         match result {

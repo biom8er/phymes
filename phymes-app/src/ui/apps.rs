@@ -9,12 +9,10 @@ use serde_json::{Map, Value};
 
 use crate::{
     state::{
-        apps::{filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, sync_current_active_session_state, sync_current_session_mermaid_state, sync_is_flowchart_shown_state, SyncCurrentActiveSessionState, SyncCurrentSessionMermaidJSState, SyncIsFlowchartShownState, ACTIVE_SESSION_NAME, IS_FLOWCHART_SHOWN, SESSION_ER_DIAGRAM, SESSION_FLOWCHART_DIAGRAM}, 
-        builds::{clear_current_mermaid_state, sync_current_mermaid_state, ClearCurrentMermaidState, SyncCurrentMermaidState, MERMAID_ER_DIAGRAM, MERMAID_FLOWCHART_DIAGRAM, MERMAID_SESSION_CONTEXT_NAME, MERMAID_TIMESTAMP}, 
-        messaging::{clear_current_message_state, ClearCurrentMessageState}, 
+        apps::{filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME}, 
         sign_in::{BUILDER, EMAIL, JWT, SESSION_NAMES}
     },
-    ui::{builds::builds_dropdown_view, svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}},
+    ui::{builds::{builds_dropdown_view, builds_interface_footer}, main_window::split_panel_drag_handle, svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}},
 };
 
 
@@ -44,13 +42,16 @@ use phymes_server::server::{
 /// View for the per runtime settings
 #[component]
 pub fn apps_interface_view() -> Element {
-    // Intialize state and coroutines
-    use_coroutine(sync_current_session_mermaid_state);
-    use_coroutine(sync_current_mermaid_state);
-    use_coroutine(clear_current_mermaid_state);
-    let sync_current_mermaid_state = use_coroutine_handle::<SyncCurrentMermaidState>();
-    let clear_current_mermaid_state = use_coroutine_handle::<ClearCurrentMermaidState>();
-    let sync_current_session_mermaid_state = use_coroutine_handle::<SyncCurrentSessionMermaidJSState>();
+    // Intialize signals
+    let is_flowchart_shown = use_signal(|| true);
+    let mut active_session_name = use_signal(String::new);
+    let mut active_flowchart_diagram = use_signal(String::new);
+    let mut active_er_diagram = use_signal(String::new);
+    
+    let mut mermaid_session_context_names = use_signal(Vec::<String>::new);
+    let mut mermaid_flowchart_diagrams = use_signal(Vec::<String>::new);
+    let mut mermaid_er_diagrams = use_signal(Vec::<String>::new);
+    let mut mermaid_timestamps = use_signal(Vec::<i64>::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
@@ -72,7 +73,10 @@ pub fn apps_interface_view() -> Element {
     let _ = use_resource(move || async move {
         
         // clear the current mermaid state
-        clear_current_mermaid_state.send(ClearCurrentMermaidState {});
+        mermaid_session_context_names.set(Vec::new());
+        mermaid_flowchart_diagrams.set(Vec::new());
+        mermaid_er_diagrams.set(Vec::new());
+        mermaid_timestamps.set(Vec::new());
 
         // get the mermaid state
         let route = "/app/v1/get_state";
@@ -106,7 +110,7 @@ pub fn apps_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
                             tracing::error!(
-                                "There was a error parsing SyncCurrentMermaidState {err}."
+                                "There was a error parsing mermaid state {err}."
                             );
                             Vec::new()
                         });
@@ -126,22 +130,20 @@ pub fn apps_interface_view() -> Element {
                             } else {
                                 0
                             };
-                            sync_current_mermaid_state.send(SyncCurrentMermaidState {
-                                session_context_name,
-                                flowchart_diagram: row
-                                    .get("flowchart_diagram")
-                                    .unwrap()
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string(),
-                                er_diagram: row
-                                    .get("er_diagram")
-                                    .unwrap()
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string(),
-                                timestamp
-                            });
+                            mermaid_session_context_names.push(session_context_name);
+                            mermaid_flowchart_diagrams.push(row
+                                .get("flowchart_diagram")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string());
+                            mermaid_er_diagrams.push(row
+                                .get("er_diagram")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string());
+                            mermaid_timestamps.push(timestamp);
                         }
                     }
                 }
@@ -186,22 +188,20 @@ pub fn apps_interface_view() -> Element {
                             } else {
                                 0
                             };
-                            sync_current_mermaid_state.send(SyncCurrentMermaidState {
-                                session_context_name,
-                                flowchart_diagram: row
-                                    .get("flowchart_diagram")
-                                    .unwrap()
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string(),
-                                er_diagram: row
-                                    .get("er_diagram")
-                                    .unwrap()
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string(),
-                                timestamp: timestamp
-                            });
+                            mermaid_session_context_names.push(session_context_name);
+                            mermaid_flowchart_diagrams.push(row
+                                .get("flowchart_diagram")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string());
+                            mermaid_er_diagrams.push(row
+                                .get("er_diagram")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string());
+                            mermaid_timestamps.push(timestamp);
                         }
                     }
                 }
@@ -214,7 +214,7 @@ pub fn apps_interface_view() -> Element {
     let filtered_diagrams = use_memo(move || { 
         // The builder session names do not contain the email      
         let session_name = if BUILDER() {
-            ACTIVE_SESSION_NAME()
+            active_session_name()
         } else {
             create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
         };
@@ -222,22 +222,22 @@ pub fn apps_interface_view() -> Element {
         // Filter in the active diagrams
         let (_session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_in_mermaid_diagrams_by_session_name(
             &session_name,
-            &MERMAID_SESSION_CONTEXT_NAME
+            &mermaid_session_context_names
                 .read()
                 .iter()
                 .map(|s| s.as_str())
                 .collect::<Vec<_>>(),
-            &MERMAID_FLOWCHART_DIAGRAM
+            &mermaid_flowchart_diagrams
                 .read()
                 .iter()
                 .map(|s| s.as_str())
                 .collect::<Vec<_>>(),
-            &MERMAID_ER_DIAGRAM
+            &mermaid_er_diagrams
                 .read()
                 .iter()
                 .map(|s| s.as_str())
                 .collect::<Vec<_>>(),
-            &MERMAID_TIMESTAMP());
+            &mermaid_timestamps());
 
         // Sort by timestamp
         let mut combined = flowchart_diagrams
@@ -250,30 +250,35 @@ pub fn apps_interface_view() -> Element {
 
         // last is most recent
         match combined.last() {
-            Some(diagrams) => (Some(diagrams.0.to_owned()), Some(diagrams.1.to_owned())),
-            None => (None, None)
+            Some(diagrams) => ((Some(diagrams.0.to_owned()), Some(diagrams.1.to_owned()))),
+            None => ((None, None))
         }
-    });
+    });  
 
     // Update the active mermaid.js diagrams for the session
     let _ = use_resource(move || async move {
-        sync_current_session_mermaid_state.send(SyncCurrentSessionMermaidJSState {
-            flowchart_diagram: filtered_diagrams().0,
-            er_diagram: filtered_diagrams().1,
-        });
+        if let Some(diagram) = filtered_diagrams().0 {
+            active_flowchart_diagram.set(diagram.to_string());
+            tracing::debug!("active_flowchart_diagram updated");
+        }
+        if let Some(diagram) = filtered_diagrams().1 {
+            active_er_diagram.set(diagram.to_string());     
+            tracing::debug!("active_er_diagram updated");       
+        }
     });
 
     // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
     let diagram_code: Memo<String> = use_memo(move || {
-        if IS_FLOWCHART_SHOWN() {
-            SESSION_FLOWCHART_DIAGRAM.read().to_string()
+        if is_flowchart_shown() {
+            tracing::debug!("active_flowchart_diagram to diagram_code");
+            active_flowchart_diagram.read().to_string()
         } else {
-            SESSION_ER_DIAGRAM.read().to_string()
+            tracing::debug!("active_er_diagram to diagram_code");
+            active_er_diagram.read().to_string()
         }        
     });
-    #[allow(clippy::redundant_closure)]
-    let is_flowchart_shown: Memo<bool> = use_memo(move || IS_FLOWCHART_SHOWN());    
     let rendered_html = render_mermaid_svg(diagram_code, "graphDiv", true, is_flowchart_shown);
+    add_pan_zoom_to_svg(rendered_html, "graphDiv");
 
     let out = if let Some(result) = &*rendered_html.read() {
         match result {
@@ -294,11 +299,15 @@ pub fn apps_interface_view() -> Element {
                         div {
                             class: "messaging_list",
                             if BUILDER() {
-                                builds_dropdown_view {}
+                                builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
                             } else {
-                                apps_dropdown_view {}
+                                apps_dropdown_view { is_flowchart_shown }
                             }                            
                             p { "{error}" },
+                        }
+                        if BUILDER() {
+                            split_panel_drag_handle {}
+                            builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
                         }
                     }
                 }
@@ -320,12 +329,16 @@ pub fn apps_interface_view() -> Element {
                         div {
                             class: "messaging_list",
                             if BUILDER() {
-                                builds_dropdown_view {}
+                                builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
                             } else {
-                                apps_dropdown_view {}
+                                apps_dropdown_view {is_flowchart_shown}
                             } 
                             p { "{error_mjs}" },
                             p { "{error_ctxb}" },
+                        }
+                        if BUILDER() {
+                            split_panel_drag_handle {}
+                            builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
                         }
                     }
                 }
@@ -347,15 +360,19 @@ pub fn apps_interface_view() -> Element {
                         div {
                             class: "messaging_list",
                             if BUILDER() {
-                                builds_dropdown_view {}
+                                builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
                             } else {
-                                apps_dropdown_view {}
+                                apps_dropdown_view {is_flowchart_shown}
                             } 
                             div {
                                 id: "graphDiv",
                                 class: "mermaid",
                                 svg { dangerous_inner_html: svg.to_string() }
                             }
+                        }
+                        if BUILDER() {
+                            split_panel_drag_handle {}
+                            builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
                         }
                     }
                 }
@@ -377,10 +394,14 @@ pub fn apps_interface_view() -> Element {
                         div {
                             class: "messaging_list",
                             if BUILDER() {
-                                builds_dropdown_view {}
+                                builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
                             } else {
-                                apps_dropdown_view {}
+                                apps_dropdown_view {is_flowchart_shown}
                             } 
+                        }
+                        if BUILDER() {
+                            split_panel_drag_handle {}
+                            builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
                         }
                     }
                 }
@@ -402,10 +423,14 @@ pub fn apps_interface_view() -> Element {
                 div {
                     class: "messaging_list",
                     if BUILDER() {
-                        builds_dropdown_view {}
+                        builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
                     } else {
-                        apps_dropdown_view {}
+                        apps_dropdown_view {is_flowchart_shown}
                     } 
+                }
+                if BUILDER() {
+                    split_panel_drag_handle {}
+                    builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
                 }
             }
         }
@@ -415,19 +440,14 @@ pub fn apps_interface_view() -> Element {
 
 /// View for the per runtime settings
 #[component]
-pub fn apps_dropdown_view() -> Element {
+pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_current_active_session_state);
-    use_coroutine(clear_current_message_state);
-    use_coroutine(sync_is_flowchart_shown_state);
     let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
-    let clear_current_message_state = use_coroutine_handle::<ClearCurrentMessageState>();
-    let sync_is_flowchart_shown_state = use_coroutine_handle::<SyncIsFlowchartShownState>();
 
     // Dropdown signals
     let mut show_subject_dropdown = use_signal(|| false);
-    #[allow(clippy::redundant_closure)]
-    let mut subject_dropdown = use_signal(|| String::new());
+    let mut subject_dropdown = use_signal(String::new);
     let subjects_vec = use_memo(move || {
         get_non_duplicated_sorted_subjects(
             &SESSION_NAMES
@@ -469,16 +489,13 @@ pub fn apps_dropdown_view() -> Element {
 
                     // Set the active session
                     sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
-
-                    // Reset the current session messaging
-                    clear_current_message_state.send(ClearCurrentMessageState {});
                 },
                 svg { dangerous_inner_html: ms_search_icon_svg() },
             },
             button { 
                 onclick: move |_| async move {
-                    let current = IS_FLOWCHART_SHOWN.read().to_owned();
-                    sync_is_flowchart_shown_state.send( SyncIsFlowchartShownState { is_shown: !current} );
+                    let current = is_flowchart_shown.read().to_owned();
+                    is_flowchart_shown.set(!current);
                 },
                 svg { dangerous_inner_html: ms_sync_icon_svg() },
             },
@@ -519,71 +536,72 @@ pub fn render_mermaid_svg(
     diagram_code: Memo<String>,
     id: &str,
     check_build: bool,
-    flowchart: Memo<bool>,
+    is_flowchart_shown: Signal<bool>,
 ) -> Resource<(Option<String>, Option<String>, Option<String>)> {
     let div_id = id.to_string();
-    let rendered_html: Resource<(Option<String>, Option<String>, Option<String>)> =
-        use_resource(move || {
-            let div_id = div_id.clone();
-            async move {
-                // Render the mermaid.js diagram
-                let eval = document::eval(
-                    format!(
-                        r#"
-                try {{
-                    let code = await dioxus.recv();
-                    const {{ svg }} = await mermaid.render("{div_id}", code);
-                    return {{ svg: svg, error: null }};
-                }} catch (error) {{
-                    return {{ svg: null, error: error.message }};
-                }}"#
-                    )
-                    .as_str(),
-                );
-                eval.send(diagram_code()).unwrap();
-                let mermaid_js_object = match eval.await {
-                    Ok(res) => {
-                        let res: MermaidJsObject = serde_json::from_value(res).unwrap();
-                        res
+    use_resource(move || {
+        let div_id = div_id.clone();
+        async move {
+            // Render the mermaid.js diagram
+            let eval = document::eval(
+                format!(
+                    r#"
+            try {{
+                let code = await dioxus.recv();
+                const {{ svg }} = await mermaid.render("{div_id}", code);
+                return {{ svg: svg, error: null }};
+            }} catch (error) {{
+                return {{ svg: null, error: error.message }};
+            }}"#
+                )
+                .as_str(),
+            );
+            eval.send(diagram_code()).unwrap();
+            let mermaid_js_object = match eval.await {
+                Ok(res) => {
+                    let res: MermaidJsObject = serde_json::from_value(res).unwrap();
+                    res
+                }
+                Err(err) => {
+                    tracing::error!("Mermaid.js err {err:?}");
+                    MermaidJsObject {
+                        svg: None,
+                        error: Some(err.to_string()),
                     }
-                    Err(err) => {
-                        tracing::error!("Mermaid.js err {err:?}");
-                        MermaidJsObject {
-                            svg: None,
-                            error: Some(err.to_string()),
-                        }
+                }
+            };
+
+            // Build the preliminary session context
+            if check_build {
+                let builder_error = if is_flowchart_shown() {
+                    match SessionContextBuilder::from_mermaid_flowchart(&diagram_code(), true) {
+                        Ok(_res) => None,
+                        Err(err) => Some(err.to_string()),
+                    }
+                } else {
+                    match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(&diagram_code(), true) {
+                        Ok(_res) => None,
+                        Err(err) => Some(err.to_string()),
                     }
                 };
-
-                // Build the preliminary session context
-                if check_build {
-                    let builder_error = if flowchart() {
-                        match SessionContextBuilder::from_mermaid_flowchart(&diagram_code(), true) {
-                            Ok(_res) => None,
-                            Err(err) => Some(err.to_string()),
-                        }
-                    } else {
-                        match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(&diagram_code(), true) {
-                            Ok(_res) => None,
-                            Err(err) => Some(err.to_string()),
-                        }
-                    };
-                    (
-                        mermaid_js_object.svg,
-                        mermaid_js_object.error,
-                        builder_error,
-                    )
-                } else {
-                    (mermaid_js_object.svg, mermaid_js_object.error, None)
-                }
+                (
+                    mermaid_js_object.svg,
+                    mermaid_js_object.error,
+                    builder_error,
+                )
+            } else {
+                (mermaid_js_object.svg, mermaid_js_object.error, None)
             }
-        });
+        }
+    })
+}
 
-    // add pan and zoom
+#[cfg(feature = "mermaid_js")]
+pub fn add_pan_zoom_to_svg(rendered_html: Resource<(Option<String>, Option<String>, Option<String>)>, id: &str) {
     let div_id = id.to_string();
     use_effect(move || {
         let div_id = div_id.clone();
-        let _ = rendered_html.read();
+        let _ = rendered_html(); // needed to triger the effect
         document::eval(
             format!(
                 r#"
@@ -606,6 +624,4 @@ pub fn render_mermaid_svg(
             .as_str(),
         );
     });
-
-    rendered_html
 }

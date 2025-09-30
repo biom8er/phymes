@@ -172,8 +172,6 @@ pub fn main_window() -> Element {
                 sign_in_view {},
             } else if header_menu.read().as_str() == "Builds" {
                 apps_interface_view {},
-                split_panel_drag_handle {}, 
-                builds_interface_footer {},
             } else if header_menu.read().as_str() == "Apps" {
                 apps_interface_view {},
             } else if header_menu.read().as_str() == "Subjects" {
