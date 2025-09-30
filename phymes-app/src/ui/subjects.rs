@@ -11,7 +11,6 @@ use reqwest::{self, header::CONTENT_TYPE};
 
 // File upload imports
 use dioxus::prelude::dioxus_elements::FileEngine;
-use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::sync::Arc;
 
@@ -33,7 +32,7 @@ use crate::{
         apps::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME},
         sign_in::{EMAIL, JWT},
         subjects::{
-            clear_files_downloaded_state, clear_files_uploaded_state, clear_subject_num_rows_state, clear_subject_schema_state, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, sync_current_files_downloaded_state, sync_current_subject_num_rows_state, sync_current_subject_schema_state, ClearFilesDownloadedState, ClearFilesUploadedState, ClearSubjectNumRowsState, ClearSubjectSchemaState, SyncCurrentSubjectNumRowsState, SyncCurrentSubjectSchemaState, SyncFilesDownloadedState, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_HEADERS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES
+            get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, SUBJECT_SCHEMA_HEADERS
         },
     },
     ui::svg_icons::{aws_table_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, fa_trash_icon_svg, ms_attachment_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_code_icon_svg, ms_document_icon_svg, ms_search_icon_svg, ms_video_icon_svg},
@@ -55,22 +54,12 @@ pub fn extension_to_icon_svg(extension: &str) -> String {
 /// and to allow for easier upload by the user
 #[component]
 pub fn subjects_interface_view() -> Element {
-    // Intialize state and coroutines
-    use_coroutine(sync_current_subject_schema_state);
-    let sync_current_subjects_schema_state = use_coroutine_handle::<SyncCurrentSubjectSchemaState>();
-    use_coroutine(clear_subject_schema_state);
-    let clear_subjects_schema_state = use_coroutine_handle::<ClearSubjectSchemaState>();
-    use_coroutine(sync_current_subject_num_rows_state);
-    let sync_current_subjects_rows_state = use_coroutine_handle::<SyncCurrentSubjectNumRowsState>();
-    use_coroutine(clear_subject_num_rows_state);
-    let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
-
     // Global signals
-    // let SUBJECT_SCHEMA_NAMES = use_signal(Vec::<String>::new);
-    // let SUBJECT_SCHEMA_COLUMNS = use_signal(Vec::<String>::new);
-    // let SUBJECT_SCHEMA_TYPES = use_signal(Vec::<String>::new);
-    // let SUBJECT_NAMES = use_signal(Vec::<String>::new);
-    // let SUBJECT_NUM_ROWS = use_signal(Vec::<usize>::new);
+    let mut subject_schema_names = use_signal(Vec::<String>::new);
+    let mut subject_schema_columns = use_signal(Vec::<String>::new);
+    let mut subject_schema_types = use_signal(Vec::<String>::new);
+    let mut subject_names = use_signal(Vec::<String>::new);
+    let mut subject_num_rows = use_signal(Vec::<usize>::new);
     let active_subject_name = use_signal(String::new);
     let files_uploaded = use_signal(Vec::<SessionInterfaceMessage>::new);
     let filenames_uploaded = use_signal(Vec::<String>::new);
@@ -92,8 +81,10 @@ pub fn subjects_interface_view() -> Element {
     // Get the active session row counts for the subject view
     // DM: these are combined into a single async block to prevent concurrent mutable borrows of the same user state
     let _ = use_resource(move || async move {
-        // Get the active session schema for the subject view
-        clear_subjects_schema_state.send(ClearSubjectSchemaState {});
+        // Get the active session schema for the subject view        
+        subject_schema_names.set(Vec::new());
+        subject_schema_columns.set(Vec::new());
+        subject_schema_types.set(Vec::new());
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
             .with_subject(SessionContextTableNames::Subjects.get_name())
@@ -125,26 +116,24 @@ pub fn subjects_interface_view() -> Element {
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        sync_current_subjects_schema_state.send(SyncCurrentSubjectSchemaState {
-                            subject_schema_name: row
-                                .get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            subject_schema_column: row
-                                .get("column_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            subject_schema_type: row
-                                .get("type_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        });
+                        subject_schema_names.push(row
+                            .get("subject_name")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        subject_schema_columns.push(row
+                            .get("column_name")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        subject_schema_types.push(row
+                            .get("type_name")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
                     }
                 }
             }
@@ -173,26 +162,24 @@ pub fn subjects_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
-                        sync_current_subjects_schema_state.send(SyncCurrentSubjectSchemaState {
-                            subject_schema_name: row
-                                .get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            subject_schema_column: row
-                                .get("column_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            subject_schema_type: row
-                                .get("type_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        });
+                        subject_schema_names.push(row
+                            .get("subject_name")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        subject_schema_columns.push(row
+                            .get("column_name")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        subject_schema_types.push(row
+                            .get("type_name")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
                     }
                 }
             }
@@ -200,7 +187,8 @@ pub fn subjects_interface_view() -> Element {
         }
 
         // Get the active session row counts for the subject view
-        clear_subjects_num_rows_state.send(ClearSubjectNumRowsState {});
+        subject_names.set(Vec::new());
+        subject_num_rows.set(Vec::new());
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
             .with_subject(SessionContextTableNames::SubjectsNumRows.get_name())
@@ -236,15 +224,13 @@ pub fn subjects_interface_view() -> Element {
                         } else {
                             0
                         };
-                        sync_current_subjects_rows_state.send(SyncCurrentSubjectNumRowsState {
-                            subject_name: row
-                                .get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            subject_num_row: num_rows,
-                        });
+                        subject_names.push(row
+                            .get("subject_name")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        subject_num_rows.push(num_rows);
                     }
                 }
             }
@@ -273,20 +259,13 @@ pub fn subjects_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
-                        let num_rows = if let Some(Value::Number(val)) = row.get("num_rows") {
-                            val.as_u64().unwrap().try_into().unwrap()
-                        } else {
-                            0
-                        };
-                        sync_current_subjects_rows_state.send(SyncCurrentSubjectNumRowsState {
-                            subject_name: row
-                                .get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            subject_num_row: num_rows,
-                        });
+                        subject_names.push(row
+                            .get("subject_name")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        subject_num_rows.push(num_rows);
                     }
                 }
             }
@@ -305,7 +284,7 @@ pub fn subjects_interface_view() -> Element {
                 class: "messaging_list",
                 p { "Please activate a session before searching subjects." },
             }
-        } else if SUBJECT_SCHEMA_NAMES.read().is_empty() {
+        } else if subject_schema_names.read().is_empty() {
             div {
                 class: "messaging_list",
                 p { "Waiting to retrieve session plan subject schemas..." },
@@ -313,8 +292,8 @@ pub fn subjects_interface_view() -> Element {
         } else {
             div {
                 class: "messaging_list",
-                subjects_dropdown_menu { active_subject_name: active_subject_name },
-                subjects_schema_table { active_subject_name: active_subject_name }
+                subjects_dropdown_menu { active_subject_name, subject_schema_names },
+                subjects_schema_table { active_subject_name, subject_schema_names, subject_schema_columns, subject_schema_types, subject_names, subject_num_rows }
 
                 if !active_subject_name().is_empty() {
                     div {
@@ -322,7 +301,7 @@ pub fn subjects_interface_view() -> Element {
                         div {
                             id: "file_upload_extend_form",
                             h2 { "Upload data to subject {active_subject_name}" },
-                            attach_files_dropbox {active_subject_name: active_subject_name, filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded}
+                            attach_files_dropbox {active_subject_name, filenames_uploaded, files_uploaded, extensions_uploaded}
                         }
                         div {
                             id: "file_download_form",
@@ -330,17 +309,17 @@ pub fn subjects_interface_view() -> Element {
                             div {
                                 class: "drop_box",
                                 p { "CSV (comma delimiter with headers)" },
-                                download_files_button { data_format: use_signal(|| DataFormat::CsvDefault), active_subject_name: active_subject_name, files_downloaded: files_downloaded, filenames_downloaded: filenames_downloaded, extensions_downloaded: extensions_downloaded}
+                                download_files_button { data_format: use_signal(|| DataFormat::CsvDefault), active_subject_name, filenames_downloaded, files_downloaded, extensions_downloaded}
                             }
                         }
                     }
 
                     if !files_uploaded.read().is_empty() {
-                        upload_files_list {filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded}
+                        upload_files_list {filenames_uploaded, files_uploaded, extensions_uploaded}
                     }
 
                     if !files_downloaded.read().is_empty() {
-                        download_files_list {files_downloaded: files_downloaded, filenames_downloaded: filenames_downloaded, extensions_downloaded: extensions_downloaded}
+                        download_files_list {filenames_downloaded, files_downloaded, extensions_downloaded}
                     }
                 }
             }
@@ -349,14 +328,14 @@ pub fn subjects_interface_view() -> Element {
 }
 
 #[component]
-pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>) -> Element {
+pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>, subject_schema_names: Signal<Vec<String>>) -> Element {
     let mut show_subject_dropdown = use_signal(|| false);
     #[allow(clippy::redundant_closure)]
     let mut subject_dropdown = use_signal(|| String::new());
 
     let subjects_vec = use_memo(move || {
         get_non_duplicated_sorted_subjects(
-            &SUBJECT_SCHEMA_NAMES
+            &subject_schema_names
                 .read()
                 .iter()
                 .map(|s| s.as_str())
@@ -421,20 +400,22 @@ pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>) -> Elemen
 }
 
 #[component]
-pub fn subjects_schema_table(active_subject_name: Signal<String>) -> Element {
+pub fn subjects_schema_table(active_subject_name: Signal<String>, 
+    subject_schema_names: Signal<Vec<String>>, subject_schema_columns: Signal<Vec<String>>, subject_schema_types: Signal<Vec<String>>, 
+    subject_names: Signal<Vec<String>>, subject_num_rows: Signal<Vec<usize>>) -> Element {
     let schema_columns_types = use_memo(move || get_subject_schema_col_type_by_subject_name(
         active_subject_name.read().as_str(),
-        &SUBJECT_SCHEMA_NAMES
+        &subject_schema_names
             .read()
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>(),
-        &SUBJECT_SCHEMA_COLUMNS
+        &subject_schema_columns
             .read()
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>(),
-        &SUBJECT_SCHEMA_TYPES
+        &subject_schema_types
             .read()
             .iter()
             .map(|s| s.as_str())
@@ -443,12 +424,12 @@ pub fn subjects_schema_table(active_subject_name: Signal<String>) -> Element {
     
     let num_rows = use_memo(move || get_subject_num_rows_by_subject_name(
         active_subject_name.read().as_str(),
-        &SUBJECT_NAMES
+        &subject_names
             .read()
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>(),
-        &SUBJECT_NUM_ROWS.read().iter().collect::<Vec<_>>(),
+        &subject_num_rows.read().iter().collect::<Vec<_>>(),
     ));
 
     rsx! {
@@ -490,8 +471,8 @@ pub fn attach_files_dropbox(active_subject_name: Signal<String>, mut files_uploa
         div {
             class: "drop_box",
             p { "CSV (comma delimiter with headers)" },
-            attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: active_subject_name, filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded },
-            attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: active_subject_name, filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded },
+            attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name, filenames_uploaded, files_uploaded, extensions_uploaded },
+            attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name, filenames_uploaded, files_uploaded, extensions_uploaded },
         }
     }
 }
@@ -604,8 +585,8 @@ pub fn upload_files_list(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>
                     }
                 })}
             },
-            upload_files_button {filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded}
-            clear_upload_files_button {filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded}
+            upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
+            clear_upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
         }
     }
 }
@@ -797,7 +778,7 @@ pub fn download_files_list(mut files_downloaded: Signal<Vec<String>>, mut filena
                     }
                 })}
             },
-            clear_download_files_button {files_downloaded: files_downloaded, filenames_downloaded: filenames_downloaded, extensions_downloaded: extensions_downloaded}
+            clear_download_files_button {files_downloaded, filenames_downloaded, extensions_downloaded}
         }
     }
 }
