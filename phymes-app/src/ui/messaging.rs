@@ -220,8 +220,7 @@ pub fn messaging_interface_footer() -> Element {
     let sync_current_message_state = use_coroutine_handle::<SyncCurrentMessageState>();
     let sync_message_content = use_coroutine_handle::<SyncCurrentMessageContentState>();
 
-    #[allow(clippy::redundant_closure)]
-    let mut prompt = use_signal(|| String::new());
+    let mut prompt = use_signal(String::new);
 
     // render the chat messages
     rsx! {

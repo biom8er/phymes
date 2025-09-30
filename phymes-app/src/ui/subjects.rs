@@ -2,7 +2,7 @@ use bytes::Bytes;
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::{
-    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_trait::TableTrait, table_publish::TablePublish}, task::message::MessageBuilderTrait
+    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
 use phymes_server::handlers::sign_in::create_session_name;
 
@@ -33,7 +33,7 @@ use crate::{
         apps::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME},
         sign_in::{EMAIL, JWT},
         subjects::{
-            clear_files_downloaded_state, clear_files_uploaded_state, clear_subject_num_rows_state, clear_subject_schema_state, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, sync_current_active_subject_state, sync_current_files_downloaded_state, sync_current_files_uploaded_state, sync_current_subject_num_rows_state, sync_current_subject_schema_state, ClearFilesDownloadedState, ClearFilesUploadedState, ClearSubjectNumRowsState, ClearSubjectSchemaState, DownloadSubject, SyncCurrentActiveSubjectState, SyncCurrentSubjectNumRowsState, SyncCurrentSubjectSchemaState, SyncFilesDownloadedState, SyncFilesUploadedState, ACTIVE_SUBJECT_NAME, EXTENSIONS_DOWNLOADED, FILENAMES_DOWNLOADED, FILENAMES_UPLOADED, FILES_DOWNLOADED, FILES_UPLOADED, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_HEADERS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES
+            clear_files_downloaded_state, clear_files_uploaded_state, clear_subject_num_rows_state, clear_subject_schema_state, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, sync_current_files_downloaded_state, sync_current_subject_num_rows_state, sync_current_subject_schema_state, ClearFilesDownloadedState, ClearFilesUploadedState, ClearSubjectNumRowsState, ClearSubjectSchemaState, SyncCurrentSubjectNumRowsState, SyncCurrentSubjectSchemaState, SyncFilesDownloadedState, SUBJECT_NAMES, SUBJECT_NUM_ROWS, SUBJECT_SCHEMA_COLUMNS, SUBJECT_SCHEMA_HEADERS, SUBJECT_SCHEMA_NAMES, SUBJECT_SCHEMA_TYPES
         },
     },
     ui::svg_icons::{aws_table_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, fa_trash_icon_svg, ms_attachment_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_code_icon_svg, ms_document_icon_svg, ms_search_icon_svg, ms_video_icon_svg},
@@ -64,13 +64,20 @@ pub fn subjects_interface_view() -> Element {
     let sync_current_subjects_rows_state = use_coroutine_handle::<SyncCurrentSubjectNumRowsState>();
     use_coroutine(clear_subject_num_rows_state);
     let clear_subjects_num_rows_state = use_coroutine_handle::<ClearSubjectNumRowsState>();
-    use_coroutine(clear_files_uploaded_state);
-    let clear_files_uploaded_state = use_coroutine_handle::<ClearFilesUploadedState>();
-    use_coroutine(clear_files_downloaded_state);
-    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
 
     // Global signals
-    let mut active_subject_name = use_signal(String::new);
+    // let SUBJECT_SCHEMA_NAMES = use_signal(Vec::<String>::new);
+    // let SUBJECT_SCHEMA_COLUMNS = use_signal(Vec::<String>::new);
+    // let SUBJECT_SCHEMA_TYPES = use_signal(Vec::<String>::new);
+    // let SUBJECT_NAMES = use_signal(Vec::<String>::new);
+    // let SUBJECT_NUM_ROWS = use_signal(Vec::<usize>::new);
+    let active_subject_name = use_signal(String::new);
+    let files_uploaded = use_signal(Vec::<SessionInterfaceMessage>::new);
+    let filenames_uploaded = use_signal(Vec::<String>::new);
+    let extensions_uploaded = use_signal(Vec::<String>::new);
+    let files_downloaded = use_signal(Vec::<String>::new);
+    let filenames_downloaded = use_signal(Vec::<String>::new);
+    let extensions_downloaded = use_signal(Vec::<String>::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
@@ -285,11 +292,6 @@ pub fn subjects_interface_view() -> Element {
             }
             Err(err) => tracing::error!("{err:?}"),
         }
-        
-        // Clear downloaded and uploaded files whenever the active session changes
-        tracing::debug!("clear_files_downloaded_state");
-        clear_files_downloaded_state.send(ClearFilesDownloadedState{});
-        clear_files_uploaded_state.send(ClearFilesUploadedState{});
     });
 
     rsx! {
@@ -311,8 +313,8 @@ pub fn subjects_interface_view() -> Element {
         } else {
             div {
                 class: "messaging_list",
-                subjects_dropdown_menu { active_subject_name: active_subject_name.clone() },
-                subjects_schema_table { active_subject_name: active_subject_name.clone() }
+                subjects_dropdown_menu { active_subject_name: active_subject_name },
+                subjects_schema_table { active_subject_name: active_subject_name }
 
                 if !active_subject_name().is_empty() {
                     div {
@@ -320,7 +322,7 @@ pub fn subjects_interface_view() -> Element {
                         div {
                             id: "file_upload_extend_form",
                             h2 { "Upload data to subject {active_subject_name}" },
-                            attach_files_dropbox {active_subject_name: active_subject_name.clone()}
+                            attach_files_dropbox {active_subject_name: active_subject_name, filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded}
                         }
                         div {
                             id: "file_download_form",
@@ -328,17 +330,17 @@ pub fn subjects_interface_view() -> Element {
                             div {
                                 class: "drop_box",
                                 p { "CSV (comma delimiter with headers)" },
-                                download_files_button { data_format: use_signal(|| DataFormat::CsvDefault), active_subject_name: active_subject_name.clone()}
+                                download_files_button { data_format: use_signal(|| DataFormat::CsvDefault), active_subject_name: active_subject_name, files_downloaded: files_downloaded, filenames_downloaded: filenames_downloaded, extensions_downloaded: extensions_downloaded}
                             }
                         }
                     }
 
-                    if !FILES_UPLOADED.read().is_empty() {
-                        upload_files_list {}
+                    if !files_uploaded.read().is_empty() {
+                        upload_files_list {filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded}
                     }
 
-                    if !FILES_DOWNLOADED.read().is_empty() {
-                        download_files_list {}
+                    if !files_downloaded.read().is_empty() {
+                        download_files_list {files_downloaded: files_downloaded, filenames_downloaded: filenames_downloaded, extensions_downloaded: extensions_downloaded}
                     }
                 }
             }
@@ -348,13 +350,6 @@ pub fn subjects_interface_view() -> Element {
 
 #[component]
 pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>) -> Element {
-    use_coroutine(sync_current_active_subject_state);
-    let sync_current_active_subject_state = use_coroutine_handle::<SyncCurrentActiveSubjectState>();
-    use_coroutine(clear_files_uploaded_state);
-    let clear_files_uploaded_state = use_coroutine_handle::<ClearFilesUploadedState>();
-    use_coroutine(clear_files_downloaded_state);
-    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
-
     let mut show_subject_dropdown = use_signal(|| false);
     #[allow(clippy::redundant_closure)]
     let mut subject_dropdown = use_signal(|| String::new());
@@ -393,18 +388,9 @@ pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>) -> Elemen
             },
             button {
                 class: "dropdown_form_button",
-                onclick: move |_evt| async move {
-                    // Set the active subject state
-                    // sync_current_active_subject_state.send(SyncCurrentActiveSubjectState {
-                    //     name: subject_dropdown.read().to_string(),
-                    // });
+                onclick: move |_evt| {
                     active_subject_name.set(subject_dropdown.read().to_string());
                     subject_dropdown.set(String::new());
-        
-                    // Clear downloaded and uploaded files whenever the active session changes
-                    tracing::debug!("clear_files_downloaded_state");
-                    clear_files_downloaded_state.send(ClearFilesDownloadedState{});
-                    clear_files_uploaded_state.send(ClearFilesUploadedState{});
                 },
                 svg { dangerous_inner_html: ms_search_icon_svg() },
             },
@@ -499,24 +485,20 @@ pub fn subjects_schema_table(active_subject_name: Signal<String>) -> Element {
 }
 
 #[component]
-pub fn attach_files_dropbox(active_subject_name: Signal<String>) -> Element {
+pub fn attach_files_dropbox(active_subject_name: Signal<String>, mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
     rsx! {
         div {
             class: "drop_box",
             p { "CSV (comma delimiter with headers)" },
-            attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: active_subject_name.clone() },
-            attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: active_subject_name.clone() },
+            attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: active_subject_name, filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded },
+            attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: active_subject_name, filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded },
         }
     }
 }
 
 #[component]
-pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<String>, active_subject_name: Signal<String>) -> Element {
-    use_coroutine(sync_current_files_uploaded_state);
-    let sync_current_files_uploaded_state = use_coroutine_handle::<SyncFilesUploadedState>();
-
-    #[allow(unused_mut)]
-    let mut enable_directory_upload = use_signal(|| false);
+pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<String>, active_subject_name: Signal<String>, mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
+    let enable_directory_upload = use_signal(|| false);
 
     let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublish| async move {
         let files = file_engine.files();
@@ -540,11 +522,9 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
                                 .unwrap()
                                 .build()
                                 .unwrap();
-                            sync_current_files_uploaded_state.send(SyncFilesUploadedState {
-                                file: data,
-                                filename: file_name.to_string(),
-                                extension: ext.to_str().unwrap().to_string()
-                            });
+                            files_uploaded.push(data);
+                            filenames_uploaded.push(file_name.to_string());
+                            extensions_uploaded.push(ext.to_str().unwrap().to_string());
                         }
                     }
                     Err(err) => tracing::error!("{err:?}"),
@@ -603,20 +583,20 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
 }
 
 #[component]
-pub fn upload_files_list() -> Element {
+pub fn upload_files_list(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
     rsx! {
         div {
             class: "files",
             p { "Files to upload" },
             ul {
                 class: "file_list",
-                {FILENAMES_UPLOADED().iter().enumerate().map(|(i, f)| {
+                {filenames_uploaded().iter().enumerate().map(|(i, f)| {
                     rsx! {
                         li {
                             key: "{i}",
                             div {
                                 class: "files",
-                                svg { dangerous_inner_html: aws_table_icon_svg() }, // color red if failure with error message
+                                svg { dangerous_inner_html: extension_to_icon_svg(extensions_uploaded().get(i).unwrap()) },
                                 h3 { "{f}" },
                                 // div { class: "loader" },
                             }
@@ -624,21 +604,19 @@ pub fn upload_files_list() -> Element {
                     }
                 })}
             },
-            upload_files_button {}
-            clear_upload_files_button {}
+            upload_files_button {filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded}
+            clear_upload_files_button {filenames_uploaded: filenames_uploaded, files_uploaded: files_uploaded, extensions_uploaded: extensions_uploaded}
         }
     }
 }
 
 #[component]
-pub fn upload_files_button() -> Element {
-    use_coroutine(clear_files_uploaded_state);
-    let clear_files_uploaded_state = use_coroutine_handle::<ClearFilesUploadedState>();
+pub fn upload_files_button(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
     rsx! {
         button {
             onclick: move |_| async move {
                 // Send files to the server
-                for file in FILES_UPLOADED.read().iter() {
+                for file in files_uploaded.read().iter() {
                     let data_serialized = serde_json::to_string(file).unwrap();
                     let route = "/app/v1/put_state";
 
@@ -685,8 +663,9 @@ pub fn upload_files_button() -> Element {
                 }
 
                 // Clean up the files
-                tracing::debug!("clear_files_uploaded_state");
-                clear_files_uploaded_state.send(ClearFilesUploadedState{});
+                files_uploaded.set(Vec::new());
+                filenames_uploaded.set(Vec::new());
+                extensions_uploaded.set(Vec::new());
             },
             svg { dangerous_inner_html: b8_send_icon_svg() }
         },
@@ -694,14 +673,13 @@ pub fn upload_files_button() -> Element {
 }
 
 #[component]
-pub fn clear_upload_files_button() -> Element {
-    use_coroutine(clear_files_uploaded_state);
-    let clear_files_uploaded_state = use_coroutine_handle::<ClearFilesUploadedState>();
+pub fn clear_upload_files_button(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
     rsx! {
         button {
             onclick: move |_| {
-                tracing::debug!("clear_files_uploaded_state");
-                clear_files_uploaded_state.send(ClearFilesUploadedState{});
+                files_uploaded.set(Vec::new());
+                filenames_uploaded.set(Vec::new());
+                extensions_uploaded.set(Vec::new());
             },
             svg { dangerous_inner_html: fa_trash_icon_svg() }
         },
@@ -709,19 +687,14 @@ pub fn clear_upload_files_button() -> Element {
 }
 
 #[component]
-pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_name: Signal<String>) -> Element {
-    use_coroutine(sync_current_files_downloaded_state);
-    let sync_current_files_downloaded_state = use_coroutine_handle::<SyncFilesDownloadedState>();
-    use_coroutine(clear_files_downloaded_state);
-    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
-
+pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_name: Signal<String>, mut files_downloaded: Signal<Vec<String>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
     rsx! {
         button {
             class: "dropdown_form_button",
             onclick: move |_evt| async move {
-                // Get csv file from the server
-                tracing::debug!("clear_files_downloaded_state");
-                clear_files_downloaded_state.send(ClearFilesDownloadedState{});
+                files_downloaded.set(Vec::new());
+                filenames_downloaded.set(Vec::new());
+                extensions_downloaded.set(Vec::new());
 
                 let data = SessionInterfaceMessage::get_builder()
                     .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
@@ -754,11 +727,9 @@ pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_nam
                             let csv_chunk = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                             csv_chunks.push(csv_chunk);
                         }
-                        sync_current_files_downloaded_state.send(SyncFilesDownloadedState {
-                            file: csv_chunks.join(""),
-                            filename: active_subject_name.read().as_str().to_string(),
-                            extension: data_format().to_extension().to_string()
-                        });
+                        files_downloaded.push(csv_chunks.join(""));
+                        filenames_downloaded.push(active_subject_name.read().as_str().to_string());
+                        extensions_downloaded.push(data_format().to_extension().to_string());
                     },
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
                 }
@@ -800,22 +771,22 @@ pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_nam
 }
 
 #[component]
-pub fn download_files_list() -> Element {
+pub fn download_files_list(mut files_downloaded: Signal<Vec<String>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
     rsx! {
         div {
             class: "files",
             p { "Files to download" },
             ul {
                 class: "file_list",
-                {(0..FILES_DOWNLOADED().len()).map(|i| {
-                    let f_download = format!("{}.{}", FILENAMES_DOWNLOADED().get(i).unwrap(), EXTENSIONS_DOWNLOADED().get(i).unwrap());
-                    let f_href = format!("data:text/plain,{}", FILES_DOWNLOADED().get(i).unwrap());
+                {(0..files_downloaded().len()).map(|i| {
+                    let f_download = format!("{}.{}", filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
+                    let f_href = format!("data:text/plain,{}", files_downloaded().get(i).unwrap());
                     rsx! {
                         li {
                             // key: "{i}",
                             div {
                                 class: "files",
-                                svg { dangerous_inner_html: extension_to_icon_svg(EXTENSIONS_DOWNLOADED().get(i).unwrap()) },
+                                svg { dangerous_inner_html: extension_to_icon_svg(extensions_downloaded().get(i).unwrap()) },
                                 a {
                                     href: f_href.to_owned(),
                                     download: f_download.to_owned(),
@@ -826,21 +797,20 @@ pub fn download_files_list() -> Element {
                     }
                 })}
             },
-            clear_download_files_button {}
+            clear_download_files_button {files_downloaded: files_downloaded, filenames_downloaded: filenames_downloaded, extensions_downloaded: extensions_downloaded}
         }
     }
 }
 
 #[component]
-pub fn clear_download_files_button() -> Element {
-    use_coroutine(clear_files_downloaded_state);
-    let clear_files_downloaded_state = use_coroutine_handle::<ClearFilesDownloadedState>();
+pub fn clear_download_files_button(mut files_downloaded: Signal<Vec<String>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
 
     rsx! {
         button {
-            onclick: move |_| async move {
-                tracing::debug!("clear_files_downloaded_state");
-                clear_files_downloaded_state.send(ClearFilesDownloadedState{});
+            onclick: move |_| {
+                files_downloaded.set(Vec::new());
+                filenames_downloaded.set(Vec::new());
+                extensions_downloaded.set(Vec::new());
             },
             svg { dangerous_inner_html: fa_trash_icon_svg() }
         },
