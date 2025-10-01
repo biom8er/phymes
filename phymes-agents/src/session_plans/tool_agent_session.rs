@@ -55,6 +55,10 @@ pub struct ToolAgentSession<'a> {
     pub message_aggregator_task_2_name: &'a str,
     pub message_aggregator_processor_2_name: &'a str,
     pub message_aggregator_runtime_env_name: &'a str,
+    /// Attachment aggregator for the tool task
+    pub attachment_aggregator_task_name: &'a str,
+    pub attachment_aggregator_processor_name: &'a str,
+    pub attachment_aggregator_runtime_env_name: &'a str,
     /// Extract tabular data from the user attachments
     pub extract_tabular_data_task_name: &'a str,
     pub extract_tabular_data_processor_name: &'a str,
@@ -109,6 +113,9 @@ impl Default for ToolAgentSession<'_> {
             message_aggregator_task_2_name: "message_aggregator_task_2",
             message_aggregator_processor_2_name: "message_aggregator_processor_2",
             message_aggregator_runtime_env_name: "message_aggregator_rt_1",
+            attachment_aggregator_task_name: "attachment_aggregator_task_1",
+            attachment_aggregator_processor_name: "attachment_aggregator_processor_1",
+            attachment_aggregator_runtime_env_name: "attachment_aggregator_rt_1",
             state_scores_table_name: "available_data_1",
             state_tools_table_name: "tools",
             chat_api_url: Some("http://0.0.0.0:8000/v1"),
@@ -157,6 +164,11 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 task_name: self.message_aggregator_task_2_name.to_string(),
                 runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.attachment_aggregator_task_name.to_string(),
+                runtime_env_name: self.attachment_aggregator_runtime_env_name.to_string(),
+                processor_names: vec![self.attachment_aggregator_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.chat_task_name.to_string(),
@@ -242,6 +254,24 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 },
                 TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
+                },
+            ],
+            AnyTableNameSubscribe::new_box(),
+        ));
+        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
+            self.attachment_aggregator_processor_name,
+            &[TablePublish::Extend {
+                table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
+            }],
+            &[
+                TableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
+                },
+                TableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
+                },
+                TableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.attachment_aggregator_processor_name.to_string(),
                 },
             ],
             AnyTableNameSubscribe::new_box(),
@@ -527,6 +557,12 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap()
             .build()
             .unwrap();
+        let aggregator_3_state = TableBuilder::new()
+            .with_name(self.attachment_aggregator_processor_name)
+            .with_json(&aggregator_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Extract tabular data config        
         let csv_format_str = serde_json::to_string(&DataFormat::CsvDefault).unwrap();
@@ -604,6 +640,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             candle_message_parser_state,
             aggregator_1_state,
             aggregator_2_state,
+            aggregator_3_state,
             extract_tabular_data_state,
             attachmen_state,
             summary_state_1,
@@ -621,6 +658,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AvailableSubjects::Configs.to_table(Some(self.tool_task_name), None).unwrap(),
             AvailableSubjects::Configs.to_table(Some(self.hitl_task_name), None).unwrap(),
             AvailableInterfaceSubjects::AssistantCsv.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::AggregatedAttachments.to_table(None, None).unwrap(),
         ])
     }
 }
