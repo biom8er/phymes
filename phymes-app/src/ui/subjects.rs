@@ -1,8 +1,9 @@
 use bytes::Bytes;
 use dioxus::prelude::*;
 use futures::StreamExt;
+use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
 use phymes_core::{
-    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
+    schemas::{available_subjects::create_timestamp_micros, blob::create_blob_batch}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, task::message::MessageBuilderTrait
 };
 use phymes_server::handlers::sign_in::create_session_name;
 
@@ -46,7 +47,19 @@ pub fn extension_to_icon_svg(extension: &str) -> String {
         "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" => ms_search_icon_svg(),
         "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" => ms_code_icon_svg(),
         "csv" | "tsv" => aws_table_icon_svg(),
-        _ => ms_attachment_icon_svg(), // default icon for unknown file types
+        _ => ms_attachment_icon_svg(),
+    }
+}
+
+pub fn extension_to_subject(extension: &str) -> AvailableInterfaceSubjects {
+    match extension.to_lowercase().as_str() {
+        "pdf" => AvailableInterfaceSubjects::UserPdf,
+        "mp3" | "wav" | "flac" | "aac" => AvailableInterfaceSubjects::UserAudio,
+        "mp4" | "mov" | "avi" | "mkv" => AvailableInterfaceSubjects::UserVideo,
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" => AvailableInterfaceSubjects::UserImage,
+        "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" => AvailableInterfaceSubjects::UserScript,
+        "csv" | "tsv" => AvailableInterfaceSubjects::UserCsv,
+        _ => AvailableInterfaceSubjects::UserCsv,
     }
 }
 
@@ -314,13 +327,30 @@ pub fn subjects_interface_view() -> Element {
                         }
                     }
 
-                    if !files_uploaded.read().is_empty() {
-                        upload_files_list {filenames_uploaded, files_uploaded, extensions_uploaded}
-                    }
-
-                    if !files_downloaded.read().is_empty() {
-                        download_files_list {filenames_downloaded, files_downloaded, extensions_downloaded}
-                    }
+                    div {
+                        class: "file_upload_form",
+                        if !files_uploaded.read().is_empty() {
+                            div {
+                                upload_files_list {filenames_uploaded, files_uploaded, extensions_uploaded}
+                            }
+                            div {
+                                div {
+                                    upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
+                                    clear_upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
+                                }
+                            }
+                        }                        
+                        if !files_downloaded.read().is_empty() {
+                            div {
+                                download_files_list {filenames_downloaded, files_downloaded, extensions_downloaded}                        
+                            }
+                            div {
+                                div {
+                                    clear_download_files_button {files_downloaded, filenames_downloaded, extensions_downloaded}
+                                }
+                            }
+                        }
+                    }                  
                 }
             }
         }
@@ -471,19 +501,20 @@ pub fn attach_files_dropbox(active_subject_name: Signal<String>, mut files_uploa
         div {
             class: "drop_box",
             p { "CSV (comma delimiter with headers)" },
-            attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name, filenames_uploaded, files_uploaded, extensions_uploaded },
-            attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name, filenames_uploaded, files_uploaded, extensions_uploaded },
+            attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), filenames_uploaded, files_uploaded, extensions_uploaded },
+            attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), filenames_uploaded, files_uploaded, extensions_uploaded },
         }
     }
 }
 
 #[component]
-pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<String>, active_subject_name: Signal<String>, mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
+pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<String>, active_subject_name: Option<Signal<String>>, mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
     let enable_directory_upload = use_signal(|| false);
 
     let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublish| async move {
         let files = file_engine.files();
         for file_name in &files {
+
             // Determine the file type
             let file_path = std::path::Path::new(file_name);
             match file_path.extension() {
@@ -491,21 +522,59 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
                 Some(ext) => match DataFormat::from_extension(ext.to_str().unwrap()) {
                     Ok(data_format) => {
                         if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+
+                            // Determine the subject based on the file extension if no active subject is set
+                            let extension = ext.to_str().unwrap();
+                            let subject_name = if let Some(name) = &active_subject_name {
+                                name.read().to_string()
+                            } else {
+                                extension_to_subject(extension).to_string()
+                            };
+
+                            // Wrap the contents into a blob batch if no active subject is set
+                            let (message, format) = match active_subject_name {
+                                Some(_) => (Bytes::from(contents).to_vec(), data_format),
+                                None => {
+                                    let bytes = Bytes::from(contents).to_vec();
+                                    let batch = create_blob_batch(
+                                        vec![file_name.to_string()],
+                                        vec![extension.to_string()],
+                                        vec![bytes],
+                                        vec!["user".to_string()],
+                                        vec![create_timestamp_micros()],
+                                    ).unwrap();
+                                    let message = Table::get_builder()
+                                        .with_name(subject_name.as_str())
+                                        .with_record_batches(vec![batch]).unwrap()
+                                        .build().unwrap()
+                                        .to_ipc_stream().unwrap();
+                                    (message, DataFormat::Ipc)
+                                }
+                            };
+
+                            // Update the publish method
+                            let publish = match publish {
+                                TablePublish::Extend {..} => TablePublish::Extend { table_name: subject_name.clone() },
+                                TablePublish::Replace {..} => TablePublish::Replace { table_name: subject_name.clone() },
+                                _ => TablePublish::None,
+                            };
+
+                            // Create the message to upload
                             let data = SessionInterfaceMessage::get_builder()
                                 .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                                .with_format(&data_format)
+                                .with_format(&format)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                 .with_update(&publish)
                                 .with_stream(false)
-                                .with_subject(&active_subject_name.read())
-                                .with_message(Bytes::from(contents).to_vec())
+                                .with_subject(&subject_name)
+                                .with_message(message)
                                 .make_name()
                                 .unwrap()
                                 .build()
                                 .unwrap();
                             files_uploaded.push(data);
                             filenames_uploaded.push(file_name.to_string());
-                            extensions_uploaded.push(ext.to_str().unwrap().to_string());
+                            extensions_uploaded.push(extension.to_string());
                         }
                     }
                     Err(err) => tracing::error!("{err:?}"),
@@ -518,9 +587,7 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
         if let Some(file_engine) = evt.files() {
             read_files(
                 file_engine,
-                TablePublish::Extend {
-                    table_name: active_subject_name.read().to_string(),
-                },
+                TablePublish::Extend { table_name: "".to_string() }
             )
             .await;
         }
@@ -530,9 +597,7 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
         if let Some(file_engine) = evt.files() {
             read_files(
                 file_engine,
-                TablePublish::Replace {
-                    table_name: active_subject_name.read().to_string(),
-                },
+                TablePublish::Replace { table_name: "".to_string() }
             )
             .await;
         }
@@ -585,8 +650,6 @@ pub fn upload_files_list(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>
                     }
                 })}
             },
-            upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
-            clear_upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
         }
     }
 }
@@ -778,7 +841,6 @@ pub fn download_files_list(mut files_downloaded: Signal<Vec<String>>, mut filena
                     }
                 })}
             },
-            clear_download_files_button {files_downloaded, filenames_downloaded, extensions_downloaded}
         }
     }
 }

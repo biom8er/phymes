@@ -2,6 +2,8 @@
 use dioxus::prelude::*;
 
 use crate::state::sign_in::{BUILDER, DEBUGGER};
+use crate::ui::attachments::attachments_interface_view;
+use crate::ui::svg_icons::ms_attachment_icon_svg;
 
 use super::messaging::messaging_interface_view;
 use super::metrics::metrics_modal;
@@ -25,8 +27,9 @@ pub enum HeaderMenu {
     Account,
     Apps,
     Builds,
+    Messages,
+    Attachments,
     Subjects,
-    Message,
     Metrics,
 }
 
@@ -37,8 +40,9 @@ impl HeaderMenu {
             Self::Account => "Account",
             Self::Apps => "Apps",
             Self::Builds => "Builds",
+            Self::Messages => "Messages",
+            Self::Attachments => "Attachments",
             Self::Subjects => "Subjects",
-            Self::Message => "Message",
             Self::Metrics => "Metrics",
         }
     }
@@ -143,9 +147,15 @@ pub fn main_window() -> Element {
                     }
                     button {
                         onclick: move |_| async move {
-                            header_menu.set(HeaderMenu::Message);
+                            header_menu.set(HeaderMenu::Messages);
                         },
                         svg { dangerous_inner_html: ms_message_icon_svg() }
+                    }
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Attachments);
+                        },
+                        svg { dangerous_inner_html: ms_attachment_icon_svg() }
                     }
                 }
                 if DEBUGGER() {
@@ -175,9 +185,11 @@ pub fn main_window() -> Element {
                 apps_interface_view {},
             } else if header_menu.read().as_str() == "Subjects" {
                 subjects_interface_view {},
-            } else if header_menu.read().as_str() == "Message" {
+            } else if header_menu.read().as_str() == "Messages" {
                 messaging_interface_view {},
-            }else if header_menu.read().as_str() == "Metrics" {
+            } else if header_menu.read().as_str() == "Attachments" {
+                attachments_interface_view {},
+            } else if header_menu.read().as_str() == "Metrics" {
                 metrics_modal {},
             }
         }
@@ -342,9 +354,17 @@ pub fn about_text_modal() -> Element {
                 li {
                     div {
                         class: "help_li_item",
-                        h2 { "{HeaderMenu::Message.as_str()}" }
+                        h2 { "{HeaderMenu::Messages.as_str()}" }
                         svg { dangerous_inner_html: ms_message_icon_svg() }
                         p { "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated." }
+                    }
+                }
+                li {
+                    div {
+                        class: "help_li_item",
+                        h2 { "{HeaderMenu::Attachments.as_str()}" }
+                        svg { dangerous_inner_html: ms_message_icon_svg() }
+                        p { "The attachment history for the active session plan. A file upload and download interface is provided for users to publish attachments to the attachments subject and to receive subscriptions from the attachments subjects when the attachments subjects are updated." }
                     }
                 }
                 li {

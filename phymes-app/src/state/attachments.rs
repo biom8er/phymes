@@ -1,58 +1,45 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-// General imports
-use futures::StreamExt;
-use serde::{Deserialize, Serialize};
-
-// Current message state
-#[allow(clippy::redundant_closure)]
-pub static ATTACHMENTS_ROLE: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
-#[allow(clippy::redundant_closure)]
-pub static ATTACHMENTS_CONTENT: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
-#[allow(clippy::redundant_closure)]
-pub static ATTACHMENTS_INDEX: GlobalSignal<Vec<u32>> = Signal::global(|| Vec::new());
-#[allow(clippy::redundant_closure)]
-pub static ATTACHMENTS_TIMESTAMP: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
-#[allow(clippy::redundant_closure)]
-pub static ATTACHMENTS_FILENAME: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
-#[allow(clippy::redundant_closure)]
-pub static ATTACHMENTS_EXTENSION: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SyncCurrentAttachmentsState {
-    pub role: String,
-    pub content: String,
-    pub timestamp: String,
-    pub filename: String,
-    pub extension: String,
-}
-
-pub async fn sync_current_attachments_state(mut rx: UnboundedReceiver<SyncCurrentAttachmentsState>) {
-    while let Some(updated_state) = rx.next().await {
-        (*ATTACHMENTS_ROLE.write()).push(updated_state.role);
-        (*ATTACHMENTS_CONTENT.write()).push(updated_state.content);
-        if ATTACHMENTS_INDEX.len() == 0 {
-            (*ATTACHMENTS_INDEX.write()).push(0);
+/// Update the attachments content state by adding to the option at the specified index
+pub fn update_attachments_content_state(mut attachments_contents: Signal<Vec<Option<String>>>, attachments_content_update: &str, index: usize) {
+    if let Some(mut existing_content) = attachments_contents.get_mut(index) {
+        if let Some(content) = existing_content.as_mut() {
+            content.push_str(attachments_content_update);
         } else {
-            let mut index: u32 = *ATTACHMENTS_INDEX.last().unwrap();
-            index += 1;
-            (*ATTACHMENTS_INDEX.write()).push(index);
+            *existing_content = Some(attachments_content_update.to_owned());
         }
-        (*ATTACHMENTS_TIMESTAMP.write()).push(updated_state.timestamp);
-        (*ATTACHMENTS_FILENAME.write()).push(updated_state.filename);
-        (*ATTACHMENTS_EXTENSION.write()).push(updated_state.extension);
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ClearCurrentAttachmentsState {}
+/// Clear the attachments state
+pub fn clear_attachments_state(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<String>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>) {
+    attachments_roles.set(Vec::new());
+    attachments_contents.set(Vec::new());
+    attachments_indices.set(Vec::new());
+    attachments_timestamps.set(Vec::new());
+    attachments_filenames.set(Vec::new());
+    attachments_extensions.set(Vec::new());
+}
 
-pub async fn clear_current_attachments_state(mut _rx: UnboundedReceiver<ClearCurrentAttachmentsState>) {
-    (*ATTACHMENTS_ROLE.write()).clear();
-    (*ATTACHMENTS_CONTENT.write()).clear();
-    (*ATTACHMENTS_INDEX.write()).clear();
-    (*ATTACHMENTS_TIMESTAMP.write()).clear();
-    (*ATTACHMENTS_FILENAME.write()).clear();
-    (*ATTACHMENTS_EXTENSION.write()).clear();
+/// Update the attachments state by appending to it
+pub fn update_attachments_state(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<String>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>,
+    attachments_role_update: &str, attachments_content_update: Option<String>, attachments_timestamp_update: i64, attachments_filename_update: &str, attachments_extension_update: &str) {
+    attachments_roles.push(attachments_role_update.to_owned());
+    attachments_contents.push(attachments_content_update);
+    attachments_timestamps.push(attachments_timestamp_update);
+    attachments_filenames.push(attachments_filename_update.to_owned());
+    attachments_extensions.push(attachments_extension_update.to_owned());
+
+    // Update the index in a different scope
+    let index = use_memo(move || {
+        if attachments_indices.len() == 0 {
+            0
+        } else {
+            let mut index: usize = *attachments_indices.last().unwrap();
+            index += 1;
+            index
+        }
+    });
+    attachments_indices.push(index());
 }

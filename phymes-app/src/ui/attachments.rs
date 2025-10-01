@@ -11,7 +11,7 @@ use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
 use phymes_core::{
-    schemas::{available_subjects::{convert_timestamp_micros_to_str, create_timestamp_str, AvailableSubjectsTrait}, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table_trait::TableTrait, table_publish::TablePublish}, task::message::MessageBuilderTrait
+    schemas::available_subjects::convert_timestamp_micros_to_str, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table_publish::TablePublish, table_trait::TableTrait}, task::message::MessageBuilderTrait
 };
 use phymes_server::handlers::sign_in::create_session_name;
 
@@ -31,32 +31,41 @@ use phymes_server::server::{
 // mod imports
 use crate::{
     state::{
-        apps::ACTIVE_SESSION_NAME, attachments::{
-            clear_current_attachments_state, sync_current_attachments_state, ClearCurrentAttachmentsState, SyncCurrentAttachmentsState, ATTACHMENTS_CONTENT, ATTACHMENTS_EXTENSION, ATTACHMENTS_FILENAME, ATTACHMENTS_INDEX, ATTACHMENTS_ROLE, ATTACHMENTS_TIMESTAMP
-        }, sign_in::{EMAIL, JWT}
+        apps::ACTIVE_SESSION_NAME, attachments::update_attachments_state, sign_in::{EMAIL, JWT}
     },
-    ui::svg_icons::{aws_assistant_icon_svg, aws_table_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, ms_arrow_download_icon_svg, ms_attachment_icon_svg, ms_code_icon_svg, ms_document_icon_svg, ms_image_icon_svg, ms_video_icon_svg},
+    ui::{subjects::{attach_files_input, clear_upload_files_button, extension_to_icon_svg, upload_files_button, upload_files_list}, svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg, ms_arrow_download_icon_svg}},
 };
 
 /// View for attachments between the user and AI assistant
 #[component]
 pub fn attachments_interface_view() -> Element {
-    // intialize state and coroutines
-    use_coroutine(sync_current_attachments_state);
-    use_coroutine(clear_current_attachments_state);
-    let sync_current_attachments_state = use_coroutine_handle::<SyncCurrentAttachmentsState>();
-    let clear_current_attachments_state = use_coroutine_handle::<ClearCurrentAttachmentsState>();
+    // Global signals
+    let attachments_roles = use_signal(Vec::<String>::new);
+    let attachments_contents = use_signal(Vec::<Option<String>>::new);
+    let attachments_indices = use_signal(Vec::<usize>::new);
+    let attachments_timestamps = use_signal(Vec::<i64>::new);
+    let attachments_filenames = use_signal(Vec::<String>::new);
+    let attachments_extensions = use_signal(Vec::<String>::new);
+
+    // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
+    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
+        .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+        .with_format(&DataFormat::Bytes)
+        .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+        .with_update(&TablePublish::None)
+        .with_stream(false)
+    );
 
     // Get the last 25 attachments (without the actual blob content) for the attachments view
+    let got_attachments = use_memo(move || !attachments_roles().is_empty());
     let _ = use_resource(move || async move {
-        clear_current_attachments_state.send(ClearCurrentAttachmentsState {});
-        let data = SessionInterfaceMessage::get_builder()
-            .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-            .with_format(&DataFormat::Bytes)
-            .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-            .with_update(&TablePublish::None)
-            .with_stream(false)
-            .with_subject(AvailableInterfaceSubjects::AggregatedAttachments.to_string().as_str())
+        // Prevent re-fetching attachments if we already have some
+        if got_attachments() {
+            return;
+        }
+
+        let data = get_session_state()
+            .with_subject(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
             .make_name()
             .unwrap()
             .build()
@@ -88,15 +97,13 @@ pub fn attachments_interface_view() -> Element {
                         });
                     for row in json_rows.iter() {
                         if row.get("metadata").is_some() {
-                            sync_current_attachments_state.send(SyncCurrentAttachmentsState {
-                                role: row.get("metadata").unwrap().as_str().unwrap().to_string(),
-                                content: "".to_string(),
-                                timestamp: convert_timestamp_micros_to_str(
-                                    row.get("timestamp").unwrap().as_i64().unwrap(),
-                                ),
-                                filename: row.get("filename").unwrap().as_str().unwrap().to_string(),
-                                extension: row.get("extension").unwrap().as_str().unwrap().to_string(),
-                            });
+                            update_attachments_state(attachments_roles, attachments_contents, attachments_indices, attachments_timestamps, attachments_filenames, attachments_extensions,
+                                row.get("metadata").unwrap().as_str().unwrap(),
+                                None,
+                                row.get("timestamp").unwrap().as_i64().unwrap(),
+                                row.get("filename").unwrap().as_str().unwrap(),
+                                row.get("extension").unwrap().as_str().unwrap(),
+                            );
                         }
                     }
                 }
@@ -127,26 +134,22 @@ pub fn attachments_interface_view() -> Element {
                         serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
                         if row.get("metadata").is_some() {
-                            sync_current_attachments_state.send(SyncCurrentAttachmentsState {
-                                role: row.get("metadata").unwrap().as_str().unwrap().to_string(),
-                                content: "".to_string(),
-                                timestamp: convert_timestamp_micros_to_str(
-                                    row.get("timestamp").unwrap().as_i64().unwrap(),
-                                ),
-                                filename: row.get("filename").unwrap().as_str().unwrap().to_string(),
-                                extension: row.get("extension").unwrap().as_str().unwrap().to_string(),
-                            });
+                            update_attachments_state(attachments_roles, attachments_contents, attachments_indices, attachments_timestamps, attachments_filenames, attachments_extensions,
+                                row.get("metadata").unwrap().as_str().unwrap(),
+                                None,
+                                row.get("timestamp").unwrap().as_i64().unwrap(),
+                                row.get("filename").unwrap().as_str().unwrap(),
+                                row.get("extension").unwrap().as_str().unwrap(),
+                            );
                         }
                     }
                 }
             }
-            Err(_err) => (),
+            Err(err) => tracing::error!("{err:?}"),
         }
     });
 
-    // render the chat messages
     rsx! {
-        // Check for sign-in
         if JWT.read().is_empty() {
             div {
                 class: "messaging_list",
@@ -161,20 +164,20 @@ pub fn attachments_interface_view() -> Element {
             ul {
                 id: "attachments",
                 class: "messaging_list",
-                {(0..ATTACHMENTS_ROLE.len()).map(|i| {
-                    let role = ATTACHMENTS_ROLE.get(i).unwrap().to_string();
-                    let index = ATTACHMENTS_INDEX.get(i).unwrap();
-                    let timestamp = ATTACHMENTS_TIMESTAMP.get(i).unwrap().to_string();
-                    let content = ATTACHMENTS_CONTENT.get(i).unwrap().to_string();
-                    let filename = ATTACHMENTS_FILENAME.get(i).unwrap().to_string();
-                    let extension = ATTACHMENTS_EXTENSION.get(i).unwrap().to_string();
+                {(0..attachments_roles.len()).map(|i| {
+                    let role = attachments_roles.get(i).unwrap();
+                    let index = attachments_indices.get(i).unwrap();
+                    let timestamp = convert_timestamp_micros_to_str(*attachments_timestamps.get(i).unwrap());
+                    let content = attachments_contents.get(i).unwrap();
+                    let filename = attachments_filenames.get(i).unwrap();
+                    let extension = attachments_extensions.get(i).unwrap();
                     rsx! {
                         li {
                             key: "{index}",
                             class: "assistant", // we borrow the assistant class for styling
                             div {
                                 class: "entete",
-                                if role == *"assistant" {
+                                if role.as_str() == "assistant" {
                                     svg { dangerous_inner_html: aws_assistant_icon_svg() }
                                     h2 { "AI Assistant" }
                                 } else {
@@ -182,203 +185,62 @@ pub fn attachments_interface_view() -> Element {
                                     h2 { "User" }
                                 }
                                 h3 { "{timestamp}" }
-                                svg { dangerous_inner_html: extension_to_icon_svg(extension) }
-                                if content.is_empty() {
+                                svg { dangerous_inner_html: extension_to_icon_svg(&extension) }
+                                if let Some(f) = content.as_ref() {
+                                    a {
+                                        href: format!("data:text/plain,{}", f),
+                                        download: "{filename}.{extension}",
+                                        "{filename}.{extension}"
+                                    },
+                                    button {
+                                        id: "submit_files",
+                                        svg { dangerous_inner_html: fa_trash_icon_svg() }
+                                        // TODO: delete the attachment
+                                    }
+                                } else {
                                     h3 { "{filename}.{extension}" },
                                     button {
                                         id: "submit_files",
                                         svg { dangerous_inner_html: ms_arrow_download_icon_svg() }
-                                        // TODO: add support for downloading the file
-                                        // TODO: check if there is content and replace with a link to download the content
+                                        // TODO: download the attachment
                                     }
-                                } else {
-                                    // TODO: update when we have support for downloading the file
-                                    // a {
-                                    //     href: f.href.to_owned(),
-                                    //     download: f.download.to_owned(),
-                                    //     "{f.download.as_str()}"
-                                    // },
-                                }
-                                
+                                }                                
                             }
                         }
                     }
                 })}
             }
+            attachments_interface_footer { attachments_roles, attachments_contents, attachments_indices, attachments_timestamps, attachments_filenames, attachments_extensions }
         }
     }
 }
 
-/// View for attachments between the user and AI assistant
 #[component]
-pub fn attachments_interface_footer() -> Element {
-    // intialize state and coroutines
-    use_coroutine(sync_current_attachments_state);
-    let sync_current_attachments_state = use_coroutine_handle::<SyncCurrentAttachmentsState>();
+pub fn attachments_interface_footer(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<String>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>) -> Element {
+    let files_uploaded = use_signal(Vec::<SessionInterfaceMessage>::new);
+    let filenames_uploaded = use_signal(Vec::<String>::new);
+    let extensions_uploaded = use_signal(Vec::<String>::new);
+    
+    // let _ = use_resource(move || async move {
 
-    #[allow(clippy::redundant_closure)]
-    let mut prompt = use_signal(|| String::new());
+    // });
 
-    // render the chat messages
     rsx! {
-        // Check for sign-in
-        if !JWT.read().is_empty() && !ACTIVE_SESSION_NAME.read().is_empty() {
-            footer {
+        footer {
+            div {
+                class: "drop_box",
+                attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, filenames_uploaded, files_uploaded, extensions_uploaded }
+            }
+
+            div {
+                class: "file_upload_form",
                 div {
-                    class: "attach_button",
-                    // This must be outside the form or it will be refreshed on each submit
-                    button {
-                        onclick: move |_| async move {
-                            // TODO: add support for adding attachments through the attachments interface
-                        },
-                        svg { dangerous_inner_html: ms_attachment_icon_svg() }
-                    }
+                    upload_files_list {filenames_uploaded, files_uploaded, extensions_uploaded}
                 }
-
                 div {
-                    class: "files",
-                    p { "Files to upload" },
-                    ul {
-                        id: "uploaded_subject_files",
-                        class: "file_list",
-                        {file_names.iter().enumerate().map(|(i, f)| {
-                            rsx! {
-                                li {
-                                    key: "{i}",
-                                    div {
-                                        class: "files",                                        
-                                        svg { dangerous_inner_html: extension_to_icon_svg(extension) }
-                                        h3 { "{f}" },
-                                        // div { class: "loader" },
-                                    }
-                                }
-                            }
-                        })}
-                    }
-                }
-
-                div {
-                    class: "submit_button",
-                    // This must be outside the form or it will be refreshed on each submit
-                    if prompt.read().is_empty() {
-                        button {
-                            svg { dangerous_inner_html: b8_microphone_icon_svg() }
-                        }
-                    } else {
-                        button {
-                            onclick: move |_| async move {
-                                // signed in and ready to chat
-                                sync_current_attachments_state.send(SyncCurrentAttachmentsState {
-                                    role: "user".to_string(),
-                                    content: prompt.to_string(),
-                                    timestamp: create_timestamp_str()
-                                });
-
-                                // let the user know that the response is being prepared
-                                sync_current_attachments_state.send(SyncCurrentAttachmentsState {
-                                    role: "assistant".to_string(),
-                                    content: "Preparing response...".to_string(),
-                                    timestamp: create_timestamp_str()
-                                });
-
-                                // create the message
-                                let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
-                                    .append_new_user_query_str(&prompt.read(), "user")
-                                    .unwrap()
-                                    .build()
-                                    .unwrap();
-                                let data = SessionInterfaceMessage::get_builder()
-                                    .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                                    .with_format(&DataFormat::Bytes)
-                                    .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                                    .with_update(&TablePublish::Extend { table_name: AvailableInterfaceSubjects::UserMessages.to_string() })
-                                    .with_stream(false)
-                                    .with_subject(chat.get_name())
-                                    .with_message(chat.to_bytes().unwrap().to_vec())
-                                    .make_name()
-                                    .unwrap()
-                                    .build()
-                                    .unwrap();
-                                prompt.write().clear();
-                                let data_serialized = serde_json::to_string(&data).unwrap();
-                                let route = "/app/v1/chat";
-
-                                #[cfg(not(feature = "serverless"))]
-                                let addr = format!("{ADDR_BACKEND}{route}");
-                                #[cfg(not(feature = "serverless"))]
-                                match reqwest::Client::new()
-                                    .post(addr)
-                                    .bearer_auth(JWT.to_string())
-                                    .header(CONTENT_TYPE, "application/json")
-                                    .body(data_serialized)
-                                    .send()
-                                    .await {
-                                    Ok(stream) => {
-                                        sync_attachments_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
-                                        let mut stream = stream.bytes_stream();
-                                        while let Some(Ok(bytes)) = stream.next().await {
-                                            let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                                            let json_rows: Vec<Map<String, Value>> = serde_json::from_str(json_str.trim_end_matches(char::from(0)))
-                                                .unwrap_or_else(|e| {
-                                                    let mut m = Map::new();
-                                                    m.insert("content".to_string(), format!("{e:?} caused by {json_str}").into());
-                                                    vec![m]
-                                                });
-                                            for row in json_rows.iter() {
-                                                if row.get("role").unwrap().as_str().unwrap() == "assistant" {
-                                                    sync_attachments_content.send(SyncCurrentMessageContentState {
-                                                        content: row.get("content").unwrap().as_str().unwrap().to_string(),
-                                                        replace_last: false
-                                                    });
-                                                }
-                                            }
-                                        }
-                                    },
-                                    Err(e) => {
-                                        sync_attachments_content.send(SyncCurrentMessageContentState {content: format!("{e:?}"), replace_last: true});
-                                    }
-                                }
-
-                                #[cfg(feature = "serverless")]
-                                let config = ServerlessConfig {
-                                    route: route.to_string(),
-                                    basic_auth: None,
-                                    bearer_auth: Some(JWT().to_string()),
-                                    data: Some(data_serialized),
-                                };
-                                #[cfg(feature = "serverless")]
-                                let mut serverless = Serverless::new();
-                                #[cfg(feature = "serverless")]
-                                match serverless_app(config, &mut serverless).await {
-                                    Ok(response) => {
-                                        sync_attachments_content.send(SyncCurrentMessageContentState {content: "".to_string(), replace_last: true});
-                                        let bytes: Vec<Bytes> = response
-                                            .into_body()
-                                            .into_data_stream()
-                                            .try_collect()
-                                            .await
-                                            .unwrap();
-                                        for byte in bytes.iter() {
-                                            let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte).unwrap_or_else(|e| {
-                                                let mut m = Map::new();
-                                                m.insert("content".to_string(), format!("Error: {e:?}").into());
-                                                vec![m]
-                                            });
-                                            for row in json_rows.iter() {
-                                                sync_attachments_content.send(SyncCurrentMessageContentState {
-                                                    content: row.get("content").unwrap().as_str().unwrap().to_string(),
-                                                    replace_last: false
-                                                });
-                                            }
-                                        }
-                                    },
-                                    Err(e) => {
-                                        sync_attachments_content.send(SyncCurrentMessageContentState {content: format!("Error: {e:?}"), replace_last: true});
-                                    }
-                                }
-                            },
-                            svg { dangerous_inner_html: b8_send_icon_svg() }
-                        }
+                    div {
+                        upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
+                        clear_upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
                     }
                 }
             }

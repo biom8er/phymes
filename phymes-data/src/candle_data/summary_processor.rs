@@ -348,7 +348,7 @@ impl Stream for DataSummaryStream {
 
                     // Convert to CSV and wrap into a blob batch
                     let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
+                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![self.config.as_ref().unwrap().format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -370,7 +370,7 @@ impl Stream for DataSummaryStream {
                     // Convert to CSV and wrap into a blob batch
                     let csv_format = CsvFormat { ..Default::default()};
                     let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![".csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
+                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![self.config.as_ref().unwrap().format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -391,7 +391,7 @@ impl Stream for DataSummaryStream {
 
                     // Convert to CSV and wrap into a blob batch
                     let bytes = table.to_bytes()?;
-                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![".json".to_string()], vec![bytes.to_vec()], vec!["".to_string()], vec![create_timestamp_micros()])?;
+                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![self.config.as_ref().unwrap().format.to_extension().to_string()], vec![bytes.to_vec()], vec!["assistant".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -412,7 +412,7 @@ impl Stream for DataSummaryStream {
 
                     // Convert to CSV and wrap into a blob batch
                     let bytes = table.to_json()?;
-                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![".json".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()])?;
+                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![self.config.as_ref().unwrap().format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])?;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));

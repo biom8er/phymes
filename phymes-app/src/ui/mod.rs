@@ -9,4 +9,4 @@ pub mod apps;
 pub mod builds;
 pub mod sign_in;
 pub mod subjects;
-// pub mod attachments;
+pub mod attachments;
