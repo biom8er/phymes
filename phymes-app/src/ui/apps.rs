@@ -529,7 +529,9 @@ pub fn mermaid_view(
         }
         // All other cases
         (_, _, _) => {
-            rsx! {}
+            rsx! {
+                p { "Rendering svg..." }
+            }
         }
     }
 }

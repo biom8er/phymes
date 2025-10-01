@@ -24,23 +24,21 @@ use phymes_server::server::{
 
 use crate::{
     state::{
-        metrics::{
-            sync_current_active_metric_state, sync_current_metrics_mermaid_state,
-            SyncCurrentActiveMetricState, SyncCurrentMetricsMermaidJSState, ACTIVE_METRIC,
-            MERMAID_ELAPSED_COMPUTE, MERMAID_OUTPUT_ROWS, MERMAID_PROCESSOR_TRACES,
-        },
         apps::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
     },
-    ui::{apps::render_mermaid_svg, svg_icons::ms_search_icon_svg},
+    ui::{apps::{mermaid_view, render_mermaid_svg}, svg_icons::ms_search_icon_svg},
 };
 
 const SESSION_METRICS_HEADERS: [&str; 3] = ["processor_traces", "elapsed_compute", "output_rows"];
 
 #[component]
 pub fn metrics_modal() -> Element {
-    // Intialize state and coroutines
-    use_coroutine(sync_current_metrics_mermaid_state);
+    // Initalize signals
+    let active_metric = use_signal(String::new);
+    let mut mermaid_processor_traces = use_signal(String::new);
+    let mut mermaid_elapsed_compute = use_signal(String::new);
+    let mut mermaid_output_rows = use_signal(String::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
@@ -52,8 +50,13 @@ pub fn metrics_modal() -> Element {
     );
 
     // Get the active session info for the metrics view
-    let sync_current_metrics_mermaid_state = use_coroutine_handle::<SyncCurrentMetricsMermaidJSState>();
+    let got_metrics = use_memo(move || !mermaid_processor_traces().is_empty());
     let _ = use_resource(move || async move {
+        // Prevent re-fetching metrics if we already have them
+        if got_metrics() {
+            return;
+        }
+
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
             .with_subject(SessionContextTableNames::MetricsGantt.get_name())
@@ -85,26 +88,24 @@ pub fn metrics_modal() -> Element {
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        sync_current_metrics_mermaid_state.send(SyncCurrentMetricsMermaidJSState {
-                            processor_traces: row
-                                .get("processor_traces")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            elapsed_compute: row
-                                .get("elapsed_compute")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            output_rows: row
-                                .get("output_rows")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        });
+                        mermaid_processor_traces.set(row
+                            .get("processor_traces")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        mermaid_elapsed_compute.set(row
+                            .get("elapsed_compute")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        mermaid_output_rows.set(row
+                            .get("output_rows")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
                     }
                 }
             }
@@ -138,26 +139,24 @@ pub fn metrics_modal() -> Element {
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        sync_current_metrics_mermaid_state.send(SyncCurrentMetricMermaidJSState {
-                            processor_traces: row
-                                .get("processor_traces")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            elapsed_compute: row
-                                .get("elapsed_compute")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                            output_rows: row
-                                .get("output_rows")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        });
+                        mermaid_processor_traces.set(row
+                            .get("processor_traces")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        mermaid_elapsed_compute.set(row
+                            .get("elapsed_compute")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        mermaid_output_rows.set(row
+                            .get("output_rows")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
                     }
                 }
             }
@@ -165,147 +164,57 @@ pub fn metrics_modal() -> Element {
         }
     });
 
-    // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
     let diagram_code: Memo<String> = use_memo(move || {
-        if &ACTIVE_METRIC.read().to_string() == SESSION_METRICS_HEADERS.first().unwrap() {
-            MERMAID_PROCESSOR_TRACES.read().to_string()
-        } else if &ACTIVE_METRIC.read().to_string() == SESSION_METRICS_HEADERS.get(1).unwrap() {
-            MERMAID_ELAPSED_COMPUTE.read().to_string()
-        } else if &ACTIVE_METRIC.read().to_string() == SESSION_METRICS_HEADERS.get(2).unwrap() {
-            MERMAID_OUTPUT_ROWS.read().to_string()
+        if &active_metric.read().to_string() == SESSION_METRICS_HEADERS.first().unwrap() {
+            mermaid_processor_traces.read().to_string()
+        } else if &active_metric.read().to_string() == SESSION_METRICS_HEADERS.get(1).unwrap() {
+            mermaid_elapsed_compute.read().to_string()
+        } else if &active_metric.read().to_string() == SESSION_METRICS_HEADERS.get(2).unwrap() {
+            mermaid_output_rows.read().to_string()
         } else {
             "gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tWaiting to retrieve session plan metrics...".to_string()
         }
     });
 
-    let rendered_html = render_mermaid_svg(diagram_code, use_signal(|| "graphDiv".to_string()), use_signal(|| false), use_signal(|| false));
-    let out = if let Some(result) = &*rendered_html.read() {
-        match result {
-            // Mermaid.js or SessionContextBuilder error
-            (_, Some(error), _) => {
-                rsx! {
-                    if JWT.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please sign-in before searching metrics." },
-                        }
-                    } else if ACTIVE_SESSION_NAME.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please activate a session before searching metrics." },
-                        }
-                    } else if MERMAID_ELAPSED_COMPUTE.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Waiting to retrieve session plan metrics..." },
-                        }
-                    } else {
-                        div {
-                            class: "messaging_list",
-                            metrics_dropdown {}
-                            p { "{error}" },
-                        }
-                    }
-                }
+    rsx! {
+        if JWT.read().is_empty() {
+            div {
+                class: "messaging_list",
+                p { "Please sign-in before searching metrics." },
             }
-            // Valid SVG with no errors
-            (Some(svg), _, _) => {
-                rsx! {
-                    if JWT.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please sign-in before searching metrics." },
-                        }
-                    } else if ACTIVE_SESSION_NAME.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please activate a session before searching metrics." },
-                        }
-                    } else if MERMAID_ELAPSED_COMPUTE.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Waiting to retrieve session plan metrics..." },
-                        }
-                    } else {
-                        div {
-                            class: "messaging_list",
-                            metrics_dropdown {}
-                            div {
-                                id: "graphDiv",
-                                class: "mermaid",
-                                svg { dangerous_inner_html: svg.to_string() }
-                            }
-                        }
-                    }
-                }
+        } else if ACTIVE_SESSION_NAME.read().is_empty() {
+            div {
+                class: "messaging_list",
+                p { "Please activate a session before searching metrics." },
             }
-            // All other cases
-            (_, _, _) => {
-                rsx! {
-                    if JWT.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please sign-in before searching metrics." },
-                        }
-                    } else if ACTIVE_SESSION_NAME.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Please activate a session before searching metrics." },
-                        }
-                    } else if MERMAID_ELAPSED_COMPUTE.read().is_empty() {
-                        div {
-                            class: "messaging_list",
-                            p { "Waiting to retrieve session plan metrics..." },
-                        }
-                    } else {
-                        div {
-                            class: "messaging_list",
-                            metrics_dropdown {},
-                        }
-                    }
-                }
+        } else if mermaid_elapsed_compute.read().is_empty() {
+            div {
+                class: "messaging_list",
+                p { "Waiting to retrieve session plan metrics..." },
+            }
+        } else if active_metric.read().is_empty() {
+            div {
+                class: "messaging_list",
+                metrics_dropdown {active_metric}
+            }
+        } else {
+            div {
+                class: "messaging_list",
+                metrics_dropdown {active_metric}
+                mermaid_view {diagram_code, check_build: use_signal(|| false), is_flowchart_shown: use_signal(|| false)}
             }
         }
-    } else {
-        rsx! {
-            if JWT.read().is_empty() {
-                div {
-                    class: "messaging_list",
-                    p { "Please sign-in before searching metrics." },
-                }
-            } else if ACTIVE_SESSION_NAME.read().is_empty() {
-                div {
-                    class: "messaging_list",
-                    p { "Please activate a session before searching metrics." },
-                }
-            } else if MERMAID_ELAPSED_COMPUTE.read().is_empty() {
-                div {
-                    class: "messaging_list",
-                    p { "Waiting to retrieve session plan metrics..." },
-                }
-            } else {
-                div {
-                    class: "messaging_list",
-                    metrics_dropdown {},
-                }
-            }
-        }
-    };
-    out
+    }
 }
 
 /// Metrics dropdown
 #[component]
-pub fn metrics_dropdown() -> Element {
-    // Intialize state and coroutines
-    use_coroutine(sync_current_active_metric_state);
+pub fn metrics_dropdown(mut active_metric: Signal<String>) -> Element {
 
     // Dropdown signals
     let mut show_metric_dropdown = use_signal(|| false);
-    #[allow(clippy::redundant_closure)]
-    let mut metric_dropdown = use_signal(|| String::new());
-    #[allow(clippy::redundant_closure)]
-    let mut metrics_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
+    let mut metric_dropdown = use_signal(String::new);
+    let mut metrics_filtered = use_signal(|| Vec::<String>::new());
 
     rsx! {
         div {
@@ -331,12 +240,8 @@ pub fn metrics_dropdown() -> Element {
                 class: "dropdown_form_button",
                 onclick: move |_evt| async move {
                     // Reset the dropdown
-                    let active_metric = metric_dropdown.try_read().unwrap().to_string();
+                    active_metric.set(metric_dropdown.try_read().unwrap().to_string());
                     metric_dropdown.set(String::new());
-
-                    // Set the active session
-                    let sync_current_active_metric_state = use_coroutine_handle::<SyncCurrentActiveMetricState>();
-                    sync_current_active_metric_state.send(SyncCurrentActiveMetricState { name: active_metric.clone() });
                 },
                 svg { dangerous_inner_html: ms_search_icon_svg() },
             },
@@ -348,7 +253,7 @@ pub fn metrics_dropdown() -> Element {
                 class: "dropdown_list",
                 ul {
                     id: "sessions_dropdown_list",
-                    {SESSION_METRICS_HEADERS.iter().filter(|s| ACTIVE_METRIC.read().to_string()!=**s && !metrics_filtered.read().contains(&s.to_string())).enumerate().map(|(i, sub)|  {
+                    {SESSION_METRICS_HEADERS.iter().filter(|s| active_metric().to_string()!=**s && !metrics_filtered.read().contains(&s.to_string())).enumerate().map(|(i, sub)|  {
                         rsx! {
                             li {
                                 key: "{i}",
