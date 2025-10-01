@@ -498,38 +498,38 @@ pub fn mermaid_view(
     let rendered_html = render_mermaid_svg(diagram_code, use_signal(|| "graphDiv".to_string()), check_build, is_flowchart_shown);
     add_pan_zoom_to_svg(rendered_html, use_signal(|| "graphDiv".to_string()));
 
-    let out = if let Some(result) = &*rendered_html.read() {
-        match result {
-            // Mermaid.js or SessionContextBuilder error
-            (_, Some(error), None) | (_, None, Some(error)) => {
-                rsx! {
-                    p { "{error}" },
-                }
-            }
-            // Mermaid.js and SessionContextBuilder error
-            (_, Some(error_mjs), Some(error_ctxb)) => {
-                rsx! {                    
-                    p { "{error_mjs}" },
-                    p { "{error_ctxb}" },
-                }
-            }
-            // Valid SVG with no errors
-            (Some(svg), _, _) => {
-                rsx! {
-                    div {
-                        id: "graphDiv",
-                        class: "mermaid",
-                        svg { dangerous_inner_html: svg.to_string() }
-                    }
-                }
-            }
-            // All other cases
-            (_, _, _) => {
-                rsx! {}
+    let value = rendered_html.suspend().with_loading_placeholder(|| {
+        rsx! {
+            p { "Rendering svg..." }
+        }
+    })?;
+    match value() {
+        // Mermaid.js or SessionContextBuilder error
+        (_, Some(error), None) | (_, None, Some(error)) => {
+            rsx! {
+                p { "{error}" },
             }
         }
-    } else {
-        rsx! {}
-    };
-    out
+        // Mermaid.js and SessionContextBuilder error
+        (_, Some(error_mjs), Some(error_ctxb)) => {
+            rsx! {                    
+                p { "{error_mjs}" },
+                p { "{error_ctxb}" },
+            }
+        }
+        // Valid SVG with no errors
+        (Some(svg), _, _) => {
+            rsx! {
+                div {
+                    id: "graphDiv",
+                    class: "mermaid",
+                    svg { dangerous_inner_html: svg.to_string() }
+                }
+            }
+        }
+        // All other cases
+        (_, _, _) => {
+            rsx! {}
+        }
+    }
 }

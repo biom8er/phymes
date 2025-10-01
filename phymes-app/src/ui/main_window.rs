@@ -2,9 +2,8 @@
 use dioxus::prelude::*;
 
 use crate::state::sign_in::{BUILDER, DEBUGGER};
-use crate::ui::builds::builds_interface_footer;
 
-use super::messaging::{messaging_interface_footer, messaging_interface_view};
+use super::messaging::messaging_interface_view;
 use super::metrics::metrics_modal;
 use super::apps::apps_interface_view;
 use super::sign_in::sign_in_view;
@@ -178,7 +177,6 @@ pub fn main_window() -> Element {
                 subjects_interface_view {},
             } else if header_menu.read().as_str() == "Message" {
                 messaging_interface_view {},
-                messaging_interface_footer {},
             }else if header_menu.read().as_str() == "Metrics" {
                 metrics_modal {},
             }
