@@ -178,7 +178,7 @@ main .messaging_list button{
 	outline: none;
 	cursor: pointer;
 }
-main .messaging_list p, main .messaging_list span, main .messaging_list a{
+main .messaging_list p, main .messaging_list span{
     float: middle;
 	margin: auto;
 	background-color:#333333ff;
@@ -338,14 +338,14 @@ main .messaging_list .output_table table, .output_table td, .output_table th{
 }
 
 /* Messaging interface styling */
-main .messaging_list h2,.messaging_list h3{
+main .messaging_list h2, .messaging_list h3, .messaging_list a{
 	display:inline-block;
     font-family: Arial, Helvetica, sans-serif;
 	font-size:14px;
 	font-weight:bold;
 	color:#fff;
 }
-main .messaging_list h3{
+main .messaging_list h3, .messaging_list a{
 	color:#bbb;
 	font-weight:normal;
 }
@@ -374,16 +374,25 @@ main .messaging_list .user .message{
 	background-color: #333333ff;
 	border-color:#6fbced;
 }
-main .messaging_list .assistant svg {
-    display: inline-block;
-    max-width: 60px; /* based on viewBox attributes in svg */
-    max-height: 60px;
-    vertical-align: middle;
+main .messaging_list .assistant button{
+	display:inline-block;
+    width: auto;
+    height: auto;
+	border: none;
+	color:#fff;
+	background-color:black;
+	cursor: pointer;
 }
-main .messaging_list .user svg {
+main .messaging_list .assistant svg, main .messaging_list .user svg {
     display: inline-block;
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
+    vertical-align: middle;
+}
+main .messaging_list .mermaid svg {
+    display: inline-block;
+    max-width: 1024px;
+    max-height: 1024px;
     vertical-align: middle;
 }
 

@@ -41,7 +41,7 @@ use crate::{
 pub fn attachments_interface_view() -> Element {
     // Global signals
     let attachments_roles = use_signal(Vec::<String>::new);
-    let attachments_contents = use_signal(Vec::<Option<Vec<u8>>>::new);
+    let mut attachments_contents = use_signal(Vec::<Option<Vec<u8>>>::new);
     let attachments_indices = use_signal(Vec::<usize>::new);
     let attachments_timestamps = use_signal(Vec::<i64>::new);
     let attachments_filenames = use_signal(Vec::<String>::new);
@@ -194,8 +194,10 @@ pub fn attachments_interface_view() -> Element {
                                         "{filename_and_extension_to_download(&filename, &extension)}"
                                     },
                                     button {
+                                        onclick: move |_| async move {
+                                            *attachments_contents.get_mut(i).unwrap() = None;
+                                        },
                                         svg { dangerous_inner_html: fa_trash_icon_svg() }
-                                        // TODO: delete the attachment
                                     }
                                 } else {
                                     h3 { "{filename}.{extension}" },
