@@ -164,7 +164,6 @@ pub fn attachments_interface_view() -> Element {
             }
         } else {
             ul {
-                id: "attachments",
                 class: "messaging_list",
                 {(0..attachments_roles.len()).map(|i| {
                     let role = attachments_roles.get(i).unwrap();

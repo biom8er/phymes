@@ -360,15 +360,16 @@ pub fn subjects_interface_view() -> Element {
                     div {
                         class: "file_upload_form",
                         div {
-                            id: "file_upload_extend_form",
                             h2 { "Upload data to subject {active_subject_name}" },
-                            attach_files_dropbox {active_subject_name, filenames_uploaded, files_uploaded, extensions_uploaded}
+                            div {
+                                p { "CSV (comma delimiter with headers)" },
+                                attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), files_uploaded, filenames_uploaded, extensions_uploaded },
+                                attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), files_uploaded, filenames_uploaded, extensions_uploaded },
+                            }
                         }
                         div {
-                            id: "file_download_form",
                             h2 { "Download data from subject {active_subject_name}" },
                             div {
-                                class: "drop_box",
                                 p { "CSV (comma delimiter with headers)" },
                                 download_files_button { data_format: use_signal(|| DataFormat::CsvDefault), active_subject_name, filenames_downloaded, files_downloaded, extensions_downloaded}
                             }
@@ -544,18 +545,6 @@ pub fn subjects_schema_table(active_subject_name: Signal<String>,
 }
 
 #[component]
-pub fn attach_files_dropbox(active_subject_name: Signal<String>, mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
-    rsx! {
-        div {
-            class: "drop_box",
-            p { "CSV (comma delimiter with headers)" },
-            attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), files_uploaded, filenames_uploaded, extensions_uploaded },
-            attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), files_uploaded, filenames_uploaded, extensions_uploaded },
-        }
-    }
-}
-
-#[component]
 pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<String>, active_subject_name: Option<Signal<String>>, mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
     let enable_directory_upload = use_signal(|| false);
 
@@ -713,7 +702,6 @@ pub fn attach_textfiles_input(except_files: Signal<String>, mut content: Signal<
 pub fn upload_files_list(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
     rsx! {
         div {
-            class: "files",
             p { "Files to upload" },
             ul {
                 class: "file_list",

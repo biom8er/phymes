@@ -270,7 +270,7 @@ main .messaging_list .output_table table, .output_table td, .output_table th{
 }
 
 .file_upload_form{
-    width: auto;
+    width: 50%;
 	height:auto;
     float: middle;
 	vertical-align: top;
