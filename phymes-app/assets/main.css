@@ -268,15 +268,16 @@ main .messaging_list .output_table table, .output_table td, .output_table th{
 	border: 1px solid #fff;
   	border-collapse: collapse;
 }
-main .messaging_list .file_upload_form{
-    width: 50%;
+
+.file_upload_form{
+    width: auto;
 	height:auto;
     float: middle;
 	vertical-align: top;
 	margin: auto;
 	display: flex;
 }
-main .messaging_list .file_upload_form button, main .files button{
+.file_upload_form button, .files button{
     display: inline-block;
     padding: 6px 12px;
     cursor: pointer;
@@ -285,7 +286,7 @@ main .messaging_list .file_upload_form button, main .files button{
 	color:#fff;
 	text-align: center;
 }
-main .messaging_list .file_upload_form label{
+.file_upload_form label{
     display: inline-block;
     padding: 6px 12px;
     cursor: pointer;
@@ -294,27 +295,27 @@ main .messaging_list .file_upload_form label{
 	text-align: center;
 	margin: auto;
 }
-main .messaging_list .file_upload_form label svg, main .file_upload_form button svg {
+.file_upload_form label svg, .file_upload_form button svg {
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;
 }
-main .messaging_list .file_upload_form input{
+.file_upload_form input{
 	display: none;
 }
-main .messaging_list .file_list{
+.file_list{
 	list-style-type:none;
 	border-top:2px solid #fff;
 	border-bottom:2px solid #fff;
 }
-main .messaging_list .file_list h3, main .file_list a{
+.file_list h3, main .file_list a{
 	display:inline-block;
     font-family: Arial, Helvetica, sans-serif;
 	font-size:14px;
 	color:#bbb;
 	font-weight:normal;
 }
-main .messaging_list .file_list .loader {
+.file_list .loader {
     vertical-align: middle;
 	display:inline-block;
 	border: 4px solid #f3f3f3; /* Light grey */
@@ -328,7 +329,7 @@ main .messaging_list .file_list .loader {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-main .messaging_list .file_list .files svg {
+.file_list .files svg {
     display: inline-block;
     /* transform: scale(0.5); */
     max-width: 48px; /* based on viewBox attributes in svg */
@@ -393,7 +394,7 @@ main .messaging_list .user svg {
   cursor: row-resize;
 }
 
-/* Split pane design between `main .messaging_list` and `main .resizable_text_input` (which is the footer) */
+/* Split pane design between `main .messaging_list` and `main .text_input` (which is the footer) */
 main footer{
 	height: 15%;
 	min-height: 15%;
@@ -434,20 +435,24 @@ main footer .text_input form textarea::placeholder{
 main footer .attach_button{
     width: 64px;
     height: 48px;
-    float: left;
+    float: middle;
 }
-main footer .attach_button button{
-    width: auto;
-    height: auto;
-	border: none;
-	color:#fff;
+main footer .attach_button label{
+    display: inline-block;
+    padding: 6px 12px;
+    cursor: pointer;
 	background-color:black;
-	cursor: pointer;
+	color:#fff;
+	text-align: center;
+	margin: auto;
 }
 main footer .attach_button svg {
     max-width: 48px; /* based on viewBox attributes in svg */
     max-height: 48px;
     vertical-align: middle;
+}
+main footer .attach_button input{
+	display: none;
 }
 main footer .submit_button{
     width: 64px;

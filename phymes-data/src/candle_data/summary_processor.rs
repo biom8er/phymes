@@ -633,8 +633,8 @@ mod tests {
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         assert_eq!(partitions.get_column_as_vec_str("filename"), ["lhs_name"]);
-        assert_eq!(partitions.get_column_as_vec_str("extension"), [".csv"]);
-        assert_eq!(partitions.get_column_as_vec_str("metadata"), [""]);
+        assert_eq!(partitions.get_column_as_vec_str("extension"), ["csv"]);
+        assert_eq!(partitions.get_column_as_vec_str("metadata"), ["assistant"]);
         let contents_vec = partitions.get_column_as_vec_nested_primitive::<u8>("bytes")?;
         let mut contents_str = Vec::new();
         for contents in contents_vec.into_iter() {

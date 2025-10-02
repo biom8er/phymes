@@ -3,3 +3,4 @@ pub mod data_processor;
 pub mod summary_config;
 pub mod summary_processor;
 pub mod tensor_service;
+pub mod attachment_aggregator_processor;

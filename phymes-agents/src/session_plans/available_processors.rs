@@ -11,7 +11,7 @@ use phymes_core::{
     }
 };
 use phymes_data::candle_data::{
-    data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor,
+    attachment_aggregator_processor::AttachmentAggregatorProcessor, data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor
 };
 use phymes_ml::{
     candle_chat::{
@@ -40,6 +40,8 @@ pub enum AvailableProcessors {
     CandleDataProcessor,
     #[value(name = "DataSummaryProcessor")]
     DataSummaryProcessor,
+    #[value(name = "AttachmentAggregatorProcessor")]
+    AttachmentAggregatorProcessor,
     #[value(name = "CandleChatProcessor")]
     CandleChatProcessor,
     #[value(name = "MessageAggregatorProcessor")]
@@ -63,6 +65,7 @@ impl Display for AvailableProcessors {
             Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
             Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
             Self::DataSummaryProcessor => write!(f, "{}", DataSummaryProcessor::get_static_name()),
+            Self::AttachmentAggregatorProcessor => write!(f, "{}", AttachmentAggregatorProcessor::get_static_name()),
             Self::CandleChatProcessor => write!(f, "{}", CandleChatProcessor::get_static_name()),
             Self::MessageAggregatorProcessor => write!(f, "{}", MessageAggregatorProcessor::get_static_name()),
             Self::MessageParserProcessor => write!(f, "{}", MessageParserProcessor::get_static_name()),
@@ -83,6 +86,7 @@ impl AvailableProcessors {
             AvailableProcessors::ProcessorEcho.to_string(),
             AvailableProcessors::CandleDataProcessor.to_string(),
             AvailableProcessors::DataSummaryProcessor.to_string(),
+            AvailableProcessors::AttachmentAggregatorProcessor.to_string(),
             AvailableProcessors::CandleChatProcessor.to_string(),
             AvailableProcessors::MessageAggregatorProcessor.to_string(),
             AvailableProcessors::MessageParserProcessor.to_string(),
@@ -125,6 +129,12 @@ impl AvailableProcessors {
                 subscribe,
             ),
             Self::DataSummaryProcessor => DataSummaryProcessor::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe,
+            ),
+            Self::AttachmentAggregatorProcessor => AttachmentAggregatorProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,

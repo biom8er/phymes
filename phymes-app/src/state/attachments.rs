@@ -2,10 +2,10 @@
 use dioxus::prelude::*;
 
 /// Update the attachments content state by adding to the option at the specified index
-pub fn update_attachments_content_state(mut attachments_contents: Signal<Vec<Option<String>>>, attachments_content_update: &str, index: usize) {
+pub fn update_attachments_content_state(mut attachments_contents: Signal<Vec<Option<Vec<u8>>>>, attachments_content_update: &[u8], index: usize) {
     if let Some(mut existing_content) = attachments_contents.get_mut(index) {
         if let Some(content) = existing_content.as_mut() {
-            content.push_str(attachments_content_update);
+            content.extend(attachments_content_update);
         } else {
             *existing_content = Some(attachments_content_update.to_owned());
         }
@@ -13,7 +13,7 @@ pub fn update_attachments_content_state(mut attachments_contents: Signal<Vec<Opt
 }
 
 /// Clear the attachments state
-pub fn clear_attachments_state(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<String>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>) {
+pub fn clear_attachments_state(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<Vec<u8>>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>) {
     attachments_roles.set(Vec::new());
     attachments_contents.set(Vec::new());
     attachments_indices.set(Vec::new());
@@ -23,8 +23,8 @@ pub fn clear_attachments_state(mut attachments_roles: Signal<Vec<String>>, mut a
 }
 
 /// Update the attachments state by appending to it
-pub fn update_attachments_state(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<String>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>,
-    attachments_role_update: &str, attachments_content_update: Option<String>, attachments_timestamp_update: i64, attachments_filename_update: &str, attachments_extension_update: &str) {
+pub fn update_attachments_state(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<Vec<u8>>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>,
+    attachments_role_update: &str, attachments_content_update: Option<Vec<u8>>, attachments_timestamp_update: i64, attachments_filename_update: &str, attachments_extension_update: &str) {
     attachments_roles.push(attachments_role_update.to_owned());
     attachments_contents.push(attachments_content_update);
     attachments_timestamps.push(attachments_timestamp_update);

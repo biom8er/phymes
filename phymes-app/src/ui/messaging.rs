@@ -31,9 +31,9 @@ use phymes_server::server::{
 // mod imports
 use crate::{
     state::{
-        apps::ACTIVE_SESSION_NAME, messaging::{update_message_state, update_message_content_state}, sign_in::{EMAIL, JWT}
+        apps::ACTIVE_SESSION_NAME, messaging::{update_message_content_state, update_message_state}, sign_in::{EMAIL, JWT}
     },
-    ui::svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, ms_document_text_icon_svg},
+    ui::{subjects::attach_textfiles_input, svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, ms_document_text_icon_svg}},
 };
 
 /// View for messaging between the user and AI assistant
@@ -256,13 +256,7 @@ pub fn messaging_interface_footer(mut messaging_roles: Signal<Vec<String>>, mut 
         footer {
             div {
                 class: "attach_button",
-                // This must be outside the form or it will be refreshed on each submit
-                button {
-                    onclick: move |_| async move {
-                        // TODO: add support for adding attachments through the messaging interface
-                    },
-                    svg { dangerous_inner_html: ms_document_text_icon_svg() }
-                }
+                attach_textfiles_input { except_files: use_signal(|| ".txt,.csv,.tsv,.js,.ts,.py,.java,.c,.cpp,.cs,.rb,.go,.rs,.json,.svg,.html".to_string()), content: prompt }
             }
 
             div {
@@ -351,6 +345,8 @@ pub fn messaging_interface_footer(mut messaging_roles: Signal<Vec<String>>, mut 
                                         for row in json_rows.iter() {
                                             if row.get("role").unwrap().as_str().unwrap() == "assistant" {
                                                 update_message_content_state(messaging_contents, row.get("content").unwrap().as_str().unwrap(), false);
+                                            } else if row.get("role").is_none() {
+                                                tracing::error!("Message response does not have key role: {:?}", row);
                                             }
                                         }
                                     }

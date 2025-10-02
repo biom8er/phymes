@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use bytes::Bytes;
 use dioxus::prelude::*;
 use futures::StreamExt;
@@ -36,31 +37,78 @@ use crate::{
             get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, SUBJECT_SCHEMA_HEADERS
         },
     },
-    ui::svg_icons::{aws_table_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, fa_trash_icon_svg, ms_attachment_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_code_icon_svg, ms_document_icon_svg, ms_search_icon_svg, ms_video_icon_svg},
+    ui::svg_icons::{aws_table_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, fa_trash_icon_svg, ms_attachment_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_code_icon_svg, ms_document_icon_svg, ms_document_text_icon_svg, ms_search_icon_svg, ms_video_icon_svg},
 };
 
 pub fn extension_to_icon_svg(extension: &str) -> String {
     match extension.to_lowercase().as_str() {
         "pdf" => ms_document_icon_svg(),
-        "mp3" | "wav" | "flac" | "aac" => b8_microphone_icon_svg(),
-        "mp4" | "mov" | "avi" | "mkv" => ms_video_icon_svg(),
+        "mp3" | "wav" | "aac" => b8_microphone_icon_svg(),
+        "mp4" | "avi" => ms_video_icon_svg(),
         "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" => ms_search_icon_svg(),
-        "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" => ms_code_icon_svg(),
+        "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" | "svg" | "html" => ms_code_icon_svg(),
         "csv" | "tsv" => aws_table_icon_svg(),
         _ => ms_attachment_icon_svg(),
     }
 }
 
-pub fn extension_to_subject(extension: &str) -> AvailableInterfaceSubjects {
-    match extension.to_lowercase().as_str() {
+pub fn extension_to_subject(extension: &str) -> Result<AvailableInterfaceSubjects> {
+    let subject = match extension.to_lowercase().as_str() {
         "pdf" => AvailableInterfaceSubjects::UserPdf,
-        "mp3" | "wav" | "flac" | "aac" => AvailableInterfaceSubjects::UserAudio,
-        "mp4" | "mov" | "avi" | "mkv" => AvailableInterfaceSubjects::UserVideo,
+        "mp3" | "wav" | "aac" => AvailableInterfaceSubjects::UserAudio,
+        "mp4" | "avi" => AvailableInterfaceSubjects::UserVideo,
         "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" => AvailableInterfaceSubjects::UserImage,
-        "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" => AvailableInterfaceSubjects::UserScript,
+        "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" | "svg" | "html" => AvailableInterfaceSubjects::UserScript,
         "csv" | "tsv" => AvailableInterfaceSubjects::UserCsv,
-        _ => AvailableInterfaceSubjects::UserCsv,
-    }
+        _ => return Err(anyhow!("Conversion to subject is not supported for extension {extension}")),
+    };
+    Ok(subject)
+}
+
+/// Based on https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types
+pub fn extension_to_mime_type(extension: &str) -> Result<&str> {
+    let mime_type = match extension.to_lowercase().as_str() {
+        "txt" => "text/plain",
+        "svg" => "image/svg+xml",
+        "html" => "text/html",
+        "pdf" => "application/pdf",
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "aac" => "audio/aac",
+        "mp4" => "video/mp4",
+        "avi" => "video/x-msvideo",
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "bmp" => "image/bmp",
+        "tiff" => "image/tiff",
+        "js" => "text/javascrip",
+        "jar" => "application/java-archive",
+        "json" => "application/json",
+        "csv" | "tsv" => "text/csv",
+        _ => return Err(anyhow!("Conversion to MIME type is not supported for extension {extension}")),
+    };
+    Ok(mime_type)
+}
+
+/// Based on https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data
+pub fn extension_and_file_to_href(extension: &str, bytes: &[u8]) -> Result<String> {
+    let mime_type = extension_to_mime_type(extension)?;
+    let href = match extension {
+        "txt" | "csv" | "tsv" | "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" | "svg" | "html" => {
+            let data = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+            format!{"data:{mime_type},{data}"}
+        },
+        _ => {           
+            let data = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+            format!{"data:{mime_type},{data}"}
+        },
+    };
+    Ok(href)
+}
+
+pub fn filename_and_extension_to_download(filename: &str, extension: &str) -> String {
+    format!("{filename}.{extension}")
 }
 
 /// View to display the subject tables for the session
@@ -77,7 +125,7 @@ pub fn subjects_interface_view() -> Element {
     let files_uploaded = use_signal(Vec::<SessionInterfaceMessage>::new);
     let filenames_uploaded = use_signal(Vec::<String>::new);
     let extensions_uploaded = use_signal(Vec::<String>::new);
-    let files_downloaded = use_signal(Vec::<String>::new);
+    let files_downloaded = use_signal(Vec::<Vec<u8>>::new);
     let filenames_downloaded = use_signal(Vec::<String>::new);
     let extensions_downloaded = use_signal(Vec::<String>::new);
 
@@ -501,8 +549,8 @@ pub fn attach_files_dropbox(active_subject_name: Signal<String>, mut files_uploa
         div {
             class: "drop_box",
             p { "CSV (comma delimiter with headers)" },
-            attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), filenames_uploaded, files_uploaded, extensions_uploaded },
-            attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), filenames_uploaded, files_uploaded, extensions_uploaded },
+            attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), files_uploaded, filenames_uploaded, extensions_uploaded },
+            attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), files_uploaded, filenames_uploaded, extensions_uploaded },
         }
     }
 }
@@ -521,25 +569,26 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
                 None => tracing::error!("File {file_name} has no extension."),
                 Some(ext) => match DataFormat::from_extension(ext.to_str().unwrap()) {
                     Ok(data_format) => {
-                        if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+                        // if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+                        if let Some(contents) = file_engine.read_file(file_name).await {
 
                             // Determine the subject based on the file extension if no active subject is set
                             let extension = ext.to_str().unwrap();
                             let subject_name = if let Some(name) = &active_subject_name {
                                 name.read().to_string()
                             } else {
-                                extension_to_subject(extension).to_string()
+                                extension_to_subject(extension).unwrap().to_string()
                             };
 
                             // Wrap the contents into a blob batch if no active subject is set
                             let (message, format) = match active_subject_name {
-                                Some(_) => (Bytes::from(contents).to_vec(), data_format),
+                                Some(_) => (contents, data_format),
                                 None => {
-                                    let bytes = Bytes::from(contents).to_vec();
+                                    let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
                                     let batch = create_blob_batch(
-                                        vec![file_name.to_string()],
+                                        vec![file_stem.to_string()],
                                         vec![extension.to_string()],
-                                        vec![bytes],
+                                        vec![contents],
                                         vec!["user".to_string()],
                                         vec![create_timestamp_micros()],
                                     ).unwrap();
@@ -624,6 +673,38 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
                 directory: enable_directory_upload,
                 onchange: upload_files_replace,
             }                
+        },
+    }
+}
+
+#[component]
+pub fn attach_textfiles_input(except_files: Signal<String>, mut content: Signal<String>) -> Element {
+    let enable_directory_upload = use_signal(|| false);
+
+    let read_files = move |file_engine: Arc<dyn FileEngine>| async move {
+        let files = file_engine.files();
+        for file_name in &files {
+            if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+                content.set([content(), contents].join(""));
+            }
+        }
+    };
+
+    let upload_files = move |evt: FormEvent| async move {
+        if let Some(file_engine) = evt.files() {
+            read_files(file_engine).await;
+        }
+    };
+
+    rsx! {
+        label { r#for: "textread", svg { dangerous_inner_html: ms_document_text_icon_svg() } }
+        input {
+            r#type: "file",
+            accept: "{except_files}",
+            multiple: true,
+            id: "textread",
+            directory: enable_directory_upload,
+            onchange: upload_files,                
         },
     }
 }
@@ -731,7 +812,7 @@ pub fn clear_upload_files_button(mut files_uploaded: Signal<Vec<SessionInterface
 }
 
 #[component]
-pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_name: Signal<String>, mut files_downloaded: Signal<Vec<String>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
+pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_name: Signal<String>, mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
     rsx! {
         button {
             class: "dropdown_form_button",
@@ -766,12 +847,11 @@ pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_nam
                     .await {
                     Ok(stream) => {
                         let mut stream = stream.bytes_stream();
-                        let mut csv_chunks = Vec::new();
+                        let mut bytes_vec = Vec::<u8>::new();
                         while let Some(Ok(bytes)) = stream.next().await {
-                            let csv_chunk = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                            csv_chunks.push(csv_chunk);
+                            bytes_vec.extend(bytes.to_vec());
                         }
-                        files_downloaded.push(csv_chunks.join(""));
+                        files_downloaded.push(bytes_vec);
                         filenames_downloaded.push(active_subject_name.read().as_str().to_string());
                         extensions_downloaded.push(data_format().to_extension().to_string());
                     },
@@ -815,7 +895,7 @@ pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_nam
 }
 
 #[component]
-pub fn download_files_list(mut files_downloaded: Signal<Vec<String>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
+pub fn download_files_list(mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
     rsx! {
         div {
             class: "files",
@@ -823,8 +903,8 @@ pub fn download_files_list(mut files_downloaded: Signal<Vec<String>>, mut filena
             ul {
                 class: "file_list",
                 {(0..files_downloaded().len()).map(|i| {
-                    let f_download = format!("{}.{}", filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
-                    let f_href = format!("data:text/plain,{}", files_downloaded().get(i).unwrap());
+                    let f_download = filename_and_extension_to_download(filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
+                    let f_href = extension_and_file_to_href(extensions_downloaded().get(i).unwrap() ,files_downloaded().get(i).unwrap()).unwrap();
                     rsx! {
                         li {
                             // key: "{i}",
@@ -846,7 +926,7 @@ pub fn download_files_list(mut files_downloaded: Signal<Vec<String>>, mut filena
 }
 
 #[component]
-pub fn clear_download_files_button(mut files_downloaded: Signal<Vec<String>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
+pub fn clear_download_files_button(mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
 
     rsx! {
         button {

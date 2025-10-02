@@ -1,20 +1,16 @@
-use std::{
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll, ready},
-};
+use std::sync::Arc;
 
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
     schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::create_chat_fields},
     session::{
         common_traits::{
-            device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
+            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
         },
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
@@ -24,35 +20,9 @@ use phymes_core::{
 };
 
 use anyhow::{Result, anyhow};
-use arrow::{
-    array::RecordBatch,
-    datatypes::{Fields, SchemaRef},
-};
-use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_data::{
-    candle_data::{data_config::DataConfig, tensor_service::CandleTensorService},
-    candle_operators::data_operator::DataOperatorTrait,
-};
+use phymes_data::candle_data::attachment_aggregator_processor::{collect_messages_by_schema, AggregatorStream};
 use tracing::{Level, event, instrument};
-
-/// Collect messages that match a given schema
-///
-/// # Arguments
-/// * `messages` - The messages to process
-/// * `fields` - The fields of the schema that need to match
-///
-/// # Returns
-/// Vec of extracted messages
-pub fn collect_messages_by_schema(
-    message: &mut SendableRecordBatchStreamMessageMap,
-    fields: &Fields,
-) -> Vec<Pin<Box<dyn RecordBatchStream + Send>>> {
-    message
-        .extract_if(|_msg_name, msg| msg.get_message().schema().fields().contains(fields))
-        .map(|(_msg_name, msg)| msg.get_message_own())
-        .collect::<Vec<_>>()
-}
 
 /// Processor that aggregates messages
 ///
@@ -141,7 +111,8 @@ impl ProcessorTrait for MessageAggregatorProcessor {
         };
 
         // Make the outbox and send
-        let out = Box::pin(MessageAggregatorStream::new(
+        let out = Box::pin(AggregatorStream::new(
+            AvailableSubjects::Messages.to_schema(),
             input,
             config,
             Arc::clone(&runtime_env),
@@ -159,167 +130,14 @@ impl ProcessorTrait for MessageAggregatorProcessor {
     }
 }
 
-#[allow(dead_code)]
-pub struct MessageAggregatorStream {
-    /// Output schema (role and content)
-    schema: SchemaRef,
-    /// The input message to process
-    input: Vec<SendableRecordBatchStream>,
-    /// Parameters for chat inference
-    config_stream: SendableRecordBatchStream,
-    /// Parameters for tensor operations
-    config: Option<DataConfig>,
-    /// The data operator to run
-    data_operator: Option<Box<dyn DataOperatorTrait>>,
-    /// The Candle model assets needed for inference
-    runtime_env: Arc<Mutex<RuntimeEnv>>,
-    /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
-}
-
-impl MessageAggregatorStream {
-    pub fn new(
-        input: Vec<SendableRecordBatchStream>,
-        config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
-    ) -> Result<Self> {
-        Ok(Self {
-            schema: AvailableSubjects::Messages.to_schema(),
-            input,
-            config_stream,
-            config: None,
-            data_operator: None,
-            runtime_env,
-            baseline_metrics,
-        })
-    }
-
-    #[instrument(skip(self))]
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
-        if self.config.is_none() {
-            let config: DataConfig = serde_json::from_value(serde_json::Value::Object(
-                config_table.to_json_object()?.first().unwrap().to_owned(),
-            ))?;
-            self.config.replace(config);
-        }
-        Ok(())
-    }
-
-    #[instrument(skip(self))]
-    fn init_tensor_service(&mut self) -> Result<()> {
-        if let Some(ref config) = self.config {
-            if self
-                .runtime_env
-                .lock()
-                .tensor_service
-                .is_none()
-            {
-                let device = device(config.cpu)?;
-                let service = CandleTensorService::new(device);
-                let _ = self
-                    .runtime_env
-                    .lock()
-                    .tensor_service
-                    .replace(Box::new(service));
-            }
-        } else {
-            return Err(anyhow!(
-                "The config for Ops processor needs to be initialized before trying to initialize the tensor service."
-            ));
-        }
-        Ok(())
-    }
-}
-
-impl Stream for MessageAggregatorStream {
-    type Item = Result<RecordBatch>;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if self.input.is_empty() {
-            Poll::Ready(None)
-        } else {
-            // Initialize the metrics
-            let metrics = self.baseline_metrics.clone();
-            let _timer = metrics.elapsed_compute().timer();
-
-            // initialize the config and tensor services
-            let mut batches = Vec::new();
-            while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
-                batches.push(batch);
-            }
-            let config_table = TableBuilder::new()
-                .with_name("config")
-                .with_record_batches(batches)?
-                .build()?;
-            self.init_config(config_table)?;
-            self.init_tensor_service()?;
-
-            // Build the data operator
-            if self.data_operator.is_none() {
-                let config = self.config.as_ref().unwrap().clone();
-                self.data_operator.replace(config.operator.build(
-                    &config.lhs_pk,
-                    &config.lhs_fk,
-                    &config.lhs_values,
-                    config.rhs_pk.as_deref(),
-                    config.rhs_fk.as_deref(),
-                    config.rhs_values.as_deref(),
-                    config.op_kwargs.as_deref(),
-                ));
-            }
-
-            // Collect the input
-            let mut batches = Vec::new();
-            for i in self.input.as_mut_slice().iter_mut() {
-                while let Some(Ok(batch)) = ready!(i.poll_next_unpin(cx)) {
-                    batches.push(batch);
-                }
-            }
-
-            // Clear the input so that any subsequent pools will return None
-            self.input.clear();
-
-            // Sort the record batches by timestamp and concatenate
-            let batch = self.data_operator.as_ref().unwrap().forward(
-                &batches,
-                None,
-                self.runtime_env
-                    .try_lock()
-                    .unwrap()
-                    .tensor_service
-                    .as_ref()
-                    .unwrap()
-                    .get_device(),
-            )?;
-
-            // record the poll
-            let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (1, Some(1))
-    }
-}
-
-impl RecordBatchStream for MessageAggregatorStream {
-    fn schema(&self) -> SchemaRef {
-        Arc::clone(&self.schema)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        metrics::HashMap,
-        table::table_trait::{
-            TableBuilder,
-            test_table::{make_test_table, make_test_table_chat},
-        },
+        metrics::HashMap, session::common_traits::device, table::table_trait::{
+            test_table::{make_test_table, make_test_table_chat}, TableBuilder, TableBuilderTrait, TableTrait
+        }
     };
-    use phymes_data::candle_operators::available_candle_operators::AvailableCandleOperators;
+    use phymes_data::{candle_data::{data_config::DataConfig, tensor_service::CandleTensorService}, candle_operators::available_candle_operators::AvailableCandleOperators};
 
     use super::*;
 

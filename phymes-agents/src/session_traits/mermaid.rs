@@ -24,7 +24,7 @@ use phymes_core::{
     },
 };
 use phymes_data::candle_data::{
-    data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor,
+    attachment_aggregator_processor::AttachmentAggregatorProcessor, data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor
 };
 use phymes_ml::{
     candle_chat::{
@@ -425,6 +425,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 Ok(CandleDataProcessor::get_static_name().to_string())
             } else if line.contains(DataSummaryProcessor::get_static_name()) {
                 Ok(DataSummaryProcessor::get_static_name().to_string())
+            } else if line.contains(AttachmentAggregatorProcessor::get_static_name()) {
+                Ok(AttachmentAggregatorProcessor::get_static_name().to_string())
             } else if line.contains(CandleChatProcessor::get_static_name()) {
                 Ok(CandleChatProcessor::get_static_name().to_string())
             } else if line.contains(MessageAggregatorProcessor::get_static_name()) {

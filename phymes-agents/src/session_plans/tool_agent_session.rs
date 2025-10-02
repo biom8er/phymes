@@ -17,8 +17,7 @@ use phymes_core::{
 };
 use phymes_data::{
     candle_data::{
-        data_config::DataConfig, data_processor::CandleDataProcessor,
-        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
+        attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::DataConfig, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor
     },
     candle_operators::available_candle_operators::AvailableCandleOperators,
 };
@@ -258,13 +257,13 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ],
             AnyTableNameSubscribe::new_box(),
         ));
-        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
+        processors.push(AttachmentAggregatorProcessor::new_arc_with_pub_sub(
             self.attachment_aggregator_processor_name,
             &[TablePublish::Extend {
                 table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
             }],
             &[
-                TableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscribe::OnUpdateFullTable {
                     table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                 },
                 TableSubscribe::OnUpdateLastRecordBatch {
@@ -458,6 +457,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
             RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
+            RuntimeEnv::new().with_name(self.attachment_aggregator_runtime_env_name),
             RuntimeEnv::new().with_name(self.chat_runtime_env_name),
             RuntimeEnv::new().with_name(self.tool_runtime_env_name),
             RuntimeEnv::new().with_name("rt_default"),

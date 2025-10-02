@@ -224,7 +224,7 @@ impl ServerState {
                 } else if AvailableSessionPlans::get_all_session_plan_names().contains(&user_session_context.session_context_name) {
                     // Prioritize the available session plans with initialized configs and other state
                     let session_stream_state = AvailableSessionPlans::get_session_stream_state_by_name(
-                        &user_session_context.session_context_name, 
+                        &user_session_context.session_context_name,
                         &session_name)?;
 
                     // Add the session stream state to the state

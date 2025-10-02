@@ -91,10 +91,11 @@ pub trait TaskTrait:
             if update.is_empty() {
                 event!(
                     Level::ERROR,
-                    "No publications found for message {} on {} from {}",
+                    "No publications found for message {} on {} from {} during {}",
                     &name,
                     message.get_subject(),
-                    message.get_publisher()
+                    message.get_publisher(),
+                    self.get_name()
                 );
                 continue;
             }

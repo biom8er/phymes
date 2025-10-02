@@ -44,7 +44,7 @@ use phymes_server::server::{
 pub fn apps_interface_view() -> Element {
     // Intialize signals
     let is_flowchart_shown = use_signal(|| true);
-    let mut active_session_name = use_signal(String::new);
+    let active_session_name = use_signal(String::new);
     let mut active_flowchart_diagram = use_signal(String::new);
     let mut active_er_diagram = use_signal(String::new);
     
@@ -259,21 +259,17 @@ pub fn apps_interface_view() -> Element {
     let _ = use_resource(move || async move {
         if let Some(diagram) = filtered_diagrams().0 {
             active_flowchart_diagram.set(diagram.to_string());
-            tracing::debug!("active_flowchart_diagram updated");
         }
         if let Some(diagram) = filtered_diagrams().1 {
-            active_er_diagram.set(diagram.to_string());     
-            tracing::debug!("active_er_diagram updated");       
+            active_er_diagram.set(diagram.to_string());      
         }
     });
 
     // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
     let diagram_code: Memo<String> = use_memo(move || {
         if is_flowchart_shown() {
-            tracing::debug!("active_flowchart_diagram to diagram_code");
             active_flowchart_diagram.read().to_string()
         } else {
-            tracing::debug!("active_er_diagram to diagram_code");
             active_er_diagram.read().to_string()
         }        
     });

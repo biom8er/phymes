@@ -33,7 +33,7 @@ use crate::{
     state::{
         apps::ACTIVE_SESSION_NAME, attachments::update_attachments_state, sign_in::{EMAIL, JWT}
     },
-    ui::{subjects::{attach_files_input, clear_upload_files_button, extension_to_icon_svg, upload_files_button, upload_files_list}, svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg, ms_arrow_download_icon_svg}},
+    ui::{subjects::{attach_files_input, clear_upload_files_button, extension_and_file_to_href, extension_to_icon_svg, filename_and_extension_to_download, upload_files_button, upload_files_list}, svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg, ms_arrow_download_icon_svg}},
 };
 
 /// View for attachments between the user and AI assistant
@@ -41,7 +41,7 @@ use crate::{
 pub fn attachments_interface_view() -> Element {
     // Global signals
     let attachments_roles = use_signal(Vec::<String>::new);
-    let attachments_contents = use_signal(Vec::<Option<String>>::new);
+    let attachments_contents = use_signal(Vec::<Option<Vec<u8>>>::new);
     let attachments_indices = use_signal(Vec::<usize>::new);
     let attachments_timestamps = use_signal(Vec::<i64>::new);
     let attachments_filenames = use_signal(Vec::<String>::new);
@@ -65,7 +65,7 @@ pub fn attachments_interface_view() -> Element {
         }
 
         let data = get_session_state()
-            .with_subject(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+            .with_subject(AvailableInterfaceSubjects::AggregatedAttachments.to_string().as_str())
             .make_name()
             .unwrap()
             .build()
@@ -96,10 +96,12 @@ pub fn attachments_interface_view() -> Element {
                             Vec::new()
                         });
                     for row in json_rows.iter() {
+                        let bytes: Vec<u8> = serde_json::from_value(row.get("bytes").unwrap().to_owned()).unwrap();
                         if row.get("metadata").is_some() {
                             update_attachments_state(attachments_roles, attachments_contents, attachments_indices, attachments_timestamps, attachments_filenames, attachments_extensions,
                                 row.get("metadata").unwrap().as_str().unwrap(),
-                                None,
+                                Some(bytes),
+                                // None,
                                 row.get("timestamp").unwrap().as_i64().unwrap(),
                                 row.get("filename").unwrap().as_str().unwrap(),
                                 row.get("extension").unwrap().as_str().unwrap(),
@@ -188,19 +190,17 @@ pub fn attachments_interface_view() -> Element {
                                 svg { dangerous_inner_html: extension_to_icon_svg(&extension) }
                                 if let Some(f) = content.as_ref() {
                                     a {
-                                        href: format!("data:text/plain,{}", f),
-                                        download: "{filename}.{extension}",
-                                        "{filename}.{extension}"
+                                        href: extension_and_file_to_href(&extension, f).unwrap(),
+                                        download: filename_and_extension_to_download(&filename, &extension),
+                                        "{filename_and_extension_to_download(&filename, &extension)}"
                                     },
                                     button {
-                                        id: "submit_files",
                                         svg { dangerous_inner_html: fa_trash_icon_svg() }
                                         // TODO: delete the attachment
                                     }
                                 } else {
                                     h3 { "{filename}.{extension}" },
                                     button {
-                                        id: "submit_files",
                                         svg { dangerous_inner_html: ms_arrow_download_icon_svg() }
                                         // TODO: download the attachment
                                     }
@@ -216,7 +216,7 @@ pub fn attachments_interface_view() -> Element {
 }
 
 #[component]
-pub fn attachments_interface_footer(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<String>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>) -> Element {
+pub fn attachments_interface_footer(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<Vec<u8>>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>) -> Element {
     let files_uploaded = use_signal(Vec::<SessionInterfaceMessage>::new);
     let filenames_uploaded = use_signal(Vec::<String>::new);
     let extensions_uploaded = use_signal(Vec::<String>::new);
@@ -228,19 +228,21 @@ pub fn attachments_interface_footer(mut attachments_roles: Signal<Vec<String>>, 
     rsx! {
         footer {
             div {
-                class: "drop_box",
-                attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, filenames_uploaded, files_uploaded, extensions_uploaded }
+                class: "attach_button",
+                attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, files_uploaded, filenames_uploaded, extensions_uploaded }
             }
 
             div {
                 class: "file_upload_form",
-                div {
-                    upload_files_list {filenames_uploaded, files_uploaded, extensions_uploaded}
-                }
-                div {
+                if !files_uploaded.read().is_empty() {
                     div {
-                        upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
-                        clear_upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
+                        upload_files_list {files_uploaded, filenames_uploaded, extensions_uploaded}
+                    }
+                    div {
+                        div {
+                            upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
+                            clear_upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
+                        }
                     }
                 }
             }
