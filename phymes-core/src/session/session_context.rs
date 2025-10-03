@@ -5,6 +5,7 @@ use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
 use futures::{FutureExt, Stream, TryStreamExt};
 use parking_lot::{Mutex, RwLock};
+use std::fmt::Display;
 use std::fs::File;
 use std::future::Future;
 use std::pin::Pin;
@@ -48,7 +49,26 @@ pub enum SessionContextTableNames {
     RuntimeEnvironments,
     MermaidJS,
     SubjectsNumRows,
-    MetricsGantt,
+    MetricMermaidGantt,
+    Errors,
+    Logs,
+}
+
+impl Display for SessionContextTableNames {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SessionContextTableNames::Metrics => write!(f, "Metrics"),
+            SessionContextTableNames::Tasks => write!(f, "Tasks"),
+            SessionContextTableNames::Processors => write!(f, "Processors"),
+            SessionContextTableNames::Subjects => write!(f, "Subjects"),
+            SessionContextTableNames::RuntimeEnvironments => write!(f, "RuntimeEnvironments"),
+            SessionContextTableNames::MermaidJS => write!(f, "MermaidJS"),
+            SessionContextTableNames::SubjectsNumRows => write!(f, "SubjectsNumRows"),
+            SessionContextTableNames::MetricMermaidGantt => write!(f, "MetricMermaidGantt"),
+            SessionContextTableNames::Errors => write!(f, "Errors"),
+            SessionContextTableNames::Logs => write!(f, "Logs"),
+        }
+    }
 }
 
 impl MappableTrait for SessionContextTableNames {
@@ -61,7 +81,9 @@ impl MappableTrait for SessionContextTableNames {
             Self::RuntimeEnvironments => "RUNTIME_ENVIRONMENTS",
             Self::MermaidJS => "MERMAID_JS",
             Self::SubjectsNumRows => "SUBJECTSNUMROWS",
-            Self::MetricsGantt => "METRICSGANTT",
+            Self::MetricMermaidGantt => "METRICSMERMAIDGANTT",
+            Self::Errors => "ERRORS",
+            Self::Logs => "LOGS",
         }
     }
 }
@@ -151,27 +173,27 @@ impl SessionContext {
             }
 
             // Create the gantt view
-            let gantt_table = get_metrics_as_gantt_table(self.state.get(SessionContextTableNames::Metrics.get_name()).unwrap().read().clone(), SessionContextTableNames::MetricsGantt.get_name())?;
+            let gantt_table = get_metrics_as_gantt_table(self.state.get(SessionContextTableNames::Metrics.get_name()).unwrap().read().clone(), SessionContextTableNames::MetricMermaidGantt.get_name())?;
             let mermaid_gantt_table = get_metrics_as_mermaid_gantt(gantt_table)?;
 
             // Add the metrics gantt table to the state or update
             if self
                 .state
-                .contains_key(SessionContextTableNames::MetricsGantt.get_name())
+                .contains_key(SessionContextTableNames::MetricMermaidGantt.get_name())
             {
                 self.state
-                    .get_mut(SessionContextTableNames::MetricsGantt.get_name())
+                    .get_mut(SessionContextTableNames::MetricMermaidGantt.get_name())
                     .unwrap()
                     .write()
                     .update_table(
                         mermaid_gantt_table.get_record_batches_own(),
                         TablePublish::Extend {
-                            table_name: SessionContextTableNames::MetricsGantt.get_name().to_string(),
+                            table_name: SessionContextTableNames::MetricMermaidGantt.get_name().to_string(),
                         },
                     )?;
             } else {
                 self.state.insert(
-                    SessionContextTableNames::MetricsGantt.get_name().to_string(),
+                    SessionContextTableNames::MetricMermaidGantt.get_name().to_string(),
                     Arc::new(RwLock::new(mermaid_gantt_table)),
                 );
             }
@@ -658,6 +680,7 @@ impl SessionStreamStep {
                     response_batches.extend(message_map);
                 }
                 Err(e) => {
+                    // DM, TODO: create error message to update the error subject
                     event!(Level::ERROR, "Error joining message streams: {e:?}");
                     if e.is_panic() {
                         std::panic::resume_unwind(e.into_panic());
@@ -730,6 +753,8 @@ impl SessionStreamStep {
             .update_state_from_messages(messages);
         state.write().extend_superstep_updates(update);
 
+        // DM, TODO: initialize channels for metrics and logs
+
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -760,7 +785,10 @@ impl SessionStreamStep {
                 }
                 Err(err) => event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name),
             }
-        }
+        }        
+
+        // DM, TODO: collect channel responses for metrics and logs
+        //  and update the metric and log subjects
 
         // Break if there is nothing to update
         if session_streams.is_empty() && response_streams.is_empty() {
@@ -2287,7 +2315,7 @@ mod tests {
         assert_eq!(output_rows_sum, output_rows_sum_test);
 
         // Check pivot and gantt
-        let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricsGantt.get_name()).unwrap().read();
+        let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricMermaidGantt.get_name()).unwrap().read();
         assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
         assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
         assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));

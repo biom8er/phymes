@@ -73,6 +73,10 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     format!("message_aggregator_task_2_{tag}_{iter}");
                 let message_aggregator_processor_2_name =
                     format!("message_aggregator_processor_2_{tag}_{iter}");
+                let attachment_aggregator_task_1_name =
+                    format!("attachment_aggregator_task_1_{tag}_{iter}");
+                let attachment_aggregator_processor_1_name =
+                    format!("attachment_aggregator_processor_1_{tag}_{iter}");
                 let chat_processor_name = format!("chat_processor_1_{tag}_{iter}");
                 let embed_query_task_name = format!("embed_query_task_1_{tag}_{iter}");
                 let embed_documents_task_name = format!("embed_documents_task_1_{tag}_{iter}");
@@ -99,8 +103,9 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     message_aggregator_processor_1_name: &message_aggregator_processor_1_name,
                     message_aggregator_task_2_name: &message_aggregator_task_2_name,
                     message_aggregator_processor_2_name: &message_aggregator_processor_2_name,
+                    attachment_aggregator_task_name: &attachment_aggregator_task_1_name,
+                    attachment_aggregator_processor_name: &attachment_aggregator_processor_1_name,
                     chat_processor_name: &chat_processor_name,
-                    chat_runtime_env_name: "chat_rt_1",
                     embed_query_task_name: &embed_query_task_name,
                     embed_documents_task_name: &embed_documents_task_name,
                     embed_query_processor_name: &embed_query_processor_name,
@@ -109,23 +114,15 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     extract_pdf_processor_name: &extract_pdf_processor_name,
                     document_chunk_task_name: &document_chunk_task_name,
                     document_chunk_processor_name: &document_chunk_processor_1_name,
-                    embed_documents_runtime_env_name: "embed_documents_rt_1",
-                    embed_query_runtime_env_name: "embed_documents_rt_1", //"embed_query_rt_1",
                     vector_search_task_name: &vector_search_task_name,
                     relative_similarity_processor_name: &relative_similarity_processor_name,
                     sort_scores_processor_name: &sort_scores_processor_name,
                     join_chunks_processor_name: &join_chunks_processor_name,
                     top_k_processor_name: &top_k_processor_name,
-                    vector_search_runtime_env_name: "vs_rt_1",
                     session_context_name: &session_context_name,
-                    state_documents_table_name: "documents",
-                    state_doc_embed_table_name: "doc_embeddings",
-                    state_q_embed_table_name: "q_embeddings",
-                    state_top_k_docs_table_name: "top_k",
-                    state_scores_table_name: "tmp_scores",
-                    state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
                     chat_api_url: None,
                     embed_api_url: None,
+                    ..Default::default()
                 };
                 if cfg!(not(feature = "candle")) {
                     config.chat_api_url = Some("http://0.0.0.0:8000/v1");

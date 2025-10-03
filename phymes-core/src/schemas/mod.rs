@@ -4,6 +4,9 @@ pub mod chat;
 pub mod queries;
 pub mod user;
 pub mod available_subjects;
+pub mod error;
+pub mod logs;
+pub mod metrics;
 
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
 pub mod chat_completion;

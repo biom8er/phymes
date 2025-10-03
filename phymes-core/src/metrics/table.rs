@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    metrics::{ArrowTaskMetricsSet, HashMap},
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::table_trait::{Table, TableBuilderTrait, TableTrait},
+    metrics::{ArrowTaskMetricsSet, HashMap}, schemas::metrics::create_metrics_batch, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::table_trait::{Table, TableBuilderTrait, TableTrait}
 };
 use anyhow::Result;
 use arrow::{
@@ -147,14 +145,7 @@ pub fn get_metrics_as_table(metrics: ArrowTaskMetricsSet, table_name: &str) -> R
     }
 
     // create the record batch
-    let task_names: ArrayRef = Arc::new(StringArray::from(task_names_vec));
-    let metric_names: ArrayRef = Arc::new(StringArray::from(metric_names_vec));
-    let metric_values: ArrayRef = Arc::new(UInt64Array::from(metric_values_vec));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("task_name", task_names),
-        ("metric_name", metric_names),
-        ("metric_value", metric_values),
-    ])?;
+    let batch = create_metrics_batch(task_names_vec, metric_names_vec, metric_values_vec)?;
 
     // create the table
     Table::get_builder()

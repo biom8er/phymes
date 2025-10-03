@@ -60,7 +60,7 @@ pub fn metrics_interface_view() -> Element {
 
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
-            .with_subject(SessionContextTableNames::MetricsGantt.get_name())
+            .with_subject(SessionContextTableNames::MetricMermaidGantt.get_name())
             .make_name()
             .unwrap()
             .build()

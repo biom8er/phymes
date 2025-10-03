@@ -148,6 +148,49 @@ impl Display for DataComparatorPredicate {
     }
 }
 
+/// Data cast operators with work in conjunction with DataCastAs to change the column name,
+///   DataCastDataType to change the data type, and DataCastTemplate to apply a template
+/// 
+/// # Notes
+/// 
+/// Casting uses the [arrow_cast] crate to convert between [DatayType]s
+/// 
+/// 1. Check if conversion is possible https://arrow.apache.org/rust/arrow_cast/cast/fn.can_cast_types.html
+/// 2. Convert between types https://arrow.apache.org/rust/arrow_cast/cast/fn.cast_with_options.html
+/// 3. Encode/Decode Base64 https://arrow.apache.org/rust/arrow_cast/base64/index.html with BASE64_URL_SAFE_NO_PAD engine
+/// 
+/// Casting also allows for applying a [String] template using
+/// 
+/// 1. `format!` from the standard library
+/// 2. Jinja2 template
+/// 
+/// [arrow_cast]: https://arrow.apache.org/rust/arrow_cast/index.html
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+pub enum DataCastOperator {
+    #[value(name = "Base64Encode")]
+    Base64Encode,
+    #[value(name = "Base64Decode")]
+    Base64Decode,
+    #[value(name = "Cast")]
+    Cast,
+    #[value(name = "ApplyJinja2Template")]
+    ApplyJinja2Template,
+    #[value(name = "ApplyStdTemplate")]
+    ApplyStdTemplate,
+}
+
+impl Display for DataCastOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Base64Encode => write!(f, "Base64Encode"),
+            Self::Base64Decode => write!(f, "Base64Decode"),
+            Self::Cast => write!(f, "Cast"),
+            Self::ApplyJinja2Template => write!(f, "ApplyJinja2Template"),
+            Self::ApplyStdTemplate => write!(f, "ApplyStdTemplate"),
+        }
+    }
+}
+
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(author, version, about, long_about = None)]
 #[serde(default)]
