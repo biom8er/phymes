@@ -1,0 +1,423 @@
+use dioxus::prelude::*;
+use futures::StreamExt;
+use phymes_core::{
+    schemas::{available_subjects::create_timestamp_micros, blob::create_blob_batch}, 
+    session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}}, 
+    table::{data_format::DataFormat, table_publish::TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, 
+    task::message::MessageBuilderTrait
+};
+use phymes_server::handlers::sign_in::create_session_name;
+
+#[cfg(not(feature = "serverless"))]
+use reqwest::{self, header::CONTENT_TYPE};
+
+// File upload imports
+use dioxus::prelude::dioxus_elements::FileEngine;
+use std::sync::Arc;
+
+#[cfg(not(feature = "serverless"))]
+use super::backend::ADDR_BACKEND;
+
+#[cfg(feature = "serverless")]
+use bytes::Bytes;
+#[cfg(feature = "serverless")]
+use futures::TryStreamExt;
+#[cfg(feature = "serverless")]
+use phymes_server::server::{
+    serverless_app::{serverless_app, Serverless},
+    serverless_config::ServerlessConfig,
+};
+
+use crate::state::{
+        apps::ACTIVE_SESSION_NAME, 
+        files::{extension_and_file_to_data_href, extension_to_icon_svg, extension_to_subject, filename_and_extension_to_download}, 
+        sign_in::{EMAIL, JWT}, 
+        svg_icons::{b8_send_icon_svg, fa_trash_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_document_text_icon_svg}
+    };
+
+#[component]
+pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<String>, active_subject_name: Option<Signal<String>>, mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
+    let enable_directory_upload = use_signal(|| false);
+
+    let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublish| async move {
+        let files = file_engine.files();
+        for file_name in &files {
+
+            // Determine the file type
+            let file_path = std::path::Path::new(file_name);
+            match file_path.extension() {
+                None => tracing::error!("File {file_name} has no extension."),
+                Some(ext) => match DataFormat::from_extension(ext.to_str().unwrap()) {
+                    Ok(data_format) => {
+                        // if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+                        if let Some(contents) = file_engine.read_file(file_name).await {
+
+                            // Determine the subject based on the file extension if no active subject is set
+                            let extension = ext.to_str().unwrap();
+                            let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
+                            let subject_name = if let Some(name) = &active_subject_name {
+                                name.read().to_string()
+                            } else {
+                                extension_to_subject(extension).unwrap().to_string()
+                            };
+
+                            // Wrap the contents into a blob batch if no active subject is set
+                            let (message, format) = match active_subject_name {
+                                Some(_) => (contents, data_format),
+                                None => {
+                                    let batch = create_blob_batch(
+                                        vec![file_stem.to_string()],
+                                        vec![extension.to_string()],
+                                        vec![contents],
+                                        vec!["user".to_string()],
+                                        vec![create_timestamp_micros()],
+                                    ).unwrap();
+                                    let message = Table::get_builder()
+                                        .with_name(subject_name.as_str())
+                                        .with_record_batches(vec![batch]).unwrap()
+                                        .build().unwrap()
+                                        .to_ipc_stream().unwrap();
+                                    (message, DataFormat::Ipc)
+                                }
+                            };
+
+                            // Update the publish method
+                            let publish = match publish {
+                                TablePublish::Extend {..} => TablePublish::Extend { table_name: subject_name.clone() },
+                                TablePublish::Replace {..} => TablePublish::Replace { table_name: subject_name.clone() },
+                                _ => TablePublish::None,
+                            };
+
+                            // Create the message to upload
+                            let data = SessionInterfaceMessage::get_builder()
+                                .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                .with_format(&format)
+                                .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                .with_update(&publish)
+                                .with_stream(false)
+                                .with_subject(&subject_name)
+                                .with_message(message)
+                                .make_name()
+                                .unwrap()
+                                .build()
+                                .unwrap();
+                            files_uploaded.push(data);
+                            filenames_uploaded.push(file_stem.to_string());
+                            extensions_uploaded.push(extension.to_string());
+                        }
+                    }
+                    Err(err) => tracing::error!("{err:?}"),
+                },
+            }
+        }
+    };
+
+    let upload_files_extend = move |evt: FormEvent| async move {
+        if let Some(file_engine) = evt.files() {
+            read_files(
+                file_engine,
+                TablePublish::Extend { table_name: "".to_string() }
+            )
+            .await;
+        }
+    };
+
+    let upload_files_replace = move |evt: FormEvent| async move {
+        if let Some(file_engine) = evt.files() {
+            read_files(
+                file_engine,
+                TablePublish::Replace { table_name: "".to_string() }
+            )
+            .await;
+        }
+    };
+
+    rsx! {
+        if extend_publish() {
+            label { r#for: "textread_extend", svg { dangerous_inner_html: ms_cloud_add_icon_svg() } }
+            input {
+                r#type: "file",
+                accept: "{except_files}",
+                multiple: true,
+                id: "textread_extend",
+                directory: enable_directory_upload,
+                onchange: upload_files_extend,                
+            },
+        } else {
+            label { r#for: "textread_add", svg { dangerous_inner_html: ms_cloud_arrow_up_icon_svg() } }
+            input {
+                r#type: "file",
+                accept: "{except_files}",
+                multiple: true,
+                id: "textread_add",
+                directory: enable_directory_upload,
+                onchange: upload_files_replace,
+            }                
+        },
+    }
+}
+
+#[component]
+pub fn attach_textfiles_input(except_files: Signal<String>, mut content: Signal<String>) -> Element {
+    let enable_directory_upload = use_signal(|| false);
+
+    let read_files = move |file_engine: Arc<dyn FileEngine>| async move {
+        let files = file_engine.files();
+        for file_name in &files {
+            if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+                content.set([content(), contents].join(""));
+            }
+        }
+    };
+
+    let upload_files = move |evt: FormEvent| async move {
+        if let Some(file_engine) = evt.files() {
+            read_files(file_engine).await;
+        }
+    };
+
+    rsx! {
+        label { r#for: "textread", svg { dangerous_inner_html: ms_document_text_icon_svg() } }
+        input {
+            r#type: "file",
+            accept: "{except_files}",
+            multiple: true,
+            id: "textread",
+            directory: enable_directory_upload,
+            onchange: upload_files,                
+        },
+    }
+}
+
+#[component]
+pub fn upload_files_list(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
+    rsx! {
+        div {
+            p { "Files to upload" },
+            ul {
+                class: "file_list",
+                {(0..filenames_uploaded.len()).map(|i| {
+                    let filename = filenames_uploaded.get(i).unwrap();
+                    let extension = extensions_uploaded.get(i).unwrap();
+                    let download = filename_and_extension_to_download(&filename, &extension);
+                    rsx! {
+                        li {
+                            key: "{i}",
+                            div {
+                                class: "files",
+                                svg { dangerous_inner_html: extension_to_icon_svg(&extension) },
+                                h3 { "{download}" },
+                                // div { class: "loader" },
+                            }
+                        }
+                    }
+                })}
+            },
+        }
+    }
+}
+
+#[component]
+pub fn upload_files_button(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
+    rsx! {
+        button {
+            onclick: move |_| async move {
+                // Send files to the server
+                for file in files_uploaded.read().iter() {
+                    let data_serialized = serde_json::to_string(file).unwrap();
+                    let route = "/app/v1/put_state";
+
+                    #[cfg(not(feature = "serverless"))]
+                    let addr = format!("{ADDR_BACKEND}{route}");
+                    #[cfg(not(feature = "serverless"))]
+                    match reqwest::Client::new()
+                        .post(addr)
+                        .bearer_auth(JWT.read().to_string())
+                        .header(CONTENT_TYPE, "application/json")
+                        .body(data_serialized)
+                        .send()
+                        .await {
+                        Ok(response) => match response.text().await {
+                            // DM: Find a better way to give feedback to the user on success and error
+                            Ok(text) => tracing::debug!("Put response {text}"),
+                            Err(err) => tracing::error!("Put err {err:?}"),
+                        },
+                        Err(err) => tracing::error!("Put err {err:?}"),
+                    }
+
+                    #[cfg(feature = "serverless")]
+                    let config = ServerlessConfig {
+                        route: route.to_string(),
+                        basic_auth: None,
+                        bearer_auth: Some(JWT.read().to_string()),
+                        data: Some(data_serialized),
+                    };
+                    #[cfg(feature = "serverless")]
+                    let mut serverless = Serverless::new();
+                    #[cfg(feature = "serverless")]
+                    match serverless_app(config, &mut serverless).await {
+                        Ok(response) => {
+                            let bytes: Vec<Bytes> = response
+                                .into_body()
+                                .into_data_stream()
+                                .try_collect()
+                                .await
+                                .unwrap();
+                            let _text = String::from_utf8_lossy(bytes.first().unwrap()).into_owned();
+                        }
+                        Err(err) => tracing::error!("{err:?}"),
+                    }
+                }
+
+                // Clean up the files
+                files_uploaded.set(Vec::new());
+                filenames_uploaded.set(Vec::new());
+                extensions_uploaded.set(Vec::new());
+            },
+            svg { dangerous_inner_html: b8_send_icon_svg() }
+        },
+    }
+}
+
+#[component]
+pub fn clear_upload_files_button(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
+    rsx! {
+        button {
+            onclick: move |_| {
+                files_uploaded.set(Vec::new());
+                filenames_uploaded.set(Vec::new());
+                extensions_uploaded.set(Vec::new());
+            },
+            svg { dangerous_inner_html: fa_trash_icon_svg() }
+        },
+    }
+}
+
+#[component]
+pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_name: Signal<String>, mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
+    rsx! {
+        button {
+            class: "dropdown_form_button",
+            onclick: move |_evt| async move {
+                files_downloaded.set(Vec::new());
+                filenames_downloaded.set(Vec::new());
+                extensions_downloaded.set(Vec::new());
+
+                let data = SessionInterfaceMessage::get_builder()
+                    .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                    .with_format(&data_format())
+                    .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                    .with_update(&TablePublish::None)
+                    .with_stream(false)
+                    .with_subject(&active_subject_name.read())
+                    .make_name()
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let data_serialized = serde_json::to_string(&data).unwrap();
+                let route = "/app/v1/get_state";
+
+                #[cfg(not(feature = "serverless"))]
+                let addr = format!("{ADDR_BACKEND}{route}");
+                #[cfg(not(feature = "serverless"))]
+                match reqwest::Client::new()
+                    .post(addr)
+                    .bearer_auth(JWT.read().to_string())
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(data_serialized)
+                    .send()
+                    .await {
+                    Ok(stream) => {
+                        let mut stream = stream.bytes_stream();
+                        let mut bytes_vec = Vec::<u8>::new();
+                        while let Some(Ok(bytes)) = stream.next().await {
+                            bytes_vec.extend(bytes.to_vec());
+                        }
+                        files_downloaded.push(bytes_vec);
+                        filenames_downloaded.push(active_subject_name.read().as_str().to_string());
+                        extensions_downloaded.push(data_format().to_extension().to_string());
+                    },
+                    Err(err) => tracing::error!("There was a error downloading subject {err}."),
+                }
+
+                #[cfg(feature = "serverless")]
+                let config = ServerlessConfig {
+                    route: route.to_string(),
+                    basic_auth: None,
+                    bearer_auth: Some(JWT.read().to_string()),
+                    data: Some(data_serialized),
+                };
+                #[cfg(feature = "serverless")]
+                let mut serverless = Serverless::new();
+                #[cfg(feature = "serverless")]
+                match serverless_app(config, &mut serverless).await {
+                    Ok(response) => {
+                        let bytes: Vec<Bytes> = response
+                            .into_body()
+                            .into_data_stream()
+                            .try_collect()
+                            .await
+                            .unwrap();
+                        let csv_chunks: Vec<String> = bytes
+                            .iter()
+                            .map(|byte| String::from_utf8_lossy(byte).into_owned())
+                            .collect();
+                        sync_current_files_downloaded_state.send(SyncFilesDownloadedState {
+                            file: csv_chunks.join(""),
+                            filename: active_subject_name.read().as_str().to_string(),
+                            extension: data_format.to_extension().to_string()
+                        });
+                    }
+                    Err(err) => tracing::error!("There was a error downloading subject {err}."),
+                }
+            },
+            svg { dangerous_inner_html: ms_cloud_arrow_down_icon_svg() },
+        },
+    }
+}
+
+#[component]
+pub fn download_files_list(mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
+    rsx! {
+        div {
+            class: "files",
+            p { "Files to download" },
+            ul {
+                class: "file_list",
+                {(0..files_downloaded().len()).map(|i| {
+                    let f_download = filename_and_extension_to_download(filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
+                    let f_href = extension_and_file_to_data_href(extensions_downloaded().get(i).unwrap() ,files_downloaded().get(i).unwrap()).unwrap();
+                    rsx! {
+                        li {
+                            // key: "{i}",
+                            div {
+                                class: "files",
+                                svg { dangerous_inner_html: extension_to_icon_svg(extensions_downloaded().get(i).unwrap()) },
+                                a {
+                                    href: f_href.to_owned(),
+                                    download: f_download.to_owned(),
+                                    "{f_download}"
+                                },
+                            }
+                        }
+                    }
+                })}
+            },
+        }
+    }
+}
+
+#[component]
+pub fn clear_download_files_button(mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
+
+    rsx! {
+        button {
+            onclick: move |_| {
+                files_downloaded.set(Vec::new());
+                filenames_downloaded.set(Vec::new());
+                extensions_downloaded.set(Vec::new());
+            },
+            svg { dangerous_inner_html: fa_trash_icon_svg() }
+        },
+    }
+}

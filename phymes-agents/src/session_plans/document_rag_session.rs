@@ -8,14 +8,13 @@ use phymes_core::{
         session_context_builder::TaskPlan,
     },
     table::{
-        data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        data_format::DataFormat, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait}
     },
     task::processor::{ProcessorEcho, ProcessorTrait},
 };
 use phymes_data::{
     candle_data::{
-        data_config::DataConfig, data_processor::CandleDataProcessor,
-        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
+        attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::DataConfig, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor
     },
     candle_operators::available_candle_operators::AvailableCandleOperators,
 };
@@ -54,6 +53,10 @@ pub struct DocumentRAGSession<'a> {
     pub message_aggregator_processor_1_name: &'a str,
     pub message_aggregator_task_2_name: &'a str,
     pub message_aggregator_processor_2_name: &'a str,
+    /// Attachment aggregator for the tool task
+    pub attachment_aggregator_task_name: &'a str,
+    pub attachment_aggregator_processor_name: &'a str,
+    pub attachment_aggregator_runtime_env_name: &'a str,
     /// Embed tasks
     pub embed_query_task_name: &'a str,
     pub embed_documents_task_name: &'a str,
@@ -98,6 +101,9 @@ impl Default for DocumentRAGSession<'_> {
             message_aggregator_processor_1_name: "message_aggregator_1",
             message_aggregator_task_2_name: "message_aggregator_task_2",
             message_aggregator_processor_2_name: "message_aggregator_2",
+            attachment_aggregator_task_name: "attachment_aggregator_task_1",
+            attachment_aggregator_processor_name: "attachment_aggregator_processor_1",
+            attachment_aggregator_runtime_env_name: "attachment_aggregator_rt_1",
             chat_processor_name: "chat_processor_1",
             chat_runtime_env_name: "chat_rt_1",
             embed_query_task_name: "embed_query_task_1",
@@ -147,30 +153,41 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 task_name: self.message_aggregator_task_1_name.to_string(),
                 runtime_env_name: self.vector_search_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
-            },TaskPlan {
+            },
+            TaskPlan {
                 task_name: self.message_aggregator_task_2_name.to_string(),
                 runtime_env_name: self.vector_search_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
-            },TaskPlan {
+            },
+            TaskPlan {
+                task_name: self.attachment_aggregator_task_name.to_string(),
+                runtime_env_name: self.attachment_aggregator_runtime_env_name.to_string(),
+                processor_names: vec![self.attachment_aggregator_processor_name.to_string()],
+            },
+            TaskPlan {
                 task_name: self.chat_task_name.to_string(),
                 runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.chat_processor_name.to_string()],
-            },TaskPlan {
+            },
+            TaskPlan {
                 task_name: self.extract_pdf_task_name.to_string(),
                 runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![
                     self.extract_pdf_processor_name.to_string(),
                     self.document_chunk_processor_name.to_string(),
                 ],
-            },TaskPlan {
+            },
+            TaskPlan {
                 task_name: self.embed_documents_task_name.to_string(),
                 runtime_env_name: self.embed_documents_runtime_env_name.to_string(),
                 processor_names: vec![self.embed_documents_processor_name.to_string()],
-            },TaskPlan {
+            },
+            TaskPlan {
                 task_name: self.embed_query_task_name.to_string(),
                 runtime_env_name: self.embed_query_runtime_env_name.to_string(),
                 processor_names: vec![self.embed_query_processor_name.to_string()],
-            },TaskPlan {
+            },
+            TaskPlan {
                 task_name: self.vector_search_task_name.to_string(),
                 runtime_env_name: self.vector_search_runtime_env_name.to_string(),
                 processor_names: vec![
@@ -179,7 +196,8 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     self.join_chunks_processor_name.to_string(),
                     self.top_k_processor_name.to_string(),
                 ],
-            },TaskPlan {
+            },
+            TaskPlan {
                 task_name: self.session_context_name.to_string(),
                 runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![self.session_context_name.to_string()],
@@ -231,6 +249,21 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 },
             ],
             AllTableNamesSubscribe::new_box(),
+        ));
+        processors.push(AttachmentAggregatorProcessor::new_arc_with_pub_sub(
+            self.attachment_aggregator_processor_name,
+            &[TablePublish::Extend {
+                table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
+            }],
+            &[
+                TableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+                },
+                TableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.attachment_aggregator_processor_name.to_string(),
+                },
+            ],
+            AnyTableNameSubscribe::new_box(),
         ));
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
@@ -466,6 +499,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             RuntimeEnv::new().with_name(self.embed_documents_runtime_env_name),
             RuntimeEnv::new().with_name(self.embed_query_runtime_env_name),
             RuntimeEnv::new().with_name(self.vector_search_runtime_env_name),
+            RuntimeEnv::new().with_name(self.attachment_aggregator_runtime_env_name),
             RuntimeEnv::new().with_name("rt_default"),
         ])
     }
@@ -638,6 +672,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .unwrap()
             .build()
             .unwrap();
+        let aggregator_3_state = TableBuilder::new()
+            .with_name(self.attachment_aggregator_processor_name)
+            .with_json(&aggregator_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Extract pdf config
         let extract_pdf_config = DataConfig {
@@ -752,6 +792,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             candle_query_embed_state,
             aggregator_1_state,
             aggregator_2_state,
+            aggregator_3_state,
             extract_pdf_state,
             chunk_document_state,
             rel_sim_state,
@@ -771,6 +812,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             AvailableSubjects::QueryEmbeddings.to_table(Some(self.state_q_embed_table_name), None).unwrap(),       
             AvailableSubjects::EmbeddingScores.to_table(Some(self.state_scores_table_name), None).unwrap(),         
             AvailableSubjects::JoinChunksScores.to_table(Some(self.state_scores_chunks_join_table_name), None).unwrap(),
+            AvailableInterfaceSubjects::AggregatedAttachments.to_table(None, None).unwrap(),
         ])
     }
 }

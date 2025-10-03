@@ -31,9 +31,12 @@ use phymes_server::server::{
 // mod imports
 use crate::{
     state::{
-        apps::ACTIVE_SESSION_NAME, messaging::{update_message_content_state, update_message_state}, sign_in::{EMAIL, JWT}
+        apps::ACTIVE_SESSION_NAME, 
+        messaging::{update_message_content_state, update_message_state}, 
+        sign_in::{EMAIL, JWT},
+        svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg}
     },
-    ui::{subjects::attach_textfiles_input, svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg, ms_document_text_icon_svg}},
+    ui::files::attach_textfiles_input
 };
 
 /// View for messaging between the user and AI assistant

@@ -26,14 +26,15 @@ use crate::{
     state::{
         apps::ACTIVE_SESSION_NAME,
         sign_in::{EMAIL, JWT},
+        svg_icons::ms_search_icon_svg
     },
-    ui::{apps::{mermaid_view, render_mermaid_svg}, svg_icons::ms_search_icon_svg},
+    ui::apps::mermaid_view
 };
 
 const SESSION_METRICS_HEADERS: [&str; 3] = ["processor_traces", "elapsed_compute", "output_rows"];
 
 #[component]
-pub fn metrics_modal() -> Element {
+pub fn metrics_interface_view() -> Element {
     // Initalize signals
     let active_metric = use_signal(String::new);
     let mut mermaid_processor_traces = use_signal(String::new);

@@ -31,9 +31,13 @@ use phymes_server::server::{
 // mod imports
 use crate::{
     state::{
-        apps::ACTIVE_SESSION_NAME, attachments::update_attachments_state, sign_in::{EMAIL, JWT}
+        apps::ACTIVE_SESSION_NAME, 
+        attachments::update_attachments_state, 
+        files::{extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download},
+        sign_in::{EMAIL, JWT},
+        svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg, ms_arrow_download_icon_svg}
     },
-    ui::{subjects::{attach_files_input, clear_upload_files_button, extension_and_file_to_href, extension_to_icon_svg, filename_and_extension_to_download, upload_files_button, upload_files_list}, svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg, ms_arrow_download_icon_svg}},
+    ui::files::{attach_files_input, clear_upload_files_button, upload_files_button}
 };
 
 /// View for attachments between the user and AI assistant
@@ -87,9 +91,8 @@ pub fn attachments_interface_view() -> Element {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
                 while let Some(Ok(bytes)) = stream.next().await {
-                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                     let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
+                        serde_json::from_slice(&bytes).unwrap_or_else(|err| {
                             tracing::error!(
                                 "There was a error parsing SyncCurrentAttachmentsState {err}."
                             );
@@ -189,7 +192,7 @@ pub fn attachments_interface_view() -> Element {
                                 svg { dangerous_inner_html: extension_to_icon_svg(&extension) }
                                 if let Some(f) = content.as_ref() {
                                     a {
-                                        href: extension_and_file_to_href(&extension, f).unwrap(),
+                                        href: extension_and_file_to_data_href(&extension, f).unwrap(),
                                         download: filename_and_extension_to_download(&filename, &extension),
                                         "{filename_and_extension_to_download(&filename, &extension)}"
                                     },
@@ -222,29 +225,38 @@ pub fn attachments_interface_footer(mut attachments_roles: Signal<Vec<String>>, 
     let filenames_uploaded = use_signal(Vec::<String>::new);
     let extensions_uploaded = use_signal(Vec::<String>::new);
     
-    // let _ = use_resource(move || async move {
-
-    // });
+    let filenames = use_memo(move || {
+        let mut filenames_vec = Vec::new();
+        for i in 0..files_uploaded.len() {
+            let download = filename_and_extension_to_download(&filenames_uploaded.get(i).unwrap(), &extensions_uploaded.get(i).unwrap());
+            filenames_vec.push(download);
+        }
+        filenames_vec.join(", ")
+    });
 
     rsx! {
         footer {
             div {
-                class: "attach_button",
+                class: "attach_button",                
                 attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, files_uploaded, filenames_uploaded, extensions_uploaded }
+            } 
+
+            div {
+                class: "text_input",
+                form {
+                    id: "message_form",
+                    textarea {
+                        placeholder: "Staged files",
+                        value: "{filenames}",
+                    }
+                }
             }
 
             div {
-                class: "file_upload_form",
+                class: "submit_button",
                 if !files_uploaded.read().is_empty() {
-                    div {
-                        upload_files_list {files_uploaded, filenames_uploaded, extensions_uploaded}
-                    }
-                    div {
-                        div {
-                            upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
-                            clear_upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
-                        }
-                    }
+                    upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
+                    clear_upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
                 }
             }
         }

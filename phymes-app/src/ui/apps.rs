@@ -10,9 +10,10 @@ use serde_json::{Map, Value};
 use crate::{
     state::{
         apps::{filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME}, 
-        sign_in::{BUILDER, EMAIL, JWT, SESSION_NAMES}
+        sign_in::{BUILDER, EMAIL, JWT, SESSION_NAMES},
+        svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}
     },
-    ui::{builds::{builds_dropdown_view, builds_interface_footer}, main_window::split_panel_drag_handle, svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}},
+    ui::{builds::{builds_dropdown_view, builds_interface_footer}, main_window::split_panel_drag_handle},
 };
 
 

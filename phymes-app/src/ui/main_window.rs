@@ -1,18 +1,19 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-use crate::state::sign_in::{BUILDER, DEBUGGER};
-use crate::ui::attachments::attachments_interface_view;
-use crate::ui::svg_icons::ms_attachment_icon_svg;
-
-use super::messaging::messaging_interface_view;
-use super::metrics::metrics_modal;
-use super::apps::apps_interface_view;
-use super::sign_in::sign_in_view;
-use super::subjects::subjects_interface_view;
-use super::svg_icons::{
-    ms_database_icon_svg, aws_help_icon_svg, b8_logo_icon_svg, b8_menu_icon_svg, ms_message_icon_svg,
-    ms_person_icon_svg, ms_apps_icon_svg, ms_top_speed_icon_svg, ms_tools_icon_svg
+use crate::ui::{
+    attachments::attachments_interface_view,
+    messaging::messaging_interface_view,
+    metrics::metrics_interface_view,
+    apps::apps_interface_view,
+    sign_in::sign_in_view,
+    subjects::subjects_interface_view
+};
+use crate::state::{
+    svg_icons::{
+        ms_database_icon_svg, aws_help_icon_svg, b8_logo_icon_svg, b8_menu_icon_svg, ms_message_icon_svg,
+        ms_person_icon_svg, ms_apps_icon_svg, ms_top_speed_icon_svg, ms_tools_icon_svg, ms_attachment_icon_svg},
+    sign_in::{BUILDER, DEBUGGER}
 };
 
 #[component]
@@ -190,7 +191,7 @@ pub fn main_window() -> Element {
             } else if header_menu.read().as_str() == "Attachments" {
                 attachments_interface_view {},
             } else if header_menu.read().as_str() == "Metrics" {
-                metrics_modal {},
+                metrics_interface_view {},
             }
         }
     }
