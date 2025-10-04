@@ -151,21 +151,21 @@ impl DataOperatorTrait for SelectAndCast {
             }),
         );
         properties.insert(
-            "lhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
-                description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
             "lhs_values".to_string(),
             Box::new(types::JSONSchemaDefine {
                 schema_type: Some(types::JSONSchemaType::String),
                 description: Some(
                     "The values column identifier for the left hand side table in the form of a JSON list of strings".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "op_kwargs".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "DataCastOperator and DataType with optional column renaming and template injection in the form of a JSON object".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -178,8 +178,8 @@ impl DataOperatorTrait for SelectAndCast {
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
-                    "lhs_pk".to_string(),
                     "lhs_values".to_string(),
+                    "op_kwargs".to_string(),
                 ]),
             },
         };

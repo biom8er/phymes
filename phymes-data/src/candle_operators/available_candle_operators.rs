@@ -11,7 +11,7 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::candle_operators::{
-    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, sort_column_and_indices::SortColumnAndIndices
+    apply_template::ApplyTemplate, chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, select_and_cast::SelectAndCast, sort_column_and_indices::SortColumnAndIndices
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -43,6 +43,12 @@ pub enum AvailableCandleOperators {
     #[value(name = "ExtractTabularData")]
     #[serde(alias = "extract-tabular-data")]
     ExtractTabularData,
+    #[value(name = "SelectAndCast")]
+    #[serde(alias = "select-and-cast")]
+    SelectAndCast,
+    #[value(name = "ApplyTemplate")]
+    #[serde(alias = "apply-template")]
+    ApplyTemplate,
 }
 
 impl Default for AvailableCandleOperators {
@@ -63,6 +69,8 @@ impl Display for AvailableCandleOperators {
             Self::GroupByAndAggregate => write!(f, "{}", GroupByAndAggregate::get_static_name()),
             Self::FilterColumnsAndIndices => write!(f, "{}", FilterColumnsAndIndices::get_static_name()),
             Self::ExtractTabularData => write!(f, "{}", ExtractTabularData::get_static_name()),
+            Self::SelectAndCast => write!(f, "{}", SelectAndCast::get_static_name()),
+            Self::ApplyTemplate => write!(f, "{}", ApplyTemplate::get_static_name()),
         }
     }
 }
@@ -80,6 +88,8 @@ impl AvailableCandleOperators {
             Self::GroupByAndAggregate => GroupByAndAggregate::get_json_tool_schema(),
             Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_json_tool_schema(),
             Self::ExtractTabularData => ExtractTabularData::get_json_tool_schema(),
+            Self::SelectAndCast => SelectAndCast::get_json_tool_schema(),
+            Self::ApplyTemplate => ApplyTemplate::get_json_tool_schema(),
         }
     }
 
@@ -121,6 +131,12 @@ impl AvailableCandleOperators {
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
             Self::ExtractTabularData => Box::new(ExtractTabularData::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
+            Self::SelectAndCast => Box::new(SelectAndCast::new(
+                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
+            )),
+            Self::ApplyTemplate => Box::new(ApplyTemplate::new(
                 lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
             )),
         }
@@ -171,6 +187,8 @@ mod tests {
                 "GroupByAndAggregate".to_string(),
                 "FilterColumnsAndIndices".to_string(),
                 "ExtractTabularData".to_string(),
+                "SelectAndCast".to_string(),
+                "ApplyTemplate".to_string(),
             ],
         )
         .unwrap();
@@ -184,7 +202,9 @@ mod tests {
                 "HumanInTheLoop",
                 "GroupByAndAggregate",
                 "FilterColumnsAndIndices",
-                "ExtractTabularData"
+                "ExtractTabularData",
+                "SelectAndCast",
+                "ApplyTemplate",
             ]
         );
         let functions = result.get_column_as_vec_str("tool");
@@ -348,6 +368,43 @@ mod tests {
                 .get(7)
                 .unwrap()
                 .contains("\"required\":[\"lhs_name\",\"lhs_values\",\"op_kwargs\"]}}}")
+        );
+
+        assert!(functions.get(8).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"SelectAndCast\",\"description\":\"Cast specified columns using a specified cast operator and cast data type with optional column renaming and template injection.\"")
+        );
+        assert!(
+            functions
+                .get(8)
+                .unwrap()
+                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
+        );
+        assert!(functions.get(8).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the left hand side table in the form of a JSON list of strings\"")
+        );
+        assert!(functions.get(8).unwrap().contains("\"op_kwargs\":{\"type\":\"string\",\"description\":\"DataCastOperator and DataType with optional column renaming and template injection in the form of a JSON object\"")
+        );
+        assert!(
+            functions
+                .get(8)
+                .unwrap()
+                .contains("\"required\":[\"lhs_name\",\"lhs_values\",\"op_kwargs\"]}}}")
+        );
+
+        assert!(functions.get(9).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"ApplyTemplate\",\"description\":\"Inject a table into a string template.\"")
+        );
+        assert!(
+            functions
+                .get(9)
+                .unwrap()
+                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
+        );
+
+        assert!(functions.get(9).unwrap().contains("\"op_kwargs\":{\"type\":\"string\",\"description\":\"template, table_expression, and input_template in the form of a JSON object\"")
+        );
+        assert!(
+            functions
+                .get(9)
+                .unwrap()
+                .contains("\"required\":[\"lhs_name\",\"op_kwargs\"]}}}")
         );
     }
 

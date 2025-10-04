@@ -89,13 +89,26 @@ impl DataOperatorTrait for ApplyTemplate {
                 ..Default::default()
             }),
         );
+        properties.insert(
+            "op_kwargs".to_string(),
+            Box::new(types::JSONSchemaDefine {
+                schema_type: Some(types::JSONSchemaType::String),
+                description: Some(
+                    "template, table_expression, and input_template in the form of a JSON object".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
         let function = types::Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
             parameters: types::FunctionParameters {
                 schema_type: types::JSONSchemaType::Object,
                 properties: Some(properties),
-                required: Some(vec!["lhs_name".to_string()]),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "op_kwargs".to_string(),
+                    ]),
             },
         };
         let tool = chat_completion::Tool {
