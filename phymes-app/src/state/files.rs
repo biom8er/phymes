@@ -82,6 +82,7 @@ pub fn extension_and_file_to_data_href(extension: &str, bytes: &[u8]) -> Result<
 /// Based on https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/blob
 /// 
 /// Follows the syntax `blob:<origin>/<uuid>>`
+#[allow(dead_code)]
 pub fn extension_and_file_to_blob_href(extension: &str, bytes: &[u8]) -> Result<String> {
     let mime_type = extension_to_mime_type(extension)?;
     let href = match extension {

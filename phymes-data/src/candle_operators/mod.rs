@@ -10,3 +10,4 @@ pub mod join_inner;
 pub mod relative_similarity_score;
 pub mod sort_column_and_indices;
 pub mod select_and_cast;
+pub mod apply_template;

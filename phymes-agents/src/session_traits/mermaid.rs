@@ -4,7 +4,7 @@ use crate::session_plans::{available_interface_subjects::check_agent_subjects, a
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
-    datatypes::{DataType, Field, Schema},
+    datatypes::{Field, Schema},
 };
 use clap::ValueEnum;
 use phymes_core::{
@@ -15,9 +15,7 @@ use phymes_core::{
         }
     },
     table::{
-        table_trait::{Table, TableBuilderTrait, TableTrait},
-        table_publish::TablePublish,
-        table_subscribe::{from_str_to_subscribe, TableSubscribe},
+        data_types::{from_data_type_to_str, from_str_to_data_type}, table_publish::TablePublish, table_subscribe::{from_str_to_subscribe, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
     },
     task::processor::{
         test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho

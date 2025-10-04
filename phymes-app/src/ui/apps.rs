@@ -251,8 +251,8 @@ pub fn apps_interface_view() -> Element {
 
         // last is most recent
         match combined.last() {
-            Some(diagrams) => ((Some(diagrams.0.to_owned()), Some(diagrams.1.to_owned()))),
-            None => ((None, None))
+            Some(diagrams) => (Some(diagrams.0.to_owned()), Some(diagrams.1.to_owned())),
+            None => (None, None)
         }
     });  
 

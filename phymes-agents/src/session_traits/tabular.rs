@@ -15,6 +15,7 @@ use phymes_core::{
             SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
         },
     }, table::{
+        data_types::{from_data_type_to_str, from_str_to_data_type},
         table_trait::{Table, TableBuilderTrait, TableTrait},
         table_publish::TablePublish,
         table_subscribe::{from_str_to_subscribe, TableSubscribe},
@@ -23,9 +24,7 @@ use phymes_core::{
 
 use crate::{
     session_plans::available_processors::AvailableProcessors,
-    session_traits::mermaid::{
-        SessionContextBuilderMermaidTrait, from_data_type_to_str, from_str_to_data_type,
-    },
+    session_traits::mermaid::SessionContextBuilderMermaidTrait,
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format

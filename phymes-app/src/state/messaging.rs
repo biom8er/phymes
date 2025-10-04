@@ -13,6 +13,7 @@ pub fn update_message_content_state(mut messaging_contents: Signal<Vec<String>>,
 }
 
 /// Clear the message state
+#[allow(dead_code)]
 pub fn clear_message_state(mut messaging_roles: Signal<Vec<String>>, mut messaging_contents: Signal<Vec<String>>, mut messaging_indices: Signal<Vec<usize>>, mut messaging_timestamps: Signal<Vec<i64>>) {
     messaging_roles.set(Vec::new());
     messaging_contents.set(Vec::new());

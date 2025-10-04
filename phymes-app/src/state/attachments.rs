@@ -2,6 +2,7 @@
 use dioxus::prelude::*;
 
 /// Update the attachments content state by adding to the option at the specified index
+#[allow(dead_code)]
 pub fn update_attachments_content_state(mut attachments_contents: Signal<Vec<Option<Vec<u8>>>>, attachments_content_update: &[u8], index: usize) {
     if let Some(mut existing_content) = attachments_contents.get_mut(index) {
         if let Some(content) = existing_content.as_mut() {
@@ -13,6 +14,7 @@ pub fn update_attachments_content_state(mut attachments_contents: Signal<Vec<Opt
 }
 
 /// Clear the attachments state
+#[allow(dead_code)]
 pub fn clear_attachments_state(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<Vec<u8>>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>) {
     attachments_roles.set(Vec::new());
     attachments_contents.set(Vec::new());

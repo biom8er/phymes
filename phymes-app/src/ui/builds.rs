@@ -387,7 +387,7 @@ pub fn builds_interface_footer(is_flowchart_shown: Signal<bool>, active_session_
                             value: "{diagram_code.to_string()}",
                             oninput: move |event| async move {
                                 // Update the active diagrams
-                                let current_session_mermaid_js = if is_flowchart_shown() {
+                                if is_flowchart_shown() {
                                     active_flowchart_diagram.set(event.value());
                                 } else {
                                     active_er_diagram.set(event.value());

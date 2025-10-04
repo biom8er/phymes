@@ -108,6 +108,22 @@ pub fn create_documents_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+pub fn create_documents_batch(
+    chunk_id: Vec<String>,
+    document_id: Vec<String>,
+    text: Vec<String>,
+) -> Result<RecordBatch> {
+    let chunk_id: ArrayRef = Arc::new(StringArray::from(chunk_id));
+    let document_id: ArrayRef = Arc::new(StringArray::from(document_id));
+    let text: ArrayRef = Arc::new(StringArray::from(text));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("chunk_id", chunk_id),
+        ("document_id", document_id),
+        ("text", text),
+    ])?;
+    Ok(batch)
+}
+
 pub fn create_document_embeddings_fields() -> Fields {
     let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
     let document_id = Field::new("document_id", DataType::Utf8, false);

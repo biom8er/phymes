@@ -4,8 +4,6 @@ use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt32Array}
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::create_timestamp_str, table::table_trait::TableBuilder};
-
 /// Logging Levels (from highest to lowest priority):
 /// error!: For critical errors that cause the program to fail or behave incorrectly.
 /// warn!: For warnings about potential issues that are not immediately fatal.

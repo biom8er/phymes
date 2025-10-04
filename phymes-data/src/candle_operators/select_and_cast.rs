@@ -3,30 +3,23 @@ use std::{collections::HashMap, sync::Arc};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        ArrayRef, Float32Array, Float64Array, Int64Array, ListArray, RecordBatch, StringArray, UInt32Array, UInt8Array
+        ArrayRef, Float32Array, Float64Array, Int64Array, RecordBatch, StringArray, UInt32Array, UInt8Array
     },
-    compute::{
-        can_cast_types, cast, contains, ends_with, ilike, in_list, like, nilike, nlike, regexp_is_match, starts_with
-    },
+    compute::cast,
     datatypes::DataType,
 };
-use candle_core::{Device, Tensor, WithDType};
-use num_traits::{Bounded, Num, NumCast};
+use candle_core::Device;
 use phymes_core::{
     schemas::{chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
     table::{data_types::from_str_to_data_type, table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
 };
+use serde_json::json;
 use tracing::{event, instrument, Level};
-use tracing_subscriber::registry::Data;
 
 use crate::{
-    candle_data::data_config::{DataCastOperator, DataComparatorOperator, DataComparatorPredicate},
-    candle_operators::{
-        data_operator::{make_error_record_batch, DataOperatorTrait},
-        group_by_and_aggregate::build_aggregator_column_list,
-        sort_column_and_indices::take_columns_by_indices,
-    },
+    candle_data::data_config::DataCastOperator,
+    candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait},
 };
 
 /// Select and cast the [RecordBatch]es based on the [DataComparatorOperator] and [DataType] with optional column renaming and template injection
@@ -207,7 +200,7 @@ impl DataOperatorTrait for SelectAndCast {
 ///   `as_columns` = ["count", ...]
 ///   `cast_operators` = [DataCastOperator::Cast, ...]
 ///   `cast_datatypes` = [DataType::UInt32, ...]
-///   `with_templates` = ["", ...] ignored since this is not a cast to DataType::Utf8
+///   `cast_templates` = ["", ...] ignored since this is not a cast to DataType::Utf8
 ///
 /// # Arguments
 ///
@@ -216,7 +209,9 @@ impl DataOperatorTrait for SelectAndCast {
 /// * `as_columns` - Slice of [String]s for the columns to rename to
 /// * `cast_operators` - Slice of [DataCastOperator]s specifying the cast operator to apply to each lhs_values
 /// * `cast_datatypes` - Slice of [DataType]s specifying the data type to cast each lhs_values to
-/// * `with_templates` - Slice of [String]s specifying the template to use when casting each lhs_value to a [String] representation
+/// * `cast_templates` - Slice of [String]s specifying the template to use when casting each lhs_value to a [String] representation
+///   where the template is a simple minijinja template with a single expression for the column
+///   e.g., "Hello {{ COL1 }}"
 /// * `device` - The compute device
 #[instrument(skip(
     lhs_values,
@@ -224,7 +219,7 @@ impl DataOperatorTrait for SelectAndCast {
     as_columns,
     cast_operators,
     cast_datatypes,
-    with_templates,
+    cast_templates,
     _device
 ))]
 pub fn select_and_cast(
@@ -233,7 +228,7 @@ pub fn select_and_cast(
     as_columns: &[&str],
     cast_operators: &[DataCastOperator],
     cast_datatypes: &[DataType],
-    with_templates: &[&str],
+    cast_templates: &[&str],
     _device: &Device,
 ) -> Result<RecordBatch> {
     // Ensure that the array lengths for values, columns, and operators match
@@ -255,11 +250,11 @@ pub fn select_and_cast(
             lhs_values.len(),
             cast_datatypes.len()
         ));
-    } else if lhs_values.len() != with_templates.len() {
+    } else if lhs_values.len() != cast_templates.len() {
         return Err(anyhow!(
             "lhs_values length {} is not equal to the with_templates length {}",
             lhs_values.len(),
-            with_templates.len()
+            cast_templates.len()
         ));
     }
 
@@ -284,7 +279,7 @@ pub fn select_and_cast(
         };
 
         // Inject into a string template
-        let column_cast = if let Some(template) = with_templates.get(index) {
+        let column_cast = if let Some(template) = cast_templates.get(index) {
             if template.is_empty() {
                 column_cast
             } else {
@@ -295,7 +290,7 @@ pub fn select_and_cast(
                             .downcast_ref::<UInt8Array>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&serde_json::to_value(s.unwrap_or_default()).unwrap()).unwrap())
+                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
@@ -306,7 +301,7 @@ pub fn select_and_cast(
                             .downcast_ref::<UInt32Array>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&serde_json::to_value(s.unwrap_or_default()).unwrap()).unwrap())
+                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
@@ -317,7 +312,7 @@ pub fn select_and_cast(
                             .downcast_ref::<Int64Array>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&serde_json::to_value(s.unwrap_or_default()).unwrap()).unwrap())
+                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
@@ -328,7 +323,7 @@ pub fn select_and_cast(
                             .downcast_ref::<Float32Array>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&serde_json::to_value(s.unwrap_or_default()).unwrap()).unwrap())
+                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
@@ -339,7 +334,7 @@ pub fn select_and_cast(
                             .downcast_ref::<Float64Array>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&serde_json::to_value(s.unwrap_or_default()).unwrap()).unwrap())
+                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
@@ -350,7 +345,7 @@ pub fn select_and_cast(
                             .downcast_ref::<StringArray>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&serde_json::to_value(s.unwrap_or_default()).unwrap()).unwrap())
+                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
@@ -391,7 +386,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_filter_column_and_indices() -> Result<()> {
+    fn test_select_and_cast() -> Result<()> {
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
@@ -422,11 +417,12 @@ mod tests {
         // ------ String, UInt32, All ------
         // Group the text
         let result = select_and_cast(
-            &["lhs_pk", "lhs_metadata"],
+            &["lhs_pk", "lhs_text", "lhs_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
-            &["lhs_pk", "lhs_metadata"],
-            &[DataComparatorOperator::Like, DataComparatorOperator::Equals],
-            &DataComparatorPredicate::All,
+            &["new_pk", "", "new_metadata"],
+            &[DataCastOperator::Cast, DataCastOperator::None, DataCastOperator::Cast],
+            &[DataType::UInt32, DataType::Utf8, DataType::Float32],
+            &["", "Into template {{ lhs_text }}", ""],
             &device,
         )?;
         let result_table = Table::get_builder()
@@ -435,58 +431,11 @@ mod tests {
             .build()?;
 
         let lhs_text = result_table.get_column_as_vec_str("lhs_text");
-        assert_eq!(lhs_text, vec!["left", "1", "left", "3"]);
-        let lhs_id = result_table.get_column_as_vec_str("lhs_pk");
-        assert_eq!(lhs_id, vec!["0", "1", "2", "3"]);
-        let metadata = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata")?;
-        assert_eq!(metadata, vec![1, 2, 3, 4]);
-
-        // ------ String, UInt32, Any ------
-        // Group the text
-        let result = select_and_cast(
-            &["lhs_pk", "lhs_metadata"],
-            &[lhs_batch_1.clone(), lhs_batch_2.clone()],
-            &["lhs_pk", "lhs_metadata"],
-            &[
-                DataComparatorOperator::Like,
-                DataComparatorOperator::NotEquals,
-            ],
-            &DataComparatorPredicate::Any,
-            &device,
-        )?;
-        let result_table = Table::get_builder()
-            .with_record_batches(vec![result])?
-            .with_name("")
-            .build()?;
-
-        let lhs_text = result_table.get_column_as_vec_str("lhs_text");
-        assert_eq!(lhs_text, vec!["left", "1", "left", "3"]);
-        let lhs_id = result_table.get_column_as_vec_str("lhs_pk");
-        assert_eq!(lhs_id, vec!["0", "1", "2", "3"]);
-        let metadata = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata")?;
-        assert_eq!(metadata, vec![1, 2, 3, 4]);
-
-        // ------ String, Any ------
-        // Group the text
-        let result = select_and_cast(
-            &["lhs_pk"],
-            &[lhs_batch_1, lhs_batch_2],
-            &["lhs_text"],
-            &[DataComparatorOperator::Like],
-            &DataComparatorPredicate::Any,
-            &device,
-        )?;
-        let result_table = Table::get_builder()
-            .with_record_batches(vec![result])?
-            .with_name("")
-            .build()?;
-
-        let lhs_text = result_table.get_column_as_vec_str("lhs_text");
-        assert_eq!(lhs_text, vec!["1", "3"]);
-        let lhs_id = result_table.get_column_as_vec_str("lhs_pk");
-        assert_eq!(lhs_id, vec!["1", "3"]);
-        let metadata = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata")?;
-        assert_eq!(metadata, vec![2, 4]);
+        assert_eq!(lhs_text, vec!["Into template left", "Into template 1", "Into template left", "Into template 3"]);
+        let lhs_id = result_table.get_column_as_vec_primitive::<u32>("new_pk")?;
+        assert_eq!(lhs_id, vec![0, 1, 2, 3]);
+        let metadata = result_table.get_column_as_vec_primitive::<f32>("new_metadata")?;
+        assert_eq!(metadata, vec![1., 2., 3., 4.]);
 
         Ok(())
     }
