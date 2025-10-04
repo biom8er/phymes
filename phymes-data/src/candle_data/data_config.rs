@@ -1,7 +1,9 @@
 use std::fmt::Display;
 
 use clap::{Parser, ValueEnum};
+use phymes_core::table::data_format::DataFormat;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::candle_operators::available_candle_operators::AvailableCandleOperators;
 
@@ -256,6 +258,88 @@ pub struct DataConfig {
     /// The operator to invoke
     #[arg(long, default_value = "relative-similarity-score")]
     pub operator: AvailableCandleOperators,
+
+    /// Minijinja [String] template
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
+
+    /// The expression for the table within the minijinja template
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub table_expression: Option<String>,
+
+    /// A JSON Value representing the input for the template beyond the table_expression
+    ///   where the table_expression will be inserted into to complete the input for the template
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_template: Option<Value>,
+
+    /// The length of the document chunks
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chunk_size: Option<usize>,
+
+    /// The length of overlap between document chunks
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chunk_overlap: Option<usize>,
+
+    /// The data format to extract
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<DataFormat>,
+    
+    /// Vec of Strings for the comparator columns
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cmp_columns: Option<Vec<String>>,
+
+    /// Vec of [DataComparatorOperator]s specifying the comparator operator to apply to each cmp_column
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cmp_operators: Option<Vec<DataComparatorOperator>>,
+
+    /// Data Comparison predicates to evaluate parenthetic groups
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cmp_predicate: Option<DataComparatorPredicate>,
+
+    /// Vec of Strings for the aggregation columns
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agg_columns: Option<Vec<String>>,
+
+    /// Vec of [DataAggregatorOperator]s specifying the aggregator operator to apply to each agg_column
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agg_operators: Option<Vec<DataAggregatorOperator>>,    
+
+    /// Vec of [String]s for the columns to rename to
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub as_columns: Option<Vec<String>>,
+
+    /// Vec of of [DataCastOperator]s specifying the cast operator to apply to each lhs_values
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cast_operators: Option<Vec<DataCastOperator>>,
+
+    /// Vec of [DataType]s cast to [String]s specifying the data type to cast each lhs_values to
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cast_datatypes: Option<Vec<String>>,
+
+    /// Vec of Slice of [String]s specifying the template to use when casting each lhs_value to a [String] representation
+    ///   where the template is a simple minijinja template with a single expression for the column
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cast_templates: Option<Vec<String>>,
+
+    /// true for ascending and false for descending
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asc: Option<bool>
 }
 
 impl Default for DataConfig {
@@ -275,6 +359,22 @@ impl Default for DataConfig {
             op_kwargs: None,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
             operator: AvailableCandleOperators::RelativeSimilarityScore,
+            template: None,
+            table_expression: None,
+            input_template: None,
+            chunk_size: None,
+            chunk_overlap: None,
+            format: None,
+            cmp_columns: None,
+            cmp_operators: None,
+            cmp_predicate: None,
+            agg_columns: None,
+            agg_operators: None,
+            as_columns: None,
+            cast_operators: None,
+            cast_datatypes: None,
+            cast_templates: None,
+            asc: None,
         }
     }
 }
