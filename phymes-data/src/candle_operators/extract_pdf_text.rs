@@ -15,7 +15,7 @@ use phymes_core::{
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::{Level, event, instrument};
 
-use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug)]
@@ -31,21 +31,15 @@ impl MappableTrait for ExtractPDFText {
 }
 
 impl DataOperatorTrait for ExtractPDFText {
-    fn new(
-        lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        _kwargs: Option<&str>,
-    ) -> Self
+    fn new(config: &DataConfig) -> Self
     where
         Self: Sized,
     {
+        let lhs_pk = config.lhs_pk.to_owned();
+        let lhs_values = config.lhs_values.first().unwrap().to_string();
         ExtractPDFText {
-            lhs_pk: lhs_pk.to_string(),
-            lhs_values: lhs_values.to_string(),
+            lhs_pk,
+            lhs_values,
         }
     }
     fn forward(

@@ -10,7 +10,7 @@ use phymes_core::{
     table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 
-use crate::candle_operators::data_operator::make_error_record_batch;
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::make_error_record_batch};
 
 use super::data_operator::DataOperatorTrait;
 use anyhow::{Result, anyhow};
@@ -37,22 +37,20 @@ impl MappableTrait for RelativeSimilarityScore {
 }
 
 impl DataOperatorTrait for RelativeSimilarityScore {
-    fn new(
-        lhs_pk: &str,
-        lhs_fk: &str,
-        lhs_values: &str,
-        rhs_pk: Option<&str>,
-        rhs_fk: Option<&str>,
-        rhs_values: Option<&str>,
-        _kwargs: Option<&str>,
-    ) -> Self {
+    fn new(config: &DataConfig) -> Self {
+        let lhs_pk = config.lhs_pk.to_owned();
+        let lhs_fk = config.lhs_fk.to_owned();
+        let lhs_values = config.lhs_values.first().unwrap().to_string();
+        let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
+        let rhs_fk = config.rhs_fk.to_owned().unwrap_or_default();
+        let rhs_values = config.rhs_values.clone().unwrap().first().unwrap().to_string();
         RelativeSimilarityScore {
-            lhs_pk: lhs_pk.to_string(),
-            _lhs_fk: lhs_fk.to_string(),
-            lhs_values: lhs_values.to_string(),
-            rhs_pk: rhs_pk.unwrap_or("rhs_pk").to_string(),
-            _rhs_fk: rhs_fk.unwrap_or("rhs_fk").to_string(),
-            rhs_values: rhs_values.unwrap_or("embedding").to_string(),
+            lhs_pk,
+            _lhs_fk: lhs_fk,
+            lhs_values,
+            rhs_pk,
+            _rhs_fk: rhs_fk,
+            rhs_values,
         }
     }
     fn get_description() -> String {

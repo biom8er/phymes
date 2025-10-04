@@ -23,9 +23,9 @@ use phymes_core::{
 use tracing::{event, instrument, Level};
 
 use crate::{
-    candle_data::data_config::DataAggregatorOperator,
+    candle_data::data_config::{DataAggregatorOperator, DataConfig},
     candle_operators::{
-        data_operator::{DataOperatorTrait, make_error_record_batch},
+        data_operator::{make_error_record_batch, DataOperatorTrait},
         sort_column_and_indices::sort_column_and_indices,
     },
 };
@@ -75,41 +75,11 @@ impl DataOperatorTrait for GroupByAndAggregate {
             },
         }
     }
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self {
-        // Attempt to parse the lhs_values
-        let lhs_values: Vec<String> = serde_json::from_str(lhs_values).unwrap_or_default();
-
-        // Attempt to parse the op_kwargs
-        let ops_kwargs_default = "{\"agg_columns\": [], \"agg_operators\": []}";
-        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
-            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
-        let agg_columns = ops_kwargs
-            .get("agg_columns")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<_>>();
-        let agg_operators = ops_kwargs
-            .get("agg_operators")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| serde_json::from_value::<DataAggregatorOperator>(v.clone()).unwrap())
-            .collect::<Vec<_>>();
-
-        // Make the object
+    fn new(config: &DataConfig) -> Self {
+        let lhs_values = config.lhs_values.to_owned();
+        let agg_columns = config.agg_columns.clone().unwrap_or(Vec::new());
+        let agg_operators = config.agg_operators.clone().unwrap_or(Vec::new());
+        
         GroupByAndAggregate {
             lhs_values,
             agg_columns,

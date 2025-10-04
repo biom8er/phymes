@@ -9,7 +9,7 @@ use phymes_core::{
 };
 use tracing::{Level, event, instrument};
 
-use crate::candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait};
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
 
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[derive(Debug)]
@@ -25,33 +25,14 @@ impl MappableTrait for ExtractTabularData {
 }
 
 impl DataOperatorTrait for ExtractTabularData {
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self
+    fn new(config: &DataConfig) -> Self
     where
         Self: Sized,
     {
-        let format = match kwargs {
-            Some(kw) => match serde_json::from_str(kw) {
-                Ok(format) => format,
-                Err(err) => {
-                    event!(Level::ERROR, "Failed to parse ExtractTabularData kwargs: {err}, using default.");
-                    DataFormat::default()
-                }
-            },
-            None => {
-                event!(Level::ERROR, "No ExtractTabularData kwargs were provided, using default.");
-                DataFormat::default()
-            }
-        };
+        let lhs_values = config.lhs_values.first().unwrap().to_string();
+        let format = config.format.clone().unwrap_or(DataFormat::default());
         ExtractTabularData {
-            lhs_values: lhs_values.to_string(),
+            lhs_values,
             format
         }
     }

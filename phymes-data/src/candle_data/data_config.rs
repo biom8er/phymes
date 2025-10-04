@@ -133,8 +133,9 @@ impl Display for DataComparatorOperator {
 }
 
 /// Data Comparison predicates to evaluate parenthetic groups
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataComparatorPredicate {
+    #[default]
     #[value(name = "All")]
     All,
     #[value(name = "Any")]
@@ -226,12 +227,12 @@ pub struct DataConfig {
 
     /// The left hand side values column identifier
     #[arg(long, default_value = "lhs_values")]
-    pub lhs_values: String,
+    pub lhs_values: Vec<String>,
 
     /// The right hand side values column identifier
     #[arg(long, default_value = "rhs_values")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub rhs_values: Option<String>,
+    pub rhs_values: Option<Vec<String>>,
 
     /// The left hand side arguments to the operator
     /// JSONized vector of record batches
@@ -352,7 +353,7 @@ impl Default for DataConfig {
             rhs_pk: None,
             lhs_fk: "lhs_fk".to_string(),
             rhs_fk: None,
-            lhs_values: "lhs_values".to_string(),
+            lhs_values: vec!["lhs_values".to_string()],
             rhs_values: None,
             lhs_args: None,
             rhs_args: None,

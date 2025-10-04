@@ -20,7 +20,7 @@ use phymes_core::{
 use std::{collections::HashMap, sync::Arc};
 use tracing::{event, instrument, Level};
 
-use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
 
 /// Sort the [RecordBatch] according to the `score` column and then apply the sorting order to the rest of the record batch columns
 #[derive(Debug)]
@@ -36,26 +36,13 @@ impl MappableTrait for SortColumnAndIndices {
 }
 
 impl DataOperatorTrait for SortColumnAndIndices {
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_value: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_value: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self {
-        // Attempt to parse the op_kwargs
-        let ops_kwargs_default = "{\"asc\": true}";
-        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
-            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
+    fn new(config: &DataConfig) -> Self {
+        let lhs_values = config.lhs_values.first().unwrap().to_string();
+        let asc = config.asc.unwrap_or(true);
+
         SortColumnAndIndices {
-            lhs_values: lhs_value.to_string(),
-            asc: ops_kwargs
-                .get("asc")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(true),
+            lhs_values,
+            asc,
         }
     }
     fn forward(

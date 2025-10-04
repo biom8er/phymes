@@ -1,6 +1,6 @@
 use arrow::record_batch::RecordBatch;
 
-use crate::candle_operators::data_operator::make_error_record_batch;
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::make_error_record_batch};
 
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
@@ -28,15 +28,7 @@ impl MappableTrait for HumanInTheLoop {
 }
 
 impl DataOperatorTrait for HumanInTheLoop {
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        _kwargs: Option<&str>,
-    ) -> Self {
+    fn new(_config: &DataConfig) -> Self {
         HumanInTheLoop {}
     }
     fn get_description() -> String {

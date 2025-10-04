@@ -17,10 +17,10 @@ use phymes_core::{
 use std::{collections::HashMap, sync::Arc};
 use tracing::{event, instrument, Level};
 
-use crate::candle_operators::{
-    data_operator::{DataOperatorTrait, make_error_record_batch},
+use crate::{candle_data::data_config::DataConfig, candle_operators::{
+    data_operator::{make_error_record_batch, DataOperatorTrait},
     sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
-};
+}};
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
 #[derive(Debug)]
@@ -38,20 +38,16 @@ impl MappableTrait for JoinInner {
 }
 
 impl DataOperatorTrait for JoinInner {
-    fn new(
-        lhs_pk: &str,
-        lhs_fk: &str,
-        _lhs_value: &str,
-        rhs_pk: Option<&str>,
-        rhs_fk: Option<&str>,
-        _rhs_value: Option<&str>,
-        _kwargs: Option<&str>,
-    ) -> Self {
+    fn new(config: &DataConfig) -> Self {
+        let lhs_pk = config.lhs_pk.to_owned();
+        let lhs_fk = config.lhs_fk.to_owned();
+        let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
+        let rhs_fk = config.rhs_fk.to_owned().unwrap_or_default();
         JoinInner {
-            _lhs_pk: lhs_pk.to_string(),
-            lhs_fk: lhs_fk.to_string(),
-            _rhs_pk: rhs_pk.unwrap_or("rhs_pk").to_string(),
-            rhs_fk: rhs_fk.unwrap_or("rhs_fk").to_string(),
+            _lhs_pk: lhs_pk,
+            lhs_fk,
+            _rhs_pk: rhs_pk,
+            rhs_fk
         }
     }
     fn forward(

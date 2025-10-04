@@ -14,7 +14,7 @@ use phymes_core::{
 use std::{collections::HashMap, sync::Arc};
 use tracing::{event, instrument, Level};
 
-use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug)]
@@ -32,31 +32,17 @@ impl MappableTrait for ChunkDocuments {
 }
 
 impl DataOperatorTrait for ChunkDocuments {
-    fn new(
-        lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self {
-        // Attempt to parse the op_kwargs
-        let ops_kwargs_default = "{\"chunk_size\": 512, \"chunk_overlap\": 64}";
-        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
-            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
+    fn new(config: &DataConfig) -> Self {
+        let lhs_pk = config.lhs_pk.to_owned();
+        let lhs_values = config.lhs_values.first().unwrap().to_string();
+        let chunk_size = config.chunk_size.unwrap_or(512);
+        let chunk_overlap = config.chunk_overlap.unwrap_or(64);
+
         ChunkDocuments {
-            lhs_pk: lhs_pk.to_string(),
-            lhs_values: lhs_values.to_string(),
-            chunk_size: ops_kwargs
-                .get("chunk_size")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(512) as usize,
-            chunk_overlap: ops_kwargs
-                .get("chunk_overlap")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(64) as usize,
+            lhs_pk,
+            lhs_values,
+            chunk_size,
+            chunk_overlap,
         }
     }
     fn forward(

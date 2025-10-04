@@ -18,7 +18,7 @@ use serde_json::json;
 use tracing::{event, instrument, Level};
 
 use crate::{
-    candle_data::data_config::DataCastOperator,
+    candle_data::data_config::{DataCastOperator, DataConfig},
     candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait},
 };
 
@@ -76,59 +76,16 @@ impl DataOperatorTrait for SelectAndCast {
             },
         }
     }
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self {
-        // Attempt to parse the lhs_values
-        let lhs_values: Vec<String> = serde_json::from_str(lhs_values).unwrap_or_default();
-        event!(Level::DEBUG, "ops_kwargs {:?} with parse error {:?}", kwargs.unwrap(), serde_json::from_str::<serde_json::Value>(kwargs.unwrap()));
+    fn new(config: &DataConfig) -> Self {
+        let lhs_values = config.lhs_values.to_owned();
+        let as_columns = config.as_columns.clone().unwrap_or_default();
+        let cast_operators = config.cast_operators.clone().unwrap_or_default();
+        let cast_datatypes = config.cast_datatypes.clone().unwrap_or_default()
+            .iter()
+            .map(|s| from_str_to_data_type(s).unwrap())
+            .collect::<Vec<_>>();
+        let cast_templates = config.cast_templates.clone().unwrap_or_default();
 
-        // Attempt to parse the op_kwargs
-        let ops_kwargs_default =
-            "{\"as_columns\": [], \"cast_operators\": [], \"cast_datatypes\": [], \"cast_templates\": []}";
-        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
-            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
-        let as_columns = ops_kwargs
-            .get("as_columns")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.as_str().unwrap().to_string())
-            .collect::<Vec<_>>();
-        let cast_operators = ops_kwargs
-            .get("cast_operators")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| serde_json::from_value::<DataCastOperator>(v.clone()).unwrap())
-            .collect::<Vec<_>>();
-        let cast_datatypes = ops_kwargs
-            .get("cast_datatypes")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| from_str_to_data_type(v.as_str().unwrap()).unwrap())
-            .collect::<Vec<_>>();
-        let cast_templates = ops_kwargs
-            .get("cast_templates")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.as_str().unwrap().to_string())
-            .collect::<Vec<_>>();
-
-        // Make the object
         SelectAndCast {
             lhs_values,
             as_columns,

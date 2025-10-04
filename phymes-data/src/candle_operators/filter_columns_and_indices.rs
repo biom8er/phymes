@@ -21,9 +21,9 @@ use phymes_core::{
 use tracing::{event, instrument, Level};
 
 use crate::{
-    candle_data::data_config::{DataComparatorOperator, DataComparatorPredicate},
+    candle_data::data_config::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
     candle_operators::{
-        data_operator::{DataOperatorTrait, make_error_record_batch},
+        data_operator::{make_error_record_batch, DataOperatorTrait},
         group_by_and_aggregate::build_aggregator_column_list,
         sort_column_and_indices::take_columns_by_indices,
     },
@@ -77,46 +77,12 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
             },
         }
     }
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self {
-        // Attempt to parse the lhs_values
-        let lhs_values: Vec<String> = serde_json::from_str(lhs_values).unwrap_or_default();
+    fn new(config: &DataConfig) -> Self {
+        let lhs_values = config.lhs_values.to_owned();
+        let cmp_columns = config.cmp_columns.clone().unwrap_or(Vec::new());
+        let cmp_operators = config.cmp_operators.clone().unwrap_or(Vec::new());
+        let cmp_predicate = config.cmp_predicate.clone().unwrap_or(DataComparatorPredicate::default());
 
-        // Attempt to parse the op_kwargs
-        let ops_kwargs_default =
-            "{\"cmp_columns\": [], \"cmp_operators\": [], \"cmp_comparator\": \"All\"}";
-        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
-            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
-        let cmp_columns = ops_kwargs
-            .get("cmp_columns")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<_>>();
-        let cmp_operators = ops_kwargs
-            .get("cmp_operators")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| serde_json::from_value::<DataComparatorOperator>(v.clone()).unwrap())
-            .collect::<Vec<_>>();
-        let cmp_predicate = serde_json::from_value::<DataComparatorPredicate>(
-            ops_kwargs.get("cmp_comparator").unwrap().clone(),
-        )
-        .unwrap();
-
-        // Make the object
         FilterColumnsAndIndices {
             lhs_values,
             cmp_columns,

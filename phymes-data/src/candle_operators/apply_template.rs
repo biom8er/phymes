@@ -11,7 +11,7 @@ use phymes_core::{
 use serde_json::{json, Value};
 use tracing::{event, instrument, Level};
 
-use crate::candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait};
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
 
 /// Inject a table into a string template
 #[derive(Debug)]
@@ -48,25 +48,10 @@ impl DataOperatorTrait for ApplyTemplate {
             },
         }
     }
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self {
-        // Attempt to parse the op_kwargs
-        let ops_kwargs_default =
-            "{\"template\": \"\", \"table_expression\": \"\", \"input_template\": {}}";
-        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
-            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
-
-        let template = ops_kwargs.get("template").unwrap().as_str().unwrap().to_string();
-        let table_expression = ops_kwargs.get("table_expression").unwrap().as_str().unwrap().to_string();
-        let input_template = ops_kwargs.get("input_template").unwrap().to_owned();
+    fn new(config: &DataConfig) -> Self {
+        let template = config.template.clone().unwrap_or_default();
+        let table_expression = config.table_expression.clone().unwrap_or_default();
+        let input_template = config.input_template.clone().unwrap_or(serde_json::Value::default());
 
         // Make the object
         ApplyTemplate {

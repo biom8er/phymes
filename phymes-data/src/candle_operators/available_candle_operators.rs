@@ -10,9 +10,9 @@ use phymes_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::candle_operators::{
+use crate::{candle_data::data_config::DataConfig, candle_operators::{
     apply_template::ApplyTemplate, chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, select_and_cast::SelectAndCast, sort_column_and_indices::SortColumnAndIndices
-};
+}};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum AvailableCandleOperators {
@@ -95,50 +95,19 @@ impl AvailableCandleOperators {
 
     /// Build the actual operator
     #[allow(clippy::too_many_arguments)]
-    pub fn build(
-        &self,
-        lhs_pk: &str,
-        lhs_fk: &str,
-        lhs_values: &str,
-        rhs_pk: Option<&str>,
-        rhs_fk: Option<&str>,
-        rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Box<dyn DataOperatorTrait> {
+    pub fn build(&self, config: &DataConfig) -> Box<dyn DataOperatorTrait> {
         match self {
-            Self::RelativeSimilarityScore => Box::new(RelativeSimilarityScore::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::SortColumnAndIndices => Box::new(SortColumnAndIndices::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::ChunkDocuments => Box::new(ChunkDocuments::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::JoinInner => Box::new(JoinInner::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::ExtractPDFText => Box::new(ExtractPDFText::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::GroupByAndAggregate => Box::new(GroupByAndAggregate::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::FilterColumnsAndIndices => Box::new(FilterColumnsAndIndices::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::ExtractTabularData => Box::new(ExtractTabularData::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::SelectAndCast => Box::new(SelectAndCast::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::ApplyTemplate => Box::new(ApplyTemplate::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
+            Self::RelativeSimilarityScore => Box::new(RelativeSimilarityScore::new(config)),
+            Self::SortColumnAndIndices => Box::new(SortColumnAndIndices::new(config)),
+            Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(config)),
+            Self::ChunkDocuments => Box::new(ChunkDocuments::new(config)),
+            Self::JoinInner => Box::new(JoinInner::new(config)),
+            Self::ExtractPDFText => Box::new(ExtractPDFText::new(config)),
+            Self::GroupByAndAggregate => Box::new(GroupByAndAggregate::new(config)),
+            Self::FilterColumnsAndIndices => Box::new(FilterColumnsAndIndices::new(config)),
+            Self::ExtractTabularData => Box::new(ExtractTabularData::new(config)),
+            Self::SelectAndCast => Box::new(SelectAndCast::new(config)),
+            Self::ApplyTemplate => Box::new(ApplyTemplate::new(config)),
         }
     }
 }
