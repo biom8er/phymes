@@ -33,7 +33,7 @@ use crate::{
         subjects::{
             get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, SUBJECT_SCHEMA_HEADERS
         }, svg_icons::ms_search_icon_svg,
-    }, ui::files::{attach_files_input, clear_download_files_button, clear_upload_files_button, download_files_button, download_files_list, upload_files_button, upload_files_list},
+    }, ui::{attachments::attachments_interface_footer, files::{attach_files_input, clear_download_files_button, clear_upload_files_button, download_files_button, download_files_list, upload_files_button, upload_files_list}},
 };
 
 /// View to display the subject tables for the session
@@ -278,61 +278,25 @@ pub fn subjects_interface_view() -> Element {
         } else {
             div {
                 class: "messaging_list",
-                subjects_dropdown_menu { active_subject_name, subject_schema_names },
+                subjects_dropdown_menu { active_subject_name, subject_schema_names, files_downloaded, filenames_downloaded, extensions_downloaded },
                 subjects_schema_table { active_subject_name, subject_schema_names, subject_schema_columns, subject_schema_types, subject_names, subject_num_rows }
 
-                if !active_subject_name().is_empty() {
+                if !files_downloaded.read().is_empty() {
                     div {
-                        class: "file_upload_form",
-                        div {
-                            h2 { "Upload data to subject {active_subject_name}" },
-                            div {
-                                p { "CSV (comma delimiter with headers)" },
-                                attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), files_uploaded, filenames_uploaded, extensions_uploaded },
-                                attach_files_input { extend_publish: use_signal(|| false), except_files: use_signal(||".csv,.json".to_string()), active_subject_name: Some(active_subject_name), files_uploaded, filenames_uploaded, extensions_uploaded },
-                            }
-                        }
-                        div {
-                            h2 { "Download data from subject {active_subject_name}" },
-                            div {
-                                p { "CSV (comma delimiter with headers)" },
-                                download_files_button { data_format: use_signal(|| DataFormat::CsvDefault), active_subject_name, filenames_downloaded, files_downloaded, extensions_downloaded}
-                            }
-                        }
-                    }
-
-                    div {
-                        class: "file_upload_form",
-                        if !files_uploaded.read().is_empty() {
-                            div {
-                                upload_files_list {filenames_uploaded, files_uploaded, extensions_uploaded}
-                            }
-                            div {
-                                div {
-                                    upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
-                                    clear_upload_files_button {filenames_uploaded, files_uploaded, extensions_uploaded}
-                                }
-                            }
-                        }                        
-                        if !files_downloaded.read().is_empty() {
-                            div {
-                                download_files_list {filenames_downloaded, files_downloaded, extensions_downloaded}                        
-                            }
-                            div {
-                                div {
-                                    clear_download_files_button {files_downloaded, filenames_downloaded, extensions_downloaded}
-                                }
-                            }
-                        }
+                        class: "file_upload_form",                      
+                        download_files_list {filenames_downloaded, files_downloaded, extensions_downloaded}
                     }                  
                 }
+            }
+            if !active_subject_name().is_empty() { 
+                attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| true), except_files: use_signal(||".csv".to_string()), active_subject_name }
             }
         }
     }
 }
 
 #[component]
-pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>, subject_schema_names: Signal<Vec<String>>) -> Element {
+pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>, subject_schema_names: Signal<Vec<String>>, mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
     let mut show_subject_dropdown = use_signal(|| false);
     #[allow(clippy::redundant_closure)]
     let mut subject_dropdown = use_signal(|| String::new());
@@ -377,6 +341,12 @@ pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>, subject_s
                 },
                 svg { dangerous_inner_html: ms_search_icon_svg() },
             },
+            if !active_subject_name().is_empty() {
+                download_files_button { data_format: use_signal(|| DataFormat::CsvDefault), active_subject_name, filenames_downloaded, files_downloaded, extensions_downloaded}
+            }
+            if !files_downloaded.read().is_empty() {
+                clear_download_files_button {files_downloaded, filenames_downloaded, extensions_downloaded}
+            }
         }
 
         // Dynamic dropdown of subjects

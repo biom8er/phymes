@@ -214,13 +214,13 @@ pub fn attachments_interface_view() -> Element {
                     }
                 })}
             }
-            attachments_interface_footer { attachments_roles, attachments_contents, attachments_indices, attachments_timestamps, attachments_filenames, attachments_extensions }
+            attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| false), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None }
         }
     }
 }
 
 #[component]
-pub fn attachments_interface_footer(mut attachments_roles: Signal<Vec<String>>, mut attachments_contents: Signal<Vec<Option<Vec<u8>>>>, mut attachments_indices: Signal<Vec<usize>>, mut attachments_timestamps: Signal<Vec<i64>>, mut attachments_filenames: Signal<Vec<String>>, mut attachments_extensions: Signal<Vec<String>>) -> Element {
+pub fn attachments_interface_footer(extend_input: Signal<bool>, add_input: Signal<bool>, except_files: Signal<String>, active_subject_name: Option<Signal<String>>) -> Element {
     let files_uploaded = use_signal(Vec::<SessionInterfaceMessage>::new);
     let filenames_uploaded = use_signal(Vec::<String>::new);
     let extensions_uploaded = use_signal(Vec::<String>::new);
@@ -237,9 +237,14 @@ pub fn attachments_interface_footer(mut attachments_roles: Signal<Vec<String>>, 
     rsx! {
         footer {
             div {
-                class: "attach_button",                
-                attach_files_input { extend_publish: use_signal(|| true), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, files_uploaded, filenames_uploaded, extensions_uploaded }
-            } 
+                class: "attach_button", 
+                if extend_input() {              
+                    attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, files_uploaded, filenames_uploaded, extensions_uploaded }
+                } 
+                if add_input() {
+                    attach_files_input { extend_publish: use_signal(|| false), except_files, active_subject_name, files_uploaded, filenames_uploaded, extensions_uploaded }
+                }
+            }
 
             div {
                 class: "text_input",
