@@ -23,7 +23,7 @@ use phymes_core::{
 };
 use phymes_data::{
     candle_data::{
-        data_config::{DataConfig, DataStreamManager},
+        data_config::{DataAggregatorOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager},
         data_processor::CandleDataProcessor,
         tensor_service::CandleTensorService,
     },
@@ -57,32 +57,33 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             operator: AvailableCandleOperators::RelativeSimilarityScore,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
-            lhs_values: "embedding".to_string(),
+            lhs_values: vec!["embedding".to_string()],
             rhs_pk: Some("id".to_string()),
             rhs_fk: Some("title".to_string()),
-            rhs_values: Some("embedding".to_string()),
+            rhs_values: Some(vec!["embedding".to_string()]),
             ..Default::default()
         },
         DataConfig {
             operator: AvailableCandleOperators::SortColumnAndIndices,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
-            lhs_values: "score".to_string(),
+            lhs_values: vec!["score".to_string()],
             rhs_pk: Some("id".to_string()),
             rhs_fk: Some("title".to_string()),
-            rhs_values: Some("score".to_string()),
-            op_kwargs: Some("{\"asc\": false}".to_string()),
+            rhs_values: Some(vec!["score".to_string()]),
+            asc: Some(false),
             ..Default::default()
         },
         // DataConfig {
         //     which: WhichCandleOperator::ChunkDocuments,
         //     lhs_pk: "id".to_string(),
         //     lhs_fk: "title".to_string(),
-        //     lhs_values: "text".to_string(),
+        //     lhs_values: vec!["text".to_string()],
         //     rhs_pk: Some("id".to_string()),
         //     rhs_fk: Some("title".to_string()),
-        //     rhs_values: Some("text".to_string()),
-        //     op_kwargs: Some("{\"chunk_size\": 512, \"chunk_overlap\": 64}".to_string()),
+        //     rhs_values: Some(vec!["text".to_string()]),
+        //     chunk_size: Some(512),
+        //     chunk_overlap: Some(64),
         //     ..Default::default()
         // },
         DataConfig {
@@ -97,21 +98,18 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             operator: AvailableCandleOperators::GroupByAndAggregate,
             lhs_pk: "id".to_string(),
             lhs_fk: "id".to_string(),
-            lhs_values: "[\"title\",\"collection\"]".to_string(),
-            op_kwargs: Some(
-                "{\"agg_columns\": [id, text, score], \"agg_operators\": [Sum, Count, Max]}"
-                    .to_string(),
-            ),
+            lhs_values: vec!["title".to_string(),"collection".to_string()],
+            agg_columns: Some(vec!["id".to_string(), "text".to_string(), "score".to_string()]),
+            agg_operators: Some(vec![DataAggregatorOperator::Sum, DataAggregatorOperator::Count, DataAggregatorOperator::Max]),
             ..Default::default()
         },
         DataConfig {
             operator: AvailableCandleOperators::FilterColumnsAndIndices,
             lhs_pk: "id".to_string(),
-            lhs_values: "[\"title\",\"id\"]".to_string(),
-            op_kwargs: Some(
-                "{\"cmp_columns\": [title, id], \"cmp_operators\": [Like, Equals], \"cmp_comparator\": \"All\"}"
-                    .to_string(),
-            ),
+            lhs_values: vec!["title".to_string(),"id".to_string()],
+            cmp_columns: Some(vec!["title".to_string(),"id".to_string()]),
+            cmp_operators: Some(vec![DataComparatorOperator::Like, DataComparatorOperator::Equals]),
+            cmp_predicate: Some(DataComparatorPredicate::All),
             ..Default::default()
         },
     ];

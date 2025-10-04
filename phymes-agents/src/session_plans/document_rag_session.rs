@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, vec};
 
 use phymes_core::{
     schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait},
@@ -14,7 +14,7 @@ use phymes_core::{
 };
 use phymes_data::{
     candle_data::{
-        attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::DataConfig, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor
+        attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::{DataCastOperator, DataConfig}, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor
     },
     candle_operators::available_candle_operators::AvailableCandleOperators,
 };
@@ -33,7 +33,7 @@ use phymes_ml::{
     openai_embed::embed_processor::OpenAIEmbedProcessor,
 };
 
-use arrow::datatypes::SchemaRef;
+use arrow::datatypes::{DataType, SchemaRef};
 
 use crate::{session_plans::available_interface_subjects::AvailableInterfaceSubjects, session_traits::agents::CustomAgentsBuilderTrait};
 
@@ -678,8 +678,8 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: "".to_string(),
             lhs_pk: "".to_string(),
             lhs_fk: "".to_string(),
-            lhs_values: "timestamp".to_string(),
-            op_kwargs: Some("{\"asc\": true}".to_string()),
+            lhs_values: vec!["timestamp".to_string()],
+            asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
@@ -708,8 +708,11 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: AvailableInterfaceSubjects::UserMessages.to_string(),
             lhs_pk: "".to_string(),
             lhs_fk: "".to_string(),
-            lhs_values: "[\"timestamp\",\"content\"]".to_string(),
-            op_kwargs: Some(r#"{"as_columns": ["query_id", "text"], "cast_operators": ["Cast", "None"], "cast_datatypes": ["Utf8", "Utf8"], "cast_templates": ["", "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}"]}"#.to_string()),
+            lhs_values: vec!["timestamp".to_string(),"content".to_string()],
+            as_columns: Some(vec!["query_id".to_string(), "text".to_string()]),
+            cast_operators: Some(vec![DataCastOperator::Cast, DataCastOperator::None]),
+            cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
+            cast_templates: Some(vec!["".to_string(), "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}".to_string()]),
             operator: AvailableCandleOperators::SelectAndCast,
             ..Default::default()
         };
@@ -725,7 +728,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let extract_pdf_config = DataConfig {
             lhs_name: AvailableInterfaceSubjects::UserPdf.to_string(),
             lhs_pk: "filename".to_string(),
-            lhs_values: "bytes".to_string(),
+            lhs_values: vec!["bytes".to_string()],
             operator: AvailableCandleOperators::ExtractPDFText,
             ..Default::default()
         };
@@ -742,7 +745,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: self.document_chunk_task_name.to_string(),
             lhs_pk: "document_id".to_string(),
             lhs_fk: "document_id".to_string(),
-            lhs_values: "text".to_string(),
+            lhs_values: vec!["text".to_string()],
             operator: AvailableCandleOperators::ChunkDocuments,
             ..Default::default()
         };
@@ -759,11 +762,11 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: self.state_q_embed_table_name.to_string(),
             lhs_pk: "query_id".to_string(),
             lhs_fk: "query_id".to_string(),
-            lhs_values: "embedding".to_string(),
+            lhs_values: vec!["embedding".to_string()],
             rhs_name: Some(self.state_doc_embed_table_name.to_string()),
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
-            rhs_values: Some("embedding".to_string()),
+            rhs_values: Some(vec!["embedding".to_string()]),
             operator: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
@@ -780,7 +783,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: self.state_scores_table_name.to_string(),
             lhs_pk: "chunk_id".to_string(),
             lhs_fk: "chunk_id".to_string(),
-            lhs_values: "score".to_string(),
+            lhs_values: vec!["score".to_string()],
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
@@ -797,11 +800,11 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: self.state_scores_table_name.to_string(),
             lhs_pk: "chunk_id".to_string(),
             lhs_fk: "chunk_id".to_string(),
-            lhs_values: "score".to_string(),
+            lhs_values: vec!["score".to_string()],
             rhs_name: Some(self.state_documents_table_name.to_string()),
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
-            rhs_values: Some("text".to_string()),
+            rhs_values: Some(vec!["text".to_string()]),
             operator: AvailableCandleOperators::JoinInner,
             ..Default::default()
         };

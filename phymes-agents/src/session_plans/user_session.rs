@@ -232,8 +232,8 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         let json_format_str = serde_json::to_string(&DataFormat::JsonDefault).unwrap();
         let extract_tabular_data_config = DataConfig {
             lhs_name: AvailableInterfaceSubjects::UserJson.to_string(),
-            lhs_values: "bytes".to_string(),
-            op_kwargs: Some(json_format_str),
+            lhs_values: vec!["bytes".to_string()],
+            format: Some(DataFormat::JsonDefault),
             operator: AvailableCandleOperators::ExtractTabularData,
             ..Default::default()
         };

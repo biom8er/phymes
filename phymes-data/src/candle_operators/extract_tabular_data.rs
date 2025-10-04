@@ -66,9 +66,9 @@ impl DataOperatorTrait for ExtractTabularData {
         properties.insert(
             "lhs_values".to_string(),
             Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+                schema_type: Some(types::JSONSchemaType::Array),
                 description: Some(
-                    "The values column identifier for the left hand side table".to_string(),
+                    "A list of value column identifiers for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),

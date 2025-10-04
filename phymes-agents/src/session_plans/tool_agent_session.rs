@@ -539,8 +539,8 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_name: "".to_string(),
             lhs_pk: "".to_string(),
             lhs_fk: "".to_string(),
-            lhs_values: "timestamp".to_string(),
-            op_kwargs: Some("{\"asc\": true}".to_string()),
+            lhs_values: vec!["timestamp".to_string()],
+            asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
@@ -564,12 +564,11 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .build()
             .unwrap();
 
-        // Extract tabular data config        
-        let csv_format_str = serde_json::to_string(&DataFormat::CsvDefault).unwrap();
+        // Extract tabular data config
         let extract_tabular_data_config = DataConfig {
             lhs_name: AvailableInterfaceSubjects::UserCsv.to_string(),
-            lhs_values: "bytes".to_string(),
-            op_kwargs: Some(csv_format_str),
+            lhs_values: vec!["bytes".to_string()],
+            format: Some(DataFormat::CsvDefault),
             operator: AvailableCandleOperators::ExtractTabularData,
             ..Default::default()
         };

@@ -265,8 +265,8 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             lhs_name: "".to_string(),
             lhs_pk: "".to_string(),
             lhs_fk: "".to_string(),
-            lhs_values: "timestamp".to_string(),
-            op_kwargs: Some("{\"asc\": true}".to_string()),
+            lhs_values: vec!["timestamp".to_string()],
+            asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };

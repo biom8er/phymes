@@ -41,7 +41,7 @@ pub async fn run_main() -> Result<()> {
         
     // Wrap into the message
     let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
-        .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
+        .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `[score]`.", "user")?
         .build()?;
     let chat_message = IPCMessage::get_builder()
         .with_message(chat.to_ipc_stream()?)

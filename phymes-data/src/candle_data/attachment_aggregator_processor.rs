@@ -259,16 +259,8 @@ impl Stream for AggregatorStream {
 
             // Build the data operator
             if self.data_operator.is_none() {
-                let config = self.config.as_ref().unwrap().clone();
-                self.data_operator.replace(config.operator.build(
-                    &config.lhs_pk,
-                    &config.lhs_fk,
-                    &config.lhs_values,
-                    config.rhs_pk.as_deref(),
-                    config.rhs_fk.as_deref(),
-                    config.rhs_values.as_deref(),
-                    config.op_kwargs.as_deref(),
-                ));
+                let operator = self.config.as_ref().unwrap().operator.build(&self.config.as_ref().unwrap());
+                self.data_operator.replace(operator);
             }
 
             // Collect the input

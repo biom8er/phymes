@@ -570,10 +570,10 @@ mod tests {
             rhs_name: Some("rhs_name".to_string()),
             lhs_pk: "lhs_pk".to_string(),
             lhs_fk: "lhs_fk".to_string(),
-            lhs_values: "embedding".to_string(),
+            lhs_values: vec!["embedding".to_string()],
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
-            rhs_values: Some("embedding".to_string()),
+            rhs_values: Some(vec!["embedding".to_string()]),
             operator: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };
@@ -911,10 +911,10 @@ mod tests {
             rhs_name: Some("rhs_name".to_string()),
             lhs_pk: "lhs_pk".to_string(),
             lhs_fk: "lhs_fk".to_string(),
-            lhs_values: "embedding".to_string(),
+            lhs_values: vec!["embedding".to_string()],
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
-            rhs_values: Some("embedding".to_string()),
+            rhs_values: Some(vec!["embedding".to_string()]),
             operator: AvailableCandleOperators::RelativeSimilarityScore,
             ..Default::default()
         };

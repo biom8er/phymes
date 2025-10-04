@@ -112,9 +112,9 @@ impl DataOperatorTrait for GroupByAndAggregate {
         properties.insert(
             "lhs_values".to_string(),
             Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+                schema_type: Some(types::JSONSchemaType::Array),
                 description: Some(
-                    "The values column identifier for the left hand side table in the form of a JSON list of strings".to_string(),
+                    "A list of value column identifiers for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
