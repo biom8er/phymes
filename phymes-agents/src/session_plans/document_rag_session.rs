@@ -58,6 +58,8 @@ pub struct DocumentRAGSession<'a> {
     pub attachment_aggregator_processor_name: &'a str,
     pub attachment_aggregator_runtime_env_name: &'a str,
     /// Embed tasks
+    pub message_to_query_task_name: &'a str,
+    pub message_to_query_processor_name: &'a str,
     pub embed_query_task_name: &'a str,
     pub embed_documents_task_name: &'a str,
     pub embed_query_processor_name: &'a str,
@@ -106,6 +108,8 @@ impl Default for DocumentRAGSession<'_> {
             attachment_aggregator_runtime_env_name: "attachment_aggregator_rt_1",
             chat_processor_name: "chat_processor_1",
             chat_runtime_env_name: "chat_rt_1",
+            message_to_query_task_name: "message_to_query_task_1",
+            message_to_query_processor_name: "message_to_query_processor_1",
             embed_query_task_name: "embed_query_task_1",
             embed_documents_task_name: "embed_documents_task_1",
             embed_query_processor_name: "embed_query_processor_1",
@@ -163,6 +167,11 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 task_name: self.attachment_aggregator_task_name.to_string(),
                 runtime_env_name: self.attachment_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.attachment_aggregator_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.message_to_query_task_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![self.message_to_query_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.chat_task_name.to_string(),
@@ -264,6 +273,21 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 },
             ],
             AnyTableNameSubscribe::new_box(),
+        ));
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
+            self.message_to_query_processor_name,
+            &[TablePublish::Replace {
+                table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+            }],
+            &[
+                TableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                },
+                TableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.message_to_query_processor_name.to_string(),
+                },
+            ],
+            AllTableNamesSubscribe::new_box(),
         ));
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
@@ -679,6 +703,24 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .build()
             .unwrap();
 
+        // Select and cast config
+        let message_to_query_config = DataConfig {
+            lhs_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+            lhs_pk: "".to_string(),
+            lhs_fk: "".to_string(),
+            lhs_values: "[\"timestamp\",\"content\"]".to_string(),
+            op_kwargs: Some(r#"{"as_columns": ["query_id", "text"], "cast_operators": ["Cast", "None"], "cast_datatypes": ["Utf8", "Utf8"], "cast_templates": ["", "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}"]}"#.to_string()),
+            operator: AvailableCandleOperators::SelectAndCast,
+            ..Default::default()
+        };
+        let message_to_query_config_json = serde_json::to_vec(&message_to_query_config).unwrap();
+        let message_to_query_state = TableBuilder::new()
+            .with_name(self.message_to_query_processor_name)
+            .with_json(&message_to_query_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
         // Extract pdf config
         let extract_pdf_config = DataConfig {
             lhs_name: AvailableInterfaceSubjects::UserPdf.to_string(),
@@ -793,6 +835,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             aggregator_1_state,
             aggregator_2_state,
             aggregator_3_state,
+            message_to_query_state,
             extract_pdf_state,
             chunk_document_state,
             rel_sim_state,
@@ -836,7 +879,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt, queries::QueriesBuilderTraitExt}, session::{
+        metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
             common_traits::{BuildableTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState}, session_context_builder::SessionContextBuilderTrait
         }, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
@@ -886,16 +929,6 @@ mod tests {
             .with_publisher(doc_rag_session.session_context_name)
             .make_name()?
             .build()?;
-        let query = AvailableInterfaceSubjects::UserQueries.to_table_builder(None)
-            .with_text("What are the four molecules that compose DNA?")?
-            .build()?;
-        let query_message = IPCMessage::get_builder()
-            .with_message(query.to_ipc_stream()?)
-            .with_subject(query.get_name())
-            .with_update(&TablePublish::Extend { table_name: query.get_name().to_string() })
-            .with_publisher(doc_rag_session.session_context_name)
-            .make_name()?
-            .build()?;
         let blob = AvailableInterfaceSubjects::UserPdf.to_table_builder(None)
             .with_blob(None, Some(".pdf"), &bytes, None)?
             .build()?;
@@ -922,7 +955,7 @@ mod tests {
                 session_stream.try_collect().await?;
 
             // Embed the query and invoke a response
-            let message_map = create_message_map(vec![chat_message, query_message]);
+            let message_map = create_message_map(vec![chat_message]);
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;

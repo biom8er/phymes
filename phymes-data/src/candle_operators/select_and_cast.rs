@@ -87,6 +87,7 @@ impl DataOperatorTrait for SelectAndCast {
     ) -> Self {
         // Attempt to parse the lhs_values
         let lhs_values: Vec<String> = serde_json::from_str(lhs_values).unwrap_or_default();
+        event!(Level::DEBUG, "ops_kwargs {:?} with parse error {:?}", kwargs.unwrap(), serde_json::from_str::<serde_json::Value>(kwargs.unwrap()));
 
         // Attempt to parse the op_kwargs
         let ops_kwargs_default =
@@ -100,7 +101,7 @@ impl DataOperatorTrait for SelectAndCast {
             .as_array()
             .unwrap()
             .iter()
-            .map(|v| v.to_string())
+            .map(|v| v.as_str().unwrap().to_string())
             .collect::<Vec<_>>();
         let cast_operators = ops_kwargs
             .get("cast_operators")
@@ -111,12 +112,12 @@ impl DataOperatorTrait for SelectAndCast {
             .map(|v| serde_json::from_value::<DataCastOperator>(v.clone()).unwrap())
             .collect::<Vec<_>>();
         let cast_datatypes = ops_kwargs
-            .get("cmp_operators")
+            .get("cast_datatypes")
             .unwrap()
             .as_array()
             .unwrap()
             .iter()
-            .map(|v| from_str_to_data_type(v.to_string().as_str()).unwrap())
+            .map(|v| from_str_to_data_type(v.as_str().unwrap()).unwrap())
             .collect::<Vec<_>>();
         let cast_templates = ops_kwargs
             .get("cast_templates")
@@ -124,7 +125,7 @@ impl DataOperatorTrait for SelectAndCast {
             .as_array()
             .unwrap()
             .iter()
-            .map(|v| v.to_string())
+            .map(|v| v.as_str().unwrap().to_string())
             .collect::<Vec<_>>();
 
         // Make the object

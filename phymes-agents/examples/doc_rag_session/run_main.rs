@@ -15,7 +15,7 @@ use phymes_agents::{
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt, queries::QueriesBuilderTraitExt}, session::{
+    metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState},
         session_context_builder::SessionContextBuilderTrait,
     }, table::{table_trait::{TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
@@ -60,16 +60,6 @@ pub async fn run_main() -> Result<()> {
         .with_publisher(doc_rag_session.session_context_name)
         .make_name()?
         .build()?;
-    let query = AvailableInterfaceSubjects::UserQueries.to_table_builder(None)
-        .with_text("What are the four molecules that compose DNA?")?
-        .build()?;
-    let query_message = IPCMessage::get_builder()
-        .with_message(query.to_ipc_stream()?)
-        .with_subject(query.get_name())
-        .with_update(&TablePublish::Extend { table_name: query.get_name().to_string() })
-        .with_publisher(doc_rag_session.session_context_name)
-        .make_name()?
-        .build()?;
     let blob = AvailableInterfaceSubjects::UserPdf.to_table_builder(None)
         .with_blob(None, Some(".pdf"), &bytes, None)?
         .build()?;
@@ -89,7 +79,7 @@ pub async fn run_main() -> Result<()> {
         session_stream.try_collect().await?;
 
     // Embed the query and invoke a response
-    let message_map = create_message_map(vec![chat_message, query_message]);
+    let message_map = create_message_map(vec![chat_message]);
     let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
     let mut response: Vec<HashMap<String, IPCMessage>> =
         session_stream.try_collect().await?;
