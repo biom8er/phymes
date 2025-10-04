@@ -159,34 +159,30 @@ impl Display for DataComparatorPredicate {
 /// 2. Convert between types https://arrow.apache.org/rust/arrow_cast/cast/fn.cast_with_options.html
 /// 3. Encode/Decode Base64 https://arrow.apache.org/rust/arrow_cast/base64/index.html with BASE64_URL_SAFE_NO_PAD engine
 /// 
-/// Casting also allows for applying a [String] template using
+/// Casting allows for applying a [String] template for formatting
 /// 
-/// 1. `format!` from the standard library
-/// 2. Jinja2 template
+/// Casting allows for converting between DateTime strings and numeric Timestamps
 /// 
 /// [arrow_cast]: https://arrow.apache.org/rust/arrow_cast/index.html
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataCastOperator {
-    #[value(name = "Base64Encode")]
-    Base64Encode,
-    #[value(name = "Base64Decode")]
-    Base64Decode,
+    // #[value(name = "Base64Encode")]
+    // Base64Encode,
+    // #[value(name = "Base64Decode")]
+    // Base64Decode,
     #[value(name = "Cast")]
     Cast,
-    #[value(name = "ApplyJinja2Template")]
-    ApplyJinja2Template,
-    #[value(name = "ApplyStdTemplate")]
-    ApplyStdTemplate,
+    #[value(name = "None")]
+    None,
 }
 
 impl Display for DataCastOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Base64Encode => write!(f, "Base64Encode"),
-            Self::Base64Decode => write!(f, "Base64Decode"),
+            // Self::Base64Encode => write!(f, "Base64Encode"),
+            // Self::Base64Decode => write!(f, "Base64Decode"),
             Self::Cast => write!(f, "Cast"),
-            Self::ApplyJinja2Template => write!(f, "ApplyJinja2Template"),
-            Self::ApplyStdTemplate => write!(f, "ApplyStdTemplate"),
+            Self::None => write!(f, "None"),
         }
     }
 }
