@@ -228,8 +228,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     }
 
     fn make_state_tables(&self) -> Option<Vec<Table>> {
-        // Extract tabular data config        
-        let json_format_str = serde_json::to_string(&DataFormat::JsonDefault).unwrap();
+        // Extract tabular data config
         let extract_tabular_data_config = DataConfig {
             lhs_name: AvailableInterfaceSubjects::UserJson.to_string(),
             lhs_values: vec!["bytes".to_string()],
