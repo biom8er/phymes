@@ -358,13 +358,17 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                 },
                 svg { dangerous_inner_html: ms_search_icon_svg() },
             },
-            button { 
-                onclick: move |_| async move {
-                    let current = is_flowchart_shown.read().to_owned();
-                    is_flowchart_shown.set(!current);
+
+            if !ACTIVE_SESSION_NAME().is_empty() {
+                button { 
+                    onclick: move |_| async move {
+                        let current = is_flowchart_shown.read().to_owned();
+                        is_flowchart_shown.set(!current);
+                    },
+                    svg { dangerous_inner_html: ms_sync_icon_svg() },
                 },
-                svg { dangerous_inner_html: ms_sync_icon_svg() },
-            },
+            }
+            
         }
 
         // Dynamic dropdown

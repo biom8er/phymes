@@ -35,8 +35,7 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
 
     // Dropdown signals
     let mut show_subject_dropdown = use_signal(|| false);
-    #[allow(clippy::redundant_closure)]
-    let mut subject_dropdown = use_signal(|| String::new());
+    let mut subject_dropdown = use_signal(String::new);
 
     let subjects_vec = use_memo(move || {
         get_non_duplicated_sorted_subjects(
@@ -47,12 +46,10 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
                 .collect::<Vec<_>>(),
         )
     });
-    #[allow(clippy::redundant_closure)]
-    let mut subjects_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
+    let mut subjects_filtered: Signal<Vec<String>> = use_signal(Vec::new);
 
     // Error message signal    
-    #[allow(clippy::redundant_closure)]
-    let mut build_errors = use_signal(|| String::new());
+    let mut build_errors = use_signal(String::new);
 
     rsx! {
         div {
@@ -83,249 +80,252 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
                 },
                 svg { dangerous_inner_html: ms_edit_icon_svg() },
             },
-            button { 
-                class: "dropdown_form_button",
-                onclick: move |_evt| async move {
-                    // Make a defualt name for the copy of the active session
-                    let active_session = format!("{}-copy", active_session_name.read());
 
-                    // Copy the diagrams
-                    mermaid_session_context_names.push(active_session.clone());
-                    mermaid_flowchart_diagrams.push(active_flowchart_diagram.read().to_string());
-                    mermaid_er_diagrams.push(active_er_diagram.read().to_string());
-                    mermaid_timestamps.push(create_timestamp_micros());
+            if !active_session_name().is_empty() {
+                button { 
+                    class: "dropdown_form_button",
+                    onclick: move |_evt| async move {
+                        // Make a defualt name for the copy of the active session
+                        let active_session = format!("{}-copy", active_session_name.read());
 
-                    // Set the active session
-                    active_session_name.set(active_session.clone());
+                        // Copy the diagrams
+                        mermaid_session_context_names.push(active_session.clone());
+                        mermaid_flowchart_diagrams.push(active_flowchart_diagram.read().to_string());
+                        mermaid_er_diagrams.push(active_er_diagram.read().to_string());
+                        mermaid_timestamps.push(create_timestamp_micros());
+
+                        // Set the active session
+                        active_session_name.set(active_session.clone());
+                    },
+                    svg { dangerous_inner_html: ms_column_arrow_right_icon_svg() },
                 },
-                svg { dangerous_inner_html: ms_column_arrow_right_icon_svg() },
-            },
-            button {
-                class: "dropdown_form_button",
-                onclick: move |_evt| async move {
-                    // Change the name of all active session diagrams
-                    let (session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_in_mermaid_diagrams_by_session_name(
-                        &active_session_name(),
-                        &mermaid_session_context_names
-                            .read()
-                            .iter()
-                            .map(|s| s.as_str())
-                            .collect::<Vec<_>>(),
-                        &mermaid_flowchart_diagrams
-                            .read()
-                            .iter()
-                            .map(|s| s.as_str())
-                            .collect::<Vec<_>>(),
-                        &mermaid_er_diagrams
-                            .read()
-                            .iter()
-                            .map(|s| s.as_str())
-                            .collect::<Vec<_>>(),
-                        &mermaid_timestamps());
-                    let session_context_names = session_context_names.into_iter().map(|s| format!("__deleted__{s}")).collect::<Vec<_>>();
-                    let batch_deleted = create_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
+                button {
+                    class: "dropdown_form_button",
+                    onclick: move |_evt| async move {
+                        // Change the name of all active session diagrams
+                        let (session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_in_mermaid_diagrams_by_session_name(
+                            &active_session_name(),
+                            &mermaid_session_context_names
+                                .read()
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<_>>(),
+                            &mermaid_flowchart_diagrams
+                                .read()
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<_>>(),
+                            &mermaid_er_diagrams
+                                .read()
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<_>>(),
+                            &mermaid_timestamps());
+                        let session_context_names = session_context_names.into_iter().map(|s| format!("__deleted__{s}")).collect::<Vec<_>>();
+                        let batch_deleted = create_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
-                    // Filter out the active session
-                    let (session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_out_mermaid_diagrams_by_session_name(                        
-                        &active_session_name(),
-                        &mermaid_session_context_names
-                            .read()
-                            .iter()
-                            .map(|s| s.as_str())
-                            .collect::<Vec<_>>(),
-                        &mermaid_flowchart_diagrams
-                            .read()
-                            .iter()
-                            .map(|s| s.as_str())
-                            .collect::<Vec<_>>(),
-                        &mermaid_er_diagrams
-                            .read()
-                            .iter()
-                            .map(|s| s.as_str())
-                            .collect::<Vec<_>>(),
-                        &mermaid_timestamps());
-                    let active_session = session_context_names.first().unwrap().to_string();
-                    let batch = create_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
+                        // Filter out the active session
+                        let (session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_out_mermaid_diagrams_by_session_name(                        
+                            &active_session_name(),
+                            &mermaid_session_context_names
+                                .read()
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<_>>(),
+                            &mermaid_flowchart_diagrams
+                                .read()
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<_>>(),
+                            &mermaid_er_diagrams
+                                .read()
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<_>>(),
+                            &mermaid_timestamps());
+                        let active_session = session_context_names.first().unwrap().to_string();
+                        let batch = create_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
-                    // Update the mermaid state with the active diagram
-                    let route = "/app/v1/put_state";
-                    let message = Table::get_builder()
-                        .with_name(AvailableSubjects::Mermaid.to_string().as_str())
-                        .with_record_batches(vec![batch_deleted, batch])
-                        .unwrap()
-                        .build()
-                        .unwrap()
-                        .to_ipc_stream()
-                        .unwrap();    
-                    let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
-                        .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
-                        .with_format(&DataFormat::Ipc)
-                        .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
-                        .with_update(&TablePublish::Replace { table_name: AvailableSubjects::Mermaid.to_string() })
-                        .with_stream(false)
-                        .with_subject(AvailableSubjects::Mermaid.to_string().as_str())
-                        .with_message(message)
-                        .make_name()
-                        .unwrap()
-                        .build()
-                        .unwrap()).unwrap();
+                        // Update the mermaid state with the active diagram
+                        let route = "/app/v1/put_state";
+                        let message = Table::get_builder()
+                            .with_name(AvailableSubjects::Mermaid.to_string().as_str())
+                            .with_record_batches(vec![batch_deleted, batch])
+                            .unwrap()
+                            .build()
+                            .unwrap()
+                            .to_ipc_stream()
+                            .unwrap();    
+                        let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
+                            .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
+                            .with_format(&DataFormat::Ipc)
+                            .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
+                            .with_update(&TablePublish::Replace { table_name: AvailableSubjects::Mermaid.to_string() })
+                            .with_stream(false)
+                            .with_subject(AvailableSubjects::Mermaid.to_string().as_str())
+                            .with_message(message)
+                            .make_name()
+                            .unwrap()
+                            .build()
+                            .unwrap()).unwrap();
 
-                    #[cfg(not(feature = "serverless"))]
-                    let addr = format!("{ADDR_BACKEND}{route}");
-                    #[cfg(not(feature = "serverless"))]
-                    match reqwest::Client::new()
-                        .post(addr)
-                        .bearer_auth(JWT.read().to_string())
-                        .header(CONTENT_TYPE, "application/json")
-                        .body(data_serialized)
-                        .send()
-                        .await {
-                        Ok(response) => match response.text().await {
-                            Ok(text) => tracing::debug!("{text}"),
+                        #[cfg(not(feature = "serverless"))]
+                        let addr = format!("{ADDR_BACKEND}{route}");
+                        #[cfg(not(feature = "serverless"))]
+                        match reqwest::Client::new()
+                            .post(addr)
+                            .bearer_auth(JWT.read().to_string())
+                            .header(CONTENT_TYPE, "application/json")
+                            .body(data_serialized)
+                            .send()
+                            .await {
+                            Ok(response) => match response.text().await {
+                                Ok(text) => tracing::debug!("{text}"),
+                                Err(err) => tracing::error!("{err:?}"),
+                            },
                             Err(err) => tracing::error!("{err:?}"),
-                        },
-                        Err(err) => tracing::error!("{err:?}"),
-                    }
-
-                    #[cfg(feature = "serverless")]
-                    let config = ServerlessConfig {
-                        route: route.to_string(),
-                        basic_auth: None,
-                        bearer_auth: Some(JWT.read().to_string()),
-                        data: Some(data_serialized),
-                    };
-                    #[cfg(feature = "serverless")]
-                    let mut serverless = Serverless::new();
-                    #[cfg(feature = "serverless")]
-                    match serverless_app(config, &mut serverless).await {
-                        Ok(response) => {
-                            let bytes: Vec<Bytes> = response
-                                .into_body()
-                                .into_data_stream()
-                                .try_collect()
-                                .await
-                                .unwrap();
-                            let _text = String::from_utf8_lossy(bytes.first().unwrap()).into_owned();
                         }
-                        Err(err) => tracing::error!("{err:?}"),
-                    }
 
-                    // Reset the active session to the first session
-                    active_session_name.set(active_session);
-                },
-                svg { dangerous_inner_html: fa_trash_icon_svg() },
-            },
-            button { 
-                onclick: move |_| async move {
-                    let current = is_flowchart_shown.read().to_owned();
-                    is_flowchart_shown.set(!current);
-                },
-                svg { dangerous_inner_html: ms_sync_icon_svg() },
-            },
-            button { 
-                onclick: move |_| async move {
-                    // Clear any text
-                    build_errors.set(String::new());
-
-                    // Check if the current session can be built
-                    let mut builder = match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
-                        Ok(builder) => builder,
-                        Err(err) => {
-                            build_errors.write().push_str(format!("{err:?}").as_str());
-                            return;
-                        },
-                    };
-                    builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true) {
-                        Ok(builder) => builder,
-                        Err(err) => {
-                            build_errors.write().push_str(format!("{err:?}").as_str());
-                            return;
-                        },
-                    };
-                    if SESSION_NAMES.read().iter().any(|s| s==&active_session_name()) {
-                        build_errors.write().push_str(format!("Session name '{}' already exists. Please choose a different name.", active_session_name()).as_str());
-                        return;
-                    }
-                    let _session = match builder.with_name(&active_session_name()).build() {
-                        Ok(session) => session,
-                        Err(err) => {
-                            build_errors.write().push_str(format!("{err:?}").as_str());
-                            return;
-                        },
-                    };
-
-                    // Update the server with the new session
-                    let route = "/app/v1/build";
-                    let batch = create_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
-                    let message = Table::get_builder()
-                        .with_name(AvailableSubjects::Mermaid.to_string().as_str())
-                        .with_record_batches(vec![batch])
-                        .unwrap()
-                        .build()
-                        .unwrap()
-                        .to_ipc_stream()
-                        .unwrap();    
-                    let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
-                        .with_session_name(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
-                        .with_format(&DataFormat::Ipc)
-                        .with_publisher(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
-                        .with_update(&TablePublish::None)
-                        .with_stream(false)
-                        .with_subject(AvailableSubjects::Mermaid.to_string().as_str())
-                        .with_message(message)
-                        .make_name()
-                        .unwrap()
-                        .build()
-                        .unwrap()).unwrap();
-
-                    #[cfg(not(feature = "serverless"))]
-                    let addr = format!("{ADDR_BACKEND}{route}");
-                    #[cfg(not(feature = "serverless"))]
-                    match reqwest::Client::new()
-                        .post(addr)
-                        .bearer_auth(JWT.read().to_string())
-                        .header(CONTENT_TYPE, "application/json")
-                        .body(data_serialized)
-                        .send()
-                        .await {
-                        Ok(response) => match response.text().await {
-                            Ok(text) => tracing::debug!("{text}"),
+                        #[cfg(feature = "serverless")]
+                        let config = ServerlessConfig {
+                            route: route.to_string(),
+                            basic_auth: None,
+                            bearer_auth: Some(JWT.read().to_string()),
+                            data: Some(data_serialized),
+                        };
+                        #[cfg(feature = "serverless")]
+                        let mut serverless = Serverless::new();
+                        #[cfg(feature = "serverless")]
+                        match serverless_app(config, &mut serverless).await {
+                            Ok(response) => {
+                                let bytes: Vec<Bytes> = response
+                                    .into_body()
+                                    .into_data_stream()
+                                    .try_collect()
+                                    .await
+                                    .unwrap();
+                                let _text = String::from_utf8_lossy(bytes.first().unwrap()).into_owned();
+                            }
                             Err(err) => tracing::error!("{err:?}"),
-                        },
-                        Err(err) => tracing::error!("{err:?}"),
-                    }
-
-                    #[cfg(feature = "serverless")]
-                    let config = ServerlessConfig {
-                        route: route.to_string(),
-                        basic_auth: None,
-                        bearer_auth: Some(JWT.read().to_string()),
-                        data: Some(data_serialized),
-                    };
-                    #[cfg(feature = "serverless")]
-                    let mut serverless = Serverless::new();
-                    #[cfg(feature = "serverless")]
-                    match serverless_app(config, &mut serverless).await {
-                        Ok(response) => {
-                            let bytes: Vec<Bytes> = response
-                                .into_body()
-                                .into_data_stream()
-                                .try_collect()
-                                .await
-                                .unwrap();
-                            let _text = String::from_utf8_lossy(bytes.first().unwrap()).into_owned();
                         }
-                        Err(err) => tracing::error!("{err:?}"),
-                    }
 
-                    // Update the frontend state with the new session so as not to require the user to re-signin
-                    let mut session_plans = vec![active_session_name().to_string()];
-                    session_plans.extend(SESSION_NAMES.read().iter().filter(|s| *s!=&active_session_name()).cloned());
-                    sync_session_names.send(SyncSessionNamesState { session_plans });
-
+                        // Reset the active session to the first session
+                        active_session_name.set(active_session);
+                    },
+                    svg { dangerous_inner_html: fa_trash_icon_svg() },
                 },
-                svg { dangerous_inner_html: ms_deploy_icon_svg() },
-            },
+                button { 
+                    onclick: move |_| async move {
+                        let current = is_flowchart_shown.read().to_owned();
+                        is_flowchart_shown.set(!current);
+                    },
+                    svg { dangerous_inner_html: ms_sync_icon_svg() },
+                },
+                button { 
+                    onclick: move |_| async move {
+                        // Clear any text
+                        build_errors.set(String::new());
+
+                        // Check if the current session can be built
+                        let mut builder = match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
+                            Ok(builder) => builder,
+                            Err(err) => {
+                                build_errors.write().push_str(format!("{err:?}").as_str());
+                                return;
+                            },
+                        };
+                        builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true) {
+                            Ok(builder) => builder,
+                            Err(err) => {
+                                build_errors.write().push_str(format!("{err:?}").as_str());
+                                return;
+                            },
+                        };
+                        if SESSION_NAMES.read().iter().any(|s| s==&active_session_name()) {
+                            build_errors.write().push_str(format!("Session name '{}' already exists. Please choose a different name.", active_session_name()).as_str());
+                            return;
+                        }
+                        let _session = match builder.with_name(&active_session_name()).build() {
+                            Ok(session) => session,
+                            Err(err) => {
+                                build_errors.write().push_str(format!("{err:?}").as_str());
+                                return;
+                            },
+                        };
+
+                        // Update the server with the new session
+                        let route = "/app/v1/build";
+                        let batch = create_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
+                        let message = Table::get_builder()
+                            .with_name(AvailableSubjects::Mermaid.to_string().as_str())
+                            .with_record_batches(vec![batch])
+                            .unwrap()
+                            .build()
+                            .unwrap()
+                            .to_ipc_stream()
+                            .unwrap();    
+                        let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
+                            .with_session_name(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
+                            .with_format(&DataFormat::Ipc)
+                            .with_publisher(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
+                            .with_update(&TablePublish::None)
+                            .with_stream(false)
+                            .with_subject(AvailableSubjects::Mermaid.to_string().as_str())
+                            .with_message(message)
+                            .make_name()
+                            .unwrap()
+                            .build()
+                            .unwrap()).unwrap();
+
+                        #[cfg(not(feature = "serverless"))]
+                        let addr = format!("{ADDR_BACKEND}{route}");
+                        #[cfg(not(feature = "serverless"))]
+                        match reqwest::Client::new()
+                            .post(addr)
+                            .bearer_auth(JWT.read().to_string())
+                            .header(CONTENT_TYPE, "application/json")
+                            .body(data_serialized)
+                            .send()
+                            .await {
+                            Ok(response) => match response.text().await {
+                                Ok(text) => tracing::debug!("{text}"),
+                                Err(err) => tracing::error!("{err:?}"),
+                            },
+                            Err(err) => tracing::error!("{err:?}"),
+                        }
+
+                        #[cfg(feature = "serverless")]
+                        let config = ServerlessConfig {
+                            route: route.to_string(),
+                            basic_auth: None,
+                            bearer_auth: Some(JWT.read().to_string()),
+                            data: Some(data_serialized),
+                        };
+                        #[cfg(feature = "serverless")]
+                        let mut serverless = Serverless::new();
+                        #[cfg(feature = "serverless")]
+                        match serverless_app(config, &mut serverless).await {
+                            Ok(response) => {
+                                let bytes: Vec<Bytes> = response
+                                    .into_body()
+                                    .into_data_stream()
+                                    .try_collect()
+                                    .await
+                                    .unwrap();
+                                let _text = String::from_utf8_lossy(bytes.first().unwrap()).into_owned();
+                            }
+                            Err(err) => tracing::error!("{err:?}"),
+                        }
+
+                        // Update the frontend state with the new session so as not to require the user to re-signin
+                        let mut session_plans = vec![active_session_name().to_string()];
+                        session_plans.extend(SESSION_NAMES.read().iter().filter(|s| *s!=&active_session_name()).cloned());
+                        sync_session_names.send(SyncSessionNamesState { session_plans });
+
+                    },
+                    svg { dangerous_inner_html: ms_deploy_icon_svg() },
+                },
+            }
         }
 
         // Dynamic dropdown
