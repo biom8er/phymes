@@ -276,6 +276,11 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_input: Option<Value>,
 
+    /// The document extension e.g., .html, .py, etc.
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc_extension: Option<String>,
+
     /// The length of the document chunks
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -363,6 +368,7 @@ impl Default for DataConfig {
             doc_template: None,
             table_expression: None,
             doc_input: None,
+            doc_extension: None,
             chunk_size: None,
             chunk_overlap: None,
             format: None,

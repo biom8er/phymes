@@ -68,6 +68,8 @@ pub struct ToolAgentSession<'a> {
     /// Create the attachment for the user
     pub tool_attachment_task_name: &'a str,
     pub tool_attachment_processor_name: &'a str,
+    pub tool_visualization_task_name: &'a str,
+    pub tool_visualization_processor_name: &'a str,
     /// Summarize the tool node results for the chat node
     pub tool_summary_task_name: &'a str,
     pub tool_summary_processor_name: &'a str,
@@ -98,6 +100,8 @@ impl Default for ToolAgentSession<'_> {
             tool_runtime_env_name: "tool_rt_1",
             tool_attachment_task_name: "tool_attachment_task_1",
             tool_attachment_processor_name: "tool_attachment_processor_1",
+            tool_visualization_task_name: "tool_visualization_task_1",
+            tool_visualization_processor_name: "tool_visualization_processor_1",
             tool_summary_task_name: "tool_summary_task_1",
             tool_summary_processor_name: "tool_summary_processor_1",
             // Needs to match the operator name

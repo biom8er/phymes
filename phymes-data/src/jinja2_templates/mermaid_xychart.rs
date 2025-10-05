@@ -14,7 +14,7 @@ pub static MERMAID_XYCHART_TEMPLATE: &'static str = r#"
 /// let inputs = serde_json::json!({
 ///     "title": "chart title",
 ///     "x_title": "x title",
-///     "y_title": "y title",
+///     "y_title": "y title"
 /// });
 /// 
 /// let input_string = TableScript::new_from_template(MERMAID_XYCHART_INPUT.to_string()).apply_template(&inputs)?
@@ -81,7 +81,6 @@ mod tests {
         // Create and render the template with the inputs
         let template = [MERMAID_HTML_PRE, MERMAID_XYCHART_TEMPLATE, MERMAID_HTML_POST].join("");   
         let script_string = TableScript::new_from_template(template).apply_template(&xychart_template_inputs)?;
-        println!("{script_string:#?}");
 
         assert_eq!(
             script_string,

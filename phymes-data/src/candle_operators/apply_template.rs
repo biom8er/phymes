@@ -2,9 +2,10 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use arrow::array::RecordBatch;
+use bytes::Bytes;
 use candle_core::Device;
 use phymes_core::{
-    schemas::{available_subjects::create_documents_batch, chat_completion, types},
+    schemas::{available_subjects::{create_documents_batch, create_timestamp_micros}, blob::create_blob_batch, chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
     table::{table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
 };
@@ -16,9 +17,10 @@ use crate::{candle_data::data_config::DataConfig, candle_operators::data_operato
 /// Inject a table into a string template
 #[derive(Debug)]
 pub struct ApplyTemplate {
-    template: String,
+    doc_template: String,
     table_expression: String,
-    input_template: Value,
+    doc_input: Value,
+    doc_extension: String,
 }
 
 impl MappableTrait for ApplyTemplate {
@@ -36,9 +38,10 @@ impl DataOperatorTrait for ApplyTemplate {
     ) -> Result<RecordBatch> {
         match apply_template(
             lhs_args,
-            &self.template,
+            &self.doc_template,
             &self.table_expression,
-            &self.input_template,
+            &self.doc_input,
+            &self.doc_extension,
             device,
         ) {
             Ok(batch) => Ok(batch),
@@ -49,15 +52,17 @@ impl DataOperatorTrait for ApplyTemplate {
         }
     }
     fn new(config: &DataConfig) -> Self {
-        let template = config.doc_template.clone().unwrap_or_default();
+        let doc_template = config.doc_template.clone().unwrap_or_default();
         let table_expression = config.table_expression.clone().unwrap_or_default();
-        let input_template = config.doc_input.clone().unwrap_or(serde_json::Value::default());
+        let doc_input = config.doc_input.clone().unwrap_or(serde_json::Value::default());
+        let doc_extension = config.doc_extension.clone().unwrap_or(".txt".to_string());
 
         // Make the object
         ApplyTemplate {
-            template,
+            doc_template,
             table_expression,
-            input_template,
+            doc_input,
+            doc_extension,
         }
     }
     fn get_description() -> String {
@@ -122,23 +127,26 @@ impl DataOperatorTrait for ApplyTemplate {
 /// # Arguments
 ///
 /// * `lhs_args` - Slice of [RecordBatch]es
-/// * `template` - Minijinja [String] template
+/// * `doc_template` - Minijinja [String] template
 /// * `table_expression` - The expression for the table within the minijinja template
-/// * `input_template` - A JSON Value representing the input for the template beyond the table_expression
+/// * `doc_input` - A JSON Value representing the input for the template beyond the table_expression
 ///   where the table_expression will be inserted into to complete the input for the template
+/// * `doc_extension` - The document extension e.g., .py, .html, .md, .txt, etc.
 /// * `device` - The compute device
 #[instrument(skip(
     lhs_args,
-    template,
+    doc_template,
     table_expression,
-    input_template,
+    doc_input,
+    doc_extension,
     _device
 ))]
 pub fn apply_template(
     lhs_args: &[RecordBatch],
-    template: &str,
+    doc_template: &str,
     table_expression: &str,
-    input_template: &Value,
+    doc_input: &Value,
+    doc_extension: &str,
     _device: &Device,
 ) -> Result<RecordBatch> {
     // Convert the RecordBatches into a json objct
@@ -149,7 +157,7 @@ pub fn apply_template(
         .to_json_object()?;
 
     // Complete the input
-    let input = if let Some(input_object) = input_template.as_object() {
+    let input = if let Some(input_object) = doc_input.as_object() {
         let mut input_object = input_object.to_owned();
         let _ =  input_object.insert(table_expression.to_string(), lhs_json_object.into());
         serde_json::to_value(input_object)?
@@ -158,10 +166,16 @@ pub fn apply_template(
     };
 
     // Apply the template
-    let document = TableScript::new_from_template(template.to_string())
+    let document = TableScript::new_from_template(doc_template.to_string())
         .apply_template(&input)?;
+    let bytes = Bytes::from(document);
 
-    let batch = create_documents_batch(vec![table_expression.to_string()], vec![table_expression.to_string()], vec![document])?;
+    let batch = create_blob_batch(
+        vec![table_expression.to_string()],
+        vec![doc_extension.to_string()],
+        vec![bytes.to_vec()],
+        vec!["assistant".to_string()],
+        vec![create_timestamp_micros()])?;
     Ok(batch)
 }
 
@@ -192,6 +206,7 @@ mod tests {
             template,
             table_expression,
             &input_template,
+            "txt",
             &device,
         )?;
 
@@ -201,11 +216,16 @@ mod tests {
             .with_name("")
             .build()?;
 
-        let lhs_text = result_table.get_column_as_vec_str("chunk_id");
+        let lhs_text = result_table.get_column_as_vec_str("filename");
         assert_eq!(lhs_text, ["messages"]);
-        let lhs_text = result_table.get_column_as_vec_str("document_id");
-        assert_eq!(lhs_text, ["messages"]);
-        let lhs_text = result_table.get_column_as_vec_str("text");
+        let lhs_text = result_table.get_column_as_vec_str("extension");
+        assert_eq!(lhs_text, ["txt"]);
+        let lhs_text = result_table.get_column_as_vec_str("metadata");
+        assert_eq!(lhs_text, ["assistant"]);
+        let lhs_text = result_table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .map(|bytes| String::from_utf8(bytes).unwrap())
+            .collect::<Vec<_>>();
         assert_eq!(lhs_text, [
             "\"\"\\n\\n<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n\\n\\n\\n\\n\\n<|im_start|>user\\nHi!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nHello how can I help?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>user\\nWhat is Deep Learning?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nmagic!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\n\\n\\n\"\""
         ]);
