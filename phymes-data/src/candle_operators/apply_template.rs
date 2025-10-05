@@ -5,7 +5,7 @@ use arrow::array::RecordBatch;
 use bytes::Bytes;
 use candle_core::Device;
 use phymes_core::{
-    schemas::{available_subjects::{create_documents_batch, create_timestamp_micros}, blob::create_blob_batch, chat_completion, types},
+    schemas::{available_subjects::create_timestamp_micros, blob::create_blob_batch, chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
     table::{table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
 };
@@ -54,7 +54,11 @@ impl DataOperatorTrait for ApplyTemplate {
     fn new(config: &DataConfig) -> Self {
         let doc_template = config.doc_template.clone().unwrap_or_default();
         let table_expression = config.table_expression.clone().unwrap_or_default();
-        let doc_input = config.doc_input.clone().unwrap_or(serde_json::Value::default());
+        let doc_input = if let Some(doc_input) = config.doc_input.as_ref() {
+            serde_json::from_str::<Value>(doc_input).unwrap_or_default()
+        } else {
+            Value::default()
+        };
         let doc_extension = config.doc_extension.clone().unwrap_or(".txt".to_string());
 
         // Make the object

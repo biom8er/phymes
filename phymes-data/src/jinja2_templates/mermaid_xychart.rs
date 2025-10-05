@@ -1,10 +1,13 @@
 /// Mermaid.js xy chart jinja2 template
 pub static MERMAID_XYCHART_TEMPLATE: &'static str = r#"
-            xychart
-                title "{{ title }}"
-                x-axis "{{ x_title }}" [{%- for row in rows %}{{ row.x }}{% if not loop.last %}, {% endif %}{%- endfor %}]
-                y-axis "{{ y_title }}"
-                line [{%- for row in rows %}{{ row.y }}{% if not loop.last %}, {% endif %}{%- endfor %}"#;
+        xychart
+            title "{{ title }}"
+            x-axis "{{ x_title }}" [{%- for row in rows %}{{ row.x }}{% if not loop.last %}, {% endif %}{%- endfor %}]
+            y-axis "{{ y_title }}"
+            line [{%- for row in rows %}{{ row.y }}{% if not loop.last %}, {% endif %}{%- endfor %}]"#;
+
+/// The `table_expression` variable name in `DataConfig`
+pub static MERMAID_XYCHART_TABLE_EXPRESSION: &'static str = "rows";
 
 /// Mermaid.js xy chart input jinja2 template
 /// 
@@ -57,7 +60,7 @@ mod tests {
             ("y", y_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name("rows")
+            .with_name(MERMAID_XYCHART_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
@@ -84,7 +87,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n    Here is one mermaid diagram:\n    <pre class=\"mermaid\">\n            xychart\n                title \"chart title\"\n                x-axis \"x title\" [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]\n                y-axis \"y title\"\n                line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000\n    </pre>\n    <script type=\"module\">\n        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n        mermaid.initialize({theme: \"dark\", startOnLoad: true });\n    </script>\n  </body>\n</html>"
+            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n    <pre class=\"mermaid\">\n            xychart\n                title \"chart title\"\n                x-axis \"x title\" [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]\n                y-axis \"y title\"\n                line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]\n    </pre>\n    <script type=\"module\">\n        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n        mermaid.initialize({theme: \"dark\", startOnLoad: true });\n    </script>\n  </body>\n</html>"
         );
         Ok(())
     }

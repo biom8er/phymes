@@ -1438,6 +1438,7 @@ mod tests {
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart()?;
         let erdiagram = builder.to_mermaid_erdiagram()?;
+        dbg!(&erdiagram);
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?

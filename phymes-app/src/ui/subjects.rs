@@ -33,7 +33,7 @@ use crate::{
         subjects::{
             get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, SUBJECT_SCHEMA_HEADERS
         }, svg_icons::ms_search_icon_svg,
-    }, ui::{attachments::attachments_interface_footer, files::{attach_files_input, clear_download_files_button, clear_upload_files_button, download_files_button, download_files_list, upload_files_button, upload_files_list}},
+    }, ui::{attachments::attachments_interface_footer, files::{clear_download_files_button, download_files_button, download_files_list}},
 };
 
 /// View to display the subject tables for the session
@@ -47,9 +47,6 @@ pub fn subjects_interface_view() -> Element {
     let mut subject_names = use_signal(Vec::<String>::new);
     let mut subject_num_rows = use_signal(Vec::<usize>::new);
     let active_subject_name = use_signal(String::new);
-    let files_uploaded = use_signal(Vec::<SessionInterfaceMessage>::new);
-    let filenames_uploaded = use_signal(Vec::<String>::new);
-    let extensions_uploaded = use_signal(Vec::<String>::new);
     let files_downloaded = use_signal(Vec::<Vec<u8>>::new);
     let filenames_downloaded = use_signal(Vec::<String>::new);
     let extensions_downloaded = use_signal(Vec::<String>::new);

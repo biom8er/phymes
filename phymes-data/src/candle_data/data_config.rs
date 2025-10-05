@@ -3,7 +3,6 @@ use std::fmt::Display;
 use clap::{Parser, ValueEnum};
 use phymes_core::table::data_format::DataFormat;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::candle_operators::available_candle_operators::AvailableCandleOperators;
 
@@ -270,11 +269,11 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub table_expression: Option<String>,
 
-    /// A JSON Value representing the input for the template beyond the table_expression
+    /// A serialized JSON [Value] representing the input for the template beyond the table_expression
     ///   where the table_expression will be inserted into to complete the input for the template
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub doc_input: Option<Value>,
+    pub doc_input: Option<String>,
 
     /// The document extension e.g., .html, .py, etc.
     #[arg(long)]

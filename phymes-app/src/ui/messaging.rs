@@ -346,10 +346,10 @@ pub fn messaging_interface_footer(mut messaging_roles: Signal<Vec<String>>, mut 
                                                 vec![m]
                                             });
                                         for row in json_rows.iter() {
-                                            if row.get("role").unwrap().as_str().unwrap() == "assistant" {
-                                                update_message_content_state(messaging_contents, row.get("content").unwrap().as_str().unwrap(), false);
-                                            } else if row.get("role").is_none() {
+                                            if row.get("role").is_none() {
                                                 tracing::error!("Message response does not have key role: {:?}", row);
+                                            } else if row.get("role").unwrap().as_str().unwrap() == "assistant" {
+                                                update_message_content_state(messaging_contents, row.get("content").unwrap().as_str().unwrap(), false);
                                             }
                                         }
                                     }
@@ -383,7 +383,9 @@ pub fn messaging_interface_footer(mut messaging_roles: Signal<Vec<String>>, mut 
                                             vec![m]
                                         });
                                         for row in json_rows.iter() {
-                                            if row.get("role").unwrap().as_str().unwrap() == "assistant" {
+                                            if row.get("role").is_none() {
+                                                tracing::error!("Message response does not have key role: {:?}", row);
+                                            } else if row.get("role").unwrap().as_str().unwrap() == "assistant" {
                                                 update_message_content_state(messaging_contents, row.get("content").unwrap().as_str().unwrap(), false);
                                             }
                                         }

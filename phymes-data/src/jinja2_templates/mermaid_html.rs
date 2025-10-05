@@ -69,7 +69,6 @@ pub static MERMAID_HTML_PRE: &'static str = r#"<!DOCTYPE html>
         </style>
   </head>
   <body>
-    Here is one mermaid diagram:
     <pre class="mermaid">"#;
 
 /// Part 2 of the Mermaid.js html jinja2 template

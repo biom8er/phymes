@@ -1,4 +1,5 @@
 use anyhow::Result;
+use serde_json::json;
 use std::sync::Arc;
 
 use phymes_core::{
@@ -17,9 +18,9 @@ use phymes_core::{
 };
 use phymes_data::{
     candle_data::{
-        attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::DataConfig, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor
+        attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::{DataCastOperator, DataConfig}, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor
     },
-    candle_operators::available_candle_operators::AvailableCandleOperators,
+    candle_operators::available_candle_operators::AvailableCandleOperators, jinja2_templates::{mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}, mermaid_xychart::{MERMAID_XYCHART_TABLE_EXPRESSION, MERMAID_XYCHART_TEMPLATE}},
 };
 use phymes_ml::{
     candle_assets::available_candle_assets::AvailableCandleAssets,
@@ -69,7 +70,8 @@ pub struct ToolAgentSession<'a> {
     pub tool_attachment_task_name: &'a str,
     pub tool_attachment_processor_name: &'a str,
     pub tool_visualization_task_name: &'a str,
-    pub tool_visualization_processor_name: &'a str,
+    pub tool_vis_renamecols_processor_name: &'a str,
+    pub tool_vis_xychart_processor_name: &'a str,
     /// Summarize the tool node results for the chat node
     pub tool_summary_task_name: &'a str,
     pub tool_summary_processor_name: &'a str,
@@ -101,7 +103,8 @@ impl Default for ToolAgentSession<'_> {
             tool_attachment_task_name: "tool_attachment_task_1",
             tool_attachment_processor_name: "tool_attachment_processor_1",
             tool_visualization_task_name: "tool_visualization_task_1",
-            tool_visualization_processor_name: "tool_visualization_processor_1",
+            tool_vis_renamecols_processor_name: "tool_vis_renamecols_processor_1",
+            tool_vis_xychart_processor_name: "tool_visualization_processor_1",
             tool_summary_task_name: "tool_summary_task_1",
             tool_summary_processor_name: "tool_summary_processor_1",
             // Needs to match the operator name
@@ -172,6 +175,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 task_name: self.attachment_aggregator_task_name.to_string(),
                 runtime_env_name: self.attachment_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.attachment_aggregator_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.tool_visualization_task_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![
+                    self.tool_vis_renamecols_processor_name.to_string(),
+                    self.tool_vis_xychart_processor_name.to_string()
+                ],
             },
             TaskPlan {
                 task_name: self.chat_task_name.to_string(),
@@ -273,11 +284,44 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 TableSubscribe::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
                 },
+                TableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
+                },
                 TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.attachment_aggregator_processor_name.to_string(),
                 },
             ],
             AnyTableNameSubscribe::new_box(),
+        ));
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
+            self.tool_vis_renamecols_processor_name,
+            &[TablePublish::Replace {
+                table_name: self.tool_visualization_task_name.to_string(),
+            }],
+            &[
+                TableSubscribe::OnUpdateFullTable {
+                    table_name: self.tool_summary_task_name.to_string(),
+                },
+                TableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.tool_vis_renamecols_processor_name.to_string(),
+                },
+            ],
+            AllTableNamesSubscribe::new_box(),
+        ));
+        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
+            self.tool_vis_xychart_processor_name,
+            &[TablePublish::Replace {
+                table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
+            }],
+            &[
+                TableSubscribe::AlwaysFullTable {
+                    table_name: self.tool_visualization_task_name.to_string(),
+                },
+                TableSubscribe::AlwaysLastRecordBatch {
+                    table_name: self.tool_vis_xychart_processor_name.to_string(),
+                },
+            ],
+            AllTableNamesSubscribe::new_box(),
         ));
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
@@ -584,6 +628,46 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .build()
             .unwrap();
 
+        // Select and cast config
+        let vis_renamecols_config = DataConfig {
+            lhs_name: self.tool_summary_task_name.to_string(),
+            lhs_values: vec!["lhs_pk".to_string(), "score".to_string()],
+            as_columns: Some(vec!["x".to_string(), "y".to_string()]),
+            cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None]),
+            cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Float32.to_string()]),
+            cast_templates: Some(vec!["".to_string(), "".to_string()]),
+            operator: AvailableCandleOperators::SelectAndCast,
+            ..Default::default()
+        };
+        let vis_renamecols_config_json = serde_json::to_vec(&vis_renamecols_config).unwrap();
+        let vis_renamecols_state = TableBuilder::new()
+            .with_name(self.tool_vis_renamecols_processor_name)
+            .with_json(&vis_renamecols_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Visualize tabular data config
+        let vis_xychart_config = DataConfig {
+            lhs_name: self.tool_visualization_task_name.to_string(),
+            doc_template: Some([MERMAID_HTML_PRE, MERMAID_XYCHART_TEMPLATE, MERMAID_HTML_POST].join("")),
+            table_expression: Some(MERMAID_XYCHART_TABLE_EXPRESSION.to_string()),
+            doc_input: Some(serde_json::to_string(&json!({
+                "title": self.state_scores_table_name,
+                "x_title": "lhs_pk",
+                "y_title": "score"})).unwrap()),
+            doc_extension: Some("html".to_string()),
+            operator: AvailableCandleOperators::ApplyTemplate,
+            ..Default::default()
+        };
+        let vis_xychart_config_json = serde_json::to_vec(&vis_xychart_config).unwrap();
+        let vis_xychart_state = TableBuilder::new()
+            .with_name(self.tool_vis_xychart_processor_name)
+            .with_json(&vis_xychart_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
         // Attachment config
         let attachment_config = DataSummaryConfig {
             format: DataFormat::CsvDefault,
@@ -638,18 +722,36 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .build()
             .unwrap();
 
+        fn create_xychart_fields() -> Fields {
+            let fields_vec = vec![
+                Field::new("x", DataType::Utf8, false),
+                Field::new("y", DataType::Float64, false)
+            ];
+            Fields::from(fields_vec)
+        }
+        let tool_visualization_table = Table::get_builder()
+            .with_name(self.tool_visualization_task_name)
+            .with_schema(create_schema_from_fields(&create_xychart_fields))
+            .with_record_batches(Vec::new())
+            .unwrap()
+            .build()
+            .unwrap();
+
         Some(vec![
             candle_chat_state,
             candle_message_parser_state,
             aggregator_1_state,
             aggregator_2_state,
             aggregator_3_state,
+            vis_renamecols_state,
+            vis_xychart_state,
             extract_tabular_data_state,
             attachmen_state,
             summary_state_1,
             summary_state_2,
             scores_table,
             tool_summary_table,
+            tool_visualization_table,
             self.make_tools_table().unwrap(),
             AvailableInterfaceSubjects::AggregatedMessages.to_table(None, None).unwrap(),
             AvailableInterfaceSubjects::UserMessages.to_table(None, None).unwrap(),
@@ -662,6 +764,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AvailableSubjects::Configs.to_table(Some(self.hitl_task_name), None).unwrap(),
             AvailableInterfaceSubjects::AssistantCsv.to_table(None, None).unwrap(),
             AvailableInterfaceSubjects::AggregatedAttachments.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::AssistantScript.to_table(None, None).unwrap(),
         ])
     }
 }
