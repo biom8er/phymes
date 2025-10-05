@@ -49,9 +49,9 @@ impl DataOperatorTrait for ApplyTemplate {
         }
     }
     fn new(config: &DataConfig) -> Self {
-        let template = config.template.clone().unwrap_or_default();
+        let template = config.doc_template.clone().unwrap_or_default();
         let table_expression = config.table_expression.clone().unwrap_or_default();
-        let input_template = config.input_template.clone().unwrap_or(serde_json::Value::default());
+        let input_template = config.doc_input.clone().unwrap_or(serde_json::Value::default());
 
         // Make the object
         ApplyTemplate {

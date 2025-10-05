@@ -263,7 +263,7 @@ pub struct DataConfig {
     /// Minijinja [String] template
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub template: Option<String>,
+    pub doc_template: Option<String>,
 
     /// The expression for the table within the minijinja template
     #[arg(long)]
@@ -274,7 +274,7 @@ pub struct DataConfig {
     ///   where the table_expression will be inserted into to complete the input for the template
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub input_template: Option<Value>,
+    pub doc_input: Option<Value>,
 
     /// The length of the document chunks
     #[arg(long)]
@@ -360,9 +360,9 @@ impl Default for DataConfig {
             op_kwargs: None,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
             operator: AvailableCandleOperators::RelativeSimilarityScore,
-            template: None,
+            doc_template: None,
             table_expression: None,
-            input_template: None,
+            doc_input: None,
             chunk_size: None,
             chunk_overlap: None,
             format: None,
