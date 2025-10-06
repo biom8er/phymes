@@ -333,11 +333,9 @@ pub mod test_task {
             runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         },
         table::{
-            table_trait::{
-                test_table::make_test_table, Table, TableBuilder, TableBuilderTrait, TableTrait
-            },
-            table_publish::TablePublish,
-            table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
+            table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait}, table_trait::{
+                test_table::{make_test_table, make_test_table_chat}, Table, TableBuilder, TableBuilderTrait, TableTrait
+            }
         },
         task::{
             message::{
@@ -512,9 +510,14 @@ pub mod test_task {
         subject: &str,
         table_name: &str,
         update: &TablePublish,
+        test_table: bool
     ) -> Result<IPCMessageMap> {
         // mock table as input
-        let table = make_test_table(table_name, 4, 8, 3)?;
+        let table = if test_table {
+            make_test_table(table_name, 4, 8, 3)?
+        } else {
+            make_test_table_chat(table_name)?
+        };
 
         // build the message
         let message = IPCMessageBuilder::new()

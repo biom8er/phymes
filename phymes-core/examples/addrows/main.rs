@@ -36,6 +36,7 @@ async fn main() -> Result<()> {
         &TablePublish::Replace {
             table_name: "state_1".to_string(),
         },
+        true
     )?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
     let session_stream = SessionStream::new(input, session_stream_state.clone());

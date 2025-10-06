@@ -83,8 +83,6 @@ impl SessionStreamState {
             for (subject, publishers) in updates.iter() {
                 for publisher in publishers.iter() {
                     if publisher != task_name && subjects.contains_key(subject) {
-                        // DM: Useful for debugging
-                        // println!("extend_superstep_updates: tasks: {}, subject: {}, publisher: {}", task_name, subject, publisher);
                         *subjects.get_mut(subject).unwrap() = true;
                     }
                 }
@@ -114,9 +112,9 @@ impl SessionStreamState {
     pub fn update_state_from_messages(
         &self,
         messages: IPCMessageMap,
-    ) -> HashMap<String, Vec<String>> {
+    ) -> Result<HashMap<String, Vec<String>>> {
         let mut subjects_updated = HashMap::<String, Vec<String>>::new();
-        event!(Level::DEBUG, "Message updates {:?}.", &messages.keys());
+        // event!(Level::DEBUG, "Message updates {:?}.", &messages.keys());
         for (_name, message) in messages.into_iter() {
 
             // Try to update the state with the new record batches
@@ -126,28 +124,18 @@ impl SessionStreamState {
                 .get_states()
                 .get(table_name.as_str())
             {
-                let update = message.get_update().clone();
                 let publisher = message.get_publisher().to_string();
+                let update = message.get_update().clone();
 
-                // Check for a mismatch in the schema
-                let builder = match TableBuilder::new_from_ipc_stream(&message.get_message_own()) {
-                    Ok(builder) => builder,
-                    Err(err) => {
-                        event!(Level::ERROR, "{err}");
-                        continue;
-                    }
-                };
-                let batches = builder
+                // Check for any inconsistencies in the message and intercept any errors
+                let batches =  TableBuilder::new_from_ipc_stream(&message.get_message_own())?
                     .with_name(table_name.as_str())
-                    .build()
-                    .unwrap()
+                    .build()?
                     .get_record_batches_own();
 
                 // Update the state
-                state
-                    .write()
-                    .update_table(batches, update)
-                    .unwrap();
+                // Check for a mismatch in the schema and intercept any errors
+                state.write().update_table(batches, update)?;
 
                 // Record the table name that was updated and the pubisher who updated it
                 if let Some(v) = subjects_updated.get_mut(state.read().get_name()) {
@@ -160,7 +148,7 @@ impl SessionStreamState {
                 }
             }
         }
-        subjects_updated
+        Ok(subjects_updated)
     }
 
     /// Write superstep updates to file
@@ -315,9 +303,10 @@ mod tests {
             "state_1",
             "state_1",
             &TablePublish::None,
+            true
         )?;
         let session_stream_step = SessionStreamState::new(session_context);
-        let updates = session_stream_step.update_state_from_messages(input);
+        let updates = session_stream_step.update_state_from_messages(input)?;
 
         // check the response
         assert!(updates.is_empty());
@@ -381,8 +370,9 @@ mod tests {
             &TablePublish::Extend {
                 table_name: "state_1".to_string(),
             },
+            true
         )?;
-        let updates = session_stream_step.update_state_from_messages(input);
+        let updates = session_stream_step.update_state_from_messages(input)?;
 
         // check the response
         assert_eq!(updates.len(), 1);
@@ -441,6 +431,20 @@ mod tests {
                 .len(),
             3
         );
+
+        // Case 3: Error due to mismatching schemas
+        let input = make_test_input_message(
+            "task_1",
+            "session_1",
+            "state_1",
+            "state_1",            
+            &TablePublish::Extend { table_name: "state_1".to_string() },
+            false
+        )?;
+        let updates = session_stream_step.update_state_from_messages(input);
+
+        // check the response
+        assert!(updates.is_err());
 
         Ok(())
     }

@@ -8,6 +8,7 @@ use tracing::{Level, event, instrument};
 
 use super::common_traits::{BuilderTrait, IPCMessageMap, MappableTrait, SendableRecordBatchStreamMessageMap, RunnableTrait};
 use crate::metrics::HashMap;
+use crate::schemas::error::create_error_message_map;
 use crate::session::session_stream_state::SessionStreamState;
 use crate::table::table_trait::{TableBuilder, TableBuilderTrait, TableTrait};
 use crate::task::{
@@ -66,14 +67,11 @@ impl SessionStreamStep {
                     let message_map = message.to_map()?;
                     response_batches.extend(message_map);
                 }
-                Err(e) => {
-                    // DM, TODO: create error message to update the error subject
-                    event!(Level::ERROR, "Error joining message streams: {e:?}");
-                    if e.is_panic() {
-                        std::panic::resume_unwind(e.into_panic());
-                    } else {
-                        unreachable!();
-                    }
+                Err(err) => {
+                    // Intercept the error and forward to the error subject
+                    event!(Level::ERROR, "{err}");
+                    let message_map = create_error_message_map(&err.into())?;
+                    response_batches.extend(message_map);
                 }
             }
         }
@@ -134,10 +132,14 @@ impl SessionStreamStep {
         state: Arc<RwLock<SessionStreamState>>,
         messages: IPCMessageMap,
     ) -> Result<Option<IPCMessageMap>> {
-        // Update the state
-        let update = state
-            .write()
-            .update_state_from_messages(messages);
+        // Update the state and handle any errors
+        let update = match state.write().update_state_from_messages(messages) {
+            Ok(update) => update,
+            Err(err) => {
+                let message_map = create_error_message_map(&err)?;
+                state.write().update_state_from_messages(message_map)?
+            },
+        };
         state.write().extend_superstep_updates(update);
 
         // DM, TODO: initialize channels for metrics and logs
@@ -192,10 +194,14 @@ impl SessionStreamStep {
         // Join each of the response futures
         let response_batches = SessionStreamStep::join_message_streams(response_streams).await?;
 
-        // Update the state
-        let update = state
-            .write()
-            .update_state_from_messages(response_batches);
+        // Update the state and handle any errors
+        let update = match state.write().update_state_from_messages(response_batches) {
+            Ok(update) => update,
+            Err(err) => {
+                let message_map = create_error_message_map(&err)?;
+                state.write().update_state_from_messages(message_map)?
+            },
+        };
         state.write().extend_superstep_updates(update);
 
         // Increment the step
@@ -244,6 +250,7 @@ mod tests {
                 "state_1",
                 "state_1",
                 &TablePublish::None,
+                true
             )?,
         )
         .await?;
@@ -336,6 +343,7 @@ mod tests {
                 &TablePublish::Extend {
                     table_name: "state_1".to_string(),
                 },
+                true
             )?,
         )
         .await?
@@ -436,6 +444,7 @@ mod tests {
                 &TablePublish::Replace {
                     table_name: "state_1".to_string(),
                 },
+                true
             )?,
         )
         .await?
@@ -534,6 +543,7 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_1".to_string(),
             },
+            true
         )?;
         input.extend(make_test_input_message(
             "task_2",
@@ -543,6 +553,7 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_2".to_string(),
             },
+            true
         )?);
         input.extend(make_test_input_message(
             "task_3",
@@ -552,6 +563,7 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_3".to_string(),
             },
+            true
         )?);
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
@@ -919,6 +931,7 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_1".to_string(),
             },
+            true
         )?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
@@ -1090,6 +1103,31 @@ mod tests {
         );
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 5385);
         assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
+
+        Ok(())
+    }    
+
+    #[tokio::test]
+    async fn test_session_run_superstep_error() -> Result<()> {
+        let metrics = ArrowTaskMetricsSet::new();
+        let session_context =
+            make_test_session_context_sequential_task("session_1", metrics.clone(), 4)?;
+        let input = make_test_input_message(
+            "task_1",
+            "session_1",
+            "state_1",
+            "state_1",
+            &TablePublish::Replace {
+                table_name: "state_1".to_string(),
+            },
+            false
+        )?;
+        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
+            .await;
+        assert!(response.is_err());
+
+        // TODO!
 
         Ok(())
     }
