@@ -110,7 +110,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
-    use phymes_core::{metrics::ArrowTaskMetricsSet, session::{session_context::SessionStreamState, session_context_builder::SessionContextBuilderTrait}};
+    use phymes_core::{metrics::ArrowTaskMetricsSet, session::{session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilderTrait}};
 
     use crate::session_traits::agents::SessionContextBuilderAgentsTrait;
 

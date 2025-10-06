@@ -9,7 +9,7 @@ use std::sync::Arc;
 use phymes_core::{
     metrics::{ArrowTaskMetricsSet, HashMap}, 
     schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::BlobBuilderTraitExt, mermaid::create_mermaid_batch, user::{create_user_inbox_batch, create_user_session_contexts_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
-    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState}, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait}}, 
+    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait}}, 
     table::{data_format::JsonFormat, table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, 
     task::message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait}};
 

@@ -7,7 +7,7 @@ use phymes_core::{
     metrics::ArrowTaskMetricsSet,
     session::{
         common_traits::BuilderTrait,
-        session_context::SessionStreamState,
+        session_stream_state::SessionStreamState,
         session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait},
     },
 };

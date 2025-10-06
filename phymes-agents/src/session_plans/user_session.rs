@@ -338,7 +338,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_context::{SessionStream, SessionStreamState}, session_context_builder::SessionContextBuilderTrait}, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
+    use phymes_core::{metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilderTrait}, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
 
     use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
 
