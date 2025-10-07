@@ -401,15 +401,18 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
     }
 }
 
-#[cfg(feature = "mermaid_js")]
-pub fn render_mermaid_svg(
+#[component]
+pub fn mermaid_view(
     diagram_code: Memo<String>,
-    id: Signal<String>,
     check_build: Signal<bool>,
     is_flowchart_shown: Signal<bool>
-) -> Resource<(Option<String>, Option<String>, Option<String>)> {
-    use_resource(move || async move {
-        // Render the mermaid.js diagram
+) -> Element {
+    let mut diagram_svg = use_signal(String::new);
+    let mut error_mjs = use_signal(String::new);
+    let id = use_signal(|| "graphDiv".to_string());
+
+    // Render the mermaid.js diagram
+    let _ = use_resource(move || async move {
         let eval = document::eval(
             format!(
                 r#"
@@ -438,6 +441,13 @@ pub fn render_mermaid_svg(
             }
         };
 
+        // Update the signals
+        diagram_svg.set(mermaid_js_object.svg.unwrap_or_default());
+        error_mjs.set(mermaid_js_object.error.unwrap_or_default());
+
+    });
+
+    let error_ctxb = use_memo(move || {
         // Build the preliminary session context
         if check_build() {
             let builder_error = if is_flowchart_shown() {
@@ -451,21 +461,15 @@ pub fn render_mermaid_svg(
                     Err(err) => Some(err.to_string()),
                 }
             };
-            (
-                mermaid_js_object.svg,
-                mermaid_js_object.error,
-                builder_error,
-            )
+            builder_error.unwrap_or_default()
         } else {
-            (mermaid_js_object.svg, mermaid_js_object.error, None)
+            String::new()
         }
-    })
-}
-
-#[cfg(feature = "mermaid_js")]
-pub fn add_pan_zoom_to_svg(rendered_html: Resource<(Option<String>, Option<String>, Option<String>)>, id: Signal<String>) {
+    });
+    
+    // Add pan and zoom to the svg    
     use_effect(move || {
-        let _ = rendered_html(); // needed to triger the effect
+        let _ = diagram_svg(); // needed to triger the effect
         document::eval(
             format!(
                 r#"
@@ -488,51 +492,27 @@ pub fn add_pan_zoom_to_svg(rendered_html: Resource<(Option<String>, Option<Strin
             .as_str(),
         );
     });
+
+    rsx! {
+        if !error_mjs().is_empty() {
+            p { "{error_mjs}" },
+        }
+        if !error_ctxb().is_empty() {
+            p { "{error_ctxb}" },
+        }
+        if !diagram_svg().is_empty() {
+            mermaid_div { diagram_svg }
+        }        
+    }
 }
 
 #[component]
-pub fn mermaid_view(
-    diagram_code: Memo<String>,
-    check_build: Signal<bool>,
-    is_flowchart_shown: Signal<bool>
-) -> Element {
-    let rendered_html = render_mermaid_svg(diagram_code, use_signal(|| "graphDiv".to_string()), check_build, is_flowchart_shown);
-    add_pan_zoom_to_svg(rendered_html, use_signal(|| "graphDiv".to_string()));
-
-    let value = rendered_html.suspend().with_loading_placeholder(|| {
-        rsx! {
-            p { "Rendering svg..." }
+pub fn mermaid_div(diagram_svg: Signal<String>) -> Element {  
+    rsx! {
+        div {
+            id: "graphDiv",
+            class: "mermaid",
+            svg { dangerous_inner_html: diagram_svg() }
         }
-    })?;
-    match value() {
-        // Mermaid.js or SessionContextBuilder error
-        (_, Some(error), None) | (_, None, Some(error)) => {
-            rsx! {
-                p { "{error}" },
-            }
-        }
-        // Mermaid.js and SessionContextBuilder error
-        (_, Some(error_mjs), Some(error_ctxb)) => {
-            rsx! {                    
-                p { "{error_mjs}" },
-                p { "{error_ctxb}" },
-            }
-        }
-        // Valid SVG with no errors
-        (Some(svg), _, _) => {
-            rsx! {
-                div {
-                    id: "graphDiv",
-                    class: "mermaid",
-                    svg { dangerous_inner_html: svg.to_string() }
-                }
-            }
-        }
-        // All other cases
-        (_, _, _) => {
-            rsx! {
-                p { "Rendering svg..." }
-            }
-        }
-    }
+    }  
 }
