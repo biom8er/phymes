@@ -147,7 +147,8 @@ impl UserState {
         let update = self.users
             .try_write()
             .unwrap()
-            .update_state_from_messages(message_map);
+            .update_state_from_messages(message_map)
+            .unwrap();
 
         // Update the superstep
         self.users

@@ -14,13 +14,15 @@ pub static MERMAID_XYCHART_TABLE_EXPRESSION: &'static str = "rows";
 /// # Example
 /// 
 /// ```rust
+/// use phymes_core::table::table_script::TableScript;
+/// use phymes_data::jinja2_templates::mermaid_xychart::MERMAID_XYCHART_INPUT;
 /// let inputs = serde_json::json!({
 ///     "title": "chart title",
 ///     "x_title": "x title",
 ///     "y_title": "y title"
 /// });
 /// 
-/// let input_string = TableScript::new_from_template(MERMAID_XYCHART_INPUT.to_string()).apply_template(&inputs)?
+/// let input_string = TableScript::new_from_template(MERMAID_XYCHART_INPUT.to_string()).apply_template(&inputs).unwrap()
 ///     .lines()
 ///     .map(|line| line.trim())
 ///     .collect::<Vec<&str>>()
@@ -87,7 +89,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n    <pre class=\"mermaid\">\n            xychart\n                title \"chart title\"\n                x-axis \"x title\" [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]\n                y-axis \"y title\"\n                line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]\n    </pre>\n    <script type=\"module\">\n        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n        mermaid.initialize({theme: \"dark\", startOnLoad: true });\n    </script>\n  </body>\n</html>"
+            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n    <pre class=\"mermaid\">\n        xychart\n            title \"chart title\"\n            x-axis \"x title\" [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]\n            y-axis \"y title\"\n            line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]\n    </pre>\n    <script type=\"module\">\n        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n        mermaid.initialize({theme: \"dark\", startOnLoad: true });\n    </script>\n  </body>\n</html>"
         );
         Ok(())
     }

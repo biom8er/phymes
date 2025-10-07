@@ -18,12 +18,12 @@ use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
     table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 use crate::{
     candle_data::data_config::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
     candle_operators::{
-        data_operator::{make_error_record_batch, DataOperatorTrait},
+        data_operator::DataOperatorTrait,
         group_by_and_aggregate::build_aggregator_column_list,
         sort_column_and_indices::take_columns_by_indices,
     },
@@ -62,20 +62,14 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        match filter_columns_and_indices(
+        filter_columns_and_indices(
             &lhs_values,
             lhs_args,
             &cmp_columns,
             &self.cmp_operators,
             &self.cmp_predicate,
             device,
-        ) {
-            Ok(batch) => Ok(batch),
-            Err(err) => {
-                event!(Level::ERROR, "{err}");
-                Ok(make_error_record_batch(err.to_string().as_str()))
-            },
-        }
+        )
     }
     fn new(config: &DataConfig) -> Self {
         let lhs_values = config.lhs_values.to_owned();

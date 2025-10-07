@@ -58,7 +58,7 @@ pub trait SessionContextBuilderAgentsTrait {
 
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
-        let (tables, _state) = self.to_arrow_tables(false, true)?;
+        let (tables, _state) = self.to_arrow_tables(false, true, true)?;
         let (name, tasks, state, metrics, runtime_envs, max_iter) = self.build_inner()?;
         Ok((name, tasks, state, metrics, runtime_envs, max_iter, tables))
     }

@@ -20,12 +20,12 @@ use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 use crate::{
     candle_data::data_config::{DataAggregatorOperator, DataConfig},
     candle_operators::{
-        data_operator::{make_error_record_batch, DataOperatorTrait},
+        data_operator::DataOperatorTrait,
         sort_column_and_indices::sort_column_and_indices,
     },
 };
@@ -61,19 +61,13 @@ impl DataOperatorTrait for GroupByAndAggregate {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        match group_by_and_aggregate(
+        group_by_and_aggregate(
             &lhs_values,
             lhs_args,
             &agg_columns,
             &self.agg_operators,
             device,
-        ) {
-            Ok(batch) => Ok(batch),
-            Err(err) => {
-                event!(Level::ERROR, "{err}");
-                Ok(make_error_record_batch(err.to_string().as_str()))
-            },
-        }
+        )
     }
     fn new(config: &DataConfig) -> Self {
         let lhs_values = config.lhs_values.to_owned();

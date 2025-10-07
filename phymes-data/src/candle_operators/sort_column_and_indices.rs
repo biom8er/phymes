@@ -18,9 +18,9 @@ use phymes_core::{
     table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 use std::{collections::HashMap, sync::Arc};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::DataOperatorTrait};
 
 /// Sort the [RecordBatch] according to the `score` column and then apply the sorting order to the rest of the record batch columns
 #[derive(Debug)]
@@ -51,13 +51,7 @@ impl DataOperatorTrait for SortColumnAndIndices {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        match sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device) {
-            Ok(batch) => Ok(batch),
-            Err(err) => {
-                event!(Level::ERROR, "{err}");
-                Ok(make_error_record_batch(err.to_string().as_str()))
-            },
-        }
+        sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device)
     }
     fn get_description() -> String {
         "Sort the the list of computed scores in ascending order".to_string()

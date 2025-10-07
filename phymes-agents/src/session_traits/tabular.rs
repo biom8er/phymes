@@ -7,7 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    metrics::HashSet, schemas::{available_subjects::create_timestamp_micros, mermaid::create_mermaid_batch}, session::{
+    metrics::HashSet, schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, mermaid::create_mermaid_batch}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context::SessionContextTableNames,
@@ -15,10 +15,7 @@ use phymes_core::{
             SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
         },
     }, table::{
-        data_types::{from_data_type_to_str, from_str_to_data_type},
-        table_trait::{Table, TableBuilderTrait, TableTrait},
-        table_publish::TablePublish,
-        table_subscribe::{from_str_to_subscribe, TableSubscribe},
+        data_types::{from_data_type_to_str, from_str_to_data_type}, table_publish::TablePublish, table_subscribe::{from_str_to_subscribe, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
     }, task::processor::ProcessorBuilder
 };
 
@@ -49,6 +46,7 @@ pub trait SessionContextBuilderTabularTrait {
         &self,
         include_subjects: bool,
         include_mermaid: bool,
+        include_errors: bool,
     ) -> Result<(Vec<Table>, Option<Vec<Table>>)>;
 
     /// Get the subjects in tabular form
@@ -107,6 +105,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         &self,
         include_subjects: bool,
         include_mermaid: bool,
+        include_errors: bool,
     ) -> Result<(Vec<Table>, Option<Vec<Table>>)> {
         let mut tables = vec![
             self.get_subjects_as_table()?,
@@ -116,6 +115,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         ];
         if include_mermaid {
             tables.push(self.get_mermaid_js_as_table()?);
+        }
+        if include_errors {
+            tables.push(AvailableSubjects::Errors.to_table(None, None)?);
+            tables.push(AvailableSubjects::Logs.to_table(None, None)?);
         }
         let state = if include_subjects {
             self.state.clone()
@@ -134,16 +137,20 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // extract the schema
         for table in tables {
-            if table.get_name() == SessionContextTableNames::Subjects.get_name() && state.is_none()
+            if table.get_name() == SessionContextTableNames::Subjects.to_string().as_str() && state.is_none()
             {
                 builder = builder.with_subjects_as_tables(table)?;
-            } else if table.get_name() == SessionContextTableNames::Tasks.get_name() {
+            } else if table.get_name() == SessionContextTableNames::Tasks.to_string().as_str() {
                 builder = builder.with_tasks_as_tables(table)?;
-            } else if table.get_name() == SessionContextTableNames::Processors.get_name() {
+            } else if table.get_name() == SessionContextTableNames::Processors.to_string().as_str() {
                 builder = builder.with_processors_as_tables(table)?;
-            } else if table.get_name() == SessionContextTableNames::RuntimeEnvironments.get_name() {
+            } else if table.get_name() == SessionContextTableNames::RuntimeEnvironments.to_string().as_str() {
                 builder = builder.with_runtime_envs_as_tables(table)?;
-            } else if table.get_name() == SessionContextTableNames::MermaidJS.get_name() {
+            } else if table.get_name() == SessionContextTableNames::MermaidJS.to_string().as_str() {
+                continue;
+            } else if table.get_name() == SessionContextTableNames::Errors.to_string().as_str() {
+                continue;
+            } else if table.get_name() == SessionContextTableNames::Logs.to_string().as_str() {
                 continue;
             } else {
                 return Err(anyhow!(
@@ -198,7 +205,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // create the table
         Table::get_builder()
-            .with_name(SessionContextTableNames::Subjects.get_name())
+            .with_name(SessionContextTableNames::Subjects.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
@@ -234,7 +241,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // create the table
         Table::get_builder()
-            .with_name(SessionContextTableNames::Tasks.get_name())
+            .with_name(SessionContextTableNames::Tasks.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
@@ -290,7 +297,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // create the table
         Table::get_builder()
-            .with_name(SessionContextTableNames::Processors.get_name())
+            .with_name(SessionContextTableNames::Processors.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
@@ -333,7 +340,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // create the table
         Table::get_builder()
-            .with_name(SessionContextTableNames::RuntimeEnvironments.get_name())
+            .with_name(SessionContextTableNames::RuntimeEnvironments.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
@@ -353,7 +360,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // create the table
         Table::get_builder()
-            .with_name(SessionContextTableNames::MermaidJS.get_name())
+            .with_name(SessionContextTableNames::MermaidJS.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
@@ -583,52 +590,43 @@ mod tests {
             .with_state(state);
 
         // Test to tables
-        let (tables, state) = builder.to_arrow_tables(false, true)?;
+        let (tables, state) = builder.to_arrow_tables(false, true, true)?;
 
         // Check the tables
         assert_eq!(
             tables.first().unwrap().get_name(),
-            SessionContextTableNames::Subjects.get_name()
+            SessionContextTableNames::Subjects.to_string().as_str()
         );
-        // assert_eq!(tables.first().unwrap().get_column_as_vec_str("subject_name"), [""]);
-        // assert_eq!(tables.first().unwrap().get_column_as_vec_str("column_name"), [""]);
-        // assert_eq!(tables.first().unwrap().get_column_as_vec_str("type_name"), [""]);
         assert_eq!(
             tables.get(1).unwrap().get_name(),
-            SessionContextTableNames::Tasks.get_name()
+            SessionContextTableNames::Tasks.to_string().as_str()
         );
-        // assert_eq!(tables.get(1).unwrap().get_column_as_vec_str("task_name"), [""]);
-        // assert_eq!(tables.get(1).unwrap().get_column_as_vec_str("processor_name"), [""]);
-        // assert_eq!(tables.get(1).unwrap().get_column_as_vec_str("runtime_env_name"), [""]);
         assert_eq!(
             tables.get(2).unwrap().get_name(),
-            SessionContextTableNames::Processors.get_name()
+            SessionContextTableNames::Processors.to_string().as_str()
         );
-        // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("processor_name"), [""]);
-        // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("processor_type"), [""]);
-        // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("publication_subscription_name"), [""]);
-        // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("publication_subscription_table_names"), [""]);
-        // assert_eq!(tables.get(2).unwrap().get_column_as_vec_primitive::<u8>("is_subscription")?, []);
-        // assert_eq!(tables.get(2).unwrap().get_column_as_vec_str("subscribe_type"), [""]);
         assert_eq!(
             tables.get(3).unwrap().get_name(),
-            SessionContextTableNames::RuntimeEnvironments.get_name()
+            SessionContextTableNames::RuntimeEnvironments.to_string().as_str()
         );
-        // assert_eq!(tables.get(3).unwrap().get_column_as_vec_str("runtime_env_name"), [""]);
-        // assert_eq!(tables.get(3).unwrap().get_column_as_vec_primitive::<u32>("memory_limit")?, [""]);
-        // assert_eq!(tables.get(3).unwrap().get_column_as_vec_primitive::<u32>("time_limit")?, [""]);
         assert_eq!(
             tables.get(4).unwrap().get_name(),
-            SessionContextTableNames::MermaidJS.get_name()
+            SessionContextTableNames::MermaidJS.to_string().as_str()
         );
-        // assert_eq!(tables.get(4).unwrap().get_column_as_vec_str("flowchart_diagram"), [""]);
-        // assert_eq!(tables.get(4).unwrap().get_column_as_vec_str("er_diagram"), [""]);
+        assert_eq!(
+            tables.get(5).unwrap().get_name(),
+            SessionContextTableNames::Errors.to_string().as_str()
+        );
+        assert_eq!(
+            tables.get(6).unwrap().get_name(),
+            SessionContextTableNames::Logs.to_string().as_str()
+        );
 
         // Test from tables
         let (tables_test, _state_test) =
             SessionContextBuilder::from_arrow_tables(&tables.iter().collect::<Vec<_>>(), state)?
                 .with_name("")
-                .to_arrow_tables(false, true)?;
+                .to_arrow_tables(false, true, true)?;
 
         // Check the tables
         assert_eq!(
@@ -821,6 +819,84 @@ mod tests {
                 .get(4)
                 .unwrap()
                 .get_column_as_vec_str("er_diagram")
+        );        
+        assert_eq!(
+            tables_test.get(5).unwrap().get_name(),
+            tables.get(5).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test
+                .get(5)
+                .unwrap()
+                .get_column_as_vec_str("error"),
+            tables
+                .get(5)
+                .unwrap()
+                .get_column_as_vec_str("error")
+        );
+        assert_eq!(
+            tables_test.get(6).unwrap().get_name(),
+            tables.get(6).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_str("level"),
+            tables
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_str("level")
+        );
+        assert_eq!(
+            tables_test
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_str("value"),
+            tables
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_str("value")
+        );
+        assert_eq!(
+            tables_test
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_str("file"),
+            tables
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_str("file")
+        );
+        assert_eq!(
+            tables_test
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_primitive::<u32>("line")?,
+            tables
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_primitive::<u32>("line")?
+        );
+        assert_eq!(
+            tables_test
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_primitive::<u32>("column")?,
+            tables
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_primitive::<u32>("column")?
+        );
+        assert_eq!(
+            tables_test
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_primitive::<i64>("timestamp")?,
+            tables
+                .get(6)
+                .unwrap()
+                .get_column_as_vec_primitive::<i64>("timestamp")?
         );
 
         Ok(())

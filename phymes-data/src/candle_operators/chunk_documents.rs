@@ -12,9 +12,9 @@ use phymes_core::{
     table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 use std::{collections::HashMap, sync::Arc};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::DataOperatorTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug)]
@@ -51,20 +51,14 @@ impl DataOperatorTrait for ChunkDocuments {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        match chunk_documents(
+        chunk_documents(
             &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
             self.chunk_size,
             self.chunk_overlap,
             device,
-        ) {
-            Ok(batch) => Ok(batch),
-            Err(err) => {
-                event!(Level::ERROR, "{err}");
-                Ok(make_error_record_batch(err.to_string().as_str()))
-            },
-        }
+        )
     }
     fn get_description() -> String {
         "Chunk documents by splitting the document text".to_string()

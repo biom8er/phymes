@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use arrow::array::ArrayRef;
 use arrow::array::{BooleanArray, StringArray};
 use arrow::record_batch::RecordBatch;
@@ -9,6 +9,7 @@ use tracing::{Level, event, instrument};
 use super::common_traits::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait};
 use crate::metrics::HashMap;
 use crate::session::session_context::SessionContext;
+use crate::table::table_publish::TablePublish;
 use crate::table::{
     table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait},
     table_publish::TableUpdateTrait,
@@ -114,8 +115,13 @@ impl SessionStreamState {
         messages: IPCMessageMap,
     ) -> Result<HashMap<String, Vec<String>>> {
         let mut subjects_updated = HashMap::<String, Vec<String>>::new();
-        // event!(Level::DEBUG, "Message updates {:?}.", &messages.keys());
         for (_name, message) in messages.into_iter() {
+
+            // Should the subject be updated?            
+            let update = message.get_update().clone();
+            if  update == TablePublish::None {
+                continue;
+            }
 
             // Try to update the state with the new record batches
             let table_name = message.get_update().get_table_name().to_string();
@@ -125,7 +131,6 @@ impl SessionStreamState {
                 .get(table_name.as_str())
             {
                 let publisher = message.get_publisher().to_string();
-                let update = message.get_update().clone();
 
                 // Check for any inconsistencies in the message and intercept any errors
                 let batches =  TableBuilder::new_from_ipc_stream(&message.get_message_own())?
@@ -146,6 +151,9 @@ impl SessionStreamState {
                         vec![publisher],
                     );
                 }
+            } else {
+                // Mismatch in table names of the update and state
+                return Err(anyhow!("Subject '{table_name}' with update '{update:?}' is not in the session state tables! Available tables are {:?}", self.session_context.get_states().keys()));
             }
         }
         Ok(subjects_updated)
@@ -442,8 +450,18 @@ mod tests {
             false
         )?;
         let updates = session_stream_step.update_state_from_messages(input);
+        assert!(updates.is_err());
 
-        // check the response
+        // Case 4: Error due to mismatching table names
+        let input = make_test_input_message(
+            "task_1",
+            "session_1",
+            "state_1",
+            "state_1",            
+            &TablePublish::Extend { table_name: "NotFound".to_string() },
+            true
+        )?;
+        let updates = session_stream_step.update_state_from_messages(input);
         assert!(updates.is_err());
 
         Ok(())

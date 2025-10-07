@@ -8,7 +8,7 @@ use tracing::{Level, event, instrument};
 
 use super::common_traits::{BuilderTrait, IPCMessageMap, MappableTrait, SendableRecordBatchStreamMessageMap, RunnableTrait};
 use crate::metrics::HashMap;
-use crate::schemas::error::create_error_message_map;
+use crate::schemas::error::{create_error_message_map, create_error_message_map_stream};
 use crate::session::session_stream_state::SessionStreamState;
 use crate::table::table_trait::{TableBuilder, TableBuilderTrait, TableTrait};
 use crate::task::{
@@ -69,8 +69,8 @@ impl SessionStreamStep {
                 }
                 Err(err) => {
                     // Intercept the error and forward to the error subject
-                    event!(Level::ERROR, "{err}");
-                    let message_map = create_error_message_map(&err.into())?;
+                    event!(Level::ERROR, "{err}"); 
+                    let message_map = create_error_message_map(&err.into(), "SessionStreamStep")?;
                     response_batches.extend(message_map);
                 }
             }
@@ -126,20 +126,14 @@ impl SessionStreamStep {
     ///
     /// # Returns
     ///
-    /// `SendableRecordBatchStreamMessageMap` streams if the the `Session` subsject was updated and None otherwise.
+    /// [IPCMessageMap] if the the `Session` subsject was updated and None otherwise.
     #[instrument(skip(state, messages))]
     pub async fn run_superstep(
         state: Arc<RwLock<SessionStreamState>>,
         messages: IPCMessageMap,
     ) -> Result<Option<IPCMessageMap>> {
         // Update the state and handle any errors
-        let update = match state.write().update_state_from_messages(messages) {
-            Ok(update) => update,
-            Err(err) => {
-                let message_map = create_error_message_map(&err)?;
-                state.write().update_state_from_messages(message_map)?
-            },
-        };
+        let update = state.write().update_state_from_messages(messages)?;
         state.write().extend_superstep_updates(update);
 
         // DM, TODO: initialize channels for metrics and logs
@@ -158,7 +152,7 @@ impl SessionStreamStep {
             } else {
                 tasks.push(task_name.to_owned());
             }
-            event!(Level::INFO, "Superstep for task {}", &task_name);
+            event!(Level::INFO, "Superstep for task {}", &task_name);           
 
             // Run the task and collect the stream responses
             let messages = task.get_subscriptions_from_state(updates, states);
@@ -172,7 +166,12 @@ impl SessionStreamStep {
                         }
                     }
                 }
-                Err(err) => event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name),
+                Err(err) => {
+                    // Intercept the error and wrap into a `SendableRecordBatch` for consumption
+                    event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name);
+                    let message_map = create_error_message_map_stream(&err.into(), &task_name)?;
+                    response_streams.extend(message_map);
+                },
             }
         }        
 
@@ -195,13 +194,7 @@ impl SessionStreamStep {
         let response_batches = SessionStreamStep::join_message_streams(response_streams).await?;
 
         // Update the state and handle any errors
-        let update = match state.write().update_state_from_messages(response_batches) {
-            Ok(update) => update,
-            Err(err) => {
-                let message_map = create_error_message_map(&err)?;
-                state.write().update_state_from_messages(message_map)?
-            },
-        };
+        let update = state.write().update_state_from_messages(response_batches)?;
         state.write().extend_superstep_updates(update);
 
         // Increment the step
@@ -223,6 +216,13 @@ impl SessionStreamStep {
 mod tests {
     use super::*;
     use crate::metrics::ArrowTaskMetricsSet;
+    use crate::schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait};
+    use crate::session::session_context::SessionContextTableNames;
+    use crate::session::session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan};
+    use crate::table::table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe};
+    use crate::task::processor::test_processor::{ProcessorError, ProcessorMock};
+    use crate::task::processor::ProcessorTrait;
+    use crate::task::task_trait::test_task::{make_runtime_env, make_state_tables};
     use crate::{
         session::session_context_builder::test_session_context_builder::{
             make_test_session_context_parallel_task,
@@ -1108,7 +1108,7 @@ mod tests {
     }    
 
     #[tokio::test]
-    async fn test_session_run_superstep_error() -> Result<()> {
+    async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
         let metrics = ArrowTaskMetricsSet::new();
         let session_context =
             make_test_session_context_sequential_task("session_1", metrics.clone(), 4)?;
@@ -1127,7 +1127,94 @@ mod tests {
             .await;
         assert!(response.is_err());
 
-        // TODO!
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_session_run_superstep_processor_error() -> Result<()> {
+        // Create an error emitting session plan
+        let task_plans = vec![
+            TaskPlan {
+                task_name: "task_1".to_string(),
+                runtime_env_name: "rt_1".to_string(),
+                processor_names: vec!["processor_1".to_string()],
+            },
+            TaskPlan {
+                task_name: "task_2".to_string(),
+                runtime_env_name: "rt_1".to_string(),
+                processor_names: vec!["error_1".to_string()],
+            },
+        ];
+        let processors = vec![
+            ProcessorMock::new_arc_with_pub_sub(
+                "processor_1",
+                &[TablePublish::Extend {
+                    table_name: "state_1".to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: "state_1".to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: "config_1".to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            ProcessorError::new_arc_with_pub_sub("error_1",
+                &[TablePublish::Extend { table_name: "state_1".to_string() }],
+                &[TableSubscribe::OnUpdateFullTable { table_name: "state_1".to_string() }],
+            AllTableNamesSubscribe::new_box()
+        )];
+        let state = make_state_tables("state_1", "config_1")?;
+        let metrics = ArrowTaskMetricsSet::new();
+        let mut session_context = SessionContextBuilder::new()
+            .with_name("session_1")
+            .with_tasks(task_plans)
+            .with_processors(processors)
+            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_state(state)
+            .with_metrics(metrics)
+            .with_max_iter(1)
+            .build()?;
+
+        // Run the session context without adding the Error table
+        let input = make_test_input_message(
+            "task_1",
+            "session_1",
+            "state_1",
+            "state_1",
+            &TablePublish::Replace {
+                table_name: "state_1".to_string(),
+            },
+            true
+        )?;
+        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context.clone())));
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input.clone())
+            .await;
+        assert!(response.is_err());
+
+        // Add the Error table and retry
+        session_context.state.insert(SessionContextTableNames::Errors.to_string(), Arc::new(RwLock::new(AvailableSubjects::Errors.to_table(None, None)?)));
+        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
+            .await?.unwrap();
+        
+        assert!(response.is_empty());
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Errors.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
 
         Ok(())
     }

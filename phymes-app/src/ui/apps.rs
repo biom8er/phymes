@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
 use phymes_core::{
-    schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
+    schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
 use phymes_server::handlers::sign_in::create_session_name;
 use serde_json::{Map, Value};
@@ -84,7 +84,7 @@ pub fn apps_interface_view() -> Element {
         let subject = if BUILDER() {
             AvailableSubjects::Mermaid.to_string()
         } else {
-            SessionContextTableNames::MermaidJS.get_name().to_string()
+            SessionContextTableNames::MermaidJS.to_string().as_str().to_string()
         };
         let data_serialized = serde_json::to_string(&get_session_state()
             .with_subject(subject.as_str())

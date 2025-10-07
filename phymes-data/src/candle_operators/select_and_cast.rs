@@ -15,11 +15,11 @@ use phymes_core::{
     table::{data_types::from_str_to_data_type, table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
 };
 use serde_json::json;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 use crate::{
     candle_data::data_config::{DataCastOperator, DataConfig},
-    candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait},
+    candle_operators::data_operator::DataOperatorTrait,
 };
 
 /// Select and cast the [RecordBatch]es based on the [DataComparatorOperator] and [DataType] with optional column renaming and template injection
@@ -60,7 +60,7 @@ impl DataOperatorTrait for SelectAndCast {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        match select_and_cast(
+        select_and_cast(
             &lhs_values,
             lhs_args,
             &as_columns,
@@ -68,13 +68,7 @@ impl DataOperatorTrait for SelectAndCast {
             &self.cast_datatypes,
             &cast_templates,
             device,
-        ) {
-            Ok(batch) => Ok(batch),
-            Err(err) => {
-                event!(Level::ERROR, "{err}");
-                Ok(make_error_record_batch(err.to_string().as_str()))
-            },
-        }
+        )
     }
     fn new(config: &DataConfig) -> Self {
         let lhs_values = config.lhs_values.to_owned();

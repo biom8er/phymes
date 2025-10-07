@@ -7,9 +7,9 @@ use phymes_core::{
     schemas::{chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{data_format::{CsvFormat, DataFormat, JsonFormat}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
 };
-use tracing::{Level, event, instrument};
+use tracing::instrument;
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::DataOperatorTrait};
 
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[derive(Debug)]
@@ -42,13 +42,7 @@ impl DataOperatorTrait for ExtractTabularData {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        match extract_tabular_data(&self.lhs_values, lhs_args, &self.format) {
-            Ok(batch) => Ok(batch),
-            Err(err) => {
-                event!(Level::ERROR, "{err}");
-                Ok(make_error_record_batch(err.to_string().as_str()))
-            },
-        }
+        extract_tabular_data(&self.lhs_values, lhs_args, &self.format)
     }
     fn get_description() -> String {
         "Extract tabular data in either CSV or JSON format from Bytes".to_string()

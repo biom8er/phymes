@@ -10,9 +10,9 @@ use phymes_core::{
     table::{table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
 };
 use serde_json::{json, Value};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::DataOperatorTrait};
 
 /// Inject a table into a string template
 #[derive(Debug)]
@@ -36,20 +36,14 @@ impl DataOperatorTrait for ApplyTemplate {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        match apply_template(
+        apply_template(
             lhs_args,
             &self.doc_template,
             &self.table_expression,
             &self.doc_input,
             &self.doc_extension,
             device,
-        ) {
-            Ok(batch) => Ok(batch),
-            Err(err) => {
-                event!(Level::ERROR, "{err}");
-                Ok(make_error_record_batch(err.to_string().as_str()))
-            },
-        }
+        )
     }
     fn new(config: &DataConfig) -> Self {
         let doc_template = config.doc_template.clone().unwrap_or_default();

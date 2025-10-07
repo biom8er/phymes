@@ -58,23 +58,6 @@ impl Display for SessionContextTableNames {
     }
 }
 
-impl MappableTrait for SessionContextTableNames {
-    fn get_name(&self) -> &str {
-        match self {
-            Self::Metrics => "METRICS",
-            Self::Tasks => "TASKS",
-            Self::Processors => "PROCESSORS",
-            Self::Subjects => "SUBJECTS",
-            Self::RuntimeEnvironments => "RUNTIME_ENVIRONMENTS",
-            Self::MermaidJS => "MERMAID_JS",
-            Self::SubjectsNumRows => "SUBJECTSNUMROWS",
-            Self::MetricMermaidGantt => "METRICSMERMAIDGANTT",
-            Self::Errors => "ERRORS",
-            Self::Logs => "LOGS",
-        }
-    }
-}
-
 /// The `SessionContext` creates an execution graph based on a
 /// `SessionPlan` and manages the running of individual tasks
 /// and the messages passed between tasks.
@@ -129,7 +112,7 @@ impl SessionContext {
         // create the pivot table and clear the metrics
         let pivot_table = get_metrics_as_pivot_table(
             std::slice::from_ref(&self.metrics),
-            SessionContextTableNames::Metrics.get_name(),
+            SessionContextTableNames::Metrics.to_string().as_str(),
         )?;
         self.metrics.clear();
 
@@ -139,48 +122,48 @@ impl SessionContext {
             // Add the metrics pivot table to the state or update
             if self
                 .state
-                .contains_key(SessionContextTableNames::Metrics.get_name())
+                .contains_key(SessionContextTableNames::Metrics.to_string().as_str())
             {
                 self.state
-                    .get_mut(SessionContextTableNames::Metrics.get_name())
+                    .get_mut(SessionContextTableNames::Metrics.to_string().as_str())
                     .unwrap()
                     .try_write()
                     .unwrap()
                     .update_table(
                         pivot_table.get_record_batches_own(),
                         TablePublish::Extend {
-                            table_name: SessionContextTableNames::Metrics.get_name().to_string(),
+                            table_name: SessionContextTableNames::Metrics.to_string().as_str().to_string(),
                         },
                     )?;
             } else {
                 self.state.insert(
-                    SessionContextTableNames::Metrics.get_name().to_string(),
+                    SessionContextTableNames::Metrics.to_string(),
                     Arc::new(RwLock::new(pivot_table)),
                 );
             }
 
             // Create the gantt view
-            let gantt_table = get_metrics_as_gantt_table(self.state.get(SessionContextTableNames::Metrics.get_name()).unwrap().read().clone(), SessionContextTableNames::MetricMermaidGantt.get_name())?;
+            let gantt_table = get_metrics_as_gantt_table(self.state.get(SessionContextTableNames::Metrics.to_string().as_str()).unwrap().read().clone(), SessionContextTableNames::MetricMermaidGantt.to_string().as_str())?;
             let mermaid_gantt_table = get_metrics_as_mermaid_gantt(gantt_table)?;
 
             // Add the metrics gantt table to the state or update
             if self
                 .state
-                .contains_key(SessionContextTableNames::MetricMermaidGantt.get_name())
+                .contains_key(SessionContextTableNames::MetricMermaidGantt.to_string().as_str())
             {
                 self.state
-                    .get_mut(SessionContextTableNames::MetricMermaidGantt.get_name())
+                    .get_mut(SessionContextTableNames::MetricMermaidGantt.to_string().as_str())
                     .unwrap()
                     .write()
                     .update_table(
                         mermaid_gantt_table.get_record_batches_own(),
                         TablePublish::Extend {
-                            table_name: SessionContextTableNames::MetricMermaidGantt.get_name().to_string(),
+                            table_name: SessionContextTableNames::MetricMermaidGantt.to_string(),
                         },
                     )?;
             } else {
                 self.state.insert(
-                    SessionContextTableNames::MetricMermaidGantt.get_name().to_string(),
+                    SessionContextTableNames::MetricMermaidGantt.to_string(),
                     Arc::new(RwLock::new(mermaid_gantt_table)),
                 );
             }
@@ -221,7 +204,7 @@ impl SessionContext {
 
         // create the table
         let subject_num_rows_table = Table::get_builder()
-            .with_name(SessionContextTableNames::SubjectsNumRows.get_name())
+            .with_name(SessionContextTableNames::SubjectsNumRows.to_string().as_str())
             .with_record_batches(vec![batch]).unwrap()
             .build()
             .unwrap();
@@ -229,21 +212,21 @@ impl SessionContext {
         // Add the metrics pivot table to the state or update
         if self
             .state
-            .contains_key(SessionContextTableNames::SubjectsNumRows.get_name())
+            .contains_key(SessionContextTableNames::SubjectsNumRows.to_string().as_str())
         {
             self.state
-                .get_mut(SessionContextTableNames::SubjectsNumRows.get_name())
+                .get_mut(SessionContextTableNames::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .write()
                 .update_table(
                     subject_num_rows_table.get_record_batches_own(),
                     TablePublish::Replace {
-                        table_name: SessionContextTableNames::SubjectsNumRows.get_name().to_string(),
+                        table_name: SessionContextTableNames::SubjectsNumRows.to_string(),
                     },
                 ).unwrap();
         } else {
             self.state.insert(
-                SessionContextTableNames::SubjectsNumRows.get_name().to_string(),
+                SessionContextTableNames::SubjectsNumRows.to_string(),
                 Arc::new(RwLock::new(subject_num_rows_table)),
             );
         }
@@ -375,7 +358,7 @@ mod tests {
         let mut session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
         session_context.update_subject_num_rows_table();
-        let info = session_context.get_states().get(SessionContextTableNames::SubjectsNumRows.get_name()).unwrap().read();
+        let info = session_context.get_states().get(SessionContextTableNames::SubjectsNumRows.to_string().as_str()).unwrap().read();
 
         assert_eq!(
             info.get_column_as_vec_str("subject_name"),

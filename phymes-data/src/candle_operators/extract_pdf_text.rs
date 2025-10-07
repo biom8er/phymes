@@ -15,7 +15,7 @@ use phymes_core::{
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::{Level, event, instrument};
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::{make_error_record_batch, DataOperatorTrait}};
+use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::DataOperatorTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug)]
@@ -49,13 +49,7 @@ impl DataOperatorTrait for ExtractPDFText {
         _device: &Device,
     ) -> Result<RecordBatch> {
         let docs = prepare_pdf_documents(&self.lhs_pk, &self.lhs_values, lhs_args);
-        match extract_pdf_text(&docs) {
-            Ok(batch) => Ok(batch),
-            Err(err) => {
-                event!(Level::ERROR, "{err}");
-                Ok(make_error_record_batch(err.to_string().as_str()))
-            },
-        }
+        extract_pdf_text(&docs)
     }
     fn get_description() -> String {
         "Extract text from PDF documents".to_string()

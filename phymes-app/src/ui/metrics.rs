@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use futures::StreamExt;
 use phymes_core::{
-    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
+    session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
 use phymes_server::handlers::sign_in::create_session_name;
 use serde_json::{Map, Value};
@@ -60,7 +60,7 @@ pub fn metrics_interface_view() -> Element {
 
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
-            .with_subject(SessionContextTableNames::MetricMermaidGantt.get_name())
+            .with_subject(SessionContextTableNames::MetricMermaidGantt.to_string().as_str())
             .make_name()
             .unwrap()
             .build()

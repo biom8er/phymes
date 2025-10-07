@@ -51,7 +51,10 @@ impl Stream for SessionStream {
                 match ready!(fut.poll_unpin(cx)) {
                     Ok(Some(res)) => res,
                     Ok(None) => return Poll::Ready(None),
-                    _ => HashMap::<String, IPCMessage>::new(),
+                    Err(err) => {
+                        event!(Level::ERROR, "{err:?}");
+                        HashMap::<String, IPCMessage>::new()
+                    },
                 }
             } else {
                 return Poll::Ready(None);
@@ -193,7 +196,7 @@ mod tests {
         let metrics_table = sss
             .get_session_context()
             .get_states()
-            .get(SessionContextTableNames::Metrics.get_name())
+            .get(SessionContextTableNames::Metrics.to_string().as_str())
             .unwrap()
             .try_read()
             .unwrap();
@@ -249,7 +252,7 @@ mod tests {
         assert_eq!(output_rows_sum, output_rows_sum_test);
 
         // Check pivot and gantt
-        let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricMermaidGantt.get_name()).unwrap().read();
+        let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricMermaidGantt.to_string().as_str()).unwrap().read();
         assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
         assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
         assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));

@@ -1,6 +1,6 @@
 use arrow::record_batch::RecordBatch;
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::make_error_record_batch};
+use crate::candle_data::data_config::DataConfig;
 
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
@@ -65,10 +65,7 @@ impl DataOperatorTrait for HumanInTheLoop {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        match create_hitl_record_batch(lhs_args) {
-            Ok(batch) => Ok(batch),
-            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
-        }
+        create_hitl_record_batch(lhs_args)
     }
 }
 

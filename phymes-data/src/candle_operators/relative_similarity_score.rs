@@ -10,14 +10,14 @@ use phymes_core::{
     table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::make_error_record_batch};
+use crate::candle_data::data_config::DataConfig;
 
 use super::data_operator::DataOperatorTrait;
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use phymes_core::schemas::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
 #[derive(Debug)]
@@ -63,7 +63,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        match relative_similarity_score(
+        relative_similarity_score(
             &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
@@ -71,13 +71,7 @@ impl DataOperatorTrait for RelativeSimilarityScore {
             &self.rhs_values,
             rhs_args.unwrap_or(&[]),
             device,
-        ) {
-            Ok(batch) => Ok(batch),
-            Err(err) => {
-                event!(Level::ERROR, "{err}");
-                Ok(make_error_record_batch(err.to_string().as_str()))
-            },
-        }
+        )
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();

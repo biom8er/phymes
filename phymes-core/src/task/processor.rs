@@ -461,7 +461,7 @@ pub mod test_processor {
                 let source = s.get_publisher().to_string();
                 let subject = s.get_subject().to_string();
                 let update = s.get_update().clone();
-                let out = Box::pin(ArrowProcessorMockStream {
+                let out = Box::pin(ProcessorMockStream {
                     schema: s.get_message().schema(),
                     input: s.get_message_own(),
                     baseline_metrics: BaselineMetrics::new(&metrics, self.get_name()),
@@ -479,7 +479,7 @@ pub mod test_processor {
         }
     }
 
-    struct ArrowProcessorMockStream {
+    struct ProcessorMockStream {
         /// Output schema after the projection
         schema: SchemaRef,
         /// The input task to process.
@@ -501,7 +501,7 @@ pub mod test_processor {
         }
     }
 
-    impl Stream for ArrowProcessorMockStream {
+    impl Stream for ProcessorMockStream {
         type Item = Result<RecordBatch>;
 
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -531,9 +531,87 @@ pub mod test_processor {
         }
     }
 
-    impl RecordBatchStream for ArrowProcessorMockStream {
+    impl RecordBatchStream for ProcessorMockStream {
         fn schema(&self) -> SchemaRef {
             Arc::clone(&self.schema)
+        }
+    }    
+
+    /// Error processor that emits an error
+    #[derive(Debug)]
+    pub struct ProcessorError {
+        name: String,
+        publications: Vec<TablePublish>,
+        subscriptions: Vec<TableSubscribe>,
+        subscribe: Box<dyn SubscribeTrait>,
+    }
+
+    impl MappableTrait for ProcessorError {
+        fn get_name(&self) -> &str {
+            &self.name
+        }
+    }
+
+    impl PubSubTrait for ProcessorError {
+        fn get_publications(&self) -> Vec<&TablePublish> {
+            self.publications.iter().collect::<Vec<_>>()
+        }
+
+        fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+            self.subscriptions.iter().collect::<Vec<_>>()
+        }
+        fn check_subscriptions(
+            &self,
+            updates: &crate::metrics::HashMap<String, bool>,
+            state: &crate::session::common_traits::StateMap,
+        ) -> bool {
+            self.subscribe
+                .check_subscriptions(&self.subscriptions, updates, state)
+        }
+    }
+
+    impl ProcessorTrait for ProcessorError {
+        fn new_arc_with_pub_sub(
+            name: &str,
+            publications: &[TablePublish],
+            subscriptions: &[TableSubscribe],
+            subscribe: Box<dyn SubscribeTrait>,
+        ) -> Arc<dyn ProcessorTrait> {
+            Arc::new(Self {
+                name: name.to_string(),
+                publications: publications.to_owned(),
+                subscriptions: subscriptions.to_owned(),
+                subscribe,
+            })
+        }
+
+        fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
+            Arc::new(Self {
+                name: name.to_string(),
+                publications: vec![TablePublish::None],
+                subscriptions: vec![TableSubscribe::None],
+                subscribe: AllTableNamesSubscribe::new_box(),
+            })
+        }
+
+        fn get_subscribe(&self) -> &dyn SubscribeTrait {
+            self.subscribe.as_ref()
+        }
+
+        fn get_type(&self) -> &str {
+            Self::get_static_name()
+        }
+
+        fn process(
+            &self,
+            _message: SendableRecordBatchStreamMessageMap,
+            _metrics: ArrowTaskMetricsSet,
+            _runtime_env: Arc<Mutex<RuntimeEnv>>,
+        ) -> Result<SendableRecordBatchStreamMessageMap> {
+            event!(Level::INFO, "Starting processor {}", self.get_name());
+
+            // Add another record batch to the input
+            Err(anyhow!("This is an error!"))
         }
     }
 }

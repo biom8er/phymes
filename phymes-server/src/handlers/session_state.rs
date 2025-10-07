@@ -139,7 +139,8 @@ pub async fn session_put_state(
                     let update = session_stream_state
                         .try_write()
                         .unwrap()
-                        .update_state_from_messages(message_map);
+                        .update_state_from_messages(message_map)
+                        .unwrap();
 
                     // Update the superstep
                     session_stream_state

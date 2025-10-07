@@ -15,10 +15,10 @@ use phymes_core::{
     table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 use std::{collections::HashMap, sync::Arc};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 use crate::{candle_data::data_config::DataConfig, candle_operators::{
-    data_operator::{make_error_record_batch, DataOperatorTrait},
+    data_operator::DataOperatorTrait,
     sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
 }};
 
@@ -56,19 +56,13 @@ impl DataOperatorTrait for JoinInner {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        match join_inner(
+        join_inner(
             &self.lhs_fk,
             lhs_args,
             &self.rhs_fk,
             rhs_args.unwrap(),
             device,
-        ) {
-            Ok(batch) => Ok(batch),
-            Err(err) => {
-                event!(Level::ERROR, "{err}");
-                Ok(make_error_record_batch(err.to_string().as_str()))
-            },
-        }
+        )
     }
     fn get_description() -> String {
         "Join two tables on their foreign keys".to_string()
