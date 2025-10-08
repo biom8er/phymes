@@ -4,12 +4,19 @@ use arrow::{array::{ArrayRef, UInt64Array, RecordBatch, StringArray}, datatypes:
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+/// `span_name` will most likely be the processor name
+/// `span_id` connects the trace data to the metrics data
 pub fn create_metrics_fields() -> Fields {
     let field_names = ["task_name", "metric_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
+    // let field_names = ["span_id", "id"];
+    // fields_vec.extend(field_names
+    //     .iter()
+    //     .map(|f| Field::new(*f, DataType::UInt32, false))
+    //     .collect::<Vec<_>>());
     fields_vec.push(Field::new("metric_value", DataType::UInt64, false));
     Fields::from(fields_vec)
 }
@@ -36,7 +43,6 @@ pub struct MetricSubject {
     pub metric_name: String,
     pub metric_value: u64,
 }
-
 
 pub fn create_metrics_mermaid_gantt_fields() -> Fields {
     let field_names = ["processor_traces", "elapsed_compute", "output_rows"];

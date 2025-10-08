@@ -118,7 +118,6 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
         if include_errors {
             tables.push(AvailableSubjects::Errors.to_table(None, None)?);
-            tables.push(AvailableSubjects::Logs.to_table(None, None)?);
         }
         let state = if include_subjects {
             self.state.clone()
@@ -151,6 +150,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             } else if table.get_name() == SessionContextTableNames::Errors.to_string().as_str() {
                 continue;
             } else if table.get_name() == SessionContextTableNames::Logs.to_string().as_str() {
+                continue;
+            } else if table.get_name() == SessionContextTableNames::Metrics.to_string().as_str() {
                 continue;
             } else {
                 return Err(anyhow!(
@@ -833,70 +834,6 @@ mod tests {
                 .get(5)
                 .unwrap()
                 .get_column_as_vec_str("error")
-        );
-        assert_eq!(
-            tables_test.get(6).unwrap().get_name(),
-            tables.get(6).unwrap().get_name()
-        );
-        assert_eq!(
-            tables_test
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_str("level"),
-            tables
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_str("level")
-        );
-        assert_eq!(
-            tables_test
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_str("value"),
-            tables
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_str("value")
-        );
-        assert_eq!(
-            tables_test
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_str("file"),
-            tables
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_str("file")
-        );
-        assert_eq!(
-            tables_test
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_primitive::<u32>("line")?,
-            tables
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_primitive::<u32>("line")?
-        );
-        assert_eq!(
-            tables_test
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_primitive::<u32>("column")?,
-            tables
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_primitive::<u32>("column")?
-        );
-        assert_eq!(
-            tables_test
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_primitive::<i64>("timestamp")?,
-            tables
-                .get(6)
-                .unwrap()
-                .get_column_as_vec_primitive::<i64>("timestamp")?
         );
 
         Ok(())

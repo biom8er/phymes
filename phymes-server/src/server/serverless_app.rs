@@ -345,36 +345,5 @@ mod tests {
         let values: Vec<Map<String, Value>> =
             serde_json::from_slice(bytes.first().unwrap()).unwrap();
         println!("{values:?}");
-
-        // DM: error on wasm32-wasip2
-        // // Test metrics using serverless_app
-        // let session_response = SessionInterfaceMessage {
-        //     session_plan: "Chat".to_string(),
-        //     session_name: session_name.clone(),
-        //     subject_name: "".to_string(),
-        //     format: SessionResponseFormat::Bytes,
-        //     publish: ArrowTablePublish::None,
-        //     content: "".to_string().into(),
-        //     metadata: "".to_string(),
-        //     stream: false,
-        // };
-        // let data = serde_json::to_string(&session_response).unwrap();
-
-        // let config = ServerlessConfig {
-        //     route: "app/v1/metrics_info".to_string(),
-        //     basic_auth: None,
-        //     bearer_auth: Some(bearer.clone()),
-        //     data: Some(data),
-        // };
-        // let response = serverless_app(config, &mut serverless).await.unwrap();
-        // assert_eq!(200, response.status());
-
-        // let bytes: Vec<Bytes> = response
-        //     .into_body()
-        //     .into_data_stream()
-        //     .try_collect()
-        //     .await
-        //     .unwrap();
-        // let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
     }
 }

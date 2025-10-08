@@ -32,9 +32,65 @@ impl Display for LogLevel {
     }
 }
 
+/// Session Levels (from highest to lowest in the hierarchy)
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+pub enum AppLevel {
+    #[default]
+    Session,
+    Task,
+    Processor,
+}
+
+impl Display for AppLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AppLevel::Session => write!(f, "Session"),
+            AppLevel::Task => write!(f, "Task"),
+            AppLevel::Processor => write!(f, "Processor"),
+        }
+    }
+}
+
+/// Message direction
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+pub enum MessageDirection {
+    #[default]
+    Subscription,
+    Publication
+}
+
+impl Display for MessageDirection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MessageDirection::Subscription => write!(f, "Subscription"),
+            MessageDirection::Publication => write!(f, "Publication"),
+        }
+    }
+}
+
 /// Fields for the log where `value` is a [serde] deserializable [String]
-pub fn create_logs_fields() -> Fields {
-    let field_names = ["level", "value", "file"];
+/// `parent_name` will most likely be the task name
+/// `span_name` will most likely be the processor name
+/// `tracer_name` will most likely be the subject name
+pub fn create_trace_fields() -> Fields {
+    let field_names = ["parent_name", "span_name", "tracer_name", "direction", "file"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["line"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::UInt32, false))
+        .collect::<Vec<_>>());
+    fields_vec.push(Field::new("timestamp", DataType::Int64, false));
+    Fields::from(fields_vec)
+}
+
+/// Fields for the log where `value` is a [serde] deserializable [String]
+/// `span_id` connects the trace data to the event data
+pub fn create_events_fields() -> Fields {
+    let field_names = ["level", "value", "span_name", "file"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))

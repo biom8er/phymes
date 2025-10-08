@@ -1,4 +1,4 @@
-use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, error::create_error_fields, logs::create_logs_fields, mermaid::create_mermaid_fields, metrics::{create_metrics_fields, create_metrics_mermaid_gantt_fields}, queries::create_queries_fields, user::{create_join_user_inbox_session_contexts_fields, create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields, create_user_inbox_fields, create_user_session_contexts_fields}}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table_trait::{Table, TableBuilder, TableBuilderTrait}};
+use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, error::create_error_fields, mermaid::create_mermaid_fields, metrics::{create_metrics_fields, create_metrics_mermaid_gantt_fields}, queries::create_queries_fields, user::{create_join_user_inbox_session_contexts_fields, create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields, create_user_inbox_fields, create_user_session_contexts_fields}}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table_trait::{Table, TableBuilder, TableBuilderTrait}};
 
 use anyhow::Result;
 use arrow::{
@@ -211,8 +211,6 @@ pub enum AvailableSubjects {
     Mermaid,
     #[value(name = "Errors")]
     Errors,
-    #[value(name = "Logs")]
-    Logs,
     #[value(name = "Metrics")]
     Metrics,
     #[value(name = "MetricsMermaidGantt")]
@@ -240,7 +238,6 @@ impl Display for AvailableSubjects {
             AvailableSubjects::JoinUserInboxSessionContextsMermaid => write!(f, "JoinUserInboxSessionContextsMermaid"),
             AvailableSubjects::Mermaid => write!(f, "Mermaid"),
             AvailableSubjects::Errors => write!(f, "Errors"),
-            AvailableSubjects::Logs => write!(f, "Logs"),
             AvailableSubjects::Metrics => write!(f, "Metrics"),
             AvailableSubjects::MetricsMermaidGantt => write!(f, "MetricsMermaidGantt"),
         }
@@ -290,7 +287,6 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::JoinUserInboxSessionContextsMermaid => create_schema_from_fields(&create_join_user_inbox_session_contexts_mermaid_diagrams_fields),
             AvailableSubjects::Mermaid => create_schema_from_fields(&create_mermaid_fields),
             AvailableSubjects::Errors => create_schema_from_fields(&create_error_fields),
-            AvailableSubjects::Logs => create_schema_from_fields(&create_logs_fields),
             AvailableSubjects::Metrics => create_schema_from_fields(&create_metrics_fields),
             AvailableSubjects::MetricsMermaidGantt => create_schema_from_fields(&create_metrics_mermaid_gantt_fields),
         }
