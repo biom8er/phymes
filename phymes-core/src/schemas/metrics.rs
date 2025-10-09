@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 /// `span_name` will most likely be the processor name
 /// `span_id` connects the trace data to the metrics data
 pub fn create_metrics_fields() -> Fields {
+    // let field_names = ["span_name", "metric_name"];
     let field_names = ["task_name", "metric_name"];
     let mut fields_vec = field_names
         .iter()

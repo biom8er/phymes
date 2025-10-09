@@ -78,7 +78,7 @@ pub fn create_trace_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["line"];
+    let field_names = ["line", "parent_id", "id"];
     fields_vec.extend(field_names
         .iter()
         .map(|f| Field::new(*f, DataType::UInt32, false))
@@ -95,7 +95,7 @@ pub fn create_events_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["line", "column"];
+    let field_names = ["line", "column", "span_id", "id"];
     fields_vec.extend(field_names
         .iter()
         .map(|f| Field::new(*f, DataType::UInt32, false))
