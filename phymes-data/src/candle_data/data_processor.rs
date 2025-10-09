@@ -143,7 +143,7 @@ impl ProcessorTrait for CandleDataProcessor {
             subscriptions,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name()),
+            BaselineMetrics::new(&metrics, self.get_name(), 0),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -584,7 +584,7 @@ mod tests {
 
         // Make the metrics
         let metrics = ArrowTaskMetricsSet::new();
-        let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor");
+        let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor", 0);
 
         // Make the runtime environment
         let device = device(config.cpu)?;
@@ -661,7 +661,7 @@ mod tests {
         assert_eq!(scores, scores_test);
 
         // Case 2: LHS and RHS from config
-        let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor");
+        let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor", 0);
 
         // Make the config
         let config_args = DataConfig {
@@ -777,7 +777,7 @@ mod tests {
         );
 
         // Make the config and metrics
-        let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor");
+        let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor", 0);
 
         // Make the stream and run
         let ops_stream = CandleDataStream::new(

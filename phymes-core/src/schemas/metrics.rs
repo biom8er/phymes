@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt64Array}, datatypes::{DataType, Field, Fields}};
+use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt64Array}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
@@ -12,26 +12,25 @@ pub fn create_metrics_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["span_id", "id"];
+    let field_names = ["span_id", "id", "metric_value"];
     fields_vec.extend(field_names
         .iter()
-        .map(|f| Field::new(*f, DataType::UInt32, false))
+        .map(|f| Field::new(*f, DataType::UInt64, false))
         .collect::<Vec<_>>());
-    fields_vec.push(Field::new("metric_value", DataType::UInt64, false));
     Fields::from(fields_vec)
 }
 
 pub fn create_metrics_batch(
     span_name: Vec<String>,
     metric_name: Vec<String>,
-    span_id: Vec<i64>,
-    id: Vec<i64>,
+    span_id: Vec<u64>,
+    id: Vec<u64>,
     metric_value: Vec<u64>,
 ) -> Result<RecordBatch> {
     let span_name_arr: ArrayRef = Arc::new(StringArray::from(span_name));
     let metric_name_arr: ArrayRef = Arc::new(StringArray::from(metric_name));
-    let span_id_arr: ArrayRef = Arc::new(Int64Array::from(span_id));
-    let id_arr: ArrayRef = Arc::new(Int64Array::from(id));
+    let span_id_arr: ArrayRef = Arc::new(UInt64Array::from(span_id));
+    let id_arr: ArrayRef = Arc::new(UInt64Array::from(id));
     let metric_value_arr: ArrayRef = Arc::new(UInt64Array::from(metric_value));
     let batch = RecordBatch::try_from_iter(vec![
         ("span_name", span_name_arr),

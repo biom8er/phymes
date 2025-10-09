@@ -130,7 +130,7 @@ impl ProcessorTrait for CandleChatProcessor {
             tools,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics.clone(), self.get_name()),
+            BaselineMetrics::new(&metrics.clone(), self.get_name(), 0),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())

@@ -618,10 +618,6 @@ mod tests {
             tables.get(5).unwrap().get_name(),
             SessionContextTableNames::Errors.to_string().as_str()
         );
-        assert_eq!(
-            tables.get(6).unwrap().get_name(),
-            SessionContextTableNames::Logs.to_string().as_str()
-        );
 
         // Test from tables
         let (tables_test, _state_test) =

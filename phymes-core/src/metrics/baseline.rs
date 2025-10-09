@@ -39,7 +39,7 @@ pub struct BaselineMetrics {
 
 impl BaselineMetrics {
     /// Create a new BaselineMetric structure, and set `start_time` to now
-    pub fn new(metrics: &ArrowTaskMetricsSet, span_name: &str, span_id: i64) -> Self {
+    pub fn new(metrics: &ArrowTaskMetricsSet, span_name: &str, span_id: u64) -> Self {
         let start_time = MetricBuilder::new(metrics).start_timestamp(span_name, span_id);
         start_time.record();
 

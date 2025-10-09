@@ -147,7 +147,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                         .unwrap();
                     #[cfg(not(feature = "wasip2"))]
                     let rt = tokio::runtime::Runtime::new().unwrap();
-                    let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
+                    let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str(), iter);
                     let timer = baseline_metrics.elapsed_compute().timer();
                     let _messages = rt.block_on(async {
                         bench_chat_processor(metrics.clone(), config, user_content, name.as_str())

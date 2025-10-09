@@ -117,7 +117,7 @@ impl ProcessorTrait for CandleEmbedProcessor {
             documents,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name()),
+            BaselineMetrics::new(&metrics, self.get_name(), 0),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -756,7 +756,7 @@ mod tests {
 
         // Make the metrics
         let metrics = ArrowTaskMetricsSet::new();
-        let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
+        let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor", 0);
 
         // Make and run the embeddings stream
         let embed_stream = CandleEmbedStream::new(
@@ -841,7 +841,7 @@ mod tests {
 
             // Make the metrics
             let metrics = ArrowTaskMetricsSet::new();
-            let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
+            let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor", 0);
 
             // Make and run the embeddings stream
             let embed_stream = CandleEmbedStream::new(
@@ -941,7 +941,7 @@ mod tests {
 
         // Make the metrics
         let metrics = ArrowTaskMetricsSet::new();
-        let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
+        let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor", 0);
 
         // Make the runtime
         let asset = config.candle_asset.unwrap().build(

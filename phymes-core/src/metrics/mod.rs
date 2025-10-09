@@ -70,10 +70,10 @@ pub struct Metric {
 
     /// A unique ID identifying the span that this metric
     /// is a part of
-    span_id: Option<i64>,
+    span_id: Option<u64>,
 
     /// A unique ID identifying this metric
-    id: i64,
+    id: u64,
 }
 
 impl Display for Metric {
@@ -113,7 +113,7 @@ impl Display for Metric {
 impl Metric {
     /// Create a new [`Metric`]. Consider using [`MetricBuilder`]
     /// rather than this function directly.
-    pub fn new(value: MetricValue, span_name: Option<&str>, span_id: Option<i64>) -> Self {
+    pub fn new(value: MetricValue, span_name: Option<&str>, span_id: Option<u64>) -> Self {
         Self {
             value,
             labels: vec![],
@@ -125,7 +125,7 @@ impl Metric {
 
     /// Create a new [`Metric`]. Consider using [`MetricBuilder`]
     /// rather than this function directly.
-    pub fn new_with_labels(value: MetricValue, span_name: Option<&str>, span_id: Option<i64>, labels: Vec<Label>) -> Self {
+    pub fn new_with_labels(value: MetricValue, span_name: Option<&str>, span_id: Option<u64>, labels: Vec<Label>) -> Self {
         Self {
             value,
             labels,
@@ -162,20 +162,20 @@ impl Metric {
     }
 
     /// Return a reference to the span ID
-    pub fn span_id(&self) -> &Option<i64> {
+    pub fn span_id(&self) -> &Option<u64> {
         &self.span_id
     }
 
     /// Return a reference to the ID
-    pub fn id(&self) -> &i64 {
+    pub fn id(&self) -> &u64 {
         &self.id
     }
 
 }
 
-/// A snapshot of the metrics for a particular ([Task]).
+/// A snapshot of the metrics for a particular ([Processor]).
 ///
-/// [Task]: crate::task::task::Task
+/// [Processor]: crate::task::processor::Processor
 #[derive(Default, Debug, Clone)]
 pub struct MetricsSet {
     metrics: Vec<Arc<Metric>>,
@@ -348,17 +348,17 @@ impl Display for MetricsSet {
     }
 }
 
-/// A set of [`Metric`]s for an individual "operator" (e.g. `&dyn
-/// ArrowTask`).
+/// A set of [Metric]s for an individual "operator" (e.g. `&dyn
+/// Processor`).
 ///
-/// This structure is intended as a convenience for [`ArrowTask`]
+/// This structure is intended as a convenience for [Processor]
 /// implementations so they can generate different streams for multiple
-/// tasks but easily report them together.
+/// processes but easily report them together.
 ///
 /// Each `clone()` of this structure will add metrics to the same
 /// underlying metrics set
 ///
-/// [`ArrowTask`]: crate::task::arrow_task::ArrowTask
+/// [Processor]: crate::task::processor::Processor
 #[derive(Default, Debug, Clone)]
 pub struct ArrowTaskMetricsSet {
     inner: Arc<Mutex<MetricsSet>>,
@@ -434,10 +434,10 @@ impl Display for Label {
 }
 
 /// Create a (pseudo)random ID
-pub fn create_random_id() -> Result<i64> {
+pub fn create_random_id() -> Result<u64> {
     let mut buf = [0u8; 8];
     getrandom::fill(&mut buf)?;
-    let id = i64::from_ne_bytes(buf);
+    let id = u64::from_ne_bytes(buf);
     Ok(id)
 }
 

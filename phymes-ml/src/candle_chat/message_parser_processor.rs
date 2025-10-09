@@ -140,7 +140,7 @@ impl ProcessorTrait for MessageParserProcessor {
             messages,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name()),
+            BaselineMetrics::new(&metrics, self.get_name(), 0),
         )?);
 
         // By default, we send back to the publisher in case of any errors which the publisher

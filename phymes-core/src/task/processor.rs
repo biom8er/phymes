@@ -464,7 +464,7 @@ pub mod test_processor {
                 let out = Box::pin(ProcessorMockStream {
                     schema: s.get_message().schema(),
                     input: s.get_message_own(),
-                    baseline_metrics: BaselineMetrics::new(&metrics, self.get_name()),
+                    baseline_metrics: BaselineMetrics::new(&metrics, self.get_name(), 0),
                 });
                 let out_m = SendableRecordBatchStreamMessage::get_builder()
                     .with_name(name.as_str())

@@ -90,7 +90,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let rt = tokio::runtime::Builder::new_current_thread()
                     .build()
                     .unwrap();
-                let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
+                let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str(), iter);
                 let timer = baseline_metrics.elapsed_compute().timer();
                 let _messages = rt.block_on(async {
                     let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)

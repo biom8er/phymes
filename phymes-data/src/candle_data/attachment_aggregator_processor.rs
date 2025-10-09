@@ -146,7 +146,7 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
             input,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name()),
+            BaselineMetrics::new(&metrics, self.get_name(), 0),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.get_publications().first().unwrap().get_table_name())

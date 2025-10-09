@@ -235,7 +235,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         let rt = tokio::runtime::Runtime::new().unwrap();
 
                         // Start the timer
-                        let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
+                        let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str(), 0);
                         let timer = baseline_metrics.elapsed_compute().timer();
 
                         // Make the stream and run

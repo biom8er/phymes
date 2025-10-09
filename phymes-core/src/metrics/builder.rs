@@ -32,7 +32,7 @@ pub struct MetricBuilder<'a> {
     span_name: Option<String>,
 
     /// Optional span id
-    span_id: Option<i64>,
+    span_id: Option<u64>,
 
     /// arbitrary name=value pairs identifying this metric
     labels: Vec<Label>,
@@ -71,7 +71,7 @@ impl<'a> MetricBuilder<'a> {
     }
 
     /// Set the task of the metric being constructed
-    pub fn with_span_id(mut self, span_id: i64) -> Self {
+    pub fn with_span_id(mut self, span_id: u64) -> Self {
         self.span_id = Some(span_id);
         self
     }
@@ -90,7 +90,7 @@ impl<'a> MetricBuilder<'a> {
     }
 
     /// Consume self and create a new counter for recording output rows
-    pub fn output_rows(self, span_name: &str, span_id: i64) -> Count {
+    pub fn output_rows(self, span_name: &str, span_id: u64) -> Count {
         let count = Count::new();
         self.with_span_name(span_name)
             .with_span_id(span_id)
@@ -100,7 +100,7 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consume self and create a new counter for recording the number of spills
     /// triggered by an operator
-    pub fn spill_count(self, span_name: &str, span_id: i64) -> Count {
+    pub fn spill_count(self, span_name: &str, span_id: u64) -> Count {
         let count = Count::new();
         self.with_span_name(span_name)
             .with_span_id(span_id)
@@ -110,7 +110,7 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consume self and create a new counter for recording the total spilled bytes
     /// triggered by an operator
-    pub fn spilled_bytes(self, span_name: &str, span_id: i64) -> Count {
+    pub fn spilled_bytes(self, span_name: &str, span_id: u64) -> Count {
         let count = Count::new();
         self.with_span_name(span_name)
             .with_span_id(span_id)
@@ -120,7 +120,7 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consume self and create a new counter for recording the total spilled rows
     /// triggered by an operator
-    pub fn spilled_rows(self, span_name: &str, span_id: i64) -> Count {
+    pub fn spilled_rows(self, span_name: &str, span_id: u64) -> Count {
         let count = Count::new();
         self.with_span_name(span_name)
             .with_span_id(span_id)
@@ -129,7 +129,7 @@ impl<'a> MetricBuilder<'a> {
     }
 
     /// Consume self and create a new gauge for reporting current memory usage
-    pub fn mem_used(self, span_name: &str, span_id: i64) -> Gauge {
+    pub fn mem_used(self, span_name: &str, span_id: u64) -> Gauge {
         let gauge = Gauge::new();
         self.with_span_name(span_name)
             .with_span_id(span_id)
@@ -139,7 +139,7 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consumes self and creates a new [`Count`] for recording some
     /// arbitrary metric of an operator.
-    pub fn counter(self, counter_name: impl Into<Cow<'static, str>>, span_name: &str, span_id: i64) -> Count {        
+    pub fn counter(self, counter_name: impl Into<Cow<'static, str>>, span_name: &str, span_id: u64) -> Count {        
         self.with_span_name(span_name)
             .with_span_id(span_id)
             .global_counter(counter_name)
@@ -147,7 +147,7 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consumes self and creates a new [`Gauge`] for reporting some
     /// arbitrary metric of an operator.
-    pub fn gauge(self, gauge_name: impl Into<Cow<'static, str>>, span_name: &str, span_id: i64) -> Gauge {
+    pub fn gauge(self, gauge_name: impl Into<Cow<'static, str>>, span_name: &str, span_id: u64) -> Gauge {
         self.with_span_name(span_name)
             .with_span_id(span_id)
             .global_gauge(gauge_name)
@@ -177,7 +177,7 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consume self and create a new Timer for recording the elapsed
     /// CPU time spent by an operator
-    pub fn elapsed_compute(self, span_name: &str, span_id: i64) -> Time {
+    pub fn elapsed_compute(self, span_name: &str, span_id: u64) -> Time {
         let time = Time::new();
         self.with_span_name(span_name)
             .with_span_id(span_id)
@@ -187,7 +187,7 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consumes self and creates a new Timer for recording some
     /// subset of an operators execution time.
-    pub fn subset_time(self, subset_name: impl Into<Cow<'static, str>>, span_name: &str, span_id: i64) -> Time {
+    pub fn subset_time(self, subset_name: impl Into<Cow<'static, str>>, span_name: &str, span_id: u64) -> Time {
         let time = Time::new();
         self.with_span_name(span_name)
             .with_span_id(span_id)
@@ -200,7 +200,7 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consumes self and creates a new Timestamp for recording the
     /// starting time of execution for a task
-    pub fn start_timestamp(self, span_name: &str, span_id: i64) -> Timestamp {
+    pub fn start_timestamp(self, span_name: &str, span_id: u64) -> Timestamp {
         let timestamp = Timestamp::new();
         self.with_span_name(span_name)
             .with_span_id(span_id)
@@ -210,7 +210,7 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consumes self and creates a new Timestamp for recording the
     /// ending time of execution for a task
-    pub fn end_timestamp(self, span_name: &str, span_id: i64) -> Timestamp {
+    pub fn end_timestamp(self, span_name: &str, span_id: u64) -> Timestamp {
         let timestamp = Timestamp::new();
         self.with_span_name(span_name)
             .with_span_id(span_id)

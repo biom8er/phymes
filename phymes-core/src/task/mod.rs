@@ -1,4 +1,3 @@
-pub mod aggregator;
 pub mod message;
 pub mod processor;
 pub mod task_trait;

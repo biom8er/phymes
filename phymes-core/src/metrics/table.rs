@@ -5,7 +5,7 @@ use crate::{
 };
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt64Array},
+    array::{ArrayRef, RecordBatch, StringArray, UInt64Array},
     compute::{
         kernels::numeric::{add, sub},
         min,
@@ -24,8 +24,8 @@ pub fn get_metrics_as_pivot_table(
     // extract out values from metrics
     let mut span_metrics_count: HashMap<(String, String), usize> = HashMap::new();
     let mut span_names_vec = Vec::<String>::new();
-    let mut span_ids_vec = Vec::<i64>::new();
-    let mut ids_vec = Vec::<i64>::new();
+    let mut span_ids_vec = Vec::<u64>::new();
+    let mut ids_vec = Vec::<u64>::new();
     let mut metric_names_vec = Vec::<String>::new();
     let mut metric_values_vec = Vec::<u64>::new();
     for metrics in metrics_vec.iter() {
@@ -78,14 +78,14 @@ pub fn get_metrics_as_pivot_table(
             .collect::<Vec<_>>(),
     ));
     pivot_columns.push(("span_name", span_names));
-    let ids: ArrayRef = Arc::new(Int64Array::from(
+    let ids: ArrayRef = Arc::new(UInt64Array::from(
         unique_span_names
             .iter()
             .map(|(_, id, _)| id.to_owned().to_owned())
             .collect::<Vec<_>>(),
     ));
     pivot_columns.push(("id", ids));
-    let span_ids: ArrayRef = Arc::new(Int64Array::from(
+    let span_ids: ArrayRef = Arc::new(UInt64Array::from(
         unique_span_names
             .iter()
             .map(|(_, _, span_id)| span_id.to_owned().to_owned())
@@ -105,12 +105,14 @@ pub fn get_metrics_as_pivot_table(
                     && ids_vec.get(i).unwrap() == *id
                     && span_ids_vec.get(i).unwrap() == *span_id
                 {
+                    println!("Metric found! {metric_name}, {span_name}, {id}, {span_id}");
                     pivot_metric_values.push(metric_values_vec.get(i).unwrap().to_owned());
                     found = true;
                     break;
                 }
             }
             if !found {
+                println!("Metric NOT found! {metric_name}, {span_name}, {id}, {span_id}");
                 pivot_metric_values.push(0); // default value if not found
             }
         }
@@ -134,8 +136,8 @@ pub fn get_metrics_as_pivot_table(
 pub fn get_metrics_as_table(metrics: ArrowTaskMetricsSet, table_name: &str) -> Result<Table> {
     // extract out values from metrics
     let mut span_names_vec = Vec::<String>::new();
-    let mut span_ids_vec = Vec::<i64>::new();
-    let mut ids_vec = Vec::<i64>::new();
+    let mut span_ids_vec = Vec::<u64>::new();
+    let mut ids_vec = Vec::<u64>::new();
     let mut metric_names_vec = Vec::<String>::new();
     let mut metric_values_vec = Vec::<u64>::new();
     // let mut metrics_sorted = metrics.clone_inner().iter().map(|m| Arc::clone(m)).collect::<Vec<_>>();
