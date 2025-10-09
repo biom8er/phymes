@@ -986,40 +986,40 @@ mod tests {
 
             for metric in metrics.clone_inner().iter() {
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == doc_rag_session.chat_processor_name
+                    && metric.span_name().as_ref().unwrap() == doc_rag_session.chat_processor_name
                 {
                     assert!(metric.value().as_usize() >= 1);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap()
+                    && metric.span_name().as_ref().unwrap()
                         == doc_rag_session.embed_documents_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 21);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap()
+                    && metric.span_name().as_ref().unwrap()
                         == doc_rag_session.document_chunk_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 21);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == doc_rag_session.embed_query_processor_name
+                    && metric.span_name().as_ref().unwrap() == doc_rag_session.embed_query_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 1);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap()
+                    && metric.span_name().as_ref().unwrap()
                         == doc_rag_session.relative_similarity_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 21);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == doc_rag_session.sort_scores_processor_name
+                    && metric.span_name().as_ref().unwrap() == doc_rag_session.sort_scores_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 21);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == doc_rag_session.top_k_processor_name
+                    && metric.span_name().as_ref().unwrap() == doc_rag_session.top_k_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 1);
                 }

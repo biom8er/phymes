@@ -7,6 +7,7 @@ mod instant;
 mod table;
 mod value;
 
+use anyhow::Result;
 use parking_lot::Mutex;
 use std::{
     borrow::Cow,
@@ -26,11 +27,11 @@ pub use table::{
 pub use value::{Count, Gauge, MetricValue, ScopedTimerGuard, Time, Timestamp};
 
 /// Something that tracks a value of interest (metric) of a phymes-core
-/// [`ArrowTask`] execution.
+/// [Task] execution.
 ///
-/// Typically [`Metric`]s are not created directly, but instead
-/// are created using [`MetricBuilder`] or methods on
-/// [`ArrowTaskMetricsSet`].
+/// Typically [Metric]s are not created directly, but instead
+/// are created using [MetricBuilder] or methods on
+/// [ArrowTaskMetricsSet].
 ///
 /// ```
 ///  use phymes_core::metrics::*;
@@ -53,7 +54,7 @@ pub use value::{Count, Gauge, MetricValue, ScopedTimerGuard, Time, Timestamp};
 ///  assert_eq!(metrics.clone_inner().output_rows(), Some(13));
 /// ```
 ///
-/// [`ArrowTask`]: crate::task::arrow_task::ArrowTask
+/// [Task]: crate::task::task_trait::Task
 
 #[derive(Debug)]
 pub struct Metric {
@@ -63,9 +64,16 @@ pub struct Metric {
     /// arbitrary name=value pairs identifying this metric
     labels: Vec<Label>,
 
-    /// To which task of a query output did this metric
-    /// apply? If `None` then means all tasks.
-    task: Option<String>,
+    /// To which span of a query output did this metric
+    /// apply? If `None` then means all spans.
+    span_name: Option<String>,
+
+    /// A unique ID identifying the span that this metric
+    /// is a part of
+    span_id: Option<i64>,
+
+    /// A unique ID identifying this metric
+    id: i64,
 }
 
 impl Display for Metric {
@@ -73,9 +81,9 @@ impl Display for Metric {
         write!(f, "{}", self.value.name())?;
 
         let mut iter = self
-            .task
+            .span_name
             .iter()
-            .map(|task| Label::new("task", task.to_string()))
+            .map(|span| Label::new("span", span.to_string()))
             .chain(self.labels().iter().cloned())
             .peekable();
 
@@ -105,21 +113,25 @@ impl Display for Metric {
 impl Metric {
     /// Create a new [`Metric`]. Consider using [`MetricBuilder`]
     /// rather than this function directly.
-    pub fn new(value: MetricValue, task: Option<&str>) -> Self {
+    pub fn new(value: MetricValue, span_name: Option<&str>, span_id: Option<i64>) -> Self {
         Self {
             value,
             labels: vec![],
-            task: task.map(String::from),
+            span_name: span_name.map(String::from),
+            span_id,
+            id: create_random_id().unwrap(),
         }
     }
 
     /// Create a new [`Metric`]. Consider using [`MetricBuilder`]
     /// rather than this function directly.
-    pub fn new_with_labels(value: MetricValue, task: Option<&str>, labels: Vec<Label>) -> Self {
+    pub fn new_with_labels(value: MetricValue, span_name: Option<&str>, span_id: Option<i64>, labels: Vec<Label>) -> Self {
         Self {
             value,
             labels,
-            task: task.map(String::from),
+            span_name: span_name.map(String::from),
+            span_id,
+            id: create_random_id().unwrap(),
         }
     }
 
@@ -144,15 +156,26 @@ impl Metric {
         &mut self.value
     }
 
-    /// Return a reference to the task
-    pub fn task(&self) -> &Option<String> {
-        &self.task
+    /// Return a reference to the span name
+    pub fn span_name(&self) -> &Option<String> {
+        &self.span_name
     }
+
+    /// Return a reference to the span ID
+    pub fn span_id(&self) -> &Option<i64> {
+        &self.span_id
+    }
+
+    /// Return a reference to the ID
+    pub fn id(&self) -> &i64 {
+        &self.id
+    }
+
 }
 
-/// A snapshot of the metrics for a particular ([`ArrowTask`]).
+/// A snapshot of the metrics for a particular ([Task]).
 ///
-/// [`ArrowTask`]: crate::task::arrow_task::ArrowTask
+/// [Task]: crate::task::task::Task
 #[derive(Default, Debug, Clone)]
 pub struct MetricsSet {
     metrics: Vec<Arc<Metric>>,
@@ -268,8 +291,7 @@ impl MetricsSet {
                 })
                 .or_insert_with(|| {
                     // accumulate with no task
-                    let task = None;
-                    let mut accum = Metric::new(metric.value().new_empty(), task);
+                    let mut accum = Metric::new(metric.value().new_empty(), None, None);
                     accum.value_mut().aggregate(metric.value());
                     accum
                 });
@@ -411,6 +433,14 @@ impl Display for Label {
     }
 }
 
+/// Create a (pseudo)random ID
+pub fn create_random_id() -> Result<i64> {
+    let mut buf = [0u8; 8];
+    getrandom::fill(&mut buf)?;
+    let id = i64::from_ne_bytes(buf);
+    Ok(id)
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -420,49 +450,45 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_display_no_labels_no_task() {
+    fn test_display_no_labels_no_span() {
         let count = Count::new();
         count.add(33);
         let value = MetricValue::OutputRows(count);
-        let task = None;
-        let metric = Metric::new(value, task);
+        let metric = Metric::new(value, None, None);
 
         assert_eq!("output_rows=33", metric.to_string())
     }
 
     #[test]
-    fn test_display_no_labels_with_task() {
+    fn test_display_no_labels_with_span() {
         let count = Count::new();
         count.add(44);
         let value = MetricValue::OutputRows(count);
-        let task = Some("1");
-        let metric = Metric::new(value, task);
+        let metric = Metric::new(value, Some("1"), Some(1));
 
-        assert_eq!("output_rows{task=1}=44", metric.to_string())
+        assert_eq!("output_rows{span=1}=44", metric.to_string())
     }
 
     #[test]
-    fn test_display_labels_no_task() {
+    fn test_display_labels_no_span() {
         let count = Count::new();
         count.add(55);
         let value = MetricValue::OutputRows(count);
-        let task = None;
         let label = Label::new("foo", "bar");
-        let metric = Metric::new_with_labels(value, task, vec![label]);
+        let metric = Metric::new_with_labels(value, None, None, vec![label]);
 
         assert_eq!("output_rows{foo=bar}=55", metric.to_string())
     }
 
     #[test]
-    fn test_display_labels_and_task() {
+    fn test_display_labels_and_span() {
         let count = Count::new();
         count.add(66);
         let value = MetricValue::OutputRows(count);
-        let task = Some("2");
         let label = Label::new("foo", "bar");
-        let metric = Metric::new_with_labels(value, task, vec![label]);
+        let metric = Metric::new_with_labels(value,  Some("2"), Some(2), vec![label]);
 
-        assert_eq!("output_rows{task=2, foo=bar}=66", metric.to_string())
+        assert_eq!("output_rows{span=2, foo=bar}=66", metric.to_string())
     }
 
     #[test]
@@ -470,11 +496,11 @@ mod tests {
         let metrics = ArrowTaskMetricsSet::new();
         assert!(metrics.clone_inner().output_rows().is_none());
 
-        let task = 1;
-        let output_rows = MetricBuilder::new(&metrics).output_rows(task.to_string().as_str());
+        let span = 1;
+        let output_rows = MetricBuilder::new(&metrics).output_rows(span.to_string().as_str(), span);
         output_rows.add(13);
 
-        let output_rows = MetricBuilder::new(&metrics).output_rows((task + 1).to_string().as_str());
+        let output_rows = MetricBuilder::new(&metrics).output_rows((span + 1).to_string().as_str(), span + 1);
         output_rows.add(7);
         assert_eq!(metrics.clone_inner().output_rows().unwrap(), 20);
     }
@@ -484,13 +510,13 @@ mod tests {
         let metrics = ArrowTaskMetricsSet::new();
         assert!(metrics.clone_inner().elapsed_compute().is_none());
 
-        let task = 1;
+        let span = 1;
         let elapsed_compute =
-            MetricBuilder::new(&metrics).elapsed_compute(task.to_string().as_str());
+            MetricBuilder::new(&metrics).elapsed_compute(span.to_string().as_str(), span);
         elapsed_compute.add_duration(Duration::from_nanos(1234));
 
         let elapsed_compute =
-            MetricBuilder::new(&metrics).elapsed_compute((task + 1).to_string().as_str());
+            MetricBuilder::new(&metrics).elapsed_compute((span + 1).to_string().as_str(), span + 1);
         elapsed_compute.add_duration(Duration::from_nanos(6));
         assert_eq!(metrics.clone_inner().elapsed_compute().unwrap(), 1240);
     }
@@ -501,10 +527,10 @@ mod tests {
 
         let count1 = MetricBuilder::new(&metrics)
             .with_new_label("foo", "bar")
-            .counter("my_counter", "1");
+            .counter("my_counter", "1", 1);
         count1.add(1);
 
-        let count2 = MetricBuilder::new(&metrics).counter("my_counter", "2");
+        let count2 = MetricBuilder::new(&metrics).counter("my_counter", "2", 2);
         count2.add(2);
 
         let metrics = metrics.clone_inner();
@@ -526,10 +552,10 @@ mod tests {
         // can not add different kinds of metrics
         let metrics = ArrowTaskMetricsSet::new();
 
-        let count = MetricBuilder::new(&metrics).counter("my_metric", "1");
+        let count = MetricBuilder::new(&metrics).counter("my_metric", "1", 1);
         count.add(1);
 
-        let time = MetricBuilder::new(&metrics).subset_time("my_metric", "1");
+        let time = MetricBuilder::new(&metrics).subset_time("my_metric", "1", 1);
         time.add_duration(Duration::from_nanos(10));
 
         // expect that this will error out
@@ -543,16 +569,16 @@ mod tests {
         // Note cpu_time1 has labels but it is still aggregated with metrics 2 and 3
         let elapsed_compute1 = MetricBuilder::new(&metrics)
             .with_new_label("foo", "bar")
-            .elapsed_compute("1");
+            .elapsed_compute("1", 1);
         elapsed_compute1.add_duration(Duration::from_nanos(12));
 
-        let elapsed_compute2 = MetricBuilder::new(&metrics).elapsed_compute("2");
+        let elapsed_compute2 = MetricBuilder::new(&metrics).elapsed_compute("2", 2);
         elapsed_compute2.add_duration(Duration::from_nanos(34));
 
-        let elapsed_compute3 = MetricBuilder::new(&metrics).elapsed_compute("4");
+        let elapsed_compute3 = MetricBuilder::new(&metrics).elapsed_compute("4", 4);
         elapsed_compute3.add_duration(Duration::from_nanos(56));
 
-        let output_rows = MetricBuilder::new(&metrics).output_rows("1"); // output rows
+        let output_rows = MetricBuilder::new(&metrics).output_rows("1", 1); // output rows
         output_rows.add(56);
 
         let aggregated = metrics.clone_inner().aggregate_by_name();
@@ -564,7 +590,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(elapsed_computes.len(), 1);
         assert_eq!(elapsed_computes[0].value().as_usize(), 12 + 34 + 56);
-        assert!(elapsed_computes[0].task().is_none());
+        assert!(elapsed_computes[0].span_name().is_none());
 
         // output rows should
         let output_rows = aggregated
@@ -573,7 +599,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(output_rows.len(), 1);
         assert_eq!(output_rows[0].value().as_usize(), 56);
-        assert!(output_rows[0].task.is_none())
+        assert!(output_rows[0].span_name.is_none())
     }
 
     #[test]
@@ -581,10 +607,10 @@ mod tests {
     fn test_aggregate_task_bad_sum() {
         let metrics = ArrowTaskMetricsSet::new();
 
-        let count = MetricBuilder::new(&metrics).counter("my_metric", "1");
+        let count = MetricBuilder::new(&metrics).counter("my_metric", "1", 1);
         count.add(1);
 
-        let time = MetricBuilder::new(&metrics).subset_time("my_metric", "1");
+        let time = MetricBuilder::new(&metrics).subset_time("my_metric", "1", 1);
         time.add_duration(Duration::from_nanos(10));
 
         // can't aggregate time and count -- expect a panic
@@ -604,13 +630,13 @@ mod tests {
         // 1731648000000000 == 1970-01-21 01:00:48 UTC
         let t4 = Utc.timestamp_nanos(1731648000000000);
 
-        let start_timestamp0 = MetricBuilder::new(&metrics).start_timestamp("0");
+        let start_timestamp0 = MetricBuilder::new(&metrics).start_timestamp("0", 0);
         start_timestamp0.set(t1);
-        let end_timestamp0 = MetricBuilder::new(&metrics).end_timestamp("0");
+        let end_timestamp0 = MetricBuilder::new(&metrics).end_timestamp("0", 0);
         end_timestamp0.set(t2);
-        let start_timestamp1 = MetricBuilder::new(&metrics).start_timestamp("0");
+        let start_timestamp1 = MetricBuilder::new(&metrics).start_timestamp("0", 0);
         start_timestamp1.set(t3);
-        let end_timestamp1 = MetricBuilder::new(&metrics).end_timestamp("0");
+        let end_timestamp1 = MetricBuilder::new(&metrics).end_timestamp("0", 0);
         end_timestamp1.set(t4);
 
         // aggregate
@@ -655,14 +681,14 @@ mod tests {
     #[test]
     fn test_sorted_for_display() {
         let metrics = ArrowTaskMetricsSet::new();
-        MetricBuilder::new(&metrics).end_timestamp("0");
-        MetricBuilder::new(&metrics).start_timestamp("0");
-        MetricBuilder::new(&metrics).elapsed_compute("0");
-        MetricBuilder::new(&metrics).counter("the_second_counter", "0");
-        MetricBuilder::new(&metrics).counter("the_counter", "0");
-        MetricBuilder::new(&metrics).counter("the_third_counter", "0");
-        MetricBuilder::new(&metrics).subset_time("the_time", "0");
-        MetricBuilder::new(&metrics).output_rows("0");
+        MetricBuilder::new(&metrics).end_timestamp("0", 0);
+        MetricBuilder::new(&metrics).start_timestamp("0", 0);
+        MetricBuilder::new(&metrics).elapsed_compute("0", 0);
+        MetricBuilder::new(&metrics).counter("the_second_counter", "0", 0);
+        MetricBuilder::new(&metrics).counter("the_counter", "0", 0);
+        MetricBuilder::new(&metrics).counter("the_third_counter", "0", 0);
+        MetricBuilder::new(&metrics).subset_time("the_time", "0", 0);
+        MetricBuilder::new(&metrics).output_rows("0", 0);
         let metrics = metrics.clone_inner();
 
         fn metric_names(metrics: &MetricsSet) -> String {

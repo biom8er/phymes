@@ -881,29 +881,29 @@ mod tests {
 
             for metric in metrics.clone_inner().iter() {
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == tool_agent_session.chat_processor_name
+                    && metric.span_name().as_ref().unwrap() == tool_agent_session.chat_processor_name
                 {
                     assert!(metric.value().as_usize() > 0);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap()
+                    && metric.span_name().as_ref().unwrap()
                         == tool_agent_session.message_parser_processor_name
                 {
                     assert!(metric.value().as_usize() > 0 || metric.value().as_usize() == 1);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == tool_agent_session.tool_processor_name
+                    && metric.span_name().as_ref().unwrap() == tool_agent_session.tool_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 3);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap()
+                    && metric.span_name().as_ref().unwrap()
                         == tool_agent_session.tool_summary_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 1);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap()
+                    && metric.span_name().as_ref().unwrap()
                         == tool_agent_session.tool_attachment_processor_name
                 {
                     assert_eq!(metric.value().as_usize(), 1);

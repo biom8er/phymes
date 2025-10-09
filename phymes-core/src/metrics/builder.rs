@@ -28,8 +28,11 @@ pub struct MetricBuilder<'a> {
     /// Location that the metric created by this builder will be added do
     metrics: &'a ArrowTaskMetricsSet,
 
-    /// optional task number
-    task: Option<String>,
+    /// Optional span name
+    span_name: Option<String>,
+
+    /// Optional span id
+    span_id: Option<i64>,
 
     /// arbitrary name=value pairs identifying this metric
     labels: Vec<Label>,
@@ -40,7 +43,8 @@ impl<'a> MetricBuilder<'a> {
     pub fn new(metrics: &'a ArrowTaskMetricsSet) -> Self {
         Self {
             metrics,
-            task: None,
+            span_name: None,
+            span_id: None,
             labels: vec![],
         }
     }
@@ -61,8 +65,14 @@ impl<'a> MetricBuilder<'a> {
     }
 
     /// Set the task of the metric being constructed
-    pub fn with_task(mut self, task: &str) -> Self {
-        self.task = Some(task.to_string());
+    pub fn with_span_name(mut self, span_name: &str) -> Self {
+        self.span_name = Some(span_name.to_string());
+        self
+    }
+
+    /// Set the task of the metric being constructed
+    pub fn with_span_id(mut self, span_id: i64) -> Self {
+        self.span_id = Some(span_id);
         self
     }
 
@@ -71,66 +81,76 @@ impl<'a> MetricBuilder<'a> {
     pub fn build(self, value: MetricValue) {
         let Self {
             labels,
-            task,
+            span_name,
+            span_id,
             metrics,
         } = self;
-        let metric = Arc::new(Metric::new_with_labels(value, task.as_deref(), labels));
+        let metric = Arc::new(Metric::new_with_labels(value, span_name.as_deref(), span_id, labels));
         metrics.register(metric);
     }
 
     /// Consume self and create a new counter for recording output rows
-    pub fn output_rows(self, task: &str) -> Count {
+    pub fn output_rows(self, span_name: &str, span_id: i64) -> Count {
         let count = Count::new();
-        self.with_task(task)
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
             .build(MetricValue::OutputRows(count.clone()));
         count
     }
 
     /// Consume self and create a new counter for recording the number of spills
     /// triggered by an operator
-    pub fn spill_count(self, task: &str) -> Count {
+    pub fn spill_count(self, span_name: &str, span_id: i64) -> Count {
         let count = Count::new();
-        self.with_task(task)
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
             .build(MetricValue::SpillCount(count.clone()));
         count
     }
 
     /// Consume self and create a new counter for recording the total spilled bytes
     /// triggered by an operator
-    pub fn spilled_bytes(self, task: &str) -> Count {
+    pub fn spilled_bytes(self, span_name: &str, span_id: i64) -> Count {
         let count = Count::new();
-        self.with_task(task)
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
             .build(MetricValue::SpilledBytes(count.clone()));
         count
     }
 
     /// Consume self and create a new counter for recording the total spilled rows
     /// triggered by an operator
-    pub fn spilled_rows(self, task: &str) -> Count {
+    pub fn spilled_rows(self, span_name: &str, span_id: i64) -> Count {
         let count = Count::new();
-        self.with_task(task)
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
             .build(MetricValue::SpilledRows(count.clone()));
         count
     }
 
     /// Consume self and create a new gauge for reporting current memory usage
-    pub fn mem_used(self, task: &str) -> Gauge {
+    pub fn mem_used(self, span_name: &str, span_id: i64) -> Gauge {
         let gauge = Gauge::new();
-        self.with_task(task)
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
             .build(MetricValue::CurrentMemoryUsage(gauge.clone()));
         gauge
     }
 
     /// Consumes self and creates a new [`Count`] for recording some
     /// arbitrary metric of an operator.
-    pub fn counter(self, counter_name: impl Into<Cow<'static, str>>, task: &str) -> Count {
-        self.with_task(task).global_counter(counter_name)
+    pub fn counter(self, counter_name: impl Into<Cow<'static, str>>, span_name: &str, span_id: i64) -> Count {        
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
+            .global_counter(counter_name)
     }
 
     /// Consumes self and creates a new [`Gauge`] for reporting some
     /// arbitrary metric of an operator.
-    pub fn gauge(self, gauge_name: impl Into<Cow<'static, str>>, task: &str) -> Gauge {
-        self.with_task(task).global_gauge(gauge_name)
+    pub fn gauge(self, gauge_name: impl Into<Cow<'static, str>>, span_name: &str, span_id: i64) -> Gauge {
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
+            .global_gauge(gauge_name)
     }
 
     /// Consumes self and creates a new [`Count`] for recording a
@@ -157,18 +177,21 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consume self and create a new Timer for recording the elapsed
     /// CPU time spent by an operator
-    pub fn elapsed_compute(self, task: &str) -> Time {
+    pub fn elapsed_compute(self, span_name: &str, span_id: i64) -> Time {
         let time = Time::new();
-        self.with_task(task)
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
             .build(MetricValue::ElapsedCompute(time.clone()));
         time
     }
 
     /// Consumes self and creates a new Timer for recording some
     /// subset of an operators execution time.
-    pub fn subset_time(self, subset_name: impl Into<Cow<'static, str>>, task: &str) -> Time {
+    pub fn subset_time(self, subset_name: impl Into<Cow<'static, str>>, span_name: &str, span_id: i64) -> Time {
         let time = Time::new();
-        self.with_task(task).build(MetricValue::Time {
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
+            .build(MetricValue::Time {
             name: subset_name.into(),
             time: time.clone(),
         });
@@ -177,18 +200,20 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consumes self and creates a new Timestamp for recording the
     /// starting time of execution for a task
-    pub fn start_timestamp(self, task: &str) -> Timestamp {
+    pub fn start_timestamp(self, span_name: &str, span_id: i64) -> Timestamp {
         let timestamp = Timestamp::new();
-        self.with_task(task)
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
             .build(MetricValue::StartTimestamp(timestamp.clone()));
         timestamp
     }
 
     /// Consumes self and creates a new Timestamp for recording the
     /// ending time of execution for a task
-    pub fn end_timestamp(self, task: &str) -> Timestamp {
+    pub fn end_timestamp(self, span_name: &str, span_id: i64) -> Timestamp {
         let timestamp = Timestamp::new();
-        self.with_task(task)
+        self.with_span_name(span_name)
+            .with_span_id(span_id)
             .build(MetricValue::EndTimestamp(timestamp.clone()));
         timestamp
     }

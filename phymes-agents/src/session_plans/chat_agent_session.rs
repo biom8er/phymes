@@ -369,12 +369,12 @@ mod tests {
 
             for metric in metrics.clone_inner().iter() {
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == "chat_task_1"
+                    && metric.span_name().as_ref().unwrap() == "chat_task_1"
                 {
                     assert_eq!(metric.value().as_usize(), 2);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == "chat_processor_1"
+                    && metric.span_name().as_ref().unwrap() == "chat_processor_1"
                 {
                     assert!(metric.value().as_usize() >= 1);
                 }
@@ -423,13 +423,13 @@ mod tests {
 
             for metric in metrics.clone_inner().iter() {
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == "chat_task_1"
+                    && metric.span_name().as_ref().unwrap() == "chat_task_1"
                     && metric.value().as_usize() != 2
                 {
                     assert_eq!(metric.value().as_usize(), 4);
                 }
                 if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == "chat_processor_1"
+                    && metric.span_name().as_ref().unwrap() == "chat_processor_1"
                 {
                     assert!(metric.value().as_usize() >= 1);
                 }

@@ -15,8 +15,7 @@ use anyhow::Result;
 /// use phymes_core::metrics::{BaselineMetrics, ArrowTaskMetricsSet};
 /// let metrics = ArrowTaskMetricsSet::new();
 ///
-/// let task = "2";
-/// let baseline_metrics = BaselineMetrics::new(&metrics, task);
+/// let baseline_metrics = BaselineMetrics::new(&metrics, "2", None);
 ///
 /// // during execution, in CPU intensive operation:
 /// let timer = baseline_metrics.elapsed_compute().timer();
@@ -40,21 +39,21 @@ pub struct BaselineMetrics {
 
 impl BaselineMetrics {
     /// Create a new BaselineMetric structure, and set `start_time` to now
-    pub fn new(metrics: &ArrowTaskMetricsSet, task: &str) -> Self {
-        let start_time = MetricBuilder::new(metrics).start_timestamp(task);
+    pub fn new(metrics: &ArrowTaskMetricsSet, span_name: &str, span_id: i64) -> Self {
+        let start_time = MetricBuilder::new(metrics).start_timestamp(span_name, span_id);
         start_time.record();
 
         Self {
-            end_time: MetricBuilder::new(metrics).end_timestamp(task),
-            elapsed_compute: MetricBuilder::new(metrics).elapsed_compute(task),
-            output_rows: MetricBuilder::new(metrics).output_rows(task),
+            end_time: MetricBuilder::new(metrics).end_timestamp(span_name, span_id),
+            elapsed_compute: MetricBuilder::new(metrics).elapsed_compute(span_name, span_id),
+            output_rows: MetricBuilder::new(metrics).output_rows(span_name, span_id),
         }
     }
 
     /// Returns a [`BaselineMetrics`] that updates the same `elapsed_compute` ignoring
     /// all other metrics
     ///
-    /// This is useful when an operator offloads some of its intermediate work to separate tasks
+    /// This is useful when an operator offloads some of its intermediate work to separate spans
     /// that as a result won't be recorded by [`Self::record_poll`]
     pub fn intermediate(&self) -> BaselineMetrics {
         Self {
