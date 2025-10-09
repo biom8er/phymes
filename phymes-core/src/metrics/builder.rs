@@ -28,9 +28,9 @@ use super::{SpanMetricsSet, Count, Gauge, Label, Metric, MetricValue, Time, Time
 ///
 /// ```
 #[derive(Clone, Debug)]
-pub struct MetricBuilder<'a> {
+pub struct MetricBuilder {
     /// Location that the metric created by this builder will be added do
-    metrics: &'a SpanMetricsSet,
+    metrics: SpanMetricsSet,
 
     /// The parent span name of execution
     parent_name: Option<String>,
@@ -49,11 +49,11 @@ pub struct MetricBuilder<'a> {
     labels: Vec<Label>,
 }
 
-impl<'a> MetricBuilder<'a> {
+impl MetricBuilder {
     /// Create a new `MetricBuilder` that will register the result of `build()` with the `metrics`
-    pub fn new(metrics: &'a SpanMetricsSet) -> Self {
+    pub fn new(metrics: &SpanMetricsSet) -> Self {
         Self {
-            metrics,
+            metrics: metrics.clone(),
             parent_name: None,
             parent_id: None,
             span_name: None,
@@ -143,7 +143,7 @@ impl<'a> MetricBuilder<'a> {
     }
 
     /// Consume self and create a new gauge for reporting current memory usage
-    pub fn mem_used(self, parent_name: Option<&str>) -> Gauge {
+    pub fn mem_used(self) -> Gauge {
         let gauge = Gauge::new();
         self.build(MetricValue::CurrentMemoryUsage(gauge.clone()));
         gauge

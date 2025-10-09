@@ -22,11 +22,10 @@ use super::test_exec::{collect_partitions_runs, collect_task_runs};
 use crate::metrics::Metric;
 
 use crate::{
-    metrics::{SpanMetricsSet, HashMap, MetricsSet},
+    metrics::{create_random_id, HashMap, MetricBuilder, MetricsSet, SpanMetricsSet},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, RunnableTrait,
-            StateMap,
+            BuildableTrait, BuilderTrait, MappableTrait, RunnableTrait, SendableRecordBatchStreamMessageMap, StateMap
         },
         runtime_env::RuntimeEnv,
     },
@@ -171,11 +170,13 @@ impl BuildableTrait for Task {
 impl RunnableTrait for Task {
     fn run(&self, mut messages: SendableRecordBatchStreamMessageMap) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
+        let span_id = create_random_id()?;
 
         // Process the incoming message resulting in a `SendableRecordBatchStream`
-        for processor in self.processor.iter() {
+        let metrics_builder = MetricBuilder::new(&self.metrics).with_span(self.get_name(), span_id);
+        for processor in self.processor.iter() {            
             messages =
-                processor.process(messages, self.metrics.clone(), self.runtime_env.clone())?;
+                processor.process(messages, &metrics_builder, self.runtime_env.clone())?;
         }
 
         // make the output message
