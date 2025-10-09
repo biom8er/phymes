@@ -10,9 +10,7 @@ mod value;
 use anyhow::Result;
 use parking_lot::Mutex;
 use std::{
-    borrow::Cow,
-    fmt::{Debug, Display},
-    sync::Arc,
+    borrow::Cow, fmt::{Debug, Display}, sync::Arc
 };
 
 pub use common::{HashMap, HashSet};
@@ -26,8 +24,7 @@ pub use table::{
 };
 pub use value::{Count, Gauge, MetricValue, ScopedTimerGuard, Time, Timestamp};
 
-/// Something that tracks a value of interest (metric) of a phymes-core
-/// [Processor] execution.
+/// Something that tracks a value of interest (metric)
 ///
 /// Typically [Metric]s are not created directly, but instead
 /// are created using [MetricBuilder] or methods on
@@ -40,7 +37,6 @@ pub use value::{Count, Gauge, MetricValue, ScopedTimerGuard, Time, Timestamp};
 ///  assert!(metrics.clone_inner().output_rows().is_none());
 ///
 ///  // Create a counter to increment using the MetricBuilder
-///  let task = ;
 ///  let output_rows = MetricBuilder::new(&metrics)
 ///      .output_rows("1");
 ///
@@ -53,8 +49,6 @@ pub use value::{Count, Gauge, MetricValue, ScopedTimerGuard, Time, Timestamp};
 ///  // As well as from the metrics set
 ///  assert_eq!(metrics.clone_inner().output_rows(), Some(13));
 /// ```
-///
-/// [Processor]: crate::task::processor::Processor
 
 #[derive(Debug)]
 pub struct Metric {
@@ -64,21 +58,30 @@ pub struct Metric {
     /// arbitrary name=value pairs identifying this metric
     labels: Vec<Label>,
 
-    /// To which partition of a query output did this metric apply?
-    partition_id: Option<usize>,
-
     /// A unique ID identifying this metric
     id: u64,
+
+    /// The parent span name of execution
+    parent_name: Option<String>,
+
+    /// The parent id name of execution
+    parent_id: Option<u64>,
+
+    /// To which span of execution does these metrics apply?
+    span_name: String,
+
+    /// A unique ID identifying the span that this metric
+    /// is a part of
+    span_id: u64,
 }
 
 impl Display for Metric {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.value.name())?;
 
-        let mut iter = self
-            .partition_id
-            .iter()
-            .map(|partition| Label::new("partition", partition.to_string()))
+        let mut iter = [self.span_name.to_string()]
+            .into_iter()
+            .map(|span_name| Label::new("span_name", span_name))
             .chain(self.labels().iter().cloned())
             .peekable();
 
@@ -108,22 +111,28 @@ impl Display for Metric {
 impl Metric {
     /// Create a new [`Metric`]. Consider using [`MetricBuilder`]
     /// rather than this function directly.
-    pub fn new(value: MetricValue, partition_id: Option<usize>) -> Self {
+    pub fn new(value: MetricValue, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Self {
         Self {
             value,
             labels: vec![],
-            partition_id,
+            parent_name: parent_name.map(String::from),
+            parent_id,
+            span_name: span_name.to_string(),
+            span_id,
             id: create_random_id().unwrap(),
         }
     }
 
     /// Create a new [`Metric`]. Consider using [`MetricBuilder`]
     /// rather than this function directly.
-    pub fn new_with_labels(value: MetricValue, partition_id: Option<usize>, labels: Vec<Label>) -> Self {
+    pub fn new_with_labels(value: MetricValue, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64, labels: Vec<Label>) -> Self {
         Self {
             value,
             labels,
-            partition_id,
+            parent_name: parent_name.map(String::from),
+            parent_id,
+            span_name: span_name.to_string(),
+            span_id,
             id: create_random_id().unwrap(),
         }
     }
@@ -149,9 +158,24 @@ impl Metric {
         &mut self.value
     }
 
-    /// Return a reference to the partition ID
-    pub fn partition_id(&self) -> &Option<usize> {
-        &self.partition_id
+    /// Return a reference to the parent name
+    pub fn parent_name(&self) -> &Option<String> {
+        &self.parent_name
+    }
+
+    /// Return a reference to the span ID
+    pub fn parent_id(&self) -> &Option<u64> {
+        &self.parent_id
+    }
+
+    /// Return a reference to the span name
+    pub fn span_name(&self) -> &str {
+        &self.span_name
+    }
+
+    /// Return a reference to the span ID
+    pub fn span_id(&self) -> &u64 {
+        &self.span_id
     }
 
     /// Return a reference to the ID
@@ -167,33 +191,12 @@ impl Metric {
 #[derive(Default, Debug, Clone)]
 pub struct MetricsSet {
     metrics: Vec<Arc<Metric>>,    
-
-    /// To which span of execution does these metrics apply?
-    span_name: String,
-
-    /// A unique ID identifying the span that this metric
-    /// is a part of
-    span_id: u64,
 }
 
 impl MetricsSet {
     /// Create a new container of metrics
-    pub fn new(span_name: &str, span_id: u64) -> Self {
-        Self {
-            metrics: Vec::new(),
-            span_name: span_name.to_string(),
-            span_id
-        }
-    }
-
-    /// Return the span name for the metrics
-    pub fn span_name(&self) -> &str {
-        &self.span_name
-    }
-
-    /// Return the span id for the metrics
-    pub fn span_id(&self) -> &u64 {
-        &self.span_id
+    pub fn new() -> Self {
+        MetricsSet::default()
     }
 
     /// Add the specified metric
@@ -204,118 +207,6 @@ impl MetricsSet {
     /// Returns an iterator across all metrics
     pub fn iter(&self) -> impl Iterator<Item = &Arc<Metric>> {
         self.metrics.iter()
-    }
-
-    /// Convenience: return the number of rows produced, aggregated
-    /// across tasks or `None` if no metric is present
-    pub fn output_rows(&self) -> Option<usize> {
-        self.sum(|metric| matches!(metric.value(), MetricValue::OutputRows(_)))
-            .map(|v| v.as_usize())
-    }
-
-    /// Convenience: return the count of spills, aggregated
-    /// across tasks or `None` if no metric is present
-    pub fn spill_count(&self) -> Option<usize> {
-        self.sum(|metric| matches!(metric.value(), MetricValue::SpillCount(_)))
-            .map(|v| v.as_usize())
-    }
-
-    /// Convenience: return the total byte size of spills, aggregated
-    /// across tasks or `None` if no metric is present
-    pub fn spilled_bytes(&self) -> Option<usize> {
-        self.sum(|metric| matches!(metric.value(), MetricValue::SpilledBytes(_)))
-            .map(|v| v.as_usize())
-    }
-
-    /// Convenience: return the total rows of spills, aggregated
-    /// across tasks or `None` if no metric is present
-    pub fn spilled_rows(&self) -> Option<usize> {
-        self.sum(|metric| matches!(metric.value(), MetricValue::SpilledRows(_)))
-            .map(|v| v.as_usize())
-    }
-
-    /// Convenience: return the amount of elapsed CPU time spent,
-    /// aggregated across tasks or `None` if no metric is present
-    pub fn elapsed_compute(&self) -> Option<usize> {
-        self.sum(|metric| matches!(metric.value(), MetricValue::ElapsedCompute(_)))
-            .map(|v| v.as_usize())
-    }
-
-    /// Sums the values for metrics for which `f(metric)` returns
-    /// `true`, and returns the value. Returns `None` if no metrics match
-    /// the predicate.
-    pub fn sum<F>(&self, mut f: F) -> Option<MetricValue>
-    where
-        F: FnMut(&Metric) -> bool,
-    {
-        let mut iter = self
-            .metrics
-            .iter()
-            .filter(|metric| f(metric.as_ref()))
-            .peekable();
-
-        let mut accum = match iter.peek() {
-            None => {
-                return None;
-            }
-            Some(metric) => metric.value().new_empty(),
-        };
-
-        iter.for_each(|metric| accum.aggregate(metric.value()));
-
-        Some(accum)
-    }
-
-    /// Returns the sum of all the metrics with the specified name
-    /// in the returned set.
-    pub fn sum_by_name(&self, metric_name: &str) -> Option<MetricValue> {
-        self.sum(|m| match m.value() {
-            MetricValue::Count { name, .. } => name == metric_name,
-            MetricValue::Time { name, .. } => name == metric_name,
-            MetricValue::OutputRows(_) => false,
-            MetricValue::ElapsedCompute(_) => false,
-            MetricValue::SpillCount(_) => false,
-            MetricValue::SpilledBytes(_) => false,
-            MetricValue::SpilledRows(_) => false,
-            MetricValue::CurrentMemoryUsage(_) => false,
-            MetricValue::Gauge { name, .. } => name == metric_name,
-            MetricValue::StartTimestamp(_) => false,
-            MetricValue::EndTimestamp(_) => false,
-        })
-    }
-
-    /// Returns a new derived `MetricsSet` where all metrics
-    /// that had the same name have been
-    /// aggregated together. The resulting `MetricsSet` has all
-    /// metrics with `task=None`
-    pub fn aggregate_by_name(&self) -> Self {
-        let mut map = HashMap::new();
-
-        // There are all sorts of ways to make this more efficient
-        for metric in &self.metrics {
-            let key = metric.value.name();
-            map.entry(key)
-                .and_modify(|accum: &mut Metric| {
-                    accum.value_mut().aggregate(metric.value());
-                })
-                .or_insert_with(|| {
-                    // accumulate with no task
-                    let mut accum = Metric::new(metric.value().new_empty(), None);
-                    accum.value_mut().aggregate(metric.value());
-                    accum
-                });
-        }
-
-        let new_metrics = map
-            .into_iter()
-            .map(|(_k, v)| Arc::new(v))
-            .collect::<Vec<_>>();
-
-        Self {
-            metrics: new_metrics,
-            span_name: self.span_name.to_owned(),
-            span_id: self.span_id,
-        }
     }
 
     /// Sort the order of metrics so the "most useful" show up first
@@ -331,14 +222,14 @@ impl MetricsSet {
 
     /// Remove all timestamp metrics (for more compact display)
     pub fn timestamps_removed(self) -> Self {
-        let Self { metrics, span_name, span_id } = self;
+        let Self { metrics } = self;
 
         let metrics = metrics
             .into_iter()
             .filter(|m| !m.value.is_timestamp())
             .collect::<Vec<_>>();
 
-        Self { metrics, span_name, span_id }
+        Self { metrics }
     }
 }
 
@@ -377,9 +268,9 @@ pub struct SpanMetricsSet {
 
 impl SpanMetricsSet {
     /// Create a new empty shared metrics set
-    pub fn new(span_name: &str, span_id: u64) -> Self {
+    pub fn new() -> Self {
         Self {
-            inner: Arc::new(Mutex::new(MetricsSet::new(span_name, span_id))),
+            inner: Arc::new(Mutex::new(MetricsSet::new())),
         }
     }
 
@@ -461,245 +352,39 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_display_no_labels_no_partition() {
-        let count = Count::new();
-        count.add(33);
-        let value = MetricValue::OutputRows(count);
-        let metric = Metric::new(value, None);
-
-        assert_eq!("output_rows=33", metric.to_string())
-    }
 
     #[test]
-    fn test_display_no_labels_with_partition() {
+    fn test_display_no_labels_with_span() {
         let count = Count::new();
         count.add(44);
         let value = MetricValue::OutputRows(count);
-        let metric = Metric::new(value, Some(1));
+        let metric = Metric::new(value, None, None, "1", 1);
 
-        assert_eq!("output_rows{partition=1}=44", metric.to_string())
+        assert_eq!("output_rows{span=1}=44", metric.to_string())
     }
 
     #[test]
-    fn test_display_labels_no_partition() {
-        let count = Count::new();
-        count.add(55);
-        let value = MetricValue::OutputRows(count);
-        let label = Label::new("foo", "bar");
-        let metric = Metric::new_with_labels(value, None, vec![label]);
-
-        assert_eq!("output_rows{foo=bar}=55", metric.to_string())
-    }
-
-    #[test]
-    fn test_display_labels_and_partition() {
+    fn test_display_labels_and_span() {
         let count = Count::new();
         count.add(66);
         let value = MetricValue::OutputRows(count);
         let label = Label::new("foo", "bar");
-        let metric = Metric::new_with_labels(value,  Some(2), vec![label]);
+        let metric = Metric::new_with_labels(value,  None, None, "1", 1, vec![label]);
 
-        assert_eq!("output_rows{partition=2, foo=bar}=66", metric.to_string())
-    }
-
-    #[test]
-    fn test_output_rows() {
-        let metrics = SpanMetricsSet::new("", 0);
-        assert!(metrics.clone_inner().output_rows().is_none());
-
-        let partition = 1;
-        let output_rows = MetricBuilder::new(&metrics).output_rows(partition);
-        output_rows.add(13);
-
-        let output_rows = MetricBuilder::new(&metrics).output_rows(partition + 1);
-        output_rows.add(7);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 20);
-    }
-
-    #[test]
-    fn test_elapsed_compute() {
-        let metrics = SpanMetricsSet::new("", 0);
-        assert!(metrics.clone_inner().elapsed_compute().is_none());
-
-        let partition = 1;
-        let elapsed_compute =
-            MetricBuilder::new(&metrics).elapsed_compute(partition);
-        elapsed_compute.add_duration(Duration::from_nanos(1234));
-
-        let elapsed_compute =
-            MetricBuilder::new(&metrics).elapsed_compute(partition + 1);
-        elapsed_compute.add_duration(Duration::from_nanos(6));
-        assert_eq!(metrics.clone_inner().elapsed_compute().unwrap(), 1240);
-    }
-
-    #[test]
-    fn test_sum() {
-        let metrics = SpanMetricsSet::new("", 0);
-
-        let count1 = MetricBuilder::new(&metrics)
-            .with_new_label("foo", "bar")
-            .counter("my_counter", 1);
-        count1.add(1);
-
-        let count2 = MetricBuilder::new(&metrics).counter("my_counter", 2);
-        count2.add(2);
-
-        let metrics = metrics.clone_inner();
-        assert!(metrics.sum(|_| false).is_none());
-
-        let expected_count = Count::new();
-        expected_count.add(3);
-        let expected_sum = MetricValue::Count {
-            name: "my_counter".into(),
-            count: expected_count,
-        };
-
-        assert_eq!(metrics.sum(|_| true), Some(expected_sum));
-    }
-
-    #[test]
-    #[should_panic(expected = "Mismatched metric types. Can not aggregate Count")]
-    fn test_bad_sum() {
-        // can not add different kinds of metrics
-        let metrics = SpanMetricsSet::new("", 0);
-
-        let count = MetricBuilder::new(&metrics).counter("my_metric",  1);
-        count.add(1);
-
-        let time = MetricBuilder::new(&metrics).subset_time("my_metric", 1);
-        time.add_duration(Duration::from_nanos(10));
-
-        // expect that this will error out
-        metrics.clone_inner().sum(|_| true);
-    }
-
-    #[test]
-    fn test_aggregate_by_name() {
-        let metrics = SpanMetricsSet::new("", 0);
-
-        // Note cpu_time1 has labels but it is still aggregated with metrics 2 and 3
-        let elapsed_compute1 = MetricBuilder::new(&metrics)
-            .with_new_label("foo", "bar")
-            .elapsed_compute(1);
-        elapsed_compute1.add_duration(Duration::from_nanos(12));
-
-        let elapsed_compute2 = MetricBuilder::new(&metrics).elapsed_compute(2);
-        elapsed_compute2.add_duration(Duration::from_nanos(34));
-
-        let elapsed_compute3 = MetricBuilder::new(&metrics).elapsed_compute(4);
-        elapsed_compute3.add_duration(Duration::from_nanos(56));
-
-        let output_rows = MetricBuilder::new(&metrics).output_rows(1); // output rows
-        output_rows.add(56);
-
-        let aggregated = metrics.clone_inner().aggregate_by_name();
-
-        // cpu time should be aggregated:
-        let elapsed_computes = aggregated
-            .iter()
-            .filter(|metric| matches!(metric.value(), MetricValue::ElapsedCompute(_)))
-            .collect::<Vec<_>>();
-        assert_eq!(elapsed_computes.len(), 1);
-        assert_eq!(elapsed_computes[0].value().as_usize(), 12 + 34 + 56);
-        assert!(elapsed_computes[0].partition_id().is_none());
-
-        // output rows should
-        let output_rows = aggregated
-            .iter()
-            .filter(|metric| matches!(metric.value(), MetricValue::OutputRows(_)))
-            .collect::<Vec<_>>();
-        assert_eq!(output_rows.len(), 1);
-        assert_eq!(output_rows[0].value().as_usize(), 56);
-        assert!(output_rows[0].partition_id.is_none())
-    }
-
-    #[test]
-    #[should_panic(expected = "Mismatched metric types. Can not aggregate Count")]
-    fn test_aggregate_task_bad_sum() {
-        let metrics = SpanMetricsSet::new("", 0);
-
-        let count = MetricBuilder::new(&metrics).counter("my_metric", 1);
-        count.add(1);
-
-        let time = MetricBuilder::new(&metrics).subset_time("my_metric", 1);
-        time.add_duration(Duration::from_nanos(10));
-
-        // can't aggregate time and count -- expect a panic
-        metrics.clone_inner().aggregate_by_name();
-    }
-
-    #[test]
-    fn test_aggregate_task_timestamps() {
-        let metrics = SpanMetricsSet::new("", 0);
-
-        // 1431648000000000 == 1970-01-17 13:40:48 UTC
-        let t1 = Utc.timestamp_nanos(1431648000000000);
-        // 1531648000000000 == 1970-01-18 17:27:28 UTC
-        let t2 = Utc.timestamp_nanos(1531648000000000);
-        // 1631648000000000 == 1970-01-19 21:14:08 UTC
-        let t3 = Utc.timestamp_nanos(1631648000000000);
-        // 1731648000000000 == 1970-01-21 01:00:48 UTC
-        let t4 = Utc.timestamp_nanos(1731648000000000);
-
-        let start_timestamp0 = MetricBuilder::new(&metrics).start_timestamp(0);
-        start_timestamp0.set(t1);
-        let end_timestamp0 = MetricBuilder::new(&metrics).end_timestamp(0);
-        end_timestamp0.set(t2);
-        let start_timestamp1 = MetricBuilder::new(&metrics).start_timestamp(0);
-        start_timestamp1.set(t3);
-        let end_timestamp1 = MetricBuilder::new(&metrics).end_timestamp(0);
-        end_timestamp1.set(t4);
-
-        // aggregate
-        let aggregated = metrics.clone_inner().aggregate_by_name();
-
-        let mut ts = aggregated
-            .iter()
-            .filter(|metric| {
-                matches!(metric.value(), MetricValue::StartTimestamp(_))
-                    && metric.labels().is_empty()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(ts.len(), 1);
-        match ts.remove(0).value() {
-            MetricValue::StartTimestamp(ts) => {
-                // expect earliest of t1, t2
-                assert_eq!(ts.value(), Some(t1));
-            }
-            _ => {
-                panic!("Not a timestamp");
-            }
-        };
-
-        let mut ts = aggregated
-            .iter()
-            .filter(|metric| {
-                matches!(metric.value(), MetricValue::EndTimestamp(_)) && metric.labels().is_empty()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(ts.len(), 1);
-        match ts.remove(0).value() {
-            MetricValue::EndTimestamp(ts) => {
-                // expect latest of t3, t4
-                assert_eq!(ts.value(), Some(t4));
-            }
-            _ => {
-                panic!("Not a timestamp");
-            }
-        };
+        assert_eq!("output_rows{span=1, foo=bar}=66", metric.to_string())
     }
 
     #[test]
     fn test_sorted_for_display() {
-        let metrics = SpanMetricsSet::new("", 0);
-        MetricBuilder::new(&metrics).end_timestamp(0);
-        MetricBuilder::new(&metrics).start_timestamp(0);
-        MetricBuilder::new(&metrics).elapsed_compute(0);
-        MetricBuilder::new(&metrics).counter("the_second_counter", 0);
-        MetricBuilder::new(&metrics).counter("the_counter", 0);
-        MetricBuilder::new(&metrics).counter("the_third_counter", 0);
-        MetricBuilder::new(&metrics).subset_time("the_time", 0);
-        MetricBuilder::new(&metrics).output_rows(0);
+        let metrics = SpanMetricsSet::new();
+        MetricBuilder::new(&metrics).end_timestamp(None, None, "", 0);
+        MetricBuilder::new(&metrics).start_timestamp(None, None, "", 0);
+        MetricBuilder::new(&metrics).elapsed_compute(None, None, "", 0);
+        MetricBuilder::new(&metrics).counter("the_second_counter", None, None, "", 0);
+        MetricBuilder::new(&metrics).counter("the_counter", None, None, "", 0);
+        MetricBuilder::new(&metrics).counter("the_third_counter", None, None, "", 0);
+        MetricBuilder::new(&metrics).subset_time("the_time", None, None, "", 0);
+        MetricBuilder::new(&metrics).output_rows(None, None, "", 0);
         let metrics = metrics.clone_inner();
 
         fn metric_names(metrics: &MetricsSet) -> String {

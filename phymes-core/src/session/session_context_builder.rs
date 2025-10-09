@@ -73,7 +73,6 @@ impl TaskPlanBuilder {
 pub trait SessionContextBuilderTrait: BuilderTrait {
     fn with_processors(self, processors: Vec<Arc<dyn ProcessorTrait>>) -> Self;
     fn with_state(self, state: Vec<Table>) -> Self;
-    fn with_metrics(self, metrics: SpanMetricsSet) -> Self;
     fn with_runtime_envs(self, runtime_envs: Vec<RuntimeEnv>) -> Self;
     fn with_tasks(self, tasks: Vec<TaskPlan>) -> Self;
     fn with_max_iter(self, max_iter: usize) -> Self;
@@ -84,7 +83,6 @@ pub struct SessionContextBuilder {
     pub name: Option<String>,
     pub processors: Option<Vec<Arc<dyn ProcessorTrait>>>,
     pub state: Option<Vec<Table>>,
-    pub metrics: Option<SpanMetricsSet>,
     pub runtime_envs: Option<Vec<RuntimeEnv>>,
     pub tasks: Option<Vec<TaskPlan>>,
     pub max_iter: Option<usize>,
@@ -94,7 +92,6 @@ type SessionContextInput = (
     String,
     TaskMap,
     StateMap,
-    SpanMetricsSet,
     HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     usize,
 );

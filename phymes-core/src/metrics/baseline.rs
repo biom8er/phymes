@@ -12,8 +12,8 @@ use anyhow::Result;
 ///
 /// Example:
 /// ```
-/// use phymes_core::metrics::{BaselineMetrics, ArrowTaskMetricsSet};
-/// let metrics = ArrowTaskMetricsSet::new();
+/// use phymes_core::metrics::{BaselineMetrics, SpanMetricsSet};
+/// let metrics = SpanMetricsSet::new();
 ///
 /// let baseline_metrics = BaselineMetrics::new(&metrics, "2", None);
 ///
@@ -39,14 +39,14 @@ pub struct BaselineMetrics {
 
 impl BaselineMetrics {
     /// Create a new BaselineMetric structure, and set `start_time` to now
-    pub fn new(metrics: &SpanMetricsSet, partition_id: usize) -> Self {
-        let start_time = MetricBuilder::new(metrics).start_timestamp(partition_id);
+    pub fn new(metrics: &SpanMetricsSet, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Self {
+        let start_time = MetricBuilder::new(metrics).start_timestamp(parent_name, parent_id, span_name, span_id);
         start_time.record();
 
         Self {
-            end_time: MetricBuilder::new(metrics).end_timestamp(partition_id),
-            elapsed_compute: MetricBuilder::new(metrics).elapsed_compute(partition_id),
-            output_rows: MetricBuilder::new(metrics).output_rows(partition_id),
+            end_time: MetricBuilder::new(metrics).end_timestamp(parent_name, parent_id, span_name, span_id),
+            elapsed_compute: MetricBuilder::new(metrics).elapsed_compute(parent_name, parent_id, span_name, span_id),
+            output_rows: MetricBuilder::new(metrics).output_rows(parent_name, parent_id, span_name, span_id),
         }
     }
 

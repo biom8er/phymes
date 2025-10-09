@@ -8,7 +8,7 @@ use crate::{
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
     schemas::embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat},
     session::{
         common_traits::{
@@ -103,7 +103,7 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -501,7 +501,7 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
 
         // Make and run the embeddings stream
@@ -575,7 +575,7 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
 
         // Make and run the embeddings stream

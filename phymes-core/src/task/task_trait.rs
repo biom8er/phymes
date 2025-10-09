@@ -35,9 +35,9 @@ use crate::{
 
 /// Trait to implement the actual task which could involve one or
 ///   more operators over [`RecordBatch`]s often originating from
-///   structs implementing the [`ArrowTableTrait`].
+///   structs implementing the [`TableTrait`].
 ///
-/// [`ArrowTableTrait`]: crate::table::arrow_table::ArrowTableTrait
+/// [`TableTrait`]: crate::table::table_trait::TableTrait
 ///
 /// The trait allows for the schema of the data to change (e.g. after joins),
 ///   but the logic must be implemented by the user
@@ -45,7 +45,7 @@ use crate::{
 ///
 /// # Example: Chaining
 ///
-/// Result = ArrowTask (t1) -> ArrowTask (t2) -> ArrowTask (t3)
+/// Result = Task (t1) -> Task (t2) -> Task (t3)
 /// where t3 represents the leaf node in the computation and t1 and t2 represent
 ///   intermediate nodes in the computation tree. The `run` method of [`RunnableTrait`] of
 ///   t3 will most likely just produce a stream of its underlying [`RecordBatch`]s
@@ -55,7 +55,7 @@ use crate::{
 ///
 /// # Example: Directed Cyclic Graph
 ///
-/// Result = ArrowTask (t1) -> Or(ArrowTask (t2) -> ArrowTask (t1), ArrowTask(t3) -> ArrowTask (t1), End)
+/// Result = Task (t1) -> Or(Task (t2) -> Task (t1), Task(t3) -> Task (t1), End)
 /// where t1 can call one or more tasks which that run a task and return the results to t1
 ///    or stop the loop when a criteria is reached
 ///
@@ -63,7 +63,7 @@ use crate::{
 ///
 /// # Example: Parallel execution
 ///
-/// Result = Apply ArrowTask (t1) over (ArrowTable (d1), ArrowTable (d2), ArrowTable (d3), ...)
+/// Result = Apply Task (t1) over (Taable (d1), Taable (d2), Taable (d3), ...)
 /// where the same task is run over different ArrowTables in parallel. The results can then
 ///    be collected is a single stream per table using [`collect_partitions_runs`] or
 ///    as a single stream using [`collect_task_runs`]
@@ -123,7 +123,7 @@ pub trait TaskTrait:
     fn get_runtime_env(&self) -> &Arc<Mutex<RuntimeEnv>>;
 
     /// Return a snapshot of the set of [`Metric`]s for this
-    /// [`ArrowTask`]. If no [`Metric`]s are available, return None.
+    /// [`Task`]. If no [`Metric`]s are available, return None.
     ///
     /// While the values of the metrics in the returned
     /// [`MetricsSet`]s may change as execution progresses, the
@@ -549,7 +549,7 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use hashbrown::HashMap;
 
-    /// A compilation test to ensure that the `ArrowTask::get_name()` method can
+    /// A compilation test to ensure that the `Task::get_name()` method can
     /// be called from a trait object.
     #[allow(dead_code)]
     fn use_task_name_as_trait_object(plan: &dyn TaskTrait<T = TaskBuilder>) {
