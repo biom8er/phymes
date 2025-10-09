@@ -23,18 +23,18 @@ pub fn get_metrics_as_pivot_table(
 ) -> Result<Table> {
     // extract out values from metrics
     let mut span_metrics_count: HashMap<(String, String), usize> = HashMap::new();
+    let mut parent_names_vec = Vec::<String>::new();
+    let mut parent_ids_vec = Vec::<u64>::new();
     let mut span_names_vec = Vec::<String>::new();
     let mut span_ids_vec = Vec::<u64>::new();
     let mut ids_vec = Vec::<u64>::new();
     let mut metric_names_vec = Vec::<String>::new();
     let mut metric_values_vec = Vec::<u64>::new();
-    let mut partition_ids_vec = Vec::<u64>::new();
     for metrics in metrics_vec.iter() {
-        let metrics_set = metrics.clone_inner();
-        let span_name = metrics_set.span_name().to_string();
-        let span_id = metrics_set.span_id().to_owned();
-        for metric in metrics_set.iter() {
+        for metric in metrics.clone_inner().iter() {
             // Count the number of unique span and metric combinations
+            let span_name = metric.span_name().to_string();
+            let span_id = metric.span_id().to_owned();
             let metric_name = metric.value().name().to_string();
             if let Some(count) =
                 span_metrics_count.get_mut(&(span_name.clone(), metric_name.clone()))
@@ -45,12 +45,13 @@ pub fn get_metrics_as_pivot_table(
             }
 
             // Record the span name, metric name, and value
-            span_names_vec.push(span_name.clone());
+            parent_names_vec.push(metric.parent_name().unwrap_or_default().to_string());
+            parent_ids_vec.push(metric.parent_id().unwrap_or_default().to_owned());
+            span_names_vec.push(span_name);
             span_ids_vec.push(span_id);
             ids_vec.push(metric.id().to_owned());
             metric_names_vec.push(metric_name);
             metric_values_vec.push(metric.value().as_usize() as u64);
-            partition_ids_vec.push(metric.partition_id().as_ref().unwrap().to_owned() as u64);
         }
     }
 
@@ -67,8 +68,8 @@ pub fn get_metrics_as_pivot_table(
     let unique_span_names_hashset = span_names_vec
         .iter()
         .zip(span_ids_vec.iter())
-        .zip(partition_ids_vec.iter())
-        .map(|((a, b), c)| (a, b, c))
+        .zip(parent_names_vec.iter())
+        .zip(parent_ids_vec.iter())
         .collect::<std::collections::HashSet<_>>();
     let mut unique_span_names = unique_span_names_hashset
         .iter()
@@ -80,36 +81,28 @@ pub fn get_metrics_as_pivot_table(
     let span_names: ArrayRef = Arc::new(StringArray::from(
         unique_span_names
             .iter()
-            .map(|(name, _, _)| name.to_string())
+            .map(|(name, _)| name.to_string())
             .collect::<Vec<_>>(),
     ));
     pivot_columns.push(("span_name", span_names));
     let span_ids: ArrayRef = Arc::new(UInt64Array::from(
         unique_span_names
             .iter()
-            .map(|(_, span_id, _)| span_id.to_owned().to_owned())
+            .map(|(_, span_id)| span_id.to_owned().to_owned())
             .collect::<Vec<_>>(),
     ));
     pivot_columns.push(("span_id", span_ids));
-    let partition_ids: ArrayRef = Arc::new(UInt64Array::from(
-        unique_span_names
-            .iter()
-            .map(|(_, _, partition_id)| partition_id.to_owned().to_owned())
-            .collect::<Vec<_>>(),
-    ));
-    pivot_columns.push(("partition_id", partition_ids));
 
     // Extract the metric values for each unique metric name and span name
     for metric_name in unique_metric_names.iter() {
         let mut pivot_metric_values = Vec::<u64>::new();
-        for (span_name, span_id, partition_id) in unique_span_names.iter() {
+        for (span_name, span_id) in unique_span_names.iter() {
             // find the matching metric and span name
             let mut found = false;
             for i in 0..span_names_vec.len() {
                 if metric_names_vec.get(i).unwrap() == metric_name
                     && span_names_vec.get(i).unwrap() == *span_name
                     && span_ids_vec.get(i).unwrap() == *span_id
-                    && partition_ids_vec.get(i).unwrap() == *partition_id
                 {
                     pivot_metric_values.push(metric_values_vec.get(i).unwrap().to_owned());
                     found = true;
@@ -144,15 +137,10 @@ pub fn get_metrics_as_table(metrics_vec: &[SpanMetricsSet], table_name: &str) ->
     let mut ids_vec = Vec::<u64>::new();
     let mut metric_names_vec = Vec::<String>::new();
     let mut metric_values_vec = Vec::<u64>::new();
-    let mut partition_ids_vec = Vec::<u64>::new();
-    let mut partition_ids_vec = Vec::<u64>::new();
     for metrics in metrics_vec.iter() {
-        let metrics_set = metrics.clone_inner();
-        let span_name = metrics_set.span_name().to_string();
-        let span_id = metrics_set.span_id().to_owned();
-        for metric in metrics_set.iter() {
-            span_names_vec.push(span_name.to_string());
-            span_ids_vec.push(span_id.to_owned());
+        for metric in metrics.clone_inner().iter() {
+            span_names_vec.push(metric.span_name().to_string());
+            span_ids_vec.push(metric.span_id().to_owned());
             ids_vec.push(metric.id().to_owned());
             metric_names_vec.push(metric.value().name().to_string());
             metric_values_vec.push(metric.value().as_usize() as u64);
@@ -160,21 +148,19 @@ pub fn get_metrics_as_table(metrics_vec: &[SpanMetricsSet], table_name: &str) ->
         }
 
         if let Some(val) = metrics_set.elapsed_compute() {
-            span_names_vec.push(span_name.to_string());
-            span_ids_vec.push(span_id.to_owned());
+            span_names_vec.push(metric.span_name().to_string());
+            span_ids_vec.push(metric.span_id().to_owned());
             ids_vec.push(0);
             metric_names_vec.push("elapsed_compute".to_string());
             metric_values_vec.push(val as u64);
-            partition_ids_vec.push(0);
         }
 
         if let Some(val) = metrics_set.output_rows() {
-            span_names_vec.push(span_name.to_string());
-            span_ids_vec.push(span_id.to_owned());
+            span_names_vec.push(metric.span_name().to_string());
+            span_ids_vec.push(metric.span_id().to_owned());
             ids_vec.push(0);
             metric_names_vec.push("output_rows".to_string());
             metric_values_vec.push(val as u64);
-            partition_ids_vec.push(0);
         }
     }
 
