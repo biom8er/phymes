@@ -1,5 +1,5 @@
 use crate::{
-    metrics::ArrowTaskMetricsSet,
+    metrics::SpanMetricsSet,
     session::{
         common_traits::{MappableTrait, SendableRecordBatchStreamMessageMap},
         runtime_env::RuntimeEnv,
@@ -226,7 +226,7 @@ pub trait ProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
     fn process(
         &self,
         message: SendableRecordBatchStreamMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap>;
 }
@@ -301,7 +301,7 @@ impl ProcessorTrait for ProcessorEcho {
     fn process(
         &self,
         message: SendableRecordBatchStreamMessageMap,
-        _metrics: ArrowTaskMetricsSet,
+        _metrics: SpanMetricsSet,
         _runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -449,7 +449,7 @@ pub mod test_processor {
         fn process(
             &self,
             message: SendableRecordBatchStreamMessageMap,
-            metrics: ArrowTaskMetricsSet,
+            metrics: SpanMetricsSet,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -605,7 +605,7 @@ pub mod test_processor {
         fn process(
             &self,
             _message: SendableRecordBatchStreamMessageMap,
-            _metrics: ArrowTaskMetricsSet,
+            _metrics: SpanMetricsSet,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -622,7 +622,7 @@ mod tests {
 
     use super::test_processor::ProcessorMock;
     use crate::{
-        metrics::{ArrowTaskMetricsSet, HashMap},
+        metrics::{SpanMetricsSet, HashMap},
         session::{
             common_traits::{BuildableTrait, BuilderTrait},
             runtime_env::RuntimeEnv,
@@ -644,7 +644,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_processor() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let runtime_env = RuntimeEnv::default();
         let name = "process_1".to_string();
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();

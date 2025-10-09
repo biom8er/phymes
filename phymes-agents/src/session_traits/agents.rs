@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use parking_lot::{Mutex, RwLock};
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap},
+    metrics::{SpanMetricsSet, HashMap},
     session::{
         common_traits::{MappableTrait, StateMap, TaskMap},
         runtime_env::RuntimeEnv,
@@ -20,7 +20,7 @@ type SessionContextInput = (
     String,
     TaskMap,
     StateMap,
-    ArrowTaskMetricsSet,
+    SpanMetricsSet,
     HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     usize,
     Vec<Table>,

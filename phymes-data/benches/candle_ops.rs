@@ -4,7 +4,7 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 use phymes_core::{
-    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    metrics::{get_metrics_as_pivot_table, SpanMetricsSet, BaselineMetrics, HashMap},
     session::{
         common_traits::{device, BuildableTrait, BuilderTrait},
         runtime_env::RuntimeEnv,
@@ -166,7 +166,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                 c.bench_function(id.as_str(), |b| {
                     b.iter(|| {
                         // Build the metrics
-                        let metrics = ArrowTaskMetricsSet::new();
+                        let metrics = SpanMetricsSet::new();
                         let sample_id = format!("{id}_{iter}");
                         let name = format!("ops-processor_{id}_{iter}");
 

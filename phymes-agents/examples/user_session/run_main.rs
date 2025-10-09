@@ -14,7 +14,7 @@ use phymes_agents::{
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{
+    metrics::{SpanMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
         session_context_builder::SessionContextBuilderTrait,
     }, table::{table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
@@ -22,7 +22,7 @@ use phymes_core::{
 
 pub async fn run_main() -> Result<()> {
     // initialize the metrics
-    let metrics = ArrowTaskMetricsSet::new();
+    let metrics = SpanMetricsSet::new();
 
     // initialize the session
     let user_agent_session = UserSession::default();

@@ -8,7 +8,7 @@ use phymes_agents::{
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{get_metrics_as_pivot_table, ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt, queries::QueriesBuilderTraitExt}, session::{
+    metrics::{get_metrics_as_pivot_table, SpanMetricsSet, BaselineMetrics, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt, queries::QueriesBuilderTraitExt}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
         session_context_builder::SessionContextBuilderTrait,
     }, table::{table_trait::TableTrait, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait}
@@ -130,7 +130,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 }
 
                 // Create the session stream state
-                let metrics = ArrowTaskMetricsSet::new();
+                let metrics = SpanMetricsSet::new();
                 let session_ctx = config
                     .build()
                     .with_metrics(metrics.clone())

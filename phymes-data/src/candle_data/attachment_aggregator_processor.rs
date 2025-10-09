@@ -5,7 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
     schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::create_blob_fields},
     session::{
         common_traits::{
@@ -126,7 +126,7 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());

@@ -5,7 +5,7 @@ use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
+    metrics::{SpanMetricsSet, HashMap, HashSet},
     session::common_traits::{StateMap, TaskMap},
     table::{
         table_trait::Table, table_publish::TablePublish,
@@ -73,7 +73,7 @@ impl TaskPlanBuilder {
 pub trait SessionContextBuilderTrait: BuilderTrait {
     fn with_processors(self, processors: Vec<Arc<dyn ProcessorTrait>>) -> Self;
     fn with_state(self, state: Vec<Table>) -> Self;
-    fn with_metrics(self, metrics: ArrowTaskMetricsSet) -> Self;
+    fn with_metrics(self, metrics: SpanMetricsSet) -> Self;
     fn with_runtime_envs(self, runtime_envs: Vec<RuntimeEnv>) -> Self;
     fn with_tasks(self, tasks: Vec<TaskPlan>) -> Self;
     fn with_max_iter(self, max_iter: usize) -> Self;
@@ -84,7 +84,7 @@ pub struct SessionContextBuilder {
     pub name: Option<String>,
     pub processors: Option<Vec<Arc<dyn ProcessorTrait>>>,
     pub state: Option<Vec<Table>>,
-    pub metrics: Option<ArrowTaskMetricsSet>,
+    pub metrics: Option<SpanMetricsSet>,
     pub runtime_envs: Option<Vec<RuntimeEnv>>,
     pub tasks: Option<Vec<TaskPlan>>,
     pub max_iter: Option<usize>,
@@ -94,7 +94,7 @@ type SessionContextInput = (
     String,
     TaskMap,
     StateMap,
-    ArrowTaskMetricsSet,
+    SpanMetricsSet,
     HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     usize,
 );
@@ -324,7 +324,7 @@ impl SessionContextBuilder {
         // Check for metrics; if none, initialize with defaults
         let metrics = match self.metrics {
             Some(ref metrics) => metrics.clone(),
-            None => ArrowTaskMetricsSet::new(),
+            None => SpanMetricsSet::new(),
         };
 
         // Build the tasks
@@ -413,7 +413,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
         self.state = Some(state);
         self
     }
-    fn with_metrics(mut self, metrics: ArrowTaskMetricsSet) -> Self {
+    fn with_metrics(mut self, metrics: SpanMetricsSet) -> Self {
         self.metrics = Some(metrics);
         self
     }
@@ -627,7 +627,7 @@ pub mod test_session_context_builder {
 
     pub fn make_test_session_context_parallel_task(
         name: &str,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         max_iter: usize,
     ) -> Result<SessionContext> {
         // Init runtime env
@@ -649,7 +649,7 @@ pub mod test_session_context_builder {
 
     pub fn make_test_session_context_parallel_task_empty(
         name: &str,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         max_iter: usize,
     ) -> Result<SessionContext> {
         // Init runtime env
@@ -671,7 +671,7 @@ pub mod test_session_context_builder {
 
     pub fn make_test_session_context_sequential_task(
         name: &str,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         max_iter: usize,
     ) -> Result<SessionContext> {
         // Init runtime env
@@ -758,7 +758,7 @@ mod tests {
 
     #[test]
     fn test_session_build_success() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session = test_session_context_builder::make_test_session_context_parallel_task(
             "session_1",
             metrics,

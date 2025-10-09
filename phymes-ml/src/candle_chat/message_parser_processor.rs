@@ -5,7 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
     schemas::{
         available_subjects::{create_timestamp_micros, create_values_record_batch, AvailableSubjects, AvailableSubjectsTrait}, 
         chat::create_chat_record_batch,
@@ -119,7 +119,7 @@ impl ProcessorTrait for MessageParserProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -453,7 +453,7 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -557,7 +557,7 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -661,7 +661,7 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,

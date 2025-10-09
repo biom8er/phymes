@@ -2,7 +2,7 @@ use candle_core::{DType, Tensor};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{
+    metrics::{SpanMetricsSet, BaselineMetrics, HashMap}, schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{
         common_traits::{
             device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, TokenWrapper
         },
@@ -97,7 +97,7 @@ impl ProcessorTrait for CandleEmbedProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -755,7 +755,7 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor", 0);
 
         // Make and run the embeddings stream
@@ -840,7 +840,7 @@ mod tests {
                 .build()?;
 
             // Make the metrics
-            let metrics = ArrowTaskMetricsSet::new();
+            let metrics = SpanMetricsSet::new();
             let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor", 0);
 
             // Make and run the embeddings stream
@@ -940,7 +940,7 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor", 0);
 
         // Make the runtime

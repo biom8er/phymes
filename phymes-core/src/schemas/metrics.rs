@@ -12,7 +12,7 @@ pub fn create_metrics_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["span_id", "id", "metric_value"];
+    let field_names = ["span_id", "id", "metric_value", "partition_id"];
     fields_vec.extend(field_names
         .iter()
         .map(|f| Field::new(*f, DataType::UInt64, false))
@@ -26,27 +26,23 @@ pub fn create_metrics_batch(
     span_id: Vec<u64>,
     id: Vec<u64>,
     metric_value: Vec<u64>,
+    partition_id: Vec<u64>,
 ) -> Result<RecordBatch> {
     let span_name_arr: ArrayRef = Arc::new(StringArray::from(span_name));
     let metric_name_arr: ArrayRef = Arc::new(StringArray::from(metric_name));
     let span_id_arr: ArrayRef = Arc::new(UInt64Array::from(span_id));
     let id_arr: ArrayRef = Arc::new(UInt64Array::from(id));
     let metric_value_arr: ArrayRef = Arc::new(UInt64Array::from(metric_value));
+    let partition_id_arr: ArrayRef = Arc::new(UInt64Array::from(partition_id));
     let batch = RecordBatch::try_from_iter(vec![
         ("span_name", span_name_arr),
         ("metric_name", metric_name_arr),
         ("span_id", span_id_arr),
         ("id", id_arr),
         ("metric_value", metric_value_arr),
+        ("partition_id", partition_id_arr),
     ])?;
     Ok(batch)
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct MetricSubject {
-    pub span_name: String,
-    pub metric_name: String,
-    pub metric_value: u64,
 }
 
 pub fn create_metrics_mermaid_gantt_fields() -> Fields {

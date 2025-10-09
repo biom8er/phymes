@@ -774,7 +774,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::{ArrowTaskMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
+        metrics::{SpanMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
             common_traits::MappableTrait, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilderTrait
         }, table::{data_format::CsvFormat, table_trait::TableTrait}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
@@ -787,7 +787,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_tool_agent_session() -> Result<()> {
         // initialize the metrics
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         // initialize the session
         let tool_agent_session = ToolAgentSession::default();

@@ -7,7 +7,7 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "openai_api")]
 use crate::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
     schemas::{
         available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, chat::{create_chat_record_batch, ChatTraitExt}, chat_completion::Tool
     },
@@ -106,7 +106,7 @@ impl ProcessorTrait for CandleChatProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -652,7 +652,7 @@ pub mod bench_chat_processor {
 
     /// Run the chat processor with a given config and return the message history
     pub async fn bench_chat_processor(
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         config: &CandleChatConfig,
         user_content: &str,
         name: &str,
@@ -870,7 +870,7 @@ mod tests {
         let messages = "messages";
 
         // Metrics to compute time and rows
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         // State for the chat processor config
         let candle_chat_config = CandleChatConfig {

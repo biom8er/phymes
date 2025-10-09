@@ -310,7 +310,7 @@ impl ChatBuilderTraitExt for TableBuilder {
 mod test_messages {
     use super::*;
     use crate::{
-        metrics::{ArrowTaskMetricsSet, HashMap},
+        metrics::{SpanMetricsSet, HashMap},
         session::{
             common_traits::{BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap},
             runtime_env::RuntimeEnv,
@@ -406,7 +406,7 @@ mod test_messages {
         fn process(
             &self,
             mut message: SendableRecordBatchStreamMessageMap,
-            _metrics: ArrowTaskMetricsSet,
+            _metrics: SpanMetricsSet,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             // Create the stream response
@@ -557,7 +557,7 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        metrics::{ArrowTaskMetricsSet, HashMap},
+        metrics::{SpanMetricsSet, HashMap},
         session::{
             common_traits::{BuildableTrait, BuilderTrait},
             runtime_env::{RuntimeEnv, RuntimeEnvTrait},
@@ -714,7 +714,7 @@ mod tests {
             test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
-            ArrowTaskMetricsSet::new(),
+            SpanMetricsSet::new(),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
@@ -801,7 +801,7 @@ mod tests {
         let chat_processor = test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
-            ArrowTaskMetricsSet::new(),
+            SpanMetricsSet::new(),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 

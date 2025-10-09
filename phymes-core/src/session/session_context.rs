@@ -16,7 +16,7 @@ use super::{
     session_context_builder::SessionContextBuilder,
 };
 use crate::metrics::{
-    ArrowTaskMetricsSet, HashMap, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt,
+    SpanMetricsSet, HashMap, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt,
     get_metrics_as_pivot_table,
 };
 use crate::table::table_publish::TablePublish;
@@ -71,7 +71,7 @@ pub struct SessionContext {
     /// Data that should be persisted between queries
     pub(crate) state: StateMap,
     /// Metrics tracked during task runs
-    pub(crate) metrics: ArrowTaskMetricsSet,
+    pub(crate) metrics: SpanMetricsSet,
     /// Runtime environment configuration to use during task runs
     pub(crate) runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     /// The maximum number of iterations before stopping
@@ -83,7 +83,7 @@ impl SessionContext {
         name: String,
         tasks: TaskMap,
         state: StateMap,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
         max_iter: usize,
     ) -> SessionContext {
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_session_get_table_name_by_schema() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
 
@@ -354,7 +354,7 @@ mod tests {
 
     #[test]
     fn test_session_update_subject_num_rows_table() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let mut session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
         session_context.update_subject_num_rows_table();
@@ -388,7 +388,7 @@ mod tests {
 
     #[test]
     fn test_session_init_superstep_updates() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
         let init = session_context.init_superstep_updates();
@@ -454,7 +454,7 @@ mod tests {
     fn test_session_read_write_state() -> Result<()> {
         // Create the session
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
 

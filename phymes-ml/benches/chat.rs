@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, get_metrics_as_pivot_table},
+    metrics::{SpanMetricsSet, BaselineMetrics, get_metrics_as_pivot_table},
     table::table_trait::TableTrait,
 };
 use phymes_ml::{
@@ -137,7 +137,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
             let mut iter = 0;
             c.bench_function(id.as_str(), |b| {
                 b.iter(|| {
-                    let metrics = ArrowTaskMetricsSet::new();
+                    let metrics = SpanMetricsSet::new();
                     let sample_id = format!("{id}_{iter}");
                     let name = format!("chat_processor_{id}_{iter}");
                     // DM: Cannot use tokio::runtime::Runtime in WASM context

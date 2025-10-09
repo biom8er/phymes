@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
     schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::create_chat_fields},
     session::{
         common_traits::{
@@ -96,7 +96,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -202,7 +202,7 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         // Make the runtime environment
         let device = device(config.cpu)?;

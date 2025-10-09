@@ -1,7 +1,7 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_core::metrics::ArrowTaskMetricsSet;
+use phymes_core::metrics::SpanMetricsSet;
 use phymes_core::metrics::HashMap;
 use phymes_core::session::common_traits::MappableTrait;
 use phymes_core::session::session_stream::SessionStream;
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
         Some(guard)
     };
 
-    let metrics = ArrowTaskMetricsSet::new();
+    let metrics = SpanMetricsSet::new();
     let session_context =
         make_test_session_context_sequential_task("session_1", metrics.clone(), 4)?;
     let input = make_test_input_message(

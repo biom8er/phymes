@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 // From crates
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap}, 
+    metrics::{SpanMetricsSet, HashMap}, 
     schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::BlobBuilderTraitExt, mermaid::create_mermaid_batch, user::{create_user_inbox_batch, create_user_session_contexts_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait}}, 
     table::{data_format::JsonFormat, table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, 
@@ -238,7 +238,7 @@ impl ServerState {
                 } else {
                     // Build the session stream state with tables from Mermaid
                     // and leave the upload of configs and other initial session state to another step          
-                    let metrics = ArrowTaskMetricsSet::new();
+                    let metrics = SpanMetricsSet::new();
                     // DM: turn agent subject tests back on after refactoring BuilderSession
                     let session_context = SessionContextBuilder::from_mermaid_flowchart(&user_session_context.flowchart_diagram, false)?
                         .with_name(&session_name)

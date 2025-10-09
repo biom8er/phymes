@@ -8,7 +8,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap, HashSet},
+    metrics::{SpanMetricsSet, HashMap, HashSet},
     session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, runtime_env::{RuntimeEnv, RuntimeEnvTrait}, session_context::SessionContext, session_context_builder::{
             SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
@@ -1152,7 +1152,7 @@ impl BuilderTrait for SessionContextBuilderMermaid {
 
         // Use defaults for metrics and max iters
         let max_iter = self.max_iter.unwrap_or(25);
-        let builder = builder.with_metrics(ArrowTaskMetricsSet::new())
+        let builder = builder.with_metrics(SpanMetricsSet::new())
             .with_max_iter(max_iter);
         builder.build()
     }

@@ -215,7 +215,7 @@ impl SessionStreamStep {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metrics::ArrowTaskMetricsSet;
+    use crate::metrics::SpanMetricsSet;
     use crate::schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait};
     use crate::session::session_context::SessionContextTableNames;
     use crate::session::session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan};
@@ -238,7 +238,7 @@ mod tests {
         //         -> task_2: add a row
         //         -> task_3: add a row
         //         -> session
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 4)?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
@@ -329,7 +329,7 @@ mod tests {
         //         -> task_2: add a row
         //         -> task_3: add a row
         //         -> session
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 4)?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
@@ -430,7 +430,7 @@ mod tests {
         //         -> task_2: add a row
         //         -> task_3: add a row
         //         -> session
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 4)?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
@@ -532,7 +532,7 @@ mod tests {
         //         -> task_3: add a row
         //         -> session
         // Superstep 1
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session_context =
             make_test_session_context_parallel_task("session_1", metrics.clone(), 4)?;
         let mut input = make_test_input_message(
@@ -920,7 +920,7 @@ mod tests {
         //         -> task_3: add a row
         //         -> session
         // Superstep 1
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session_context =
             make_test_session_context_sequential_task("session_1", metrics.clone(), 4)?;
         let input = make_test_input_message(
@@ -1109,7 +1109,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session_context =
             make_test_session_context_sequential_task("session_1", metrics.clone(), 4)?;
         let input = make_test_input_message(
@@ -1167,7 +1167,7 @@ mod tests {
             AllTableNamesSubscribe::new_box()
         )];
         let state = make_state_tables("state_1", "config_1")?;
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let mut session_context = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans)

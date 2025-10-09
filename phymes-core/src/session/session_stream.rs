@@ -98,7 +98,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        metrics::ArrowTaskMetricsSet, session::{common_traits::{BuilderTrait, MappableTrait}, session_context::SessionContextTableNames, session_context_builder::test_session_context_builder::make_test_session_context_sequential_task}, table::{table_publish::TablePublish, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}}, task::{message::MessageTrait, task_trait::test_task::make_test_input_message}
+        metrics::SpanMetricsSet, session::{common_traits::{BuilderTrait, MappableTrait}, session_context::SessionContextTableNames, session_context_builder::test_session_context_builder::make_test_session_context_sequential_task}, table::{table_publish::TablePublish, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}}, task::{message::MessageTrait, task_trait::test_task::make_test_input_message}
     };
 
     #[tokio::test]
@@ -107,7 +107,7 @@ mod tests {
         //         -> task_2: add a row
         //         -> task_3: add a row
         //         -> session
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let session_context =
             make_test_session_context_sequential_task("session_1", metrics.clone(), 4)?;
         let input = make_test_input_message(

@@ -22,7 +22,7 @@ use super::test_exec::{collect_partitions_runs, collect_task_runs};
 use crate::metrics::Metric;
 
 use crate::{
-    metrics::{ArrowTaskMetricsSet, HashMap, MetricsSet},
+    metrics::{SpanMetricsSet, HashMap, MetricsSet},
     session::{
         common_traits::{
             BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, RunnableTrait,
@@ -145,7 +145,7 @@ pub struct Task {
     /// Name of the task
     name: String,
     /// Metrics for the task and processors
-    metrics: ArrowTaskMetricsSet,
+    metrics: SpanMetricsSet,
     /// Runtime environment for the task and processors
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Entry processor
@@ -220,7 +220,7 @@ impl PubSubTrait for Task {
 }
 
 pub trait TaskBuilderTrait: BuilderTrait {
-    fn with_metrics(self, metrics: ArrowTaskMetricsSet) -> Self;
+    fn with_metrics(self, metrics: SpanMetricsSet) -> Self;
     fn with_runtime_env(self, runtime_env: Arc<Mutex<RuntimeEnv>>) -> Self;
     fn with_processor(self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self;
 }
@@ -230,7 +230,7 @@ pub struct TaskBuilder {
     /// Task name
     pub name: Option<String>,
     /// Metrics for the task
-    pub metrics: Option<ArrowTaskMetricsSet>,
+    pub metrics: Option<SpanMetricsSet>,
     /// Runtime environment for the task
     pub runtime_env: Option<Arc<Mutex<RuntimeEnv>>>,
     /// Function that implements the logic
@@ -265,7 +265,7 @@ impl BuilderTrait for TaskBuilder {
 }
 
 impl TaskBuilderTrait for TaskBuilder {
-    fn with_metrics(mut self, metrics: ArrowTaskMetricsSet) -> Self {
+    fn with_metrics(mut self, metrics: SpanMetricsSet) -> Self {
         self.metrics = Some(metrics);
         self
     }
@@ -409,7 +409,7 @@ pub mod test_task {
         runtime_env_name: &str,
         table_name: &str,
         config_name: &str,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
     ) -> Result<Task> {
         let processor_name = format!("{name}_processor");
         Task::get_builder()
@@ -440,7 +440,7 @@ pub mod test_task {
         table_name_1: &str,
         table_name_2: &str,
         config_name: &str,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
     ) -> Result<Task> {
         let processor_name = format!("{name}_processor");
         Task::get_builder()
@@ -473,7 +473,7 @@ pub mod test_task {
         runtime_env_name: &str,
         table_name: &str,
         config_name: &str,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
     ) -> Result<Task> {
         let processor_name_1 = format!("{name}_processor_1");
         let processor_name_2 = format!("{name}_processor_2");
@@ -679,7 +679,7 @@ mod tests {
 
     #[test]
     fn test_get_subscriptions_from_state() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         // Single processor with All logic
         let test_task = test_task::make_test_task_single_processor(
@@ -754,7 +754,7 @@ mod tests {
 
     #[test]
     fn test_run_task_make_outbox() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let test_task = test_task::make_test_task_single_processor(
             "test_task",
             "test_rt",
@@ -831,7 +831,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_task_single_processor() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let test_task = test_task::make_test_task_single_processor(
             "test_task",
             "test_rt",
@@ -882,7 +882,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_task_chained_processor() -> Result<()> {
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let test_task = test_task::make_test_task_chained_processor(
             "test_task",
             "test_rt",

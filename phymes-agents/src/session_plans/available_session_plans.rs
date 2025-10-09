@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    metrics::ArrowTaskMetricsSet,
+    metrics::SpanMetricsSet,
     session::{
         common_traits::BuilderTrait,
         session_stream_state::SessionStreamState,
@@ -104,7 +104,7 @@ impl AvailableSessionPlans {
     /// Get the session stream state
     pub fn get_session_stream_state(&self, session_name: &str) -> Arc<RwLock<SessionStreamState>> {
         // Initialize the metrics
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         // Initialize the session
         let builder = self.get_session_context_builder(session_name);

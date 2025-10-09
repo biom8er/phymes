@@ -6,7 +6,7 @@ extern crate accelerate_src;
 
 use anyhow::Result;
 use clap::Parser;
-use phymes_core::{metrics::ArrowTaskMetricsSet, table::table_trait::TableTrait};
+use phymes_core::{metrics::SpanMetricsSet, table::table_trait::TableTrait};
 
 use phymes_ml::candle_chat::{
     chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor,
@@ -22,7 +22,7 @@ pub async fn run_main() -> Result<()> {
     );
 
     // Metrics to compute time and rows
-    let metrics = ArrowTaskMetricsSet::new();
+    let metrics = SpanMetricsSet::new();
 
     // Chat processor config
     let config = CandleChatConfig::parse();

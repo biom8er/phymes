@@ -5,7 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
     schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, blob::create_blob_batch, chat::create_chat_record_batch},
     session::{
         common_traits::{
@@ -106,7 +106,7 @@ impl ProcessorTrait for DataSummaryProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -502,7 +502,7 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -597,7 +597,7 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,

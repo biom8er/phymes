@@ -1,7 +1,7 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
 use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
+    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
     session::{
         common_traits::{
             BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, device,
@@ -107,7 +107,7 @@ impl ProcessorTrait for CandleDataProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        metrics: SpanMetricsSet,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -583,7 +583,7 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
         let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor", 0);
 
         // Make the runtime environment
@@ -934,7 +934,7 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let metrics = SpanMetricsSet::new();
 
         // Make the runtime environment
         let device = device(config.cpu)?;
