@@ -2,6 +2,8 @@
 
 use std::{borrow::Cow, sync::Arc};
 
+use crate::metrics::BaselineMetrics;
+
 use super::{SpanMetricsSet, Count, Gauge, Label, Metric, MetricValue, Time, Timestamp};
 
 /// Structure for constructing metrics, counters, timers, etc.
@@ -25,6 +27,7 @@ use super::{SpanMetricsSet, Count, Gauge, Label, Metric, MetricValue, Time, Time
 ///    .counter("num_bytes", partition);
 ///
 /// ```
+#[derive(Clone, Debug)]
 pub struct MetricBuilder<'a> {
     /// Location that the metric created by this builder will be added do
     metrics: &'a SpanMetricsSet,
@@ -86,6 +89,13 @@ impl<'a> MetricBuilder<'a> {
         self
     }
 
+    /// Move spans to parents
+    pub fn to_child(mut self) -> Self {
+        self.parent_id = self.span_id.take();
+        self.parent_name = self.span_name.take();
+        self
+    }
+
     /// Consume self and create a metric of the specified value
     /// registered with the MetricsSet
     pub fn build(self, value: MetricValue) {
@@ -102,107 +112,46 @@ impl<'a> MetricBuilder<'a> {
     }
 
     /// Consume self and create a new counter for recording output rows
-    pub fn output_rows(self, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Count {
+    pub fn output_rows(self) -> Count {
         let count = Count::new();
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .build(MetricValue::OutputRows(count.clone()));
-        } else {
-            self.with_span(span_name, span_id)
-                .build(MetricValue::OutputRows(count.clone()));
-        }
+        self.build(MetricValue::OutputRows(count.clone()));
         count
     }
 
     /// Consume self and create a new counter for recording the number of spills
     /// triggered by an operator
-    pub fn spill_count(self, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Count {
+    pub fn spill_count(self) -> Count {
         let count = Count::new();
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .build(MetricValue::OutputRows(count.clone()));
-        } else {
-            self.with_span(span_name, span_id)
-                .build(MetricValue::OutputRows(count.clone()));
-        }
+        self.build(MetricValue::OutputRows(count.clone()));
         count
     }
 
     /// Consume self and create a new counter for recording the total spilled bytes
     /// triggered by an operator
-    pub fn spilled_bytes(self, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Count {
+    pub fn spilled_bytes(self) -> Count {
         let count = Count::new();
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .build(MetricValue::SpilledBytes(count.clone()));
-        } else {
-            self.with_span(span_name, span_id)
-                .build(MetricValue::SpilledBytes(count.clone()));
-        }
+        self.build(MetricValue::SpilledBytes(count.clone()));
         count
     }
 
     /// Consume self and create a new counter for recording the total spilled rows
     /// triggered by an operator
-    pub fn spilled_rows(self, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Count {
+    pub fn spilled_rows(self) -> Count {
         let count = Count::new();
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .build(MetricValue::SpilledRows(count.clone()));
-        } else {
-            self.with_span(span_name, span_id)
-                .build(MetricValue::SpilledRows(count.clone()));
-        }
+        self.build(MetricValue::SpilledRows(count.clone()));
         count
     }
 
     /// Consume self and create a new gauge for reporting current memory usage
-    pub fn mem_used(self, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Gauge {
+    pub fn mem_used(self, parent_name: Option<&str>) -> Gauge {
         let gauge = Gauge::new();
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .build(MetricValue::CurrentMemoryUsage(gauge.clone()));
-        } else {
-            self.with_span(span_name, span_id)
-                .build(MetricValue::CurrentMemoryUsage(gauge.clone()));
-        }
+        self.build(MetricValue::CurrentMemoryUsage(gauge.clone()));
         gauge
-    }
-
-    /// Consumes self and creates a new [`Count`] for recording some
-    /// arbitrary metric of an operator.
-    pub fn counter(self, counter_name: impl Into<Cow<'static, str>>, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Count {
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .global_counter(counter_name)
-        } else {
-            self.with_span(span_name, span_id)
-                .global_counter(counter_name)
-        }
-    }
-
-    /// Consumes self and creates a new [`Gauge`] for reporting some
-    /// arbitrary metric of an operator.
-    pub fn gauge(self, gauge_name: impl Into<Cow<'static, str>>, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Gauge {
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .global_gauge(gauge_name)
-        } else {
-            self.with_span(span_name, span_id)
-                .global_gauge(gauge_name)
-        }
     }
 
     /// Consumes self and creates a new [`Count`] for recording a
     /// metric of an overall operator (not per task)
-    pub fn global_counter(self, counter_name: impl Into<Cow<'static, str>>) -> Count {
+    pub fn counter(self, counter_name: impl Into<Cow<'static, str>>) -> Count {
         let count = Count::new();
         self.build(MetricValue::Count {
             name: counter_name.into(),
@@ -213,7 +162,7 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consumes self and creates a new [`Gauge`] for reporting a
     /// metric of an overall operator (not per task)
-    pub fn global_gauge(self, gauge_name: impl Into<Cow<'static, str>>) -> Gauge {
+    pub fn gauge(self, gauge_name: impl Into<Cow<'static, str>>) -> Gauge {
         let gauge = Gauge::new();
         self.build(MetricValue::Gauge {
             name: gauge_name.into(),
@@ -224,67 +173,45 @@ impl<'a> MetricBuilder<'a> {
 
     /// Consume self and create a new Timer for recording the elapsed
     /// CPU time spent by an operator
-    pub fn elapsed_compute(self, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Time {
+    pub fn elapsed_compute(self) -> Time {
         let time = Time::new();
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .build(MetricValue::ElapsedCompute(time.clone()));
-        } else {
-            self.with_span(span_name, span_id)
-                .build(MetricValue::ElapsedCompute(time.clone()));
-        }
+        self.build(MetricValue::ElapsedCompute(time.clone()));
         time
     }
 
     /// Consumes self and creates a new Timer for recording some
     /// subset of an operators execution time.
-    pub fn subset_time(self, subset_name: impl Into<Cow<'static, str>>, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Time {
+    pub fn subset_time(self, subset_name: impl Into<Cow<'static, str>>) -> Time {
         let time = Time::new();
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .build(MetricValue::Time {
-                    name: subset_name.into(),
-                    time: time.clone(),
-                });
-        } else {
-            self.with_span(span_name, span_id)
-                .build(MetricValue::Time {
-                    name: subset_name.into(),
-                    time: time.clone(),
-                });
-        }
+        self.build(MetricValue::Time {
+            name: subset_name.into(),
+            time: time.clone(),
+        });
         time
     }
 
     /// Consumes self and creates a new Timestamp for recording the
     /// starting time of execution for a task
-    pub fn start_timestamp(self, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Timestamp {
+    pub fn start_timestamp(self) -> Timestamp {
         let timestamp = Timestamp::new();
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .build(MetricValue::StartTimestamp(timestamp.clone()));
-        } else {
-            self.with_span(span_name, span_id)
-                .build(MetricValue::StartTimestamp(timestamp.clone()));
-        }
+        self.build(MetricValue::StartTimestamp(timestamp.clone()));
         timestamp
     }
 
     /// Consumes self and creates a new Timestamp for recording the
     /// ending time of execution for a task
-    pub fn end_timestamp(self, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Timestamp {
+    pub fn end_timestamp(self) -> Timestamp {
         let timestamp = Timestamp::new();
-        if let (Some(parent_name), Some(parent_id)) = (parent_name, parent_id) {
-            self.with_parent(parent_name, parent_id)
-                .with_span(span_name, span_id)
-                .build(MetricValue::EndTimestamp(timestamp.clone()));
-        } else {
-            self.with_span(span_name, span_id)
-                .build(MetricValue::EndTimestamp(timestamp.clone()));
-        }
+        self.build(MetricValue::EndTimestamp(timestamp.clone()));
         timestamp
+    }
+
+    /// Consumes self and crease a new [BaselineMetrics]
+    pub fn baseline_metrics(self) -> BaselineMetrics {
+        let start_time = self.clone().start_timestamp();
+        let end_time = self.clone().end_timestamp();
+        let elapsed_compute = self.clone().elapsed_compute();
+        let output_rows = self.output_rows();
+        BaselineMetrics::new(start_time, end_time, elapsed_compute, output_rows)
     }
 }

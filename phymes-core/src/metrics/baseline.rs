@@ -39,14 +39,13 @@ pub struct BaselineMetrics {
 
 impl BaselineMetrics {
     /// Create a new BaselineMetric structure, and set `start_time` to now
-    pub fn new(metrics: &SpanMetricsSet, parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Self {
-        let start_time = MetricBuilder::new(metrics).start_timestamp(parent_name, parent_id, span_name, span_id);
+    pub fn new(start_time: Timestamp, end_time: Timestamp, elapsed_compute: Time, output_rows: Count) -> Self {
         start_time.record();
 
         Self {
-            end_time: MetricBuilder::new(metrics).end_timestamp(parent_name, parent_id, span_name, span_id),
-            elapsed_compute: MetricBuilder::new(metrics).elapsed_compute(parent_name, parent_id, span_name, span_id),
-            output_rows: MetricBuilder::new(metrics).output_rows(parent_name, parent_id, span_name, span_id),
+            end_time,
+            elapsed_compute,
+            output_rows,
         }
     }
 
