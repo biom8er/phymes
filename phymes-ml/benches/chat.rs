@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use phymes_core::{
-    metrics::{SpanMetricsSet, BaselineMetrics, get_metrics_as_pivot_table},
+    metrics::{get_metrics_as_pivot_table, MetricBuilder, SpanMetricsSet},
     table::table_trait::TableTrait,
 };
 use phymes_ml::{
@@ -139,6 +139,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                 b.iter(|| {
                     let metrics = SpanMetricsSet::new();
                     let sample_id = format!("{id}_{iter}");
+                    let metrics_builder = MetricBuilder::new(&metrics).with_span(sample_id.as_str(), iter);
                     let name = format!("chat_processor_{id}_{iter}");
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
                     #[cfg(feature = "wasip2")]
@@ -147,10 +148,10 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                         .unwrap();
                     #[cfg(not(feature = "wasip2"))]
                     let rt = tokio::runtime::Runtime::new().unwrap();
-                    let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str(), iter);
+                    let baseline_metrics = metrics_builder.clone().baseline_metrics();
                     let timer = baseline_metrics.elapsed_compute().timer();
                     let _messages = rt.block_on(async {
-                        bench_chat_processor(metrics.clone(), config, user_content, name.as_str())
+                        bench_chat_processor(&metrics_builder, config, user_content, name.as_str())
                             .await
                     });
                     timer.done();

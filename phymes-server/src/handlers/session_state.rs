@@ -241,12 +241,13 @@ pub async fn session_get_state(
                 Some(session_stream_state) => {
                     
                     // Update the metrics and row counts just in case...
-                    session_stream_state
-                        .try_write()
-                        .unwrap()
-                        .get_session_context_mut()
-                        .update_metrics_table()
-                        .unwrap();
+                    // DM: change to update the mermaid table...
+                    // session_stream_state
+                    //     .try_write()
+                    //     .unwrap()
+                    //     .get_session_context_mut()
+                    //     .update_metrics_table()
+                    //     .unwrap();
                     session_stream_state
                         .try_write()
                         .unwrap()

@@ -301,8 +301,8 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::{SpanMetricsSet, HashMap}, schemas::chat::ChatBuilderTraitExt, session::{
-            common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilderTrait
+        metrics::HashMap, schemas::chat::ChatBuilderTraitExt, session::{
+            common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
         }, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
 
@@ -312,14 +312,11 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_chat_agent_session() -> Result<()> {
-        // initialize the metrics
-        let metrics = SpanMetricsSet::new();
 
         // initialize the session
         let chat_agent_session = ChatAgentSession::default();
         let session_ctx = chat_agent_session
             .build()
-            .with_metrics(metrics.clone())
             .with_name(chat_agent_session.session_context_name)
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
@@ -367,18 +364,18 @@ mod tests {
                 }
             }
 
-            for metric in metrics.clone_inner().iter() {
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap() == "chat_task_1"
-                {
-                    assert_eq!(metric.value().as_usize(), 2);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap() == "chat_processor_1"
-                {
-                    assert!(metric.value().as_usize() >= 1);
-                }
-            }
+            // for metric in metrics.clone_inner().iter() {
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == "chat_task_1"
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 2);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == "chat_processor_1"
+            //     {
+            //         assert!(metric.value().as_usize() >= 1);
+            //     }
+            // }
 
             assert_eq!(json_data.first().unwrap().get("role").unwrap(), "assistant");
             assert!(json_data.first().unwrap().get("content").is_some());
@@ -421,19 +418,19 @@ mod tests {
                 }
             }
 
-            for metric in metrics.clone_inner().iter() {
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap() == "chat_task_1"
-                    && metric.value().as_usize() != 2
-                {
-                    assert_eq!(metric.value().as_usize(), 4);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap() == "chat_processor_1"
-                {
-                    assert!(metric.value().as_usize() >= 1);
-                }
-            }
+            // for metric in metrics.clone_inner().iter() {
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == "chat_task_1"
+            //         && metric.value().as_usize() != 2
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 4);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == "chat_processor_1"
+            //     {
+            //         assert!(metric.value().as_usize() >= 1);
+            //     }
+            // }
 
             assert_eq!(json_data.first().unwrap().get("role").unwrap(), "assistant");
             assert!(json_data.first().unwrap().get("content").is_some());

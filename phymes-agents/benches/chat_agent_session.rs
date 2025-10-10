@@ -8,10 +8,9 @@ use phymes_agents::{
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{get_metrics_as_pivot_table, SpanMetricsSet, BaselineMetrics, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
-        session_context_builder::SessionContextBuilderTrait,
-    }, table::{table_trait::TableTrait, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait}
+    metrics::HashMap, schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::SessionContextTableNames, session_stream::SessionStream, session_stream_state::SessionStreamState
+    }, table::{table_publish::TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, MessageBuilderTrait}
 };
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {
@@ -74,10 +73,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 };
 
                 // Create the session stream state
-                let metrics = SpanMetricsSet::new();
                 let session_ctx = config
                     .build()
-                    .with_metrics(metrics.clone())
                     .with_name(session_context_name.as_str())
                     .build_with_tables()
                     .unwrap();
@@ -90,8 +87,6 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let rt = tokio::runtime::Builder::new_current_thread()
                     .build()
                     .unwrap();
-                let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str(), iter);
-                let timer = baseline_metrics.elapsed_compute().timer();
                 let _messages = rt.block_on(async {
                     let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
                         .append_new_user_query_str(user_content.0, "user")?
@@ -127,11 +122,26 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
                 });
-                timer.done();
-                baseline_metrics.done();
 
-                // Collect the metrics
-                metrics_vec.push(metrics);
+                // Extract out the metrics from the session
+                let metrics = Arc::try_unwrap(session_stream_state)
+                    .unwrap()
+                    .into_inner()
+                    .get_session_context_own()
+                    .get_states_own()
+                    .remove(SessionContextTableNames::Metrics.to_string().as_str())
+                    .unwrap();
+                let batches = Arc::try_unwrap(metrics)
+                    .unwrap()
+                    .into_inner()
+                    .get_record_batches_own();
+                let table = Table::get_builder()
+                    .with_record_batches(batches)
+                    .unwrap()
+                    .with_name(sample_id.as_str())
+                    .build()
+                    .unwrap();                
+                metrics_vec.push(table);
 
                 // Increment the iteration counter
                 iter += 1;
@@ -140,7 +150,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     }
 
     // Export the metrics to CSV
-    let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();
+    // DM: need to concat all record batches and add a column for sample_id based on the table name!
+    let metrics_table = metrics_vec.first().unwrap().to_owned();
     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let pathname = format!(
         "{target_dir}/.cache/metrics/benchmark_chat_agent_session_{wasm}_{gpu}_{candle}.csv"

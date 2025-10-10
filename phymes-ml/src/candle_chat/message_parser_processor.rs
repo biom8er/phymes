@@ -5,7 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
+    metrics::{create_random_id, HashMap, MetricBuilder},
     schemas::{
         available_subjects::{create_timestamp_micros, create_values_record_batch, AvailableSubjects, AvailableSubjectsTrait}, 
         chat::create_chat_record_batch,
@@ -18,7 +18,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table_trait::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
@@ -140,7 +140,7 @@ impl ProcessorTrait for MessageParserProcessor {
             messages,
             config,
             Arc::clone(&runtime_env),
-            &metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
+            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
         )?);
 
         // By default, we send back to the publisher in case of any errors which the publisher
@@ -186,7 +186,7 @@ impl MessageParserStream {
             message_stream,
             config_stream,
             runtime_env,
-            baseline_metrics,
+            metrics_builder,
             config: None,
         })
     }
@@ -213,7 +213,7 @@ impl Stream for MessageParserStream {
             Poll::Ready(None)
         } else {
             // Initialize the metrics
-            let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
+            let metrics = self.metrics_builder.clone().to_child().with_span("MessageParserStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Initialize the config
@@ -394,8 +394,8 @@ impl RecordBatchStream for MessageParserStream {
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
     use phymes_core::{
-        metrics::HashMap,
-        table::{table_trait::TableBuilder, table_publish::TablePublish},
+        metrics::{HashMap, SpanMetricsSet},
+        table::{table_publish::TablePublish, table_trait::TableBuilder},
     };
 
     use super::*;
@@ -454,6 +454,7 @@ mod tests {
         );
 
         let metrics = SpanMetricsSet::new();
+        let metrics_builder = MetricBuilder::new(&metrics);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -475,7 +476,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
+        let mut stream = processor.process(message_map, &metrics_builder, runtime_env)?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
@@ -558,6 +559,7 @@ mod tests {
         );
 
         let metrics = SpanMetricsSet::new();
+        let metrics_builder = MetricBuilder::new(&metrics);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -579,7 +581,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
+        let mut stream = processor.process(message_map, &metrics_builder, runtime_env)?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
@@ -662,6 +664,7 @@ mod tests {
         );
 
         let metrics = SpanMetricsSet::new();
+        let metrics_builder = MetricBuilder::new(&metrics);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -683,7 +686,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
+        let mut stream = processor.process(message_map, &metrics_builder, runtime_env)?;
 
         // DM: this will result in an error because the schema is dynamically updated
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(

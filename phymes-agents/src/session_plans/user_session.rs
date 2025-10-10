@@ -338,7 +338,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{metrics::{SpanMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilderTrait}, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
+    use phymes_core::{metrics::HashMap, schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState}, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
 
     use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
 
@@ -346,14 +346,11 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_user_agent_session() -> Result<()> {
-        // initialize the metrics
-        let metrics = SpanMetricsSet::new();
 
         // initialize the session
         let user_agent_session = UserSession::default();
         let session_ctx = user_agent_session
             .build()
-            .with_metrics(metrics.clone())
             .with_name(user_agent_session.session_context_name)
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));

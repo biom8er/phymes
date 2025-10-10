@@ -8,8 +8,8 @@ use crate::{
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
-    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
-    schemas::embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat},
+    metrics::{create_random_id, HashMap, MetricBuilder},
+    schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat}},
     session::{
         common_traits::{
             BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
@@ -17,7 +17,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
@@ -27,7 +27,7 @@ use phymes_core::{
 };
 
 use arrow::{
-    datatypes::{Schema, SchemaRef},
+    datatypes::SchemaRef,
     record_batch::RecordBatch,
 };
 
@@ -123,7 +123,7 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
             documents,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name()),
+            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -165,15 +165,11 @@ impl OpenAIEmbedStream {
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         metrics_builder: MetricBuilder,
     ) -> Result<Self> {
-        // Initialize with an empty schema
-        // since it is not so straight forward to know the size of the vector embeddings beforehand
-        // i.e., it is defined as the "hidden_size" in the model_config.json
-        let schema = Arc::new(Schema::empty());
         Ok(Self {
-            schema,
+            schema: AvailableSubjects::DocumentEmbeddings.to_schema(),
             document_stream,
             config_stream,
-            baseline_metrics,
+            metrics_builder,
             _runtime_env: runtime_env,
             config: None,
             documents: None,
@@ -306,7 +302,7 @@ impl Stream for OpenAIEmbedStream {
                 OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
-                        let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
+                        let metrics = self.metrics_builder.clone().to_child().with_span("OpenAIEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
                         let _timer = metrics.elapsed_compute().timer();
 
                         // Parse the response
@@ -403,7 +399,7 @@ impl Stream for OpenAIEmbedStream {
                 OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
-                        let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
+                        let metrics = self.metrics_builder.clone().to_child().with_span("OpenAIEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
                         let _timer = metrics.elapsed_compute().timer();
 
                         // Parse the response

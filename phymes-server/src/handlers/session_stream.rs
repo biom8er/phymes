@@ -161,12 +161,13 @@ pub async fn session_stream(
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
                     // Update the metrics and row counts
-                    session_stream_state
-                        .try_write()
-                        .unwrap()
-                        .get_session_context_mut()
-                        .update_metrics_table()
-                        .unwrap();
+                    // DM: change to update the mermaid table...
+                    // session_stream_state
+                    //     .try_write()
+                    //     .unwrap()
+                    //     .get_session_context_mut()
+                    //     .update_metrics_table()
+                    //     .unwrap();
                     session_stream_state
                         .try_write()
                         .unwrap()
@@ -211,12 +212,13 @@ pub async fn session_stream(
                         .collect::<Vec<_>>();
 
                     // Update the metrics and row counts
-                    session_stream_state
-                        .try_write()
-                        .unwrap()
-                        .get_session_context_mut()
-                        .update_metrics_table()
-                        .unwrap();
+                    // DM: change to update the mermaid table...
+                    // session_stream_state
+                    //     .try_write()
+                    //     .unwrap()
+                    //     .get_session_context_mut()
+                    //     .update_metrics_table()
+                    //     .unwrap();
                     session_stream_state
                         .try_write()
                         .unwrap()

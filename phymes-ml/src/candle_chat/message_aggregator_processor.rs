@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
+    metrics::{create_random_id, HashMap, MetricBuilder},
     schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::create_chat_fields},
     session::{
         common_traits::{
@@ -116,7 +116,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
             input,
             config,
             Arc::clone(&runtime_env),
-            &metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
+            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.get_publications().first().unwrap().get_table_name())
@@ -133,7 +133,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        metrics::HashMap, session::common_traits::device, table::table_trait::{
+        metrics::{HashMap, SpanMetricsSet}, session::common_traits::device, table::table_trait::{
             test_table::{make_test_table, make_test_table_chat}, TableBuilder, TableBuilderTrait, TableTrait
         }
     };
@@ -203,6 +203,7 @@ mod tests {
         );
 
         let metrics = SpanMetricsSet::new();
+        let metrics_builder = MetricBuilder::new(&metrics);
 
         // Make the runtime environment
         let device = device(config.cpu)?;
@@ -218,7 +219,7 @@ mod tests {
 
         // Create the aggregator and run
         let agg_arc_1 = MessageAggregatorProcessor::new_arc("aggregator_processor");
-        let mut agg_stream = agg_arc_1.process(message_1, metrics.clone(), runtime_env)?;
+        let mut agg_stream = agg_arc_1.process(message_1, &metrics_builder, runtime_env)?;
         assert_eq!(agg_stream.len(), 2);
         assert!(agg_stream.get("messages").is_some());
         assert!(agg_stream.get("m3").is_some());

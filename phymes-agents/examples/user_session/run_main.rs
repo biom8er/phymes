@@ -14,21 +14,16 @@ use phymes_agents::{
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{SpanMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{
+    metrics::HashMap, schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
-        session_context_builder::SessionContextBuilderTrait,
     }, table::{table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {
-    // initialize the metrics
-    let metrics = SpanMetricsSet::new();
-
     // initialize the session
     let user_agent_session = UserSession::default();
     let session_ctx = user_agent_session
         .build()
-        .with_metrics(metrics.clone())
         .with_name(user_agent_session.session_context_name)
         .build_with_tables()?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
@@ -79,15 +74,6 @@ pub async fn run_main() -> Result<()> {
             .collect::<Vec<u8>>();
         println!("attachment {}{}: {}", row["filename"].as_str().unwrap(), row["extension"].as_str().unwrap(), String::from_utf8_lossy(bytes.as_ref()).into_owned())
     }
-
-    println!(
-        "number of rows {}",
-        metrics.clone_inner().output_rows().unwrap()
-    );
-    println!(
-        "elasped compute {}",
-        metrics.clone_inner().elapsed_compute().unwrap()
-    );
 
     Ok(())
 }

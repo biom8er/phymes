@@ -442,8 +442,8 @@ impl RecordBatchStream for DataSummaryStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{table::{
-        table_trait::TableBuilder, table_publish::TablePublish,
+    use phymes_core::{metrics::SpanMetricsSet, table::{
+        table_publish::TablePublish, table_trait::TableBuilder
     }, task::message::MessageTrait};
 
     use crate::candle_data::{data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32};

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use parking_lot::{Mutex, RwLock};
 use phymes_core::{
-    metrics::{SpanMetricsSet, HashMap},
+    metrics::HashMap,
     session::{
         common_traits::{MappableTrait, StateMap, TaskMap},
         runtime_env::RuntimeEnv,
@@ -20,7 +20,6 @@ type SessionContextInput = (
     String,
     TaskMap,
     StateMap,
-    SpanMetricsSet,
     HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     usize,
     Vec<Table>,
@@ -35,8 +34,8 @@ pub trait SessionContextBuilderAgentsTrait {
     where
         Self: Sized,
     {
-        // build the tasks, state, metrics, and runtime objects
-        let (name, tasks, mut state, metrics, runtime_envs, max_iter, tables) =
+        // build the tasks, state, and runtime objects
+        let (name, tasks, mut state, runtime_envs, max_iter, tables) =
             self.build_inner_with_tables()?;
 
         // update the state with the schema tables
@@ -49,7 +48,6 @@ pub trait SessionContextBuilderAgentsTrait {
             name,
             tasks,
             state,
-            metrics,
             runtime_envs,
             max_iter,
         ))
@@ -59,8 +57,8 @@ pub trait SessionContextBuilderAgentsTrait {
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
         let (tables, _state) = self.to_arrow_tables(false, true, true)?;
-        let (name, tasks, state, metrics, runtime_envs, max_iter) = self.build_inner()?;
-        Ok((name, tasks, state, metrics, runtime_envs, max_iter, tables))
+        let (name, tasks, state, runtime_envs, max_iter) = self.build_inner()?;
+        Ok((name, tasks, state, runtime_envs, max_iter, tables))
     }
 }
 

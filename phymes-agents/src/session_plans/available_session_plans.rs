@@ -3,13 +3,10 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use parking_lot::RwLock;
-use phymes_core::{
-    metrics::SpanMetricsSet,
-    session::{
-        common_traits::BuilderTrait,
-        session_stream_state::SessionStreamState,
-        session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait},
-    },
+use phymes_core::session::{
+    common_traits::BuilderTrait,
+    session_stream_state::SessionStreamState,
+    session_context_builder::SessionContextBuilder
 };
 use serde::{Deserialize, Serialize};
 
@@ -103,12 +100,9 @@ impl AvailableSessionPlans {
 
     /// Get the session stream state
     pub fn get_session_stream_state(&self, session_name: &str) -> Arc<RwLock<SessionStreamState>> {
-        // Initialize the metrics
-        let metrics = SpanMetricsSet::new();
-
         // Initialize the session
         let builder = self.get_session_context_builder(session_name);
-        let session_ctx = builder.with_metrics(metrics.clone())
+        let session_ctx = builder
             .with_name(session_name)
             .build_with_tables()
             .unwrap();

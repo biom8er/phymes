@@ -14,16 +14,12 @@ use phymes_agents::{
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::{SpanMetricsSet, HashMap}, schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{
+    metrics::HashMap, schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
-        session_context_builder::SessionContextBuilderTrait,
     }, table::{table_trait::{TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
 };
 
 pub async fn run_main() -> Result<()> {
-    // initialize the metrics
-    let metrics = SpanMetricsSet::new();
-
     // initialize the session
     let chat_agent_session = ChatAgentSession {
         chat_api_url: Some("http://0.0.0.0:8000/v1"),
@@ -31,7 +27,6 @@ pub async fn run_main() -> Result<()> {
     };
     let session_ctx = chat_agent_session
         .build()
-        .with_metrics(metrics.clone())
         .with_name(chat_agent_session.session_context_name)
         .build_with_tables()?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
@@ -110,15 +105,6 @@ pub async fn run_main() -> Result<()> {
             println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
         }
     }
-
-    println!(
-        "number of rows {}",
-        metrics.clone_inner().output_rows().unwrap()
-    );
-    println!(
-        "elasped compute {}",
-        metrics.clone_inner().elapsed_compute().unwrap()
-    );
 
     Ok(())
 }

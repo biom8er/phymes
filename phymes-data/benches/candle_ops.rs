@@ -4,17 +4,15 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 use phymes_core::{
-    metrics::{get_metrics_as_pivot_table, SpanMetricsSet, BaselineMetrics, HashMap},
+    metrics::{get_metrics_as_pivot_table, HashMap, MetricBuilder, SpanMetricsSet},
     session::{
         common_traits::{device, BuildableTrait, BuilderTrait},
         runtime_env::RuntimeEnv,
     },
     table::{
-        table_trait::{
+        table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{
             test_table::TestTableSizes, Table, TableBuilderTrait, TableTrait
-        },
-        table_publish::TablePublish,
-        table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe},
+        }
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
@@ -169,6 +167,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         let metrics = SpanMetricsSet::new();
                         let sample_id = format!("{id}_{iter}");
                         let name = format!("ops-processor_{id}_{iter}");
+                        let metrics_builder = MetricBuilder::new(&metrics).with_span(sample_id.as_str(), iter);
 
                         // Build the input messages
                         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -235,7 +234,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         let rt = tokio::runtime::Runtime::new().unwrap();
 
                         // Start the timer
-                        let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str(), 0);
+                        let baseline_metrics = metrics_builder.clone().baseline_metrics();
                         let timer = baseline_metrics.elapsed_compute().timer();
 
                         // Make the stream and run
@@ -256,7 +255,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 AllTableNamesSubscribe::new_box(),
                             );
                             let mut ops_stream = ops_processor
-                                .process(messages, metrics.clone(), runtime_env.clone())
+                                .process(messages, &metrics_builder, runtime_env.clone())
                                 .unwrap();
                             ops_stream
                                 .remove("results")

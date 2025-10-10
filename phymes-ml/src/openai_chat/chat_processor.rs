@@ -9,7 +9,7 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
+    metrics::{create_random_id, HashMap, MetricBuilder},
     schemas::{
         available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, 
         chat::{create_chat_record_batch, ChatTraitExt}, 
@@ -22,7 +22,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
@@ -122,7 +122,7 @@ impl ProcessorTrait for OpenAIChatProcessor {
             tools,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics.clone(), self.get_name()),
+            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -167,7 +167,7 @@ impl OpenAIChatStream {
             schema: AvailableSubjects::Messages.to_schema(),
             message_stream,
             tools_stream,
-            baseline_metrics,
+            metrics_builder,
             config_stream,
             _runtime_env: runtime_env,
             config: None,
@@ -312,7 +312,7 @@ impl Stream for OpenAIChatStream {
             OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(text) => {
                     // Initialize the metrics
-                    let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
+                    let metrics = self.metrics_builder.clone().to_child().with_span("OpenAIChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
                     let _timer = metrics.elapsed_compute().timer();
 
                     // Parse the response
@@ -383,7 +383,7 @@ mod tests {
     #[allow(unused_imports)]
     use phymes_core::{
         metrics::HashMap, schemas::chat::ChatBuilderTraitExt,
-        table::table::TableBuilder,
+        table::table_trait::TableBuilder,
     };
 
     #[cfg(not(feature = "candle"))]

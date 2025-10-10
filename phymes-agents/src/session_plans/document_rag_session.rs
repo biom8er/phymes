@@ -882,8 +882,8 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::{SpanMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
-            common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilderTrait
+        metrics::HashMap, schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
+            common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
         }, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
     use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
@@ -894,9 +894,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_doc_rag_session() -> Result<()> {
-        // initialize the metrics
-        let metrics = SpanMetricsSet::new();
-
         // initialize the session
         let mut doc_rag_session = DocumentRAGSession::default();
         if cfg!(not(feature = "candle")) {
@@ -905,7 +902,6 @@ mod tests {
         }
         let session_ctx = doc_rag_session
             .build()
-            .with_metrics(metrics.clone())
             .with_name(doc_rag_session.session_context_name)
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
@@ -984,52 +980,49 @@ mod tests {
                 }
             }
 
-            for metric in metrics.clone_inner().iter() {
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap() == doc_rag_session.chat_processor_name
-                {
-                    assert!(metric.value().as_usize() >= 1);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap()
-                        == doc_rag_session.embed_documents_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 21);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap()
-                        == doc_rag_session.document_chunk_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 21);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap() == doc_rag_session.embed_query_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 1);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap()
-                        == doc_rag_session.relative_similarity_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 21);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap() == doc_rag_session.sort_scores_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 21);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap() == doc_rag_session.top_k_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 1);
-                }
-            }
+            // for metric in metrics.clone_inner().iter() {
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.chat_processor_name
+            //     {
+            //         assert!(metric.value().as_usize() >= 1);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap()
+            //             == doc_rag_session.embed_documents_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 21);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap()
+            //             == doc_rag_session.document_chunk_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 21);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.embed_query_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 1);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap()
+            //             == doc_rag_session.relative_similarity_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 21);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.sort_scores_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 21);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.top_k_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 1);
+            //     }
+            // }
 
             assert_eq!(json_data.first().unwrap().get("role").unwrap(), "assistant");
             assert!(json_data.first().unwrap().get("content").is_some());
-
-            // ----- Query #2 -----
-            // Embed the next query and invoke another response
         }
 
         Ok(())

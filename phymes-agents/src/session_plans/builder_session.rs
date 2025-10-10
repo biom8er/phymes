@@ -110,7 +110,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
-    use phymes_core::{metrics::SpanMetricsSet, session::{session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilderTrait}};
+    use phymes_core::session::session_stream_state::SessionStreamState;
 
     use crate::session_traits::agents::SessionContextBuilderAgentsTrait;
 
@@ -118,14 +118,10 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_builder_agent_session() -> Result<()> {
-        // initialize the metrics
-        let metrics = SpanMetricsSet::new();
-
         // initialize the session
         let builder_agent_session = BuilderSession::default();
         let session_ctx = builder_agent_session
             .build()
-            .with_metrics(metrics.clone())
             .with_name(builder_agent_session.session_context_name)
             .build_with_tables()?;
         let _session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));

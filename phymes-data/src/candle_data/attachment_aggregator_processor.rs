@@ -5,7 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{create_random_id, BaselineMetrics, HashMap, MetricBuilder, SpanMetricsSet},
+    metrics::{create_random_id, HashMap, MetricBuilder},
     schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, blob::create_blob_fields},
     session::{
         common_traits::{

@@ -774,8 +774,8 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::{SpanMetricsSet, HashMap}, schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
-            common_traits::MappableTrait, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilderTrait
+        metrics::HashMap, schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
+            common_traits::MappableTrait, session_stream::SessionStream, session_stream_state::SessionStreamState,
         }, table::{data_format::CsvFormat, table_trait::TableTrait}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
     use phymes_data::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
@@ -786,14 +786,11 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_tool_agent_session() -> Result<()> {
-        // initialize the metrics
-        let metrics = SpanMetricsSet::new();
 
         // initialize the session
         let tool_agent_session = ToolAgentSession::default();
         let session_ctx = tool_agent_session
             .build()
-            .with_metrics(metrics.clone())
             .with_name(tool_agent_session.session_context_name)
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
@@ -879,36 +876,36 @@ mod tests {
                 println!("attachment {}.{}: {}", row["filename"], row["extension"], String::from_utf8_lossy(bytes.as_ref()).into_owned())
             }
 
-            for metric in metrics.clone_inner().iter() {
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap() == tool_agent_session.chat_processor_name
-                {
-                    assert!(metric.value().as_usize() > 0);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap()
-                        == tool_agent_session.message_parser_processor_name
-                {
-                    assert!(metric.value().as_usize() > 0 || metric.value().as_usize() == 1);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap() == tool_agent_session.tool_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 3);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap()
-                        == tool_agent_session.tool_summary_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 1);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.span_name().as_ref().unwrap()
-                        == tool_agent_session.tool_attachment_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 1);
-                }
-            }
+            // for metric in metrics.clone_inner().iter() {
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == tool_agent_session.chat_processor_name
+            //     {
+            //         assert!(metric.value().as_usize() > 0);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap()
+            //             == tool_agent_session.message_parser_processor_name
+            //     {
+            //         assert!(metric.value().as_usize() > 0 || metric.value().as_usize() == 1);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == tool_agent_session.tool_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 3);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap()
+            //             == tool_agent_session.tool_summary_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 1);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap()
+            //             == tool_agent_session.tool_attachment_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 1);
+            //     }
+            // }
 
             // DM: Bug in Llama model system template that requires it to only call tools instead of respond...
             let roles = ["assistant", "tool"];

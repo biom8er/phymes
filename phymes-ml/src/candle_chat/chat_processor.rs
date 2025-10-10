@@ -7,7 +7,7 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "openai_api")]
 use crate::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
-    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
+    metrics::{create_random_id, HashMap, MetricBuilder},
     schemas::{
         available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, chat::{create_chat_record_batch, ChatTraitExt}, chat_completion::Tool
     },
@@ -18,7 +18,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
@@ -130,7 +130,7 @@ impl ProcessorTrait for CandleChatProcessor {
             tools,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics.clone(), self.get_name(), 0),
+            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -189,7 +189,7 @@ impl CandleChatStream {
             schema: AvailableSubjects::Messages.to_schema(),
             message_stream,
             tools_stream,
-            baseline_metrics,
+            metrics_builder,
             config_stream,
             runtime_env,
             tos: None,
@@ -347,7 +347,7 @@ impl Stream for CandleChatStream {
         // Case 1: inference over the prompt
         if self.to_sample == 0 {
             // Initialize the metrics
-            let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
+            let metrics = self.metrics_builder.clone().to_child().with_span("CandleChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Collect the chat history
@@ -470,7 +470,7 @@ impl Stream for CandleChatStream {
             metrics.record_poll(poll)
         } else if self.sample < self.to_sample {
             // Initialize the metrics
-            let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
+            let metrics = self.metrics_builder.clone().to_child().with_span("CandleChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Inference to generate the next token
@@ -735,7 +735,7 @@ pub mod bench_chat_processor {
         );
         let mut stream = chat_processor.process(
             message,
-            metrics,
+            &metrics_builder,
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
@@ -753,7 +753,7 @@ pub mod bench_chat_processor {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        metrics::HashMap, schemas::chat::ChatBuilderTraitExt,
+        metrics::{HashMap, SpanMetricsSet}, schemas::chat::ChatBuilderTraitExt,
         session::runtime_env::RuntimeEnvTrait,
     };
 
@@ -871,6 +871,7 @@ mod tests {
 
         // Metrics to compute time and rows
         let metrics = SpanMetricsSet::new();
+        let metrics_builder = MetricBuilder::new(&metrics);
 
         // State for the chat processor config
         let candle_chat_config = CandleChatConfig {
@@ -959,7 +960,7 @@ mod tests {
         );
         let mut stream = chat_processor.process(
             message,
-            metrics.clone(),
+            &metrics_builder,
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 

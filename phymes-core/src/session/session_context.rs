@@ -103,6 +103,11 @@ impl SessionContext {
         &self.state
     }
 
+    /// Get state
+    pub fn get_states_own(self) -> StateMap {
+        self.state
+    }
+
     /// Create the metrics table if it does not exist or update with the new metrics
     pub fn update_metrics_table(&mut self, metrics_vec: &[SpanMetricsSet]) -> Result<bool> {
         // create the pivot table and clear the metrics
