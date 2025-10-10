@@ -115,11 +115,11 @@ impl ProcessorTrait for MessageParserProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics, runtime_env))]
+    #[instrument(skip(self, message, metrics_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: SpanMetricsSet,
+        metrics_builder: &MetricBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -140,7 +140,7 @@ impl ProcessorTrait for MessageParserProcessor {
             messages,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name(), 0),
+            &metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
         )?);
 
         // By default, we send back to the publisher in case of any errors which the publisher
@@ -169,7 +169,7 @@ pub struct MessageParserStream {
     /// The Candle model assets needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    metrics_builder: MetricBuilder,
     /// Parameters for chat inference
     config: Option<CandleChatConfig>,
 }
@@ -179,7 +179,7 @@ impl MessageParserStream {
         message_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        metrics_builder: MetricBuilder,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Values.to_schema(),
@@ -213,7 +213,7 @@ impl Stream for MessageParserStream {
             Poll::Ready(None)
         } else {
             // Initialize the metrics
-            let metrics = self.baseline_metrics.clone();
+            let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Initialize the config

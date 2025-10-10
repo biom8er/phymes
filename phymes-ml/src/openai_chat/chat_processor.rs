@@ -98,7 +98,7 @@ impl ProcessorTrait for OpenAIChatProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: SpanMetricsSet,
+        metrics_builder: &MetricBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -148,7 +148,7 @@ pub struct OpenAIChatStream {
     /// The candle assets needed for inference
     _runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    metrics_builder: MetricBuilder,
     /// Parameters for chat inference
     config: Option<CandleChatConfig>,
     /// State of the OpenAI API request
@@ -161,7 +161,7 @@ impl OpenAIChatStream {
         tools_stream: Option<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        metrics_builder: MetricBuilder,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),
@@ -312,7 +312,7 @@ impl Stream for OpenAIChatStream {
             OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(text) => {
                     // Initialize the metrics
-                    let metrics = self.baseline_metrics.clone();
+                    let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
                     let _timer = metrics.elapsed_compute().timer();
 
                     // Parse the response

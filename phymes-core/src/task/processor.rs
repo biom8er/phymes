@@ -505,7 +505,7 @@ pub mod test_processor {
 
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             let poll;
-            let baseline_metrics = self.metrics_builder.clone().to_child().with_span("ProcessorMockStream", 0).baseline_metrics();
+            let baseline_metrics = self.metrics_builder.clone().to_child().with_span("ProcessorMockStream", create_random_id()?).baseline_metrics();
             #[allow(clippy::never_loop)]
             loop {
                 match ready!(self.input.poll_next_unpin(cx)) {

@@ -19,12 +19,15 @@ use super::{SpanMetricsSet, Count, Gauge, Label, Metric, MetricValue, Time, Time
 ///  let span_id = 1;
 ///
 ///  // Create the standard output_rows metric
-///  let output_rows = MetricBuilder::new(&metrics).output_rows(partition);
+///  let output_rows = MetricBuilder::new(&metrics)
+///     .with_span(span_name, span_id)
+///     .output_rows();
 ///
 ///  // Create a operator specific counter with some labels
 ///  let num_bytes = MetricBuilder::new(&metrics)
+///    .with_span(span_name, span_id)
 ///    .with_new_label("filename", "my_awesome_file.parquet")
-///    .counter("num_bytes", partition);
+///    .counter("num_bytes");
 ///
 /// ```
 #[derive(Clone, Debug)]

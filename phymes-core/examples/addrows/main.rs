@@ -1,8 +1,6 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_core::metrics::MetricBuilder;
-use phymes_core::metrics::SpanMetricsSet;
 use phymes_core::metrics::HashMap;
 use phymes_core::session::common_traits::MappableTrait;
 use phymes_core::session::session_stream::SessionStream;

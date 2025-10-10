@@ -92,11 +92,11 @@ impl ProcessorTrait for MessageAggregatorProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics, runtime_env))]
+    #[instrument(skip(self, message, metrics_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: SpanMetricsSet,
+        metrics_builder: &MetricBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -116,7 +116,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
             input,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name(), 0),
+            &metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.get_publications().first().unwrap().get_table_name())

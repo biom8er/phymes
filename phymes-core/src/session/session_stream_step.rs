@@ -182,10 +182,7 @@ impl SessionStreamStep {
                     response_streams.extend(message_map);
                 },
             }
-        }        
-
-        // Collect metrics (, logs, and traces) and update their corresponding subjects
-        let _made_table = state.write().get_session_context_mut().update_metrics_table(&metrics_vec)?;
+        }
 
         // Break if there is nothing to update
         if session_streams.is_empty() && response_streams.is_empty() {
@@ -206,18 +203,17 @@ impl SessionStreamStep {
         let update = state.write().update_state_from_messages(response_batches)?;
         state.write().extend_superstep_updates(update);
 
+        // Join each of the response futures
+        let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
+
+        // Collect metrics (, logs, and traces) and update their corresponding subjects
+        let _made_table = state.write().get_session_context_mut().update_metrics_table(&metrics_vec)?;
+
         // Increment the step
         let iter = state.read().get_iter() + 1;
         state.write().set_iter(iter);
 
-        // Return the session stream if any
-        if session_streams.is_empty() {
-            return Ok(Some(HashMap::<String, IPCMessage>::new()));
-        } else {
-            // Join each of the session futures
-            let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
-            return Ok(Some(session_batches));
-        }
+        return Ok(Some(session_batches));
     }
 }
 
@@ -320,8 +316,15 @@ mod tests {
                 .len(),
             3
         );
-        // assert!(metrics.clone_inner().output_rows().is_none());
-        // assert!(metrics.clone_inner().elapsed_compute().is_none());
+        assert!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .is_none()
+        );
 
         Ok(())
     }
@@ -416,8 +419,31 @@ mod tests {
                 .len(),
             3
         );
-        // assert_eq!(metrics.clone_inner().output_rows().unwrap(), 30);
-        // assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        let output_rows = session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_column_as_vec_primitive::<u64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<u64>(), 30);
 
         Ok(())
     }
@@ -512,8 +538,31 @@ mod tests {
                 .len(),
             3
         );
-        // assert_eq!(metrics.clone_inner().output_rows().unwrap(), 15);
-        // assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        let output_rows = session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_column_as_vec_primitive::<u64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<u64>(), 15);
 
         Ok(())
     }
@@ -659,8 +708,31 @@ mod tests {
                 .num_rows(),
             5
         );
-        // assert_eq!(metrics.clone_inner().output_rows().unwrap(), 45);
-        // assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        let output_rows = session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_column_as_vec_primitive::<u64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<u64>(), 45);
 
         // Superstep 2
         let mut response = SessionStreamStep::run_superstep(
@@ -895,8 +967,31 @@ mod tests {
                 .num_rows(),
             5
         );
-        // assert_eq!(metrics.clone_inner().output_rows().unwrap(), 63);
-        // assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            2
+        );
+        let output_rows = session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_column_as_vec_primitive::<u64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<u64>(), 63);
 
         Ok(())
     }
@@ -962,8 +1057,31 @@ mod tests {
                 .num_rows(),
             5
         );
-        // assert_eq!(metrics.clone_inner().output_rows().unwrap(), 45);
-        // assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        let output_rows = session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_column_as_vec_primitive::<u64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<u64>(), 45);
 
         // Supersteps 2, 3, and 4
         let _ = SessionStreamStep::run_superstep(
@@ -1084,8 +1202,31 @@ mod tests {
                 .num_rows(),
             8
         );
-        // assert_eq!(metrics.clone_inner().output_rows().unwrap(), 5385);
-        // assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            4
+        );
+        let output_rows = session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_column_as_vec_primitive::<u64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<u64>(), 5385);
 
         Ok(())
     }    

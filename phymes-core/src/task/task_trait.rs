@@ -504,6 +504,7 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::metrics::SpanMetricsSet;
     use crate::table::table_trait::TableTrait;
     use crate::table::table_trait::test_table::make_test_table;
     use crate::table::{

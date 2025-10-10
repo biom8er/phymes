@@ -291,7 +291,7 @@ impl SessionStreamState {
 mod tests {
     use super::*;
     use crate::{
-        metrics::SpanMetricsSet, session::session_context_builder::test_session_context_builder::{
+        session::session_context_builder::test_session_context_builder::{
             make_test_session_context_parallel_task,
             make_test_session_context_sequential_task,
         }, table::table_publish::TablePublish, task::task_trait::test_task::make_test_input_message

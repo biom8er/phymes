@@ -103,7 +103,7 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: SpanMetricsSet,
+        metrics_builder: &MetricBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -147,7 +147,7 @@ pub struct OpenAIEmbedStream {
     /// The Candle model assets needed for inference
     _runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    metrics_builder: MetricBuilder,
     /// Parameters for embed inference
     config: Option<CandleEmbedConfig>,
     /// The input documents
@@ -163,7 +163,7 @@ impl OpenAIEmbedStream {
         document_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        metrics_builder: MetricBuilder,
     ) -> Result<Self> {
         // Initialize with an empty schema
         // since it is not so straight forward to know the size of the vector embeddings beforehand
@@ -306,7 +306,7 @@ impl Stream for OpenAIEmbedStream {
                 OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
-                        let metrics = self.baseline_metrics.clone();
+                        let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
                         let _timer = metrics.elapsed_compute().timer();
 
                         // Parse the response
@@ -403,7 +403,7 @@ impl Stream for OpenAIEmbedStream {
                 OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
-                        let metrics = self.baseline_metrics.clone();
+                        let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
                         let _timer = metrics.elapsed_compute().timer();
 
                         // Parse the response

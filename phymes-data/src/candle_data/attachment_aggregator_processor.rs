@@ -5,8 +5,8 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::create_blob_fields},
+    metrics::{create_random_id, BaselineMetrics, HashMap, MetricBuilder, SpanMetricsSet},
+    schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, blob::create_blob_fields},
     session::{
         common_traits::{
             device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
@@ -14,7 +14,7 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
@@ -122,11 +122,11 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics, runtime_env))]
+    #[instrument(skip(self, message, metrics_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: SpanMetricsSet,
+        metrics_builder: &MetricBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -146,7 +146,7 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
             input,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name(), 0),
+            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.get_publications().first().unwrap().get_table_name())
@@ -175,7 +175,7 @@ pub struct AggregatorStream {
     /// The Candle model assets needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    metrics_builder: MetricBuilder,
 }
 
 impl AggregatorStream {
@@ -184,7 +184,7 @@ impl AggregatorStream {
         input: Vec<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        metrics_builder: MetricBuilder,
     ) -> Result<Self> {
         Ok(Self {
             schema,
@@ -193,7 +193,7 @@ impl AggregatorStream {
             config: None,
             data_operator: None,
             runtime_env,
-            baseline_metrics,
+            metrics_builder,
         })
     }
 
@@ -242,7 +242,7 @@ impl Stream for AggregatorStream {
             Poll::Ready(None)
         } else {
             // Initialize the metrics
-            let metrics = self.baseline_metrics.clone();
+            let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // initialize the config and tensor services

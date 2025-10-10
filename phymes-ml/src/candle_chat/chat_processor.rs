@@ -102,11 +102,11 @@ impl ProcessorTrait for CandleChatProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics, runtime_env))]
+    #[instrument(skip(self, message, metrics_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: SpanMetricsSet,
+        metrics_builder: &MetricBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -158,7 +158,7 @@ pub struct CandleChatStream {
     // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    metrics_builder: MetricBuilder,
     /// Parameters for chat inference
     config: Option<CandleChatConfig>,
     /// Enables streaming token outputs for candle assets
@@ -183,7 +183,7 @@ impl CandleChatStream {
         tools_stream: Option<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        metrics_builder: MetricBuilder,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),
@@ -347,7 +347,7 @@ impl Stream for CandleChatStream {
         // Case 1: inference over the prompt
         if self.to_sample == 0 {
             // Initialize the metrics
-            let metrics = self.baseline_metrics.clone();
+            let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Collect the chat history
@@ -470,7 +470,7 @@ impl Stream for CandleChatStream {
             metrics.record_poll(poll)
         } else if self.sample < self.to_sample {
             // Initialize the metrics
-            let metrics = self.baseline_metrics.clone();
+            let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Inference to generate the next token
@@ -652,7 +652,7 @@ pub mod bench_chat_processor {
 
     /// Run the chat processor with a given config and return the message history
     pub async fn bench_chat_processor(
-        metrics: SpanMetricsSet,
+        metrics_builder: &MetricBuilder,
         config: &CandleChatConfig,
         user_content: &str,
         name: &str,

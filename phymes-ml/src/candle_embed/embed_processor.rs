@@ -93,11 +93,11 @@ impl ProcessorTrait for CandleEmbedProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics, runtime_env))]
+    #[instrument(skip(self, message, metrics_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: SpanMetricsSet,
+        metrics_builder: &MetricBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -117,7 +117,7 @@ impl ProcessorTrait for CandleEmbedProcessor {
             documents,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name(), 0),
+            &metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -141,7 +141,7 @@ pub struct CandleEmbedStream {
     /// The Candle model assets needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    metrics_builder: MetricBuilder,
     /// Parameters for embed inference
     config: Option<CandleEmbedConfig>,
     /// sample number
@@ -155,7 +155,7 @@ impl CandleEmbedStream {
         document_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        metrics_builder: MetricBuilder,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::DocumentEmbeddings.to_schema(),
@@ -250,7 +250,7 @@ impl Stream for CandleEmbedStream {
         // record batch row is a query
         if self.sample == 0 {
             // Initialize the metrics
-            let metrics = self.baseline_metrics.clone();
+            let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // initialize the config
@@ -328,7 +328,7 @@ impl Stream for CandleEmbedStream {
         } else {
             // Keep embedding the remaining streams
             // Initialize the metrics
-            let metrics = self.baseline_metrics.clone();
+            let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Collect the next batch of queries

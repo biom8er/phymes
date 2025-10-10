@@ -469,7 +469,7 @@ mod tests {
         let value = MetricValue::OutputRows(count);
         let metric = Metric::new(value, None, None, "1", 1);
 
-        assert_eq!("output_rows{span=1}=44", metric.to_string())
+        assert_eq!("output_rows{span_name=1}=44", metric.to_string())
     }
 
     #[test]
@@ -480,7 +480,7 @@ mod tests {
         let label = Label::new("foo", "bar");
         let metric = Metric::new_with_labels(value,  None, None, "1", 1, vec![label]);
 
-        assert_eq!("output_rows{span=1, foo=bar}=66", metric.to_string())
+        assert_eq!("output_rows{span_name=1, foo=bar}=66", metric.to_string())
     }
 
     #[test]
@@ -693,14 +693,14 @@ mod tests {
     #[test]
     fn test_sorted_for_display() {
         let metrics = SpanMetricsSet::new();
-        MetricBuilder::new(&metrics).end_timestamp();
-        MetricBuilder::new(&metrics).start_timestamp();
-        MetricBuilder::new(&metrics).elapsed_compute();
-        MetricBuilder::new(&metrics).counter("the_second_counter");
-        MetricBuilder::new(&metrics).counter("the_counter");
-        MetricBuilder::new(&metrics).counter("the_third_counter");
-        MetricBuilder::new(&metrics).subset_time("the_time");
-        MetricBuilder::new(&metrics).output_rows();
+        MetricBuilder::new(&metrics).with_span("", 0).end_timestamp();
+        MetricBuilder::new(&metrics).with_span("", 0).start_timestamp();
+        MetricBuilder::new(&metrics).with_span("", 0).elapsed_compute();
+        MetricBuilder::new(&metrics).with_span("", 0).counter("the_second_counter");
+        MetricBuilder::new(&metrics).with_span("", 0).counter("the_counter");
+        MetricBuilder::new(&metrics).with_span("", 0).counter("the_third_counter");
+        MetricBuilder::new(&metrics).with_span("", 0).subset_time("the_time");
+        MetricBuilder::new(&metrics).with_span("", 0).output_rows();
         let metrics = metrics.clone_inner();
 
         fn metric_names(metrics: &MetricsSet) -> String {
