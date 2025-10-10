@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    metrics::{SpanMetricsSet, HashMap}, schemas::metrics::create_metrics_batch, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::table_trait::{Table, TableBuilderTrait, TableTrait}
+    metrics::{HashMap, SpanMetricsSet}, schemas::metrics::{create_metrics_batch, create_metrics_mermaid_gantt_batch}, session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::table_trait::{Table, TableBuilderTrait, TableTrait}
 };
 use anyhow::Result;
 use arrow::{
@@ -45,7 +45,7 @@ pub fn get_metrics_as_pivot_table(
             }
 
             // Record the span name, metric name, and value
-            parent_names_vec.push(metric.parent_name().unwrap_or_default().to_string());
+            parent_names_vec.push(metric.parent_name().clone().unwrap_or_default());
             parent_ids_vec.push(metric.parent_id().unwrap_or_default().to_owned());
             span_names_vec.push(span_name);
             span_ids_vec.push(span_id);
@@ -70,39 +70,57 @@ pub fn get_metrics_as_pivot_table(
         .zip(span_ids_vec.iter())
         .zip(parent_names_vec.iter())
         .zip(parent_ids_vec.iter())
+        .map(|(((a, b), c), d)| (a, b, c, d))
         .collect::<std::collections::HashSet<_>>();
     let mut unique_span_names = unique_span_names_hashset
         .iter()
         .collect::<Vec<_>>();
     unique_span_names.sort_by(|a, b| a.0.cmp(&b.0));
+    unique_span_names.sort_by(|a, b| a.2.cmp(&b.2));
 
     // create the pivot table columns and initialize with span names and metric IDs
     let mut pivot_columns = Vec::new();
     let span_names: ArrayRef = Arc::new(StringArray::from(
         unique_span_names
             .iter()
-            .map(|(name, _)| name.to_string())
+            .map(|(name, _, _, _)| name.to_string())
             .collect::<Vec<_>>(),
     ));
     pivot_columns.push(("span_name", span_names));
     let span_ids: ArrayRef = Arc::new(UInt64Array::from(
         unique_span_names
             .iter()
-            .map(|(_, span_id)| span_id.to_owned().to_owned())
+            .map(|(_, id, _, _)| id.to_owned().to_owned())
             .collect::<Vec<_>>(),
     ));
     pivot_columns.push(("span_id", span_ids));
+    let parent_names: ArrayRef = Arc::new(StringArray::from(
+        unique_span_names
+            .iter()
+            .map(|(_, _, name, _)| name.to_string())
+            .collect::<Vec<_>>(),
+    ));
+    pivot_columns.push(("parent_name", parent_names));
+    let parent_ids: ArrayRef = Arc::new(UInt64Array::from(
+        unique_span_names
+            .iter()
+            .map(|(_, _, _, id)| id.to_owned().to_owned())
+            .collect::<Vec<_>>(),
+    ));
+    pivot_columns.push(("parent_id", parent_ids));
 
     // Extract the metric values for each unique metric name and span name
     for metric_name in unique_metric_names.iter() {
         let mut pivot_metric_values = Vec::<u64>::new();
-        for (span_name, span_id) in unique_span_names.iter() {
+        for (span_name, span_id, parent_name, parent_id) in unique_span_names.iter() {
             // find the matching metric and span name
             let mut found = false;
             for i in 0..span_names_vec.len() {
                 if metric_names_vec.get(i).unwrap() == metric_name
                     && span_names_vec.get(i).unwrap() == *span_name
                     && span_ids_vec.get(i).unwrap() == *span_id
+                    && parent_names_vec.get(i).unwrap() == *parent_name
+                    && parent_ids_vec.get(i).unwrap() == *parent_id
                 {
                     pivot_metric_values.push(metric_values_vec.get(i).unwrap().to_owned());
                     found = true;
@@ -134,6 +152,8 @@ pub fn get_metrics_as_table(metrics_vec: &[SpanMetricsSet], table_name: &str) ->
     // extract out values from metrics
     let mut span_names_vec = Vec::<String>::new();
     let mut span_ids_vec = Vec::<u64>::new();
+    let mut parent_names_vec = Vec::<String>::new();
+    let mut parent_ids_vec = Vec::<u64>::new();
     let mut ids_vec = Vec::<u64>::new();
     let mut metric_names_vec = Vec::<String>::new();
     let mut metric_values_vec = Vec::<u64>::new();
@@ -141,31 +161,23 @@ pub fn get_metrics_as_table(metrics_vec: &[SpanMetricsSet], table_name: &str) ->
         for metric in metrics.clone_inner().iter() {
             span_names_vec.push(metric.span_name().to_string());
             span_ids_vec.push(metric.span_id().to_owned());
+            parent_names_vec.push(metric.parent_name().clone().unwrap_or_default());
+            parent_ids_vec.push(metric.parent_id().unwrap_or_default().to_owned());
             ids_vec.push(metric.id().to_owned());
             metric_names_vec.push(metric.value().name().to_string());
             metric_values_vec.push(metric.value().as_usize() as u64);
-            partition_ids_vec.push(metric.partition_id().as_ref().unwrap().to_owned() as u64);
-        }
-
-        if let Some(val) = metrics_set.elapsed_compute() {
-            span_names_vec.push(metric.span_name().to_string());
-            span_ids_vec.push(metric.span_id().to_owned());
-            ids_vec.push(0);
-            metric_names_vec.push("elapsed_compute".to_string());
-            metric_values_vec.push(val as u64);
-        }
-
-        if let Some(val) = metrics_set.output_rows() {
-            span_names_vec.push(metric.span_name().to_string());
-            span_ids_vec.push(metric.span_id().to_owned());
-            ids_vec.push(0);
-            metric_names_vec.push("output_rows".to_string());
-            metric_values_vec.push(val as u64);
         }
     }
 
     // create the record batch
-    let batch = create_metrics_batch(span_names_vec, metric_names_vec, span_ids_vec, ids_vec, metric_values_vec, partition_ids_vec)?;
+    let batch = create_metrics_batch(
+        span_names_vec, 
+        metric_names_vec, 
+        parent_names_vec, 
+        span_ids_vec, 
+        ids_vec, 
+        parent_ids_vec, 
+        metric_values_vec)?;
 
     // create the table
     Table::get_builder()
@@ -236,30 +248,29 @@ pub fn get_metrics_as_mermaid_gantt(pivot_table: Table) -> Result<Table> {
 
     // extract the gantt data
     let span_name = pivot_table.get_column_as_vec_str("span_name");
-    let span_id = pivot_table.get_column_as_vec_primitive::<u64>("span_id")?;
-    let id = pivot_table.get_column_as_vec_primitive::<u64>("id")?;
-    let partition_id = pivot_table.get_column_as_vec_primitive::<u64>("partition_id")?;
+    // let span_id = pivot_table.get_column_as_vec_primitive::<u64>("span_id")?;
+    let parent_name = pivot_table.get_column_as_vec_str("parent_name");
+    // let parent_id = pivot_table.get_column_as_vec_primitive::<u64>("parent_id")?;
+    // let id = pivot_table.get_column_as_vec_primitive::<u64>("id")?;
     let start_time_norm = pivot_table.get_column_as_vec_primitive::<u64>("start_time_norm")?;
     let end_time_norm = pivot_table.get_column_as_vec_primitive::<u64>("end_time_norm")?;
     let elapsed_compute = pivot_table.get_column_as_vec_primitive::<u64>("elapsed_compute")?;
     let output_rows = pivot_table.get_column_as_vec_primitive::<u64>("output_rows")?;
     let combined = span_name
         .iter()
-        .zip(span_id.iter())
-        .zip(partition_id.iter())
-        .zip(id.iter())
+        .zip(parent_name.iter())
         .zip(start_time_norm.iter())
         .zip(end_time_norm.iter())
         .zip(elapsed_compute.iter())
         .zip(output_rows.iter())
-        .map(|(((((((a, b), c), d), e), f), g), h)| (a, b, c, d, e, f, g, h))
+        .map(|(((((a, b), c), d), e), f)| (a, b, c, d, e, f))
         .collect::<Vec<_>>();
 
     // create the gantt script lines
-    for (s, sid, _id, pid, stn, etn, ec, or) in combined {
-        processor_traces_vec.push(format!("\t{s}-{sid}-{pid}:{stn},\t{etn}\n"));
-        elapsed_compute_vec.push(format!("\t{s}-{sid}-{pid}:0,\t{ec}\n"));
-        output_rows_vec.push(format!("\t{s}-{sid}-{pid}:0,\t{or}\n"));
+    for (sn, pn, stn, etn, ec, or) in combined {
+        processor_traces_vec.push(format!("\t{sn}-{pn}:{stn},\t{etn}\n"));
+        elapsed_compute_vec.push(format!("\t{s}-{pn}:0,\t{ec}\n"));
+        output_rows_vec.push(format!("\t{sn}-{pn}:0,\t{or}\n"));
     }
 
     // make the final strings
@@ -268,14 +279,7 @@ pub fn get_metrics_as_mermaid_gantt(pivot_table: Table) -> Result<Table> {
     let output_rows = output_rows_vec.join("");
 
     // create the record batch
-    let processor_traces: ArrayRef = Arc::new(StringArray::from(vec![processor_traces]));
-    let elapsed_compute: ArrayRef = Arc::new(StringArray::from(vec![elapsed_compute]));
-    let output_rows: ArrayRef = Arc::new(StringArray::from(vec![output_rows]));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("processor_traces", processor_traces),
-        ("elapsed_compute", elapsed_compute),
-        ("output_rows", output_rows),
-    ])?;
+    let batch = create_metrics_mermaid_gantt_batch(vec![processor_traces], vec![elapsed_compute], vec![output_rows])?;
 
     // create the table
     Table::get_builder()

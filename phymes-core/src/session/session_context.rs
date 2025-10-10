@@ -70,8 +70,6 @@ pub struct SessionContext {
     pub(crate) tasks: TaskMap,
     /// Data that should be persisted between queries
     pub(crate) state: StateMap,
-    /// Metrics tracked during task runs
-    pub(crate) metrics: SpanMetricsSet,
     /// Runtime environment configuration to use during task runs
     pub(crate) runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     /// The maximum number of iterations before stopping
@@ -83,7 +81,6 @@ impl SessionContext {
         name: String,
         tasks: TaskMap,
         state: StateMap,
-        metrics: SpanMetricsSet,
         runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
         max_iter: usize,
     ) -> SessionContext {
@@ -91,7 +88,6 @@ impl SessionContext {
             name,
             tasks,
             state,
-            metrics,
             runtime_envs,
             max_iter,
         }
@@ -108,13 +104,12 @@ impl SessionContext {
     }
 
     /// Create the metrics table if it does not exist or update with the new metrics
-    pub fn update_metrics_table(&mut self) -> Result<bool> {
+    pub fn update_metrics_table(&mut self, metrics_vec: &[SpanMetricsSet]) -> Result<bool> {
         // create the pivot table and clear the metrics
         let pivot_table = get_metrics_as_pivot_table(
-            std::slice::from_ref(&self.metrics),
+            metrics_vec,
             SessionContextTableNames::Metrics.to_string().as_str(),
         )?;
-        self.metrics.clear();
 
         // update the state with the metrics
         if pivot_table.count_rows() > 0 {
@@ -336,9 +331,8 @@ mod tests {
 
     #[test]
     fn test_session_get_table_name_by_schema() -> Result<()> {
-        let metrics = SpanMetricsSet::new();
         let session_context =
-            make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
+            make_test_session_context_parallel_task("session_1", 25)?;
 
         // table should be found
         let schema = make_test_table_schema(8)?;
@@ -354,9 +348,8 @@ mod tests {
 
     #[test]
     fn test_session_update_subject_num_rows_table() -> Result<()> {
-        let metrics = SpanMetricsSet::new();
         let mut session_context =
-            make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
+            make_test_session_context_parallel_task("session_1", 25)?;
         session_context.update_subject_num_rows_table();
         let info = session_context.get_states().get(SessionContextTableNames::SubjectsNumRows.to_string().as_str()).unwrap().read();
 
@@ -388,9 +381,8 @@ mod tests {
 
     #[test]
     fn test_session_init_superstep_updates() -> Result<()> {
-        let metrics = SpanMetricsSet::new();
         let session_context =
-            make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
+            make_test_session_context_parallel_task("session_1", 25)?;
         let init = session_context.init_superstep_updates();
         assert_eq!(init.len(), 4);
         assert_eq!(
@@ -453,10 +445,8 @@ mod tests {
     #[test]
     fn test_session_read_write_state() -> Result<()> {
         // Create the session
-
-        let metrics = SpanMetricsSet::new();
         let session_context =
-            make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
+            make_test_session_context_parallel_task("session_1", 25)?;
 
         // Write the session to disk
         let tmp_dir = tempdir()?;
@@ -464,7 +454,7 @@ mod tests {
 
         // Read the state
         let mut session_context_empty =
-            make_test_session_context_parallel_task_empty("session_1", metrics.clone(), 25)?;
+            make_test_session_context_parallel_task_empty("session_1", 25)?;
         session_context_empty.read_state(tmp_dir.path().to_str().unwrap(), "tag")?;
 
         for subject in session_context.get_states().keys() {

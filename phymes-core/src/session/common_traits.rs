@@ -1,4 +1,4 @@
-use crate::metrics::HashMap;
+use crate::metrics::{HashMap, MetricBuilder};
 use crate::session::runtime_env::RuntimeEnv;
 use crate::table::table_trait::Table;
 use crate::task::{
@@ -133,7 +133,7 @@ pub trait BuilderTrait {
 /// streaming `RecordBatch`es as messages
 pub trait RunnableTrait {
     /// Run the computation
-    fn run(&self, messages: SendableRecordBatchStreamMessageMap) -> Result<SendableRecordBatchStreamMessageMap>;
+    fn run(&self, messages: SendableRecordBatchStreamMessageMap, metrics_builder: &MetricBuilder) -> Result<SendableRecordBatchStreamMessageMap>;
 }
 
 /// For services that process Tensors

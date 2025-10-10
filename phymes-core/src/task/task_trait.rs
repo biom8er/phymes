@@ -168,15 +168,16 @@ impl BuildableTrait for Task {
 }
 
 impl RunnableTrait for Task {
-    fn run(&self, mut messages: SendableRecordBatchStreamMessageMap) -> Result<SendableRecordBatchStreamMessageMap> {
+    fn run(&self, mut messages: SendableRecordBatchStreamMessageMap, metrics_builder: &MetricBuilder) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
         let span_id = create_random_id()?;
 
         // Process the incoming message resulting in a `SendableRecordBatchStream`
-        let metrics_builder = MetricBuilder::new(&self.metrics).with_span(self.get_name(), span_id);
         for processor in self.processor.iter() {            
-            messages =
-                processor.process(messages, &metrics_builder, self.runtime_env.clone())?;
+            messages = processor.process(
+                messages, 
+                &metrics_builder.clone().to_child().with_span(self.get_name(), span_id), 
+                self.runtime_env.clone())?;
         }
 
         // make the output message

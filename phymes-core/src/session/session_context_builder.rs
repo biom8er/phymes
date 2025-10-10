@@ -318,12 +318,6 @@ impl SessionContextBuilder {
             .map(|r| (r.get_name().to_string(), Arc::new(RwLock::new(r))))
             .collect::<HashMap<String, Arc<RwLock<Table>>>>();
 
-        // Check for metrics; if none, initialize with defaults
-        let metrics = match self.metrics {
-            Some(ref metrics) => metrics.clone(),
-            None => SpanMetricsSet::new(),
-        };
-
         // Build the tasks
         let task_map = self
             .tasks
@@ -342,7 +336,6 @@ impl SessionContextBuilder {
                     .collect::<Vec<_>>();
                 let task = Task::get_builder()
                     .with_name(&t.task_name)
-                    .with_metrics(metrics.clone())
                     .with_runtime_env(Arc::clone(
                         runtime_env_map.get(t.runtime_env_name.as_str()).unwrap(),
                     ))
@@ -359,7 +352,6 @@ impl SessionContextBuilder {
             name,
             task_map,
             state_map,
-            metrics,
             runtime_env_map,
             max_iter,
         ))
@@ -373,7 +365,6 @@ impl BuilderTrait for SessionContextBuilder {
             name: None,
             processors: None,
             state: None,
-            metrics: None,
             runtime_envs: None,
             tasks: None,
             max_iter: None,
@@ -387,14 +378,13 @@ impl BuilderTrait for SessionContextBuilder {
 
     fn build(self) -> Result<Self::T> {
         // build the tasks, state, metrics, and runtime objects
-        let (name, tasks, state, metrics, runtime_envs, max_iter) = self.build_inner()?;
+        let (name, tasks, state, runtime_envs, max_iter) = self.build_inner()?;
 
         // ready to build the session
         Ok(Self::T {
             name,
             tasks,
             state,
-            metrics,
             runtime_envs,
             max_iter,
         })
@@ -408,10 +398,6 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
     }
     fn with_state(mut self, state: Vec<Table>) -> Self {
         self.state = Some(state);
-        self
-    }
-    fn with_metrics(mut self, metrics: SpanMetricsSet) -> Self {
-        self.metrics = Some(metrics);
         self
     }
     fn with_runtime_envs(mut self, runtime_envs: Vec<RuntimeEnv>) -> Self {
@@ -624,7 +610,6 @@ pub mod test_session_context_builder {
 
     pub fn make_test_session_context_parallel_task(
         name: &str,
-        metrics: SpanMetricsSet,
         max_iter: usize,
     ) -> Result<SessionContext> {
         // Init runtime env
@@ -637,7 +622,6 @@ pub mod test_session_context_builder {
 
         make_test_session_builder_parallel_task()
             .with_name(name)
-            .with_metrics(metrics)
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
@@ -646,7 +630,6 @@ pub mod test_session_context_builder {
 
     pub fn make_test_session_context_parallel_task_empty(
         name: &str,
-        metrics: SpanMetricsSet,
         max_iter: usize,
     ) -> Result<SessionContext> {
         // Init runtime env
@@ -659,7 +642,6 @@ pub mod test_session_context_builder {
 
         make_test_session_builder_parallel_task()
             .with_name(name)
-            .with_metrics(metrics)
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
@@ -668,7 +650,6 @@ pub mod test_session_context_builder {
 
     pub fn make_test_session_context_sequential_task(
         name: &str,
-        metrics: SpanMetricsSet,
         max_iter: usize,
     ) -> Result<SessionContext> {
         // Init runtime env
@@ -679,7 +660,6 @@ pub mod test_session_context_builder {
 
         make_test_session_builder_sequential_task()
             .with_name(name)
-            .with_metrics(metrics)
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
@@ -755,10 +735,8 @@ mod tests {
 
     #[test]
     fn test_session_build_success() -> Result<()> {
-        let metrics = SpanMetricsSet::new();
         let session = test_session_context_builder::make_test_session_context_parallel_task(
             "session_1",
-            metrics,
             10,
         )?;
         assert_eq!(session.get_states().len(), 6);
