@@ -3,10 +3,12 @@ use std::{fmt::Display, sync::Arc, thread::ThreadId};
 use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt32Array}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::schemas::available_subjects::create_timestamp_micros;
 
-pub struct CurrentContext {
+/// The current context of the trace, event, or metric
+pub struct MeasurementContext {
     /// using std::line!()
     line: u32,
     /// using std::file!()
@@ -19,7 +21,7 @@ pub struct CurrentContext {
     timestamp: i64,
 }
 
-impl CurrentContext {
+impl MeasurementContext {
     pub fn new(function: &str) -> Self {
         let line = std::line!();
         let file = std::file!().to_string();
@@ -28,6 +30,34 @@ impl CurrentContext {
         let timestamp = create_timestamp_micros();
         Self { line, file, thread, function, timestamp }
     }
+}
+
+/// The span
+pub struct MeasurementSpan {
+    parent_name: Option<String>,
+    parent_id: Option<u64>,
+    span_name: String,
+    span_id: u64
+}
+
+/// The tracer 
+pub struct MeasurementTracer {
+    tracer_name: String,
+    direction: MessageDirection,
+}
+
+/// The event
+pub struct MeasurementEvent {
+    level: LogLevel,
+    value: Value,
+    id: u64,
+}
+
+/// Rename metrics to
+pub struct MeasurementMetric {
+    metric_name: String,
+    metric_value: u64,
+    labels: Value,
 }
 
 /// Logging Levels (from highest to lowest priority):
@@ -104,7 +134,7 @@ pub fn create_trace_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["line", "parent_id", "id"];
+    let field_names = ["line", "parent_id", "span_id"];
     fields_vec.extend(field_names
         .iter()
         .map(|f| Field::new(*f, DataType::UInt32, false))
