@@ -4,7 +4,7 @@ use std::task::Poll;
 
 use arrow::record_batch::RecordBatch;
 
-use super::{SpanMetricsSet, Count, MetricBuilder, Time, Timestamp};
+use super::{Count, Time, Timestamp};
 use anyhow::Result;
 
 /// Helper for creating and tracking common "baseline" metrics for
@@ -12,10 +12,12 @@ use anyhow::Result;
 ///
 /// Example:
 /// ```
-/// use phymes_core::metrics::{BaselineMetrics, SpanMetricsSet};
+/// use phymes_core::metrics::{BaselineMetrics, MetricBuilder, SpanMetricsSet};
 /// let metrics = SpanMetricsSet::new();
 ///
-/// let baseline_metrics = BaselineMetrics::new(&metrics, "2", None);
+/// let baseline_metrics = MetricBuilder::new(&metrics)
+///     .with_span("my_span", 0)
+///     .baseline_metrics();
 ///
 /// // during execution, in CPU intensive operation:
 /// let timer = baseline_metrics.elapsed_compute().timer();

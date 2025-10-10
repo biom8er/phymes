@@ -1,6 +1,7 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
+use phymes_core::metrics::MetricBuilder;
 use phymes_core::metrics::SpanMetricsSet;
 use phymes_core::metrics::HashMap;
 use phymes_core::session::common_traits::MappableTrait;
@@ -25,9 +26,8 @@ async fn main() -> Result<()> {
         Some(guard)
     };
 
-    let metrics = SpanMetricsSet::new();
     let session_context =
-        make_test_session_context_sequential_task("session_1", metrics.clone(), 4)?;
+        make_test_session_context_sequential_task("session_1", 4)?;
     let input = make_test_input_message(
         "task_1",
         "session_1",
@@ -53,15 +53,15 @@ async fn main() -> Result<()> {
             .get_name()
     );
 
-    // Check the metrics
-    println!(
-        "Output rows {}",
-        metrics.clone_inner().output_rows().unwrap()
-    );
-    println!(
-        "Elapsed compute {}",
-        metrics.clone_inner().elapsed_compute().unwrap()
-    );
+    // // Check the metrics
+    // println!(
+    //     "Output rows {}",
+    //     metrics.clone_inner().output_rows().unwrap()
+    // );
+    // println!(
+    //     "Elapsed compute {}",
+    //     metrics.clone_inner().elapsed_compute().unwrap()
+    // );
 
     Ok(())
 }

@@ -310,15 +310,13 @@ impl ChatBuilderTraitExt for TableBuilder {
 mod test_messages {
     use super::*;
     use crate::{
-        metrics::{SpanMetricsSet, HashMap},
+        metrics::{HashMap, MetricBuilder},
         session::{
             common_traits::{BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap},
             runtime_env::RuntimeEnv,
         },
         table::{
-            table_publish::TablePublish,
-            table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
-            stream::{RecordBatchStream, SendableRecordBatchStream},
+            stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
         },
         task::{
             message::{
@@ -406,7 +404,7 @@ mod test_messages {
         fn process(
             &self,
             mut message: SendableRecordBatchStreamMessageMap,
-            _metrics: SpanMetricsSet,
+            _metrics_builder: &MetricBuilder,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             // Create the stream response
@@ -557,14 +555,13 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        metrics::{SpanMetricsSet, HashMap},
+        metrics::{HashMap, MetricBuilder, SpanMetricsSet},
         session::{
             common_traits::{BuildableTrait, BuilderTrait},
             runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         },
         table::{
-            table_trait::test_table::{make_test_table_chat, make_test_table_tool},
-            table_publish::TablePublish,
+            table_publish::TablePublish, table_trait::test_table::{make_test_table_chat, make_test_table_tool}
         },
         task::{
             message::{
@@ -714,7 +711,7 @@ mod tests {
             test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
-            SpanMetricsSet::new(),
+            &MetricBuilder::new(&SpanMetricsSet::new()),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
@@ -801,7 +798,7 @@ mod tests {
         let chat_processor = test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
-            SpanMetricsSet::new(),
+            &MetricBuilder::new(&SpanMetricsSet::new()),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 

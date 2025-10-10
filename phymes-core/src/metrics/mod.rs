@@ -38,7 +38,8 @@ pub use value::{Count, Gauge, MetricValue, ScopedTimerGuard, Time, Timestamp};
 ///
 ///  // Create a counter to increment using the MetricBuilder
 ///  let output_rows = MetricBuilder::new(&metrics)
-///      .output_rows("1");
+///      .with_span("my_span", 0)
+///      .output_rows();
 ///
 ///  // Counter can be incremented
 ///  output_rows.add(13);

@@ -22,7 +22,7 @@ use super::test_exec::{collect_partitions_runs, collect_task_runs};
 use crate::metrics::Metric;
 
 use crate::{
-    metrics::{create_random_id, HashMap, MetricBuilder, MetricsSet, SpanMetricsSet},
+    metrics::{create_random_id, HashMap, MetricBuilder},
     session::{
         common_traits::{
             BuildableTrait, BuilderTrait, MappableTrait, RunnableTrait, SendableRecordBatchStreamMessageMap, StateMap
@@ -120,22 +120,6 @@ pub trait TaskTrait:
 
     /// Get an immutable reference to the runtime env
     fn get_runtime_env(&self) -> &Arc<Mutex<RuntimeEnv>>;
-
-    /// Return a snapshot of the set of [`Metric`]s for this
-    /// [`Task`]. If no [`Metric`]s are available, return None.
-    ///
-    /// While the values of the metrics in the returned
-    /// [`MetricsSet`]s may change as execution progresses, the
-    /// specific metrics will not.
-    ///
-    /// Once `self.run_task()` has returned (technically the future is
-    /// resolved) for all available partitions, the set of metrics
-    /// should be complete. If this processortion is called prior to
-    /// `run_task()` new metrics may appear in subsequent calls.
-    ///
-    /// self.metrics.clone_inner()
-    ///
-    fn get_metrics(&self) -> MetricsSet; //{ self.metrics.clone_inner() }
 }
 
 /// The actual task to execute
@@ -143,8 +127,6 @@ pub trait TaskTrait:
 pub struct Task {
     /// Name of the task
     name: String,
-    /// Metrics for the task and processors
-    metrics: SpanMetricsSet,
     /// Runtime environment for the task and processors
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Entry processor
@@ -190,9 +172,6 @@ impl TaskTrait for Task {
     fn get_runtime_env(&self) -> &Arc<Mutex<RuntimeEnv>> {
         &self.runtime_env
     }
-    fn get_metrics(&self) -> MetricsSet {
-        self.metrics.clone_inner()
-    }
     fn get_processors(&self) -> &Vec<Arc<dyn ProcessorTrait>> {
         &self.processor
     }
@@ -222,7 +201,6 @@ impl PubSubTrait for Task {
 }
 
 pub trait TaskBuilderTrait: BuilderTrait {
-    fn with_metrics(self, metrics: SpanMetricsSet) -> Self;
     fn with_runtime_env(self, runtime_env: Arc<Mutex<RuntimeEnv>>) -> Self;
     fn with_processor(self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self;
 }
@@ -231,8 +209,6 @@ pub trait TaskBuilderTrait: BuilderTrait {
 pub struct TaskBuilder {
     /// Task name
     pub name: Option<String>,
-    /// Metrics for the task
-    pub metrics: Option<SpanMetricsSet>,
     /// Runtime environment for the task
     pub runtime_env: Option<Arc<Mutex<RuntimeEnv>>>,
     /// Function that implements the logic
@@ -244,7 +220,6 @@ impl BuilderTrait for TaskBuilder {
     fn new() -> Self {
         Self {
             name: None,
-            metrics: None,
             runtime_env: None,
             processor: None,
         }
@@ -259,7 +234,6 @@ impl BuilderTrait for TaskBuilder {
     {
         Ok(Self::T {
             name: self.name.unwrap_or_default(),
-            metrics: self.metrics.unwrap_or_default(),
             runtime_env: self.runtime_env.unwrap(),
             processor: self.processor.unwrap(),
         })
@@ -267,10 +241,6 @@ impl BuilderTrait for TaskBuilder {
 }
 
 impl TaskBuilderTrait for TaskBuilder {
-    fn with_metrics(mut self, metrics: SpanMetricsSet) -> Self {
-        self.metrics = Some(metrics);
-        self
-    }
     fn with_runtime_env(mut self, runtime_env: Arc<Mutex<RuntimeEnv>>) -> Self {
         self.runtime_env = Some(runtime_env);
         self
@@ -411,12 +381,10 @@ pub mod test_task {
         runtime_env_name: &str,
         table_name: &str,
         config_name: &str,
-        metrics: SpanMetricsSet,
     ) -> Result<Task> {
         let processor_name = format!("{name}_processor");
         Task::get_builder()
             .with_name(name)
-            .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
                 processor_name.as_str(),
@@ -442,12 +410,10 @@ pub mod test_task {
         table_name_1: &str,
         table_name_2: &str,
         config_name: &str,
-        metrics: SpanMetricsSet,
     ) -> Result<Task> {
         let processor_name = format!("{name}_processor");
         Task::get_builder()
             .with_name(name)
-            .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
                 processor_name.as_str(),
@@ -475,14 +441,12 @@ pub mod test_task {
         runtime_env_name: &str,
         table_name: &str,
         config_name: &str,
-        metrics: SpanMetricsSet,
     ) -> Result<Task> {
         let processor_name_1 = format!("{name}_processor_1");
         let processor_name_2 = format!("{name}_processor_2");
         let processor_name_3 = format!("{name}_processor_3");
         Task::get_builder()
             .with_name(name)
-            .with_metrics(metrics)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![
                 ProcessorMock::new_arc_with_pub_sub(
@@ -681,15 +645,12 @@ mod tests {
 
     #[test]
     fn test_get_subscriptions_from_state() -> Result<()> {
-        let metrics = SpanMetricsSet::new();
-
         // Single processor with All logic
         let test_task = test_task::make_test_task_single_processor(
             "test_task",
             "test_rt",
             "test_table",
             "test_config",
-            metrics.clone(),
         )?;
         let messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
@@ -714,7 +675,6 @@ mod tests {
             "test_table",
             "test_table_2",
             "test_config",
-            metrics.clone(),
         )?;
         let messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[false]),
@@ -734,7 +694,6 @@ mod tests {
             "test_table",
             "test_table_2",
             "test_config",
-            metrics.clone(),
         )?;
         let messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
@@ -756,13 +715,11 @@ mod tests {
 
     #[test]
     fn test_run_task_make_outbox() -> Result<()> {
-        let metrics = SpanMetricsSet::new();
         let test_task = test_task::make_test_task_single_processor(
             "test_task",
             "test_rt",
             "test_table",
             "test_config",
-            metrics.clone(),
         )?;
 
         // Case 1: Message has subject that the task does not publish on
@@ -834,18 +791,18 @@ mod tests {
     #[tokio::test]
     async fn test_run_task_single_processor() -> Result<()> {
         let metrics = SpanMetricsSet::new();
+        let metrics_builder = MetricBuilder::new(&metrics);
         let test_task = test_task::make_test_task_single_processor(
             "test_task",
             "test_rt",
             "test_table",
             "test_config",
-            metrics.clone(),
         )?;
         let input = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?,
         );
-        let mut response = test_task.run(input)?;
+        let mut response = test_task.run(input, &metrics_builder)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
         assert_eq!(
@@ -885,18 +842,18 @@ mod tests {
     #[tokio::test]
     async fn test_run_task_chained_processor() -> Result<()> {
         let metrics = SpanMetricsSet::new();
+        let metrics_builder = MetricBuilder::new(&metrics);
         let test_task = test_task::make_test_task_chained_processor(
             "test_task",
             "test_rt",
             "test_table",
             "test_config",
-            metrics.clone(),
         )?;
         let input = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?,
         );
-        let mut response = test_task.run(input)?;
+        let mut response = test_task.run(input, &metrics_builder)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
         assert_eq!(

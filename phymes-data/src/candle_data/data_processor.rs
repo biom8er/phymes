@@ -1,18 +1,15 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
 use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
 use phymes_core::{
-    metrics::{SpanMetricsSet, BaselineMetrics, HashMap},
+    metrics::{BaselineMetrics, HashMap, MetricBuilder, SpanMetricsSet},
     session::{
         common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, device,
+            device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
         },
         runtime_env::RuntimeEnv,
     },
     table::{
-        table_trait::{TableBuilder, TableBuilderTrait, TableTrait},
-        table_publish::TablePublish,
-        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
-        stream::{RecordBatchStream, SendableRecordBatchStream},
+        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}
     },
     task::{
         message::{
@@ -103,11 +100,11 @@ impl ProcessorTrait for CandleDataProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics, runtime_env))]
+    #[instrument(skip(self, message, metrics_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics: SpanMetricsSet,
+        metrics_builder: &MetricBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());

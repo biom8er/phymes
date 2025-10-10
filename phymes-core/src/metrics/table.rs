@@ -269,7 +269,7 @@ pub fn get_metrics_as_mermaid_gantt(pivot_table: Table) -> Result<Table> {
     // create the gantt script lines
     for (sn, pn, stn, etn, ec, or) in combined {
         processor_traces_vec.push(format!("\t{sn}-{pn}:{stn},\t{etn}\n"));
-        elapsed_compute_vec.push(format!("\t{s}-{pn}:0,\t{ec}\n"));
+        elapsed_compute_vec.push(format!("\t{sn}-{pn}:0,\t{ec}\n"));
         output_rows_vec.push(format!("\t{sn}-{pn}:0,\t{or}\n"));
     }
 

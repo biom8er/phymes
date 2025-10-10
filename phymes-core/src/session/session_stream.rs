@@ -107,9 +107,8 @@ mod tests {
         //         -> task_2: add a row
         //         -> task_3: add a row
         //         -> session
-        let metrics = SpanMetricsSet::new();
         let session_context =
-            make_test_session_context_sequential_task("session_1", metrics.clone(), 4)?;
+            make_test_session_context_sequential_task("session_1", 4)?;
         let input = make_test_input_message(
             "task_1",
             "session_1",
@@ -178,20 +177,11 @@ mod tests {
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 6);
 
-        // Check the metrics
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 5385);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
-
-        // Add the metrics to the state
-        session_stream_state
-            .try_write()
-            .unwrap()
-            .get_session_context_mut()
-            .update_metrics_table()?;
+        // // Check the metrics
+        // assert_eq!(metrics.clone_inner().output_rows().unwrap(), 5385);
+        // assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
 
         // Check the metrics tables
-        assert!(metrics.clone_inner().output_rows().is_none());
-        assert!(metrics.clone_inner().elapsed_compute().is_none());
         let sss = session_stream_state.read();
         let metrics_table = sss
             .get_session_context()

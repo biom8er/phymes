@@ -302,9 +302,8 @@ mod tests {
     #[test]
     fn test_session_update_state() -> Result<()> {
         // Case 1: no state update
-        let metrics = SpanMetricsSet::new();
         let session_context =
-            make_test_session_context_parallel_task("session_1", metrics.clone(), 25)?;
+            make_test_session_context_parallel_task("session_1", 25)?;
         let input = make_test_input_message(
             "task_1",
             "session_1",
@@ -473,9 +472,9 @@ mod tests {
         // initialize the session stream state
 
         use parking_lot::RwLock;
-        let metrics = SpanMetricsSet::new();
+
         let session_context =
-            make_test_session_context_parallel_task("session_1", metrics.clone(), 4)?;
+            make_test_session_context_parallel_task("session_1", 4)?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
 
         // write the session stream state to file
@@ -487,7 +486,7 @@ mod tests {
 
         // read the session stream state back to file
         let session_context =
-            make_test_session_context_sequential_task("session_1", metrics.clone(), 4)?;
+            make_test_session_context_sequential_task("session_1", 4)?;
         let session_stream_state_test =
             Arc::new(RwLock::new(SessionStreamState::new(session_context)));
 

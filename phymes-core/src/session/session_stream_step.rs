@@ -224,7 +224,6 @@ impl SessionStreamStep {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metrics::SpanMetricsSet;
     use crate::schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait};
     use crate::session::session_context::SessionContextTableNames;
     use crate::session::session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan};

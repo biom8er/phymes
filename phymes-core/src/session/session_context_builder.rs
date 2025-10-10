@@ -5,7 +5,7 @@ use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    metrics::{SpanMetricsSet, HashMap, HashSet},
+    metrics::{HashMap, HashSet},
     session::common_traits::{StateMap, TaskMap},
     table::{
         table_trait::Table, table_publish::TablePublish,
