@@ -142,33 +142,51 @@ impl SessionContext {
                 );
             }
 
-            // Create the gantt view
-            let gantt_table = get_metrics_as_gantt_table(self.state.get(SessionContextTableNames::Metrics.to_string().as_str()).unwrap().read().clone(), SessionContextTableNames::MetricMermaidGantt.to_string().as_str())?;
-            let mermaid_gantt_table = get_metrics_as_mermaid_gantt(gantt_table)?;
-
-            // Add the metrics gantt table to the state or update
-            if self
-                .state
-                .contains_key(SessionContextTableNames::MetricMermaidGantt.to_string().as_str())
-            {
-                self.state
-                    .get_mut(SessionContextTableNames::MetricMermaidGantt.to_string().as_str())
-                    .unwrap()
-                    .write()
-                    .update_table(
-                        mermaid_gantt_table.get_record_batches_own(),
-                        TablePublish::Extend {
-                            table_name: SessionContextTableNames::MetricMermaidGantt.to_string(),
-                        },
-                    )?;
-            } else {
-                self.state.insert(
-                    SessionContextTableNames::MetricMermaidGantt.to_string(),
-                    Arc::new(RwLock::new(mermaid_gantt_table)),
-                );
-            }
-
             Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Create the metrics mermaid gannt table if it does not exist or update with the new metrics
+    pub fn update_metrics_mermaid_gantt_table(&mut self) -> Result<bool> {
+        // get the metrics table
+        if let Some(table) = self.state.get(SessionContextTableNames::Metrics.to_string().as_str()) {
+            let pivot_table = table.read().clone();
+
+            // update the state with the metrics
+            if pivot_table.count_rows() > 0 {
+
+                // Create the gantt view
+                let gantt_table = get_metrics_as_gantt_table(pivot_table, SessionContextTableNames::MetricMermaidGantt.to_string().as_str())?;
+                let mermaid_gantt_table = get_metrics_as_mermaid_gantt(gantt_table)?;
+
+                // Add the metrics gantt table to the state or update
+                if self
+                    .state
+                    .contains_key(SessionContextTableNames::MetricMermaidGantt.to_string().as_str())
+                {
+                    self.state
+                        .get_mut(SessionContextTableNames::MetricMermaidGantt.to_string().as_str())
+                        .unwrap()
+                        .write()
+                        .update_table(
+                            mermaid_gantt_table.get_record_batches_own(),
+                            TablePublish::Extend {
+                                table_name: SessionContextTableNames::MetricMermaidGantt.to_string(),
+                            },
+                        )?;
+                } else {
+                    self.state.insert(
+                        SessionContextTableNames::MetricMermaidGantt.to_string(),
+                        Arc::new(RwLock::new(mermaid_gantt_table)),
+                    );
+                }
+
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         } else {
             Ok(false)
         }

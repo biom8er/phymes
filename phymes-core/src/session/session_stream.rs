@@ -177,27 +177,33 @@ mod tests {
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 6);
 
-        // // Check the metrics
-        // assert_eq!(metrics.clone_inner().output_rows().unwrap(), 5385);
-        // assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
-
         // Check the metrics tables
-        let sss = session_stream_state.read();
-        let metrics_table = sss
-            .get_session_context()
-            .get_states()
-            .get(SessionContextTableNames::Metrics.to_string().as_str())
-            .unwrap()
-            .try_read()
-            .unwrap();
-        let output_rows = metrics_table.get_column_as_vec_primitive::<u64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<u64>(), 5385);
+        {
+            let sss = session_stream_state.read();
+            let metrics_table = sss
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap();
+            let output_rows = metrics_table.get_column_as_vec_primitive::<u64>("output_rows")?;
+            assert_eq!(output_rows.iter().sum::<u64>(), 5385);
+        }
 
-        // Check pivot and gantt
-        let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricMermaidGantt.to_string().as_str()).unwrap().read();
-        assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
-        assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
-        assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));
+        // Check gantt
+        {
+            let update = session_stream_state
+                .write()
+                .get_session_context_mut()
+                .update_metrics_mermaid_gantt_table()?;
+            assert!(update);
+            let sss = session_stream_state.read();
+            let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricMermaidGantt.to_string().as_str()).unwrap().read();
+            assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
+            assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
+            assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));
+        }
 
         Ok(())
     }
