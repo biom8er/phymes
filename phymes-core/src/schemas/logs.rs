@@ -40,15 +40,15 @@ pub struct MeasurementSpan {
     span_id: u64
 }
 
-/// The tracer 
-pub struct MeasurementTracer {
-    tracer_name: String,
+/// The message
+pub struct MeasurementMessage {
+    message_name: String,
     direction: MessageDirection,
 }
 
 /// The event
 pub struct MeasurementEvent {
-    level: LogLevel,
+    level: EventLevel,
     value: Value,
     id: u64,
 }
@@ -60,14 +60,14 @@ pub struct MeasurementMetric {
     labels: Value,
 }
 
-/// Logging Levels (from highest to lowest priority):
+/// Event Levels (from highest to lowest priority):
 /// error!: For critical errors that cause the program to fail or behave incorrectly.
 /// warn!: For warnings about potential issues that are not immediately fatal.
 /// info!: For general informational messages about the program's operation.
 /// debug!: For detailed debugging information, typically used during development.
 /// trace!: For extremely fine-grained information, useful for tracing program execution.
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
-pub enum LogLevel {
+pub enum EventLevel {
     Trace,
     #[default]
     Debug,
@@ -76,14 +76,14 @@ pub enum LogLevel {
     Error,
 }
 
-impl Display for LogLevel {
+impl Display for EventLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LogLevel::Trace => write!(f, "Trace"),
-            LogLevel::Debug => write!(f, "Debug"),
-            LogLevel::Info => write!(f, "Info"),
-            LogLevel::Warn => write!(f, "Warn"),
-            LogLevel::Error => write!(f, "Error"),
+            EventLevel::Trace => write!(f, "Trace"),
+            EventLevel::Debug => write!(f, "Debug"),
+            EventLevel::Info => write!(f, "Info"),
+            EventLevel::Warn => write!(f, "Warn"),
+            EventLevel::Error => write!(f, "Error"),
         }
     }
 }
@@ -127,9 +127,9 @@ impl Display for MessageDirection {
 /// Fields for the log where `value` is a [serde] deserializable [String]
 /// `parent_name` will most likely be the task name
 /// `span_name` will most likely be the processor name
-/// `tracer_name` will most likely be the subject name
+/// `message_name` will most likely be the subject name
 pub fn create_trace_fields() -> Fields {
-    let field_names = ["parent_name", "span_name", "tracer_name", "direction", "file"];
+    let field_names = ["parent_name", "span_name", "message_name", "direction", "file"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -187,7 +187,7 @@ pub fn create_logs_batch(
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LogSubject {
-    pub level: LogLevel,
+    pub level: EventLevel,
     pub value: String,
     pub file: String,
     pub line: u32,
