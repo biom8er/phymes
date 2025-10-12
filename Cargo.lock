@@ -5381,6 +5381,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "phymes-diagnostics"
+version = "0.2.1"
+dependencies = [
+ "anyhow",
+ "arrow",
+ "bytes",
+ "chrono",
+ "clap 4.5.45",
+ "futures",
+ "getrandom 0.3.3",
+ "hashbrown 0.15.5",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "web-time",
+]
+
+[[package]]
 name = "phymes-ml"
 version = "0.2.1"
 dependencies = [

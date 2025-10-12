@@ -1,92 +1,9 @@
-use std::{fmt::Display, sync::Arc, thread::ThreadId};
+use std::{fmt::Display, sync::Arc};
 
 use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt32Array}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
-use crate::schemas::available_subjects::create_timestamp_micros;
-
-/// The current context of the trace, event, or metric
-pub struct MeasurementContext {
-    /// using std::line!()
-    line: u32,
-    /// using std::file!()
-    file: String,
-    /// using std::thread::current().id().as_u64
-    thread: ThreadId,
-    /// no std
-    function: String,
-    /// using create_timestamp_micros()
-    timestamp: i64,
-}
-
-impl MeasurementContext {
-    pub fn new(function: &str) -> Self {
-        let line = std::line!();
-        let file = std::file!().to_string();
-        let thread = std::thread::current().id();
-        let function = function.to_string();
-        let timestamp = create_timestamp_micros();
-        Self { line, file, thread, function, timestamp }
-    }
-}
-
-/// The span
-pub struct MeasurementSpan {
-    parent_name: Option<String>,
-    parent_id: Option<u64>,
-    span_name: String,
-    span_id: u64
-}
-
-/// The message
-pub struct MeasurementMessage {
-    message_name: String,
-    direction: MessageDirection,
-}
-
-/// The event
-pub struct MeasurementEvent {
-    level: EventLevel,
-    value: Value,
-    id: u64,
-}
-
-/// Rename metrics to
-pub struct MeasurementMetric {
-    metric_name: String,
-    metric_value: u64,
-    labels: Value,
-}
-
-/// Event Levels (from highest to lowest priority):
-/// error!: For critical errors that cause the program to fail or behave incorrectly.
-/// warn!: For warnings about potential issues that are not immediately fatal.
-/// info!: For general informational messages about the program's operation.
-/// debug!: For detailed debugging information, typically used during development.
-/// trace!: For extremely fine-grained information, useful for tracing program execution.
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
-pub enum EventLevel {
-    Trace,
-    #[default]
-    Debug,
-    Info,
-    Warn,
-    Error,
-}
-
-impl Display for EventLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EventLevel::Trace => write!(f, "Trace"),
-            EventLevel::Debug => write!(f, "Debug"),
-            EventLevel::Info => write!(f, "Info"),
-            EventLevel::Warn => write!(f, "Warn"),
-            EventLevel::Error => write!(f, "Error"),
-        }
-    }
-}
 
 /// Session Levels (from highest to lowest in the hierarchy)
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
@@ -103,23 +20,6 @@ impl Display for AppLevel {
             AppLevel::Session => write!(f, "Session"),
             AppLevel::Task => write!(f, "Task"),
             AppLevel::Processor => write!(f, "Processor"),
-        }
-    }
-}
-
-/// Message direction
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
-pub enum MessageDirection {
-    #[default]
-    Subscription,
-    Publication
-}
-
-impl Display for MessageDirection {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MessageDirection::Subscription => write!(f, "Subscription"),
-            MessageDirection::Publication => write!(f, "Publication"),
         }
     }
 }

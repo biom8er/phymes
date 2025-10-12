@@ -7,34 +7,8 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use clap::ValueEnum;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, sync::Arc};
-
-/// Generate a timestamp that can be added to the message table
-pub fn create_timestamp_str() -> String {
-    let now: DateTime<Utc> = Utc::now();
-    now.format("%a %b %e %T %Y").to_string()
-}
-
-/// Generate a timestamp that can be added to the message table
-pub fn create_timestamp_micros() -> i64 {
-    let now: DateTime<Utc> = Utc::now();
-    now.timestamp_micros()
-}
-
-/// Convert timestamp in micro seconds to a formatted string
-pub fn convert_timestamp_micros_to_str(timestamp_micros: i64) -> String {
-    // Convert microseconds to seconds and nanoseconds
-    let datetime = DateTime::from_timestamp(
-        timestamp_micros / 1_000_000,                    // seconds
-        ((timestamp_micros % 1_000_000) * 1_000) as u32, // nanoseconds
-    )
-    .unwrap();
-
-    // Format as a string
-    datetime.format("%a %b %e %T %Y").to_string()
-}
 
 pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
     Arc::new(Schema::new(f()))

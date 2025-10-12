@@ -4,7 +4,6 @@ mod baseline;
 mod builder;
 mod common;
 mod instant;
-mod table;
 mod value;
 
 use anyhow::Result;
@@ -18,11 +17,8 @@ pub use common::{HashMap, HashSet};
 // public exports
 pub use baseline::{BaselineMetrics, RecordOutput};
 pub use builder::MetricBuilder;
-pub use table::{
-    get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, get_metrics_as_pivot_table,
-    get_metrics_as_table,
-};
 pub use value::{Count, Gauge, MetricValue, ScopedTimerGuard, Time, Timestamp};
+pub use instant::{create_timestamp_micros, create_timestamp_str, convert_timestamp_micros_to_str};
 
 /// Something that tracks a value of interest (metric)
 ///
