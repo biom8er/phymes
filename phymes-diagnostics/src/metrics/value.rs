@@ -321,13 +321,13 @@ impl Drop for ScopedTimerGuard<'_> {
     }
 }
 
-/// Possible values for a [super::Metric].
+/// Possible Metrics to track a value of interest (metric)
 ///
 /// Among other differences, the metric types have different ways to
 /// logically interpret their underlying values and some metrics are
 /// so common they are given special treatment.
 #[derive(Debug, Clone, PartialEq)]
-pub enum MetricValue {
+pub enum Metric {
     /// Number of output rows produced: "output_rows" metric
     OutputRows(Count),
     /// Elapsed Compute Time: the wall clock time spent in "cpu
@@ -385,7 +385,7 @@ pub enum MetricValue {
     EndTimestamp(Timestamp),
 }
 
-impl MetricValue {
+impl Metric {
     /// Return the name of this SQL metric
     pub fn name(&self) -> &str {
         match self {
@@ -531,7 +531,7 @@ impl MetricValue {
     }
 }
 
-impl Display for MetricValue {
+impl Display for Metric {
     /// Prints the value of this metric
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -571,8 +571,8 @@ mod tests {
     fn test_display_output_rows() {
         let count = Count::new();
         let values = vec![
-            MetricValue::OutputRows(count.clone()),
-            MetricValue::Count {
+            Metric::OutputRows(count.clone()),
+            Metric::Count {
                 name: "my_counter".into(),
                 count: count.clone(),
             },
@@ -592,8 +592,8 @@ mod tests {
     fn test_display_time() {
         let time = Time::new();
         let values = vec![
-            MetricValue::ElapsedCompute(time.clone()),
-            MetricValue::Time {
+            Metric::ElapsedCompute(time.clone()),
+            Metric::Time {
                 name: "my_time".into(),
                 time: time.clone(),
             },
@@ -614,8 +614,8 @@ mod tests {
     fn test_display_timestamp() {
         let timestamp = Timestamp::new();
         let values = vec![
-            MetricValue::StartTimestamp(timestamp.clone()),
-            MetricValue::EndTimestamp(timestamp.clone()),
+            Metric::StartTimestamp(timestamp.clone()),
+            Metric::EndTimestamp(timestamp.clone()),
         ];
 
         // if time is not set, it should not be reported as zero

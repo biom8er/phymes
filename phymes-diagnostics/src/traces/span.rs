@@ -1,10 +1,16 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::metrics::create_random_id;
+/// Create a (pseudo)random ID
+pub fn create_random_id() -> Result<u64> {
+    let mut buf = [0u8; 8];
+    getrandom::fill(&mut buf)?;
+    let id = u64::from_ne_bytes(buf);
+    Ok(id)
+}
 
 /// The span
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Span {
     /// The parent span name of execution
     parent_name: Option<String>,
@@ -21,13 +27,18 @@ impl Span {
     pub fn new(parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Self {
         Self { parent_name: parent_name.map(String::from), parent_id, span_name: span_name.to_string(), span_id }
     }
-    
-    pub fn parent (&self) -> (&Option<String>, &Option<u64>) {
+    /// Access the parent span
+    pub fn parent(&self) -> (&Option<String>, &Option<u64>) {
         (&self.parent_name, &self.parent_id)
+    }
+    /// Access the current span
+    pub fn span(&self) -> (&String, &u64) {
+        (&self.span_name, &self.span_id)
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
+/// Entrypoint for building a new span
 pub struct SpanBuilder {
     parent_name: Option<String>,
     parent_id: Option<u64>,
@@ -36,9 +47,9 @@ pub struct SpanBuilder {
 }
 
 impl SpanBuilder {
-    pub fn with_parent_span(mut self, parent_span: (&Option<String>, &Option<u64>)) -> Self {
-        self.parent_name = parent_span.0.to_owned();
-        self.parent_id = parent_span.1.to_owned();
+    pub fn with_parent_span(mut self, parent_span: (&String, &u64)) -> Self {
+        self.parent_name = Some(parent_span.0.to_owned());
+        self.parent_id = Some(parent_span.1.to_owned());
         self
     }
     pub fn with_parent(mut self, parent_name: &str) -> Result<Self> {

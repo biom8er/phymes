@@ -3,26 +3,6 @@ use std::{fmt::Display, sync::Arc};
 use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt32Array}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-
-/// Session Levels (from highest to lowest in the hierarchy)
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
-pub enum AppLevel {
-    #[default]
-    Session,
-    Task,
-    Processor,
-}
-
-impl Display for AppLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AppLevel::Session => write!(f, "Session"),
-            AppLevel::Task => write!(f, "Task"),
-            AppLevel::Processor => write!(f, "Processor"),
-        }
-    }
-}
 
 /// Fields for the log where `value` is a [serde] deserializable [String]
 /// `parent_name` will most likely be the task name
