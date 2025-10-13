@@ -1,7 +1,7 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
 use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
 use phymes_core::{
-    metrics::{create_random_id, HashMap, MetricBuilder}, schemas::available_subjects::create_timestamp_micros, session::{
+    session::{
         common_traits::{
             device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
         },
@@ -97,11 +97,11 @@ impl ProcessorTrait for CandleDataProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics_builder, runtime_env))]
+    #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics_builder: &MetricBuilder,
+        diagnostic_builder: &DiagnosticBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -137,7 +137,7 @@ impl ProcessorTrait for CandleDataProcessor {
             subscriptions,
             config,
             Arc::clone(&runtime_env),
-            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -162,7 +162,7 @@ pub struct CandleDataStream {
     /// The tensor services needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    metrics_builder: MetricBuilder,
+    diagnostic_builder: DiagnosticBuilder,
     /// Parameters for tensor operations
     config: Option<DataConfig>,
     /// The data operator to run
@@ -182,12 +182,12 @@ impl CandleDataStream {
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        metrics_builder: MetricBuilder,
+        diagnostic_builder: DiagnosticBuilder,
     ) -> Result<Self> {
         Ok(Self {
             messages,
             config_stream,
-            metrics_builder,
+            diagnostic_builder,
             runtime_env,
             config: None,
             data_operator: None,
@@ -233,7 +233,7 @@ impl Stream for CandleDataStream {
         }
 
         // Initialize the metrics
-        let metrics = self.metrics_builder.clone().to_child().with_span("Stream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
+        let metrics = self.diagnostic_builder.clone().to_child().with_span("Stream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
         let _timer = metrics.elapsed_compute().timer();
 
         // Intialize the config
@@ -577,8 +577,8 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let metrics = SpanMetricsSet::new();        
-        let metrics_builder = MetricBuilder::new(&metrics);
+        let diagnostics = Diagnostics::new();        
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
 
         // Make the runtime environment
         let device = device(config.cpu)?;
@@ -597,7 +597,7 @@ mod tests {
             messages,
             config_table.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            metrics_builder.clone().with_span("Candle_Ops_Processor", 0),
+            diagnostic_builder.clone().with_span("Candle_Ops_Processor", 0),
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
@@ -673,7 +673,7 @@ mod tests {
             HashMap::<String, SendableRecordBatchStreamMessage>::new(),
             config_args_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            metrics_builder.clone().with_span("Candle_Ops_Processor", 0),
+            diagnostic_builder.clone().with_span("Candle_Ops_Processor", 0),
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
@@ -774,7 +774,7 @@ mod tests {
             messages,
             config_table.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            metrics_builder.clone().with_span("Candle_Ops_Processor", 0),
+            diagnostic_builder.clone().with_span("Candle_Ops_Processor", 0),
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
@@ -924,8 +924,8 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = SpanMetricsSet::new();
-        let metrics_builder = MetricBuilder::new(&metrics);
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
 
         // Make the runtime environment
         let device = device(config.cpu)?;
@@ -955,7 +955,7 @@ mod tests {
             ],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut ops_stream = ops_processor.process(messages, &metrics_builder, runtime_env)?;
+        let mut ops_stream = ops_processor.process(messages, &diagnostic_builder, runtime_env)?;
         let result = ops_stream
             .remove("results")
             .unwrap()

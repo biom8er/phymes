@@ -1,4 +1,3 @@
-use crate::metrics::{HashMap, MetricBuilder};
 use crate::session::runtime_env::RuntimeEnv;
 use crate::table::table_trait::Table;
 use crate::task::{
@@ -10,6 +9,7 @@ use crate::task::{
 /// General imports
 use anyhow::Result;
 use parking_lot::{Mutex, RwLock};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -133,7 +133,7 @@ pub trait BuilderTrait {
 /// streaming `RecordBatch`es as messages
 pub trait RunnableTrait {
     /// Run the computation
-    fn run(&self, messages: SendableRecordBatchStreamMessageMap, metrics_builder: &MetricBuilder) -> Result<SendableRecordBatchStreamMessageMap>;
+    fn run(&self, messages: SendableRecordBatchStreamMessageMap, diagnostic_builder: &DiagnosticBuilder) -> Result<SendableRecordBatchStreamMessageMap>;
 }
 
 /// For services that process Tensors

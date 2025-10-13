@@ -164,10 +164,10 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                 c.bench_function(id.as_str(), |b| {
                     b.iter(|| {
                         // Build the metrics
-                        let metrics = SpanMetricsSet::new();
+                        let diagnostics = Diagnostics::new();
                         let sample_id = format!("{id}_{iter}");
                         let name = format!("ops-processor_{id}_{iter}");
-                        let metrics_builder = MetricBuilder::new(&metrics).with_span(sample_id.as_str(), iter);
+                        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(sample_id.as_str(), iter);
 
                         // Build the input messages
                         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -234,7 +234,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         let rt = tokio::runtime::Runtime::new().unwrap();
 
                         // Start the timer
-                        let baseline_metrics = metrics_builder.clone().baseline_metrics();
+                        let baseline_metrics = diagnostic_builder.clone().baseline_metrics();
                         let timer = baseline_metrics.elapsed_compute().timer();
 
                         // Make the stream and run
@@ -255,7 +255,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 AllTableNamesSubscribe::new_box(),
                             );
                             let mut ops_stream = ops_processor
-                                .process(messages, &metrics_builder, runtime_env.clone())
+                                .process(messages, &diagnostic_builder, runtime_env.clone())
                                 .unwrap();
                             ops_stream
                                 .remove("results")

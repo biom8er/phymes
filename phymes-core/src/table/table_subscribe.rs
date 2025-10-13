@@ -1,11 +1,9 @@
 use anyhow::{Result, anyhow};
+use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::{
-    metrics::HashMap,
-    session::common_traits::{MappableTrait, StateMap},
-};
+use crate::session::common_traits::{MappableTrait, StateMap};
 
 use super::{
     table_trait::{Table, TableTrait},

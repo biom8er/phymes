@@ -7,9 +7,8 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "openai_api")]
 use crate::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
-    metrics::{create_random_id, HashMap, MetricBuilder},
     schemas::{
-        available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, chat::{create_chat_record_batch, ChatTraitExt}, chat_completion::Tool
+        available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::{create_chat_record_batch, ChatTraitExt}, chat_completion::Tool
     },
     session::{
         common_traits::{
@@ -102,11 +101,11 @@ impl ProcessorTrait for CandleChatProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics_builder, runtime_env))]
+    #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics_builder: &MetricBuilder,
+        diagnostic_builder: &DiagnosticBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -130,7 +129,7 @@ impl ProcessorTrait for CandleChatProcessor {
             tools,
             config,
             Arc::clone(&runtime_env),
-            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -158,7 +157,7 @@ pub struct CandleChatStream {
     // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    metrics_builder: MetricBuilder,
+    diagnostic_builder: DiagnosticBuilder,
     /// Parameters for chat inference
     config: Option<CandleChatConfig>,
     /// Enables streaming token outputs for candle assets
@@ -183,13 +182,13 @@ impl CandleChatStream {
         tools_stream: Option<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        metrics_builder: MetricBuilder,
+        diagnostic_builder: DiagnosticBuilder,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),
             message_stream,
             tools_stream,
-            metrics_builder,
+            diagnostic_builder,
             config_stream,
             runtime_env,
             tos: None,
@@ -347,7 +346,7 @@ impl Stream for CandleChatStream {
         // Case 1: inference over the prompt
         if self.to_sample == 0 {
             // Initialize the metrics
-            let metrics = self.metrics_builder.clone().to_child().with_span("CandleChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
+            let metrics = self.diagnostic_builder.clone().to_child().with_span("CandleChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Collect the chat history
@@ -470,7 +469,7 @@ impl Stream for CandleChatStream {
             metrics.record_poll(poll)
         } else if self.sample < self.to_sample {
             // Initialize the metrics
-            let metrics = self.metrics_builder.clone().to_child().with_span("CandleChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
+            let metrics = self.diagnostic_builder.clone().to_child().with_span("CandleChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Inference to generate the next token
@@ -652,7 +651,7 @@ pub mod bench_chat_processor {
 
     /// Run the chat processor with a given config and return the message history
     pub async fn bench_chat_processor(
-        metrics_builder: &MetricBuilder,
+        diagnostic_builder: &DiagnosticBuilder,
         config: &CandleChatConfig,
         user_content: &str,
         name: &str,
@@ -735,7 +734,7 @@ pub mod bench_chat_processor {
         );
         let mut stream = chat_processor.process(
             message,
-            &metrics_builder,
+            &diagnostic_builder,
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
@@ -870,8 +869,8 @@ mod tests {
         let messages = "messages";
 
         // Metrics to compute time and rows
-        let metrics = SpanMetricsSet::new();
-        let metrics_builder = MetricBuilder::new(&metrics);
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
 
         // State for the chat processor config
         let candle_chat_config = CandleChatConfig {
@@ -960,7 +959,7 @@ mod tests {
         );
         let mut stream = chat_processor.process(
             message,
-            &metrics_builder,
+            &diagnostic_builder,
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 

@@ -2,13 +2,12 @@ use anyhow::Result;
 use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
 use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
 
 use super::common_traits::{BuilderTrait, IPCMessageMap, MappableTrait, SendableRecordBatchStreamMessageMap, RunnableTrait};
-use crate::metrics::{HashMap, MetricBuilder, SpanMetricsSet};
-use crate::schemas::available_subjects::create_timestamp_micros;
 use crate::schemas::error::{create_error_message_map, create_error_message_map_stream};
 use crate::session::session_stream_state::SessionStreamState;
 use crate::table::table_trait::{TableBuilder, TableBuilderTrait, TableTrait};
@@ -138,9 +137,9 @@ impl SessionStreamStep {
         state.write().extend_superstep_updates(update);
 
         // Initialize the channels for collecting the metrics (, logs, and traces)
-        let mut metrics_vec = Vec::new();
+        let mut diagnostics_vec = Vec::new();
         let span_name = format!("{}-{}", state.read().get_session_context().get_name(), state.read().get_iter());
-        let span_id = create_timestamp_micros() as u64;
+        let span = SpanBuilder::default().with_span(&span_name).build()?;
 
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -159,13 +158,13 @@ impl SessionStreamStep {
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Create the metrics for the task
-            let metrics = SpanMetricsSet::new();
-            let metrics_builder = MetricBuilder::new(&metrics).with_span(&span_name, span_id);
-            metrics_vec.push(metrics);
+            let diagnostics = Diagnostics::new();
+            let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+            diagnostics_vec.push(diagnostics);
 
             // Run the task and collect the stream responses
             let messages = task.get_subscriptions_from_state(updates, states);
-            match task.run(messages, &metrics_builder) {
+            match task.run(messages, &diagnostic_builder) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
                         if task_name == state.read().get_session_context().get_name() {
@@ -207,7 +206,7 @@ impl SessionStreamStep {
         let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
 
         // Collect metrics (, logs, and traces) and update their corresponding subjects
-        let _made_table = state.write().get_session_context_mut().update_metrics_table(&metrics_vec)?;
+        let _made_table = state.write().get_session_context_mut().update_metrics_table(&diagnostics_vec)?;
 
         // Increment the step
         let iter = state.read().get_iter() + 1;

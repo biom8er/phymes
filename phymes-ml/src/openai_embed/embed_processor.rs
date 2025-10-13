@@ -8,7 +8,6 @@ use crate::{
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
-    metrics::{create_random_id, HashMap, MetricBuilder},
     schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat}},
     session::{
         common_traits::{
@@ -103,7 +102,7 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics_builder: &MetricBuilder,
+        diagnostic_builder: &DiagnosticBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -123,7 +122,7 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
             documents,
             config,
             Arc::clone(&runtime_env),
-            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -147,7 +146,7 @@ pub struct OpenAIEmbedStream {
     /// The Candle model assets needed for inference
     _runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    metrics_builder: MetricBuilder,
+    diagnostic_builder: DiagnosticBuilder,
     /// Parameters for embed inference
     config: Option<CandleEmbedConfig>,
     /// The input documents
@@ -163,13 +162,13 @@ impl OpenAIEmbedStream {
         document_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        metrics_builder: MetricBuilder,
+        diagnostic_builder: DiagnosticBuilder,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::DocumentEmbeddings.to_schema(),
             document_stream,
             config_stream,
-            metrics_builder,
+            diagnostic_builder,
             _runtime_env: runtime_env,
             config: None,
             documents: None,
@@ -302,7 +301,7 @@ impl Stream for OpenAIEmbedStream {
                 OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
-                        let metrics = self.metrics_builder.clone().to_child().with_span("OpenAIEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
+                        let metrics = self.diagnostic_builder.clone().to_child().with_span("OpenAIEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
                         let _timer = metrics.elapsed_compute().timer();
 
                         // Parse the response
@@ -399,7 +398,7 @@ impl Stream for OpenAIEmbedStream {
                 OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
-                        let metrics = self.metrics_builder.clone().to_child().with_span("OpenAIEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
+                        let metrics = self.diagnostic_builder.clone().to_child().with_span("OpenAIEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
                         let _timer = metrics.elapsed_compute().timer();
 
                         // Parse the response
@@ -497,7 +496,7 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let metrics = SpanMetricsSet::new();
+        let diagnostics = Diagnostics::new();
         let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
 
         // Make and run the embeddings stream
@@ -571,7 +570,7 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let metrics = SpanMetricsSet::new();
+        let diagnostics = Diagnostics::new();
         let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
 
         // Make and run the embeddings stream

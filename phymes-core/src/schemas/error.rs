@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use arrow::{array::{ArrayRef, RecordBatch, StringArray}, datatypes::{DataType, Field, Fields}};
 use anyhow::{Error, Result};
+use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{metrics::HashMap, session::{common_traits::{BuilderTrait, MappableTrait}, session_context::SessionContextTableNames}, table::{table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder}};
+use crate::{session::{common_traits::{BuilderTrait, MappableTrait}, session_context::SessionContextTableNames}, table::{table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder}};
 
 pub fn create_error_fields() -> Fields {
     let error = Field::new("error", DataType::Utf8, false);

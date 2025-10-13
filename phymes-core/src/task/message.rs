@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::metrics::HashMap;
 use crate::session::common_traits::{
     BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait,
 };
@@ -13,6 +12,7 @@ use crate::table::{
 use anyhow::{Result, anyhow};
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
 use arrow::datatypes::{DataType, Field, Fields};
+use phymes_diagnostics::HashMap;
 
 /// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
 /// metadata for subject, publisher, and update

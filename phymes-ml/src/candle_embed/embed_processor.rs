@@ -2,7 +2,7 @@ use candle_core::{DType, Tensor};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
 use phymes_core::{
-    metrics::{create_random_id, HashMap, MetricBuilder}, schemas::available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, session::{
+    schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{
         common_traits::{
             device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, TokenWrapper
         },
@@ -93,11 +93,11 @@ impl ProcessorTrait for CandleEmbedProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics_builder, runtime_env))]
+    #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics_builder: &MetricBuilder,
+        diagnostic_builder: &DiagnosticBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -117,7 +117,7 @@ impl ProcessorTrait for CandleEmbedProcessor {
             documents,
             config,
             Arc::clone(&runtime_env),
-            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -141,7 +141,7 @@ pub struct CandleEmbedStream {
     /// The Candle model assets needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    metrics_builder: MetricBuilder,
+    diagnostic_builder: DiagnosticBuilder,
     /// Parameters for embed inference
     config: Option<CandleEmbedConfig>,
     /// sample number
@@ -155,13 +155,13 @@ impl CandleEmbedStream {
         document_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        metrics_builder: MetricBuilder,
+        diagnostic_builder: DiagnosticBuilder,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::DocumentEmbeddings.to_schema(),
             document_stream,
             config_stream,
-            metrics_builder,
+            diagnostic_builder,
             runtime_env,
             config: None,
             sample: 0,
@@ -250,7 +250,7 @@ impl Stream for CandleEmbedStream {
         // record batch row is a query
         if self.sample == 0 {
             // Initialize the metrics
-            let metrics = self.metrics_builder.clone().to_child().with_span("CandleEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
+            let metrics = self.diagnostic_builder.clone().to_child().with_span("CandleEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // initialize the config
@@ -328,7 +328,7 @@ impl Stream for CandleEmbedStream {
         } else {
             // Keep embedding the remaining streams
             // Initialize the metrics
-            let metrics = self.metrics_builder.clone().to_child().with_span("CandleEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
+            let metrics = self.diagnostic_builder.clone().to_child().with_span("CandleEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Collect the next batch of queries
@@ -756,15 +756,15 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let metrics = SpanMetricsSet::new();
-        let metrics_builder = MetricBuilder::new(&metrics).with_span("candle_embed_processor", 0);
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span("candle_embed_processor", 0);
 
         // Make and run the embeddings stream
         let embed_stream = CandleEmbedStream::new(
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            metrics_builder.clone(),
+            diagnostic_builder.clone(),
         )?;
 
         // DM: Skip actually running the tests as they take too long on the CPU
@@ -845,7 +845,7 @@ mod tests {
                 document_table.to_record_batch_stream(),
                 config_table.to_record_batch_stream(),
                 Arc::clone(&runtime_env),
-                metrics_builder.clone(),
+                diagnostic_builder.clone(),
             )?;
             let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
             assert_eq!(embeddings.len(), 2);
@@ -937,8 +937,8 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let metrics = SpanMetricsSet::new();
-        let metrics_builder = MetricBuilder::new(&metrics).with_span("candle_embed_processor", 0);
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span("candle_embed_processor", 0);
 
         // Make the runtime
         let asset = config.candle_asset.unwrap().build(
@@ -963,7 +963,7 @@ mod tests {
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            metrics_builder.clone(),
+            diagnostic_builder.clone(),
         )?;
 
         // DM: Skip actually running the tests as they take too long on the CPU

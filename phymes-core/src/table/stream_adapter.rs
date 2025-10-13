@@ -5,8 +5,8 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use anyhow::{Result, anyhow};
+use phymes_diagnostics::BaselineMetrics;
 
-use crate::metrics::BaselineMetrics;
 use crate::table::stream::{RecordBatchStream, SendableRecordBatchStream};
 use crate::task::test_exec::SendableRecordBatchExecTrait;
 

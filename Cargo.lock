@@ -5338,6 +5338,7 @@ dependencies = [
  "minijinja-contrib",
  "num-traits",
  "parking_lot",
+ "phymes-diagnostics",
  "pin-project-lite",
  "serde",
  "serde_json",

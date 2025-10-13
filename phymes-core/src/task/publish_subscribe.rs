@@ -1,5 +1,6 @@
+use phymes_diagnostics::HashMap;
+
 use crate::{
-    metrics::HashMap,
     session::common_traits::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap},
     table::{
         table_publish::TablePublish,

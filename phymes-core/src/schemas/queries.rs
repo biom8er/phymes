@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use arrow::{array::{ArrayRef, RecordBatch, StringArray}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
+use phymes_diagnostics::create_timestamp_str;
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::create_timestamp_str, table::table_trait::TableBuilder};
+use crate::table::table_trait::TableBuilder;
 
 pub fn create_queries_fields() -> Fields {
     let field_names = ["query_id", "text"];

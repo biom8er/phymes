@@ -22,15 +22,15 @@ pub async fn run_main() -> Result<()> {
     );
 
     // Metrics to compute time and rows
-    let metrics = SpanMetricsSet::new();
-    let metrics_builder = MetricBuilder::new(&metrics);
+    let diagnostics = Diagnostics::new();
+    let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
 
     // Chat processor config
     let config = CandleChatConfig::parse();
 
     // Run the chat processor
     let message_history = bench_chat_processor(
-        &metrics_builder,
+        &diagnostic_builder,
         &config,
         "What are the four molecules that compose DNA?",
         "chat_processor",

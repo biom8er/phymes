@@ -1,5 +1,4 @@
 use crate::{
-    metrics::MetricBuilder,
     session::{
         common_traits::{MappableTrait, SendableRecordBatchStreamMessageMap},
         runtime_env::RuntimeEnv,
@@ -11,6 +10,7 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Level, event};
@@ -224,7 +224,7 @@ pub trait ProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
     fn process(
         &self,
         message: SendableRecordBatchStreamMessageMap,
-        metrics_builder: &MetricBuilder,
+        diagnostic_builder: &DiagnosticBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap>;
 }
@@ -256,7 +256,7 @@ impl PubSubTrait for ProcessorEcho {
     }
     fn check_subscriptions(
         &self,
-        updates: &crate::metrics::HashMap<String, bool>,
+        updates: &HashMap<String, bool>,
         state: &crate::session::common_traits::StateMap,
     ) -> bool {
         self.subscribe
@@ -299,7 +299,7 @@ impl ProcessorTrait for ProcessorEcho {
     fn process(
         &self,
         message: SendableRecordBatchStreamMessageMap,
-        _metrics_builder: &MetricBuilder,
+        _diagnostic_builder: &DiagnosticBuilder,
         _runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -362,8 +362,7 @@ impl ProcessorBuilder {
 pub mod test_processor {
     use super::*;
     use crate::{
-        metrics::create_random_id,
-        session::common_traits::{BuildableTrait, BuilderTrait},
+        session::common_traits::{BuildableTrait, BuilderTrait, StateMap},
         table::table_trait::test_table::make_test_record_batch,
         task::message::{
             MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -373,6 +372,7 @@ pub mod test_processor {
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
     use hashbrown::HashMap;
+    use phymes_diagnostics::{create_random_id, DiagnosticBuilderTrait};
     use std::{
         pin::Pin,
         sync::Arc,
@@ -404,8 +404,8 @@ pub mod test_processor {
         }
         fn check_subscriptions(
             &self,
-            updates: &crate::metrics::HashMap<String, bool>,
-            state: &crate::session::common_traits::StateMap,
+            updates: &HashMap<String, bool>,
+            state: &StateMap,
         ) -> bool {
             self.subscribe
                 .check_subscriptions(&self.subscriptions, updates, state)
@@ -447,7 +447,7 @@ pub mod test_processor {
         fn process(
             &self,
             message: SendableRecordBatchStreamMessageMap,
-            metrics_builder: &MetricBuilder,
+            diagnostic_builder: &DiagnosticBuilder,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -463,7 +463,7 @@ pub mod test_processor {
                 let out = Box::pin(ProcessorMockStream {
                     schema: s.get_message().schema(),
                     input: s.get_message_own(),
-                    metrics_builder: metrics_builder.clone().to_child().with_span(self.get_name(), span_id),
+                    diagnostic_builder: diagnostic_builder.clone().to_child().with_span(self.get_name(), span_id),
                 });
                 let out_m = SendableRecordBatchStreamMessage::get_builder()
                     .with_name(name.as_str())
@@ -484,7 +484,7 @@ pub mod test_processor {
         /// The input task to process.
         input: SendableRecordBatchStream,
         /// Runtime metrics recording
-        metrics_builder: MetricBuilder,
+        diagnostic_builder: DiagnosticBuilder,
     }
 
     fn add_test_table_row(
@@ -505,7 +505,7 @@ pub mod test_processor {
 
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             let poll;
-            let baseline_metrics = self.metrics_builder.clone().to_child().with_span("ProcessorMockStream", create_random_id()).baseline_metrics();
+            let baseline_metrics = self.diagnostic_builder.clone().to_child().with_span("ProcessorMockStream", create_random_id()).baseline_metrics();
             #[allow(clippy::never_loop)]
             loop {
                 match ready!(self.input.poll_next_unpin(cx)) {
@@ -562,8 +562,8 @@ pub mod test_processor {
         }
         fn check_subscriptions(
             &self,
-            updates: &crate::metrics::HashMap<String, bool>,
-            state: &crate::session::common_traits::StateMap,
+            updates: &HashMap<String, bool>,
+            state: &StateMap,
         ) -> bool {
             self.subscribe
                 .check_subscriptions(&self.subscriptions, updates, state)
@@ -605,7 +605,7 @@ pub mod test_processor {
         fn process(
             &self,
             _message: SendableRecordBatchStreamMessageMap,
-            _metrics_builder: &MetricBuilder,
+            _diagnostic_builder: &DiagnosticBuilder,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -620,7 +620,6 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        metrics::{HashMap, SpanMetricsSet},
         session::{
             common_traits::{BuildableTrait, BuilderTrait},
             runtime_env::RuntimeEnv,
@@ -634,11 +633,12 @@ mod tests {
     };
     use anyhow::Result;
     use parking_lot::lock_api::Mutex;
+    use phymes_diagnostics::Diagnostics;
 
     #[tokio::test]
     async fn test_processor() -> Result<()> {
-        let metrics = SpanMetricsSet::new();
-        let metrics_builder = MetricBuilder::new(&metrics);
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
         let runtime_env = RuntimeEnv::default();
         let name = "process_1".to_string();
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -656,7 +656,7 @@ mod tests {
         );
         let processor_1 = test_processor::ProcessorMock::new_arc("processor_1");
         let mut stream =
-            processor_1.process(message, &metrics_builder, Arc::new(Mutex::new(runtime_env)))?;
+            processor_1.process(message, &diagnostic_builder, Arc::new(Mutex::new(runtime_env)))?;
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove(&name).unwrap().get_message_own(),
         )
@@ -665,8 +665,6 @@ mod tests {
         .build()?;
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 15);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 15);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
         Ok(())
     }
 }

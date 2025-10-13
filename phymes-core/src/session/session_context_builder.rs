@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use parking_lot::{Mutex, RwLock};
+use phymes_diagnostics::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    metrics::{HashMap, HashSet},
     session::common_traits::{StateMap, TaskMap},
     table::{
         table_trait::Table, table_publish::TablePublish,

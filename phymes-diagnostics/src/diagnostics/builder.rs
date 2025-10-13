@@ -70,7 +70,7 @@ impl DiagnosticBuilderTrait for DiagnosticBuilder {
     fn to_child(mut self, span_name: &str) -> Result<Self> {
         let span = if let Some(s) = self.span {
             SpanBuilder::default().with_parent_span(s.span())
-                .with_span(span_name)?
+                .with_span(span_name)
                 .build()?
         } else {
             return Err(anyhow!("Provide a `span` before attempting to create a child diagnostic builder!"));
@@ -98,7 +98,7 @@ mod tests {
     fn test_diagnostic_builder_to_child() -> Result<()> {
         // Initialize the diagnostics and span
         let diagnostics = Diagnostics::new();
-        let span = SpanBuilder::default().with_parent("parent_span")?.with_span("span_name")?.build()?;
+        let span = SpanBuilder::default().with_parent("parent_span").with_span("span_name").build()?;
 
         // Test error when trying to create a child without a parent
         let builder_err = DiagnosticBuilder::new(&diagnostics).to_child("child_span");

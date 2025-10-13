@@ -1,17 +1,18 @@
 use std::sync::Arc;
 
-use crate::{schemas::available_subjects::create_timestamp_micros, table::{
+use crate::table::{
     table_script::TableScript,
     table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait},
     stream::SendableRecordBatchStream,
     stream_adapter::RecordBatchReceiverStream,
-}};
+};
 
 use anyhow::Result;
 use arrow::{
     array::{ArrayRef, Int64Array, StringArray}, datatypes::{DataType, Field, Fields}, record_batch::RecordBatch
 };
 use futures::StreamExt;
+use phymes_diagnostics::create_timestamp_micros;
 use tracing::{Level, event};
 
 use super::chat_completion::{self, ChatCompletionMessage, Content, MessageRole, ToolCall};
@@ -310,9 +311,8 @@ impl ChatBuilderTraitExt for TableBuilder {
 mod test_messages {
     use super::*;
     use crate::{
-        metrics::{HashMap, MetricBuilder},
         session::{
-            common_traits::{BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap},
+            common_traits::{BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap},
             runtime_env::RuntimeEnv,
         },
         table::{
@@ -330,6 +330,7 @@ mod test_messages {
     use arrow::datatypes::SchemaRef;
     use futures::Stream;
     use parking_lot::Mutex;
+    use phymes_diagnostics::{DiagnosticBuilder, HashMap};
     use std::{
         pin::Pin,
         sync::Arc,
@@ -361,8 +362,8 @@ mod test_messages {
         }
         fn check_subscriptions(
             &self,
-            updates: &crate::metrics::HashMap<String, bool>,
-            state: &crate::session::common_traits::StateMap,
+            updates: &HashMap<String, bool>,
+            state: &StateMap,
         ) -> bool {
             self.subscribe
                 .check_subscriptions(&self.subscriptions, updates, state)
@@ -404,7 +405,7 @@ mod test_messages {
         fn process(
             &self,
             mut message: SendableRecordBatchStreamMessageMap,
-            _metrics_builder: &MetricBuilder,
+            _diagnostic_builder: &DiagnosticBuilder,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             // Create the stream response
@@ -555,7 +556,6 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        metrics::{HashMap, MetricBuilder, SpanMetricsSet},
         session::{
             common_traits::{BuildableTrait, BuilderTrait},
             runtime_env::{RuntimeEnv, RuntimeEnvTrait},
@@ -572,6 +572,7 @@ mod tests {
     };
     use futures::TryStreamExt;
     use parking_lot::Mutex;
+    use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap};
 
     use super::*;
 
@@ -711,7 +712,7 @@ mod tests {
             test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
-            &MetricBuilder::new(&SpanMetricsSet::new()),
+            &DiagnosticBuilder::new(&Diagnostics::new()),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
@@ -798,7 +799,7 @@ mod tests {
         let chat_processor = test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
-            &MetricBuilder::new(&SpanMetricsSet::new()),
+            &DiagnosticBuilder::new(&Diagnostics::new()),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 

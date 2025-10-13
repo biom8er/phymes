@@ -1,6 +1,7 @@
 use anyhow::Result;
 use futures::{FutureExt, Stream};
 use parking_lot::RwLock;
+use phymes_diagnostics::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -8,7 +9,6 @@ use std::task::{Context, Poll, ready};
 use tracing::{Level, event};
 
 use super::common_traits::IPCMessageMap;
-use crate::metrics::HashMap;
 use crate::session::session_stream_state::SessionStreamState;
 use crate::session::session_stream_step::SessionStreamStep;
 use crate::task::message::IPCMessage;

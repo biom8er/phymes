@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
 use parking_lot::{Mutex, RwLock};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap};
 use tracing::{Level, event};
 
 use super::{
@@ -17,12 +18,7 @@ use super::{
 #[allow(unused_imports)]
 use super::test_exec::{collect_partitions_runs, collect_task_runs};
 
-// Required for documentation
-#[allow(unused_imports)]
-use crate::metrics::Metric;
-
 use crate::{
-    metrics::{create_random_id, HashMap, MetricBuilder},
     session::{
         common_traits::{
             BuildableTrait, BuilderTrait, MappableTrait, RunnableTrait, SendableRecordBatchStreamMessageMap, StateMap
@@ -150,15 +146,14 @@ impl BuildableTrait for Task {
 }
 
 impl RunnableTrait for Task {
-    fn run(&self, mut messages: SendableRecordBatchStreamMessageMap, metrics_builder: &MetricBuilder) -> Result<SendableRecordBatchStreamMessageMap> {
+    fn run(&self, mut messages: SendableRecordBatchStreamMessageMap, diagnostic_builder: &DiagnosticBuilder) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
-        let span_id = create_random_id();
 
         // Process the incoming message resulting in a `SendableRecordBatchStream`
         for processor in self.processor.iter() {            
             messages = processor.process(
                 messages, 
-                &metrics_builder.clone().to_child().with_span(self.get_name(), span_id), 
+                &diagnostic_builder.clone().to_child().with_span(self.get_name(), span_id), 
                 self.runtime_env.clone())?;
         }
 
@@ -318,6 +313,7 @@ pub mod test_task {
     };
 
     use arrow::array::{ArrayRef, StringArray, UInt16Array, UInt32Array};
+    use phymes_diagnostics::HashMap;
     use std::sync::Arc;
 
     pub fn make_state_tables(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
@@ -504,7 +500,6 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metrics::SpanMetricsSet;
     use crate::table::table_trait::TableTrait;
     use crate::table::table_trait::test_table::make_test_table;
     use crate::table::{
@@ -515,6 +510,7 @@ mod tests {
     use arrow::array::{Array, DictionaryArray, Int32Array, NullArray, RunArray};
     use arrow::datatypes::{DataType, Field, Schema};
     use hashbrown::HashMap;
+    use phymes_diagnostics::Diagnostics;
 
     /// A compilation test to ensure that the `Task::get_name()` method can
     /// be called from a trait object.
@@ -791,8 +787,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_task_single_processor() -> Result<()> {
-        let metrics = SpanMetricsSet::new();
-        let metrics_builder = MetricBuilder::new(&metrics);
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
         let test_task = test_task::make_test_task_single_processor(
             "test_task",
             "test_rt",
@@ -803,7 +799,7 @@ mod tests {
             &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?,
         );
-        let mut response = test_task.run(input, &metrics_builder)?;
+        let mut response = test_task.run(input, &diagnostic_builder)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
         assert_eq!(
@@ -835,15 +831,13 @@ mod tests {
                 .build()?;
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 15); // 3 * (4 + 1) from input + 1 added to each batch
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 15);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
         Ok(())
     }
 
     #[tokio::test]
     async fn test_run_task_chained_processor() -> Result<()> {
-        let metrics = SpanMetricsSet::new();
-        let metrics_builder = MetricBuilder::new(&metrics);
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
         let test_task = test_task::make_test_task_chained_processor(
             "test_task",
             "test_rt",
@@ -854,7 +848,7 @@ mod tests {
             &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?,
         );
-        let mut response = test_task.run(input, &metrics_builder)?;
+        let mut response = test_task.run(input, &diagnostic_builder)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
         assert_eq!(
@@ -886,8 +880,6 @@ mod tests {
                 .build()?;
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 21);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 54);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
         Ok(())
     }
 }

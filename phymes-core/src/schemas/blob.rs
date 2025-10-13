@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use arrow::{array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, UInt8Builder}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
+use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::create_timestamp_micros, table::table_trait::TableBuilder};
+use crate::table::table_trait::TableBuilder;
 
 pub fn create_blob_fields() -> Fields {
     let filename = Field::new("filename", DataType::Utf8, false);

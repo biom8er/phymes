@@ -52,15 +52,15 @@ impl SpanBuilder {
         self.parent_id = Some(parent_span.1.to_owned());
         self
     }
-    pub fn with_parent(mut self, parent_name: &str) -> Result<Self> {
+    pub fn with_parent(mut self, parent_name: &str) -> Self {
         self.parent_name = Some(parent_name.to_string());
         self.parent_id = Some(create_random_id());
-        Ok(self)
+        self
     }
-    pub fn with_span(mut self, span_name: &str) -> Result<Self> {
+    pub fn with_span(mut self, span_name: &str) -> Self {
         self.span_name = Some(span_name.to_string());
         self.span_id = Some(create_random_id());
-        Ok(self)
+        self
     }
     pub fn build(self) -> Result<Span> {
         let span_name = match self.span_name {

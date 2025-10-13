@@ -4,6 +4,7 @@ use arrow::array::StringArray;
 use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
 use parking_lot::{Mutex, RwLock};
+use phymes_diagnostics::{Diagnostics, HashMap};
 use std::fmt::Display;
 use std::sync::Arc;
 use tracing::{Level, event};
@@ -15,10 +16,7 @@ use super::{
     runtime_env::RuntimeEnv,
     session_context_builder::SessionContextBuilder,
 };
-use crate::metrics::{
-    SpanMetricsSet, HashMap, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt,
-    get_metrics_as_pivot_table,
-};
+use crate::schemas::diagnostics::{get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, get_metrics_as_pivot_table};
 use crate::table::table_publish::TablePublish;
 use crate::table::{
     table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait},
@@ -109,10 +107,10 @@ impl SessionContext {
     }
 
     /// Create the metrics table if it does not exist or update with the new metrics
-    pub fn update_metrics_table(&mut self, metrics_vec: &[SpanMetricsSet]) -> Result<bool> {
+    pub fn update_metrics_table(&mut self, diagnostics_vec: &[Diagnostics]) -> Result<bool> {
         // create the pivot table and clear the metrics
         let pivot_table = get_metrics_as_pivot_table(
-            metrics_vec,
+            diagnostics_vec,
             SessionContextTableNames::Metrics.to_string().as_str(),
         )?;
 
@@ -346,9 +344,9 @@ impl BuildableTrait for SessionContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metrics::HashSet;
     use crate::table::table_trait::test_table::make_test_table_schema;
     use crate::session::session_context_builder::test_session_context_builder::{make_test_session_context_parallel_task, make_test_session_context_parallel_task_empty};
+    use phymes_diagnostics::HashSet;
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;
 

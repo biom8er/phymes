@@ -2,12 +2,12 @@ use anyhow::{anyhow, Result};
 use arrow::array::ArrayRef;
 use arrow::array::{BooleanArray, StringArray};
 use arrow::record_batch::RecordBatch;
+use phymes_diagnostics::HashMap;
 use std::fs::File;
 use std::sync::Arc;
 use tracing::{Level, event, instrument};
 
 use super::common_traits::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait};
-use crate::metrics::HashMap;
 use crate::session::session_context::SessionContext;
 use crate::table::table_publish::TablePublish;
 use crate::table::{

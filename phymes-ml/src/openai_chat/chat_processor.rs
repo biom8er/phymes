@@ -9,7 +9,6 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    metrics::{create_random_id, HashMap, MetricBuilder},
     schemas::{
         available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, 
         chat::{create_chat_record_batch, ChatTraitExt}, 
@@ -98,7 +97,7 @@ impl ProcessorTrait for OpenAIChatProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics_builder: &MetricBuilder,
+        diagnostic_builder: &DiagnosticBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -122,7 +121,7 @@ impl ProcessorTrait for OpenAIChatProcessor {
             tools,
             config,
             Arc::clone(&runtime_env),
-            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -148,7 +147,7 @@ pub struct OpenAIChatStream {
     /// The candle assets needed for inference
     _runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    metrics_builder: MetricBuilder,
+    diagnostic_builder: DiagnosticBuilder,
     /// Parameters for chat inference
     config: Option<CandleChatConfig>,
     /// State of the OpenAI API request
@@ -161,13 +160,13 @@ impl OpenAIChatStream {
         tools_stream: Option<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        metrics_builder: MetricBuilder,
+        diagnostic_builder: DiagnosticBuilder,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),
             message_stream,
             tools_stream,
-            metrics_builder,
+            diagnostic_builder,
             config_stream,
             _runtime_env: runtime_env,
             config: None,
@@ -312,7 +311,7 @@ impl Stream for OpenAIChatStream {
             OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(text) => {
                     // Initialize the metrics
-                    let metrics = self.metrics_builder.clone().to_child().with_span("OpenAIChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
+                    let metrics = self.diagnostic_builder.clone().to_child().with_span("OpenAIChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
                     let _timer = metrics.elapsed_compute().timer();
 
                     // Parse the response
@@ -395,7 +394,7 @@ mod tests {
         let messages = "messages";
 
         // Metrics to compute time and rows
-        let metrics = SpanMetricsSet::new();
+        let diagnostics = Diagnostics::new();
 
         // State for the chat processor config
         let candle_chat_config = CandleChatConfig {

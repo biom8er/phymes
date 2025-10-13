@@ -5,7 +5,6 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{create_random_id, HashMap, MetricBuilder},
     schemas::{
         available_subjects::{create_timestamp_micros, create_values_record_batch, AvailableSubjects, AvailableSubjectsTrait}, 
         chat::create_chat_record_batch,
@@ -115,11 +114,11 @@ impl ProcessorTrait for MessageParserProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics_builder, runtime_env))]
+    #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        metrics_builder: &MetricBuilder,
+        diagnostic_builder: &DiagnosticBuilder,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -140,7 +139,7 @@ impl ProcessorTrait for MessageParserProcessor {
             messages,
             config,
             Arc::clone(&runtime_env),
-            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
         )?);
 
         // By default, we send back to the publisher in case of any errors which the publisher
@@ -169,7 +168,7 @@ pub struct MessageParserStream {
     /// The Candle model assets needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    metrics_builder: MetricBuilder,
+    diagnostic_builder: DiagnosticBuilder,
     /// Parameters for chat inference
     config: Option<CandleChatConfig>,
 }
@@ -179,14 +178,14 @@ impl MessageParserStream {
         message_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        metrics_builder: MetricBuilder,
+        diagnostic_builder: DiagnosticBuilder,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Values.to_schema(),
             message_stream,
             config_stream,
             runtime_env,
-            metrics_builder,
+            diagnostic_builder,
             config: None,
         })
     }
@@ -213,7 +212,7 @@ impl Stream for MessageParserStream {
             Poll::Ready(None)
         } else {
             // Initialize the metrics
-            let metrics = self.metrics_builder.clone().to_child().with_span("MessageParserStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
+            let metrics = self.diagnostic_builder.clone().to_child().with_span("MessageParserStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
             let _timer = metrics.elapsed_compute().timer();
 
             // Initialize the config
@@ -453,8 +452,8 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = SpanMetricsSet::new();
-        let metrics_builder = MetricBuilder::new(&metrics);
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -476,7 +475,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, &metrics_builder, runtime_env)?;
+        let mut stream = processor.process(message_map, &diagnostic_builder, runtime_env)?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
@@ -558,8 +557,8 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = SpanMetricsSet::new();
-        let metrics_builder = MetricBuilder::new(&metrics);
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -581,7 +580,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, &metrics_builder, runtime_env)?;
+        let mut stream = processor.process(message_map, &diagnostic_builder, runtime_env)?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
@@ -663,8 +662,8 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = SpanMetricsSet::new();
-        let metrics_builder = MetricBuilder::new(&metrics);
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -686,7 +685,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, &metrics_builder, runtime_env)?;
+        let mut stream = processor.process(message_map, &diagnostic_builder, runtime_env)?;
 
         // DM: this will result in an error because the schema is dynamically updated
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(

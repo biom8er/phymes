@@ -1,4 +1,4 @@
-use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, error::create_error_fields, mermaid::create_mermaid_fields, metrics::{create_metrics_fields, create_metrics_mermaid_gantt_fields}, queries::create_queries_fields, user::{create_join_user_inbox_session_contexts_fields, create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields, create_user_inbox_fields, create_user_session_contexts_fields}}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table_trait::{Table, TableBuilder, TableBuilderTrait}};
+use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, error::create_error_fields, mermaid::create_mermaid_fields, diagnostics::{create_metrics_fields, create_metrics_mermaid_gantt_fields}, queries::create_queries_fields, user::{create_join_user_inbox_session_contexts_fields, create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields, create_user_inbox_fields, create_user_session_contexts_fields}}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table_trait::{Table, TableBuilder, TableBuilderTrait}};
 
 use anyhow::Result;
 use arrow::{
