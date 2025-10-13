@@ -153,7 +153,7 @@ impl RunnableTrait for Task {
         for processor in self.processor.iter() {            
             messages = processor.process(
                 messages, 
-                &diagnostic_builder.clone().to_child().with_span(self.get_name(), span_id), 
+                &diagnostic_builder.clone().to_child(self.get_name())?, 
                 self.runtime_env.clone())?;
         }
 

@@ -5,7 +5,7 @@ use anyhow::Result;
 use phymes_diagnostics::{Diagnostics, HashMap};
 use serde::{Deserialize, Serialize};
 
-use crate::{session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::table_trait::{Table, TableTrait}};
+use crate::{session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::table_trait::{Table, TableBuilderTrait, TableTrait}};
 
 /// `span_name` will most likely be the processor name
 /// `span_id` connects the trace data to the metrics data
@@ -143,8 +143,6 @@ pub fn create_logs_batch(
     ])?;
     Ok(batch)
 }
-
-
 
 /// Get the metrics for multiple sessions as a pivot table
 /// 

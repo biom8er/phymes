@@ -372,7 +372,7 @@ pub mod test_processor {
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
     use hashbrown::HashMap;
-    use phymes_diagnostics::{create_random_id, DiagnosticBuilderTrait};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, MetricBuilderTrait};
     use std::{
         pin::Pin,
         sync::Arc,
@@ -451,7 +451,6 @@ pub mod test_processor {
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             event!(Level::INFO, "Starting processor {}", self.get_name());
-            let span_id = create_random_id();
 
             // Add another record batch to the input
             let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -463,7 +462,7 @@ pub mod test_processor {
                 let out = Box::pin(ProcessorMockStream {
                     schema: s.get_message().schema(),
                     input: s.get_message_own(),
-                    diagnostic_builder: diagnostic_builder.clone().to_child().with_span(self.get_name(), span_id),
+                    diagnostic_builder: diagnostic_builder.clone().to_child(self.get_name())?,
                 });
                 let out_m = SendableRecordBatchStreamMessage::get_builder()
                     .with_name(name.as_str())
@@ -505,7 +504,7 @@ pub mod test_processor {
 
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             let poll;
-            let baseline_metrics = self.diagnostic_builder.clone().to_child().with_span("ProcessorMockStream", create_random_id()).baseline_metrics();
+            let baseline_metrics = self.diagnostic_builder.clone().to_child("ProcessorMockStream")?.baseline_metrics("poll_next");
             #[allow(clippy::never_loop)]
             loop {
                 match ready!(self.input.poll_next_unpin(cx)) {
@@ -633,7 +632,7 @@ mod tests {
     };
     use anyhow::Result;
     use parking_lot::lock_api::Mutex;
-    use phymes_diagnostics::Diagnostics;
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics};
 
     #[tokio::test]
     async fn test_processor() -> Result<()> {

@@ -28,7 +28,7 @@ pub trait DiagnosticBuilderTrait {
 
     /// Consume self and create a [DiagnosticSpan] of the specified value
     /// registered with the [Diagnostics]
-    fn build(self, diagnostic: &AvailableDiagnostics, function: &str);
+    fn build(self, diagnostic: &AvailableDiagnostics, line: u32, file: &str, function: &str);
 }
 
 /// Structure for constructing diagnostics including traces, events, and metrics
@@ -79,13 +79,13 @@ impl DiagnosticBuilderTrait for DiagnosticBuilder {
         Ok(self)
     }
 
-    fn build(self, diagnostic: &AvailableDiagnostics, function: &str) {
+    fn build(self, diagnostic: &AvailableDiagnostics, line: u32, file: &str, function: &str) {
         let Self {
             diagnostics,
             span,
             labels,
         } = self;
-        let diagnostic_span = Arc::new(DiagnosticSpan::new(diagnostic, &span.unwrap(), function, &labels).unwrap());
+        let diagnostic_span = Arc::new(DiagnosticSpan::new(diagnostic, &span.unwrap(), line, file, function, &labels).unwrap());
         diagnostics.register(diagnostic_span);
     }
 }

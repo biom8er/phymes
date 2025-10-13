@@ -18,12 +18,47 @@ pub struct CurrentContext {
 }
 
 impl CurrentContext {
-    pub fn new(function: &str) -> Self {
-        let line = std::line!();
-        let file = std::file!().to_string();
+    /// Create a new current context
+    pub fn new(function: &str, line: u32, file: &str) -> Self {
+        let file = file.to_string();
         let thread = std::thread::current().id();
         let function = function.to_string();
         let timestamp = create_timestamp_micros();
         Self { line, file, thread, function, timestamp }
+    }
+
+    pub fn line(&self) -> &u32 {
+        &self.line
+    }
+
+    pub fn file(&self) -> &str {
+        &self.file
+    }
+    
+    pub fn thread(&self) -> &ThreadId {
+        &self.thread
+    }
+
+    pub fn function(&self) -> &str {
+        &self.function
+    }
+
+    pub fn timestamp(&self) -> &i64 {
+        &self.timestamp
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_current_context() {
+        let current_context = CurrentContext::new("my_function", line!(), file!());
+        assert_eq!(current_context.line(), &57);
+        assert_eq!(current_context.file(), "current_context.rs");
+        assert_eq!(current_context.thread(), &std::thread::current().id());
+        assert_eq!(current_context.function(), "my_function");
+        assert!(current_context.timestamp() > &create_timestamp_micros());
     }
 }

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, thread::ThreadId};
 use anyhow::Result;
 
 use crate::{diagnostics::{available_diagnostics::AvailableDiagnostics, label::Label}, traces::create_random_id};
@@ -22,10 +22,10 @@ pub struct DiagnosticSpan {
 
 impl DiagnosticSpan {
     /// Create a new diagnostic span instantiating the [CurrentContext] and generating a unique `id`
-    pub fn new(diagnostic: &AvailableDiagnostics, span: &Span, function: &str, labels: &[Label]) -> Result<Self> {
+    pub fn new(diagnostic: &AvailableDiagnostics, span: &Span, line: u32, file: &str, function: &str, labels: &[Label]) -> Result<Self> {
         Ok(Self { 
             diagnostic: diagnostic.to_owned(), 
-            current_context: CurrentContext::new(function), 
+            current_context: CurrentContext::new(function, line, file), 
             span: span.to_owned(), 
             id: create_random_id(),
             labels: labels.to_owned(),
@@ -62,5 +62,61 @@ impl DiagnosticSet {
     /// Returns an iterator across all metrics
     pub fn iter(&self) -> impl Iterator<Item = &Arc<DiagnosticSpan>> {
         self.diagnostics.iter()
+    }
+
+    /// Return a columnar representation of the [DiagnosticSet]
+    pub fn to_columns(&self) -> (
+        Vec<AvailableDiagnostics>,
+        Vec<String>,
+        Vec<u64>,
+        Vec<String>,
+        Vec<u64>,
+        Vec<u32>,
+        Vec<String>,
+        Vec<ThreadId>,
+        Vec<String>,
+        Vec<i64>,
+        Vec<String>,
+        Vec<u64>,
+    ) {
+        let mut diagnostic_vec = Vec::<AvailableDiagnostics>::new();
+
+        // Span columns
+        let mut parent_names_vec = Vec::<String>::new();
+        let mut parent_ids_vec = Vec::<u64>::new();
+        let mut span_names_vec = Vec::<String>::new();
+        let mut span_ids_vec = Vec::<u64>::new();
+
+        // Context columns
+        let mut line_vec = Vec::<u32>::new();
+        let mut file_vec = Vec::<String>::new();
+        let mut thread_vec = Vec::<ThreadId>::new();
+        let mut function_vec = Vec::<String>::new();
+        let mut timestamp_vec = Vec::<i64>::new();
+
+        // Labels and IDs
+        let mut labels_vec = Vec::<String>::new();
+        let mut ids_vec = Vec::<u64>::new();
+
+        // Interate through the set
+        for diagnostic_span in self.diagnostics.iter() {
+            diagnostic_vec.push(diagnostic_span.diagnostic.to_owned());
+            let parent_span = diagnostic_span.span.parent();
+            let span = diagnostic_span.span.span();
+            parent_names_vec.push(parent_span.0.clone().unwrap_or_default());
+            parent_ids_vec.push(parent_span.1.clone().unwrap_or_default());
+            span_names_vec.push(span.0.to_owned());
+            span_ids_vec.push(span.1.to_owned());
+            line_vec.push(diagnostic_span.current_context.line().to_owned());
+            file_vec.push(diagnostic_span.current_context.file().to_owned());
+            thread_vec.push(diagnostic_span.current_context.thread().to_owned());
+            function_vec.push(diagnostic_span.current_context.function().to_owned());
+            timestamp_vec.push(diagnostic_span.current_context.timestamp().to_owned());
+            let labels = diagnostic_span.labels.iter().map(|l| l.to_string()).collect::<Vec<_>>().join(";");
+            labels_vec.push(labels);
+            ids_vec.push(diagnostic_span.id.to_owned());
+        }
+
+        (diagnostic_vec, parent_names_vec, parent_ids_vec, span_names_vec, span_ids_vec, line_vec, file_vec, thread_vec, function_vec, timestamp_vec, labels_vec, ids_vec)
     }
 }
