@@ -1,49 +1,13 @@
 use std::{fmt::Display, sync::Arc};
 
 use parking_lot::Mutex;
-use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-
-/// A tracer often a [SendableRecordBatchStreamMessage]
-/// 
-/// [SendableRecordBatchStreamMessage]: phymes_core::tasks::messages::SendableRecordBatchStreamMessage
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
-pub struct Tracer {
-    /// The name of the message
-    message_name: String,
-    /// The name of the subject of the message
-    subject_name: String,
-}
-
-impl Tracer {
-    pub fn new(message_name: &str, subject_name: &str) -> Self {
-        Self {
-            message_name: message_name.to_string(),
-            subject_name: subject_name.to_string(),
-        }
-    }
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
-pub struct TracerEvents {
-    entered: Vec<Tracer>,
-    exited: Vec<Tracer>,
-}
-
-impl TracerEvents {
-    pub fn enter(&mut self, tracer: &Tracer) {
-        self.entered.push(tracer.to_owned());
-    }
-    pub fn exit(&mut self, tracer: &Tracer) {
-        self.entered.push(tracer.to_owned());
-    }
-}
 
 /// A JSON structured event record
 #[derive(Debug, Clone)]
-pub struct TraceRecord {
+pub struct EventRecord {
     /// value of the metric gauge
-    value: Arc<Mutex<Option<>>>,
+    value: Arc<Mutex<Option<Map<String, Value>>>>,
 }
 
 impl EventRecord {
@@ -71,7 +35,7 @@ impl EventRecord {
 
     /// Return the event value
     pub fn value(&self) -> Option<Map<String, Value>> {
-        self.value.lock().clone()
+        self.value.lock().take()
     }
 }
 

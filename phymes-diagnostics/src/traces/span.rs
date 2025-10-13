@@ -2,11 +2,11 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
 /// Create a (pseudo)random ID
-pub fn create_random_id() -> Result<u64> {
+pub fn create_random_id() -> u64 {
     let mut buf = [0u8; 8];
-    getrandom::fill(&mut buf)?;
+    getrandom::fill(&mut buf).unwrap();
     let id = u64::from_ne_bytes(buf);
-    Ok(id)
+    id
 }
 
 /// The span
@@ -54,12 +54,12 @@ impl SpanBuilder {
     }
     pub fn with_parent(mut self, parent_name: &str) -> Result<Self> {
         self.parent_name = Some(parent_name.to_string());
-        self.parent_id = Some(create_random_id()?);
+        self.parent_id = Some(create_random_id());
         Ok(self)
     }
     pub fn with_span(mut self, span_name: &str) -> Result<Self> {
         self.span_name = Some(span_name.to_string());
-        self.span_id = Some(create_random_id()?);
+        self.span_id = Some(create_random_id());
         Ok(self)
     }
     pub fn build(self) -> Result<Span> {

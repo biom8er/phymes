@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
-pub mod builder;
-pub mod diagnostic_set;
-pub mod available_diagnostics;
-pub mod label;
+mod builder;
+mod diagnostic_set;
+mod available_diagnostics;
+mod label;
 
 use parking_lot::Mutex;
 
-use crate::diagnostics::diagnostic_set::{DiagnosticSet, DiagnosticSpan};
+pub use diagnostic_set::{DiagnosticSet, DiagnosticSpan};
+pub use builder::{DiagnosticBuilder, DiagnosticBuilderTrait};
+pub use label::Label;
+pub use available_diagnostics::AvailableDiagnostics;
 
 #[derive(Default, Debug, Clone)]
 pub struct Diagnostics {
@@ -23,8 +26,8 @@ impl Diagnostics {
     }
 
     /// Add the specified [DiagnosticSpan] to the underlying [DiagnosticSet]
-    pub fn register(&self, metric: Arc<DiagnosticSpan>) {
-        self.inner.lock().push(metric)
+    pub fn register(&self, diagnostic: Arc<DiagnosticSpan>) {
+        self.inner.lock().push(diagnostic)
     }
 
     /// Return a clone of the inner [DiagnosticSet]

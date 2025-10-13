@@ -147,7 +147,7 @@ impl ProcessorTrait for DataSummaryProcessor {
             table_names.swap_remove(0).to_string(),
             config,
             Arc::clone(&runtime_env),
-            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
+            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
         )?);
         let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let out_m = SendableRecordBatchStreamMessage::get_builder()

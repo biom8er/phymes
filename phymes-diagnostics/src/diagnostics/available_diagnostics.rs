@@ -1,12 +1,10 @@
-use serde::{Deserialize, Serialize};
-
-use crate::{events::Event, metrics::Metric};
+use crate::{events::Event, metrics::Metric, traces::Trace};
 
 /// The event type
 #[derive(Debug, Clone)]
 pub enum AvailableDiagnostics {
     /// Traces
-    Trace,
+    Trace(Trace),
     /// Events
     Event(Event),
     /// Metrics

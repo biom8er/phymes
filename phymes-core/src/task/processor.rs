@@ -451,7 +451,7 @@ pub mod test_processor {
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             event!(Level::INFO, "Starting processor {}", self.get_name());
-            let span_id = create_random_id()?;
+            let span_id = create_random_id();
 
             // Add another record batch to the input
             let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -505,7 +505,7 @@ pub mod test_processor {
 
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             let poll;
-            let baseline_metrics = self.metrics_builder.clone().to_child().with_span("ProcessorMockStream", create_random_id()?).baseline_metrics();
+            let baseline_metrics = self.metrics_builder.clone().to_child().with_span("ProcessorMockStream", create_random_id()).baseline_metrics();
             #[allow(clippy::never_loop)]
             loop {
                 match ready!(self.input.poll_next_unpin(cx)) {

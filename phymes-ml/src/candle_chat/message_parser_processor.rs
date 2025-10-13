@@ -140,7 +140,7 @@ impl ProcessorTrait for MessageParserProcessor {
             messages,
             config,
             Arc::clone(&runtime_env),
-            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
+            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
         )?);
 
         // By default, we send back to the publisher in case of any errors which the publisher

@@ -5,6 +5,32 @@ use anyhow::{anyhow, Result};
 
 use crate::{diagnostics::{available_diagnostics::AvailableDiagnostics, label::Label, DiagnosticSpan, Diagnostics}, traces::{Span, SpanBuilder}};
 
+/// Trait for diagnostic builders (traces, events, and metrics) to extend
+pub trait DiagnosticBuilderTrait {
+    /// Create a new `DiagnosticBuilder` that will register the result of `build()` with the `diagnostics`
+    fn new(diagnostics: &Diagnostics) -> Self;
+
+    /// Add a label to the metric being constructed
+    fn with_label(self, label: Label) -> Self;
+
+    /// Add a label to the metric being constructed
+    fn with_new_label(
+        self,
+        name: impl Into<Cow<'static, str>>,
+        value: impl Into<Cow<'static, str>>,
+    ) -> Self;
+
+    /// Add the span
+    fn with_span(self, span: &Span) -> Self;
+
+    /// Move the current span to parent and add in the child span
+    fn to_child(self, span_name: &str) -> Result<Self> where Self: Sized;
+
+    /// Consume self and create a [DiagnosticSpan] of the specified value
+    /// registered with the [Diagnostics]
+    fn build(self, diagnostic: &AvailableDiagnostics, function: &str);
+}
+
 /// Structure for constructing diagnostics including traces, events, and metrics
 #[derive(Clone, Debug)]
 pub struct DiagnosticBuilder {
@@ -14,9 +40,8 @@ pub struct DiagnosticBuilder {
     pub(crate) labels: Vec<Label>,
 }
 
-impl DiagnosticBuilder {
-    /// Create a new `DiagnosticBuilder` that will register the result of `build()` with the `diagnostics`
-    pub fn new(diagnostics: &Diagnostics) -> Self {
+impl DiagnosticBuilderTrait for DiagnosticBuilder {
+    fn new(diagnostics: &Diagnostics) -> Self {
         Self {
             diagnostics: diagnostics.clone(),
             span: None,
@@ -24,14 +49,12 @@ impl DiagnosticBuilder {
         }
     }
 
-    /// Add a label to the metric being constructed
-    pub fn with_label(mut self, label: Label) -> Self {
+    fn with_label(mut self, label: Label) -> Self {
         self.labels.push(label);
         self
     }
 
-    /// Add a label to the metric being constructed
-    pub fn with_new_label(
+    fn with_new_label(
         self,
         name: impl Into<Cow<'static, str>>,
         value: impl Into<Cow<'static, str>>,
@@ -39,14 +62,12 @@ impl DiagnosticBuilder {
         self.with_label(Label::new(name.into(), value.into()))
     }
 
-    /// Add the span
-    pub fn with_span(mut self, span: &Span) -> Self {
+    fn with_span(mut self, span: &Span) -> Self {
         self.span = Some(span.to_owned());
         self
     }
 
-    /// Move the current span to parent and add in the child span
-    pub fn to_child(mut self, span_name: &str) -> Result<Self> {
+    fn to_child(mut self, span_name: &str) -> Result<Self> {
         let span = if let Some(s) = self.span {
             SpanBuilder::default().with_parent_span(s.span())
                 .with_span(span_name)?
@@ -58,9 +79,7 @@ impl DiagnosticBuilder {
         Ok(self)
     }
 
-    /// Consume self and create a [DiagnosticSpan] of the specified value
-    /// registered with the [Diagnostics]
-    pub fn build(self, diagnostic: &AvailableDiagnostics, function: &str) {
+    fn build(self, diagnostic: &AvailableDiagnostics, function: &str) {
         let Self {
             diagnostics,
             span,

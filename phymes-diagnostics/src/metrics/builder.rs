@@ -1,180 +1,152 @@
 //! Builder for creating arbitrary metrics
 
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
 
-use crate::metrics::BaselineMetrics;
+use crate::{diagnostics::{AvailableDiagnostics, DiagnosticBuilder, DiagnosticBuilderTrait}, metrics::BaselineMetrics};
 
-use super::{SpanMetricsSet, Count, Gauge, Label, Metric, Metric, Time, Timestamp};
+use super::{Count, Gauge, Metric, Time, Timestamp};
 
-/// Structure for constructing metrics, counters, timers, etc.
-///
-/// Note the use of `Cow<..>` is to avoid allocations in the common
-/// case of constant strings
-///
-/// ```rust
-///  use phymes_core::metrics::*;
-///
-///  let metrics = SpanMetricsSet::new();
-///  let span_name = "1";
-///  let span_id = 1;
-///
-///  // Create the standard output_rows metric
-///  let output_rows = MetricBuilder::new(&metrics)
-///     .with_span(span_name, span_id)
-///     .output_rows();
-///
-///  // Create a operator specific counter with some labels
-///  let num_bytes = MetricBuilder::new(&metrics)
-///    .with_span(span_name, span_id)
-///    .with_new_label("filename", "my_awesome_file.parquet")
-///    .counter("num_bytes");
-///
-/// ```
-#[derive(Clone, Debug)]
-pub struct MetricBuilder {
-    /// Location that the metric created by this builder will be added do
-    metrics: SpanMetricsSet,
-
-    /// arbitrary name=value pairs identifying this metric
-    labels: Vec<Label>,
-}
-
-impl MetricBuilder {
-    /// Create a new `MetricBuilder` that will register the result of `build()` with the `metrics`
-    pub fn new(metrics: &SpanMetricsSet) -> Self {
-        Self {
-            metrics: metrics.clone(),
-            labels: vec![],
-        }
-    }
-
-    /// Add a label to the metric being constructed
-    pub fn with_label(mut self, label: Label) -> Self {
-        self.labels.push(label);
-        self
-    }
-
-    /// Add a label to the metric being constructed
-    pub fn with_new_label(
-        self,
-        name: impl Into<Cow<'static, str>>,
-        value: impl Into<Cow<'static, str>>,
-    ) -> Self {
-        self.with_label(Label::new(name.into(), value.into()))
-    }
-
-    /// Consume self and create a metric of the specified value
-    /// registered with the MetricsSet
-    pub fn build(self, value: Metric) {
-        let Self {
-            labels,
-            metrics,
-        } = self;
-        let metric = Arc::new(Metric::new_with_labels(value, labels));
-        metrics.register(metric);
-    }
-
+/// Trait extension constructing metrics, counters, timers, etc.
+pub trait MetricBuilderTrait: DiagnosticBuilderTrait {
     /// Consume self and create a new counter for recording output rows
-    pub fn output_rows(self) -> Count {
-        let count = Count::new();
-        self.build(Metric::OutputRows(count.clone()));
-        count
-    }
+    fn output_rows(self, function: &str) -> Count;
 
     /// Consume self and create a new counter for recording the number of spills
     /// triggered by an operator
-    pub fn spill_count(self) -> Count {
-        let count = Count::new();
-        self.build(Metric::OutputRows(count.clone()));
-        count
-    }
+    fn spill_count(self, function: &str) -> Count;
 
     /// Consume self and create a new counter for recording the total spilled bytes
     /// triggered by an operator
-    pub fn spilled_bytes(self) -> Count {
-        let count = Count::new();
-        self.build(Metric::SpilledBytes(count.clone()));
-        count
-    }
+    fn spilled_bytes(self, function: &str) -> Count;    
 
     /// Consume self and create a new counter for recording the total spilled rows
     /// triggered by an operator
-    pub fn spilled_rows(self) -> Count {
-        let count = Count::new();
-        self.build(Metric::SpilledRows(count.clone()));
-        count
-    }
+    fn spilled_rows(self, function: &str) -> Count;
 
     /// Consume self and create a new gauge for reporting current memory usage
-    pub fn mem_used(self) -> Gauge {
-        let gauge = Gauge::new();
-        self.build(Metric::CurrentMemoryUsage(gauge.clone()));
-        gauge
-    }
+    fn mem_used(self, function: &str) -> Gauge;    
 
     /// Consumes self and creates a new [`Count`] for recording a
     /// metric of an overall operator (not per task)
-    pub fn counter(self, counter_name: impl Into<Cow<'static, str>>) -> Count {
-        let count = Count::new();
-        self.build(Metric::Count {
-            name: counter_name.into(),
-            count: count.clone(),
-        });
-        count
-    }
+    fn counter(self, counter_name: impl Into<Cow<'static, str>>, function: &str) -> Count;
 
     /// Consumes self and creates a new [`Gauge`] for reporting a
     /// metric of an overall operator (not per task)
-    pub fn gauge(self, gauge_name: impl Into<Cow<'static, str>>) -> Gauge {
-        let gauge = Gauge::new();
-        self.build(Metric::Gauge {
-            name: gauge_name.into(),
-            gauge: gauge.clone(),
-        });
-        gauge
-    }
+    fn gauge(self, gauge_name: impl Into<Cow<'static, str>>, function: &str) -> Gauge;
 
     /// Consume self and create a new Timer for recording the elapsed
     /// CPU time spent by an operator
-    pub fn elapsed_compute(self) -> Time {
-        let time = Time::new();
-        self.build(Metric::ElapsedCompute(time.clone()));
-        time
-    }
+    fn elapsed_compute(self, function: &str) -> Time;
 
     /// Consumes self and creates a new Timer for recording some
     /// subset of an operators execution time.
-    pub fn subset_time(self, subset_name: impl Into<Cow<'static, str>>) -> Time {
-        let time = Time::new();
-        self.build(Metric::Time {
-            name: subset_name.into(),
-            time: time.clone(),
-        });
-        time
-    }
+    fn subset_time(self, subset_name: impl Into<Cow<'static, str>>, function: &str) -> Time;    
 
     /// Consumes self and creates a new Timestamp for recording the
     /// starting time of execution for a task
-    pub fn start_timestamp(self) -> Timestamp {
-        let timestamp = Timestamp::new();
-        self.build(Metric::StartTimestamp(timestamp.clone()));
-        timestamp
-    }
+    fn start_timestamp(self, function: &str) -> Timestamp;
 
     /// Consumes self and creates a new Timestamp for recording the
     /// ending time of execution for a task
-    pub fn end_timestamp(self) -> Timestamp {
+    fn end_timestamp(self, function: &str) -> Timestamp;
+
+    /// Consumes self and crease a new [BaselineMetrics]
+    fn baseline_metrics(self, function: &str) -> BaselineMetrics;
+}
+
+impl MetricBuilderTrait for DiagnosticBuilder {
+    fn output_rows(self, function: &str) -> Count {
+        let count = Count::new();
+        let diagnostic = AvailableDiagnostics::Metric(Metric::OutputRows(count.clone()));
+        self.build(&diagnostic, function);
+        count
+    }
+
+    fn spill_count(self, function: &str) -> Count {
+        let count = Count::new();
+        let diagnostic = AvailableDiagnostics::Metric(Metric::SpillCount(count.clone()));
+        self.build(&diagnostic, function);
+        count
+    }
+
+    fn spilled_bytes(self, function: &str) -> Count {
+        let count = Count::new();
+        let diagnostic = AvailableDiagnostics::Metric(Metric::SpilledBytes(count.clone()));
+        self.build(&diagnostic, function);
+        count
+    }
+
+    fn spilled_rows(self, function: &str) -> Count {
+        let count = Count::new();
+        let diagnostic = AvailableDiagnostics::Metric(Metric::SpilledRows(count.clone()));
+        self.build(&diagnostic, function);
+        count
+    }
+
+    fn mem_used(self, function: &str) -> Gauge {
+        let gauge = Gauge::new();
+        let diagnostic = AvailableDiagnostics::Metric(Metric::CurrentMemoryUsage(gauge.clone()));
+        self.build(&diagnostic, function);
+        gauge
+    }
+
+    fn counter(self, counter_name: impl Into<Cow<'static, str>>, function: &str) -> Count {
+        let count = Count::new();
+        let diagnostic = AvailableDiagnostics::Metric(Metric::Count {
+            name: counter_name.into(),
+            count: count.clone(),
+        });
+        self.build(&diagnostic, function);
+        count
+    }
+
+    fn gauge(self, gauge_name: impl Into<Cow<'static, str>>, function: &str) -> Gauge {
+        let gauge = Gauge::new();
+        let diagnostic = AvailableDiagnostics::Metric(Metric::Gauge {
+            name: gauge_name.into(),
+            gauge: gauge.clone(),
+        });
+        self.build(&diagnostic, function);
+        gauge
+    }
+
+    fn elapsed_compute(self, function: &str) -> Time {
+        let time = Time::new();
+        let diagnostic = AvailableDiagnostics::Metric(Metric::ElapsedCompute(time.clone()));
+        self.build(&diagnostic, function);
+        time
+    }
+
+    fn subset_time(self, subset_name: impl Into<Cow<'static, str>>, function: &str) -> Time {
+        let time = Time::new();
+
+        let diagnostic = AvailableDiagnostics::Metric(Metric::Time {
+            name: subset_name.into(),
+            time: time.clone(),
+        });
+        self.build(&diagnostic, function);
+        time
+    }
+
+    fn start_timestamp(self, function: &str) -> Timestamp {
         let timestamp = Timestamp::new();
-        self.build(Metric::EndTimestamp(timestamp.clone()));
+        let diagnostic = AvailableDiagnostics::Metric(Metric::StartTimestamp(timestamp.clone()));
+        self.build(&diagnostic, function);
         timestamp
     }
 
-    /// Consumes self and crease a new [BaselineMetrics]
-    pub fn baseline_metrics(self) -> BaselineMetrics {
-        let start_time = self.clone().start_timestamp();
-        let end_time = self.clone().end_timestamp();
-        let elapsed_compute = self.clone().elapsed_compute();
-        let output_rows = self.output_rows();
+    fn end_timestamp(self, function: &str) -> Timestamp {
+        let timestamp = Timestamp::new();
+        let diagnostic = AvailableDiagnostics::Metric(Metric::EndTimestamp(timestamp.clone()));
+        self.build(&diagnostic, function);
+        timestamp
+    }
+
+    fn baseline_metrics(self, function: &str) -> BaselineMetrics {
+        let start_time = self.clone().start_timestamp(function);
+        let end_time = self.clone().end_timestamp(function);
+        let elapsed_compute = self.clone().elapsed_compute(function);
+        let output_rows = self.output_rows(function);
         BaselineMetrics::new(start_time, end_time, elapsed_compute, output_rows)
     }
 }

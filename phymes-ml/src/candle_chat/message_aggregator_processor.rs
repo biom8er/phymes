@@ -116,7 +116,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
             input,
             config,
             Arc::clone(&runtime_env),
-            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()?),
+            metrics_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.get_publications().first().unwrap().get_table_name())

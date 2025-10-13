@@ -27,9 +27,19 @@ impl DiagnosticSpan {
             diagnostic: diagnostic.to_owned(), 
             current_context: CurrentContext::new(function), 
             span: span.to_owned(), 
-            id: create_random_id()?,
+            id: create_random_id(),
             labels: labels.to_owned(),
         })
+    }
+
+    /// Return a reference to the diagnostic
+    pub fn diagnostic(&self) -> &AvailableDiagnostics {
+        &self.diagnostic
+    }
+
+    /// Return a reference to the diagnostic
+    pub fn diagnostic_mut(&mut self) -> &mut AvailableDiagnostics {
+        &mut self.diagnostic
     }
 }
 
