@@ -14,9 +14,9 @@ pub trait Traceable {
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct Tracer {
     /// The name of the message
-    message_name: String,
+    pub message_name: String,
     /// The name of the subject of the message
-    subject_name: String,
+    pub subject_name: String,
 }
 
 impl Tracer {
@@ -62,12 +62,12 @@ impl TraceRecord {
 
     /// Return the event value
     pub fn entered(&self) -> Option<Vec<Tracer>> {
-        self.entered.lock().take()
+        self.entered.lock().clone()
     }
 
     /// Return the event value
     pub fn exited(&self) -> Option<Vec<Tracer>> {
-        self.exited.lock().take()
+        self.exited.lock().clone()
     }
 }
 

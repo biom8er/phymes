@@ -7,48 +7,68 @@ use serde::{Deserialize, Serialize};
 
 use crate::{session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::table_trait::{Table, TableBuilderTrait, TableTrait}};
 
-/// `span_name` will most likely be the processor name
-/// `span_id` connects the trace data to the metrics data
-pub fn create_metrics_fields() -> Fields {
-    let field_names = ["span_name", "metric_name", "parent_name"];
+pub fn create_span_fields() -> Vec<Field> {
+    let field_names = ["span_name", "parent_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["span_id", "id", "parent_id", "metric_value", "partition_id"];
+    let field_names = ["span_id", "parent_id"];
     fields_vec.extend(field_names
         .iter()
         .map(|f| Field::new(*f, DataType::UInt64, false))
         .collect::<Vec<_>>());
-    Fields::from(fields_vec)
+    fields_vec
 }
 
-pub fn create_metrics_batch(
-    span_name: Vec<String>,
-    metric_name: Vec<String>,
-    parent_name: Vec<String>,
-    span_id: Vec<u64>,
-    id: Vec<u64>,
-    parent_id: Vec<u64>,
-    metric_value: Vec<u64>,
-) -> Result<RecordBatch> {
-    let span_name_arr: ArrayRef = Arc::new(StringArray::from(span_name));
-    let metric_name_arr: ArrayRef = Arc::new(StringArray::from(metric_name));
-    let parent_name_arr: ArrayRef = Arc::new(StringArray::from(parent_name));
-    let span_id_arr: ArrayRef = Arc::new(UInt64Array::from(span_id));
-    let id_arr: ArrayRef = Arc::new(UInt64Array::from(id));
-    let parent_id_arr: ArrayRef = Arc::new(UInt64Array::from(parent_id));
-    let metric_value_arr: ArrayRef = Arc::new(UInt64Array::from(metric_value));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("span_name", span_name_arr),
-        ("metric_name", metric_name_arr),
-        ("parent_name_arr", parent_name_arr),
-        ("span_id", span_id_arr),
-        ("id", id_arr),
-        ("parent_id", parent_id_arr),
-        ("metric_value", metric_value_arr),
-    ])?;
-    Ok(batch)
+pub fn create_current_context_fields() -> Vec<Field> {
+    let field_names = ["file", "thread", "function"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["line"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::UInt32, false))
+        .collect::<Vec<_>>());
+    let field_names = ["timestamp"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Int64, false))
+        .collect::<Vec<_>>());
+    fields_vec
+}
+
+pub fn create_diagnostic_span_fields() -> Vec<Field> {
+    let field_names = ["labels"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["id"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::UInt64, false))
+        .collect::<Vec<_>>());
+    fields_vec.extend(create_span_fields());
+    fields_vec.extend(create_current_context_fields());
+    fields_vec
+}
+
+pub fn create_metrics_fields() -> Fields {
+    let field_names = ["metric_name"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["metric_value"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::UInt64, false))
+        .collect::<Vec<_>>());
+    fields_vec.extend(create_diagnostic_span_fields());
+    Fields::from(fields_vec)
 }
 
 pub fn create_metrics_mermaid_gantt_fields() -> Fields {
@@ -83,65 +103,29 @@ pub struct MetricMermaidGanttSubject {
     pub output_rows: String,
 }
 
-/// Fields for the log where `value` is a [serde] deserializable [String]
-/// `parent_name` will most likely be the task name
-/// `span_name` will most likely be the processor name
-/// `message_name` will most likely be the subject name
 pub fn create_trace_fields() -> Fields {
-    let field_names = ["parent_name", "span_name", "message_name", "direction", "file"];
+    let field_names = ["tracer_type", "tracer_event", "message_name", "subject_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["line", "parent_id", "span_id"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::UInt32, false))
-        .collect::<Vec<_>>());
-    fields_vec.push(Field::new("timestamp", DataType::Int64, false));
+    fields_vec.extend(create_diagnostic_span_fields());
     Fields::from(fields_vec)
 }
 
-/// Fields for the log where `value` is a [serde] deserializable [String]
-/// `span_id` connects the trace data to the event data
 pub fn create_events_fields() -> Fields {
-    let field_names = ["level", "value", "span_name", "file"];
+    let field_names = ["event_level", "record_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["line", "column", "span_id", "id"];
+    let field_names = ["record_value"];
     fields_vec.extend(field_names
         .iter()
-        .map(|f| Field::new(*f, DataType::UInt32, false))
+        .map(|f| Field::new(*f, DataType::UInt64, false))
         .collect::<Vec<_>>());
-    fields_vec.push(Field::new("timestamp", DataType::Int64, false));
+    fields_vec.extend(create_diagnostic_span_fields());
     Fields::from(fields_vec)
-}
-
-pub fn create_logs_batch(
-    level: Vec<String>,
-    value: Vec<String>,
-    file: Vec<String>,
-    line: Vec<u32>,
-    column: Vec<u32>,
-    timestamp: Vec<i64>,
-) -> Result<RecordBatch> {
-    let level_arr: ArrayRef = Arc::new(StringArray::from(level));
-    let value_arr: ArrayRef = Arc::new(StringArray::from(value));
-    let file_arr: ArrayRef = Arc::new(StringArray::from(file));
-    let line_arr: ArrayRef = Arc::new(UInt32Array::from(line));
-    let column_arr: ArrayRef = Arc::new(UInt32Array::from(column));
-    let timestamp_arr: ArrayRef = Arc::new(Int64Array::from(timestamp));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("level", level_arr),
-        ("value", value_arr),
-        ("file", file_arr),
-        ("line", line_arr),
-        ("column", column_arr),
-        ("timestamp", timestamp_arr),
-    ])?;
-    Ok(batch)
 }
 
 /// Get the metrics for multiple sessions as a pivot table

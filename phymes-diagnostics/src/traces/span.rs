@@ -1,5 +1,8 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
+
+use crate::diagnostics::JSONObjectTrait;
 
 /// Create a (pseudo)random ID
 pub fn create_random_id() -> u64 {
@@ -34,6 +37,17 @@ impl Span {
     /// Access the current span
     pub fn span(&self) -> (&String, &u64) {
         (&self.span_name, &self.span_id)
+    }
+}
+
+impl JSONObjectTrait for Span {
+    fn to_json_object(&self) -> Vec<Map<String, Value>> {
+        let mut map = Map::new();
+        map.insert("parent_name".to_string(), self.parent_name.to_owned().unwrap_or_default().into());
+        map.insert("parent_id".to_string(), self.parent_id.to_owned().unwrap_or_default().into());
+        map.insert("span_name".to_string(), self.span_name.to_owned().into());
+        map.insert("span_id".to_string(), self.span_id.to_owned().into());
+        vec![map]
     }
 }
 

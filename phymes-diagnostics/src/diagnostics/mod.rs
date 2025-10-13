@@ -7,7 +7,7 @@ mod label;
 
 use parking_lot::Mutex;
 
-pub use diagnostic_set::{DiagnosticSet, DiagnosticSpan};
+pub use diagnostic_set::{DiagnosticSet, DiagnosticSpan, JSONObjectTrait};
 pub use builder::{DiagnosticBuilder, DiagnosticBuilderTrait};
 pub use label::Label;
 pub use available_diagnostics::AvailableDiagnostics;

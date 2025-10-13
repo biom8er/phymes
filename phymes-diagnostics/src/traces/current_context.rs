@@ -1,6 +1,8 @@
 use std::thread::ThreadId;
 
-use crate::metrics::create_timestamp_micros;
+use serde_json::{Map, Value};
+
+use crate::{diagnostics::JSONObjectTrait, metrics::create_timestamp_micros};
 
 /// The current context of the trace, event, or metric
 #[derive(Debug, Clone)]
@@ -48,6 +50,19 @@ impl CurrentContext {
     }
 }
 
+impl JSONObjectTrait for CurrentContext {
+    fn to_json_object(&self) -> Vec<Map<String, Value>> {
+        let mut map = Map::new();
+        map.insert("line".to_string(), self.line.to_owned().into());
+        map.insert("file".to_string(), self.file.to_owned().into());
+        let thread = format!("{:?}", self.thread());
+        map.insert("thread".to_string(), thread.into());
+        map.insert("function".to_string(), self.function.to_owned().into());
+        map.insert("timestamp".to_string(), self.timestamp.to_owned().into());
+        vec![map]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,7 +70,7 @@ mod tests {
     #[test]
     fn test_current_context() {
         let current_context = CurrentContext::new("my_function", line!(), file!());
-        assert_eq!(current_context.line(), &57);
+        assert_eq!(current_context.line(), &72);
         assert_eq!(current_context.file(), "current_context.rs");
         assert_eq!(current_context.thread(), &std::thread::current().id());
         assert_eq!(current_context.function(), "my_function");

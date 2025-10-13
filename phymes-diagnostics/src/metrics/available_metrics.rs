@@ -3,7 +3,9 @@ use std::{
     fmt::Display,
 };
 
-use crate::metrics::{Count, Gauge, Time, Timestamp};
+use serde_json::{Map, Value};
+
+use crate::{diagnostics::JSONObjectTrait, metrics::{Count, Gauge, Time, Timestamp}};
 
 /// Possible Metrics to track a value of interest (metric)
 ///
@@ -214,5 +216,14 @@ impl Display for Metric {
             Self::StartTimestamp(_) => write!(f, "start_timestamp"),
             Self::EndTimestamp(_) => write!(f, "end_timestamp"),
         }
+    }
+}
+
+impl JSONObjectTrait for Metric {
+    fn to_json_object(&self) -> Vec<Map<String, Value>> {
+        let mut map = Map::new();
+        map.insert("metric_name".to_string(), self.to_string().into());
+        map.insert("metric_value".to_string(), self.as_usize().into());
+        vec![map]
     }
 }

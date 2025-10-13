@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
-use crate::events::event_record::EventRecord;
+use serde_json::{Map, Value};
+
+use crate::{diagnostics::JSONObjectTrait, events::event_record::EventRecord};
 
 /// Events to add context to enable building a comprehensive timeline of what happened, when it happened, and why it happened
 #[derive( Debug, Clone)]
@@ -17,6 +19,18 @@ pub enum Event {
     Error(EventRecord),
 }
 
+impl Event {
+    pub fn value(&self) -> Map<String, Value> {
+        match self {
+            Self::Trace(event) => event.value().unwrap_or_default(),
+            Self::Debug(event) => event.value().unwrap_or_default(),
+            Self::Info(event) => event.value().unwrap_or_default(),
+            Self::Warn(event) => event.value().unwrap_or_default(),
+            Self::Error(event) => event.value().unwrap_or_default(),
+        }
+    }
+}
+
 impl Display for Event {
     /// Prints the value of this event
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -27,5 +41,19 @@ impl Display for Event {
             Self::Warn(_event) => write!(f, "Warn"),
             Self::Error(_event) => write!(f, "Error"),
         }
+    }
+}
+
+impl JSONObjectTrait for Event {
+    fn to_json_object(&self) -> Vec<Map<String, Value>> {
+        let mut object = Vec::new();
+        for (k, v) in self.value() {
+            let mut map = Map::new();
+            map.insert("event_level".to_string(), self.to_string().into());
+            map.insert("record_name".to_string(), k.into());
+            map.insert("record_value".to_string(), v);
+            object.push(map);
+        }
+        object
     }
 }

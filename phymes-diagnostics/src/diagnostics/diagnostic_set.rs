@@ -1,8 +1,18 @@
 use std::{sync::Arc, thread::ThreadId};
 use anyhow::Result;
+use serde_json::{Map, Value};
 
-use crate::{diagnostics::{available_diagnostics::AvailableDiagnostics, label::Label}, traces::create_random_id};
+use crate::{diagnostics::{available_diagnostics::{AvailableDiagnostics, DiagnosticsType}, label::Label}, traces::create_random_id};
 pub use crate::traces::{CurrentContext, Span};
+
+/// Trait to convert a complex data structure into a `Vec<Map<String, Value>>`
+/// 
+/// # Notes
+/// In the future, it would be better to implement custom serde Serializers
+pub trait JSONObjectTrait {
+    /// Convert to a JSON object
+    fn to_json_object(&self) -> Vec<Map<String, Value>>;
+}
 
 /// The diagnostic tools
 #[derive(Debug, Clone)]
@@ -43,6 +53,28 @@ impl DiagnosticSpan {
     }
 }
 
+impl JSONObjectTrait for DiagnosticSpan {
+    fn to_json_object(&self) -> Vec<Map<String, Value>> {
+        // Start with the ID and Labels
+        let mut map = Map::new();
+        map.insert("id".to_string(), self.id.into());
+        let labels = self.labels.iter().map(|l| l.to_string()).collect::<Vec<_>>().join(";");
+        map.insert("labels".to_string(), labels.into());
+
+        // Convert the span and current context
+        map.extend(self.span.to_json_object().pop().unwrap());
+        map.extend(self.current_context.to_json_object().pop().unwrap());
+
+        // Iterate over diagnostics
+        let mut object = Vec::new();
+        for mut item in self.diagnostic.to_json_object() {
+            item.extend(map.clone());
+            object.push(item);
+        }
+        object
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct DiagnosticSet {
     pub(crate) diagnostics: Vec<Arc<DiagnosticSpan>>,
@@ -64,6 +96,20 @@ impl DiagnosticSet {
         self.diagnostics.iter()
     }
 
+    /// Filter by the [DiagnosticType]
+    pub fn filter_by_diagnostic_type(&self, diagnostic_type: DiagnosticsType) -> Self {
+        let diagnostics = self.diagnostics.iter()
+            .filter_map(|d| 
+                if d.diagnostic.diagnostic_type() == diagnostic_type {
+                    Some(d.clone())
+                } else {
+                    None
+                }
+            )
+            .collect::<Vec<_>>();
+        Self { diagnostics }
+    }
+
     /// Return a columnar representation of the [DiagnosticSet]
     pub fn to_columns(&self) -> (
         Vec<AvailableDiagnostics>,
@@ -79,6 +125,7 @@ impl DiagnosticSet {
         Vec<String>,
         Vec<u64>,
     ) {
+        // Diagnostics
         let mut diagnostic_vec = Vec::<AvailableDiagnostics>::new();
 
         // Span columns
@@ -118,5 +165,13 @@ impl DiagnosticSet {
         }
 
         (diagnostic_vec, parent_names_vec, parent_ids_vec, span_names_vec, span_ids_vec, line_vec, file_vec, thread_vec, function_vec, timestamp_vec, labels_vec, ids_vec)
+    }
+}
+
+impl JSONObjectTrait for DiagnosticSet {
+    fn to_json_object(&self) -> Vec<Map<String, Value>> {
+        self.diagnostics.iter()
+            .flat_map(|d| d.to_json_object())
+            .collect::<Vec<_>>()
     }
 }

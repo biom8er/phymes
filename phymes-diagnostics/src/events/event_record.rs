@@ -35,7 +35,7 @@ impl EventRecord {
 
     /// Return the event value
     pub fn value(&self) -> Option<Map<String, Value>> {
-        self.value.lock().take()
+        self.value.lock().clone()
     }
 }
 
