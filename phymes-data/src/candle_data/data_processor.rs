@@ -101,7 +101,7 @@ impl ProcessorTrait for CandleDataProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        diagnostic_builder: &DiagnosticBuilder,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -162,7 +162,7 @@ pub struct CandleDataStream {
     /// The tensor services needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    diagnostic_builder: DiagnosticBuilder,
+    diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for tensor operations
     config: Option<DataConfig>,
     /// The data operator to run
@@ -182,7 +182,7 @@ impl CandleDataStream {
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        diagnostic_builder: DiagnosticBuilder,
+        diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
             messages,

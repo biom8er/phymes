@@ -16,7 +16,7 @@ use super::{
     runtime_env::RuntimeEnv,
     session_context_builder::SessionContextBuilder,
 };
-use crate::schemas::diagnostics::{get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, get_metrics_as_pivot_table};
+use crate::schemas::diagnostics::{from_diagnostics_to_tables, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, pivot_metrics_table};
 use crate::table::table_publish::TablePublish;
 use crate::table::{
     table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait},
@@ -27,7 +27,7 @@ use crate::task::publish_subscribe::PubSubTrait;
 /// Reserved table names for the [SessionContext]
 #[derive(Debug)]
 pub enum SessionContextTableNames {
-    Metrics,
+    MetricPivot,
     Tasks,
     Processors,
     Subjects,
@@ -36,13 +36,15 @@ pub enum SessionContextTableNames {
     SubjectsNumRows,
     MetricMermaidGantt,
     Errors,
-    Logs,
+    Traces,
+    Events,
+    Metrics,
 }
 
 impl Display for SessionContextTableNames {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SessionContextTableNames::Metrics => write!(f, "Metrics"),
+            SessionContextTableNames::MetricPivot => write!(f, "MetricPivot"),
             SessionContextTableNames::Tasks => write!(f, "Tasks"),
             SessionContextTableNames::Processors => write!(f, "Processors"),
             SessionContextTableNames::Subjects => write!(f, "Subjects"),
@@ -51,7 +53,9 @@ impl Display for SessionContextTableNames {
             SessionContextTableNames::SubjectsNumRows => write!(f, "SubjectsNumRows"),
             SessionContextTableNames::MetricMermaidGantt => write!(f, "MetricMermaidGantt"),
             SessionContextTableNames::Errors => write!(f, "Errors"),
-            SessionContextTableNames::Logs => write!(f, "Logs"),
+            SessionContextTableNames::Traces => write!(f, "Traces"),
+            SessionContextTableNames::Events => write!(f, "Events"),
+            SessionContextTableNames::Metrics => write!(f, "Metrics"),
         }
     }
 }
@@ -107,15 +111,12 @@ impl SessionContext {
     }
 
     /// Create the metrics table if it does not exist or update with the new metrics
-    pub fn update_metrics_table(&mut self, diagnostics_vec: &[Diagnostics]) -> Result<bool> {
+    pub fn update_metrics_table(&mut self, diagnostics_vec: &[Diagnostics]) -> Result<(bool, bool, bool)> {
         // create the pivot table and clear the metrics
-        let pivot_table = get_metrics_as_pivot_table(
-            diagnostics_vec,
-            SessionContextTableNames::Metrics.to_string().as_str(),
-        )?;
+        let (metrics_table, traces_table, events_table) = from_diagnostics_to_tables(diagnostics_vec)?;
 
         // update the state with the metrics
-        if pivot_table.count_rows() > 0 {
+        let updated_metrics = if let Some(metrics_table) = metrics_table {
 
             // Add the metrics pivot table to the state or update
             if self
@@ -128,7 +129,7 @@ impl SessionContext {
                     .try_write()
                     .unwrap()
                     .update_table(
-                        pivot_table.get_record_batches_own(),
+                        metrics_table.get_record_batches_own(),
                         TablePublish::Extend {
                             table_name: SessionContextTableNames::Metrics.to_string().as_str().to_string(),
                         },
@@ -136,24 +137,118 @@ impl SessionContext {
             } else {
                 self.state.insert(
                     SessionContextTableNames::Metrics.to_string(),
-                    Arc::new(RwLock::new(pivot_table)),
+                    Arc::new(RwLock::new(metrics_table)),
                 );
             }
 
-            Ok(true)
+            true
         } else {
-            Ok(false)
-        }
+            false
+        };
+
+        // update the state with the traces
+        let updated_traces = if let Some(traces_table) = traces_table {
+
+            // Add the metrics pivot table to the state or update
+            if self
+                .state
+                .contains_key(SessionContextTableNames::Traces.to_string().as_str())
+            {
+                self.state
+                    .get_mut(SessionContextTableNames::Traces.to_string().as_str())
+                    .unwrap()
+                    .try_write()
+                    .unwrap()
+                    .update_table(
+                        traces_table.get_record_batches_own(),
+                        TablePublish::Extend {
+                            table_name: SessionContextTableNames::Traces.to_string().as_str().to_string(),
+                        },
+                    )?;
+            } else {
+                self.state.insert(
+                    SessionContextTableNames::Traces.to_string(),
+                    Arc::new(RwLock::new(traces_table)),
+                );
+            }
+
+            true
+        } else {
+            false
+        };
+
+        // update the state with the events
+        let updated_events = if let Some(events_table) = events_table {
+
+            // Add the metrics pivot table to the state or update
+            if self
+                .state
+                .contains_key(SessionContextTableNames::Events.to_string().as_str())
+            {
+                self.state
+                    .get_mut(SessionContextTableNames::Events.to_string().as_str())
+                    .unwrap()
+                    .try_write()
+                    .unwrap()
+                    .update_table(
+                        events_table.get_record_batches_own(),
+                        TablePublish::Extend {
+                            table_name: SessionContextTableNames::Events.to_string().as_str().to_string(),
+                        },
+                    )?;
+            } else {
+                self.state.insert(
+                    SessionContextTableNames::Events.to_string(),
+                    Arc::new(RwLock::new(events_table)),
+                );
+            }
+
+            true
+        } else {
+            false
+        };
+
+        Ok((updated_metrics, updated_traces, updated_events))
     }
 
     /// Create the metrics mermaid gannt table if it does not exist or update with the new metrics
+    /// DM: in the future, move to a dedicated session that uses the data processor to update
     pub fn update_metrics_mermaid_gantt_table(&mut self) -> Result<bool> {
         // get the metrics table
         if let Some(table) = self.state.get(SessionContextTableNames::Metrics.to_string().as_str()) {
-            let pivot_table = table.read().clone();
+            let table = table.read().clone();
 
             // update the state with the metrics
-            if pivot_table.count_rows() > 0 {
+            if table.count_rows() > 0 {
+
+                // Create the pivot view
+                let pivot_table = pivot_metrics_table(
+                    table,
+                    SessionContextTableNames::MetricPivot.to_string().as_str(),
+                )?;
+
+                // Add the metrics pivot table to the state or update
+                if self
+                    .state
+                    .contains_key(SessionContextTableNames::MetricPivot.to_string().as_str())
+                {
+                    self.state
+                        .get_mut(SessionContextTableNames::MetricPivot.to_string().as_str())
+                        .unwrap()
+                        .try_write()
+                        .unwrap()
+                        .update_table(
+                            pivot_table.clone().get_record_batches_own(),
+                            TablePublish::Replace {
+                                table_name: SessionContextTableNames::MetricPivot.to_string().as_str().to_string(),
+                            },
+                        )?;
+                } else {
+                    self.state.insert(
+                        SessionContextTableNames::MetricPivot.to_string(),
+                        Arc::new(RwLock::new(pivot_table.clone())),
+                    );
+                }
 
                 // Create the gantt view
                 let gantt_table = get_metrics_as_gantt_table(pivot_table, SessionContextTableNames::MetricMermaidGantt.to_string().as_str())?;
@@ -170,7 +265,7 @@ impl SessionContext {
                         .write()
                         .update_table(
                             mermaid_gantt_table.get_record_batches_own(),
-                            TablePublish::Extend {
+                            TablePublish::Replace {
                                 table_name: SessionContextTableNames::MetricMermaidGantt.to_string(),
                             },
                         )?;

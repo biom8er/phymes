@@ -53,6 +53,12 @@ pub enum DataAggregatorOperator {
     Count,
     #[value(name = "Concat")]
     Concat,
+    // #[value(name = "Set")]
+    // Set,
+    // #[value(name = "First")]
+    // First,
+    // #[value(name = "Last")]
+    // Last,
 }
 
 impl Display for DataAggregatorOperator {

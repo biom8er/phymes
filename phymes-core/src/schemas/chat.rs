@@ -405,7 +405,7 @@ mod test_messages {
         fn process(
             &self,
             mut message: SendableRecordBatchStreamMessageMap,
-            _diagnostic_builder: &DiagnosticBuilder,
+            _diagnostic_builder: Option<&DiagnosticBuilder>,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             // Create the stream response
@@ -712,7 +712,7 @@ mod tests {
             test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
-            &DiagnosticBuilder::new(&Diagnostics::new()),
+            Some(&DiagnosticBuilder::new(&Diagnostics::new())),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
@@ -799,7 +799,7 @@ mod tests {
         let chat_processor = test_messages::CandleChatMockProcessor::new_arc("ChatBot");
         let mut stream = chat_processor.process(
             message,
-            &DiagnosticBuilder::new(&Diagnostics::new()),
+            Some(&DiagnosticBuilder::new(&Diagnostics::new())),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 

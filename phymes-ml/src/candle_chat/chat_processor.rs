@@ -105,7 +105,7 @@ impl ProcessorTrait for CandleChatProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        diagnostic_builder: &DiagnosticBuilder,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -157,7 +157,7 @@ pub struct CandleChatStream {
     // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    diagnostic_builder: DiagnosticBuilder,
+    diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
     config: Option<CandleChatConfig>,
     /// Enables streaming token outputs for candle assets
@@ -182,7 +182,7 @@ impl CandleChatStream {
         tools_stream: Option<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        diagnostic_builder: DiagnosticBuilder,
+        diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),
@@ -651,7 +651,7 @@ pub mod bench_chat_processor {
 
     /// Run the chat processor with a given config and return the message history
     pub async fn bench_chat_processor(
-        diagnostic_builder: &DiagnosticBuilder,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         config: &CandleChatConfig,
         user_content: &str,
         name: &str,

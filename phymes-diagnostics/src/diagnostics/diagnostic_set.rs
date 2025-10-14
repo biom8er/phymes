@@ -194,14 +194,14 @@ mod tests {
         // 1. Trace record
         let trace = diagnostic_builder.clone().messages(line!(), file!(), "my_function");
         trace.enter(&[
-            Message::new("m1", "s1"),
-            Message::new("m2", "s2"),
-            Message::new("m3", "s3"),
+            &Message::new("m1", "s1"),
+            &Message::new("m2", "s2"),
+            &Message::new("m3", "s3"),
         ]);
         trace.exit(&[
-            Message::new("m2", "s2"),
-            Message::new("m3", "s3"),
-            Message::new("m4", "s4"),
+            &Message::new("m2", "s2"),
+            &Message::new("m3", "s3"),
+            &Message::new("m4", "s4"),
         ]);
 
         // 2. Event record

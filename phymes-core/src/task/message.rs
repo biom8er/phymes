@@ -12,7 +12,7 @@ use crate::table::{
 use anyhow::{Result, anyhow};
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
 use arrow::datatypes::{DataType, Field, Fields};
-use phymes_diagnostics::HashMap;
+use phymes_diagnostics::{HashMap, TraceableTrait, Tracer};
 
 /// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
 /// metadata for subject, publisher, and update
@@ -143,6 +143,12 @@ impl BuildableTrait for IPCMessage {
     }
 }
 
+impl TraceableTrait for IPCMessage {
+    fn to_trace(&self) -> Tracer {
+        Tracer::new(&self.name, &self.subject)
+    }
+}
+
 impl MessageTrait for IPCMessage {
     type T = Vec<u8>;
     fn get_subject(&self) -> &str {
@@ -191,6 +197,12 @@ impl BuildableTrait for SendableRecordBatchStreamMessage {
         Self: Sized,
     {
         Self::T::default()
+    }
+}
+
+impl TraceableTrait for SendableRecordBatchStreamMessage {
+    fn to_trace(&self) -> Tracer {
+        Tracer::new(&self.name, &self.subject)
     }
 }
 

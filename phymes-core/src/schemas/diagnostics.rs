@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt64Array}, compute::{kernels::numeric::{add, sub}, min}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
-use phymes_diagnostics::{Diagnostics, HashMap};
+use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::table_trait::{Table, TableBuilderTrait, TableTrait}};
+use crate::{schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::SessionContextTableNames}, table::table_trait::{Table, TableBuilderTrait, TableTrait}};
 
 pub fn create_span_fields() -> Vec<Field> {
     let field_names = ["span_name", "parent_name"];
@@ -103,7 +103,7 @@ pub struct MetricMermaidGanttSubject {
     pub output_rows: String,
 }
 
-pub fn create_trace_fields() -> Fields {
+pub fn create_traces_fields() -> Fields {
     let field_names = ["tracer_type", "tracer_event", "message_name", "subject_name"];
     let mut fields_vec = field_names
         .iter()
@@ -128,48 +128,16 @@ pub fn create_events_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-/// Get the metrics for multiple sessions as a pivot table
-/// 
-/// # Notes
-/// * Aggregation is over the `span_id` and NOT `span_name` which should uniquely identify the span
-/// * Aggregation is also over the `metric_name`
-pub fn get_metrics_as_pivot_table(
-    diagnostics_vec: &[Diagnostics],
-    table_name: &str,
-) -> Result<Table> {
-    // extract out values from metrics
-    let mut span_metrics_count: HashMap<(String, String), usize> = HashMap::new();
-    let mut parent_names_vec = Vec::<String>::new();
-    let mut parent_ids_vec = Vec::<u64>::new();
-    let mut span_names_vec = Vec::<String>::new();
-    let mut span_ids_vec = Vec::<u64>::new();
-    let mut ids_vec = Vec::<u64>::new();
-    let mut metric_names_vec = Vec::<String>::new();
-    let mut metric_values_vec = Vec::<u64>::new();
-    for metrics in diagnostics_vec.iter() {
-        for metric in metrics.clone_inner().iter() {
-            // Count the number of unique span and metric combinations
-            let span_name = metric.span_name().to_string();
-            let span_id = metric.span_id().to_owned();
-            let metric_name = metric.value().name().to_string();
-            if let Some(count) =
-                span_metrics_count.get_mut(&(span_name.clone(), metric_name.clone()))
-            {
-                *count += 1;
-            } else {
-                span_metrics_count.insert((span_name.clone(), metric_name.clone()), 1);
-            }
+/// Pivot the metrics table
+pub fn pivot_metrics_table(table: Table, table_name: &str) -> Result<Table> {
 
-            // Record the span name, metric name, and value
-            parent_names_vec.push(metric.parent_name().clone().unwrap_or_default());
-            parent_ids_vec.push(metric.parent_id().unwrap_or_default().to_owned());
-            span_names_vec.push(span_name);
-            span_ids_vec.push(span_id);
-            ids_vec.push(metric.id().to_owned());
-            metric_names_vec.push(metric_name);
-            metric_values_vec.push(metric.value().as_usize() as u64);
-        }
-    }
+    // extract out values from metrics
+    let span_names_vec = table.get_column_as_vec_nonprimitive::<String>("span_name")?;
+    let span_ids_vec = table.get_column_as_vec_primitive::<u64>("span_id")?;
+    let parent_names_vec = table.get_column_as_vec_nonprimitive::<String>("parent_name")?;
+    let parent_ids_vec = table.get_column_as_vec_primitive::<u64>("parent_id")?;
+    let metric_names_vec = table.get_column_as_vec_nonprimitive::<String>("metric_name")?;
+    let metric_values_vec = table.get_column_as_vec_primitive::<u64>("metric_value")?;
 
     // find the unique metric names
     let mut unique_metric_names: Vec<String> = metric_names_vec
@@ -264,42 +232,53 @@ pub fn get_metrics_as_pivot_table(
 }
 
 /// Get the metrics for a single session as a table
-pub fn get_metrics_as_table(diagnostics_vec: &[Diagnostics], table_name: &str) -> Result<Table> {
-    // extract out values from metrics
-    let mut span_names_vec = Vec::<String>::new();
-    let mut span_ids_vec = Vec::<u64>::new();
-    let mut parent_names_vec = Vec::<String>::new();
-    let mut parent_ids_vec = Vec::<u64>::new();
-    let mut ids_vec = Vec::<u64>::new();
-    let mut metric_names_vec = Vec::<String>::new();
-    let mut metric_values_vec = Vec::<u64>::new();
-    for metrics in diagnostics_vec.iter() {
-        for metric in metrics.clone_inner().iter() {
-            span_names_vec.push(metric.span_name().to_string());
-            span_ids_vec.push(metric.span_id().to_owned());
-            parent_names_vec.push(metric.parent_name().clone().unwrap_or_default());
-            parent_ids_vec.push(metric.parent_id().unwrap_or_default().to_owned());
-            ids_vec.push(metric.id().to_owned());
-            metric_names_vec.push(metric.value().name().to_string());
-            metric_values_vec.push(metric.value().as_usize() as u64);
-        }
+pub fn from_diagnostics_to_tables(diagnostics_vec: &[Diagnostics]) -> Result<(Option<Table>, Option<Table>, Option<Table>)> {
+
+    // Extract out the diagnostics and partition into metrics, traces, and events
+    let mut metrics_vec = Vec::new();
+    let mut traces_vec = Vec::new();
+    let mut events_vec = Vec::new();
+    for diagnostics in diagnostics_vec {
+        metrics_vec.extend(diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Metric).to_json_object());
+        traces_vec.extend(diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Trace).to_json_object());
+        events_vec.extend(diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Event).to_json_object());
     }
 
-    // create the record batch
-    let batch = create_metrics_batch(
-        span_names_vec, 
-        metric_names_vec, 
-        parent_names_vec, 
-        span_ids_vec, 
-        ids_vec, 
-        parent_ids_vec, 
-        metric_values_vec)?;
-
-    // create the table
-    Table::get_builder()
-        .with_name(table_name)
-        .with_record_batches(vec![batch])?
-        .build()
+    // Wrap the metrics, traces, and events into tables
+    let metrics_table = if metrics_vec.is_empty() {
+        None
+    } else {
+        let values = metrics_vec.into_iter().map(|o| serde_json::Value::from(o)).collect::<Vec<_>>();
+        let table = Table::get_builder()
+            .with_name(SessionContextTableNames::Metrics.to_string().as_str())
+            .with_schema(AvailableSubjects::Metrics.to_schema())
+            .with_json_values(&values)?
+            .build()?;
+        Some(table)
+    };
+    let traces_table = if traces_vec.is_empty() {
+        None
+    } else {
+        let values = traces_vec.into_iter().map(|o| serde_json::Value::from(o)).collect::<Vec<_>>();
+        let table = Table::get_builder()
+            .with_name(SessionContextTableNames::Traces.to_string().as_str())
+            .with_schema(AvailableSubjects::Traces.to_schema())
+            .with_json_values(&values)?
+            .build()?;
+        Some(table)
+    };
+    let events_table = if events_vec.is_empty() {
+        None
+    } else {
+        let values = events_vec.into_iter().map(|o| serde_json::Value::from(o)).collect::<Vec<_>>();
+        let table = Table::get_builder()
+            .with_name(SessionContextTableNames::Events.to_string().as_str())
+            .with_schema(AvailableSubjects::Events.to_schema())
+            .with_json_values(&values)?
+            .build()?;
+        Some(table)
+    };
+    Ok((metrics_table, traces_table, events_table))
 }
 
 /// Add normalized start and end time for use in gantt or barplot visualizations

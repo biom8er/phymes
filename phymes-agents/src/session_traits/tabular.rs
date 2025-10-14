@@ -7,7 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    metrics::HashSet, schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, mermaid::create_mermaid_batch}, session::{
+    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, mermaid::create_mermaid_batch}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context::SessionContextTableNames,
@@ -151,7 +151,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 continue;
             } else if table.get_name() == SessionContextTableNames::Logs.to_string().as_str() {
                 continue;
-            } else if table.get_name() == SessionContextTableNames::Metrics.to_string().as_str() {
+            } else if table.get_name() == SessionContextTableNames::MetricPivot.to_string().as_str() {
                 continue;
             } else {
                 return Err(anyhow!(

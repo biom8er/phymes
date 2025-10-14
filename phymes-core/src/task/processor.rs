@@ -10,7 +10,7 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
-use phymes_diagnostics::{DiagnosticBuilder, HashMap};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Level, event};
@@ -224,7 +224,7 @@ pub trait ProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
     fn process(
         &self,
         message: SendableRecordBatchStreamMessageMap,
-        diagnostic_builder: &DiagnosticBuilder,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap>;
 }
@@ -299,10 +299,26 @@ impl ProcessorTrait for ProcessorEcho {
     fn process(
         &self,
         message: SendableRecordBatchStreamMessageMap,
-        _diagnostic_builder: &DiagnosticBuilder,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         _runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
+
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }  
+
         Ok(message)
     }
 }
@@ -372,7 +388,7 @@ pub mod test_processor {
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
     use hashbrown::HashMap;
-    use phymes_diagnostics::{DiagnosticBuilderTrait, MetricBuilderTrait};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, MetricBuilderTrait, TraceBuilderTrait};
     use std::{
         pin::Pin,
         sync::Arc,
@@ -447,14 +463,30 @@ pub mod test_processor {
         fn process(
             &self,
             message: SendableRecordBatchStreamMessageMap,
-            diagnostic_builder: &DiagnosticBuilder,
+            diagnostic_builder: Option<&DiagnosticBuilder>,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             event!(Level::INFO, "Starting processor {}", self.get_name());
 
+            // Trace the inbox
+            let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+                let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+                let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+                trace.enter(&message.values().collect::<Vec<_>>());
+                Some((trace, trace_builder))
+            } else {
+                None
+            };
+
             // Add another record batch to the input
             let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
             for (s_name, s) in message.into_iter() {
+                let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+                    Some(trace.1.clone()) 
+                } else {
+                    None
+                };  
+                
                 let name = s_name.clone();
                 let source = s.get_publisher().to_string();
                 let subject = s.get_subject().to_string();
@@ -462,7 +494,7 @@ pub mod test_processor {
                 let out = Box::pin(ProcessorMockStream {
                     schema: s.get_message().schema(),
                     input: s.get_message_own(),
-                    diagnostic_builder: diagnostic_builder.clone().to_child(self.get_name())?,
+                    diagnostic_builder: stream_diagnostic_builder,
                 });
                 let out_m = SendableRecordBatchStreamMessage::get_builder()
                     .with_name(name.as_str())
@@ -473,6 +505,12 @@ pub mod test_processor {
                     .build()?;
                 let _ = outbox.insert(s_name, out_m);
             }
+
+            // Trace the outbox
+            if let Some(trace) = trace {
+                trace.0.exit(&outbox.values().collect::<Vec<_>>());
+            }
+
             Ok(outbox)
         }
     }
@@ -483,7 +521,7 @@ pub mod test_processor {
         /// The input task to process.
         input: SendableRecordBatchStream,
         /// Runtime metrics recording
-        diagnostic_builder: DiagnosticBuilder,
+        diagnostic_builder: Option<DiagnosticBuilder>,
     }
 
     fn add_test_table_row(
@@ -504,14 +542,24 @@ pub mod test_processor {
 
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             let poll;
-            let baseline_metrics = self.diagnostic_builder.clone().to_child("ProcessorMockStream")?.baseline_metrics("poll_next");
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(diagnostic_builder.clone().to_child("ProcessorMockStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+            } else {
+                None
+            };
             #[allow(clippy::never_loop)]
             loop {
                 match ready!(self.input.poll_next_unpin(cx)) {
                     Some(Ok(batch)) => {
-                        let timer = baseline_metrics.elapsed_compute().timer();
+                        let timer = if let Some(baseline_metrics) = &baseline_metrics {
+                            Some(baseline_metrics.elapsed_compute().timer())
+                        } else {
+                            None
+                        };
                         let processed_batch = add_test_table_row(batch)?;
-                        timer.done();
+                        if let Some(timer) = timer {
+                            timer.done();
+                        }                        
                         poll = Poll::Ready(Some(Ok(processed_batch)));
                         break;
                     }
@@ -521,7 +569,11 @@ pub mod test_processor {
                     }
                 }
             }
-            baseline_metrics.record_poll(poll)
+            if let Some(baseline_metrics) = baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
         }
 
         fn size_hint(&self) -> (usize, Option<usize>) {
@@ -604,10 +656,9 @@ pub mod test_processor {
         fn process(
             &self,
             _message: SendableRecordBatchStreamMessageMap,
-            _diagnostic_builder: &DiagnosticBuilder,
+            _diagnostic_builder: Option<&DiagnosticBuilder>,
             _runtime_env: Arc<Mutex<RuntimeEnv>>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
-            event!(Level::INFO, "Starting processor {}", self.get_name());
             Err(anyhow!("This is an error!"))
         }
     }
@@ -632,12 +683,13 @@ mod tests {
     };
     use anyhow::Result;
     use parking_lot::lock_api::Mutex;
-    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
 
     #[tokio::test]
     async fn test_processor() -> Result<()> {
+        let span = SpanBuilder::default().with_span("test_processor").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
         let runtime_env = RuntimeEnv::default();
         let name = "process_1".to_string();
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -655,7 +707,7 @@ mod tests {
         );
         let processor_1 = test_processor::ProcessorMock::new_arc("processor_1");
         let mut stream =
-            processor_1.process(message, &diagnostic_builder, Arc::new(Mutex::new(runtime_env)))?;
+            processor_1.process(message, Some(&diagnostic_builder), Arc::new(Mutex::new(runtime_env)))?;
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove(&name).unwrap().get_message_own(),
         )

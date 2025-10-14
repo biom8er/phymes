@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 /// Convert to a Tracer
-pub trait Traceable {
+pub trait TraceableTrait {
     fn to_trace(&self) -> Tracer;
 }
 
@@ -51,12 +51,12 @@ impl TraceRecord {
     }
 
     /// Enter the trace span
-    pub fn enter<T: Traceable>(&self, tracers: &[T]) {
+    pub fn enter<T: TraceableTrait>(&self, tracers: &[&T]) {
         *self.entered.lock() = Some(tracers.iter().map(|t| t.to_trace()).collect::<Vec<_>>());
     }
 
     /// Exit the trace span
-    pub fn exit<T: Traceable>(&self, tracers: &[T]) {
+    pub fn exit<T: TraceableTrait>(&self, tracers: &[&T]) {
         *self.exited.lock() = Some(tracers.iter().map(|t| t.to_trace()).collect::<Vec<_>>());
     }
 
@@ -72,7 +72,7 @@ impl TraceRecord {
 }
 
 impl Display for TraceRecord {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
         todo!()
     }
 }

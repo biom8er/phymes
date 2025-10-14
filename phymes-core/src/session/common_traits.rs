@@ -133,7 +133,7 @@ pub trait BuilderTrait {
 /// streaming `RecordBatch`es as messages
 pub trait RunnableTrait {
     /// Run the computation
-    fn run(&self, messages: SendableRecordBatchStreamMessageMap, diagnostic_builder: &DiagnosticBuilder) -> Result<SendableRecordBatchStreamMessageMap>;
+    fn run(&self, messages: SendableRecordBatchStreamMessageMap, diagnostic_builder: Option<&DiagnosticBuilder>) -> Result<SendableRecordBatchStreamMessageMap>;
 }
 
 /// For services that process Tensors

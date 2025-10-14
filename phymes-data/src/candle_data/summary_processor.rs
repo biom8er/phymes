@@ -105,7 +105,7 @@ impl ProcessorTrait for DataSummaryProcessor {
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
-        diagnostic_builder: &DiagnosticBuilder,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
@@ -174,7 +174,7 @@ pub struct DataSummaryStream {
     /// The Candle model assets needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    diagnostic_builder: DiagnosticBuilder,
+    diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
     config: Option<DataSummaryConfig>,
 }
@@ -185,7 +185,7 @@ impl DataSummaryStream {
         table_name: String,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        diagnostic_builder: DiagnosticBuilder,
+        diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),

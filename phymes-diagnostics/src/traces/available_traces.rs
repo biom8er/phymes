@@ -57,7 +57,7 @@ impl JSONObjectTrait for Trace {
 }
 
 pub mod available_tracers_tests {
-    use crate::Traceable;
+    use crate::TraceableTrait;
 
     use super::*;
 
@@ -72,7 +72,7 @@ pub mod available_tracers_tests {
         }
     }
 
-    impl Traceable for Message {
+    impl TraceableTrait for Message {
         fn to_trace(&self) -> Tracer {
             Tracer::new(&self.message_name, &self.subject_name)
         }
@@ -90,14 +90,14 @@ mod tests {
         let record = TraceRecord::new();
         let trace = Trace::Messages(record.clone());
         record.enter(&[
-            Message::new("m1", "s1"),
-            Message::new("m2", "s2"),
-            Message::new("m3", "s3"),
+            &Message::new("m1", "s1"),
+            &Message::new("m2", "s2"),
+            &Message::new("m3", "s3"),
         ]);
         record.exit(&[
-            Message::new("m2", "s2"),
-            Message::new("m3", "s3"),
-            Message::new("m4", "s4"),
+            &Message::new("m2", "s2"),
+            &Message::new("m3", "s3"),
+            &Message::new("m4", "s4"),
         ]);
         
         let object = trace.to_json_object();

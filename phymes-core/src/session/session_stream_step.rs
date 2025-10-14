@@ -136,7 +136,7 @@ impl SessionStreamStep {
         let update = state.write().update_state_from_messages(messages)?;
         state.write().extend_superstep_updates(update);
 
-        // Initialize the channels for collecting the metrics (, logs, and traces)
+        // Initialize the channels for collecting the metrics, events, and traces)
         let mut diagnostics_vec = Vec::new();
         let span_name = format!("{}-{}", state.read().get_session_context().get_name(), state.read().get_iter());
         let span = SpanBuilder::default().with_span(&span_name).build()?;
@@ -164,7 +164,7 @@ impl SessionStreamStep {
 
             // Run the task and collect the stream responses
             let messages = task.get_subscriptions_from_state(updates, states);
-            match task.run(messages, &diagnostic_builder) {
+            match task.run(messages, Some(&diagnostic_builder)) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
                         if task_name == state.read().get_session_context().get_name() {
@@ -205,8 +205,8 @@ impl SessionStreamStep {
         // Join each of the response futures
         let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
 
-        // Collect metrics (, logs, and traces) and update their corresponding subjects
-        let _made_table = state.write().get_session_context_mut().update_metrics_table(&diagnostics_vec)?;
+        // Collect metrics, logs, and traces and update their corresponding subjects
+        let (_metrics_updated, _traces_updated, _events_updated) = state.write().get_session_context_mut().update_metrics_table(&diagnostics_vec)?;
 
         // Increment the step
         let iter = state.read().get_iter() + 1;
@@ -325,6 +325,22 @@ mod tests {
                 .is_none()
         );
 
+        let updated = session_stream_state
+            .try_write()
+            .unwrap()
+            .get_session_context_mut()
+            .update_metrics_mermaid_gantt_table()?;
+        assert!(!updated);
+        assert!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .is_none()
+        );
+
         Ok(())
     }
 
@@ -432,12 +448,34 @@ mod tests {
                 .len(),
             1
         );
+
+        let updated = session_stream_state
+            .try_write()
+            .unwrap()
+            .get_session_context_mut()
+            .update_metrics_mermaid_gantt_table()?;
+        assert!(updated);
+        
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
         let output_rows = session_stream_state
                 .try_read()
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -551,12 +589,34 @@ mod tests {
                 .len(),
             1
         );
+
+        let updated = session_stream_state
+            .try_write()
+            .unwrap()
+            .get_session_context_mut()
+            .update_metrics_mermaid_gantt_table()?;
+        assert!(updated);
+
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
         let output_rows = session_stream_state
                 .try_read()
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -721,12 +781,34 @@ mod tests {
                 .len(),
             1
         );
+
+        let updated = session_stream_state
+            .try_write()
+            .unwrap()
+            .get_session_context_mut()
+            .update_metrics_mermaid_gantt_table()?;
+        assert!(updated);
+
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
         let output_rows = session_stream_state
                 .try_read()
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -980,12 +1062,33 @@ mod tests {
                 .len(),
             2
         );
+
+        let updated = session_stream_state
+            .try_write()
+            .unwrap()
+            .get_session_context_mut()
+            .update_metrics_mermaid_gantt_table()?;
+        assert!(updated);
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
         let output_rows = session_stream_state
                 .try_read()
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1070,12 +1173,34 @@ mod tests {
                 .len(),
             1
         );
+
+        let updated = session_stream_state
+            .try_write()
+            .unwrap()
+            .get_session_context_mut()
+            .update_metrics_mermaid_gantt_table()?;
+        assert!(updated);
+
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
         let output_rows = session_stream_state
                 .try_read()
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1215,12 +1340,33 @@ mod tests {
                 .len(),
             4
         );
+
+        let updated = session_stream_state
+            .try_write()
+            .unwrap()
+            .get_session_context_mut()
+            .update_metrics_mermaid_gantt_table()?;
+        assert!(updated);
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
         let output_rows = session_stream_state
                 .try_read()
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()

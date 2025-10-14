@@ -1,4 +1,4 @@
-use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, error::create_error_fields, mermaid::create_mermaid_fields, diagnostics::{create_metrics_fields, create_metrics_mermaid_gantt_fields}, queries::create_queries_fields, user::{create_join_user_inbox_session_contexts_fields, create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields, create_user_inbox_fields, create_user_session_contexts_fields}}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table_trait::{Table, TableBuilder, TableBuilderTrait}};
+use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, diagnostics::{create_events_fields, create_metrics_fields, create_metrics_mermaid_gantt_fields, create_traces_fields}, error::create_error_fields, mermaid::create_mermaid_fields, queries::create_queries_fields, user::{create_join_user_inbox_session_contexts_fields, create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields, create_user_inbox_fields, create_user_session_contexts_fields}}, session::common_traits::{BuildableTrait, BuilderTrait}, table::table_trait::{Table, TableBuilder, TableBuilderTrait}};
 
 use anyhow::Result;
 use arrow::{
@@ -189,6 +189,10 @@ pub enum AvailableSubjects {
     Metrics,
     #[value(name = "MetricsMermaidGantt")]
     MetricsMermaidGantt,
+    #[value(name = "Traces")]
+    Traces,
+    #[value(name = "Events")]
+    Events,
 }
 
 impl Display for AvailableSubjects {
@@ -214,6 +218,8 @@ impl Display for AvailableSubjects {
             AvailableSubjects::Errors => write!(f, "Errors"),
             AvailableSubjects::Metrics => write!(f, "Metrics"),
             AvailableSubjects::MetricsMermaidGantt => write!(f, "MetricsMermaidGantt"),
+            AvailableSubjects::Traces => write!(f, "Traces"),
+            AvailableSubjects::Events => write!(f, "Events"),
         }
     }
 }
@@ -263,6 +269,8 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::Errors => create_schema_from_fields(&create_error_fields),
             AvailableSubjects::Metrics => create_schema_from_fields(&create_metrics_fields),
             AvailableSubjects::MetricsMermaidGantt => create_schema_from_fields(&create_metrics_mermaid_gantt_fields),
+            AvailableSubjects::Traces => create_schema_from_fields(&create_traces_fields),
+            AvailableSubjects::Events => create_schema_from_fields(&create_events_fields),
         }
     }
 }

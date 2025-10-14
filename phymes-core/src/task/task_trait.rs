@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
 use parking_lot::{Mutex, RwLock};
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use tracing::{Level, event};
 
 use super::{
@@ -146,19 +146,38 @@ impl BuildableTrait for Task {
 }
 
 impl RunnableTrait for Task {
-    fn run(&self, mut messages: SendableRecordBatchStreamMessageMap, diagnostic_builder: &DiagnosticBuilder) -> Result<SendableRecordBatchStreamMessageMap> {
+    fn run(&self, mut messages: SendableRecordBatchStreamMessageMap, diagnostic_builder: Option<&DiagnosticBuilder>) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&messages.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
 
         // Process the incoming message resulting in a `SendableRecordBatchStream`
-        for processor in self.processor.iter() {            
+        for processor in self.processor.iter() {
+            let processor_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+                Some(trace.1.clone()) 
+            } else {
+                None
+            };   
             messages = processor.process(
                 messages, 
-                &diagnostic_builder.clone().to_child(self.get_name())?, 
+                processor_diagnostic_builder.as_ref(), 
                 self.runtime_env.clone())?;
         }
 
         // make the output message
         let outbox = self.make_outbox(messages);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&outbox.values().collect::<Vec<_>>());
+        }        
         Ok(outbox)
     }
 }
@@ -510,7 +529,7 @@ mod tests {
     use arrow::array::{Array, DictionaryArray, Int32Array, NullArray, RunArray};
     use arrow::datatypes::{DataType, Field, Schema};
     use hashbrown::HashMap;
-    use phymes_diagnostics::Diagnostics;
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     /// A compilation test to ensure that the `Task::get_name()` method can
     /// be called from a trait object.
@@ -787,8 +806,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_task_single_processor() -> Result<()> {
+        let span = SpanBuilder::default().with_span("test_run_task_single_processor").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
         let test_task = test_task::make_test_task_single_processor(
             "test_task",
             "test_rt",
@@ -799,7 +819,7 @@ mod tests {
             &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?,
         );
-        let mut response = test_task.run(input, &diagnostic_builder)?;
+        let mut response = test_task.run(input, Some(&diagnostic_builder))?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
         assert_eq!(
@@ -836,8 +856,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_task_chained_processor() -> Result<()> {
+        let span = SpanBuilder::default().with_span("test_run_task_chained_processor").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
         let test_task = test_task::make_test_task_chained_processor(
             "test_task",
             "test_rt",
@@ -848,7 +869,7 @@ mod tests {
             &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?,
         );
-        let mut response = test_task.run(input, &diagnostic_builder)?;
+        let mut response = test_task.run(input, Some(&diagnostic_builder))?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
         assert_eq!(

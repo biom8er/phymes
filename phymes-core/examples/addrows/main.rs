@@ -1,7 +1,6 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_core::metrics::HashMap;
 use phymes_core::session::common_traits::MappableTrait;
 use phymes_core::session::session_stream::SessionStream;
 use phymes_core::session::session_stream_state::SessionStreamState;
@@ -9,6 +8,7 @@ use phymes_core::session::session_context_builder::test_session_context_builder:
 use phymes_core::table::table_publish::TablePublish;
 use phymes_core::task::message::IPCMessage;
 use phymes_core::task::task_trait::test_task::make_test_input_message;
+use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
 #[tokio::main(flavor = "current_thread")]
