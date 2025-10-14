@@ -9,24 +9,6 @@ use anyhow::Result;
 
 /// Helper for creating and tracking common "baseline" metrics for
 /// each operator
-///
-/// Example:
-/// ```
-/// use phymes_core::metrics::{BaselineMetrics, MetricBuilder, SpanMetricsSet};
-/// let metrics = SpanMetricsSet::new();
-///
-/// let baseline_metrics = MetricBuilder::new(&metrics)
-///     .with_span("my_span", 0)
-///     .baseline_metrics();
-///
-/// // during execution, in CPU intensive operation:
-/// let timer = baseline_metrics.elapsed_compute().timer();
-/// // .. do CPU intensive work
-/// timer.done();
-///
-/// // when operator is finished:
-/// baseline_metrics.done();
-/// ```
 #[derive(Debug, Clone)]
 pub struct BaselineMetrics {
     /// end_time is set when `ExecutionMetrics::done()` is called
@@ -180,5 +162,80 @@ impl RecordOutput for Result<RecordBatch> {
             record_batch.record_output(bm);
         }
         self
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use arrow::array::{ArrayRef, UInt32Array};
+
+    use crate::{diagnostics::JSONObjectTrait, DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, MetricBuilderTrait, SpanBuilder};
+
+    use super::*;    
+
+    #[test]
+    fn test_baseline_metrics_timer() {
+        // Make the diagnostic builder
+        let span = SpanBuilder::default().with_span("my_span").build().unwrap();
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // Case 1: Stop the timer with no poll
+        {
+            let baseline_metrics = diagnostic_builder.clone().baseline_metrics(line!(), file!(), "my_function");
+            let timer = baseline_metrics.elapsed_compute().timer();
+            timer.done();
+        }
+        for metric in diagnostics.clone_inner().to_json_object() {
+            dbg!(&metric);
+            if metric.get("metric_name").unwrap().as_str().unwrap() == "output_rows" {
+                assert_eq!(metric.get("metric_value").unwrap().as_u64().unwrap(), 0);
+            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "start_timestamp" {
+                assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
+            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "end_timestamp" {
+                assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
+            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "elapsed_compute" {
+                assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
+            } else {
+                unreachable!()
+            }
+        }        
+    }  
+
+    #[test]
+    fn test_baseline_metrics_poll() {
+        // Make a test record batch
+        let id: ArrayRef = Arc::new(UInt32Array::from((0..9).collect::<Vec<_>>()));
+        let batch = RecordBatch::try_from_iter(vec![("id", id)]).unwrap();
+        let poll = Poll::Ready(Some(Ok(batch)));
+
+        // Make the diagnostic builder
+        let span = SpanBuilder::default().with_span("my_span").build().unwrap();
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // Case 2: Stop the timer with a poll
+        {
+            let baseline_metrics = diagnostic_builder.clone().baseline_metrics(line!(), file!(), "my_function");
+            let _timer = baseline_metrics.elapsed_compute().timer();
+            let _ = baseline_metrics.record_poll(poll);
+        }
+        for metric in diagnostics.clone_inner().to_json_object() {
+            dbg!(&metric);
+            if metric.get("metric_name").unwrap().as_str().unwrap() == "output_rows" {
+                assert_eq!(metric.get("metric_value").unwrap().as_u64().unwrap(), 9);
+            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "start_timestamp" {
+                assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
+            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "end_timestamp" {
+                assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
+            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "elapsed_compute" {
+                assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
+            } else {
+                unreachable!()
+            }
+        }
     }
 }

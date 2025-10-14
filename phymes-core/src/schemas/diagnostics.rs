@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt32Array, UInt64Array}, compute::{kernels::numeric::{add, sub}, min}, datatypes::{DataType, Field, Fields}};
+use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt64Array}, compute::{kernels::numeric::{add, sub}, min}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
 use phymes_diagnostics::{Diagnostics, HashMap};
 use serde::{Deserialize, Serialize};

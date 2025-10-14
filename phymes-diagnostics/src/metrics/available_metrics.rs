@@ -227,3 +227,39 @@ impl JSONObjectTrait for Metric {
         vec![map]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use chrono::{TimeZone, Utc};
+
+    use super::*;    
+
+    #[test]
+    fn test_metric_values() {
+        let count = Count::new();
+        let metric = Metric::OutputRows(count.clone());
+        count.add(1);
+        assert_eq!(metric.as_usize(), 1);
+        assert!(!metric.is_timestamp());
+
+        let guage = Gauge::new();
+        let metric = Metric::CurrentMemoryUsage(guage.clone());
+        guage.add(1);
+        assert_eq!(metric.as_usize(), 1);
+        assert!(!metric.is_timestamp());
+
+        let time = Time::new();
+        let metric = Metric::ElapsedCompute(time.clone());
+        time.add_duration(std::time::Duration::from_nanos(1));
+        assert_eq!(metric.as_usize(), 1);
+        assert!(!metric.is_timestamp());
+
+        let timestamp = Timestamp::new();
+        let metric = Metric::StartTimestamp(timestamp.clone());
+        // 1431648000000000 == 1970-01-17 13:40:48 UTC
+        let t1 = Utc.timestamp_nanos(1431648000000000);
+        timestamp.set(t1);
+        assert_eq!(metric.as_usize(), 1431648000000000);
+        assert!(metric.is_timestamp());
+    }
+}
