@@ -175,3 +175,63 @@ impl JSONObjectTrait for DiagnosticSet {
             .collect::<Vec<_>>()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::{traces::Message, DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, MetricBuilderTrait, SpanBuilder, TraceBuilderTrait};
+
+    use super::*;
+
+    #[test]
+    fn test_diagnostics_set_filter() {
+        // Make the diagnostic builder
+        let span = SpanBuilder::default().with_span("my_span").build().unwrap();
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // 1. Trace record
+        let trace = diagnostic_builder.clone().messages(line!(), file!(), "my_function");
+        trace.enter(&[
+            Message::new("m1", "s1"),
+            Message::new("m2", "s2"),
+            Message::new("m3", "s3"),
+        ]);
+        trace.exit(&[
+            Message::new("m2", "s2"),
+            Message::new("m3", "s3"),
+            Message::new("m4", "s4"),
+        ]);
+
+        // 2. Event record
+        let event = diagnostic_builder.clone().info(line!(), file!(), "my_function");
+        event.insert("first", &json!(1));
+        event.insert("second", &json!(2));
+
+        // 3. Metric
+        let metric = diagnostic_builder.clone().output_rows(line!(), file!(), "my_function");
+        metric.add(1);
+
+        // Filter
+        let object = diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Trace).to_json_object();
+        assert_eq!(object.len(), 6);
+        assert_eq!(object.first().unwrap().get("tracer_type").unwrap().as_str().unwrap(), "Messages");
+        assert_eq!(object.first().unwrap().get("tracer_event").unwrap().as_str().unwrap(), "entered");
+        assert_eq!(object.first().unwrap().get("message_name").unwrap().as_str().unwrap(), "m1");
+        assert_eq!(object.first().unwrap().get("subject_name").unwrap().as_str().unwrap(), "s1");
+        assert_eq!(object.last().unwrap().get("tracer_type").unwrap().as_str().unwrap(), "Messages");
+        assert_eq!(object.last().unwrap().get("tracer_event").unwrap().as_str().unwrap(), "exited");
+        assert_eq!(object.last().unwrap().get("message_name").unwrap().as_str().unwrap(), "m4");
+        assert_eq!(object.last().unwrap().get("subject_name").unwrap().as_str().unwrap(), "s4");
+        let object = diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Event).to_json_object();
+        assert_eq!(object.len(), 2);
+        assert_eq!(object.first().unwrap().get("event_level").unwrap().as_str().unwrap(), "Info");
+        assert_eq!(object.first().unwrap().get("record_name").unwrap().as_str().unwrap(), "first");
+        assert_eq!(object.first().unwrap().get("record_value").unwrap().as_u64().unwrap(), 1);
+        let object = diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Metric).to_json_object();
+        assert_eq!(object.len(), 1);
+        assert_eq!(object.first().unwrap().get("metric_name").unwrap().as_str().unwrap(), "output_rows");
+        assert_eq!(object.first().unwrap().get("metric_value").unwrap().as_u64().unwrap(), 1);
+    }
+}

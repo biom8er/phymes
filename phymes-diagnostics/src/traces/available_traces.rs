@@ -56,13 +56,12 @@ impl JSONObjectTrait for Trace {
     }
 }
 
-#[cfg(test)]
-mod tests {
+pub mod available_tracers_tests {
     use crate::Traceable;
 
     use super::*;
 
-    struct Message {
+    pub struct Message {
         message_name: String,
         subject_name: String
     }
@@ -78,6 +77,13 @@ mod tests {
             Tracer::new(&self.message_name, &self.subject_name)
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use available_tracers_tests::Message;
+
+    use super::*;
 
     #[test]
     fn test_tracers_records() {
