@@ -22,10 +22,11 @@ serde = { version = "1.0.219", features = ["derive"] }
 chrono = "0.4.41"
 bytes = "1.10.0"
 serde_json = "1.0.140"
-phymes-core = { path = "../phymes-core", default-features = false }
-phymes-server = { path = "../phymes-server", default-features = false }
-phymes-agents = { path = "../phymes-agents", default-features = false }
-phymes-data = { path = "../phymes-data", default-features = false }
+phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
+phymes-core = { path = "../phymes-core", default-features = false, optional = true }
+phymes-server = { path = "../phymes-server", default-features = false, optional = true }
+phymes-agents = { path = "../phymes-agents", default-features = false, optional = true }
+phymes-data = { path = "../phymes-data", default-features = false, optional = true }
 clap = {version = "4.5.40", optional = true}
 tokio = { version = "1.45.1", default-features = false, optional = true }
 tracing = "0.1.41"
@@ -40,8 +41,8 @@ mermaid_js_cdn = ["mermaid_js"] # use the mjs loaded from CDN server
 mermaid_js_embed = ["mermaid_js"] # use the js (~3 MB) from local filesystem
 
 # Serverside options for gpu and token/tensor services
-wasip2 = ["phymes-server/wasip2", "phymes-agents/wasip2", "phymes-core/wasip2", "phymes-data/wasip2"]
-wsl = ["phymes-server/wsl", "phymes-agents/wsl", "phymes-core/wsl", "phymes-data/wsl"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-server/wasip2", "phymes-agents/wasip2", "phymes-core/wasip2", "phymes-data/wasip2"]
+wsl = ["phymes-diagnostics/wsl", "phymes-server/wsl", "phymes-agents/wsl", "phymes-core/wsl", "phymes-data/wsl"]
 gpu = ["phymes-server/gpu", "phymes-agents/gpu", "phymes-data/gpu"]
 candle = ["phymes-server/candle", "phymes-agents/candle", "phymes-data/candle"]
 hf_hub = ["phymes-server/hf_hub", "phymes-agents/hf_hub"]

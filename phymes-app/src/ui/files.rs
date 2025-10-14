@@ -1,11 +1,11 @@
 use dioxus::prelude::*;
-use futures::StreamExt;
 use phymes_core::{
-    schemas::{available_subjects::create_timestamp_micros, blob::create_blob_batch}, 
+    schemas::blob::create_blob_batch, 
     session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}}, 
     table::{data_format::DataFormat, table_publish::TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, 
     task::message::MessageBuilderTrait
 };
+use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::handlers::sign_in::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
@@ -17,6 +17,9 @@ use std::sync::Arc;
 
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
+
+#[cfg(not(feature = "serverless"))]
+use futures::StreamExt;
 
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
@@ -253,7 +256,7 @@ pub fn upload_files_button(mut files_uploaded: Signal<Vec<SessionInterfaceMessag
                         data: Some(data_serialized),
                     };
                     #[cfg(feature = "serverless")]
-                    let mut serverless = Serverless::new();
+                    let mut serverless = Serverless::new(None);
                     #[cfg(feature = "serverless")]
                     match serverless_app(config, &mut serverless).await {
                         Ok(response) => {
@@ -348,7 +351,7 @@ pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_nam
                     data: Some(data_serialized),
                 };
                 #[cfg(feature = "serverless")]
-                let mut serverless = Serverless::new();
+                let mut serverless = Serverless::new(None);
                 #[cfg(feature = "serverless")]
                 match serverless_app(config, &mut serverless).await {
                     Ok(response) => {
@@ -358,15 +361,10 @@ pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_nam
                             .try_collect()
                             .await
                             .unwrap();
-                        let csv_chunks: Vec<String> = bytes
-                            .iter()
-                            .map(|byte| String::from_utf8_lossy(byte).into_owned())
-                            .collect();
-                        sync_current_files_downloaded_state.send(SyncFilesDownloadedState {
-                            file: csv_chunks.join(""),
-                            filename: active_subject_name.read().as_str().to_string(),
-                            extension: data_format.to_extension().to_string()
-                        });
+                        let bytes_vec: Vec<u8> = bytes.into_iter().flat_map(|b| b.to_vec()).collect();
+                        files_downloaded.push(bytes_vec);
+                        filenames_downloaded.push(active_subject_name.read().as_str().to_string());
+                        extensions_downloaded.push(data_format().to_extension().to_string());
                     }
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
                 }

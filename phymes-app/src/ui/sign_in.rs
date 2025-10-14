@@ -136,7 +136,7 @@ pub fn sign_in_form() -> Element {
                     data: None,
                 };
                 #[cfg(feature = "serverless")]
-                let mut serverless = Serverless::new();
+                let mut serverless = Serverless::new(None);
                 #[cfg(feature = "serverless")]
                 match serverless_app(config, &mut serverless).await {
                     Ok(response) => {
@@ -146,13 +146,16 @@ pub fn sign_in_form() -> Element {
                             .try_collect()
                             .await
                             .unwrap();
-                        let jwt_json: SyncJWTState = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+                        let jwt_json: SignInState = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
                         // Set the active session
-                        sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_plans.first().unwrap().to_string() });
+                        sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_names.session_plans.first().unwrap().to_string() });
+
+                        // Set the session names
+                        sync_session_names.send(SyncSessionNamesState { session_plans: jwt_json.session_names.session_plans });
 
                         // Set the sign-in credentials
-                        sync_jwt.send(jwt_json);
+                        sync_jwt.send(SyncJWTState { jwt: jwt_json.jwt.jwt, email: jwt_json.jwt.email });
                                 
                         // Clear the signals
                         content.write().clear();

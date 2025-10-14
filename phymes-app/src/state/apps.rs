@@ -1,7 +1,6 @@
-use std::collections::HashSet;
-
 use dioxus::prelude::*;
 use futures::StreamExt;
+use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
 #[allow(clippy::redundant_closure)]

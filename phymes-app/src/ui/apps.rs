@@ -1,5 +1,4 @@
 use dioxus::prelude::*;
-use futures::StreamExt;
 use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
 use phymes_core::{
     schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
@@ -16,6 +15,8 @@ use crate::{
     ui::{builds::{builds_dropdown_view, builds_interface_footer}, main_window::split_panel_drag_handle},
 };
 
+#[cfg(not(feature = "serverless"))]
+use futures::StreamExt;
 
 #[cfg(feature = "mermaid_js")]
 use crate::state::apps::MermaidJsObject;
@@ -160,7 +161,7 @@ pub fn apps_interface_view() -> Element {
             data: Some(data_serialized),
         };
         #[cfg(feature = "serverless")]
-        let mut serverless = Serverless::new();
+        let mut serverless = Serverless::new(None);
         #[cfg(feature = "serverless")]
         match serverless_app(config, &mut serverless).await {
             Ok(response) => {

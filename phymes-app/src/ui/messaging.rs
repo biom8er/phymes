@@ -2,8 +2,8 @@
 use dioxus::prelude::*;
 
 // General imports
-use futures::StreamExt;
 use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
+use phymes_diagnostics::{convert_timestamp_micros_to_str, create_timestamp_micros};
 use serde_json::{self, Map, Value};
 
 #[cfg(not(feature = "serverless"))]
@@ -11,12 +11,15 @@ use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
 use phymes_core::{
-    schemas::{available_subjects::{convert_timestamp_micros_to_str, create_timestamp_micros, AvailableSubjectsTrait}, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table_publish::TablePublish, table_trait::TableTrait}, task::message::MessageBuilderTrait
+    schemas::{available_subjects::{AvailableSubjectsTrait}, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table_publish::TablePublish, table_trait::TableTrait}, task::message::MessageBuilderTrait
 };
 use phymes_server::handlers::sign_in::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
+
+#[cfg(not(feature = "serverless"))]
+use futures::StreamExt;
 
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
@@ -98,6 +101,8 @@ pub fn messaging_interface_view() -> Element {
                         });
                     if json_rows.is_empty() {
                         // initialize the first message (if the are no messages for the session)          
+
+                        use phymes_diagnostics::create_timestamp_micros;
                         update_message_state(messaging_roles, 
                             messaging_contents, 
                             messaging_indices, 
@@ -122,6 +127,8 @@ pub fn messaging_interface_view() -> Element {
                 }
             }
             Err(err) => {
+                use phymes_diagnostics::create_timestamp_micros;
+
                 tracing::error!("{err:?}");
 
                 // initialize the first message         
@@ -143,7 +150,7 @@ pub fn messaging_interface_view() -> Element {
             data: Some(data_serialized),
         };
         #[cfg(feature = "serverless")]
-        let mut serverless = Serverless::new();
+        let mut serverless = Serverless::new(None);
         #[cfg(feature = "serverless")]
         match serverless_app(config, &mut serverless).await {
             Ok(response) => {
@@ -365,7 +372,7 @@ pub fn messaging_interface_footer(mut messaging_roles: Signal<Vec<String>>, mut 
                                 data: Some(data_serialized),
                             };
                             #[cfg(feature = "serverless")]
-                            let mut serverless = Serverless::new();
+                            let mut serverless = Serverless::new(None);
                             #[cfg(feature = "serverless")]
                             match serverless_app(config, &mut serverless).await {
                                 Ok(response) => {

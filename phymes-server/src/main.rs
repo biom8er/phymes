@@ -19,7 +19,9 @@ async fn main() -> Result<()> {
 
     // call the serverless application
     let mut serverless = Serverless::new(None);
-    let response = serverless_app(config, &mut serverless).await.unwrap();
+    // DM: blocking on serverless_app hangs indefinitely...
+    // let response = block_on(serverless_app(config, &mut serverless)).unwrap();
+    let response = serverless_app(config, &mut serverless).await.unwrap();    
 
     // parse the response
     let bytes: Vec<Bytes> = block_on(response

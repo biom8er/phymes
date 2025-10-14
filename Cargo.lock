@@ -5312,6 +5312,7 @@ dependencies = [
  "phymes-agents",
  "phymes-core",
  "phymes-data",
+ "phymes-diagnostics",
  "phymes-server",
  "reqwest",
  "serde",

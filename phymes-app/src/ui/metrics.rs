@@ -1,5 +1,4 @@
 use dioxus::prelude::*;
-use futures::StreamExt;
 use phymes_core::{
     session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
@@ -11,6 +10,9 @@ use reqwest::{self, header::CONTENT_TYPE};
 
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
+
+#[cfg(not(feature = "serverless"))]
+use futures::StreamExt;
 
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
@@ -80,9 +82,8 @@ pub fn metrics_interface_view() -> Element {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
                 while let Some(Ok(bytes)) = stream.next().await {
-                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                     let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
+                        serde_json::from_slice(bytes.as_ref()).unwrap_or_else(|err| {
                             tracing::error!(
                                 "There was a error parsing SyncCurrentMetricsMermaidJSState {err}."
                             );
@@ -121,7 +122,7 @@ pub fn metrics_interface_view() -> Element {
             data: Some(data_serialized),
         };
         #[cfg(feature = "serverless")]
-        let mut serverless = Serverless::new();
+        let mut serverless = Serverless::new(None);
         #[cfg(feature = "serverless")]
         match serverless_app(config, &mut serverless).await {
             Ok(response) => {
@@ -133,7 +134,7 @@ pub fn metrics_interface_view() -> Element {
                     .unwrap();
                 for byte in bytes.iter() {
                     let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
+                        serde_json::from_slice(byte.as_ref()).unwrap_or_else(|err| {
                             tracing::error!(
                                 "There was a error parsing SyncCurrentMetricMermaidJSState {err}."
                             );

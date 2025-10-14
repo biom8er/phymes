@@ -1,5 +1,4 @@
 use dioxus::prelude::*;
-use futures::StreamExt;
 use phymes_core::{
     session::{common_traits::{BuildableTrait, BuilderTrait}, 
     message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, 
@@ -15,6 +14,9 @@ use reqwest::{self, header::CONTENT_TYPE};
 
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
+
+#[cfg(not(feature = "serverless"))]
+use futures::StreamExt;
 
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
@@ -131,7 +133,7 @@ pub fn subjects_interface_view() -> Element {
             data: Some(data_serialized),
         };
         #[cfg(feature = "serverless")]
-        let mut serverless = Serverless::new();
+        let mut serverless = Serverless::new(None);
         #[cfg(feature = "serverless")]
         match serverless_app(config, &mut serverless).await {
             Ok(response) => {
@@ -228,7 +230,7 @@ pub fn subjects_interface_view() -> Element {
             data: Some(data_serialized),
         };
         #[cfg(feature = "serverless")]
-        let mut serverless = Serverless::new();
+        let mut serverless = Serverless::new(None);
         #[cfg(feature = "serverless")]
         match serverless_app(config, &mut serverless).await {
             Ok(response) => {
@@ -242,6 +244,11 @@ pub fn subjects_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
+                        let num_rows = if let Some(Value::Number(val)) = row.get("num_rows") {
+                            val.as_u64().unwrap().try_into().unwrap()
+                        } else {
+                            0
+                        };
                         subject_names.push(row
                             .get("subject_name")
                             .unwrap()

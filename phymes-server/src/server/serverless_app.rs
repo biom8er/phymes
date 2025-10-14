@@ -32,9 +32,6 @@ pub async fn serverless_app(
     config: ServerlessConfig,
     serverless: &mut Serverless,
 ) -> Result<Response> {
-    // // initialize the server
-    // let mut serverless = Serverless::new();
-
     // start building the request
     let url = format!("https://serverless/{}", config.route);
     let request_builder = Request::builder().method("POST").uri(url);
