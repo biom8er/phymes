@@ -153,6 +153,7 @@ The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes
 
 | Crate | Description | Latest API Docs | README |
 | ----- | ----------- | --------------- | ------ |
+| [`phymes-diagnostics`] | Diagnostic tools for debugging and optimizing | [docs.rs](https://docs.rs/phymes-diagnostics/latest) | [README](phymes-diagnostics/README.md) |
 | [`phymes-core`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-core/latest) | [README](phymes-core/README.md) |
 | [`phymes-ml`] | Support for machine learning (ML) and generative artificial intelligence (AI) | [docs.rs](https://docs.rs/phymes-ml/latest) | [README](phymes-ml/README.md) |
 | [`phymes-data`] | Support for GPU accelerated data wrangling | [docs.rs](https://docs.rs/phymes-data/latest) | [README](phymes-data/README.md) |
@@ -160,6 +161,7 @@ The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes
 | [`phymes-server`] | Server that runs the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-server/latest) | [README](phymes-server/README.md) |
 | [`phymes-app`] | Frontend UI for dynamically interacting with the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-app/latest) | [README](phymes-app/README.md) |
 
+[`phymes-diagnostics`]: https://crates.io/crates/phymes-diagnostics
 [`phymes-core`]: https://crates.io/crates/phymes-core
 [`phymes-ml`]: https://crates.io/crates/phymes-ml
 [`phymes-data`]: https://crates.io/crates/phymes-data

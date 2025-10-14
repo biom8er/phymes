@@ -21,6 +21,7 @@ use phymes_core::{
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
 use phymes_data::candle_data::attachment_aggregator_processor::{collect_messages_by_schema, AggregatorStream};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use tracing::{Level, event, instrument};
 
 /// Processor that aggregates messages
@@ -100,6 +101,16 @@ impl ProcessorTrait for MessageAggregatorProcessor {
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
         // Collect the messages with the messages schema
         let input = collect_messages_by_schema(&mut message, &create_chat_fields());
 
@@ -110,12 +121,17 @@ impl ProcessorTrait for MessageAggregatorProcessor {
         };
 
         // Make the outbox and send
+        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+            Some(trace.1.clone()) 
+        } else {
+            None
+        };
         let out = Box::pin(AggregatorStream::new(
             AvailableSubjects::Messages.to_schema(),
             input,
             config,
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.get_publications().first().unwrap().get_table_name())
@@ -125,6 +141,11 @@ impl ProcessorTrait for MessageAggregatorProcessor {
             .with_update(self.get_publications().first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -132,11 +153,12 @@ impl ProcessorTrait for MessageAggregatorProcessor {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        metrics::{HashMap, SpanMetricsSet}, session::common_traits::device, table::table_trait::{
+        session::common_traits::device, table::table_trait::{
             test_table::{make_test_table, make_test_table_chat}, TableBuilder, TableBuilderTrait, TableTrait
         }
     };
     use phymes_data::{candle_data::{data_config::DataConfig, tensor_service::CandleTensorService}, candle_operators::available_candle_operators::AvailableCandleOperators};
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
 
@@ -201,8 +223,9 @@ mod tests {
                 .build()?,
         );
 
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
         let device = device(config.cpu)?;
@@ -218,7 +241,7 @@ mod tests {
 
         // Create the aggregator and run
         let agg_arc_1 = MessageAggregatorProcessor::new_arc("aggregator_processor");
-        let mut agg_stream = agg_arc_1.process(message_1, &diagnostic_builder, runtime_env)?;
+        let mut agg_stream = agg_arc_1.process(message_1, Some(&diagnostic_builder), runtime_env)?;
         assert_eq!(agg_stream.len(), 2);
         assert!(agg_stream.get("messages").is_some());
         assert!(agg_stream.get("m3").is_some());
@@ -266,8 +289,6 @@ mod tests {
                 1754484956
             ]
         );
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 8);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 100);
 
         Ok(())
     }

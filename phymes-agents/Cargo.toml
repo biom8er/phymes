@@ -12,12 +12,13 @@ documentation = "https://docs.rs/phymes-agents"
 default = ["wsl", "candle"]
 hf_hub = ["phymes-ml/hf_hub"]
 openai_api = ["phymes-ml/openai_api"]
-wasip2 = ["phymes-core/wasip2", "phymes-ml/wasip2", "phymes-data/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
-wsl = ["phymes-core/wsl", "phymes-ml/wsl", "phymes-data/wsl", "tokio/full", "tracing-subscriber/env-filter",]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-ml/wasip2", "phymes-data/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
+wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-ml/wsl", "phymes-data/wsl", "tokio/full", "tracing-subscriber/env-filter",]
 gpu = ["phymes-ml/gpu", "phymes-data/gpu"]
 candle = [] # force use of candle models when openai_api is available
 
 [dependencies]
+phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
 phymes-ml = { path = "../phymes-ml", default-features = false, optional = true }
 phymes-data = { path = "../phymes-data", default-features = false, optional = true }

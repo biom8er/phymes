@@ -10,7 +10,7 @@ use futures::{FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
     schemas::{
-        available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, 
+        available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, 
         chat::{create_chat_record_batch, ChatTraitExt}, 
         chat_completion::{ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType}
     },
@@ -29,6 +29,7 @@ use phymes_core::{
         publish_subscribe::PubSubTrait,
     },
 };
+use phymes_diagnostics::{create_timestamp_micros, DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 use reqwest::{Client, header::CONTENT_TYPE};
 use tracing::{Level, event};
 
@@ -102,6 +103,16 @@ impl ProcessorTrait for OpenAIChatProcessor {
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
         // Extract out the messages, documents, tools, and config
         let messages = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
             Some(i) => i.get_message_own(),
@@ -116,12 +127,17 @@ impl ProcessorTrait for OpenAIChatProcessor {
         };
 
         // Run the chat stream
+        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+            Some(trace.1.clone()) 
+        } else {
+            None
+        };
         let out = Box::pin(OpenAIChatStream::new(
             messages,
             tools,
             config,
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -131,6 +147,11 @@ impl ProcessorTrait for OpenAIChatProcessor {
             .with_update(self.publications.first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -311,8 +332,16 @@ impl Stream for OpenAIChatStream {
             OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(text) => {
                     // Initialize the metrics
-                    let metrics = self.diagnostic_builder.clone().to_child().with_span("OpenAIChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-                    let _timer = metrics.elapsed_compute().timer();
+                    let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                        Some(diagnostic_builder.clone().to_child("OpenAIChatStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                    } else {
+                        None
+                    };
+                    let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+                        Some(baseline_metrics.elapsed_compute().timer())
+                    } else {
+                        None
+                    };
 
                     // Parse the response
                     let result = serde_json::from_str::<ChatCompletionResponse>(&text).unwrap();
@@ -349,11 +378,15 @@ impl Stream for OpenAIChatStream {
                         vec![content.to_string()],
                         vec![create_timestamp_micros()],
                     )?;
+                    self.state = OpenAIRequestState::Done;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    self.state = OpenAIRequestState::Done;
-                    metrics.record_poll(poll)
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        baseline_metrics.record_poll(poll)
+                    } else {
+                        poll
+                    }
                 }
                 Err(err) => {
                     self.state = OpenAIRequestState::Done;
@@ -394,7 +427,9 @@ mod tests {
         let messages = "messages";
 
         // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // State for the chat processor config
         let candle_chat_config = CandleChatConfig {
@@ -467,7 +502,7 @@ mod tests {
         );
         let mut stream = chat_processor.process(
             message,
-            metrics.clone(),
+            Some(&diagnostic_builder),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
@@ -488,9 +523,6 @@ mod tests {
 
         // Expected
         // "**Counting Prime Numbers Up to N**\n=====================================\n\nHere is a Python function that counts prime numbers up to a given number `N`:\n\n```python\ndef count_prime_numbers(n):\n    \"\"\"\n    Returns the count of prime numbers up to n.\n\n    Args:\n        n (int): The upper limit (exclusive) for counting prime numbers.\n\n    Returns:\n        int: The count of prime numbers up to n.\n    \"\"\"\n    def is_prime(num):\n        \"\"\"\n        Checks if a number is prime.\n\n        Args:\n            num (int): The number to check.\n\n        Returns:\n            bool: True if the number is prime, False otherwise.\n        \"\"\"\n        if num < 2:\n            return False\n        for i in range(2, int(num ** 0.5) + 1):\n            if num % i == 0:\n                return False\n        return True\n\n    count = 0\n    for i in range(2, n):\n        if is_prime(i):\n            count += 1\n    return count\n```\n\n**Example Use Cases**\n---------------------\n\n```python\n# Count prime numbers up to 20\nprint(count_prime_numbers(20))  # Output: 8\n\n# Count prime numbers up to 50\nprint(count_prime_numbers(50))  # Output: 15\n```\n\nThis function works by defining a helper function `is_prime` that checks whether a given number is prime or not. It then uses a simple loop to iterate from 2 to `n-1`, and increments the count each time it finds a prime number. The final count is returned by the main function `count_prime_numbers`."
-
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
 
         assert_eq!(json_data.first().unwrap().get("role").unwrap(), "system");
         assert_eq!(

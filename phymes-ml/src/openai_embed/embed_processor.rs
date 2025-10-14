@@ -8,7 +8,7 @@ use crate::{
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
-    schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat}},
+    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat}},
     session::{
         common_traits::{
             BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
@@ -24,6 +24,7 @@ use phymes_core::{
         publish_subscribe::PubSubTrait,
     },
 };
+use phymes_diagnostics::{create_timestamp_micros, DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 
 use arrow::{
     datatypes::SchemaRef,
@@ -107,6 +108,16 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
         // Extract out the documents and config
         let documents = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
             Some(i) => i.get_message_own(),
@@ -118,11 +129,16 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
         };
 
         // Make the outbox and send
+        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+            Some(trace.1.clone()) 
+        } else {
+            None
+        };
         let out = Box::pin(OpenAIEmbedStream::new(
             documents,
             config,
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -132,6 +148,11 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
             .with_update(self.publications.first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -301,8 +322,16 @@ impl Stream for OpenAIEmbedStream {
                 OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
-                        let metrics = self.diagnostic_builder.clone().to_child().with_span("OpenAIEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-                        let _timer = metrics.elapsed_compute().timer();
+                        let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                            Some(diagnostic_builder.clone().to_child("OpenAIEmbedStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                        } else {
+                            None
+                        };
+                        let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+                            Some(baseline_metrics.elapsed_compute().timer())
+                        } else {
+                            None
+                        };
 
                         // Parse the response
                         let result = serde_json::from_str::<EmbeddingResponse>(&text).unwrap();
@@ -320,11 +349,15 @@ impl Stream for OpenAIEmbedStream {
 
                         // Record the schema
                         self.schema = batch.schema();
+                        self.state = OpenAIRequestState::Done;
 
                         // record the poll
                         let poll = Poll::Ready(Some(Ok(batch)));
-                        self.state = OpenAIRequestState::Done;
-                        metrics.record_poll(poll)
+                        if let Some(baseline_metrics) = &baseline_metrics {
+                            baseline_metrics.record_poll(poll)
+                        } else {
+                            poll
+                        }
                     }
                     Err(err) => {
                         self.state = OpenAIRequestState::Done;
@@ -398,8 +431,16 @@ impl Stream for OpenAIEmbedStream {
                 OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
-                        let metrics = self.diagnostic_builder.clone().to_child().with_span("OpenAIEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-                        let _timer = metrics.elapsed_compute().timer();
+                        let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                            Some(diagnostic_builder.clone().to_child("OpenAIEmbedStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                        } else {
+                            None
+                        };
+                        let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+                            Some(baseline_metrics.elapsed_compute().timer())
+                        } else {
+                            None
+                        };
 
                         // Parse the response
                         let result = serde_json::from_str::<EmbeddingResponse>(&text).unwrap();
@@ -417,11 +458,15 @@ impl Stream for OpenAIEmbedStream {
 
                         // Record the schema
                         self.schema = batch.schema();
+                        self.state = OpenAIRequestState::Done;
 
                         // record the poll
                         let poll = Poll::Ready(Some(Ok(batch)));
-                        self.state = OpenAIRequestState::Done;
-                        metrics.record_poll(poll)
+                        if let Some(baseline_metrics) = &baseline_metrics {
+                            baseline_metrics.record_poll(poll)
+                        } else {
+                            poll
+                        }
                     }
                     Err(err) => {
                         self.state = OpenAIRequestState::Done;
@@ -496,8 +541,9 @@ mod tests {
             .build()?;
 
         // Make the metrics
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make and run the embeddings stream
         let embed_stream = OpenAIEmbedStream::new(

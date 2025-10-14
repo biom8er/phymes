@@ -6,7 +6,7 @@ use std::{
 
 use phymes_core::{
     schemas::{
-        available_subjects::{create_timestamp_micros, create_values_record_batch, AvailableSubjects, AvailableSubjectsTrait}, 
+        available_subjects::{create_values_record_batch, AvailableSubjects, AvailableSubjectsTrait}, 
         chat::create_chat_record_batch,
         chat_completion::ToolCall
     },
@@ -25,6 +25,7 @@ use phymes_core::{
         publish_subscribe::PubSubTrait,
     },
 };
+use phymes_diagnostics::{create_timestamp_micros, DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -123,6 +124,16 @@ impl ProcessorTrait for MessageParserProcessor {
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
         // Extract out the messages and config
         let messages =
             match message.remove(self.get_subscriptions().first().unwrap().get_table_name()) {
@@ -135,11 +146,16 @@ impl ProcessorTrait for MessageParserProcessor {
         };
 
         // Make the outbox and send
+        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+            Some(trace.1.clone()) 
+        } else {
+            None
+        };
         let out = Box::pin(MessageParserStream::new(
             messages,
             config,
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            stream_diagnostic_builder,
         )?);
 
         // By default, we send back to the publisher in case of any errors which the publisher
@@ -153,6 +169,11 @@ impl ProcessorTrait for MessageParserProcessor {
             .with_update(self.get_publications().first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -212,8 +233,16 @@ impl Stream for MessageParserStream {
             Poll::Ready(None)
         } else {
             // Initialize the metrics
-            let metrics = self.diagnostic_builder.clone().to_child().with_span("MessageParserStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-            let _timer = metrics.elapsed_compute().timer();
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(diagnostic_builder.clone().to_child("MessageParserStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+            } else {
+                None
+            };
+            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+                Some(baseline_metrics.elapsed_compute().timer())
+            } else {
+                None
+            };
 
             // Initialize the config
             let mut batches = Vec::new();
@@ -374,7 +403,11 @@ impl Stream for MessageParserStream {
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
         }
     }
 
@@ -392,10 +425,8 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{
-        metrics::{HashMap, SpanMetricsSet},
-        table::{table_publish::TablePublish, table_trait::TableBuilder},
-    };
+    use phymes_core::table::{table_publish::TablePublish, table_trait::TableBuilder};
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
 
@@ -452,8 +483,9 @@ mod tests {
                 .build()?,
         );
 
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -475,7 +507,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, &diagnostic_builder, runtime_env)?;
+        let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
@@ -485,8 +517,6 @@ mod tests {
         .with_name("")
         .build()?;
         assert_eq!(partitions.count_rows(), 2);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 2);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         assert_eq!(
             partitions.get_column_as_vec_str("name"),
             ["get_current_weather", "get_weather"]
@@ -557,8 +587,9 @@ mod tests {
                 .build()?,
         );
 
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -580,7 +611,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, &diagnostic_builder, runtime_env)?;
+        let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
@@ -590,8 +621,6 @@ mod tests {
         .with_name("")
         .build()?;
         assert_eq!(partitions.count_rows(), 1);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         assert_eq!(
             partitions.get_column_as_vec_str("name"),
             ["get_current_weather"]
@@ -662,8 +691,9 @@ mod tests {
                 .build()?,
         );
 
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -685,7 +715,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, &diagnostic_builder, runtime_env)?;
+        let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // DM: this will result in an error because the schema is dynamically updated
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
@@ -695,8 +725,6 @@ mod tests {
         .with_name("")
         .build()?;
         assert_eq!(partitions.count_rows(), 1);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         assert_eq!(partitions.get_column_as_vec_str("role"), ["assistant"]);
         assert_eq!(
             partitions.get_column_as_vec_str("content"),

@@ -3,7 +3,8 @@ use std::fmt::Display;
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use clap::ValueEnum;
-use phymes_core::{metrics::HashMap, schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::MappableTrait, table::table_trait::Table};
+use phymes_core::{schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::MappableTrait, table::table_trait::Table};
+use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
 /// Check that one or more of the [AvailableinterfaceSubjects], one or more of the [AvailableinterfaceSubjects],

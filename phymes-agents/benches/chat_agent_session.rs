@@ -8,10 +8,11 @@ use phymes_agents::{
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    metrics::HashMap, schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{
+    schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::SessionContextTableNames, session_stream::SessionStream, session_stream_state::SessionStreamState
     }, table::{table_publish::TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, MessageBuilderTrait}
 };
+use phymes_diagnostics::HashMap;
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {
     // Cases for different input/output lengths

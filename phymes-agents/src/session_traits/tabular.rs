@@ -18,6 +18,7 @@ use phymes_core::{
         data_types::{from_data_type_to_str, from_str_to_data_type}, table_publish::TablePublish, table_subscribe::{from_str_to_subscribe, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
     }, task::processor::ProcessorBuilder
 };
+use phymes_diagnostics::{create_timestamp_micros, HashSet};
 
 use crate::{
     session_plans::available_processors::AvailableProcessors,
@@ -149,7 +150,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 continue;
             } else if table.get_name() == SessionContextTableNames::Errors.to_string().as_str() {
                 continue;
-            } else if table.get_name() == SessionContextTableNames::Logs.to_string().as_str() {
+            } else if table.get_name() == SessionContextTableNames::Traces.to_string().as_str() {
+                continue;
+            } else if table.get_name() == SessionContextTableNames::Metrics.to_string().as_str() {
+                continue;
+            } else if table.get_name() == SessionContextTableNames::Events.to_string().as_str() {
                 continue;
             } else if table.get_name() == SessionContextTableNames::MetricPivot.to_string().as_str() {
                 continue;

@@ -8,7 +8,6 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    metrics::{HashMap, HashSet},
     session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, runtime_env::{RuntimeEnv, RuntimeEnvTrait}, session_context::SessionContext, session_context_builder::{
             SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
@@ -24,6 +23,7 @@ use phymes_core::{
 use phymes_data::candle_data::{
     attachment_aggregator_processor::AttachmentAggregatorProcessor, data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor
 };
+use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::{
     candle_chat::{
         chat_processor::CandleChatProcessor,

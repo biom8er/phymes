@@ -15,6 +15,7 @@ use phymes_core::{
         publish_subscribe::PubSubTrait,
     }
 };
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 
 use arrow::{
     array::{ArrayRef, Float32Builder, ListBuilder, StringArray},
@@ -102,6 +103,16 @@ impl ProcessorTrait for CandleEmbedProcessor {
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
         // Extract out the documents and config
         let documents = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
             Some(i) => i.get_message_own(),
@@ -113,11 +124,16 @@ impl ProcessorTrait for CandleEmbedProcessor {
         };
 
         // Make the outbox and send
+        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+            Some(trace.1.clone()) 
+        } else {
+            None
+        };
         let out = Box::pin(CandleEmbedStream::new(
             documents,
             config,
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -127,6 +143,11 @@ impl ProcessorTrait for CandleEmbedProcessor {
             .with_update(self.publications.first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -250,8 +271,16 @@ impl Stream for CandleEmbedStream {
         // record batch row is a query
         if self.sample == 0 {
             // Initialize the metrics
-            let metrics = self.diagnostic_builder.clone().to_child().with_span("CandleEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-            let _timer = metrics.elapsed_compute().timer();
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(diagnostic_builder.clone().to_child("CandleEmbedStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+            } else {
+                None
+            };
+            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+                Some(baseline_metrics.elapsed_compute().timer())
+            } else {
+                None
+            };
 
             // initialize the config
             let mut batches = Vec::new();
@@ -324,12 +353,24 @@ impl Stream for CandleEmbedStream {
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
         } else {
             // Keep embedding the remaining streams
             // Initialize the metrics
-            let metrics = self.diagnostic_builder.clone().to_child().with_span("CandleEmbedStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-            let _timer = metrics.elapsed_compute().timer();
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(diagnostic_builder.clone().to_child("CandleEmbedStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+            } else {
+                None
+            };
+            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+                Some(baseline_metrics.elapsed_compute().timer())
+            } else {
+                None
+            };
 
             // Collect the next batch of queries
             let batch = match ready!(self.document_stream.poll_next_unpin(cx)) {
@@ -387,7 +428,11 @@ impl Stream for CandleEmbedStream {
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
         }
     }
 
@@ -553,7 +598,7 @@ mod tests {
     use arrow::array::{Float32Array, ListArray, StringArray};
     use candle_core::Device;
     use futures::TryStreamExt;
-    use phymes_core::metrics::SpanMetricsSet;
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::candle_assets::available_candle_assets::{load_model_asset_path, load_tokenizer};
 
@@ -756,15 +801,16 @@ mod tests {
             .build()?;
 
         // Make the metrics
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span("candle_embed_processor", 0);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make and run the embeddings stream
         let embed_stream = CandleEmbedStream::new(
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone(),
+            Some(diagnostic_builder.clone()),
         )?;
 
         // DM: Skip actually running the tests as they take too long on the CPU
@@ -845,7 +891,7 @@ mod tests {
                 document_table.to_record_batch_stream(),
                 config_table.to_record_batch_stream(),
                 Arc::clone(&runtime_env),
-                diagnostic_builder.clone(),
+                Some(diagnostic_builder.clone()),
             )?;
             let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
             assert_eq!(embeddings.len(), 2);
@@ -937,8 +983,9 @@ mod tests {
             .build()?;
 
         // Make the metrics
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span("candle_embed_processor", 0);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime
         let asset = config.candle_asset.unwrap().build(
@@ -963,7 +1010,7 @@ mod tests {
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone(),
+            Some(diagnostic_builder.clone()),
         )?;
 
         // DM: Skip actually running the tests as they take too long on the CPU

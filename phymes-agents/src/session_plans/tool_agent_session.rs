@@ -774,11 +774,12 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::HashMap, schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
+        schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
             common_traits::MappableTrait, session_stream::SessionStream, session_stream_state::SessionStreamState,
         }, table::{data_format::CsvFormat, table_trait::TableTrait}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
     use phymes_data::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
+    use phymes_diagnostics::HashMap;
 
     use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
 

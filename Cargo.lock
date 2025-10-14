@@ -5288,6 +5288,7 @@ dependencies = [
  "parking_lot",
  "phymes-core",
  "phymes-data",
+ "phymes-diagnostics",
  "phymes-ml",
  "reqwest",
  "serde",

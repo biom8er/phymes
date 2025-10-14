@@ -16,17 +16,23 @@ async fn main() -> Result<()> {
     // parse the config
     let config = ServerlessConfig::parse();
 
-    // call the serverless application
-    let mut serverless = Serverless::new(None);
-    let response = serverless_app(config, &mut serverless).await.unwrap();
+    // initialize a single threaded run-time
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()?;
+    let bytes: Vec<Bytes> = rt.block_on(async {
+        // call the serverless application
+        let mut serverless = Serverless::new(None);
+        let response = serverless_app(config, &mut serverless).await.unwrap();
 
-    // Parse the response
-    let bytes: Vec<Bytes> = response
-        .into_body()
-        .into_data_stream()
-        .try_collect()
-        .await
-        .unwrap();
+        // parse the response
+        response
+            .into_body()
+            .into_data_stream()
+            .try_collect()
+            .await
+            .unwrap()
+    });
+    
     println!("{bytes:?}");
     Ok(())
 }

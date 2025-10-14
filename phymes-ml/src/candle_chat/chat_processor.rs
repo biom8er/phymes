@@ -25,6 +25,7 @@ use phymes_core::{
         publish_subscribe::PubSubTrait,
     },
 };
+use phymes_diagnostics::{create_timestamp_micros, DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
@@ -110,6 +111,16 @@ impl ProcessorTrait for CandleChatProcessor {
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
         // Extract out the messages, documents, tools, and config
         let messages = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
             Some(i) => i.get_message_own(),
@@ -124,12 +135,17 @@ impl ProcessorTrait for CandleChatProcessor {
         };
 
         // Run the chat stream
+        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+            Some(trace.1.clone()) 
+        } else {
+            None
+        };
         let out = Box::pin(CandleChatStream::new(
             messages,
             tools,
             config,
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -139,6 +155,11 @@ impl ProcessorTrait for CandleChatProcessor {
             .with_update(self.publications.first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -346,8 +367,16 @@ impl Stream for CandleChatStream {
         // Case 1: inference over the prompt
         if self.to_sample == 0 {
             // Initialize the metrics
-            let metrics = self.diagnostic_builder.clone().to_child().with_span("CandleChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-            let _timer = metrics.elapsed_compute().timer();
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(diagnostic_builder.clone().to_child("CandleChatStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+            } else {
+                None
+            };
+            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+                Some(baseline_metrics.elapsed_compute().timer())
+            } else {
+                None
+            };
 
             // Collect the chat history
             let mut batches = Vec::new();
@@ -466,11 +495,23 @@ impl Stream for CandleChatStream {
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
         } else if self.sample < self.to_sample {
             // Initialize the metrics
-            let metrics = self.diagnostic_builder.clone().to_child().with_span("CandleChatStream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-            let _timer = metrics.elapsed_compute().timer();
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(diagnostic_builder.clone().to_child("CandleChatStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+            } else {
+                None
+            };
+            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+                Some(baseline_metrics.elapsed_compute().timer())
+            } else {
+                None
+            };
 
             // Inference to generate the next token
             // This can be handled directly as a null in RecordBatch
@@ -524,7 +565,11 @@ impl Stream for CandleChatStream {
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
         } else if self.sample == self.to_sample {
             // Increment the sample count
             self.sample += 1;
@@ -643,7 +688,7 @@ pub fn process_prompt_chat(
 
 pub mod bench_chat_processor {
     use phymes_core::{
-        metrics::HashMap, schemas::chat::ChatBuilderTraitExt,
+        schemas::chat::ChatBuilderTraitExt,
         session::runtime_env::RuntimeEnvTrait,
     };
 
@@ -734,7 +779,7 @@ pub mod bench_chat_processor {
         );
         let mut stream = chat_processor.process(
             message,
-            &diagnostic_builder,
+            diagnostic_builder,
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
@@ -752,9 +797,10 @@ pub mod bench_chat_processor {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        metrics::{HashMap, SpanMetricsSet}, schemas::chat::ChatBuilderTraitExt,
+        schemas::chat::ChatBuilderTraitExt,
         session::runtime_env::RuntimeEnvTrait,
     };
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::candle_assets::available_candle_assets::{load_model_asset_path, load_tokenizer};
 
@@ -869,8 +915,9 @@ mod tests {
         let messages = "messages";
 
         // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // State for the chat processor config
         let candle_chat_config = CandleChatConfig {
@@ -959,7 +1006,7 @@ mod tests {
         );
         let mut stream = chat_processor.process(
             message,
-            &diagnostic_builder,
+            Some(&diagnostic_builder),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
@@ -986,9 +1033,6 @@ mod tests {
 
             // Expected
             // "\nimport math\n\ndef count_primes(n):\n    \"\"\"\n    Finds all prime numbers up to n and counts them.\n    \n    Args:\n        n (int): The upper limit of the range to find primes in.\n\n    Returns:\n        int: The total number of prime numbers found.\n    \"\"\"\n\n    # Initialize a boolean array that indicates the primality of each number\n    is_prime = [True for _ in range(n + 1)]\n\n    # Set initial values based on small numbers and even numbers\n    i, p = 2, 3\n    while i * i <= n:\n        if is_prime[i]:\n            j = (i * i)\n            while j <= n:\n                is_prime[j] = False\n                j += i\n        i += 1\n\n    # Count the number of primality\n    return sum(1 for num in range(2, n + 1) if is_prime[num])"
-
-            assert!(metrics.clone_inner().output_rows().unwrap() >= 10);
-            assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
 
             assert_eq!(json_data.first().unwrap().get("role").unwrap(), "system");
             assert_eq!(

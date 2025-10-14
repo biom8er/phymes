@@ -6,7 +6,7 @@ extern crate accelerate_src;
 
 use anyhow::Result;
 use clap::Parser;
-use phymes_core::{metrics::{MetricBuilder, SpanMetricsSet}, table::table_trait::TableTrait};
+use phymes_core::table::table_trait::TableTrait;
 
 use phymes_ml::candle_chat::{
     chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor,
@@ -21,16 +21,12 @@ pub async fn run_main() -> Result<()> {
         candle_core::utils::with_f16c()
     );
 
-    // Metrics to compute time and rows
-    let diagnostics = Diagnostics::new();
-    let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
-
     // Chat processor config
     let config = CandleChatConfig::parse();
 
     // Run the chat processor
     let message_history = bench_chat_processor(
-        &diagnostic_builder,
+        None,
         &config,
         "What are the four molecules that compose DNA?",
         "chat_processor",
@@ -42,15 +38,6 @@ pub async fn run_main() -> Result<()> {
             println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
         }
     }
-
-    println!(
-        "number of rows {}",
-        metrics.clone_inner().output_rows().unwrap()
-    );
-    println!(
-        "elasped compute {}",
-        metrics.clone_inner().elapsed_compute().unwrap()
-    );
 
     Ok(())
 }
