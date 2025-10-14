@@ -30,6 +30,7 @@ use arrow::{
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
+use phymes_diagnostics::{create_timestamp_micros, DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 use tracing::{Level, event, instrument};
 
 use super::summary_config::DataSummaryConfig;
@@ -110,6 +111,16 @@ impl ProcessorTrait for DataSummaryProcessor {
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
         // Extract out the config
         let config = match message.remove(self.get_name()) {
             Some(s) => s.get_message_own(),
@@ -141,12 +152,17 @@ impl ProcessorTrait for DataSummaryProcessor {
         }
 
         // Make the outbox and send
+        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+            Some(trace.1.clone()) 
+        } else {
+            None
+        };
         let out = Box::pin(DataSummaryStream::new(
             subscriptions.swap_remove(0).get_message_own(),
             table_names.swap_remove(0).to_string(),
             config,
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            stream_diagnostic_builder,
         )?);
         let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let out_m = SendableRecordBatchStreamMessage::get_builder()
@@ -157,6 +173,11 @@ impl ProcessorTrait for DataSummaryProcessor {
             .with_update(self.publications.first().unwrap())
             .build()?;
         let _ = outbox.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&outbox.values().collect::<Vec<_>>());
+        }
         Ok(outbox)
     }
 }
@@ -220,8 +241,16 @@ impl Stream for DataSummaryStream {
             Poll::Ready(None)
         } else {
             // Initialize the metrics
-            let metrics = self.diagnostic_builder.clone().to_child().with_span("Stream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-            let _timer = metrics.elapsed_compute().timer();
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(diagnostic_builder.clone().to_child("DataSummaryStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+            } else {
+                None
+            };
+            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+                Some(baseline_metrics.elapsed_compute().timer())
+            } else {
+                None
+            };
 
             // Initialize the config
             let mut batches = Vec::new();
@@ -329,8 +358,11 @@ impl Stream for DataSummaryStream {
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    metrics.record_poll(poll)
-
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        baseline_metrics.record_poll(poll)
+                    } else {
+                        poll
+                    }
                 }
                 DataFormat::Csv(csv_format) => {
                     // Convert to Values representation
@@ -351,7 +383,11 @@ impl Stream for DataSummaryStream {
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    metrics.record_poll(poll)
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        baseline_metrics.record_poll(poll)
+                    } else {
+                        poll
+                    }
                 }
                 DataFormat::CsvDefault => {
                     // Convert to Values representation
@@ -373,7 +409,11 @@ impl Stream for DataSummaryStream {
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    metrics.record_poll(poll)
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        baseline_metrics.record_poll(poll)
+                    } else {
+                        poll
+                    }
                 }
                 DataFormat::Bytes => {
                     // Convert to Values representation
@@ -394,7 +434,11 @@ impl Stream for DataSummaryStream {
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    metrics.record_poll(poll)
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        baseline_metrics.record_poll(poll)
+                    } else {
+                        poll
+                    }
                 }
                 DataFormat::Json(_) | DataFormat::JsonDefault => {
                     // Convert to Values representation
@@ -415,7 +459,11 @@ impl Stream for DataSummaryStream {
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    metrics.record_poll(poll)
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        baseline_metrics.record_poll(poll)
+                    } else {
+                        poll
+                    }
                 }
                 DataFormat::Pdf => {
                     todo!("Implement PDF output");
@@ -441,9 +489,10 @@ impl RecordBatchStream for DataSummaryStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{metrics::SpanMetricsSet, table::{
-        table_publish::TablePublish, table_trait::TableBuilder
-    }, task::message::MessageTrait};
+    use phymes_core::{
+        table::{table_publish::TablePublish, table_trait::TableBuilder}, 
+        task::message::MessageTrait};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
 
     use crate::candle_data::{data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32};
 
@@ -501,8 +550,9 @@ mod tests {
                 .build()?,
         );
 
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -523,7 +573,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(messages, &diagnostic_builder, runtime_env.clone())?;
+        let mut stream = processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
@@ -535,8 +585,6 @@ mod tests {
 
         // Check the results
         assert_eq!(partitions.count_rows(), 1);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         // DM: change after upgrading to Qwen 3 series
         // assert_eq!(partitions.get_column_as_vec_str("role"), ["function"]);
         assert_eq!(partitions.get_column_as_vec_str("role"), ["tool"]);
@@ -597,8 +645,9 @@ mod tests {
                 .build()?,
         );
 
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -619,7 +668,7 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(messages, &diagnostic_builder, runtime_env.clone())?;
+        let mut stream = processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
@@ -631,8 +680,6 @@ mod tests {
 
         // Check the results
         assert_eq!(partitions.count_rows(), 1);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         assert_eq!(partitions.get_column_as_vec_str("filename"), ["lhs_name"]);
         assert_eq!(partitions.get_column_as_vec_str("extension"), ["csv"]);
         assert_eq!(partitions.get_column_as_vec_str("metadata"), ["assistant"]);

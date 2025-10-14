@@ -5,8 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{create_random_id, HashMap, MetricBuilder},
-    schemas::{available_subjects::{create_timestamp_micros, AvailableSubjects, AvailableSubjectsTrait}, blob::create_blob_fields},
+    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::create_blob_fields},
     session::{
         common_traits::{
             device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
@@ -30,6 +29,7 @@ use arrow::{
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 use crate::{
     candle_data::{data_config::DataConfig, tensor_service::CandleTensorService},
     candle_operators::data_operator::DataOperatorTrait,
@@ -131,6 +131,16 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
         // Collect the messages with the messages schema
         let input = collect_messages_by_schema(&mut message, &create_blob_fields());
 
@@ -141,12 +151,17 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         };
 
         // Make the outbox and send
+        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+            Some(trace.1.clone()) 
+        } else {
+            None
+        };
         let out = Box::pin(AggregatorStream::new(
             AvailableSubjects::Blob.to_schema(),
             input,
             config,
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.get_publications().first().unwrap().get_table_name())
@@ -156,6 +171,11 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
             .with_update(self.get_publications().first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -242,8 +262,16 @@ impl Stream for AggregatorStream {
             Poll::Ready(None)
         } else {
             // Initialize the metrics
-            let metrics = self.diagnostic_builder.clone().to_child().with_span("Stream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-            let _timer = metrics.elapsed_compute().timer();
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(diagnostic_builder.clone().to_child("DataSummaryStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+            } else {
+                None
+            };
+            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+                Some(baseline_metrics.elapsed_compute().timer())
+            } else {
+                None
+            };
 
             // initialize the config and tensor services
             let mut batches = Vec::new();
@@ -289,7 +317,11 @@ impl Stream for AggregatorStream {
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
         }
     }
 

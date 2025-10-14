@@ -1,4 +1,5 @@
 use arrow::record_batch::RecordBatch;
+use phymes_diagnostics::create_timestamp_micros;
 
 use crate::candle_data::data_config::DataConfig;
 
@@ -8,7 +9,6 @@ use candle_core::Device;
 use phymes_core::{
     schemas::{
         chat_completion,
-        available_subjects::create_timestamp_micros,
         chat::create_chat_record_batch,
         types,
     },

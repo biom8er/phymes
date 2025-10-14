@@ -167,8 +167,9 @@ pub mod test_extract_tabular_data {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        schemas::{available_subjects::create_timestamp_micros, blob::create_blob_batch}, session::common_traits::{BuildableTrait, BuilderTrait}, table::{data_format::{CsvFormat, DataFormat, JsonFormat}, table_trait::{Table, TableBuilderTrait, TableTrait}}
+        schemas::{blob::create_blob_batch}, session::common_traits::{BuildableTrait, BuilderTrait}, table::{data_format::{CsvFormat, DataFormat, JsonFormat}, table_trait::{Table, TableBuilderTrait, TableTrait}}
     };
+    use phymes_diagnostics::create_timestamp_micros;
 
     use crate::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
 

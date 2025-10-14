@@ -16,13 +16,14 @@ mkl-dynamic = ["dep:intel-mkl-src", "intel-mkl-src/mkl-dynamic-lp64-iomp", "cand
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 nccl = ["cuda", "cudarc/nccl"]
-wasip2 = ["phymes-core/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "lopdf/wasm_js"]
-wsl = ["phymes-core/wsl", "tokio/full", "lopdf/async", "lopdf/rayon"]
+wasip2 = ["phymes-core/wasip2", "phymes-diagnostics/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "lopdf/wasm_js"]
+wsl = ["phymes-core/wsl", "phymes-diagnostics/wsl", "tokio/full", "lopdf/async", "lopdf/rayon"]
 gpu = ["cuda", "cudnn", "nccl"]
 openai_api = []
 candle = [] # force use of candle models when openai_api is available
 
 [dependencies]
+phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
 arrow = { version = "54.3.1", default-features = false }
 candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }

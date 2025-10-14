@@ -4,20 +4,17 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 use phymes_core::{
-    metrics::{get_metrics_as_pivot_table, HashMap, MetricBuilder, SpanMetricsSet},
-    session::{
+    schemas::diagnostics::{from_diagnostics_to_tables, pivot_metrics_table}, session::{
         common_traits::{device, BuildableTrait, BuilderTrait},
         runtime_env::RuntimeEnv,
-    },
-    table::{
+    }, table::{
         table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{
             test_table::TestTableSizes, Table, TableBuilderTrait, TableTrait
         }
-    },
-    task::{
+    }, task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
         processor::ProcessorTrait,
-    },
+    }
 };
 use phymes_data::{
     candle_data::{
@@ -27,6 +24,7 @@ use phymes_data::{
     },
     candle_operators::available_candle_operators::AvailableCandleOperators,
 };
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, MetricBuilderTrait, SpanBuilder};
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for dataset sizes
@@ -164,10 +162,11 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                 c.bench_function(id.as_str(), |b| {
                     b.iter(|| {
                         // Build the metrics
-                        let diagnostics = Diagnostics::new();
                         let sample_id = format!("{id}_{iter}");
                         let name = format!("ops-processor_{id}_{iter}");
-                        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(sample_id.as_str(), iter);
+                        let span = SpanBuilder::default().with_span(sample_id.as_str()).build().unwrap();
+                        let diagnostics = Diagnostics::new();
+                        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
                         // Build the input messages
                         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -234,7 +233,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         let rt = tokio::runtime::Runtime::new().unwrap();
 
                         // Start the timer
-                        let baseline_metrics = diagnostic_builder.clone().baseline_metrics();
+                        let baseline_metrics = diagnostic_builder.clone().baseline_metrics(line!(), file!(), &sample_id);
                         let timer = baseline_metrics.elapsed_compute().timer();
 
                         // Make the stream and run
@@ -255,7 +254,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 AllTableNamesSubscribe::new_box(),
                             );
                             let mut ops_stream = ops_processor
-                                .process(messages, &diagnostic_builder, runtime_env.clone())
+                                .process(messages, Some(&diagnostic_builder), runtime_env.clone())
                                 .unwrap();
                             ops_stream
                                 .remove("results")
@@ -271,7 +270,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         baseline_metrics.done();
 
                         // Collect the metrics
-                        metrics_vec.push(metrics);
+                        metrics_vec.push(diagnostics);
 
                         // Increment the iteration counter
                         iter += 1;
@@ -284,7 +283,8 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
     // Export the metrics to CSV
     println!("exporting metrics");
-    let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();
+    let (metrics_table, _traces_table, _events_table) = from_diagnostics_to_tables(&metrics_vec).unwrap();
+    let metrics_table = pivot_metrics_table(metrics_table.unwrap(), "metrics").unwrap();
     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let pathname =
         format!("{target_dir}/.cache/metrics/benchmark_ops_processor_{wasm}_{gpu}_{candle}.csv");

@@ -26,6 +26,7 @@ use arrow::{
 use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 use std::{
     pin::Pin,
     sync::Arc,
@@ -106,6 +107,16 @@ impl ProcessorTrait for CandleDataProcessor {
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
         // Extract out the config
         let config = match message.remove(self.get_name()) {
             Some(s) => s.get_message_own(),
@@ -133,11 +144,16 @@ impl ProcessorTrait for CandleDataProcessor {
         }
 
         // Run the ops
+        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
+            Some(trace.1.clone()) 
+        } else {
+            None
+        };
         let out = Box::pin(CandleDataStream::new(
             subscriptions,
             config,
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().to_child().with_span(self.get_name(), create_random_id()),
+            stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
@@ -147,6 +163,12 @@ impl ProcessorTrait for CandleDataProcessor {
             .with_update(self.publications.first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
+
         Ok(message)
     }
 }
@@ -233,11 +255,18 @@ impl Stream for CandleDataStream {
         }
 
         // Initialize the metrics
-        let metrics = self.diagnostic_builder.clone().to_child().with_span("Stream", create_timestamp_micros().try_into().unwrap()).baseline_metrics();
-        let _timer = metrics.elapsed_compute().timer();
+        let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            Some(diagnostic_builder.clone().to_child("CandleDataStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+        } else {
+            None
+        };
+        let _timer = if let Some(baseline_metrics) = &baseline_metrics {
+            Some(baseline_metrics.elapsed_compute().timer())
+        } else {
+            None
+        };
 
         // Intialize the config
-        event!(Level::DEBUG, "Initializing config.");
         if self.config.is_none() {
             let mut batches = Vec::new();
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
@@ -281,7 +310,6 @@ impl Stream for CandleDataStream {
         }
 
         // Collect the LHS queries
-        event!(Level::DEBUG, "Collecting LHS.");
         if self.lhs_inbox.is_empty() {
             let lhs_name = self.config.as_ref().unwrap().lhs_name.clone();
             let lhs = match self.messages.get_mut(lhs_name.as_str()) {
@@ -328,7 +356,6 @@ impl Stream for CandleDataStream {
         };
 
         // Collect the RHS document chunks
-        event!(Level::DEBUG, "Collecting RHS.");
         if self.rhs_inbox.is_empty() && self.config.as_ref().unwrap().rhs_name.is_some() {
             let rhs_name = self
                 .config
@@ -389,11 +416,6 @@ impl Stream for CandleDataStream {
         }
 
         // Compute the data operator
-        event!(
-            Level::DEBUG,
-            "Executing {}.",
-            self.config.as_ref().unwrap().operator
-        );
         self.init_tensor_service()?;
         let batch = self.data_operator.as_ref().unwrap().forward(
             &self.lhs_inbox,
@@ -420,7 +442,11 @@ impl Stream for CandleDataStream {
         // record the poll
         self.is_finished = true;
         let poll = Poll::Ready(Some(Ok(batch)));
-        metrics.record_poll(poll)
+        if let Some(baseline_metrics) = &baseline_metrics {
+            baseline_metrics.record_poll(poll)
+        } else {
+            poll
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -496,7 +522,8 @@ mod tests {
     use crate::candle_operators::available_candle_operators::AvailableCandleOperators;
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
-    use phymes_core::{metrics::SpanMetricsSet, table::{table_publish::TablePublish, table_trait::Table}};
+    use phymes_core::table::{table_publish::TablePublish, table_trait::Table};
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
 
@@ -577,8 +604,9 @@ mod tests {
             .build()?;
 
         // Make the metrics
-        let diagnostics = Diagnostics::new();        
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
         let device = device(config.cpu)?;
@@ -597,7 +625,7 @@ mod tests {
             messages,
             config_table.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().with_span("Candle_Ops_Processor", 0),
+            Some(diagnostic_builder.clone()),
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
@@ -673,7 +701,7 @@ mod tests {
             HashMap::<String, SendableRecordBatchStreamMessage>::new(),
             config_args_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().with_span("Candle_Ops_Processor", 0),
+            Some(diagnostic_builder.clone()),
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
@@ -774,7 +802,7 @@ mod tests {
             messages,
             config_table.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            diagnostic_builder.clone().with_span("Candle_Ops_Processor", 0),
+            Some(diagnostic_builder.clone()),
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
@@ -924,8 +952,9 @@ mod tests {
                 .build()?,
         );
 
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics);
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
         let device = device(config.cpu)?;
@@ -955,7 +984,7 @@ mod tests {
             ],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut ops_stream = ops_processor.process(messages, &diagnostic_builder, runtime_env)?;
+        let mut ops_stream = ops_processor.process(messages, Some(&diagnostic_builder), runtime_env)?;
         let result = ops_stream
             .remove("results")
             .unwrap()

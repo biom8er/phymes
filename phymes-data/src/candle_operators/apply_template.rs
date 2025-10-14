@@ -5,10 +5,11 @@ use arrow::array::RecordBatch;
 use bytes::Bytes;
 use candle_core::Device;
 use phymes_core::{
-    schemas::{available_subjects::create_timestamp_micros, blob::create_blob_batch, chat_completion, types},
+    schemas::{blob::create_blob_batch, chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
     table::{table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
 };
+use phymes_diagnostics::create_timestamp_micros;
 use serde_json::{json, Value};
 use tracing::instrument;
 
