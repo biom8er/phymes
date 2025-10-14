@@ -3,11 +3,11 @@ use anyhow::{anyhow, Result};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{session_plans::{available_interface_subjects::{create_message_map, AvailableInterfaceSubjects}, available_session_plans::AvailableSessionPlans}, session_traits::{agents::SessionContextBuilderAgentsTrait, mermaid::SessionContextBuilderMermaidTrait}};
+use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
 // From crates
 use phymes_core::{
-    metrics::HashMap, 
     schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::BlobBuilderTraitExt, mermaid::create_mermaid_batch, user::{create_user_inbox_batch, create_user_session_contexts_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilder}, 
     table::{data_format::JsonFormat, table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, 
@@ -315,7 +315,7 @@ impl ServerState {
 mod tests {
     use super::*;
     use phymes_agents::session_plans::builder_session::make_example_mermaid_table;
-    use phymes_core::metrics::HashSet;
+    use phymes_diagnostics::HashSet;
 
     #[cfg(not(target_family = "wasm"))]
     use phymes_core::{session::common_traits::MappableTrait, table::table_trait::TableTrait};

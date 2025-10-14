@@ -15,7 +15,7 @@ no_std = [
     "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "tokio/time",
     # Axum serverless extras
     "dep:futures-executor", "dep:tower-service"]
-wasip2 =  ["no_std", "phymes-core/wasip2", "phymes-data/wasip2", "phymes-agents/wasip2"]    
+wasip2 =  ["no_std", "phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-data/wasip2", "phymes-agents/wasip2"]    
 std = [
     "tokio/full", "dep:reqwest",
     # Axum defaults
@@ -30,7 +30,7 @@ std = [
     "tower-http/limit",
     "tracing-subscriber/env-filter",
     ]
-wsl = ["std", "phymes-core/wsl", "phymes-data/wsl", "phymes-agents/wsl", "dep:tempfile"]
+wsl = ["std", "phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-data/wsl", "phymes-agents/wsl", "dep:tempfile"]
 hf_hub = ["phymes-agents/hf_hub"]
 openai_api = ["phymes-agents/openai_api"]
 gpu = ["phymes-agents/gpu", "phymes-data/gpu"]
@@ -55,6 +55,7 @@ jsonwebtoken = { version = "9.3.1" }
 reqwest = { version = "0.12.22", features = ["json", "stream"], default-features = false, optional = true }
 bcrypt = { version = "0.17.0", default-features = false, features = ["alloc"]}
 chrono = { version = "0.4.41", features = ["wasmbind"] }
+phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-core = { path = "../phymes-core", default-features = false}
 phymes-agents = { path = "../phymes-agents", default-features = false }
 phymes-data = { path = "../phymes-data", default-features = false }

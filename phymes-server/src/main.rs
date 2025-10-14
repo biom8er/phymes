@@ -8,6 +8,7 @@ use phymes_server::server;
 async fn main() -> Result<()> {
     use bytes::Bytes;
     use futures::TryStreamExt;
+    use futures_executor::block_on;
     use server::{
         serverless_app::{Serverless, serverless_app},
         serverless_config::ServerlessConfig,
@@ -16,23 +17,17 @@ async fn main() -> Result<()> {
     // parse the config
     let config = ServerlessConfig::parse();
 
-    // initialize a single threaded run-time
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .build()?;
-    let bytes: Vec<Bytes> = rt.block_on(async {
-        // call the serverless application
-        let mut serverless = Serverless::new(None);
-        let response = serverless_app(config, &mut serverless).await.unwrap();
+    // call the serverless application
+    let mut serverless = Serverless::new(None);
+    let response = serverless_app(config, &mut serverless).await.unwrap();
 
-        // parse the response
-        response
-            .into_body()
-            .into_data_stream()
-            .try_collect()
-            .await
-            .unwrap()
-    });
-    
+    // parse the response
+    let bytes: Vec<Bytes> = block_on(response
+        .into_body()
+        .into_data_stream()
+        .try_collect()
+    ).unwrap();
+
     println!("{bytes:?}");
     Ok(())
 }

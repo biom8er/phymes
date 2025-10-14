@@ -126,7 +126,7 @@ WASM builds of `phymes-server` can be ran as stateless functions for embedded ap
 
 ```bash
 # Sign-in and get our JWT token
-wasmtime phymes-server.wasm -- --route app/v1/sign_in --basic-auth EMAIL:PASSWORD
+wasmtime target/wasm32-wasip2/release/phymes-server.wasm --route app/v1/sign_in --basic-auth EMAIL:PASSWORD
 # mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["Chat","DocChat","ToolChat"]}
 
 # View a subject table from the session state

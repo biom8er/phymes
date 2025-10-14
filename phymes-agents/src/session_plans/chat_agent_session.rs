@@ -215,7 +215,8 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             weights_file: Some(format!(
-                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
+                "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf", // seems to be broken...
+                // "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-f16.gguf",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             tokenizer_file: Some(format!(

@@ -13,7 +13,6 @@ use clap::ValueEnum;
 use futures::prelude::*;
 use phymes_agents::session_plans::available_interface_subjects::{create_message_map, AvailableInterfaceSubjects};
 use phymes_core::{
-    metrics::HashMap,
     schemas::{available_subjects::AvailableSubjectsTrait, user::{JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}, session_stream::SessionStream},
     table::{data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
@@ -22,6 +21,7 @@ use phymes_core::{
 
 // General imports
 use anyhow::{Error, Result};
+use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
