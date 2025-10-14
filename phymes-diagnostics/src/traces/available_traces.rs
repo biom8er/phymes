@@ -55,3 +55,54 @@ impl JSONObjectTrait for Trace {
         object
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::Traceable;
+
+    use super::*;
+
+    struct Message {
+        message_name: String,
+        subject_name: String
+    }
+
+    impl Message {
+        pub fn new(message_name: &str, subject_name: &str) -> Self {
+            Message { message_name: message_name.to_string(), subject_name: subject_name.to_string() }
+        }
+    }
+
+    impl Traceable for Message {
+        fn to_trace(&self) -> Tracer {
+            Tracer::new(&self.message_name, &self.subject_name)
+        }
+    }
+
+    #[test]
+    fn test_tracers_records() {
+        let record = TraceRecord::new();
+        let trace = Trace::Messages(record.clone());
+        record.enter(&[
+            Message::new("m1", "s1"),
+            Message::new("m2", "s2"),
+            Message::new("m3", "s3"),
+        ]);
+        record.exit(&[
+            Message::new("m2", "s2"),
+            Message::new("m3", "s3"),
+            Message::new("m4", "s4"),
+        ]);
+        
+        let object = trace.to_json_object();
+        assert_eq!(object.len(), 6);
+        assert_eq!(object.first().unwrap().get("tracer_type").unwrap().as_str().unwrap(), trace.to_string().as_str());
+        assert_eq!(object.first().unwrap().get("tracer_event").unwrap().as_str().unwrap(), "entered");
+        assert_eq!(object.first().unwrap().get("message_name").unwrap().as_str().unwrap(), "m1");
+        assert_eq!(object.first().unwrap().get("subject_name").unwrap().as_str().unwrap(), "s1");
+        assert_eq!(object.last().unwrap().get("tracer_type").unwrap().as_str().unwrap(), trace.to_string().as_str());
+        assert_eq!(object.last().unwrap().get("tracer_event").unwrap().as_str().unwrap(), "exited");
+        assert_eq!(object.last().unwrap().get("message_name").unwrap().as_str().unwrap(), "m4");
+        assert_eq!(object.last().unwrap().get("subject_name").unwrap().as_str().unwrap(), "s4");
+    }
+}

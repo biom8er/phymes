@@ -57,3 +57,23 @@ impl JSONObjectTrait for Event {
         object
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;    
+
+    #[test]
+    fn test_events_records() {
+        let record = EventRecord::new();
+        let event = Event::Info(record.clone());
+        record.insert("first", &json!(1));
+        record.insert("second", &json!(2));
+        let object = event.to_json_object();
+        assert_eq!(object.len(), 2);
+        assert_eq!(object.first().unwrap().get("event_level").unwrap().as_str().unwrap(), event.to_string().as_str());
+        assert_eq!(object.first().unwrap().get("record_name").unwrap().as_str().unwrap(), "first");
+        assert_eq!(object.first().unwrap().get("record_value").unwrap().as_u64().unwrap(), 1);
+    }
+}
