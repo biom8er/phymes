@@ -3,3 +3,4 @@ pub mod mermaid_xychart;
 pub mod mermaid_gantt;
 pub mod mermaid_sequence_diagram;
 pub mod mermaid_flowchart;
+pub mod mermaid_kanban;
