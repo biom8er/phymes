@@ -1,4 +1,6 @@
 /// Mermaid.js xy chart jinja2 template
+/// 
+/// see <https://mermaid.js.org/syntax/xyChart.html>
 pub static MERMAID_XYCHART_TEMPLATE: &'static str = r#"
         xychart
             title "{{ title }}"
