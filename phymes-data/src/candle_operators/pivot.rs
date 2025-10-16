@@ -172,199 +172,76 @@ pub fn pivot(
     // Note that the pvt_columns are last so that the gorup partition ranges can be used directly to extract out the columns for the pivot table
     let pvt_values: &[&str] = &lhs_values.iter().chain(pvt_columns).map(|&s| s).collect::<Vec<&str>>();
     let (pvt_values_group, pvt_ranges) = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
-
-    // Make the values column names
-    let new_agg_columns = lhs_values.iter().zip(agg_operators.iter())
-        .map(|(agg_col, agg_op)| create_agg_column_name(agg_col, agg_op))
-        .collect::<Vec<_>>();
-
-    // Group the columns and the rows
-    let (pvt_columns_group, _) = group_by_and_aggregate(pvt_columns, lhs_args, &[], &[], device)?;
-    let (pvt_rows_group, _) = group_by_and_aggregate(lhs_values, lhs_args, &[], &[], device)?;
-
-    // Wrap the all grouped batches into tables
     let pvt_values_table = Table::get_builder()
         .with_record_batches(vec![pvt_values_group])?
         .with_name("")
         .build()?;
-    let pvt_columns_table = Table::get_builder()
+
+    // Make the values column names
+    let new_agg_columns = agg_columns.iter().zip(agg_operators.iter())
+        .map(|(agg_col, agg_op)| create_agg_column_name(agg_col, agg_op))
+        .collect::<Vec<_>>();
+
+    // Extract out just the values and pvt columns for grouping
+    let mut pvt_columns_vec = Vec::new();
+    let mut pvt_values_vec = Vec::new();
+    for column_name in pvt_columns {
+        let arr = pvt_values_table.get_column_as_array(column_name);
+        pvt_columns_vec.push((column_name, arr));
+    }
+    for column_name in lhs_values {
+        let arr = pvt_values_table.get_column_as_array(column_name);
+        pvt_values_vec.push((column_name, arr));
+    }
+
+    // Group the columns and the rows
+    let pvt_columns_batch = RecordBatch::try_from_iter(pvt_columns_vec)?;
+    let pvt_values_batches = RecordBatch::try_from_iter(pvt_values_vec)?;
+    let (pvt_columns_group, _) = group_by_and_aggregate(pvt_columns, &[pvt_columns_batch], &[], &[], device)?;
+    let (pvt_rows_group, _) = group_by_and_aggregate(lhs_values, &[pvt_values_batches], &[], &[], device)?;
+
+    // Wrap the all grouped batches into tables
+    let pvt_columns_tab = Table::get_builder()
         .with_record_batches(vec![pvt_columns_group])?
         .with_name("")
         .build()?;
-    let pvt_rows_table = Table::get_builder()
+    let pvt_rows_tab = Table::get_builder()
         .with_record_batches(vec![pvt_rows_group])?
         .with_name("")
         .build()?;
 
-    // Build the pivot table columns
+    // Build the pivot table columns by filtering on each combination of pvt_columns_group and pvt_rows_group
     let mut batch_vec = Vec::new();
-    for column_name in new_agg_columns {
-
-    }
-
-    assert_eq!(
-        lhs_table.get_column_data_type(lhs_fk)?,
-        rhs_table.get_column_data_type(rhs_fk)?,
-        "LHS FK and RHS FK columns must be the same type."
-    );
-    let (lhs_asort_arr, lhs_asort_tensor, rhs_asort_arr, rhs_asort_tensor) =
-        match lhs_table.get_column_data_type(lhs_fk)? {
-            DataType::UInt8 => {
-                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<u8>(lhs_fk)?;
-                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<u8>(rhs_fk)?;
-                let lhs_dim_0 = lhs_fk_vec.len();
-                let rhs_dim_0 = rhs_fk_vec.len();
-
-                // Broadcast along dims 0 and 1 to find the matching FKs
-                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
-                    .reshape((lhs_dim_0, 1))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
-                    .reshape((1, rhs_dim_0))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
-            }
-            DataType::UInt32 => {
-                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<u32>(lhs_fk)?;
-                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<u32>(rhs_fk)?;
-                let lhs_dim_0 = lhs_fk_vec.len();
-                let rhs_dim_0 = rhs_fk_vec.len();
-
-                // Broadcast along dims 0 and 1 to find the matching FKs
-                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
-                    .reshape((lhs_dim_0, 1))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
-                    .reshape((1, rhs_dim_0))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
-            }
-            DataType::Int64 => {
-                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<i64>(lhs_fk)?;
-                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<i64>(rhs_fk)?;
-                let lhs_dim_0 = lhs_fk_vec.len();
-                let rhs_dim_0 = rhs_fk_vec.len();
-
-                // Broadcast along dims 0 and 1 to find the matching FKs
-                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
-                    .reshape((lhs_dim_0, 1))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
-                    .reshape((1, rhs_dim_0))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
-            }
-            DataType::Float32 => {
-                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<f32>(lhs_fk)?;
-                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<f32>(rhs_fk)?;
-                let lhs_dim_0 = lhs_fk_vec.len();
-                let rhs_dim_0 = rhs_fk_vec.len();
-
-                // Broadcast along dims 0 and 1 to find the matching FKs
-                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
-                    .reshape((lhs_dim_0, 1))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
-                    .reshape((1, rhs_dim_0))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
-            }
-            DataType::Float64 => {
-                let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<f64>(lhs_fk)?;
-                let rhs_fk_vec = rhs_table.get_column_as_vec_primitive::<f64>(rhs_fk)?;
-                let lhs_dim_0 = lhs_fk_vec.len();
-                let rhs_dim_0 = rhs_fk_vec.len();
-
-                // Broadcast along dims 0 and 1 to find the matching FKs
-                let lhs_tensor = Tensor::from_iter(lhs_fk_vec, device)?
-                    .reshape((lhs_dim_0, 1))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
-                    .reshape((1, rhs_dim_0))?
-                    .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
-            }
-            DataType::Utf8 => {
-                let lhs_fk_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(lhs_fk)?;
-                let rhs_fk_vec = rhs_table.get_column_as_vec_nonprimitive::<String>(rhs_fk)?;
-                let mut lhs_indices = Vec::new();
-                let mut rhs_indices = Vec::new();
-
-                // Find matches between foreign keys
-                for (li, lfk) in lhs_fk_vec.iter().enumerate() {
-                    for (ri, rfk) in rhs_fk_vec.iter().enumerate() {
-                        if lfk == rfk {
-                            lhs_indices.push(li as u8);
-                            rhs_indices.push(ri as u8);
+    for cols_obj in pvt_columns_obj {
+        for agg_name in new_agg_columns {
+            let column_name = format!("{}-{}");
+            for rows_obj in pvt_rows_obj {
+                let mut found = false;
+                for values_obj in pvt_values_obj {
+                    let mut matching = true;
+                    for (k, v) in values_obj {
+                        if values_obj.get(k).unwrap() != v {
+                            matching = false;
+                            break;
                         }
                     }
+                    for (k, v) in rows_obj {
+                        if values_obj.get(cols_k).unwrap() != cols_v {
+                            matching = false;
+                            break;
+                        }
+                    }
+                    if matching {
+                        found = true;
+                        break;
+                    }
                 }
-                let lhs_tensor = Tensor::from_iter(
-                    lhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
-                    device,
-                )?;
-                let lhs_arr: ArrayRef = Arc::new(UInt8Array::from(lhs_indices));
-                let rhs_tensor = Tensor::from_iter(
-                    rhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
-                    device,
-                )?;
-                let rhs_arr: ArrayRef = Arc::new(UInt8Array::from(rhs_indices));
-                (lhs_arr, lhs_tensor, rhs_arr, rhs_tensor)
-            }
-            _ => {
-                return Err(anyhow!(
-                    "Unsupported data type for column {}: {}",
-                    lhs_fk,
-                    lhs_table.get_column_data_type(lhs_fk)?.to_string()
-                ));
-            }
-        };
-
-    // Build the joined table
-    let mut batch_vec = Vec::new();
-    let lhs_columns: Vec<String> = lhs_table
-        .get_schema()
-        .fields()
-        .iter()
-        .map(|field| field.name().to_owned())
-        .collect();
-    batch_vec.extend(take_columns_by_indices(
-        &lhs_columns,
-        &lhs_table,
-        lhs_asort_arr,
-        lhs_asort_tensor,
-        device,
-    )?);
-
-    // Skip the rhs_fk if it matches the lhs_fk
-    let rhs_columns: Vec<String> = if lhs_fk == rhs_fk {
-        rhs_table
-            .get_schema()
-            .fields()
-            .iter()
-            .filter_map(|field| {
-                if field.name() == rhs_fk {
-                    None
-                } else {
-                    Some(field.name().to_owned())
+                if !found {
+                    
                 }
-            })
-            .collect()
-    } else {
-        rhs_table
-            .get_schema()
-            .fields()
-            .iter()
-            .map(|field| field.name().to_owned())
-            .collect()
-    };
-    batch_vec.extend(take_columns_by_indices(
-        &rhs_columns,
-        &rhs_table,
-        rhs_asort_arr,
-        rhs_asort_tensor,
-        device,
-    )?);
+            }
+        }
+    }
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
 }
@@ -378,40 +255,40 @@ mod tests {
 
     #[test]
     fn test_join_inner() -> Result<()> {
-        // ------ FK = String ------
         // Make the test record batches
-        let lhs_ids_vec_1 = vec!["0", "1"];
-        let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
-        let lhs_metadata_vec_1: Vec<u32> = vec![1, 2];
-        let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_1));
-        let lhs_text_vec_1 = vec!["left", "left"];
-        let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_1));
+        let lhs_a_vec_1 = vec!["foo", "foo", "foo", "foo", "foo"];
+        let lhs_a_array: ArrayRef = Arc::new(StringArray::from(lhs_a_vec_1));
+        let lhs_b_vec_1 = vec!["one", "one", "one", "two", "two"];
+        let lhs_b_array: ArrayRef = Arc::new(StringArray::from(lhs_b_vec_1));
+        let lhs_c_vec_1 = vec!["small", "large", "large", "small", "small"];
+        let lhs_c_array: ArrayRef = Arc::new(StringArray::from(lhs_c_vec_1));
+        let lhs_d_vec_1: Vec<u32> = vec![1, 2, 2, 3, 3];
+        let lhs_d_array: ArrayRef = Arc::new(UInt32Array::from(lhs_d_vec_1));
+        let lhs_e_vec_1: Vec<u32> = vec![2, 4, 5, 5, 6];
+        let lhs_e_array: ArrayRef = Arc::new(UInt32Array::from(lhs_e_vec_1));
         let lhs_batch_1 = RecordBatch::try_from_iter(vec![
-            ("lhs_pk", lhs_ids_array),
-            ("lhs_text", lhs_text_array),
-            ("lhs_metadata", lhs_metadata_array),
+            ("a", lhs_a_array),
+            ("b", lhs_b_array),
+            ("c", lhs_c_array),
+            ("d", lhs_d_array),
+            ("e", lhs_e_array),
         ])?;
-        let lhs_ids_vec_2 = vec!["2", "3"];
-        let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_2));
-        let lhs_metadata_vec_2: Vec<u32> = vec![3, 4];
-        let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_2));
-        let lhs_text_vec_2 = vec!["left", "left"];
-        let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_2));
+        let lhs_a_vec_1 = vec!["bar", "bar", "bar", "bar"];
+        let lhs_a_array: ArrayRef = Arc::new(StringArray::from(lhs_a_vec_1));
+        let lhs_b_vec_1 = vec!["one", "one", "two", "two"];
+        let lhs_b_array: ArrayRef = Arc::new(StringArray::from(lhs_b_vec_1));
+        let lhs_c_vec_1 = vec!["large", "small", "small","large"];
+        let lhs_c_array: ArrayRef = Arc::new(StringArray::from(lhs_c_vec_1));
+        let lhs_d_vec_1: Vec<u32> = vec![4, 5, 6, 7];
+        let lhs_d_array: ArrayRef = Arc::new(UInt32Array::from(lhs_d_vec_1));
+        let lhs_e_vec_1: Vec<u32> = vec![6, 8, 9, 9];
+        let lhs_e_array: ArrayRef = Arc::new(UInt32Array::from(lhs_e_vec_1));
         let lhs_batch_2 = RecordBatch::try_from_iter(vec![
-            ("lhs_pk", lhs_ids_array),
-            ("lhs_text", lhs_text_array),
-            ("lhs_metadata", lhs_metadata_array),
-        ])?;
-        let rhs_ids_vec_1 = vec!["0", "2", "2"];
-        let rhs_ids_array: ArrayRef = Arc::new(StringArray::from(rhs_ids_vec_1));
-        let rhs_metadata_vec_1: Vec<u32> = vec![8, 9, 10];
-        let rhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(rhs_metadata_vec_1));
-        let rhs_text_vec_1 = vec!["right", "right", "right"];
-        let rhs_text_array: ArrayRef = Arc::new(StringArray::from(rhs_text_vec_1));
-        let rhs_batch_1 = RecordBatch::try_from_iter(vec![
-            ("rhs_pk", rhs_ids_array),
-            ("rhs_text", rhs_text_array),
-            ("rhs_metadata", rhs_metadata_array),
+            ("a", lhs_a_array),
+            ("b", lhs_b_array),
+            ("c", lhs_c_array),
+            ("d", lhs_d_array),
+            ("e", lhs_e_array),
         ])?;
 
         // Make the device
