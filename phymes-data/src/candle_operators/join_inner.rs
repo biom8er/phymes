@@ -321,10 +321,18 @@ pub fn join_inner(
 
                 // Find matches between foreign keys
                 for (li, lfk) in lhs_fk_vec.iter().enumerate() {
+                    // check for the start of rfk_run
+                    let mut rfk_found = false;
                     for (ri, rfk) in rhs_fk_vec.iter().enumerate() {
                         if lfk == rfk {
                             lhs_indices.push(li as u8);
                             rhs_indices.push(ri as u8);
+                            rfk_found = true;
+                        }
+
+                        // take advantage of the presorting of fks to break early
+                        if lfk != rfk && rfk_found {
+                            break;
                         }
                     }
                 }
