@@ -61,13 +61,14 @@ impl DataOperatorTrait for GroupByAndAggregate {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        group_by_and_aggregate(
+        let (batches, _ranges) = group_by_and_aggregate(
             &lhs_values,
             lhs_args,
             &agg_columns,
             &self.agg_operators,
             device,
-        )
+        )?;
+        Ok(batches)
     }
     fn new(config: &DataConfig) -> Self {
         let lhs_values = config.lhs_values.to_owned();
@@ -319,6 +320,11 @@ where
     Ok(agg_vec)
 }
 
+/// Helper function to create the new aggregation column name based on the original column name plus the aggregation operator
+pub(crate) fn create_agg_column_name(agg_column: &str, agg_operator: &DataAggregatorOperator) -> String {    
+    format!("{agg_column}-{agg_operator}")
+}
+
 /// Group by specified columns and aggregate using a specified aggregation operator over specified columns
 ///
 /// # Arguments
@@ -335,7 +341,7 @@ pub fn group_by_and_aggregate(
     agg_columns: &[&str],
     agg_operators: &[DataAggregatorOperator],
     device: &Device,
-) -> Result<RecordBatch> {
+) -> Result<(RecordBatch, Vec<Range<usize>>)> {
     // Ensure that the array lengths for columns and operators match
     if agg_columns.len() != agg_operators.len() {
         return Err(anyhow!(
@@ -725,13 +731,13 @@ pub fn group_by_and_aggregate(
                 ));
             }
         };
-        let columns_name = format!("{agg_column}-{agg_operator}");
+        let columns_name = create_agg_column_name(&agg_column, agg_operator);
         batch_vec.push((columns_name, lhs_agg));
     }
 
     // Create the output batch
     let batch = RecordBatch::try_from_iter(batch_vec)?;
-    Ok(batch)
+    Ok((batch, ranges))
 }
 
 #[cfg(test)]
@@ -771,7 +777,7 @@ mod tests {
         let device = device(false)?;
 
         // Group the text
-        let result = group_by_and_aggregate(
+        let (result, _ranges) = group_by_and_aggregate(
             &["lhs_text"],
             &[lhs_batch_1, lhs_batch_2],
             &["lhs_pk", "lhs_pk", "lhs_metadata", "lhs_metadata"],
@@ -825,7 +831,7 @@ mod tests {
         ])?;
 
         // Group the text
-        let result = group_by_and_aggregate(
+        let (result, _ranges) = group_by_and_aggregate(
             &["lhs_pk", "lhs_metadata"],
             &[lhs_batch_1, lhs_batch_2],
             &["lhs_text"],

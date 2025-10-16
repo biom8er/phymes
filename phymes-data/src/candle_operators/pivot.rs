@@ -18,16 +18,15 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{candle_data::data_config::{DataAggregatorOperator, DataConfig}, candle_operators::{
-    data_operator::DataOperatorTrait, group_by_and_aggregate::group_by_and_aggregate, sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices}
+    data_operator::DataOperatorTrait, group_by_and_aggregate::{create_agg_column_name, group_by_and_aggregate}, sort_column_and_indices::take_columns_by_indices
 }};
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
 #[derive(Debug)]
 pub struct Pivot {
-    _lhs_pk: String,
-    lhs_fk: String,
-    _rhs_pk: String,
-    rhs_fk: String,
+    lhs_values: Vec<String>,
+    agg_columns: Vec<String>,
+    agg_operators: Vec<DataAggregatorOperator>,
 }
 
 impl MappableTrait for Pivot {
@@ -38,15 +37,14 @@ impl MappableTrait for Pivot {
 
 impl DataOperatorTrait for Pivot {
     fn new(config: &DataConfig) -> Self {
-        let lhs_pk = config.lhs_pk.to_owned();
-        let lhs_fk = config.lhs_fk.to_owned();
-        let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
-        let rhs_fk = config.rhs_fk.to_owned().unwrap_or_default();
+        let lhs_values = config.lhs_values.to_owned();
+        let agg_columns = config.agg_columns.clone().unwrap_or(Vec::new());
+        let agg_operators = config.agg_operators.clone().unwrap_or(Vec::new());
+        
         Pivot {
-            _lhs_pk: lhs_pk,
-            lhs_fk,
-            _rhs_pk: rhs_pk,
-            rhs_fk
+            lhs_values,
+            agg_columns,
+            agg_operators,
         }
     }
     fn forward(
@@ -55,13 +53,17 @@ impl DataOperatorTrait for Pivot {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        join_inner(
-            &self.lhs_fk,
-            lhs_args,
-            &self.rhs_fk,
-            rhs_args.unwrap(),
-            device,
-        )
+        let lhs_values = self
+            .lhs_values
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let agg_columns = self
+            .agg_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        todo!()
     }
     fn get_description() -> String {
         "Pivot on selected columns".to_string()
@@ -167,25 +169,39 @@ pub fn pivot(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Group and aggregate by the lhs_values and pvt_columns
+    // Note that the pvt_columns are last so that the gorup partition ranges can be used directly to extract out the columns for the pivot table
     let pvt_values: &[&str] = &lhs_values.iter().chain(pvt_columns).map(|&s| s).collect::<Vec<&str>>();
-    let agg_values = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
+    let (pvt_values_group, pvt_ranges) = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
+
+    // Make the values column names
+    let new_agg_columns = lhs_values.iter().zip(agg_operators.iter())
+        .map(|(agg_col, agg_op)| create_agg_column_name(agg_col, agg_op))
+        .collect::<Vec<_>>();
 
     // Group the columns and the rows
-    let pvt_columns_group = group_by_and_aggregate(pvt_columns, lhs_args, &[], &[], device)?;
-    let pvt_rows_group = group_by_and_aggregate(lhs_values, lhs_args, &[], &[], device)?;
+    let (pvt_columns_group, _) = group_by_and_aggregate(pvt_columns, lhs_args, &[], &[], device)?;
+    let (pvt_rows_group, _) = group_by_and_aggregate(lhs_values, lhs_args, &[], &[], device)?;
 
-    // Wrap the lhs and rhs into an ArrowTable
-    let lhs_table = Table::get_builder()
-        .with_record_batches(vec![lhs_sorted])?
+    // Wrap the all grouped batches into tables
+    let pvt_values_table = Table::get_builder()
+        .with_record_batches(vec![pvt_values_group])?
         .with_name("")
         .build()?;
-    let rhs_table = Table::get_builder()
-        .with_record_batches(vec![rhs_sorted])?
+    let pvt_columns_table = Table::get_builder()
+        .with_record_batches(vec![pvt_columns_group])?
+        .with_name("")
+        .build()?;
+    let pvt_rows_table = Table::get_builder()
+        .with_record_batches(vec![pvt_rows_group])?
         .with_name("")
         .build()?;
 
     // Build the pivot table columns
-    
+    let mut batch_vec = Vec::new();
+    for column_name in new_agg_columns {
+
+    }
+
     assert_eq!(
         lhs_table.get_column_data_type(lhs_fk)?,
         rhs_table.get_column_data_type(rhs_fk)?,
@@ -402,7 +418,7 @@ mod tests {
         let device = device(false)?;
 
         // Chunk the documents
-        let result = join_inner(
+        let result = pivot(
             "lhs_pk",
             &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",
@@ -450,112 +466,6 @@ mod tests {
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
         assert_eq!(lhs_id, vec!["0", "2", "2"]);
-        let metadata = result
-            .column_by_name("rhs_metadata")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<UInt32Array>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap())
-            .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 10]);
-        let text = result
-            .column_by_name("rhs_text")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(text, vec!["right", "right", "right"]);
-
-        // ------ FK = u8 ------
-        // Make the test record batches
-        let lhs_ids_vec_1: Vec<u8> = vec![0, 1];
-        let lhs_ids_array: ArrayRef = Arc::new(UInt8Array::from(lhs_ids_vec_1));
-        let lhs_metadata_vec_1: Vec<u32> = vec![1, 2];
-        let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_1));
-        let lhs_text_vec_1 = vec!["left", "left"];
-        let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_1));
-        let lhs_batch_1 = RecordBatch::try_from_iter(vec![
-            ("lhs_pk", lhs_ids_array),
-            ("lhs_text", lhs_text_array),
-            ("lhs_metadata", lhs_metadata_array),
-        ])?;
-        let lhs_ids_vec_2: Vec<u8> = vec![2, 3];
-        let lhs_ids_array: ArrayRef = Arc::new(UInt8Array::from(lhs_ids_vec_2));
-        let lhs_metadata_vec_2: Vec<u32> = vec![3, 4];
-        let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_2));
-        let lhs_text_vec_2 = vec!["left", "left"];
-        let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_2));
-        let lhs_batch_2 = RecordBatch::try_from_iter(vec![
-            ("lhs_pk", lhs_ids_array),
-            ("lhs_text", lhs_text_array),
-            ("lhs_metadata", lhs_metadata_array),
-        ])?;
-        let rhs_ids_vec_1: Vec<u8> = vec![0, 2, 2];
-        let rhs_ids_array: ArrayRef = Arc::new(UInt8Array::from(rhs_ids_vec_1));
-        let rhs_metadata_vec_1: Vec<u32> = vec![8, 9, 10];
-        let rhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(rhs_metadata_vec_1));
-        let rhs_text_vec_1 = vec!["right", "right", "right"];
-        let rhs_text_array: ArrayRef = Arc::new(StringArray::from(rhs_text_vec_1));
-        let rhs_batch_1 = RecordBatch::try_from_iter(vec![
-            ("rhs_pk", rhs_ids_array),
-            ("rhs_text", rhs_text_array),
-            ("rhs_metadata", rhs_metadata_array),
-        ])?;
-
-        // Chunk the documents
-        let result = join_inner(
-            "lhs_pk",
-            &[lhs_batch_1, lhs_batch_2],
-            "rhs_pk",
-            &[rhs_batch_1],
-            &device,
-        )?;
-
-        let lhs_id = result
-            .column_by_name("lhs_pk")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<UInt8Array>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec![0, 2, 2]);
-        let metadata = result
-            .column_by_name("lhs_metadata")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<UInt32Array>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap())
-            .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![1, 3, 3]);
-        let text = result
-            .column_by_name("lhs_text")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(text, vec!["left", "left", "left"]);
-        let lhs_id = result
-            .column_by_name("rhs_pk")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<UInt8Array>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec![0, 2, 2]);
         let metadata = result
             .column_by_name("rhs_metadata")
             .unwrap()
