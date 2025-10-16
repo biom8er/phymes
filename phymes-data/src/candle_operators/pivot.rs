@@ -171,7 +171,7 @@ pub fn pivot(
     // Group and aggregate by the lhs_values and pvt_columns
     // Note that the pvt_columns are last so that the gorup partition ranges can be used directly to extract out the columns for the pivot table
     let pvt_values: &[&str] = &lhs_values.iter().chain(pvt_columns).map(|&s| s).collect::<Vec<&str>>();
-    let (pvt_values_group, pvt_ranges) = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
+    let pvt_values_group = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
     let pvt_values_table = Table::get_builder()
         .with_record_batches(vec![pvt_values_group])?
         .with_name("")
@@ -197,8 +197,14 @@ pub fn pivot(
     // Group the columns and the rows
     let pvt_columns_batch = RecordBatch::try_from_iter(pvt_columns_vec)?;
     let pvt_values_batches = RecordBatch::try_from_iter(pvt_values_vec)?;
-    let (pvt_columns_group, _) = group_by_and_aggregate(pvt_columns, &[pvt_columns_batch], &[], &[], device)?;
-    let (pvt_rows_group, _) = group_by_and_aggregate(lhs_values, &[pvt_values_batches], &[], &[], device)?;
+    let pvt_columns_group = group_by_and_aggregate(pvt_columns, &[pvt_columns_batch], &[], &[], device)?;
+    let pvt_rows_group = group_by_and_aggregate(lhs_values, &[pvt_values_batches], &[], &[], device)?;
+
+    // Check that there are no missing values
+    if pvt_columns_group.num_rows() * pvt_rows_group.num_rows() != pvt_values_table.count_rows() {
+        return Err(anyhow!("Cannot make the pivot table because there are missing values: pvt_columns {}, pvt_rows {}, and pvt_values {}.",
+            pvt_columns_group.num_rows(), pvt_rows_group.num_rows(), pvt_values_table.count_rows()));
+    }
 
     // Wrap the all grouped batches into tables
     let pvt_columns_tab = Table::get_builder()
@@ -210,37 +216,18 @@ pub fn pivot(
         .with_name("")
         .build()?;
 
-    // Build the pivot table columns by filtering on each combination of pvt_columns_group and pvt_rows_group
+    // Build the pivot table columns by take each agg_column based on the pvt_columns_group
     let mut batch_vec = Vec::new();
-    for cols_obj in pvt_columns_obj {
-        for agg_name in new_agg_columns {
-            let column_name = format!("{}-{}");
-            for rows_obj in pvt_rows_obj {
-                let mut found = false;
-                for values_obj in pvt_values_obj {
-                    let mut matching = true;
-                    for (k, v) in values_obj {
-                        if values_obj.get(k).unwrap() != v {
-                            matching = false;
-                            break;
-                        }
-                    }
-                    for (k, v) in rows_obj {
-                        if values_obj.get(cols_k).unwrap() != cols_v {
-                            matching = false;
-                            break;
-                        }
-                    }
-                    if matching {
-                        found = true;
-                        break;
-                    }
-                }
-                if !found {
-                    
-                }
-            }
+    for i in 0..pvt_columns_tab.count_rows() {
+        let start = i*pvt_rows_tab.count_rows();
+        let end = start + pvt_rows_tab.count_rows() + 1;
+        // TODO: make asort arr/tensor
+        let taken = take_columns_by_indices(&new_agg_columns, &pvt_values_table, asort_arr, asort_tensor, device)?;
+        for (name, arr) in taken {
+            // TODO: remake the name to include the pvt_columns
+            batch_vec.push((name, arr))
         }
+        
     }
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)

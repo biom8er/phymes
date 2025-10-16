@@ -61,7 +61,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        let (batches, _ranges) = group_by_and_aggregate(
+        let batches = group_by_and_aggregate(
             &lhs_values,
             lhs_args,
             &agg_columns,
@@ -341,7 +341,7 @@ pub fn group_by_and_aggregate(
     agg_columns: &[&str],
     agg_operators: &[DataAggregatorOperator],
     device: &Device,
-) -> Result<(RecordBatch, Vec<Range<usize>>)> {
+) -> Result<RecordBatch> {
     // Ensure that the array lengths for columns and operators match
     if agg_columns.len() != agg_operators.len() {
         return Err(anyhow!(
@@ -737,7 +737,7 @@ pub fn group_by_and_aggregate(
 
     // Create the output batch
     let batch = RecordBatch::try_from_iter(batch_vec)?;
-    Ok((batch, ranges))
+    Ok(batch)
 }
 
 #[cfg(test)]
@@ -777,7 +777,7 @@ mod tests {
         let device = device(false)?;
 
         // Group the text
-        let (result, _ranges) = group_by_and_aggregate(
+        let result = group_by_and_aggregate(
             &["lhs_text"],
             &[lhs_batch_1, lhs_batch_2],
             &["lhs_pk", "lhs_pk", "lhs_metadata", "lhs_metadata"],
@@ -831,7 +831,7 @@ mod tests {
         ])?;
 
         // Group the text
-        let (result, _ranges) = group_by_and_aggregate(
+        let result = group_by_and_aggregate(
             &["lhs_pk", "lhs_metadata"],
             &[lhs_batch_1, lhs_batch_2],
             &["lhs_text"],
