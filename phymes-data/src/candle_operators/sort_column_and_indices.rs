@@ -111,8 +111,8 @@ impl DataOperatorTrait for SortColumnAndIndices {
 pub fn take_columns_by_indices(
     column_names: &[String],
     table: &Table,
-    asort_arr: ArrayRef,
-    asort_tensor: Tensor,
+    asort_arr: &ArrayRef,
+    asort_tensor: &Tensor,
     device: &Device,
 ) -> Result<Vec<(String, Arc<dyn Array>)>> {
     let mut batch_vec = Vec::new();
@@ -121,35 +121,35 @@ pub fn take_columns_by_indices(
             DataType::UInt8 => {
                 let array_vec = table.get_column_as_vec_primitive::<u8>(column).unwrap();
                 let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let sorted = tensor.gather(asort_tensor, candle_core::D::Minus1)?;
                 let array_vec = sorted.to_vec1::<u8>()?;
                 Arc::new(UInt8Array::from(array_vec))
             }
             DataType::UInt32 => {
                 let array_vec = table.get_column_as_vec_primitive::<u32>(column).unwrap();
                 let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let sorted = tensor.gather(asort_tensor, candle_core::D::Minus1)?;
                 let array_vec = sorted.to_vec1::<u32>()?;
                 Arc::new(UInt32Array::from(array_vec))
             }
             DataType::Int64 => {
                 let array_vec = table.get_column_as_vec_primitive::<i64>(column).unwrap();
                 let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let sorted = tensor.gather(asort_tensor, candle_core::D::Minus1)?;
                 let array_vec = sorted.to_vec1::<i64>()?;
                 Arc::new(Int64Array::from(array_vec))
             }
             DataType::Float32 => {
                 let array_vec = table.get_column_as_vec_primitive::<f32>(column).unwrap();
                 let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let sorted = tensor.gather(asort_tensor, candle_core::D::Minus1)?;
                 let array_vec = sorted.to_vec1::<f32>()?;
                 Arc::new(Float32Array::from(array_vec))
             }
             DataType::Float64 => {
                 let array_vec = table.get_column_as_vec_primitive::<f64>(column).unwrap();
                 let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let sorted = tensor.gather(asort_tensor, candle_core::D::Minus1)?;
                 let array_vec = sorted.to_vec1::<f64>()?;
                 Arc::new(Float64Array::from(array_vec))
             }
@@ -157,15 +157,15 @@ pub fn take_columns_by_indices(
                 // StringArray must be sorted on the CPU
                 let array_ref: ArrayRef =
                     Arc::new(StringArray::from(table.get_column_as_vec_str(column)));
-                arrow::compute::take(&array_ref, &asort_arr, None)?
+                arrow::compute::take(&array_ref, asort_arr, None)?
             }
             DataType::FixedSizeList(_f, _s) => {
                 let array_ref: ArrayRef = table.get_column_as_array(column);
-                arrow::compute::take(&array_ref, &asort_arr, None)?
+                arrow::compute::take(&array_ref, asort_arr, None)?
             }
             DataType::List(_f) => {
                 let array_ref: ArrayRef = table.get_column_as_array(column);
-                arrow::compute::take(&array_ref, &asort_arr, None)?
+                arrow::compute::take(&array_ref, asort_arr, None)?
             }
             // Note: Candle::Tensor library supports u8, u32, i64, bf16, f16, f32, f64
             _ => {
@@ -343,8 +343,8 @@ pub fn sort_column_and_indices(
     batch_vec.extend(take_columns_by_indices(
         &columns,
         &lhs_table,
-        asort_arr,
-        asort_tensor,
+        &asort_arr,
+        &asort_tensor,
         device,
     )?);
 

@@ -1,11 +1,7 @@
-use arrow::{
-    array::{Array, ArrayRef, UInt8Array},
-    datatypes::DataType,
-    record_batch::RecordBatch,
-};
+use arrow::array::{ArrayRef, RecordBatch, UInt32Array};
 
 use anyhow::{Result, anyhow};
-use candle_core::{Device, Tensor, op::CmpOp};
+use candle_core::{Device, Tensor};
 use phymes_core::{
     schemas::{chat_completion, types},
     session::common_traits::MappableTrait,
@@ -27,6 +23,7 @@ pub struct Pivot {
     lhs_values: Vec<String>,
     agg_columns: Vec<String>,
     agg_operators: Vec<DataAggregatorOperator>,
+    pvt_columns: Vec<String>,
 }
 
 impl MappableTrait for Pivot {
@@ -40,17 +37,19 @@ impl DataOperatorTrait for Pivot {
         let lhs_values = config.lhs_values.to_owned();
         let agg_columns = config.agg_columns.clone().unwrap_or(Vec::new());
         let agg_operators = config.agg_operators.clone().unwrap_or(Vec::new());
+        let pvt_columns = config.pvt_columns.clone().unwrap_or(Vec::new());
         
         Pivot {
             lhs_values,
             agg_columns,
             agg_operators,
+            pvt_columns
         }
     }
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
-        rhs_args: Option<&[RecordBatch]>,
+        _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
         let lhs_values = self
@@ -63,7 +62,14 @@ impl DataOperatorTrait for Pivot {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        todo!()
+        let pvt_columns = self
+            .pvt_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        pivot(&lhs_values, &lhs_args, &agg_columns, 
+            &self.agg_operators,
+            &pvt_columns, device)
     }
     fn get_description() -> String {
         "Pivot on selected columns".to_string()
@@ -216,18 +222,32 @@ pub fn pivot(
         .with_name("")
         .build()?;
 
-    // Build the pivot table columns by take each agg_column based on the pvt_columns_group
+    // Build the pivot table columns
     let mut batch_vec = Vec::new();
-    for i in 0..pvt_columns_tab.count_rows() {
-        let start = i*pvt_rows_tab.count_rows();
-        let end = start + pvt_rows_tab.count_rows() + 1;
-        // TODO: make asort arr/tensor
-        let taken = take_columns_by_indices(&new_agg_columns, &pvt_values_table, asort_arr, asort_tensor, device)?;
-        for (name, arr) in taken {
-            // TODO: remake the name to include the pvt_columns
-            batch_vec.push((name, arr))
+    for (i, obj) in pvt_columns_tab.to_json_object()?.iter().enumerate() {
+        let start: u32 = i as u32 * pvt_rows_tab.count_rows() as u32;
+        let end: u32 = start + pvt_rows_tab.count_rows() as u32;
+        let asort_arr: ArrayRef = Arc::new(UInt32Array::from_iter_values((start..end).collect::<Vec<u32>>()));
+        let asort_tensor = Tensor::arange(start, end, device)?;
+
+        // Take each lhs_values column (only once)
+        if i == 0 {
+            let taken = take_columns_by_indices(
+                &lhs_values.iter().map(|s| s.to_string()).collect::<Vec<_>>(), 
+                &pvt_values_table, &asort_arr, &asort_tensor, device)?;
+            batch_vec.extend(taken);
         }
-        
+
+        // take each agg_column based on the pvt_columns_group
+        let taken = take_columns_by_indices(&new_agg_columns, &pvt_values_table, &asort_arr, &asort_tensor, device)?;
+        for (name, arr) in taken {
+            let mut column_name_vec = pvt_columns.iter()
+                .map(|&key| obj.get(key).unwrap().as_str().unwrap().to_string())
+                .collect::<Vec<_>>();
+            column_name_vec.push(name);
+            let column_name = column_name_vec.join("-");
+            batch_vec.push((column_name, arr));
+        }        
     }
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
@@ -235,13 +255,13 @@ pub fn pivot(
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::{ArrayRef, StringArray, UInt8Array, UInt32Array};
+    use arrow::array::{ArrayRef, StringArray, UInt32Array};
     use phymes_core::session::common_traits::device;
 
     use super::*;
 
     #[test]
-    fn test_join_inner() -> Result<()> {
+    fn test_pivot() -> Result<()> {
         // Make the test record batches
         let lhs_a_vec_1 = vec!["foo", "foo", "foo", "foo", "foo"];
         let lhs_a_array: ArrayRef = Arc::new(StringArray::from(lhs_a_vec_1));
@@ -260,15 +280,15 @@ mod tests {
             ("d", lhs_d_array),
             ("e", lhs_e_array),
         ])?;
-        let lhs_a_vec_1 = vec!["bar", "bar", "bar", "bar"];
+        let lhs_a_vec_1 = vec!["bar", "bar", "bar", "bar", "foo"];
         let lhs_a_array: ArrayRef = Arc::new(StringArray::from(lhs_a_vec_1));
-        let lhs_b_vec_1 = vec!["one", "one", "two", "two"];
+        let lhs_b_vec_1 = vec!["one", "one", "two", "two", "two"];
         let lhs_b_array: ArrayRef = Arc::new(StringArray::from(lhs_b_vec_1));
-        let lhs_c_vec_1 = vec!["large", "small", "small","large"];
+        let lhs_c_vec_1 = vec!["large", "small", "small", "large", "large"];
         let lhs_c_array: ArrayRef = Arc::new(StringArray::from(lhs_c_vec_1));
-        let lhs_d_vec_1: Vec<u32> = vec![4, 5, 6, 7];
+        let lhs_d_vec_1: Vec<u32> = vec![4, 5, 6, 7, 0];
         let lhs_d_array: ArrayRef = Arc::new(UInt32Array::from(lhs_d_vec_1));
-        let lhs_e_vec_1: Vec<u32> = vec![6, 8, 9, 9];
+        let lhs_e_vec_1: Vec<u32> = vec![6, 8, 9, 9, 0];
         let lhs_e_array: ArrayRef = Arc::new(UInt32Array::from(lhs_e_vec_1));
         let lhs_batch_2 = RecordBatch::try_from_iter(vec![
             ("a", lhs_a_array),
@@ -281,17 +301,19 @@ mod tests {
         // Make the device
         let device = device(false)?;
 
-        // Chunk the documents
+        // Make the pivot table
         let result = pivot(
-            "lhs_pk",
+            &["a", "b"],
             &[lhs_batch_1, lhs_batch_2],
-            "rhs_pk",
-            &[rhs_batch_1],
+            &["d"],
+            &[DataAggregatorOperator::Sum],
+            &["c"],
             &device,
         )?;
+        dbg!(&result);
 
-        let lhs_id = result
-            .column_by_name("lhs_pk")
+        let lhs_a = result
+            .column_by_name("a")
             .unwrap()
             .as_any()
             .downcast_ref::<StringArray>()
@@ -299,9 +321,21 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec!["0", "2", "2"]);
-        let metadata = result
-            .column_by_name("lhs_metadata")
+        // assert_eq!(lhs_a, vec!["bar", "bar", "foo", "foo"]);
+        assert_eq!(lhs_a, vec!["bar", "foo", "bar", "foo"]);
+        let lhs_b = result
+            .column_by_name("b")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        // assert_eq!(lhs_b, vec!["one", "two", "one", "two"]);
+        assert_eq!(lhs_b, vec!["one", "one", "two", "two"]);
+        let lhs_large_d = result
+            .column_by_name("large-d-Sum")
             .unwrap()
             .as_any()
             .downcast_ref::<UInt32Array>()
@@ -309,29 +343,9 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![1, 3, 3]);
-        let text = result
-            .column_by_name("lhs_text")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(text, vec!["left", "left", "left"]);
-        let lhs_id = result
-            .column_by_name("rhs_pk")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec!["0", "2", "2"]);
-        let metadata = result
-            .column_by_name("rhs_metadata")
+        assert_eq!(lhs_large_d, vec![4, 4, 7, 0]);
+        let lhs_small_d = result
+            .column_by_name("small-d-Sum")
             .unwrap()
             .as_any()
             .downcast_ref::<UInt32Array>()
@@ -339,17 +353,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 10]);
-        let text = result
-            .column_by_name("rhs_text")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(text, vec!["right", "right", "right"]);
+        assert_eq!(lhs_small_d, vec![5, 1, 6, 6]);
 
         Ok(())
     }

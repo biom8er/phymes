@@ -350,7 +350,12 @@ pub struct DataConfig {
     /// true for ascending and false for descending
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub asc: Option<bool>
+    pub asc: Option<bool>,
+
+    /// Vec of [String]s for the pivot table columns
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pvt_columns: Option<Vec<String>>,
 }
 
 impl Default for DataConfig {
@@ -387,6 +392,7 @@ impl Default for DataConfig {
             cast_datatypes: None,
             cast_templates: None,
             asc: None,
+            pvt_columns: None,
         }
     }
 }

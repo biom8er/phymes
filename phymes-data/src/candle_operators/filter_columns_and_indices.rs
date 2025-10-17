@@ -538,8 +538,8 @@ pub fn filter_columns_and_indices(
     batch_vec.extend(take_columns_by_indices(
         &columns,
         &lhs_table,
-        take_arr,
-        take_tensor,
+        &take_arr,
+        &take_tensor,
         device,
     )?);
 

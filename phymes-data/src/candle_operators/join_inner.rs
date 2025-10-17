@@ -368,8 +368,8 @@ pub fn join_inner(
     batch_vec.extend(take_columns_by_indices(
         &lhs_columns,
         &lhs_table,
-        lhs_asort_arr,
-        lhs_asort_tensor,
+        &lhs_asort_arr,
+        &lhs_asort_tensor,
         device,
     )?);
 
@@ -398,8 +398,8 @@ pub fn join_inner(
     batch_vec.extend(take_columns_by_indices(
         &rhs_columns,
         &rhs_table,
-        rhs_asort_arr,
-        rhs_asort_tensor,
+        &rhs_asort_arr,
+        &rhs_asort_tensor,
         device,
     )?);
     let batch = RecordBatch::try_from_iter(batch_vec)?;
