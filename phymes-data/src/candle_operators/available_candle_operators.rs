@@ -11,7 +11,7 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::{candle_data::data_config::DataConfig, candle_operators::{
-    apply_template::ApplyTemplate, chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, pivot::Pivot, relative_similarity_score::RelativeSimilarityScore, select_and_cast::SelectAndCast, sort_column_and_indices::SortColumnAndIndices
+    apply_template::ApplyTemplate, chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, pivot::Pivot, vector_distance::VectorDistance, select_and_cast::SelectAndCast, sort_column_and_indices::SortColumnAndIndices
 }};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -63,7 +63,7 @@ impl Default for AvailableCandleOperators {
 impl Display for AvailableCandleOperators {    
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::RelativeSimilarityScore => write!(f, "{}", RelativeSimilarityScore::get_static_name()),
+            Self::RelativeSimilarityScore => write!(f, "{}", VectorDistance::get_static_name()),
             Self::SortColumnAndIndices => write!(f, "{}", SortColumnAndIndices::get_static_name()),
             Self::HumanInTheLoop => write!(f, "{}", HumanInTheLoop::get_static_name()),
             Self::ChunkDocuments => write!(f, "{}", ChunkDocuments::get_static_name()),
@@ -83,7 +83,7 @@ impl AvailableCandleOperators {
     /// Wrapper to return the JSON schema SortColumnAndIndices
     pub fn get_json_tool_schema(&self) -> String {
         match self {
-            Self::RelativeSimilarityScore => RelativeSimilarityScore::get_json_tool_schema(),
+            Self::RelativeSimilarityScore => VectorDistance::get_json_tool_schema(),
             Self::SortColumnAndIndices => SortColumnAndIndices::get_json_tool_schema(),
             Self::HumanInTheLoop => HumanInTheLoop::get_json_tool_schema(),
             Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
@@ -102,7 +102,7 @@ impl AvailableCandleOperators {
     #[allow(clippy::too_many_arguments)]
     pub fn build(&self, config: &DataConfig) -> Box<dyn DataOperatorTrait> {
         match self {
-            Self::RelativeSimilarityScore => Box::new(RelativeSimilarityScore::new(config)),
+            Self::RelativeSimilarityScore => Box::new(VectorDistance::new(config)),
             Self::SortColumnAndIndices => Box::new(SortColumnAndIndices::new(config)),
             Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(config)),
             Self::ChunkDocuments => Box::new(ChunkDocuments::new(config)),

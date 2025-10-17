@@ -10,7 +10,7 @@ use phymes_core::{
     table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
 
-use crate::candle_data::data_config::DataConfig;
+use crate::candle_data::data_config::{DataConfig, DataDistanceOperator};
 
 use super::data_operator::DataOperatorTrait;
 use anyhow::{Result, anyhow};
@@ -21,36 +21,33 @@ use tracing::instrument;
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
 #[derive(Debug)]
-pub struct RelativeSimilarityScore {
+pub struct VectorDistance {
     lhs_pk: String,
-    _lhs_fk: String,
     lhs_values: String,
-    _rhs_fk: String,
     rhs_pk: String,
     rhs_values: String,
+    dist_operator: DataDistanceOperator,
 }
 
-impl MappableTrait for RelativeSimilarityScore {
+impl MappableTrait for VectorDistance {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl DataOperatorTrait for RelativeSimilarityScore {
+impl DataOperatorTrait for VectorDistance {
     fn new(config: &DataConfig) -> Self {
         let lhs_pk = config.lhs_pk.to_owned();
-        let lhs_fk = config.lhs_fk.to_owned();
         let lhs_values = config.lhs_values.first().unwrap().to_string();
         let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
-        let rhs_fk = config.rhs_fk.to_owned().unwrap_or_default();
         let rhs_values = config.rhs_values.clone().unwrap().first().unwrap().to_string();
-        RelativeSimilarityScore {
+        let dist_operator = config.dist_operator.clone().unwrap_or(DataDistanceOperator::default());
+        VectorDistance {
             lhs_pk,
-            _lhs_fk: lhs_fk,
             lhs_values,
             rhs_pk,
-            _rhs_fk: rhs_fk,
             rhs_values,
+            dist_operator,
         }
     }
     fn get_description() -> String {
@@ -63,13 +60,14 @@ impl DataOperatorTrait for RelativeSimilarityScore {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        relative_similarity_score(
+        vector_distance(
             &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
             &self.rhs_pk,
             &self.rhs_values,
             rhs_args.unwrap_or(&[]),
+            &self.dist_operator,
             device,
         )
     }
@@ -232,8 +230,18 @@ fn tensor_to_scores(
     _rhs_values: &str,
     _rhs_table: &Table,
     rhs_tensor: Tensor,
+    dist_operator: &DataDistanceOperator,
 ) -> Result<ArrayRef> {
-    let result = relative_similarity_scores_tensor(&lhs_tensor, &rhs_tensor)?.flatten_all()?;
+    // apply the distance operator
+    let result = match dist_operator {
+        DataDistanceOperator::NormalizedDotProduct => normalized_dot_product(&lhs_tensor, &rhs_tensor)?.flatten_all()?,
+        _ => return Err(anyhow!(
+                "Unsupported distance operator for {}: {}",
+                lhs_values,
+                dist_operator)),        
+    };
+
+    // convert tensor to array
     match lhs_table.get_column_data_type(lhs_values)? {
         DataType::FixedSizeList(field, _) | DataType::List(field) => match field.data_type() {
             DataType::UInt8 => {
@@ -284,13 +292,14 @@ Compute the relative similarity between two [RecordBatch]es
 
 */
 #[instrument(skip(lhs_pk, lhs_values, lhs_args, rhs_pk, rhs_values, rhs_args, device))]
-fn relative_similarity_score(
+fn vector_distance(
     lhs_pk: &str,
     lhs_values: &str,
     lhs_args: &[RecordBatch],
     rhs_pk: &str,
     rhs_values: &str,
     rhs_args: &[RecordBatch],
+    dist_operator: &DataDistanceOperator,
     device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs and rhs into an ArrowTable
@@ -307,7 +316,7 @@ fn relative_similarity_score(
     let (lhs_dim_0, _lhs_dim_1, lhs_tensor) = embeddings_to_tensor(lhs_values, &lhs_table, device)?;
     let (rhs_dim_0, _rhs_dim_1, rhs_tensor) = embeddings_to_tensor(rhs_values, &rhs_table, device)?;
     let out_scores = tensor_to_scores(
-        lhs_values, &lhs_table, lhs_tensor, rhs_values, &rhs_table, rhs_tensor,
+        lhs_values, &lhs_table, lhs_tensor, rhs_values, &rhs_table, rhs_tensor, dist_operator
     )?;
 
     // Create the expanded LHS and RHS PKs
@@ -452,18 +461,8 @@ fn relative_similarity_score(
     Ok(batch)
 }
 
-/**
-Compute the relative similarity between two Tensors
-
-# Arguments
-
-* `lhs` - Query 2D Tensor
-* `rhs` - Document chunk 2D Tensor
-* `device` - The compute device
-
-*/
-#[instrument(skip(lhs, rhs))]
-pub fn relative_similarity_scores_tensor(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
+/// Compute the normalized dot product
+pub fn normalized_dot_product(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
     let embd = Tensor::cat(&[&lhs, &rhs], 0)?;
     let norm = embd
         .broadcast_div(&embd.sqr()?.sum_keepdim(1)?.sqrt()?)?
@@ -485,7 +484,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_relative_similarity_scores_tensor() -> Result<()> {
+    fn test_normalized_dot_product() -> Result<()> {
         let device = device(false)?;
         let lhs_vec: Vec<Vec<f32>> = vec![
             vec![1., 1., 1., 1.],
@@ -505,7 +504,7 @@ mod tests {
             .reshape((3, 4))?;
         let rhs = Tensor::from_iter(rhs_vec.into_iter().flatten().collect::<Vec<_>>(), &device)?
             .reshape((4, 4))?;
-        let result = relative_similarity_scores_tensor(&lhs, &rhs)?;
+        let result = normalized_dot_product(&lhs, &rhs)?;
         let result_vec = result
             .to_vec2::<f32>()?
             .into_iter()
@@ -517,7 +516,7 @@ mod tests {
     }
 
     #[test]
-    fn test_relative_similarity_scores() -> Result<()> {
+    fn test_vector_distance_scores() -> Result<()> {
         // ------ PK = String ------
         // LHS and RHS record batches
         let lhs_ids_vec = vec!["1", "2", "3"];
@@ -540,13 +539,14 @@ mod tests {
         let device = device(false)?;
 
         // Compute the relative similarity scores
-        let result = relative_similarity_score(
+        let result = vector_distance(
             "lhs_pk",
             "embedding",
             &[lhs],
             "rhs_pk",
             "embedding",
             &[rhs],
+            &DataDistanceOperator::NormalizedDotProduct,
             &device,
         )?;
 
@@ -607,13 +607,14 @@ mod tests {
         let rhs = make_embeddings_record_batch_u32_f32("rhs_pk", rhs_ids_vec, rhs_embeddings_vec)?;
 
         // Compute the relative similarity scores
-        let result = relative_similarity_score(
+        let result = vector_distance(
             "lhs_pk",
             "embedding",
             &[lhs],
             "rhs_pk",
             "embedding",
             &[rhs],
+            &DataDistanceOperator::NormalizedDotProduct,
             &device,
         )?;
 

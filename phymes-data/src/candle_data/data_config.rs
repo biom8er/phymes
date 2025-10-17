@@ -156,7 +156,26 @@ impl Display for DataComparatorPredicate {
     }
 }
 
-/// Data cast operators with work in conjunction with DataCastAs to change the column name,
+/// Data distance operators between two equal length vectors
+#[derive(Default, Debug, Serialize, Deserialize, Clone, ValueEnum)]
+pub enum DataDistanceOperator {
+    #[default]
+    #[value(name = "NormalizedDotProduct")]
+    NormalizedDotProduct,
+    #[value(name = "NormalizedDifference")]
+    NormalizedDifference,
+}
+
+impl Display for DataDistanceOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NormalizedDotProduct => write!(f, "NormalizedDotProduct"),
+            Self::NormalizedDifference => write!(f, "NormalizedDifference"),
+        }
+    }
+}
+
+/// Data cast operators work in conjunction with DataCastAs to change the column name,
 ///   DataCastDataType to change the data type, and DataCastTemplate to apply a template
 /// 
 /// # Notes
@@ -356,6 +375,11 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pvt_columns: Option<Vec<String>>,
+
+    /// Data distance operator to apply between vectors
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dist_operator: Option<DataDistanceOperator>,
 }
 
 impl Default for DataConfig {
@@ -393,6 +417,7 @@ impl Default for DataConfig {
             cast_templates: None,
             asc: None,
             pvt_columns: None,
+            dist_operator: None,
         }
     }
 }
