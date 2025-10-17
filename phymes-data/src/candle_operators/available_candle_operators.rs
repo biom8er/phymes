@@ -11,7 +11,7 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::{candle_data::data_config::DataConfig, candle_operators::{
-    apply_template::ApplyTemplate, chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore, select_and_cast::SelectAndCast, sort_column_and_indices::SortColumnAndIndices
+    apply_template::ApplyTemplate, chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, pivot::Pivot, relative_similarity_score::RelativeSimilarityScore, select_and_cast::SelectAndCast, sort_column_and_indices::SortColumnAndIndices
 }};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -49,6 +49,9 @@ pub enum AvailableCandleOperators {
     #[value(name = "ApplyTemplate")]
     #[serde(alias = "apply-template")]
     ApplyTemplate,
+    #[value(name = "Pivot")]
+    #[serde(alias = "pivot")]
+    Pivot,
 }
 
 impl Default for AvailableCandleOperators {
@@ -71,6 +74,7 @@ impl Display for AvailableCandleOperators {
             Self::ExtractTabularData => write!(f, "{}", ExtractTabularData::get_static_name()),
             Self::SelectAndCast => write!(f, "{}", SelectAndCast::get_static_name()),
             Self::ApplyTemplate => write!(f, "{}", ApplyTemplate::get_static_name()),
+            Self::Pivot => write!(f, "{}", Pivot::get_static_name()),
         }
     }
 }
@@ -90,6 +94,7 @@ impl AvailableCandleOperators {
             Self::ExtractTabularData => ExtractTabularData::get_json_tool_schema(),
             Self::SelectAndCast => SelectAndCast::get_json_tool_schema(),
             Self::ApplyTemplate => ApplyTemplate::get_json_tool_schema(),
+            Self::Pivot => Pivot::get_json_tool_schema(),
         }
     }
 
@@ -108,6 +113,7 @@ impl AvailableCandleOperators {
             Self::ExtractTabularData => Box::new(ExtractTabularData::new(config)),
             Self::SelectAndCast => Box::new(SelectAndCast::new(config)),
             Self::ApplyTemplate => Box::new(ApplyTemplate::new(config)),
+            Self::Pivot => Box::new(Pivot::new(config)),
         }
     }
 }
@@ -158,6 +164,7 @@ mod tests {
                 "ExtractTabularData".to_string(),
                 "SelectAndCast".to_string(),
                 "ApplyTemplate".to_string(),
+                "Pivot".to_string(),
             ],
         )
         .unwrap();
@@ -174,6 +181,7 @@ mod tests {
                 "ExtractTabularData",
                 "SelectAndCast",
                 "ApplyTemplate",
+                "Pivot",
             ]
         );
     }

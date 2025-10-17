@@ -310,7 +310,6 @@ mod tests {
             &["c"],
             &device,
         )?;
-        dbg!(&result);
 
         let lhs_a = result
             .column_by_name("a")
@@ -321,7 +320,6 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        // assert_eq!(lhs_a, vec!["bar", "bar", "foo", "foo"]);
         assert_eq!(lhs_a, vec!["bar", "foo", "bar", "foo"]);
         let lhs_b = result
             .column_by_name("b")
@@ -332,7 +330,6 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        // assert_eq!(lhs_b, vec!["one", "two", "one", "two"]);
         assert_eq!(lhs_b, vec!["one", "one", "two", "two"]);
         let lhs_large_d = result
             .column_by_name("large-d-Sum")
