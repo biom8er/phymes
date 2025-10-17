@@ -71,6 +71,33 @@ pub fn create_metrics_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+
+pub fn create_metrics_pivot_fields_vec() -> Vec<Field> {
+    let field_names = ["start_timestamp", "end_timestamp", "elapsed_compute", "output_rows"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Int64, false))
+        .collect::<Vec<_>>();
+    fields_vec
+}
+
+pub fn create_metrics_pivot_fields() -> Fields {
+    let mut fields_vec = create_diagnostic_span_fields();
+    fields_vec.extend(create_metrics_pivot_fields_vec());
+    Fields::from(fields_vec)
+}
+
+pub fn create_metrics_pivot_norm_time_fields() -> Fields {
+    let field_names = ["start_time_norm", "end_time_norm", "duration"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Int64, false))
+        .collect::<Vec<_>>();
+    fields_vec.extend(create_diagnostic_span_fields());
+    fields_vec.extend(create_metrics_pivot_fields_vec());
+    Fields::from(fields_vec)
+}
+
 pub fn create_metrics_mermaid_gantt_fields() -> Fields {
     let field_names = ["processor_traces", "elapsed_compute", "output_rows"];
     let fields_vec = field_names
