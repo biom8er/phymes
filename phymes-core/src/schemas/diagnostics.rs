@@ -71,10 +71,9 @@ pub fn create_metrics_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-
 pub fn create_metrics_pivot_fields_vec() -> Vec<Field> {
     let field_names = ["start_timestamp", "end_timestamp", "elapsed_compute", "output_rows"];
-    let mut fields_vec = field_names
+    let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Int64, false))
         .collect::<Vec<_>>();

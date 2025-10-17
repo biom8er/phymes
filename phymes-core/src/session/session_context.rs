@@ -17,6 +17,7 @@ use super::{
     session_context_builder::SessionContextBuilder,
 };
 use crate::schemas::diagnostics::{from_diagnostics_to_tables, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, pivot_metrics_table};
+use crate::schemas::session::create_session_subjects_num_rows_batch;
 use crate::table::table_publish::TablePublish;
 use crate::table::{
     table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait},
@@ -306,12 +307,7 @@ impl SessionContext {
         }
 
         // create the record batch
-        let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
-        let num_rows: ArrayRef = Arc::new(UInt64Array::from(num_rows));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("subject_name", subject_names),
-            ("num_rows", num_rows),
-        ]).unwrap();
+        let batch = create_session_subjects_num_rows_batch(subject_names, num_rows).unwrap();
 
         // create the table
         let subject_num_rows_table = Table::get_builder()

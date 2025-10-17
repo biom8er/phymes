@@ -6,6 +6,7 @@ pub mod user;
 pub mod available_subjects;
 pub mod error;
 pub mod diagnostics;
+pub mod session;
 
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
 pub mod chat_completion;

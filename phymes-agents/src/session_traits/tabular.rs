@@ -7,7 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, mermaid::create_mermaid_batch}, session::{
+    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, mermaid::create_mermaid_batch, session::{create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch}}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context::SessionContextTableNames,
@@ -200,14 +200,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // create the record batch
-        let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
-        let cols_names: ArrayRef = Arc::new(StringArray::from(cols_names));
-        let type_names: ArrayRef = Arc::new(StringArray::from(type_names));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("subject_name", subject_names),
-            ("column_name", cols_names),
-            ("type_name", type_names),
-        ])?;
+        let batch = create_session_subjects_batch(subject_names, cols_names, type_names)?;
 
         // create the table
         Table::get_builder()
@@ -236,14 +229,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // create the record batch
-        let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
-        let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
-        let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("task_name", task_names),
-            ("processor_name", processor_names),
-            ("runtime_env_name", runtime_env_names),
-        ])?;
+        let batch = create_session_tasks_batch(task_names, processor_names, runtime_env_names)?;
 
         // create the table
         Table::get_builder()
@@ -268,38 +254,25 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // extract the processors in order
         for processor in self.processors.as_ref().unwrap().iter() {
             for sub in processor.get_subscriptions() {
-                pub_sub_name.push(sub.get_name());
-                pub_sub_table_names.push(sub.get_table_name());
+                pub_sub_name.push(sub.get_name().to_string());
+                pub_sub_table_names.push(sub.get_table_name().to_string());
                 is_sub.push(1);
-                processor_names.push(processor.get_name());
-                processor_types.push(processor.get_type());
-                subscribe_types.push(processor.get_subscribe().get_name());
+                processor_names.push(processor.get_name().to_string());
+                processor_types.push(processor.get_type().to_string());
+                subscribe_types.push(processor.get_subscribe().get_name().to_string());
             }
             for p in processor.get_publications() {
-                pub_sub_name.push(p.get_name());
-                pub_sub_table_names.push(p.get_table_name());
+                pub_sub_name.push(p.get_name().to_string());
+                pub_sub_table_names.push(p.get_table_name().to_string());
                 is_sub.push(0);
-                processor_names.push(processor.get_name());
-                processor_types.push(processor.get_type());
-                subscribe_types.push(processor.get_subscribe().get_name());
+                processor_names.push(processor.get_name().to_string());
+                processor_types.push(processor.get_type().to_string());
+                subscribe_types.push(processor.get_subscribe().get_name().to_string());
             }
         }
 
         // create the record batch
-        let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
-        let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
-        let pub_sub_name: ArrayRef = Arc::new(StringArray::from(pub_sub_name));
-        let pub_sub_table_names: ArrayRef = Arc::new(StringArray::from(pub_sub_table_names));
-        let is_sub: ArrayRef = Arc::new(UInt8Array::from(is_sub));
-        let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("processor_name", processor_names),
-            ("processor_type", processor_types),
-            ("publication_subscription_name", pub_sub_name),
-            ("publication_subscription_table_names", pub_sub_table_names),
-            ("is_subscription", is_sub),
-            ("subscribe_type", subscribe_types),
-        ])?;
+        let batch = create_session_processors_batch(processor_names, processor_types, pub_sub_name, pub_sub_table_names, subscribe_types, is_sub)?;
 
         // create the table
         Table::get_builder()
@@ -327,7 +300,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .collect::<Vec<_>>();
         sorted_rts.sort_by(|a, b| a.name.cmp(&b.name));
         for rt in sorted_rts.iter() {
-            runtime_env_names.push(rt.get_name());
+            runtime_env_names.push(rt.get_name().to_string());
             let memory_limit = rt.memory_limit.unwrap_or_default();
             memory_limits.push(memory_limit as u32);
             let time_limit = rt.time_limit.unwrap_or_default();
@@ -335,14 +308,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // create the record batch
-        let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
-        let memory_limits: ArrayRef = Arc::new(UInt32Array::from(memory_limits));
-        let time_limits: ArrayRef = Arc::new(UInt32Array::from(time_limits));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("runtime_env_name", runtime_env_names),
-            ("memory_limit", memory_limits),
-            ("time_limit", time_limits),
-        ])?;
+        let batch = create_session_runtime_envs_batch(runtime_env_names, memory_limits, time_limits)?;
 
         // create the table
         Table::get_builder()

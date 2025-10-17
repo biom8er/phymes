@@ -43,3 +43,57 @@ pub fn create_mermaid_batch(
     ])?;
     Ok(batch)
 }
+
+pub fn create_mermaid_content_template_fields() -> Fields {
+    let field_names = ["content"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_mermaid_gantt_template_fields() -> Fields {
+    let field_names = ["section", "task", "start", "end"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_mermaid_flowchart_nodes_template_fields() -> Fields {
+    let field_names = ["node_name", "node_shape", "node_label"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_mermaid_flowchart_links_template_fields() -> Fields {
+    let field_names = ["subject_name", "object_name", "link_type", "link_text"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_mermaid_sequence_diagram_participants_template_fields() -> Fields {
+    let field_names = ["participant_name", "participant_type"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_mermaid_sequence_diagram_messages_template_fields() -> Fields {
+    let field_names = ["subject_name", "object_name", "message_type", "activation_type", "message_content", "note_content", "note_location"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
