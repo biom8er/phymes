@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt64Array}, compute::{kernels::numeric::{add, sub}, min}, datatypes::{DataType, Field, Fields}};
+use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, compute::{kernels::numeric::{add, sub}, min}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
 use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
@@ -49,7 +49,7 @@ pub fn create_diagnostic_span_fields() -> Vec<Field> {
     let field_names = ["id"];
     fields_vec.extend(field_names
         .iter()
-        .map(|f| Field::new(*f, DataType::UInt64, false))
+        .map(|f| Field::new(*f, DataType::Int64, false))
         .collect::<Vec<_>>());
     fields_vec.extend(create_span_fields());
     fields_vec.extend(create_current_context_fields());
@@ -65,7 +65,7 @@ pub fn create_metrics_fields() -> Fields {
     let field_names = ["metric_value"];
     fields_vec.extend(field_names
         .iter()
-        .map(|f| Field::new(*f, DataType::UInt64, false))
+        .map(|f| Field::new(*f, DataType::Int64, false))
         .collect::<Vec<_>>());
     fields_vec.extend(create_diagnostic_span_fields());
     Fields::from(fields_vec)
@@ -140,16 +140,11 @@ pub fn create_traces_fields() -> Fields {
 }
 
 pub fn create_events_fields() -> Fields {
-    let field_names = ["event_level", "record_name"];
+    let field_names = ["event_level", "record_name", "record_value"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["record_value"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::UInt64, false))
-        .collect::<Vec<_>>());
     fields_vec.extend(create_diagnostic_span_fields());
     Fields::from(fields_vec)
 }
@@ -159,11 +154,11 @@ pub fn pivot_metrics_table(table: Table, table_name: &str) -> Result<Table> {
 
     // extract out values from metrics
     let span_names_vec = table.get_column_as_vec_nonprimitive::<String>("span_name")?;
-    let span_ids_vec = table.get_column_as_vec_primitive::<u64>("span_id")?;
+    let span_ids_vec = table.get_column_as_vec_primitive::<i64>("span_id")?;
     let parent_names_vec = table.get_column_as_vec_nonprimitive::<String>("parent_name")?;
-    let parent_ids_vec = table.get_column_as_vec_primitive::<u64>("parent_id")?;
+    let parent_ids_vec = table.get_column_as_vec_primitive::<i64>("parent_id")?;
     let metric_names_vec = table.get_column_as_vec_nonprimitive::<String>("metric_name")?;
-    let metric_values_vec = table.get_column_as_vec_primitive::<u64>("metric_value")?;
+    let metric_values_vec = table.get_column_as_vec_primitive::<i64>("metric_value")?;
 
     // find the unique metric names
     let mut unique_metric_names: Vec<String> = metric_names_vec
@@ -197,7 +192,7 @@ pub fn pivot_metrics_table(table: Table, table_name: &str) -> Result<Table> {
             .collect::<Vec<_>>(),
     ));
     pivot_columns.push(("span_name", span_names));
-    let span_ids: ArrayRef = Arc::new(UInt64Array::from(
+    let span_ids: ArrayRef = Arc::new(Int64Array::from(
         unique_span_names
             .iter()
             .map(|(_, id, _, _)| id.to_owned().to_owned())
@@ -211,7 +206,7 @@ pub fn pivot_metrics_table(table: Table, table_name: &str) -> Result<Table> {
             .collect::<Vec<_>>(),
     ));
     pivot_columns.push(("parent_name", parent_names));
-    let parent_ids: ArrayRef = Arc::new(UInt64Array::from(
+    let parent_ids: ArrayRef = Arc::new(Int64Array::from(
         unique_span_names
             .iter()
             .map(|(_, _, _, id)| id.to_owned().to_owned())
@@ -221,7 +216,7 @@ pub fn pivot_metrics_table(table: Table, table_name: &str) -> Result<Table> {
 
     // Extract the metric values for each unique metric name and span name
     for metric_name in unique_metric_names.iter() {
-        let mut pivot_metric_values = Vec::<u64>::new();
+        let mut pivot_metric_values = Vec::<i64>::new();
         for (span_name, span_id, parent_name, parent_id) in unique_span_names.iter() {
             // find the matching metric and span name
             let mut found = false;
@@ -243,7 +238,7 @@ pub fn pivot_metrics_table(table: Table, table_name: &str) -> Result<Table> {
         }
 
         // create the named array for this metric
-        let metric_values: ArrayRef = Arc::new(UInt64Array::from(pivot_metric_values));
+        let metric_values: ArrayRef = Arc::new(Int64Array::from(pivot_metric_values));
         pivot_columns.push((metric_name, metric_values));
     }
 
@@ -313,10 +308,10 @@ pub fn get_metrics_as_gantt_table(pivot_table: Table, table_name: &str,) -> Resu
     let start_time_arr: ArrayRef = pivot_table.get_column_as_array("start_timestamp");
     let start_time_arr_prim = start_time_arr
         .as_any()
-        .downcast_ref::<UInt64Array>()
+        .downcast_ref::<Int64Array>()
         .unwrap();
     let min_start_time = min(start_time_arr_prim).unwrap();
-    let min_start_time_arr: ArrayRef = Arc::new(UInt64Array::from_value(
+    let min_start_time_arr: ArrayRef = Arc::new(Int64Array::from_value(
         min_start_time,
         start_time_arr.len(),
     ));
@@ -369,14 +364,14 @@ pub fn get_metrics_as_mermaid_gantt(pivot_table: Table) -> Result<Table> {
 
     // extract the gantt data
     let span_name = pivot_table.get_column_as_vec_str("span_name");
-    // let span_id = pivot_table.get_column_as_vec_primitive::<u64>("span_id")?;
+    // let span_id = pivot_table.get_column_as_vec_primitive::<i64>("span_id")?;
     let parent_name = pivot_table.get_column_as_vec_str("parent_name");
-    // let parent_id = pivot_table.get_column_as_vec_primitive::<u64>("parent_id")?;
-    // let id = pivot_table.get_column_as_vec_primitive::<u64>("id")?;
-    let start_time_norm = pivot_table.get_column_as_vec_primitive::<u64>("start_time_norm")?;
-    let end_time_norm = pivot_table.get_column_as_vec_primitive::<u64>("end_time_norm")?;
-    let elapsed_compute = pivot_table.get_column_as_vec_primitive::<u64>("elapsed_compute")?;
-    let output_rows = pivot_table.get_column_as_vec_primitive::<u64>("output_rows")?;
+    // let parent_id = pivot_table.get_column_as_vec_primitive::<i64>("parent_id")?;
+    // let id = pivot_table.get_column_as_vec_primitive::<i64>("id")?;
+    let start_time_norm = pivot_table.get_column_as_vec_primitive::<i64>("start_time_norm")?;
+    let end_time_norm = pivot_table.get_column_as_vec_primitive::<i64>("end_time_norm")?;
+    let elapsed_compute = pivot_table.get_column_as_vec_primitive::<i64>("elapsed_compute")?;
+    let output_rows = pivot_table.get_column_as_vec_primitive::<i64>("output_rows")?;
     let combined = span_name
         .iter()
         .zip(parent_name.iter())

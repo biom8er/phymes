@@ -11,7 +11,7 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::{candle_data::data_config::DataConfig, candle_operators::{
-    apply_template::ApplyTemplate, chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, normalize_time::NormalizeTime, pivot::Pivot, select_and_cast::SelectAndCast, sort_column_and_indices::SortColumnAndIndices, vector_distance::VectorDistance
+    apply_template::ApplyTemplate, chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, from_tasks_to_participants::FromTasksToParticipants, from_traces_to_messages::FromTracesToMessages, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, normalize_time::NormalizeTime, pivot::Pivot, select_and_cast::SelectAndCast, sort_column_and_indices::SortColumnAndIndices, vector_distance::VectorDistance
 }};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -55,6 +55,12 @@ pub enum AvailableCandleOperators {
     #[value(name = "NormalizeTime")]
     #[serde(alias = "NormalizeTime")]
     NormalizeTime,
+    #[value(name = "FromTasksToParticipants")]
+    #[serde(alias = "FromTasksToParticipants")]
+    FromTasksToParticipants,
+    #[value(name = "FromTracesToMessages")]
+    #[serde(alias = "FromTracesToMessages")]
+    FromTracesToMessages,
 }
 
 impl Default for AvailableCandleOperators {
@@ -79,6 +85,8 @@ impl Display for AvailableCandleOperators {
             Self::ApplyTemplate => write!(f, "{}", ApplyTemplate::get_static_name()),
             Self::Pivot => write!(f, "{}", Pivot::get_static_name()),
             Self::NormalizeTime => write!(f, "{}", NormalizeTime::get_static_name()),
+            Self::FromTasksToParticipants => write!(f, "{}", FromTasksToParticipants::get_static_name()),
+            Self::FromTracesToMessages => write!(f, "{}", FromTracesToMessages::get_static_name()),
         }
     }
 }
@@ -100,6 +108,8 @@ impl AvailableCandleOperators {
             Self::ApplyTemplate => ApplyTemplate::get_json_tool_schema(),
             Self::Pivot => Pivot::get_json_tool_schema(),
             Self::NormalizeTime => NormalizeTime::get_json_tool_schema(),
+            Self::FromTasksToParticipants => FromTasksToParticipants::get_json_tool_schema(),
+            Self::FromTracesToMessages => FromTracesToMessages::get_json_tool_schema(),
         }
     }
 
@@ -120,6 +130,8 @@ impl AvailableCandleOperators {
             Self::ApplyTemplate => Box::new(ApplyTemplate::new(config)),
             Self::Pivot => Box::new(Pivot::new(config)),
             Self::NormalizeTime => Box::new(NormalizeTime::new(config)),
+            Self::FromTasksToParticipants => Box::new(FromTasksToParticipants::new(config)),
+            Self::FromTracesToMessages => Box::new(FromTracesToMessages::new(config)),
         }
     }
 }
@@ -172,6 +184,8 @@ mod tests {
                 "ApplyTemplate".to_string(),
                 "Pivot".to_string(),
                 "NormalizeTime".to_string(),
+                "FromTasksToParticipants".to_string(),
+                "FromTracesToMessages".to_string(),
             ],
         )
         .unwrap();
@@ -190,6 +204,8 @@ mod tests {
                 "ApplyTemplate",
                 "Pivot",
                 "NormalizeTime",
+                "FromTasksToParticipants",
+                "FromTracesToMessages",
             ]
         );
     }

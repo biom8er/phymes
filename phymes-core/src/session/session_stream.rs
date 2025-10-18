@@ -177,7 +177,7 @@ mod tests {
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 6);
 
-        // Check the metrics tables
+        // Check the traces, events, and metrics tables
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -191,6 +191,29 @@ mod tests {
                 .get_record_batches()
                 .len(),
             4
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Traces.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            4
+        );
+        assert!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(SessionContextTableNames::Events.to_string().as_str())
+                .is_none()
         );
 
         // Check gantt
