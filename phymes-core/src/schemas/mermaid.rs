@@ -4,7 +4,7 @@ use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, datatypes::
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-pub fn create_mermaid_fields() -> Fields {
+pub fn create_session_mermaid_fields() -> Fields {
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
     let flowchart_diagram = Field::new("flowchart_diagram", DataType::Utf8, false);
     let er_diagram = Field::new("er_diagram", DataType::Utf8, false);
@@ -18,14 +18,14 @@ pub fn create_mermaid_fields() -> Fields {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct MermaidSubject {
+pub struct SessionMermaidSubject {
     pub session_context_name: String, 
     pub flowchart_diagram: String, 
     pub er_diagram: String,
     pub timestamp: i64,
 }
 
-pub fn create_mermaid_batch(
+pub fn create_session_mermaid_batch(
     session_context_name: Vec<String>,
     flowchart_diagram: Vec<String>,
     er_diagram: Vec<String>,
@@ -42,6 +42,20 @@ pub fn create_mermaid_batch(
         ("timestamp", timestamp),
     ])?;
     Ok(batch)
+}
+
+pub fn create_mermaid_visualization_fields() -> Fields {
+    let field_names = ["visualization_name", "visualization_string"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["timestamp"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Int64, false))
+        .collect::<Vec<_>>());
+    Fields::from(fields_vec)
 }
 
 pub fn create_mermaid_content_template_fields() -> Fields {
@@ -91,6 +105,15 @@ pub fn create_mermaid_sequence_diagram_participants_template_fields() -> Fields 
 
 pub fn create_mermaid_sequence_diagram_messages_template_fields() -> Fields {
     let field_names = ["subject_name", "object_name", "message_type", "activation_type", "message_content", "note_content", "note_location"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_mermaid_kanban_template_fields() -> Fields {
+    let field_names = ["column_name", "column_label", "task_name", "task_description", "task_assigned", "task_ticket", "task_priority"];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))

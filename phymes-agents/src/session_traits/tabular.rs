@@ -7,7 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, mermaid::create_mermaid_batch, session::{create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch}}, session::{
+    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, mermaid::create_session_mermaid_batch, session::{create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch}}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context::SessionContextTableNames,
@@ -324,7 +324,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let timestamp = create_timestamp_micros();
 
         // create the record batch
-        let batch = create_mermaid_batch(
+        let batch = create_session_mermaid_batch(
             vec![session_context_name], 
             vec![flowchart_diagram], 
             vec![er_diagram], 

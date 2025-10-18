@@ -289,6 +289,11 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_template: Option<String>,
 
+    /// The name of the resulting document after applying the minijinja template
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc_name: Option<String>,
+
     /// The expression for the table within the minijinja template
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -299,11 +304,6 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_input: Option<String>,
-
-    /// The document extension e.g., .html, .py, etc.
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub doc_extension: Option<String>,
 
     /// The length of the document chunks
     #[arg(long)]
@@ -398,11 +398,11 @@ impl Default for DataConfig {
             rhs_args: None,
             op_kwargs: None,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
-            operator: AvailableCandleOperators::RelativeSimilarityScore,
+            operator: AvailableCandleOperators::VectorDistance,
             doc_template: None,
+            doc_name: None,
             table_expression: None,
             doc_input: None,
-            doc_extension: None,
             chunk_size: None,
             chunk_overlap: None,
             format: None,

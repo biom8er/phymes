@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use phymes_agents::{session_plans::available_session_plans::AvailableSessionPlans, session_traits::mermaid::SessionContextBuilderMermaidTrait};
-use phymes_core::{schemas::{available_subjects::{AvailableSubjects}, mermaid::create_mermaid_batch}, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context_builder::SessionContextBuilder}, table::{data_format::DataFormat, table_trait::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::MessageBuilderTrait};
+use phymes_core::{schemas::{available_subjects::{AvailableSubjects}, mermaid::create_session_mermaid_batch}, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context_builder::SessionContextBuilder}, table::{data_format::DataFormat, table_trait::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::MessageBuilderTrait};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::handlers::sign_in::create_session_name;
 
@@ -123,7 +123,7 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
                                 .collect::<Vec<_>>(),
                             &mermaid_timestamps());
                         let session_context_names = session_context_names.into_iter().map(|s| format!("__deleted__{s}")).collect::<Vec<_>>();
-                        let batch_deleted = create_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
+                        let batch_deleted = create_session_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
                         // Filter out the active session
                         let (session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_out_mermaid_diagrams_by_session_name(                        
@@ -145,12 +145,12 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
                                 .collect::<Vec<_>>(),
                             &mermaid_timestamps());
                         let active_session = session_context_names.first().unwrap().to_string();
-                        let batch = create_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
+                        let batch = create_session_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
                         // Update the mermaid state with the active diagram
                         let route = "/app/v1/put_state";
                         let message = Table::get_builder()
-                            .with_name(AvailableSubjects::Mermaid.to_string().as_str())
+                            .with_name(AvailableSubjects::SessionMermaid.to_string().as_str())
                             .with_record_batches(vec![batch_deleted, batch])
                             .unwrap()
                             .build()
@@ -161,9 +161,9 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
                             .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
                             .with_format(&DataFormat::Ipc)
                             .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
-                            .with_update(&TablePublish::Replace { table_name: AvailableSubjects::Mermaid.to_string() })
+                            .with_update(&TablePublish::Replace { table_name: AvailableSubjects::SessionMermaid.to_string() })
                             .with_stream(false)
-                            .with_subject(AvailableSubjects::Mermaid.to_string().as_str())
+                            .with_subject(AvailableSubjects::SessionMermaid.to_string().as_str())
                             .with_message(message)
                             .make_name()
                             .unwrap()
@@ -256,9 +256,9 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
 
                         // Update the server with the new session
                         let route = "/app/v1/build";
-                        let batch = create_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
+                        let batch = create_session_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
                         let message = Table::get_builder()
-                            .with_name(AvailableSubjects::Mermaid.to_string().as_str())
+                            .with_name(AvailableSubjects::SessionMermaid.to_string().as_str())
                             .with_record_batches(vec![batch])
                             .unwrap()
                             .build()
@@ -271,7 +271,7 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
                             .with_publisher(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
                             .with_update(&TablePublish::None)
                             .with_stream(false)
-                            .with_subject(AvailableSubjects::Mermaid.to_string().as_str())
+                            .with_subject(AvailableSubjects::SessionMermaid.to_string().as_str())
                             .with_message(message)
                             .make_name()
                             .unwrap()
@@ -408,9 +408,9 @@ pub fn builds_interface_footer(is_flowchart_shown: Signal<bool>, active_session_
                         onclick: move |_| async move {
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
-                            let batch = create_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
+                            let batch = create_session_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
                             let message = Table::get_builder()
-                                .with_name(AvailableSubjects::Mermaid.to_string().as_str())
+                                .with_name(AvailableSubjects::SessionMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch])
                                 .unwrap()
                                 .build()
@@ -421,9 +421,9 @@ pub fn builds_interface_footer(is_flowchart_shown: Signal<bool>, active_session_
                                 .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
-                                .with_update(&TablePublish::Extend { table_name: AvailableSubjects::Mermaid.to_string() })
+                                .with_update(&TablePublish::Extend { table_name: AvailableSubjects::SessionMermaid.to_string() })
                                 .with_stream(false)
-                                .with_subject(AvailableSubjects::Mermaid.to_string().as_str())
+                                .with_subject(AvailableSubjects::SessionMermaid.to_string().as_str())
                                 .with_message(message)
                                 .make_name()
                                 .unwrap()

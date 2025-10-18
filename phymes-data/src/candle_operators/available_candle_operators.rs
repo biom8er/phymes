@@ -16,9 +16,9 @@ use crate::{candle_data::data_config::DataConfig, candle_operators::{
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum AvailableCandleOperators {
-    #[value(name = "RelativeSimilarityScore")]
-    #[serde(alias = "relative-similarity-score")]
-    RelativeSimilarityScore,
+    #[value(name = "VectorDistance")]
+    #[serde(alias = "vector-distance")]
+    VectorDistance,
     #[value(name = "SortColumnAndIndices")]
     #[serde(alias = "sort-column-and-indices")]
     SortColumnAndIndices,
@@ -59,14 +59,14 @@ pub enum AvailableCandleOperators {
 
 impl Default for AvailableCandleOperators {
     fn default() -> Self {
-        Self::RelativeSimilarityScore
+        Self::VectorDistance
     }
 }
 
 impl Display for AvailableCandleOperators {    
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::RelativeSimilarityScore => write!(f, "{}", VectorDistance::get_static_name()),
+            Self::VectorDistance => write!(f, "{}", VectorDistance::get_static_name()),
             Self::SortColumnAndIndices => write!(f, "{}", SortColumnAndIndices::get_static_name()),
             Self::HumanInTheLoop => write!(f, "{}", HumanInTheLoop::get_static_name()),
             Self::ChunkDocuments => write!(f, "{}", ChunkDocuments::get_static_name()),
@@ -87,7 +87,7 @@ impl AvailableCandleOperators {
     /// Wrapper to return the JSON schema SortColumnAndIndices
     pub fn get_json_tool_schema(&self) -> String {
         match self {
-            Self::RelativeSimilarityScore => VectorDistance::get_json_tool_schema(),
+            Self::VectorDistance => VectorDistance::get_json_tool_schema(),
             Self::SortColumnAndIndices => SortColumnAndIndices::get_json_tool_schema(),
             Self::HumanInTheLoop => HumanInTheLoop::get_json_tool_schema(),
             Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
@@ -107,7 +107,7 @@ impl AvailableCandleOperators {
     #[allow(clippy::too_many_arguments)]
     pub fn build(&self, config: &DataConfig) -> Box<dyn DataOperatorTrait> {
         match self {
-            Self::RelativeSimilarityScore => Box::new(VectorDistance::new(config)),
+            Self::VectorDistance => Box::new(VectorDistance::new(config)),
             Self::SortColumnAndIndices => Box::new(SortColumnAndIndices::new(config)),
             Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(config)),
             Self::ChunkDocuments => Box::new(ChunkDocuments::new(config)),
@@ -160,7 +160,7 @@ mod tests {
         let result = convert_destinations_to_tools(
             "test",
             &[
-                "RelativeSimilarityScore".to_string(),
+                "VectorDistance".to_string(),
                 "SortColumnAndIndices".to_string(),
                 "ChunkDocuments".to_string(),
                 "JoinInner".to_string(),
@@ -171,13 +171,14 @@ mod tests {
                 "SelectAndCast".to_string(),
                 "ApplyTemplate".to_string(),
                 "Pivot".to_string(),
+                "NormalizeTime".to_string(),
             ],
         )
         .unwrap();
         assert_eq!(
             result.get_column_as_vec_str("tool_id"),
             &[
-                "RelativeSimilarityScore",
+                "VectorDistance",
                 "SortColumnAndIndices",
                 "ChunkDocuments",
                 "JoinInner",
@@ -188,6 +189,7 @@ mod tests {
                 "SelectAndCast",
                 "ApplyTemplate",
                 "Pivot",
+                "NormalizeTime",
             ]
         );
     }

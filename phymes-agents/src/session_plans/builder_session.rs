@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use anyhow::Result;
 use phymes_core::{
-    schemas::{available_subjects::AvailableSubjects, mermaid::create_mermaid_batch}, session::{
+    schemas::{available_subjects::AvailableSubjects, mermaid::create_session_mermaid_batch}, session::{
         common_traits::{BuildableTrait, BuilderTrait},
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
@@ -34,9 +34,9 @@ pub fn make_example_mermaid_table(deployable: bool) -> Result<Table> {
     }
     
     // Create the table
-    let batch = create_mermaid_batch(session_context_names, flowchart_diagram, er_diagram, timestamp)?;
+    let batch = create_session_mermaid_batch(session_context_names, flowchart_diagram, er_diagram, timestamp)?;
     Table::get_builder()
-        .with_name(AvailableSubjects::Mermaid.to_string().as_str())
+        .with_name(AvailableSubjects::SessionMermaid.to_string().as_str())
         .with_record_batches(vec![batch])?
         .build()
 }
@@ -81,11 +81,11 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
                 self.session_context_name,
                 &[
                     TablePublish::Extend {
-                        table_name: AvailableSubjects::Mermaid.to_string(),
+                        table_name: AvailableSubjects::SessionMermaid.to_string(),
                     },
                 ],
                 &[TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableSubjects::Mermaid.to_string(),
+                    table_name: AvailableSubjects::SessionMermaid.to_string(),
                 }],
                 AllTableNamesSubscribe::new_box(),
             )

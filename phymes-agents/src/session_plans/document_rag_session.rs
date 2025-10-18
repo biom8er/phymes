@@ -767,7 +767,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),
-            operator: AvailableCandleOperators::RelativeSimilarityScore,
+            operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()
         };
         let rel_sim_config_json = serde_json::to_vec(&rel_sim_config).unwrap();

@@ -59,7 +59,7 @@ pub async fn session_build(
             // Extract out the Mermaid table
             let table = match payload.get_format() {
                 DataFormat::Csv(csv_format) => TableBuilder::new()
-                    .with_schema(AvailableSubjects::Mermaid.to_schema())
+                    .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                     .with_name(payload.get_subject())
                     .with_csv(payload.get_message(), csv_format.delimiter, csv_format.header, csv_format.batch_size)
                     .unwrap()
@@ -68,7 +68,7 @@ pub async fn session_build(
                 DataFormat::CsvDefault => {
                     let csv_format = CsvFormat::default();
                     TableBuilder::new()
-                        .with_schema(AvailableSubjects::Mermaid.to_schema())
+                        .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                         .with_name(payload.get_subject())
                         .with_csv(payload.get_message(), csv_format.delimiter, csv_format.header, csv_format.batch_size)
                         .unwrap()
@@ -78,7 +78,7 @@ pub async fn session_build(
                 DataFormat::JsonDefault => {                            
                     let json_value: Vec<serde_json::Value> = serde_json::from_slice(payload.get_message()).unwrap();                            
                     TableBuilder::new()
-                        .with_schema(AvailableSubjects::Mermaid.to_schema())
+                        .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                         .with_name(payload.get_subject())
                         .with_json_values(&json_value)
                         .unwrap()
@@ -86,7 +86,7 @@ pub async fn session_build(
                         .unwrap()
                 },
                 DataFormat::Bytes => TableBuilder::new()
-                    .with_schema(AvailableSubjects::Mermaid.to_schema())
+                    .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                     .with_name(payload.get_subject())
                     .with_bytes(payload.get_message())
                     .unwrap()

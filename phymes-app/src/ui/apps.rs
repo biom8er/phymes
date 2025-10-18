@@ -83,7 +83,7 @@ pub fn apps_interface_view() -> Element {
         // get the mermaid state
         let route = "/app/v1/get_state";
         let subject = if BUILDER() {
-            AvailableSubjects::Mermaid.to_string()
+            AvailableSubjects::SessionMermaid.to_string()
         } else {
             SessionContextTableNames::MermaidJS.to_string().as_str().to_string()
         };

@@ -595,7 +595,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),
-            operator: AvailableCandleOperators::RelativeSimilarityScore,
+            operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()
         };
         let config_table = Table::get_builder()
@@ -933,7 +933,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),
-            operator: AvailableCandleOperators::RelativeSimilarityScore,
+            operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

@@ -27,7 +27,7 @@ use crate::{session_plans::{available_interface_subjects::AvailableInterfaceSubj
 /// 
 /// An inbox and outbox for each support task are provided
 ///   that trigger the task
-pub struct MetricSession<'a> {
+pub struct DiagnosticSession<'a> {
     // /// Extract data from inbox subtask
     // pub metrics_from_inbox_task_name: &'a str,
     // pub traces_from_inbox_task_name: &'a str,
@@ -66,6 +66,9 @@ pub struct MetricSession<'a> {
     /// Traces analytics
     pub session_tasks_to_sequence_diagram_participants_task_name: &'a str,
     pub session_tasks_to_sequence_diagram_participants_processor_name: &'a str,
+    // ...    
+    pub traces_select_and_cast_to_sequence_diagram_participants_task_name: &'a str,
+    pub traces_select_and_cast_to_sequence_diagram_participants_processor_name: &'a str,
     pub apply_sequence_diagram_participants_task_name: &'a str,
     pub apply_sequence_diagram_participants_processor_name: &'a str,
     pub traces_select_and_cast_to_sequence_diagram_messages_task_name: &'a str,
@@ -76,20 +79,25 @@ pub struct MetricSession<'a> {
     pub apply_sequence_diagram_processor_name: &'a str,
     pub traces_runtime_env_name: &'a str,
     
-    /// Events and errors analytics
-    pub events_and_errors_aggregation_task_name: &'a str,
-    pub events_and_errors_aggregation_processor_name: &'a str,
-    pub events_and_errors_select_and_cast_to_kanban_task_name: &'a str,
-    pub events_and_errors_select_and_cast_to_kanban_processor_name: &'a str,
+    /// Events analytics
+    pub events_select_and_cast_to_kanban_task_name: &'a str,
+    pub events_select_and_cast_to_kanban_processor_name: &'a str,
     pub apply_kanban_task_name: &'a str,
     pub apply_kanban_task_processor_name: &'a str,
     pub events_runtime_env_name: &'a str,
+
+    /// Errors analytics
+    // todo!()
+
+    /// Outbox
+    pub aggregate_visualizations_task_name: &'a str,
+    pub aggregate_visualizations_processor_name: &'a str,
 
     /// Session
     pub session_context_name: &'a str,
 }
 
-impl CustomAgentsBuilderTrait for MetricSession<'_> {
+impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
@@ -158,19 +166,19 @@ impl CustomAgentsBuilderTrait for MetricSession<'_> {
                 processor_names: vec![self.apply_sequence_diagram_processor_name.to_string()],
             },
             TaskPlan {
-                task_name: self.events_and_errors_aggregation_task_name.to_string(),
+                task_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                 runtime_env_name: self.events_runtime_env_name.to_string(),
-                processor_names: vec![self.events_and_errors_aggregation_processor_name.to_string()],
-            },
-            TaskPlan {
-                task_name: self.events_and_errors_select_and_cast_to_kanban_task_name.to_string(),
-                runtime_env_name: self.events_runtime_env_name.to_string(),
-                processor_names: vec![self.events_and_errors_select_and_cast_to_kanban_processor_name.to_string()],
+                processor_names: vec![self.events_select_and_cast_to_kanban_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.apply_kanban_task_name.to_string(),
                 runtime_env_name: self.events_runtime_env_name.to_string(),
                 processor_names: vec![self.apply_kanban_task_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.aggregate_visualizations_task_name.to_string(),
+                runtime_env_name: self.metrics_runtime_env_name.to_string(),
+                processor_names: vec![self.aggregate_visualizations_processor_name.to_string()],
             },
         ];
 
@@ -301,19 +309,59 @@ impl CustomAgentsBuilderTrait for MetricSession<'_> {
                 AllTableNamesSubscribe::new_box(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
-                self.events_and_errors_aggregation_processor_name,
+                self.events_select_and_cast_to_kanban_processor_name,
                 &[TablePublish::Replace {
-                    table_name: AvailableSubjects::MetricPivot.to_string(),
+                    table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                 }],
                 &[
                     TableSubscribe::OnUpdateFullTable {
                         table_name: AvailableSubjects::Events.to_string(),
                     },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.events_select_and_cast_to_kanban_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.apply_kanban_task_processor_name,
+                &[TablePublish::Replace {
+                    table_name: self.apply_kanban_task_name.to_string(),
+                }],
+                &[
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: AvailableSubjects::Errors.to_string(),
+                        table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                     },
                     TableSubscribe::AlwaysFullTable {
-                        table_name: self.events_and_errors_aggregation_processor_name.to_string(),
+                        table_name: self.apply_kanban_task_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.aggregate_visualizations_processor_name,
+                &[TablePublish::Replace {
+                    table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.metrics_processors_traces_apply_gantt_task_name.to_string(),
+                    },
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.metrics_elapsed_compute_apply_gantt_task_name.to_string(),
+                    },
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.metrics_output_rows_apply_gantt_task_name.to_string(),
+                    },
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.apply_sequence_diagram_task_name.to_string(),
+                    },
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.apply_sequence_diagram_task_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.aggregate_visualizations_processor_name.to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
@@ -342,8 +390,18 @@ impl CustomAgentsBuilderTrait for MetricSession<'_> {
             AvailableSubjects::Errors.to_table(None, None).unwrap(),
             AvailableSubjects::SessionTasks.to_table(None, None).unwrap(),
             AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_processors_traces_select_and_cast_to_gantt_task_name), None).unwrap(),
-            AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_processors_traces_select_and_cast_to_gantt_task_name), None).unwrap(),
-            AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_processors_traces_select_and_cast_to_gantt_task_name), None).unwrap(),
+            AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_elapsed_compute_select_and_cast_to_gantt_task_name), None).unwrap(),
+            AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_output_rows_select_and_cast_to_gantt_task_name), None).unwrap(),
+            AvailableSubjects::MermaidSequenceDiagramParticipantsTemplate.to_table(Some(self.traces_select_and_cast_to_sequence_diagram_participants_task_name), None).unwrap(),
+            AvailableSubjects::MermaidSequenceDiagramMessagesTemplate.to_table(Some(self.traces_select_and_cast_to_sequence_diagram_messages_task_name), None).unwrap(),
+            AvailableSubjects::MermaidKanbanTemplate.to_table(Some(self.events_select_and_cast_to_kanban_task_name), None).unwrap(),
+
+            AvailableSubjects::Blob.to_table(Some(self.metrics_processors_traces_apply_gantt_task_name), None).unwrap(),
+            AvailableSubjects::Blob.to_table(Some(self.metrics_elapsed_compute_apply_gantt_task_name), None).unwrap(),
+            AvailableSubjects::Blob.to_table(Some(self.metrics_output_rows_apply_gantt_task_name), None).unwrap(),
+            AvailableSubjects::Blob.to_table(Some(self.apply_kanban_task_name), None).unwrap(),            
+            AvailableSubjects::Blob.to_table(Some(self.apply_sequence_diagram_task_name), None).unwrap(),
+            AvailableInterfaceSubjects::AggregatedAttachments.to_table(None, None).unwrap(),
         ])
     }
 }

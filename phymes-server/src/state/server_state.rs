@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 // From crates
 use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::BlobBuilderTraitExt, mermaid::create_mermaid_batch, user::{create_user_inbox_batch, create_user_session_contexts_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
+    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::BlobBuilderTraitExt, mermaid::create_session_mermaid_batch, user::{create_user_inbox_batch, create_user_session_contexts_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilder}, 
     table::{data_format::JsonFormat, table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, 
     task::message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait}};
@@ -119,10 +119,10 @@ impl UserState {
             .with_name(AvailableSubjects::UserSessionContexts.to_string().as_str())
             .build()?
             .to_ipc_stream()?;
-        let mermaid = create_mermaid_batch(session_context_name.to_owned(), flowchart_diagram.to_owned(), er_diagram.to_owned(), timestamp.to_owned())?;
+        let mermaid = create_session_mermaid_batch(session_context_name.to_owned(), flowchart_diagram.to_owned(), er_diagram.to_owned(), timestamp.to_owned())?;
         let mermaid_bytes = Table::get_builder()
             .with_record_batches(vec![mermaid])?
-            .with_name(AvailableSubjects::Mermaid.to_string().as_str())
+            .with_name(AvailableSubjects::SessionMermaid.to_string().as_str())
             .build()?
             .to_ipc_stream()?;
 
@@ -135,10 +135,10 @@ impl UserState {
             .make_name()?
             .build()?;
         let mermaid_message = IPCMessageBuilder::new()
-            .with_subject(AvailableSubjects::Mermaid.to_string().as_str())
+            .with_subject(AvailableSubjects::SessionMermaid.to_string().as_str())
             .with_publisher(&create_session_name(email, session_plan.as_str()))
             .with_message(mermaid_bytes)
-            .with_update(&TablePublish::Extend { table_name: AvailableSubjects::Mermaid.to_string() })
+            .with_update(&TablePublish::Extend { table_name: AvailableSubjects::SessionMermaid.to_string() })
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![user_session_contexts_message, mermaid_message]);

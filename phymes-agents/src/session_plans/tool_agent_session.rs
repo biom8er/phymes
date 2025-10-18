@@ -651,12 +651,13 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let vis_xychart_config = DataConfig {
             lhs_name: self.tool_visualization_task_name.to_string(),
             doc_template: Some([MERMAID_HTML_PRE, MERMAID_XYCHART_TEMPLATE, MERMAID_HTML_POST].join("")),
+            doc_name: Some(self.state_scores_table_name.to_string()),
             table_expression: Some(MERMAID_XYCHART_TABLE_EXPRESSION.to_string()),
             doc_input: Some(serde_json::to_string(&json!({
                 "title": self.state_scores_table_name,
                 "x_title": "lhs_pk",
                 "y_title": "score"})).unwrap()),
-            doc_extension: Some("html".to_string()),
+            format: Some(DataFormat::Html),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };

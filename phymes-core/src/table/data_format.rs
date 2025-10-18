@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use anyhow::{anyhow, Result};
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
@@ -57,6 +59,9 @@ pub enum DataFormat {
     #[default]
     #[value(name = "None")]
     None,
+    /// Arrow IPC stream
+    #[value(name = "Html")]
+    Html,
 }
 
 impl DataFormat {
@@ -68,7 +73,8 @@ impl DataFormat {
             "pdf" => DataFormat::Pdf,
             "bytes" => DataFormat::Bytes,
             "ipc" => DataFormat::Ipc,
-            _ => return Err(anyhow!("File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, and .ipc")),
+            "html" => DataFormat::Html,
+            _ => return Err(anyhow!("File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, and .html")),
         };
         Ok(format)
     }
@@ -81,7 +87,24 @@ impl DataFormat {
             Self::Bytes => "bytes",
             Self::Ipc => "ipc",
             Self::Pdf => "pdf",
+            Self::Html => "html",
             Self::None => "",
+        }
+    }
+}
+
+impl Display for DataFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Csv(_) => write!(f, "Csv"),
+            Self::CsvDefault => write!(f, "CsvDefault"),
+            Self::Json(_) => write!(f, "Json"),
+            Self::JsonDefault => write!(f, "JsonDefault"),
+            Self::Bytes => write!(f, "Bytes"),
+            Self::Ipc => write!(f, "Ipc"),
+            Self::Pdf => write!(f, "Pdf"),
+            Self::Html => write!(f, "Html"),
+            Self::None => write!(f, "None"),
         }
     }
 }

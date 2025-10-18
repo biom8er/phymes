@@ -4,6 +4,7 @@ use std::{
     task::{Context, Poll, ready},
 };
 
+use bytes::Bytes;
 use phymes_core::{
     schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::create_blob_batch, chat::create_chat_record_batch},
     session::{
@@ -230,6 +231,51 @@ impl DataSummaryStream {
     }
 }
 
+/// Helper function to convert a table into the desired output format
+pub fn table_and_data_format_to_record_batch(table: &Table, format: &DataFormat) -> Result<RecordBatch> {    
+    match format {
+        DataFormat::None => {
+            // Wrap into a record batch
+            let content = serde_json::to_string(&table.to_json_object()?)?;
+            create_chat_record_batch(
+                vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
+                vec![content],
+                vec![create_timestamp_micros()],
+            )
+        }
+        DataFormat::Csv(csv_format) => {
+            // Convert to CSV and wrap into a blob batch
+            let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
+            create_blob_batch(vec![table.get_name().to_string()], vec![format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])
+        }
+        DataFormat::CsvDefault => {
+            // Convert to CSV and wrap into a blob batch
+            let csv_format = CsvFormat { ..Default::default()};
+            let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
+            create_blob_batch(vec![table.get_name().to_string()], vec![format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])
+        }
+        DataFormat::Bytes => {
+            // Convert to bytes directly
+            let bytes = table.to_bytes()?;
+            create_blob_batch(vec![table.get_name().to_string()], vec![format.to_extension().to_string()], vec![bytes.to_vec()], vec!["assistant".to_string()], vec![create_timestamp_micros()])
+        }
+        DataFormat::Json(_) | DataFormat::JsonDefault => {
+            // Convert to JSON
+            let bytes = table.to_json()?;
+            create_blob_batch(vec![table.get_name().to_string()], vec![format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])
+        }
+        DataFormat::Html => {
+            // Extract out the values column and concatenate into a single String to form the document
+            let values = table.get_column_as_vec_str("values").join("");
+            let bytes = Bytes::from(values);
+            create_blob_batch(vec![table.get_name().to_string()], vec![format.to_extension().to_string()], vec![bytes.to_vec()], vec!["assistant".to_string()], vec![create_timestamp_micros()])
+        }
+        DataFormat::Pdf | DataFormat::Ipc => {
+            Err(anyhow!("{format} format is not yet supported."))
+        }
+    }
+}
+
 impl Stream for DataSummaryStream {
     type Item = Result<RecordBatch>;
 
@@ -345,132 +391,25 @@ impl Stream for DataSummaryStream {
                 None => batch_limit = batch_json,
             }
 
+            // Wrap into a table
+            let values = batch_limit.into_iter()
+                .map(|m| serde_json::to_value(m).unwrap())
+                .collect::<Vec<_>>();
+            let table = Table::get_builder()
+                .with_name(&self.table_name)
+                .with_schema(schema)
+                .with_json_values(&values)?
+                .build()?;
+
             // Convert to the desired format
-            match self.config.as_ref().unwrap().format {
-                DataFormat::None => {
-                    // Wrap into a record batch
-                    let content = serde_json::to_string(&batch_limit)?;
-                    let batch = create_chat_record_batch(
-                        vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
-                        vec![content.to_string()],
-                        vec![create_timestamp_micros()],
-                    )?;
+            let batch = table_and_data_format_to_record_batch(&table, &self.config.as_ref().unwrap().format)?;
 
-                    // record the poll
-                    let poll = Poll::Ready(Some(Ok(batch)));
-                    if let Some(baseline_metrics) = &baseline_metrics {
-                        baseline_metrics.record_poll(poll)
-                    } else {
-                        poll
-                    }
-                }
-                DataFormat::Csv(csv_format) => {
-                    // Convert to Values representation
-                    let mut values = Vec::new();
-                    for row in batch_limit.iter() {
-                        let v = serde_json::to_value(row)?;
-                        values.push(v);
-                    }
-                    let table = Table::get_builder()
-                        .with_name(&self.table_name)
-                        .with_schema(schema)
-                        .with_json_values(&values)?
-                        .build()?;
-
-                    // Convert to CSV and wrap into a blob batch
-                    let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![self.config.as_ref().unwrap().format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])?;
-
-                    // record the poll
-                    let poll = Poll::Ready(Some(Ok(batch)));
-                    if let Some(baseline_metrics) = &baseline_metrics {
-                        baseline_metrics.record_poll(poll)
-                    } else {
-                        poll
-                    }
-                }
-                DataFormat::CsvDefault => {
-                    // Convert to Values representation
-                    let mut values = Vec::new();
-                    for row in batch_limit.iter() {
-                        let v = serde_json::to_value(row)?;
-                        values.push(v);
-                    }
-                    let table = Table::get_builder()
-                        .with_name(&self.table_name)
-                        .with_schema(schema)
-                        .with_json_values(&values)?
-                        .build()?;
-
-                    // Convert to CSV and wrap into a blob batch
-                    let csv_format = CsvFormat { ..Default::default()};
-                    let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![self.config.as_ref().unwrap().format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])?;
-
-                    // record the poll
-                    let poll = Poll::Ready(Some(Ok(batch)));
-                    if let Some(baseline_metrics) = &baseline_metrics {
-                        baseline_metrics.record_poll(poll)
-                    } else {
-                        poll
-                    }
-                }
-                DataFormat::Bytes => {
-                    // Convert to Values representation
-                    let mut values = Vec::new();
-                    for row in batch_limit.iter() {
-                        let v = serde_json::to_value(row)?;
-                        values.push(v);
-                    }
-                    let table = Table::get_builder()
-                        .with_name(&self.table_name)
-                        .with_schema(schema)
-                        .with_json_values(&values)?
-                        .build()?;
-
-                    // Convert to CSV and wrap into a blob batch
-                    let bytes = table.to_bytes()?;
-                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![self.config.as_ref().unwrap().format.to_extension().to_string()], vec![bytes.to_vec()], vec!["assistant".to_string()], vec![create_timestamp_micros()])?;
-
-                    // record the poll
-                    let poll = Poll::Ready(Some(Ok(batch)));
-                    if let Some(baseline_metrics) = &baseline_metrics {
-                        baseline_metrics.record_poll(poll)
-                    } else {
-                        poll
-                    }
-                }
-                DataFormat::Json(_) | DataFormat::JsonDefault => {
-                    // Convert to Values representation
-                    let mut values = Vec::new();
-                    for row in batch_limit.iter() {
-                        let v = serde_json::to_value(row)?;
-                        values.push(v);
-                    }
-                    let table = Table::get_builder()
-                        .with_name(&self.table_name)
-                        .with_schema(schema)
-                        .with_json_values(&values)?
-                        .build()?;
-
-                    // Convert to CSV and wrap into a blob batch
-                    let bytes = table.to_json()?;
-                    let batch = create_blob_batch(vec![self.table_name.clone()], vec![self.config.as_ref().unwrap().format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])?;
-
-                    // record the poll
-                    let poll = Poll::Ready(Some(Ok(batch)));
-                    if let Some(baseline_metrics) = &baseline_metrics {
-                        baseline_metrics.record_poll(poll)
-                    } else {
-                        poll
-                    }
-                }
-                DataFormat::Pdf => {
-                    todo!("Implement PDF output");
-                }
-                DataFormat::Ipc => {
-                    todo!("Implement Arrow IPC output");
-                }
+            // record the poll
+            let poll = Poll::Ready(Some(Ok(batch)));
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
             }
         }
     }

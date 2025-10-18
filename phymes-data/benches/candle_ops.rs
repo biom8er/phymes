@@ -50,7 +50,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for the ops functions
     let ops_configs_vec = [
         DataConfig {
-            operator: AvailableCandleOperators::RelativeSimilarityScore,
+            operator: AvailableCandleOperators::VectorDistance,
             lhs_pk: "id".to_string(),
             lhs_fk: "title".to_string(),
             lhs_values: vec!["embedding".to_string()],

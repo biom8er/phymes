@@ -2,26 +2,25 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use arrow::array::RecordBatch;
-use bytes::Bytes;
 use candle_core::Device;
 use phymes_core::{
-    schemas::{blob::create_blob_batch, chat_completion, types},
+    schemas::{available_subjects::create_values_record_batch, chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::{table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
+    table::{data_format::DataFormat, table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
 };
-use phymes_diagnostics::create_timestamp_micros;
 use serde_json::{json, Value};
 use tracing::instrument;
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::DataOperatorTrait};
+use crate::{candle_data::{data_config::DataConfig, summary_processor::table_and_data_format_to_record_batch}, candle_operators::data_operator::DataOperatorTrait};
 
 /// Inject a table into a string template
 #[derive(Debug)]
 pub struct ApplyTemplate {
     doc_template: String,
+    doc_name: String,
     table_expression: String,
     doc_input: Value,
-    doc_extension: String,
+    format: DataFormat,
 }
 
 impl MappableTrait for ApplyTemplate {
@@ -40,28 +39,31 @@ impl DataOperatorTrait for ApplyTemplate {
         apply_template(
             lhs_args,
             &self.doc_template,
+            &self.doc_name,
             &self.table_expression,
             &self.doc_input,
-            &self.doc_extension,
+            &self.format,
             device,
         )
     }
     fn new(config: &DataConfig) -> Self {
         let doc_template = config.doc_template.clone().unwrap_or_default();
+        let doc_name = config.doc_name.clone().unwrap_or_default();
         let table_expression = config.table_expression.clone().unwrap_or_default();
         let doc_input = if let Some(doc_input) = config.doc_input.as_ref() {
             serde_json::from_str::<Value>(doc_input).unwrap_or_default()
         } else {
             Value::default()
         };
-        let doc_extension = config.doc_extension.clone().unwrap_or(".txt".to_string());
+        let format = config.format.clone().unwrap_or_default();
 
         // Make the object
         ApplyTemplate {
             doc_template,
+            doc_name,
             table_expression,
             doc_input,
-            doc_extension,
+            format,
         }
     }
     fn get_description() -> String {
@@ -127,6 +129,7 @@ impl DataOperatorTrait for ApplyTemplate {
 ///
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `doc_template` - Minijinja [String] template
+/// * `doc_name` - The name of the resulting document
 /// * `table_expression` - The expression for the table within the minijinja template
 /// * `doc_input` - A JSON Value representing the input for the template beyond the table_expression
 ///   where the table_expression will be inserted into to complete the input for the template
@@ -135,17 +138,19 @@ impl DataOperatorTrait for ApplyTemplate {
 #[instrument(skip(
     lhs_args,
     doc_template,
+    doc_name,
     table_expression,
     doc_input,
-    doc_extension,
+    format,
     _device
 ))]
 pub fn apply_template(
     lhs_args: &[RecordBatch],
     doc_template: &str,
+    doc_name: &str,
     table_expression: &str,
     doc_input: &Value,
-    doc_extension: &str,
+    format: &DataFormat,
     _device: &Device,
 ) -> Result<RecordBatch> {
     // Convert the RecordBatches into a json objct
@@ -167,15 +172,16 @@ pub fn apply_template(
     // Apply the template
     let document = TableScript::new_from_template(doc_template.to_string())
         .apply_template(&input)?;
-    let bytes = Bytes::from(document);
 
-    let batch = create_blob_batch(
-        vec![table_expression.to_string()],
-        vec![doc_extension.to_string()],
-        vec![bytes.to_vec()],
-        vec!["assistant".to_string()],
-        vec![create_timestamp_micros()])?;
-    Ok(batch)
+    // Wrap into a table
+    let batch = create_values_record_batch(vec![String::new()], vec![String::new()], vec![String::new()], vec![document])?;
+    let table = Table::get_builder()
+        .with_name(doc_name)
+        .with_record_batches(vec![batch])?
+        .build()?;
+
+    // Convert to the desired format
+    table_and_data_format_to_record_batch(&table, &format)
 }
 
 #[cfg(test)]
@@ -203,9 +209,10 @@ mod tests {
         let result = apply_template(
             test_table.get_record_batches(),
             template,
+            "viz",
             table_expression,
             &input_template,
-            "txt",
+            &DataFormat::Html,
             &device,
         )?;
 
@@ -216,9 +223,9 @@ mod tests {
             .build()?;
 
         let lhs_text = result_table.get_column_as_vec_str("filename");
-        assert_eq!(lhs_text, ["messages"]);
+        assert_eq!(lhs_text, ["viz"]);
         let lhs_text = result_table.get_column_as_vec_str("extension");
-        assert_eq!(lhs_text, ["txt"]);
+        assert_eq!(lhs_text, ["html"]);
         let lhs_text = result_table.get_column_as_vec_str("metadata");
         assert_eq!(lhs_text, ["assistant"]);
         let lhs_text = result_table.get_column_as_vec_nested_primitive::<u8>("bytes")?

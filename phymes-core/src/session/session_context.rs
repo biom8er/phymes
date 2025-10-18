@@ -1,8 +1,5 @@
 use anyhow::Result;
-use arrow::array::{ArrayRef, UInt64Array};
-use arrow::array::StringArray;
 use arrow::datatypes::SchemaRef;
-use arrow::record_batch::RecordBatch;
 use parking_lot::{Mutex, RwLock};
 use phymes_diagnostics::{Diagnostics, HashMap};
 use std::fmt::Display;
