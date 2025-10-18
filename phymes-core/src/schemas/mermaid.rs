@@ -103,6 +103,19 @@ pub fn create_mermaid_sequence_diagram_participants_template_fields() -> Fields 
     Fields::from(fields_vec)
 }
 
+pub fn create_mermaid_sequence_diagram_participants_template_batch(
+    participant_name: Vec<String>,
+    participant_type: Vec<String>
+) -> Result<RecordBatch> {
+    let participant_name: ArrayRef = Arc::new(StringArray::from(participant_name));
+    let participant_type: ArrayRef = Arc::new(StringArray::from(participant_type));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("participant_name", participant_name),
+        ("participant_type", participant_type),
+    ])?;
+    Ok(batch)
+}
+
 pub fn create_mermaid_sequence_diagram_messages_template_fields() -> Fields {
     let field_names = ["subject_name", "object_name", "message_type", "activation_type", "message_content", "note_content", "note_location"];
     let fields_vec = field_names
@@ -110,6 +123,34 @@ pub fn create_mermaid_sequence_diagram_messages_template_fields() -> Fields {
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
     Fields::from(fields_vec)
+}
+
+pub fn create_mermaid_sequence_diagram_messages_template_batch(
+    subject_name: Vec<String>,
+    object_name: Vec<String>,
+    message_type: Vec<String>,
+    activation_type: Vec<String>,
+    message_content: Vec<String>,
+    note_content: Vec<String>,
+    note_location: Vec<String>,
+) -> Result<RecordBatch> {
+    let subject_name: ArrayRef = Arc::new(StringArray::from(subject_name));
+    let object_name: ArrayRef = Arc::new(StringArray::from(object_name));
+    let message_type: ArrayRef = Arc::new(StringArray::from(message_type));
+    let activation_type: ArrayRef = Arc::new(StringArray::from(activation_type));
+    let message_content: ArrayRef = Arc::new(StringArray::from(message_content));
+    let note_content: ArrayRef = Arc::new(StringArray::from(note_content));
+    let note_location: ArrayRef = Arc::new(StringArray::from(note_location));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("subject_name", subject_name),
+        ("object_name", object_name),
+        ("message_type", message_type),
+        ("activation_type", activation_type),
+        ("message_content", message_content),
+        ("note_content", note_content),
+        ("note_location", note_location),
+    ])?;
+    Ok(batch)
 }
 
 pub fn create_mermaid_kanban_template_fields() -> Fields {

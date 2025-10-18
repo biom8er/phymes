@@ -2,7 +2,7 @@ use anyhow::Result;
 use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder, TraceBuilderTrait};
 use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
@@ -132,14 +132,22 @@ impl SessionStreamStep {
         state: Arc<RwLock<SessionStreamState>>,
         messages: IPCMessageMap
     ) -> Result<Option<IPCMessageMap>> {
+        // Initialize the channels for collecting the metrics, events, and traces)
+        let mut diagnostics_vec = Vec::new();
+        let span = SpanBuilder::default().with_span(state.read().get_session_context().get_name()).build()?;
+
+        // Create the diagnostics for the session step
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+        diagnostics_vec.push(diagnostics);
+
+        // Trace the session step
+        let trace = diagnostic_builder.clone().messages(line!(), file!(), state.read().get_session_context().get_name());
+        trace.enter(&messages.values().collect::<Vec<_>>());
+
         // Update the state and handle any errors
         let update = state.write().update_state_from_messages(messages)?;
         state.write().extend_superstep_updates(update);
-
-        // Initialize the channels for collecting the metrics, events, and traces)
-        let mut diagnostics_vec = Vec::new();
-        let span_name = format!("{}-{}", state.read().get_session_context().get_name(), state.read().get_iter());
-        let span = SpanBuilder::default().with_span(&span_name).build()?;
 
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -157,7 +165,7 @@ impl SessionStreamStep {
             }
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
-            // Create the metrics for the task
+            // Create the diagnostics for the task
             let diagnostics = Diagnostics::new();
             let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
             diagnostics_vec.push(diagnostics);
@@ -204,6 +212,7 @@ impl SessionStreamStep {
 
         // Join each of the response futures
         let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
+        trace.exit(&session_batches.values().collect::<Vec<_>>());
 
         // Collect metrics, logs, and traces and update their corresponding subjects
         let (_metrics_updated, _traces_updated, _events_updated) = state.write().get_session_context_mut().update_metrics_table(&diagnostics_vec)?;

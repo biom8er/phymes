@@ -12,4 +12,8 @@ pub mod sort_column_and_indices;
 pub mod select_and_cast;
 pub mod apply_template;
 pub mod pivot;
+
+/// Custom functions specific to diagnostic analytics
 pub mod normalize_time;
+pub mod from_tasks_to_participants;
+pub mod from_traces_to_messages;

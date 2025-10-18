@@ -434,6 +434,7 @@ mod tests {
     use super::*;
     use crate::table::table_trait::test_table::make_test_table_schema;
     use crate::session::session_context_builder::test_session_context_builder::{make_test_session_context_parallel_task, make_test_session_context_parallel_task_empty};
+    use arrow::array::UInt64Array;
     use phymes_diagnostics::HashSet;
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;

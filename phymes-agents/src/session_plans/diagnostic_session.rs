@@ -2,7 +2,7 @@ use std::sync::Arc;
 use anyhow::Result;
 
 use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, user::{create_user_batch, create_user_session_contexts_batch}}, session::{
+    schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{
         common_traits::BuilderTrait,
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
@@ -75,6 +75,10 @@ pub struct DiagnosticSession<'a> {
     pub traces_select_and_cast_to_sequence_diagram_messages_processor_name: &'a str,
     pub apply_sequence_diagram_messages_task_name: &'a str,
     pub apply_sequence_diagram_messages_processor_name: &'a str,
+    pub traces_aggregate_sequence_diagram_content_task_name: &'a str,
+    pub traces_aggregate_sequence_diagram_content_processor_name: &'a str,
+    pub traces_select_and_cast_to_sequence_diagram_content_task_name: &'a str,
+    pub traces_select_and_cast_to_sequence_diagram_content_processor_name: &'a str,
     pub apply_sequence_diagram_task_name: &'a str,
     pub apply_sequence_diagram_processor_name: &'a str,
     pub traces_runtime_env_name: &'a str,
@@ -384,23 +388,35 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         // TODO
 
         Some(vec![
+            // Processor configs
+
+            // Metrics
             AvailableSubjects::Metrics.to_table(None, None).unwrap(),
-            AvailableSubjects::Traces.to_table(None, None).unwrap(),
-            AvailableSubjects::Events.to_table(None, None).unwrap(),
-            AvailableSubjects::Errors.to_table(None, None).unwrap(),
-            AvailableSubjects::SessionTasks.to_table(None, None).unwrap(),
             AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_processors_traces_select_and_cast_to_gantt_task_name), None).unwrap(),
             AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_elapsed_compute_select_and_cast_to_gantt_task_name), None).unwrap(),
             AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_output_rows_select_and_cast_to_gantt_task_name), None).unwrap(),
-            AvailableSubjects::MermaidSequenceDiagramParticipantsTemplate.to_table(Some(self.traces_select_and_cast_to_sequence_diagram_participants_task_name), None).unwrap(),
-            AvailableSubjects::MermaidSequenceDiagramMessagesTemplate.to_table(Some(self.traces_select_and_cast_to_sequence_diagram_messages_task_name), None).unwrap(),
-            AvailableSubjects::MermaidKanbanTemplate.to_table(Some(self.events_select_and_cast_to_kanban_task_name), None).unwrap(),
-
             AvailableSubjects::Blob.to_table(Some(self.metrics_processors_traces_apply_gantt_task_name), None).unwrap(),
             AvailableSubjects::Blob.to_table(Some(self.metrics_elapsed_compute_apply_gantt_task_name), None).unwrap(),
             AvailableSubjects::Blob.to_table(Some(self.metrics_output_rows_apply_gantt_task_name), None).unwrap(),
-            AvailableSubjects::Blob.to_table(Some(self.apply_kanban_task_name), None).unwrap(),            
+
+            // Traces
+            AvailableSubjects::SessionTasks.to_table(None, None).unwrap(),
+            AvailableSubjects::MermaidSequenceDiagramParticipantsTemplate.to_table(Some(self.traces_select_and_cast_to_sequence_diagram_participants_task_name), None).unwrap(),
+            AvailableSubjects::Traces.to_table(None, None).unwrap(),
+            AvailableSubjects::MermaidSequenceDiagramMessagesTemplate.to_table(Some(self.traces_select_and_cast_to_sequence_diagram_messages_task_name), None).unwrap(),
+            AvailableSubjects::Messages.to_table(Some(self.apply_sequence_diagram_participants_task_name), None).unwrap(),
+            AvailableSubjects::Messages.to_table(Some(self.apply_sequence_diagram_messages_task_name), None).unwrap(),
+            AvailableSubjects::Messages.to_table(Some(self.traces_aggregate_sequence_diagram_content_task_name), None).unwrap(),
+            AvailableSubjects::MermaidContentTemplate.to_table(Some(self.traces_select_and_cast_to_sequence_diagram_content_task_name), None).unwrap(),
             AvailableSubjects::Blob.to_table(Some(self.apply_sequence_diagram_task_name), None).unwrap(),
+
+            // Events
+            AvailableSubjects::Events.to_table(None, None).unwrap(),
+            AvailableSubjects::Errors.to_table(None, None).unwrap(),
+            AvailableSubjects::MermaidKanbanTemplate.to_table(Some(self.events_select_and_cast_to_kanban_task_name), None).unwrap(),
+            AvailableSubjects::Blob.to_table(Some(self.apply_kanban_task_name), None).unwrap(),
+
+            // Outbox
             AvailableInterfaceSubjects::AggregatedAttachments.to_table(None, None).unwrap(),
         ])
     }
