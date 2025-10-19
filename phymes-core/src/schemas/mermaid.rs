@@ -161,3 +161,11 @@ pub fn create_mermaid_kanban_template_fields() -> Fields {
         .collect::<Vec<_>>();
     Fields::from(fields_vec)
 }
+
+pub fn create_mermaid_xychart_template_fields() -> Fields {
+    let fields_vec = vec![
+        Field::new("x", DataType::Utf8, false),
+        Field::new("y", DataType::Float64, false)
+    ];
+    Fields::from(fields_vec)
+}

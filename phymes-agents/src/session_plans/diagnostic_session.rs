@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use anyhow::Result;
 
 use arrow::datatypes::DataType;
 use phymes_core::{
@@ -8,14 +7,14 @@ use phymes_core::{
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     }, table::{
-        data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}
-    }, task::processor::{ProcessorEcho, ProcessorTrait}
+        data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+    }, task::processor::ProcessorTrait
 };
-use phymes_data::{candle_data::{data_config::{DataAggregatorOperator, DataCastOperator, DataConfig}, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor}, candle_operators::available_candle_operators::AvailableCandleOperators, jinja2_templates::{mermaid_gantt::{MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_GANTT_TEMPLATE}, mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}, mermaid_kanban::{MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_KANBAN_TEMPLATE}, mermaid_sequence_diagram::{MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE}}};
-use phymes_diagnostics::create_timestamp_micros;
+use phymes_data::{candle_data::{attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::{DataAggregatorOperator, DataCastOperator, DataConfig}, data_processor::CandleDataProcessor}, candle_operators::available_candle_operators::AvailableCandleOperators, jinja2_templates::{mermaid_gantt::{MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_GANTT_TEMPLATE}, mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}, mermaid_kanban::{MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_KANBAN_TEMPLATE}, mermaid_sequence_diagram::{MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE}}};
+use phymes_ml::candle_chat::message_aggregator_processor::MessageAggregatorProcessor;
 use serde_json::json;
 
-use crate::{session_plans::{available_interface_subjects::AvailableInterfaceSubjects, available_session_plans::AvailableSessionPlans, builder_session::make_example_mermaid_table}, session_traits::agents::CustomAgentsBuilderTrait};
+use crate::{session_plans::available_interface_subjects::AvailableInterfaceSubjects, session_traits::agents::CustomAgentsBuilderTrait};
 
 /// A session for gathering analytics based on the session metrics
 /// 
@@ -76,8 +75,6 @@ pub struct DiagnosticSession<'a> {
     pub apply_sequence_diagram_participants_processor_name: &'a str,
     pub traces_aggregate_sequence_diagram_content_task_name: &'a str,
     pub traces_aggregate_sequence_diagram_content_processor_name: &'a str,
-    pub traces_select_and_cast_to_sequence_diagram_content_task_name: &'a str,
-    pub traces_select_and_cast_to_sequence_diagram_content_processor_name: &'a str,
     pub apply_sequence_diagram_task_name: &'a str,
     pub apply_sequence_diagram_processor_name: &'a str,
     pub traces_runtime_env_name: &'a str,
@@ -98,6 +95,61 @@ pub struct DiagnosticSession<'a> {
 
     /// Session
     pub session_context_name: &'a str,
+}
+
+impl Default for DiagnosticSession<'_> {
+    fn default() -> Self {
+        DiagnosticSession {
+            session_context_name: "session_context_name",
+            
+            // Metrics analytics
+            metrics_pivot_task_name: "metrics_pivot_task_name",
+            metrics_pivot_processor_name: "metrics_pivot_processor_name",
+            metrics_normalize_time_task_name: "metrics_normalize_time_task_name",
+            metrics_normalize_time_processor_name: "metrics_normalize_time_processor_name",
+            metrics_processors_traces_select_and_cast_to_gantt_task_name: "metrics_processors_traces_select_and_cast_to_gantt_task_name",
+            metrics_processors_traces_select_and_cast_to_gantt_processor_name: "metrics_processors_traces_select_and_cast_to_gantt_processor_name",
+            metrics_elapsed_compute_select_and_cast_to_gantt_task_name: "metrics_elapsed_compute_select_and_cast_to_gantt_task_name",
+            metrics_elapsed_compute_select_and_cast_to_gantt_processor_name: "metrics_elapsed_compute_select_and_cast_to_gantt_processor_name",
+            metrics_output_rows_select_and_cast_to_gantt_task_name: "metrics_output_rows_select_and_cast_to_gantt_task_name",
+            metrics_output_rows_select_and_cast_to_gantt_processor_name: "metrics_output_rows_select_and_cast_to_gantt_processor_name",
+            metrics_processors_traces_apply_gantt_task_name: "metrics_processors_traces_apply_gantt_task_name",
+            metrics_processors_traces_apply_gantt_processor_name: "metrics_processors_traces_apply_gantt_processor_name",
+            metrics_elapsed_compute_apply_gantt_task_name: "metrics_elapsed_compute_apply_gantt_task_name",
+            metrics_elapsed_compute_apply_gantt_processor_name: "metrics_elapsed_compute_apply_gantt_processor_name",
+            metrics_output_rows_apply_gantt_task_name: "metrics_output_rows_apply_gantt_task_name",
+            metrics_output_rows_apply_gantt_processor_name: "metrics_output_rows_apply_gantt_processor_name",
+            metrics_runtime_env_name: "metrics_runtime_env_name",
+            
+            // Traces analytics
+            traces_to_sequence_diagram_messages_task_name: "traces_to_sequence_diagram_messages_task_name",
+            traces_to_sequence_diagram_messages_processor_name: "traces_to_sequence_diagram_messages_processor_name",
+            apply_sequence_diagram_messages_task_name: "apply_sequence_diagram_messages_task_name",
+            apply_sequence_diagram_messages_processor_name: "apply_sequence_diagram_messages_processor_name",
+            session_tasks_to_sequence_diagram_participants_task_name: "session_tasks_to_sequence_diagram_participants_task_name",
+            session_tasks_to_sequence_diagram_participants_processor_name: "session_tasks_to_sequence_diagram_participants_processor_name",
+            apply_sequence_diagram_participants_task_name: "apply_sequence_diagram_participants_task_name",
+            apply_sequence_diagram_participants_processor_name: "apply_sequence_diagram_participants_processor_name",
+            traces_aggregate_sequence_diagram_content_task_name: "traces_aggregate_sequence_diagram_content_task_name",
+            traces_aggregate_sequence_diagram_content_processor_name: "traces_aggregate_sequence_diagram_content_processor_name",
+            apply_sequence_diagram_task_name: "apply_sequence_diagram_task_name",
+            apply_sequence_diagram_processor_name: "apply_sequence_diagram_processor_name",
+            traces_runtime_env_name: "traces_runtime_env_name",
+            
+            // Events analytics
+            events_select_and_cast_to_kanban_task_name: "events_select_and_cast_to_kanban_task_name",
+            events_select_and_cast_to_kanban_processor_name: "events_select_and_cast_to_kanban_processor_name",
+            apply_kanban_task_name: "apply_kanban_task_name",
+            apply_kanban_task_processor_name: "apply_kanban_task_processor_name",
+            events_runtime_env_name: "events_runtime_env_name",
+
+            // Errors analytics
+
+            // Outbox
+            aggregate_visualizations_task_name: "aggregate_visualizations_task_name",
+            aggregate_visualizations_processor_name: "aggregate_visualizations_processor_name",
+        }
+    }
 }
 
 impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
@@ -377,7 +429,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            MessageAggregatorProcessor::new_arc_with_pub_sub(
                 self.traces_aggregate_sequence_diagram_content_processor_name,
                 &[TablePublish::Replace {
                     table_name: self.traces_aggregate_sequence_diagram_content_task_name.to_string(),
@@ -396,28 +448,13 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 AllTableNamesSubscribe::new_box(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
-                self.traces_select_and_cast_to_sequence_diagram_content_processor_name,
-                &[TablePublish::Replace {
-                    table_name: self.traces_select_and_cast_to_sequence_diagram_content_task_name.to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateFullTable {
-                        table_name: self.traces_aggregate_sequence_diagram_content_task_name.to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: self.traces_select_and_cast_to_sequence_diagram_content_processor_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-            CandleDataProcessor::new_arc_with_pub_sub(
                 self.apply_sequence_diagram_processor_name,
                 &[TablePublish::Replace {
                     table_name: self.apply_sequence_diagram_task_name.to_string(),
                 }],
                 &[
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: self.traces_select_and_cast_to_sequence_diagram_content_task_name.to_string(),
+                        table_name: self.traces_aggregate_sequence_diagram_content_task_name.to_string(),
                     },
                     TableSubscribe::AlwaysFullTable {
                         table_name: self.apply_sequence_diagram_processor_name.to_string(),
@@ -455,7 +492,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            AttachmentAggregatorProcessor::new_arc_with_pub_sub(
                 self.aggregate_visualizations_processor_name,
                 &[TablePublish::Replace {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
@@ -720,13 +757,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .build()
             .unwrap();
 
-        // Traces aggregate sequence diagram content
-
-        // Traces select and cast sequence diagram content
-
         // Traces apply sequence diagram
         let apply_sequence_diagram_config = DataConfig {
-            lhs_name: self.traces_select_and_cast_to_sequence_diagram_content_task_name.to_string(),
+            lhs_name: self.traces_aggregate_sequence_diagram_content_task_name.to_string(),
             doc_template: Some([MERMAID_HTML_PRE, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_name: Some(self.apply_sequence_diagram_task_name.to_string()),
             table_expression: Some(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION.to_string()),
@@ -744,6 +777,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .unwrap();
 
         // Events select and cast kanban
+        let events_select_and_cast_to_kanban_config = DataConfig {
+            lhs_name: AvailableSubjects::Events.to_string(),
+            lhs_values: vec!["event_level".to_string(), "event_level".to_string(), "span_name".to_string(), "span_name".to_string(), "function".to_string(), "id".to_string(), "id".to_string()],
+            as_columns: Some(vec!["column_name".to_string(), "column_label".to_string(), "task_name".to_string(), "task_description".to_string(), "task_assigned".to_string(), "task_ticket".to_string(), "task_priority".to_string()]),
+            cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::Cast, DataCastOperator::None]),
+            cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
+            cast_templates: Some(vec!["".to_string(), "".to_string(), "".to_string(), "".to_string(), "".to_string(), "".to_string(), "Low".to_string()]),
+            operator: AvailableCandleOperators::SelectAndCast,
+            ..Default::default()
+        };
+        let events_select_and_cast_to_kanban_config_json = serde_json::to_vec(&events_select_and_cast_to_kanban_config).unwrap();
+        let events_select_and_cast_to_kanban_config_state = TableBuilder::new()
+            .with_name(self.events_select_and_cast_to_kanban_processor_name)
+            .with_json(&events_select_and_cast_to_kanban_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         // Events apply kanban
         let apply_kanban_config = DataConfig {
@@ -764,7 +814,29 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .build()
             .unwrap();
 
-        // Outbox aggregate visualizations
+        // traces and Outbox aggregate
+        let aggregator_config = DataConfig {
+            lhs_name: "".to_string(),
+            lhs_pk: "".to_string(),
+            lhs_fk: "".to_string(),
+            lhs_values: vec!["timestamp".to_string()],
+            asc: Some(true),
+            operator: AvailableCandleOperators::SortColumnAndIndices,
+            ..Default::default()
+        };
+        let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
+        let aggregator_1_state = TableBuilder::new()
+            .with_name(self.traces_aggregate_sequence_diagram_content_processor_name)
+            .with_json(&aggregator_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        let aggregator_2_state = TableBuilder::new()
+            .with_name(self.aggregate_visualizations_processor_name)
+            .with_json(&aggregator_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
 
         Some(vec![
             // Processor configs
@@ -776,15 +848,15 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             metrics_processors_traces_apply_gantt_config_state,
             metrics_elapsed_compute_apply_gantt_config_state,
             metrics_output_rows_apply_gantt_config_state,
-            atraces_to_sequence_diagram_messages_config_state,
+            traces_to_sequence_diagram_messages_config_state,
             apply_sequence_diagram_messages_config_state,
             session_tasks_to_sequence_diagram_participants_config_state,
             apply_sequence_diagram_participants_config_state,
-
-
+            aggregator_1_state,
             apply_sequence_diagram_config_state,
-
+            events_select_and_cast_to_kanban_config_state,
             apply_kanban_config_state,
+            aggregator_2_state,
 
             // Metrics
             AvailableSubjects::Metrics.to_table(None, None).unwrap(),
@@ -804,7 +876,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             AvailableSubjects::Messages.to_table(Some(self.apply_sequence_diagram_participants_task_name), None).unwrap(),
             AvailableSubjects::Messages.to_table(Some(self.apply_sequence_diagram_messages_task_name), None).unwrap(),
             AvailableSubjects::Messages.to_table(Some(self.traces_aggregate_sequence_diagram_content_task_name), None).unwrap(),
-            AvailableSubjects::MermaidContentTemplate.to_table(Some(self.traces_select_and_cast_to_sequence_diagram_content_task_name), None).unwrap(),
             AvailableSubjects::Blob.to_table(Some(self.apply_sequence_diagram_task_name), None).unwrap(),
 
             // Events
@@ -826,6 +897,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_diagnostic_agent_session() -> Result<()> {
+
         Ok(())
     }
 }

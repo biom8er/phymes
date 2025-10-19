@@ -296,7 +296,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         processors.push(CandleDataProcessor::new_arc_with_pub_sub(
             self.tool_vis_renamecols_processor_name,
             &[TablePublish::Replace {
-                table_name: self.tool_visualization_task_name.to_string(),
+                table_name: AvailableSubjects::MermaidXYChart.to_string(),
             }],
             &[
                 TableSubscribe::OnUpdateFullTable {
@@ -315,7 +315,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             }],
             &[
                 TableSubscribe::AlwaysFullTable {
-                    table_name: self.tool_visualization_task_name.to_string(),
+                    table_name: AvailableSubjects::MermaidXYChart.to_string(),
                 },
                 TableSubscribe::AlwaysLastRecordBatch {
                     table_name: self.tool_vis_xychart_processor_name.to_string(),
@@ -649,7 +649,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Visualize tabular data config
         let vis_xychart_config = DataConfig {
-            lhs_name: self.tool_visualization_task_name.to_string(),
+            lhs_name: AvailableSubjects::MermaidXYChart.to_string(),
             doc_template: Some([MERMAID_HTML_PRE, MERMAID_XYCHART_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_name: Some(self.state_scores_table_name.to_string()),
             table_expression: Some(MERMAID_XYCHART_TABLE_EXPRESSION.to_string()),
@@ -723,21 +723,6 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .build()
             .unwrap();
 
-        fn create_xychart_fields() -> Fields {
-            let fields_vec = vec![
-                Field::new("x", DataType::Utf8, false),
-                Field::new("y", DataType::Float64, false)
-            ];
-            Fields::from(fields_vec)
-        }
-        let tool_visualization_table = Table::get_builder()
-            .with_name(self.tool_visualization_task_name)
-            .with_schema(create_schema_from_fields(&create_xychart_fields))
-            .with_record_batches(Vec::new())
-            .unwrap()
-            .build()
-            .unwrap();
-
         Some(vec![
             candle_chat_state,
             candle_message_parser_state,
@@ -752,7 +737,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             summary_state_2,
             scores_table,
             tool_summary_table,
-            tool_visualization_table,
+            AvailableSubjects::MermaidXYChart.to_table(None, None).unwrap(),
             self.make_tools_table().unwrap(),
             AvailableInterfaceSubjects::AggregatedMessages.to_table(None, None).unwrap(),
             AvailableInterfaceSubjects::UserMessages.to_table(None, None).unwrap(),
