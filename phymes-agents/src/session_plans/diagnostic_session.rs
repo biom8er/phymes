@@ -11,8 +11,9 @@ use phymes_core::{
         data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}
     }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
-use phymes_data::{candle_data::{data_config::{DataAggregatorOperator, DataCastOperator, DataConfig}, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor}, candle_operators::available_candle_operators::AvailableCandleOperators};
+use phymes_data::{candle_data::{data_config::{DataAggregatorOperator, DataCastOperator, DataConfig}, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor}, candle_operators::available_candle_operators::AvailableCandleOperators, jinja2_templates::{mermaid_gantt::{MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_GANTT_TEMPLATE}, mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}, mermaid_kanban::{MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_KANBAN_TEMPLATE}, mermaid_sequence_diagram::{MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE}}};
 use phymes_diagnostics::create_timestamp_micros;
+use serde_json::json;
 
 use crate::{session_plans::{available_interface_subjects::AvailableInterfaceSubjects, available_session_plans::AvailableSessionPlans, builder_session::make_example_mermaid_table}, session_traits::agents::CustomAgentsBuilderTrait};
 
@@ -317,10 +318,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 }],
                 &[
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: AvailableSubjects::SessionTasks.to_string(),
+                        table_name: AvailableSubjects::Traces.to_string(),
                     },
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: AvailableSubjects::Traces.to_string(),
+                        table_name: AvailableSubjects::SessionTasks.to_string(),
                     },
                     TableSubscribe::AlwaysFullTable {
                         table_name: self.traces_to_sequence_diagram_messages_processor_name.to_string(),
@@ -550,7 +551,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         // Metrics processor traces select and cast
         let metrics_elapsed_compute_select_and_cast_to_gantt_config = DataConfig {
             lhs_name: AvailableSubjects::MetricPivot.to_string(),
-            lhs_values: vec!["span_name".to_string(), "span_name".to_string(), "start_time_norm".to_string(), "end_time_norm".to_string()],
+            lhs_values: vec!["span_name".to_string(), "span_name".to_string(), "span_name".to_string(), "elapsed_compute".to_string()],
             as_columns: Some(vec!["section".to_string(), "task".to_string(), "start".to_string(), "end".to_string()]),
             cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::None]),
             cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
@@ -569,7 +570,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         // Metrics output rows select and cast
         let metrics_output_rows_select_and_cast_to_gantt_config = DataConfig {
             lhs_name: AvailableSubjects::MetricPivot.to_string(),
-            lhs_values: vec!["span_name".to_string(), "span_name".to_string(), "start_time_norm".to_string(), "end_time_norm".to_string()],
+            lhs_values: vec!["span_name".to_string(), "span_name".to_string(), "span_name".to_string(), "output_rows".to_string()],
             as_columns: Some(vec!["section".to_string(), "task".to_string(), "start".to_string(), "end".to_string()]),
             cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::None]),
             cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
@@ -585,6 +586,186 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .build()
             .unwrap();
 
+        // Metrics processor traces apply gantt
+        let metrics_processors_traces_apply_gantt_config = DataConfig {
+            lhs_name: self.metrics_processors_traces_select_and_cast_to_gantt_task_name.to_string(),
+            doc_template: Some([MERMAID_HTML_PRE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST].join("")),
+            doc_name: Some(self.metrics_processors_traces_apply_gantt_task_name.to_string()),
+            table_expression: Some(MERMAID_GANTT_TABLE_EXPRESSION.to_string()),
+            doc_input: Some(serde_json::to_string(&json!({
+                "title": self.metrics_processors_traces_apply_gantt_task_name,
+                "dateFormat": "x",
+                "axisFormat": ""})).unwrap()),
+            format: Some(DataFormat::Html),
+            operator: AvailableCandleOperators::ApplyTemplate,
+            ..Default::default()
+        };
+        let metrics_processors_traces_apply_gantt_config_json = serde_json::to_vec(&metrics_processors_traces_apply_gantt_config).unwrap();
+        let metrics_processors_traces_apply_gantt_config_state = TableBuilder::new()
+            .with_name(self.metrics_processors_traces_apply_gantt_task_name)
+            .with_json(&metrics_processors_traces_apply_gantt_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Metrics elapsed compute apply gantt
+        let metrics_elapsed_compute_apply_gantt_config = DataConfig {
+            lhs_name: self.metrics_elapsed_compute_select_and_cast_to_gantt_task_name.to_string(),
+            doc_template: Some([MERMAID_HTML_PRE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST].join("")),
+            doc_name: Some(self.metrics_elapsed_compute_apply_gantt_task_name.to_string()),
+            table_expression: Some(MERMAID_GANTT_TABLE_EXPRESSION.to_string()),
+            doc_input: Some(serde_json::to_string(&json!({
+                "title": self.metrics_elapsed_compute_apply_gantt_task_name,
+                "dateFormat": "X",
+                "axisFormat": "%s"})).unwrap()),
+            format: Some(DataFormat::Html),
+            operator: AvailableCandleOperators::ApplyTemplate,
+            ..Default::default()
+        };
+        let metrics_elapsed_compute_apply_gantt_config_json = serde_json::to_vec(&metrics_elapsed_compute_apply_gantt_config).unwrap();
+        let metrics_elapsed_compute_apply_gantt_config_state = TableBuilder::new()
+            .with_name(self.metrics_elapsed_compute_apply_gantt_task_name)
+            .with_json(&metrics_elapsed_compute_apply_gantt_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Metrics output rows apply gantt
+        let metrics_output_rows_apply_gantt_config = DataConfig {
+            lhs_name: self.metrics_output_rows_select_and_cast_to_gantt_task_name.to_string(),
+            doc_template: Some([MERMAID_HTML_PRE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST].join("")),
+            doc_name: Some(self.metrics_output_rows_apply_gantt_task_name.to_string()),
+            table_expression: Some(MERMAID_GANTT_TABLE_EXPRESSION.to_string()),
+            doc_input: Some(serde_json::to_string(&json!({
+                "title": self.metrics_output_rows_apply_gantt_task_name,
+                "dateFormat": "X",
+                "axisFormat": "%s"})).unwrap()),
+            format: Some(DataFormat::Html),
+            operator: AvailableCandleOperators::ApplyTemplate,
+            ..Default::default()
+        };
+        let metrics_output_rows_apply_gantt_config_json = serde_json::to_vec(&metrics_output_rows_apply_gantt_config).unwrap();
+        let metrics_output_rows_apply_gantt_config_state = TableBuilder::new()
+            .with_name(self.metrics_output_rows_apply_gantt_task_name)
+            .with_json(&metrics_output_rows_apply_gantt_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Traces to sequence diagram messages
+        let traces_to_sequence_diagram_messages_config = DataConfig {
+            lhs_name: AvailableSubjects::Traces.to_string(),
+            rhs_name: Some(AvailableSubjects::SessionTasks.to_string()),
+            operator: AvailableCandleOperators::FromTracesToMessages,
+            ..Default::default()
+        };
+        let traces_to_sequence_diagram_messages_config_json = serde_json::to_vec(&traces_to_sequence_diagram_messages_config).unwrap();
+        let traces_to_sequence_diagram_messages_config_state = TableBuilder::new()
+            .with_name(self.traces_to_sequence_diagram_messages_processor_name)
+            .with_json(&traces_to_sequence_diagram_messages_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();    
+
+        // Traces apply sequence diagram messages
+        let apply_sequence_diagram_messages_config = DataConfig {
+            lhs_name: self.traces_to_sequence_diagram_messages_task_name.to_string(),
+            doc_template: Some(MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE.to_string()),
+            doc_name: Some(self.apply_sequence_diagram_messages_task_name.to_string()),
+            table_expression: Some(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION.to_string()),
+            doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
+            format: Some(DataFormat::None),
+            operator: AvailableCandleOperators::ApplyTemplate,
+            ..Default::default()
+        };
+        let apply_sequence_diagram_messages_config_json = serde_json::to_vec(&apply_sequence_diagram_messages_config).unwrap();
+        let apply_sequence_diagram_messages_config_state = TableBuilder::new()
+            .with_name(self.apply_sequence_diagram_messages_processor_name)
+            .with_json(&apply_sequence_diagram_messages_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Traces to sequence diagram participants
+        let session_tasks_to_sequence_diagram_participants_config = DataConfig {
+            lhs_name: AvailableSubjects::SessionTasks.to_string(),
+            rhs_name: Some(self.traces_to_sequence_diagram_messages_task_name.to_string()),
+            operator: AvailableCandleOperators::FromTracesToMessages,
+            ..Default::default()
+        };
+        let session_tasks_to_sequence_diagram_participants_config_json = serde_json::to_vec(&session_tasks_to_sequence_diagram_participants_config).unwrap();
+        let session_tasks_to_sequence_diagram_participants_config_state = TableBuilder::new()
+            .with_name(self.session_tasks_to_sequence_diagram_participants_processor_name)
+            .with_json(&session_tasks_to_sequence_diagram_participants_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap(); 
+
+        // Traces apply sequence diagram participants
+        let apply_sequence_diagram_participants_config = DataConfig {
+            lhs_name: self.session_tasks_to_sequence_diagram_participants_task_name.to_string(),
+            doc_template: Some(MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE.to_string()),
+            doc_name: Some(self.apply_sequence_diagram_participants_task_name.to_string()),
+            table_expression: Some(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION.to_string()),
+            doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
+            format: Some(DataFormat::None),
+            operator: AvailableCandleOperators::ApplyTemplate,
+            ..Default::default()
+        };
+        let apply_sequence_diagram_participants_config_json = serde_json::to_vec(&apply_sequence_diagram_participants_config).unwrap();
+        let apply_sequence_diagram_participants_config_state = TableBuilder::new()
+            .with_name(self.apply_sequence_diagram_participants_processor_name)
+            .with_json(&apply_sequence_diagram_participants_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Traces aggregate sequence diagram content
+
+        // Traces select and cast sequence diagram content
+
+        // Traces apply sequence diagram
+        let apply_sequence_diagram_config = DataConfig {
+            lhs_name: self.traces_select_and_cast_to_sequence_diagram_content_task_name.to_string(),
+            doc_template: Some([MERMAID_HTML_PRE, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_HTML_POST].join("")),
+            doc_name: Some(self.apply_sequence_diagram_task_name.to_string()),
+            table_expression: Some(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION.to_string()),
+            doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
+            format: Some(DataFormat::Html),
+            operator: AvailableCandleOperators::ApplyTemplate,
+            ..Default::default()
+        };
+        let apply_sequence_diagram_config_json = serde_json::to_vec(&apply_sequence_diagram_config).unwrap();
+        let apply_sequence_diagram_config_state = TableBuilder::new()
+            .with_name(self.apply_sequence_diagram_processor_name)
+            .with_json(&apply_sequence_diagram_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Events select and cast kanban
+
+        // Events apply kanban
+        let apply_kanban_config = DataConfig {
+            lhs_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
+            doc_template: Some([MERMAID_HTML_PRE, MERMAID_KANBAN_TEMPLATE, MERMAID_HTML_POST].join("")),
+            doc_name: Some(self.apply_sequence_diagram_task_name.to_string()),
+            table_expression: Some(MERMAID_KANBAN_TABLE_EXPRESSION.to_string()),
+            doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
+            format: Some(DataFormat::Html),
+            operator: AvailableCandleOperators::ApplyTemplate,
+            ..Default::default()
+        };
+        let apply_kanban_config_json = serde_json::to_vec(&apply_kanban_config).unwrap();
+        let apply_kanban_config_state = TableBuilder::new()
+            .with_name(self.apply_kanban_task_processor_name)
+            .with_json(&apply_kanban_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Outbox aggregate visualizations
+
         Some(vec![
             // Processor configs
             metrics_pivot_config_1_state,
@@ -592,6 +773,18 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             metrics_processors_traces_select_and_cast_to_gantt_config_1_state,
             metrics_elapsed_compute_select_and_cast_to_gantt_config_1_state,
             metrics_output_rows_select_and_cast_to_gantt_config_1_state,
+            metrics_processors_traces_apply_gantt_config_state,
+            metrics_elapsed_compute_apply_gantt_config_state,
+            metrics_output_rows_apply_gantt_config_state,
+            atraces_to_sequence_diagram_messages_config_state,
+            apply_sequence_diagram_messages_config_state,
+            session_tasks_to_sequence_diagram_participants_config_state,
+            apply_sequence_diagram_participants_config_state,
+
+
+            apply_sequence_diagram_config_state,
+
+            apply_kanban_config_state,
 
             // Metrics
             AvailableSubjects::Metrics.to_table(None, None).unwrap(),
@@ -632,7 +825,7 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_user_agent_session() -> Result<()> {
+    async fn test_diagnostic_agent_session() -> Result<()> {
         Ok(())
     }
 }
