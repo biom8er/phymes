@@ -488,8 +488,8 @@ mod tests {
                 .unwrap()
                 .try_read()
                 .unwrap()
-                .get_column_as_vec_primitive::<u64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<u64>(), 30);
+                .get_column_as_vec_primitive::<i64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<i64>(), 30);
 
         Ok(())
     }
@@ -629,8 +629,8 @@ mod tests {
                 .unwrap()
                 .try_read()
                 .unwrap()
-                .get_column_as_vec_primitive::<u64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<u64>(), 15);
+                .get_column_as_vec_primitive::<i64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<i64>(), 15);
 
         Ok(())
     }
@@ -821,8 +821,8 @@ mod tests {
                 .unwrap()
                 .try_read()
                 .unwrap()
-                .get_column_as_vec_primitive::<u64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<u64>(), 45);
+                .get_column_as_vec_primitive::<i64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<i64>(), 45);
 
         // Superstep 2
         let mut response = SessionStreamStep::run_superstep(
@@ -1101,8 +1101,8 @@ mod tests {
                 .unwrap()
                 .try_read()
                 .unwrap()
-                .get_column_as_vec_primitive::<u64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<u64>(), 63);
+                .get_column_as_vec_primitive::<i64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<i64>(), 63);
 
         Ok(())
     }
@@ -1213,8 +1213,8 @@ mod tests {
                 .unwrap()
                 .try_read()
                 .unwrap()
-                .get_column_as_vec_primitive::<u64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<u64>(), 45);
+                .get_column_as_vec_primitive::<i64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<i64>(), 45);
 
         // Supersteps 2, 3, and 4
         let _ = SessionStreamStep::run_superstep(
@@ -1379,8 +1379,8 @@ mod tests {
                 .unwrap()
                 .try_read()
                 .unwrap()
-                .get_column_as_vec_primitive::<u64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<u64>(), 5385);
+                .get_column_as_vec_primitive::<i64>("output_rows")?;
+        assert_eq!(output_rows.iter().sum::<i64>(), 5385);
 
         Ok(())
     }    

@@ -25,7 +25,7 @@ pub struct DiagnosticSpan {
     /// The span to which the diagnostic belongs
     span: Span,
     /// A unique ID for the diagnostic
-    id: u64,
+    id: i64,
     /// arbitrary name=value pairs identifying this metric
     labels: Vec<Label>,
 }
@@ -114,25 +114,25 @@ impl DiagnosticSet {
     pub fn to_columns(&self) -> (
         Vec<AvailableDiagnostics>,
         Vec<String>,
-        Vec<u64>,
+        Vec<i64>,
         Vec<String>,
-        Vec<u64>,
+        Vec<i64>,
         Vec<u32>,
         Vec<String>,
         Vec<ThreadId>,
         Vec<String>,
         Vec<i64>,
         Vec<String>,
-        Vec<u64>,
+        Vec<i64>,
     ) {
         // Diagnostics
         let mut diagnostic_vec = Vec::<AvailableDiagnostics>::new();
 
         // Span columns
         let mut parent_names_vec = Vec::<String>::new();
-        let mut parent_ids_vec = Vec::<u64>::new();
+        let mut parent_ids_vec = Vec::<i64>::new();
         let mut span_names_vec = Vec::<String>::new();
-        let mut span_ids_vec = Vec::<u64>::new();
+        let mut span_ids_vec = Vec::<i64>::new();
 
         // Context columns
         let mut line_vec = Vec::<u32>::new();
@@ -143,7 +143,7 @@ impl DiagnosticSet {
 
         // Labels and IDs
         let mut labels_vec = Vec::<String>::new();
-        let mut ids_vec = Vec::<u64>::new();
+        let mut ids_vec = Vec::<i64>::new();
 
         // Interate through the set
         for diagnostic_span in self.diagnostics.iter() {
@@ -228,10 +228,10 @@ mod tests {
         assert_eq!(object.len(), 2);
         assert_eq!(object.first().unwrap().get("event_level").unwrap().as_str().unwrap(), "Info");
         assert_eq!(object.first().unwrap().get("record_name").unwrap().as_str().unwrap(), "first");
-        assert_eq!(object.first().unwrap().get("record_value").unwrap().as_u64().unwrap(), 1);
+        assert_eq!(object.first().unwrap().get("record_value").unwrap().as_i64().unwrap(), 1);
         let object = diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Metric).to_json_object();
         assert_eq!(object.len(), 1);
         assert_eq!(object.first().unwrap().get("metric_name").unwrap().as_str().unwrap(), "output_rows");
-        assert_eq!(object.first().unwrap().get("metric_value").unwrap().as_u64().unwrap(), 1);
+        assert_eq!(object.first().unwrap().get("metric_value").unwrap().as_i64().unwrap(), 1);
     }
 }

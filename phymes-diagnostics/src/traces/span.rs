@@ -5,10 +5,10 @@ use serde_json::{Map, Value};
 use crate::diagnostics::JSONObjectTrait;
 
 /// Create a (pseudo)random ID
-pub fn create_random_id() -> u64 {
+pub fn create_random_id() -> i64 {
     let mut buf = [0u8; 8];
     getrandom::fill(&mut buf).unwrap();
-    let id = u64::from_ne_bytes(buf);
+    let id = i64::from_ne_bytes(buf);
     id
 }
 
@@ -18,24 +18,24 @@ pub struct Span {
     /// The parent span name of execution
     parent_name: Option<String>,
     /// The parent id name of execution
-    parent_id: Option<u64>,
+    parent_id: Option<i64>,
     /// The scope of execution name
     span_name: String,
     /// The scope of execution id
-    span_id: u64
+    span_id: i64
 }
 
 impl Span {
     /// Create a new [Span]
-    pub fn new(parent_name: Option<&str>, parent_id: Option<u64>, span_name: &str, span_id: u64) -> Self {
+    pub fn new(parent_name: Option<&str>, parent_id: Option<i64>, span_name: &str, span_id: i64) -> Self {
         Self { parent_name: parent_name.map(String::from), parent_id, span_name: span_name.to_string(), span_id }
     }
     /// Access the parent span
-    pub fn parent(&self) -> (&Option<String>, &Option<u64>) {
+    pub fn parent(&self) -> (&Option<String>, &Option<i64>) {
         (&self.parent_name, &self.parent_id)
     }
     /// Access the current span
-    pub fn span(&self) -> (&String, &u64) {
+    pub fn span(&self) -> (&String, &i64) {
         (&self.span_name, &self.span_id)
     }
 }
@@ -55,13 +55,13 @@ impl JSONObjectTrait for Span {
 /// Entrypoint for building a new span
 pub struct SpanBuilder {
     parent_name: Option<String>,
-    parent_id: Option<u64>,
+    parent_id: Option<i64>,
     span_name: Option<String>,
-    span_id: Option<u64>,
+    span_id: Option<i64>,
 }
 
 impl SpanBuilder {
-    pub fn with_parent_span(mut self, parent_span: (&String, &u64)) -> Self {
+    pub fn with_parent_span(mut self, parent_span: (&String, &i64)) -> Self {
         self.parent_name = Some(parent_span.0.to_owned());
         self.parent_id = Some(parent_span.1.to_owned());
         self

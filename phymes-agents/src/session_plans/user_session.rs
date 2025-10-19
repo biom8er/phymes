@@ -250,10 +250,10 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             format: DataFormat::JsonDefault,
             ..Default::default()
         };
-        let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();
-        let attachmen_state = TableBuilder::new()
+        let attachment_config_json = serde_json::to_vec(&attachment_config).unwrap();
+        let attachment_state = TableBuilder::new()
             .with_name(self.filter_and_join_session_contexts_by_email_outbox_processor_name)
-            .with_json(&attachmen_config_json.clone(), 1)
+            .with_json(&attachment_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
@@ -317,7 +317,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         Some(vec![
             extract_tabular_data_state,
-            attachmen_state,
+            attachment_state,
             filter_user_info_data_state,
             filter_user_session_context_data_state,
             join_user_session_context_data_state,
@@ -334,20 +334,16 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     }
 }
 
-#[cfg(test)]
-mod tests {
+pub mod user_session {
     use anyhow::Result;
-    use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState}, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
-    use phymes_diagnostics::HashMap;
+    use phymes_core::{schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState}, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait}};
 
     use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
 
     use super::*;
 
-    #[tokio::test(flavor = "current_thread")]
-    async fn test_user_agent_session() -> Result<()> {
+    pub fn user_session() -> Result<(Arc<RwLock<SessionStreamState>>, SessionStream)> {
 
         // initialize the session
         let user_agent_session = UserSession::default();
@@ -379,13 +375,31 @@ mod tests {
         let message_map = create_message_map(vec![blob_message]);
 
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+
+        Ok((session_stream_state, session_stream))
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use futures::TryStreamExt;
+    use phymes_core::{session::common_traits::MappableTrait, table::table_trait::TableTrait, task::message::{IPCMessage, MessageTrait}};
+    use phymes_diagnostics::HashMap;
+
+    use super::*;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_user_session() -> Result<()> {
+        let (session_stream_state, session_stream) = user_session::user_session()?;
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         let attachment_data = response
             .into_iter()
             .map(|mut r| r.remove(&format!(
                 "from_{}_on_{}",
-                user_agent_session.session_context_name,
+                session_stream_state.read().get_session_context().get_name(),
                 AvailableInterfaceSubjects::AssistantJson
             )))
             .filter_map(|m| {

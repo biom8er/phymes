@@ -16,7 +16,7 @@ pub fn create_span_fields() -> Vec<Field> {
     let field_names = ["span_id", "parent_id"];
     fields_vec.extend(field_names
         .iter()
-        .map(|f| Field::new(*f, DataType::UInt64, false))
+        .map(|f| Field::new(*f, DataType::Int64, false))
         .collect::<Vec<_>>());
     fields_vec
 }

@@ -231,8 +231,8 @@ mod tests {
                 .unwrap()
                 .try_read()
                 .unwrap();
-            let output_rows = metrics_table.get_column_as_vec_primitive::<u64>("output_rows")?;
-            assert_eq!(output_rows.iter().sum::<u64>(), 5385);
+            let output_rows = metrics_table.get_column_as_vec_primitive::<i64>("output_rows")?;
+            assert_eq!(output_rows.iter().sum::<i64>(), 5385);
             let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricMermaidGantt.to_string().as_str()).unwrap().read();
             assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
             assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));

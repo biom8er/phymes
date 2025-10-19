@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array},
+    array::RecordBatch,
     datatypes::{Field, Schema},
 };
 use clap::ValueEnum;

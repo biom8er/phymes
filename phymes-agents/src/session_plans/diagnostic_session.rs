@@ -101,7 +101,7 @@ impl Default for DiagnosticSession<'_> {
     fn default() -> Self {
         DiagnosticSession {
             session_context_name: "session_context_name",
-            
+
             // Metrics analytics
             metrics_pivot_task_name: "metrics_pivot_task_name",
             metrics_pivot_processor_name: "metrics_pivot_processor_name",
@@ -214,6 +214,11 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self.apply_sequence_diagram_participants_task_name.to_string(),
                 runtime_env_name: self.traces_runtime_env_name.to_string(),
                 processor_names: vec![self.apply_sequence_diagram_participants_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.traces_aggregate_sequence_diagram_content_task_name.to_string(),
+                runtime_env_name: self.traces_runtime_env_name.to_string(),
+                processor_names: vec![self.traces_aggregate_sequence_diagram_content_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.apply_sequence_diagram_task_name.to_string(),
@@ -639,7 +644,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_processors_traces_apply_gantt_config_json = serde_json::to_vec(&metrics_processors_traces_apply_gantt_config).unwrap();
         let metrics_processors_traces_apply_gantt_config_state = TableBuilder::new()
-            .with_name(self.metrics_processors_traces_apply_gantt_task_name)
+            .with_name(self.metrics_processors_traces_apply_gantt_processor_name)
             .with_json(&metrics_processors_traces_apply_gantt_config_json, 1)
             .unwrap()
             .build()
@@ -661,7 +666,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_elapsed_compute_apply_gantt_config_json = serde_json::to_vec(&metrics_elapsed_compute_apply_gantt_config).unwrap();
         let metrics_elapsed_compute_apply_gantt_config_state = TableBuilder::new()
-            .with_name(self.metrics_elapsed_compute_apply_gantt_task_name)
+            .with_name(self.metrics_elapsed_compute_apply_gantt_processor_name)
             .with_json(&metrics_elapsed_compute_apply_gantt_config_json, 1)
             .unwrap()
             .build()
@@ -683,7 +688,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_output_rows_apply_gantt_config_json = serde_json::to_vec(&metrics_output_rows_apply_gantt_config).unwrap();
         let metrics_output_rows_apply_gantt_config_state = TableBuilder::new()
-            .with_name(self.metrics_output_rows_apply_gantt_task_name)
+            .with_name(self.metrics_output_rows_apply_gantt_processor_name)
             .with_json(&metrics_output_rows_apply_gantt_config_json, 1)
             .unwrap()
             .build()
@@ -861,6 +866,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             // Metrics
             AvailableSubjects::Metrics.to_table(None, None).unwrap(),
             AvailableSubjects::MetricPivot.to_table(None, None).unwrap(),
+            AvailableSubjects::MetricPivotNormTime.to_table(None, None).unwrap(),
             AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_processors_traces_select_and_cast_to_gantt_task_name), None).unwrap(),
             AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_elapsed_compute_select_and_cast_to_gantt_task_name), None).unwrap(),
             AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_output_rows_select_and_cast_to_gantt_task_name), None).unwrap(),
@@ -880,7 +886,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
             // Events
             AvailableSubjects::Events.to_table(None, None).unwrap(),
-            AvailableSubjects::Errors.to_table(None, None).unwrap(),
             AvailableSubjects::MermaidKanbanTemplate.to_table(Some(self.events_select_and_cast_to_kanban_task_name), None).unwrap(),
             AvailableSubjects::Blob.to_table(Some(self.apply_kanban_task_name), None).unwrap(),
 
@@ -892,11 +897,112 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
+    use futures::TryStreamExt;
+    use parking_lot::RwLock;
+    use phymes_core::{session::{common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState}, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
+    use phymes_diagnostics::HashMap;
+
+    use crate::{session_plans::{available_interface_subjects::create_message_map, user_session::user_session}, session_traits::agents::SessionContextBuilderAgentsTrait};
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_diagnostic_agent_session() -> Result<()> {
+    async fn test_diagnostic_session() -> Result<()> {
+
+        // initialize the session
+        let diagnostic_session = DiagnosticSession::default();
+        let session_ctx = diagnostic_session
+            .build()
+            .with_name(diagnostic_session.session_context_name)
+            .build_with_tables()?;
+        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+
+        // Make diagnostic data and session tasks data        
+        let (user_session_stream_state, user_session_stream) = user_session::user_session()?;
+        let _user_response: Vec<HashMap<String, IPCMessage>> = user_session_stream.try_collect().await?;
+
+        let usss = user_session_stream_state.read();
+        let table = usss
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::Metrics.to_string().as_str())
+            .unwrap()
+            .read();
+        let metrics_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(table.get_name())
+            .with_update(&TablePublish::Replace { table_name: table.get_name().to_string() })
+            .with_publisher(diagnostic_session.session_context_name)
+            .make_name()?
+            .build()?;
+        let table = usss
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::Traces.to_string().as_str())
+            .unwrap()
+            .read();
+        let traces_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(table.get_name())
+            .with_update(&TablePublish::Replace { table_name: table.get_name().to_string() })
+            .with_publisher(diagnostic_session.session_context_name)
+            .make_name()?
+            .build()?;
+        let table = usss
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::Events.to_string().as_str())
+            .unwrap()
+            .read();
+        let events_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(table.get_name())
+            .with_update(&TablePublish::Replace { table_name: table.get_name().to_string() })
+            .with_publisher(diagnostic_session.session_context_name)
+            .make_name()?
+            .build()?;
+        let table = usss
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::SessionTasks.to_string().as_str())
+            .unwrap()
+            .read();
+        let tasks_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(table.get_name())
+            .with_update(&TablePublish::Replace { table_name: table.get_name().to_string() })
+            .with_publisher(diagnostic_session.session_context_name)
+            .make_name()?
+            .build()?;
+
+        let message_map = create_message_map(vec![metrics_message, traces_message, events_message, tasks_message]);
+
+        // Run
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+        let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        let bytes = response
+            .last_mut()
+            .unwrap()
+            .remove(&format!(
+                "from_{}_on_{}",
+                diagnostic_session.session_context_name,
+                AvailableInterfaceSubjects::AggregatedAttachments
+            ))
+            .unwrap()
+            .get_message_own();
+        let attachment_data = TableBuilder::new_from_ipc_stream(&bytes)?
+            .with_name("")
+            .build()?
+            .to_json_object()?;
+        for row in &attachment_data {
+            let bytes = row["bytes"].as_array().unwrap()
+                .iter()
+                .map(|v| v.as_u64().unwrap() as u8)
+                .collect::<Vec<u8>>();
+            println!("attachment {}.{}: {}", row["filename"], row["extension"], String::from_utf8_lossy(bytes.as_ref()).into_owned())
+        }
 
         Ok(())
     }
