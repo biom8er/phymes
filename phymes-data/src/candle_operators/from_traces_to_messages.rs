@@ -151,72 +151,73 @@ pub fn from_traces_to_messages(lhs_args: &[RecordBatch], rhs_args: &[RecordBatch
     let mut note_location_vec: Vec<String> = Vec::new();
     let mut timestamp_messages_vec = Vec::new();
 
+    // DM: TODO: add in dimensions of tracer run depth
+
     // Track the beginning and end of a message triple
-    let mut exited = None;
+    // let mut subject = &combined.first().unwrap().5;
+    // let mut entered = None;
+    // let mut exited = None;
     for (tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp) in combined.iter() {
-        if exited.is_none() && tracer_event == "exited" {
+        subject_name_vec.push("State".to_string());
+        object_name_vec.push(span_name.to_string());
+        message_type_vec.push("->>".to_string());
+        activation_type_vec.push(String::new());
+        message_content_vec.push(format!("subject: {}", subject_name));
+        note_content_vec.push(String::new());
+        note_location_vec.push(String::new());
+        timestamp_messages_vec.push(timestamp.to_owned());
+        
+        // if subject_name != subject && tracer_event == "entered" && parent_name.is_empty() {
+        //     // From user to state: enter() only with no parent
+        //     subject_name_vec.push("User".to_string());
+        //     object_name_vec.push(span_name.to_string());
+        //     message_type_vec.push("->>".to_string());
+        //     activation_type_vec.push(String::new());
+        //     message_content_vec.push(format!("subject: {}", subject_name));
+        //     note_content_vec.push(String::new());
+        //     note_location_vec.push(String::new());
+        //     timestamp_messages_vec.push(timestamp.to_owned());
+        //     subject = subject_name;
+        //     entered.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
+        // } else if subject_name != subject && tracer_event == "entered" && !parent_name.is_empty() {
+        //     // From state to task: enter() only
+        //     subject_name_vec.push("State".to_string());
+        //     object_name_vec.push(span_name.to_string());
+        //     message_type_vec.push("->>".to_string());
+        //     activation_type_vec.push(String::new());
+        //     message_content_vec.push(format!("subject: {}", subject_name));
+        //     note_content_vec.push(String::new());
+        //     note_location_vec.push(String::new());
+        //     timestamp_messages_vec.push(timestamp.to_owned());
+        //     subject = subject_name;
+        //     entered.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
+        // } else if subject_name != subject && tracer_event == "exited" && !parent_name.is_empty() {
+        //     // From task to state: exit() only
+        //     subject_name_vec.push(span_name.to_string());
+        //     object_name_vec.push("State".to_string());
+        //     message_type_vec.push("->>".to_string());
+        //     activation_type_vec.push(String::new());
+        //     message_content_vec.push(format!("subject: {}", subject_name));
+        //     note_content_vec.push(String::new());
+        //     note_location_vec.push(String::new());
+        //     timestamp_messages_vec.push(timestamp.to_owned());
+        //     subject = subject_name;
+        //     exited.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
+        // } else if subject_name == subject_name && tracer_event == "entered" && parent_name == entered.unwrap().1 {
+        //     // Parent to child: enter() -> enter() where parent name of child matches parent
+        //     subject = subject_name;
 
-            // The start of a message triple
-            exited.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
-        } else if exited.is_some() && tracer_event == "entered" {
+        // } else if subject_name == subject_name && tracer_event == "exited" && span_name == exited.unwrap().2 {
+        //     // Child to parent: exit() -> exit() where parent name of child matches parent
+        //     subject = subject_name;
 
-            // The end of a message triple
-            if let Some(exit) = exited.take() {
-                // assert_eq!(subject_name, exit.5);
-                subject_name_vec.push(exit.1.to_string());
-                object_name_vec.push(span_name.to_string());
-                message_type_vec.push("->>".to_string());
-                activation_type_vec.push(String::new());
-                message_content_vec.push(format!("subject: {}", subject_name));
-                note_content_vec.push(String::new());
-                note_location_vec.push(String::new());
-                timestamp_messages_vec.push(timestamp.to_owned());
-            }
-        } else if exited.is_none() && tracer_event == "entered" {
+        // } else if subject_name == subject_name && tracer_event == "entered" && parent_name == exited.unwrap().2 {
+        //     // Span to span at the same hierarchy: exit() -> enter() where parent_name is the same
+        //     subject = subject_name;
 
-            // The end of a message triple with no subject
-            let name = if !task_name_set.contains(span_name) && !processor_name_set.contains(span_name) {
-                "User".to_string()
-            } else {
-                "State".to_string()
-            };
-            subject_name_vec.push(name);
-            object_name_vec.push(span_name.to_string());
-            message_type_vec.push("->>".to_string());
-            activation_type_vec.push(String::new());
-            message_content_vec.push(format!("subject: {subject_name}"));
-            note_content_vec.push(String::new());
-            note_location_vec.push(String::new());
-            timestamp_messages_vec.push(timestamp.to_owned());
-        } else if exited.is_some() && tracer_event == "exited" {
-
-            // The end of a message triple with no object
-            if let Some(exit) = exited.take() {
-                let name = if !task_name_set.contains(span_name) && !processor_name_set.contains(span_name) {
-                    "State".to_string()
-                } else {
-                    span_name.to_string()
-                };
-                let object_name = if &name == "State" {
-                    "User".to_string()
-                } else {
-                    "State".to_string()
-                };
-                subject_name_vec.push(name);
-                object_name_vec.push(object_name);
-                message_type_vec.push("->>".to_string());
-                activation_type_vec.push(String::new());
-                message_content_vec.push(format!("subject: {subject_name}"));
-                note_content_vec.push(String::new());
-                note_location_vec.push(String::new());
-                timestamp_messages_vec.push(timestamp.to_owned());
-            }            
-
-            // The start of a message
-            exited.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
-        } else {
-            return Err(anyhow!("Unexpected enter/exit trace found {}, {}, {}, {}, {}, {}, {}, {}", tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
-        }
+        // } else {
+        //     return Err(anyhow!("Unexpected enter/exit trace found {}, {}, {}, {}, {}, {}, {}, {}", tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
+        // }
     }
 
     // Re-sort by timestamp
