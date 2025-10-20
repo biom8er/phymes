@@ -26,14 +26,31 @@ use phymes_server::server::{
 
 use crate::{
     state::{
-        apps::ACTIVE_SESSION_NAME,
+        apps::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME},
         sign_in::{EMAIL, JWT},
         svg_icons::ms_search_icon_svg
     },
     ui::apps::mermaid_view
 };
 
-const SESSION_METRICS_HEADERS: [&str; 3] = ["processor_traces", "elapsed_compute", "output_rows"];
+pub fn get_metric_visualizations_by_metric_name(
+    active_subject: &str,
+    metric_names: &[&str],
+    metric_visualizations: &[&str],
+) -> Vec<String> {
+    let indices = metric_names
+        .iter()
+        .enumerate()
+        .filter(|(_i, s)| **s == active_subject)
+        .map(|(i, _s)| i)
+        .collect::<Vec<_>>();
+    metric_visualizations
+        .iter()
+        .enumerate()
+        .filter(|(i, _s)| indices.contains(i))
+        .map(|(_i, s)| s.to_string())
+        .collect::<Vec<_>>()
+}
 
 #[component]
 pub fn metrics_interface_view() -> Element {
@@ -42,6 +59,8 @@ pub fn metrics_interface_view() -> Element {
     let mut mermaid_processor_traces = use_signal(String::new);
     let mut mermaid_elapsed_compute = use_signal(String::new);
     let mut mermaid_output_rows = use_signal(String::new);
+    let mut metric_names = use_signal(Vec::<String>::new);
+    let mut metric_visualizations = use_signal(Vec::<String>::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
@@ -90,19 +109,22 @@ pub fn metrics_interface_view() -> Element {
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        mermaid_processor_traces.set(row
+                        metric_names.push("processor_traces".to_string());
+                        metric_visualizations.push(row
                             .get("processor_traces")
                             .unwrap()
                             .as_str()
                             .unwrap()
                             .to_string());
-                        mermaid_elapsed_compute.set(row
+                        metric_names.push("elapsed_compute".to_string());
+                        metric_visualizations.push(row
                             .get("elapsed_compute")
                             .unwrap()
                             .as_str()
                             .unwrap()
                             .to_string());
-                        mermaid_output_rows.set(row
+                        metric_names.push("output_rows".to_string());
+                        metric_visualizations.push(row
                             .get("output_rows")
                             .unwrap()
                             .as_str()
@@ -141,19 +163,22 @@ pub fn metrics_interface_view() -> Element {
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        mermaid_processor_traces.set(row
+                        metric_names.push("processor_traces".to_string());
+                        metric_visualizations.push(row
                             .get("processor_traces")
                             .unwrap()
                             .as_str()
                             .unwrap()
                             .to_string());
-                        mermaid_elapsed_compute.set(row
+                        metric_names.push("elapsed_compute".to_string());
+                        metric_visualizations.push(row
                             .get("elapsed_compute")
                             .unwrap()
                             .as_str()
                             .unwrap()
                             .to_string());
-                        mermaid_output_rows.set(row
+                        metric_names.push("output_rows".to_string());
+                        metric_visualizations.push(row
                             .get("output_rows")
                             .unwrap()
                             .as_str()
@@ -167,15 +192,19 @@ pub fn metrics_interface_view() -> Element {
     });
 
     let diagram_code: Memo<String> = use_memo(move || {
-        if &active_metric.read().to_string() == SESSION_METRICS_HEADERS.first().unwrap() {
-            mermaid_processor_traces.read().to_string()
-        } else if &active_metric.read().to_string() == SESSION_METRICS_HEADERS.get(1).unwrap() {
-            mermaid_elapsed_compute.read().to_string()
-        } else if &active_metric.read().to_string() == SESSION_METRICS_HEADERS.get(2).unwrap() {
-            mermaid_output_rows.read().to_string()
-        } else {
-            "gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tWaiting to retrieve session plan metrics...".to_string()
-        }
+        let mut visualizations = get_metric_visualizations_by_metric_name(
+            active_metric.read().as_str(),
+            &metric_names
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &metric_visualizations
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>());
+        visualizations.pop().unwrap_or("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tWaiting to retrieve session plan metrics...".to_string())
     });
 
     rsx! {
@@ -197,12 +226,12 @@ pub fn metrics_interface_view() -> Element {
         } else if active_metric.read().is_empty() {
             div {
                 class: "messaging_list",
-                metrics_dropdown {active_metric}
+                metrics_dropdown {active_metric, metric_names}
             }
         } else {
             div {
                 class: "messaging_list",
-                metrics_dropdown {active_metric}
+                metrics_dropdown {active_metric, metric_names}
                 mermaid_view {diagram_code, check_build: use_signal(|| false), is_flowchart_shown: use_signal(|| false)}
             }
         }
@@ -211,11 +240,20 @@ pub fn metrics_interface_view() -> Element {
 
 /// Metrics dropdown
 #[component]
-pub fn metrics_dropdown(mut active_metric: Signal<String>) -> Element {
+pub fn metrics_dropdown(mut active_metric: Signal<String>, metric_names: Signal<Vec<String>>) -> Element {
 
     // Dropdown signals
     let mut show_metric_dropdown = use_signal(|| false);
     let mut metric_dropdown = use_signal(String::new);
+    let metrics_vec = use_memo(move || {
+        get_non_duplicated_sorted_subjects(
+            &metric_names
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+        )
+    });
     let mut metrics_filtered = use_signal(|| Vec::<String>::new());
 
     rsx! {
@@ -231,7 +269,7 @@ pub fn metrics_dropdown(mut active_metric: Signal<String>) -> Element {
                     onfocusout: move |_| show_metric_dropdown.set(false),
                     oninput: move |evt| metric_dropdown.set(evt.value()),
                     onkeyup: move |_| {
-                        metrics_filtered.set(SESSION_METRICS_HEADERS.iter()
+                        metrics_filtered.set(metrics_vec().iter()
                             .filter(|s| !s.contains(metric_dropdown.read().as_str()))
                             .map(|s| s.to_string())
                             .collect::<Vec<_>>());
@@ -255,7 +293,8 @@ pub fn metrics_dropdown(mut active_metric: Signal<String>) -> Element {
                 class: "dropdown_list",
                 ul {
                     id: "sessions_dropdown_list",
-                    {SESSION_METRICS_HEADERS.iter().filter(|s| active_metric().to_string()!=**s && !metrics_filtered.read().contains(&s.to_string())).enumerate().map(|(i, sub)|  {
+                    {metrics_vec().iter().filter(|s| active_metric().to_string()!=**s && !metrics_filtered.read().contains(&s.to_string())).enumerate().map(|(i, sub)|  {
+                        let sub = sub.clone();
                         rsx! {
                             li {
                                 key: "{i}",
