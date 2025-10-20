@@ -209,9 +209,9 @@ mod tests {
             .with_name("")
             .build()?;
 
-        let start_time_norm = result_table.get_column_as_vec_primitive::<i64>("start_time_norm")?;
+        let start_time_norm = result_table.get_column_as_vec_primitive::<i64>("start_timestamp-normalized")?;
         assert_eq!(start_time_norm, [0, 5, 15, 25]);
-        let end_time_norm = result_table.get_column_as_vec_primitive::<i64>("end_time_norm")?;
+        let end_time_norm = result_table.get_column_as_vec_primitive::<i64>("end_timestamp-normalized")?;
         assert_eq!(end_time_norm, [5, 15, 25, 95]);
         let end_time_norm = result_table.get_column_as_vec_primitive::<i64>("duration")?;
         assert_eq!(end_time_norm, [5, 10, 10, 70]);

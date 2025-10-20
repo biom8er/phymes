@@ -56,9 +56,6 @@ pub fn get_metric_visualizations_by_metric_name(
 pub fn metrics_interface_view() -> Element {
     // Initalize signals
     let active_metric = use_signal(String::new);
-    let mut mermaid_processor_traces = use_signal(String::new);
-    let mut mermaid_elapsed_compute = use_signal(String::new);
-    let mut mermaid_output_rows = use_signal(String::new);
     let mut metric_names = use_signal(Vec::<String>::new);
     let mut metric_visualizations = use_signal(Vec::<String>::new);
 

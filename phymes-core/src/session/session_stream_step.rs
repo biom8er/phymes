@@ -233,10 +233,12 @@ impl SessionStreamStep {
                     HashMap::<String, Vec<String>>::new()
                 },
             };
-            match state.write().update_state_from_messages(error_messages) {
-                Ok(u) => update.extend(u),
-                Err(err) => event!(Level::ERROR, "{err:?}"),
-            }
+            update.extend(state.write().update_state_from_messages(error_messages)?);
+            // DM: uncommenting below and commenting above will silence any errors when writing to the Error message table
+            // match state.write().update_state_from_messages(error_messages) {
+            //     Ok(u) => update.extend(u),
+            //     Err(err) => event!(Level::ERROR, "{err:?}"),
+            // }
             state.write().extend_superstep_updates(update);
 
             // Join each of the response futures

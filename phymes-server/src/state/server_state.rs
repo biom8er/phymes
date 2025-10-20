@@ -122,7 +122,7 @@ impl UserState {
         let mermaid = create_session_mermaid_batch(session_context_name.to_owned(), flowchart_diagram.to_owned(), er_diagram.to_owned(), timestamp.to_owned())?;
         let mermaid_bytes = Table::get_builder()
             .with_record_batches(vec![mermaid])?
-            .with_name(AvailableSubjects::SessionMermaid.to_string().as_str())
+            .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
             .build()?
             .to_ipc_stream()?;
 
@@ -135,10 +135,10 @@ impl UserState {
             .make_name()?
             .build()?;
         let mermaid_message = IPCMessageBuilder::new()
-            .with_subject(AvailableSubjects::SessionMermaid.to_string().as_str())
+            .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
             .with_publisher(&create_session_name(email, session_plan.as_str()))
             .with_message(mermaid_bytes)
-            .with_update(&TablePublish::Extend { table_name: AvailableSubjects::SessionMermaid.to_string() })
+            .with_update(&TablePublish::Extend { table_name: AvailableSubjects::BuilderMermaid.to_string() })
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![user_session_contexts_message, mermaid_message]);
@@ -336,7 +336,7 @@ mod tests {
 
         assert_eq!(user.users.try_read().unwrap().get_session_context().get_states().get("UserSessionContexts").unwrap().try_read().unwrap().get_column_as_vec_str("email"), ["contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "user@biom8er.com", "user@biom8er.com", "user@biom8er.com"]);
         assert_eq!(user.users.try_read().unwrap().get_session_context().get_states().get("UserSessionContexts").unwrap().try_read().unwrap().get_column_as_vec_str("session_context_name"), ["Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"]);
-        assert_eq!(user.users.try_read().unwrap().get_session_context().get_states().get("Mermaid").unwrap().try_read().unwrap().get_column_as_vec_str("session_context_name"), ["Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"]);
+        assert_eq!(user.users.try_read().unwrap().get_session_context().get_states().get("BuilderMermaid").unwrap().try_read().unwrap().get_column_as_vec_str("session_context_name"), ["Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"]);
 
         Ok(())
     }
