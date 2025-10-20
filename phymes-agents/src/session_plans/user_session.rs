@@ -175,7 +175,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 &[
                     TableSubscribe::AlwaysLastRecordBatch { table_name: self.join_session_contexts_with_mermaid_diagrams_processor_name.to_string() },
                     TableSubscribe::OnUpdateFullTable { table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string() },
-                    TableSubscribe::AlwaysFullTable { table_name: AvailableSubjects::SessionMermaid.to_string() },
+                    TableSubscribe::AlwaysFullTable { table_name: AvailableSubjects::BuilderMermaid.to_string() },
                 ],
                 AllTableNamesSubscribe::new_box(),
             ), CandleDataProcessor::new_arc_with_pub_sub(
@@ -203,7 +203,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             ), ProcessorEcho::new_arc_with_pub_sub(
                 self.session_context_name,
                 &[
-                    TablePublish::Extend { table_name: AvailableSubjects::SessionMermaid.to_string() },
+                    TablePublish::Extend { table_name: AvailableSubjects::BuilderMermaid.to_string() },
                     TablePublish::Extend { table_name: AvailableSubjects::User.to_string() },
                     TablePublish::Extend { table_name: AvailableSubjects::UserSessionContexts.to_string() },
                     TablePublish::Replace { table_name: AvailableInterfaceSubjects::UserJson.to_string() },
@@ -302,7 +302,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             lhs_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
             lhs_pk: "email".to_string(),
             lhs_fk: "session_context_name".to_string(),
-            rhs_name: Some(AvailableSubjects::SessionMermaid.to_string()),
+            rhs_name: Some(AvailableSubjects::BuilderMermaid.to_string()),
             rhs_pk: Some("session_context_name".to_string()),
             rhs_fk: Some("session_context_name".to_string()),
             ..Default::default()
@@ -329,7 +329,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             AvailableSubjects::UserInbox.to_table(None, None).unwrap(),
             AvailableSubjects::JoinUserInboxSessionContexts.to_table(None, None).unwrap(),
             AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_table(None, None).unwrap(),
-            make_example_mermaid_table(false).unwrap(),
+            make_example_mermaid_table(false, true).unwrap(),
         ])
     }
 }

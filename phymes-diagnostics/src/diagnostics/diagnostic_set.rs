@@ -228,7 +228,7 @@ mod tests {
         assert_eq!(object.len(), 2);
         assert_eq!(object.first().unwrap().get("event_level").unwrap().as_str().unwrap(), "Info");
         assert_eq!(object.first().unwrap().get("record_name").unwrap().as_str().unwrap(), "first");
-        assert_eq!(object.first().unwrap().get("record_value").unwrap().as_i64().unwrap(), 1);
+        assert_eq!(object.first().unwrap().get("record_value").unwrap().as_str().unwrap(), "1");
         let object = diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Metric).to_json_object();
         assert_eq!(object.len(), 1);
         assert_eq!(object.first().unwrap().get("metric_name").unwrap().as_str().unwrap(), "output_rows");

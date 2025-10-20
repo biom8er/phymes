@@ -7,8 +7,8 @@ use phymes_core::{
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     }, table::{
-        data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
-    }, task::processor::ProcessorTrait
+        data_format::DataFormat, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait}
+    }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
 use phymes_data::{candle_data::{attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::{DataAggregatorOperator, DataCastOperator, DataConfig}, data_processor::CandleDataProcessor}, candle_operators::available_candle_operators::AvailableCandleOperators, jinja2_templates::{mermaid_gantt::{MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_GANTT_TEMPLATE}, mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}, mermaid_kanban::{MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_KANBAN_TEMPLATE}, mermaid_sequence_diagram::{MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE}}};
 use phymes_ml::candle_chat::message_aggregator_processor::MessageAggregatorProcessor;
@@ -240,6 +240,11 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 runtime_env_name: self.metrics_runtime_env_name.to_string(),
                 processor_names: vec![self.aggregate_visualizations_processor_name.to_string()],
             },
+            TaskPlan {
+                task_name: self.session_context_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![self.session_context_name.to_string()],
+            }, 
         ];
 
         Some(tasks)
@@ -255,7 +260,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 }],
                 &[
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: AvailableSubjects::Metrics.to_string(),
+                        table_name: AvailableSubjects::AnalyticsMetrics.to_string(),
                     },
                     TableSubscribe::AlwaysFullTable {
                         table_name: self.metrics_pivot_processor_name.to_string(),
@@ -375,10 +380,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 }],
                 &[
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: AvailableSubjects::Traces.to_string(),
+                        table_name: AvailableSubjects::AnalyticsTraces.to_string(),
                     },
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: AvailableSubjects::SessionTasks.to_string(),
+                        table_name: AvailableSubjects::AnalyticsTasks.to_string(),
                     },
                     TableSubscribe::AlwaysFullTable {
                         table_name: self.traces_to_sequence_diagram_messages_processor_name.to_string(),
@@ -408,7 +413,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 }],
                 &[
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: AvailableSubjects::SessionTasks.to_string(),
+                        table_name: AvailableSubjects::AnalyticsTasks.to_string(),
                     },
                     TableSubscribe::OnUpdateFullTable {
                         table_name: self.traces_to_sequence_diagram_messages_task_name.to_string(),
@@ -474,7 +479,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 }],
                 &[
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: AvailableSubjects::Events.to_string(),
+                        table_name: AvailableSubjects::AnalyticsEvents.to_string(),
                     },
                     TableSubscribe::AlwaysFullTable {
                         table_name: self.events_select_and_cast_to_kanban_processor_name.to_string(),
@@ -516,7 +521,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                         table_name: self.apply_sequence_diagram_task_name.to_string(),
                     },
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: self.apply_sequence_diagram_task_name.to_string(),
+                        table_name: self.apply_kanban_task_name.to_string(),
                     },
                     TableSubscribe::AlwaysFullTable {
                         table_name: self.aggregate_visualizations_processor_name.to_string(),
@@ -524,7 +529,18 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-
+            ProcessorEcho::new_arc_with_pub_sub(
+                self.session_context_name,
+                &[
+                    TablePublish::Replace { table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string() },
+                ],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
+                    },
+                ],
+                AnyTableNameSubscribe::new_box(),
+            )
         ];
 
         Some(processors)
@@ -532,6 +548,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
+            RuntimeEnv::new().with_name("rt_default"),
             RuntimeEnv::new().with_name(self.metrics_runtime_env_name),
             RuntimeEnv::new().with_name(self.traces_runtime_env_name),
             RuntimeEnv::new().with_name(self.events_runtime_env_name),
@@ -541,7 +558,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
     fn make_state_tables(&self) -> Option<Vec<Table>> {
         // Metrics pivot
         let metrics_pivot_config = DataConfig {
-            lhs_name: AvailableSubjects::Metrics.to_string(),
+            lhs_name: AvailableSubjects::AnalyticsMetrics.to_string(),
             lhs_values: vec!["span_name".to_string(), "span_id".to_string(), "parent_name".to_string(), "parent_id".to_string()],
             agg_columns: Some(vec!["metric_value".to_string()]),
             agg_operators: Some(vec![DataAggregatorOperator::Sum]),
@@ -560,6 +577,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         // Metrics normalize time
         let metrics_normalize_time_config = DataConfig {
             lhs_name: AvailableSubjects::MetricPivot.to_string(),
+            lhs_values: vec!["start_timestamp-metric_value-Sum".to_string(), "end_timestamp-metric_value-Sum".to_string()],
             operator: AvailableCandleOperators::NormalizeTime,
             ..Default::default()
         };
@@ -573,10 +591,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics processor traces select and cast
         let metrics_processors_traces_select_and_cast_to_gantt_config = DataConfig {
-            lhs_name: AvailableSubjects::MetricPivot.to_string(),
-            lhs_values: vec!["span_name".to_string(), "span_name".to_string(), "start_time_norm".to_string(), "end_time_norm".to_string()],
+            lhs_name: AvailableSubjects::MetricPivotNormTime.to_string(),
+            lhs_values: vec!["span_name".to_string(), "span_name".to_string(), "start_timestamp-metric_value-Sum-normalized".to_string(), "end_timestamp-metric_value-Sum-normalized".to_string()],
             as_columns: Some(vec!["section".to_string(), "task".to_string(), "start".to_string(), "end".to_string()]),
-            cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::None]),
+            cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None, DataCastOperator::Cast, DataCastOperator::Cast]),
             cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
             cast_templates: Some(vec!["Traces[ns]".to_string(), "".to_string(), "".to_string(), "".to_string()]),
             operator: AvailableCandleOperators::SelectAndCast,
@@ -592,10 +610,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics processor traces select and cast
         let metrics_elapsed_compute_select_and_cast_to_gantt_config = DataConfig {
-            lhs_name: AvailableSubjects::MetricPivot.to_string(),
-            lhs_values: vec!["span_name".to_string(), "span_name".to_string(), "span_name".to_string(), "elapsed_compute".to_string()],
+            lhs_name: AvailableSubjects::MetricPivotNormTime.to_string(),
+            lhs_values: vec!["span_name".to_string(), "span_name".to_string(), "span_name".to_string(), "elapsed_compute-metric_value-Sum".to_string()],
             as_columns: Some(vec!["section".to_string(), "task".to_string(), "start".to_string(), "end".to_string()]),
-            cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::None]),
+            cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::Cast]),
             cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
             cast_templates: Some(vec!["Time[ns]".to_string(), "".to_string(), "0".to_string(), "".to_string()]),
             operator: AvailableCandleOperators::SelectAndCast,
@@ -611,10 +629,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics output rows select and cast
         let metrics_output_rows_select_and_cast_to_gantt_config = DataConfig {
-            lhs_name: AvailableSubjects::MetricPivot.to_string(),
-            lhs_values: vec!["span_name".to_string(), "span_name".to_string(), "span_name".to_string(), "output_rows".to_string()],
+            lhs_name: AvailableSubjects::MetricPivotNormTime.to_string(),
+            lhs_values: vec!["span_name".to_string(), "span_name".to_string(), "span_name".to_string(), "output_rows-metric_value-Sum".to_string()],
             as_columns: Some(vec!["section".to_string(), "task".to_string(), "start".to_string(), "end".to_string()]),
-            cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::None]),
+            cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::Cast]),
             cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
             cast_templates: Some(vec!["Counts".to_string(), "".to_string(), "0".to_string(), "".to_string()]),
             operator: AvailableCandleOperators::SelectAndCast,
@@ -637,7 +655,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             doc_input: Some(serde_json::to_string(&json!({
                 "title": self.metrics_processors_traces_apply_gantt_task_name,
                 "dateFormat": "x",
-                "axisFormat": ""})).unwrap()),
+                "axisFormat": "%s"})).unwrap()),
             format: Some(DataFormat::Html),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
@@ -696,8 +714,8 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces to sequence diagram messages
         let traces_to_sequence_diagram_messages_config = DataConfig {
-            lhs_name: AvailableSubjects::Traces.to_string(),
-            rhs_name: Some(AvailableSubjects::SessionTasks.to_string()),
+            lhs_name: AvailableSubjects::AnalyticsTraces.to_string(),
+            rhs_name: Some(AvailableSubjects::AnalyticsTasks.to_string()),
             operator: AvailableCandleOperators::FromTracesToMessages,
             ..Default::default()
         };
@@ -730,9 +748,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces to sequence diagram participants
         let session_tasks_to_sequence_diagram_participants_config = DataConfig {
-            lhs_name: AvailableSubjects::SessionTasks.to_string(),
+            lhs_name: AvailableSubjects::AnalyticsTasks.to_string(),
             rhs_name: Some(self.traces_to_sequence_diagram_messages_task_name.to_string()),
-            operator: AvailableCandleOperators::FromTracesToMessages,
+            operator: AvailableCandleOperators::FromTasksToParticipants,
             ..Default::default()
         };
         let session_tasks_to_sequence_diagram_participants_config_json = serde_json::to_vec(&session_tasks_to_sequence_diagram_participants_config).unwrap();
@@ -783,7 +801,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Events select and cast kanban
         let events_select_and_cast_to_kanban_config = DataConfig {
-            lhs_name: AvailableSubjects::Events.to_string(),
+            lhs_name: AvailableSubjects::AnalyticsEvents.to_string(),
             lhs_values: vec!["event_level".to_string(), "event_level".to_string(), "span_name".to_string(), "span_name".to_string(), "function".to_string(), "id".to_string(), "id".to_string()],
             as_columns: Some(vec!["column_name".to_string(), "column_label".to_string(), "task_name".to_string(), "task_description".to_string(), "task_assigned".to_string(), "task_ticket".to_string(), "task_priority".to_string()]),
             cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::Cast, DataCastOperator::None]),
@@ -804,7 +822,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         let apply_kanban_config = DataConfig {
             lhs_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
             doc_template: Some([MERMAID_HTML_PRE, MERMAID_KANBAN_TEMPLATE, MERMAID_HTML_POST].join("")),
-            doc_name: Some(self.apply_sequence_diagram_task_name.to_string()),
+            doc_name: Some(self.apply_kanban_task_name.to_string()),
             table_expression: Some(MERMAID_KANBAN_TABLE_EXPRESSION.to_string()),
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
             format: Some(DataFormat::Html),
@@ -864,7 +882,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             aggregator_2_state,
 
             // Metrics
-            AvailableSubjects::Metrics.to_table(None, None).unwrap(),
+            AvailableSubjects::AnalyticsMetrics.to_table(None, None).unwrap(),
             AvailableSubjects::MetricPivot.to_table(None, None).unwrap(),
             AvailableSubjects::MetricPivotNormTime.to_table(None, None).unwrap(),
             AvailableSubjects::MermaidGanttTemplate.to_table(Some(self.metrics_processors_traces_select_and_cast_to_gantt_task_name), None).unwrap(),
@@ -875,9 +893,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             AvailableSubjects::Blob.to_table(Some(self.metrics_output_rows_apply_gantt_task_name), None).unwrap(),
 
             // Traces
-            AvailableSubjects::SessionTasks.to_table(None, None).unwrap(),
+            AvailableSubjects::AnalyticsTasks.to_table(None, None).unwrap(),
             AvailableSubjects::MermaidSequenceDiagramParticipantsTemplate.to_table(Some(self.session_tasks_to_sequence_diagram_participants_task_name), None).unwrap(),
-            AvailableSubjects::Traces.to_table(None, None).unwrap(),
+            AvailableSubjects::AnalyticsTraces.to_table(None, None).unwrap(),
             AvailableSubjects::MermaidSequenceDiagramMessagesTemplate.to_table(Some(self.traces_to_sequence_diagram_messages_task_name), None).unwrap(),
             AvailableSubjects::Messages.to_table(Some(self.apply_sequence_diagram_participants_task_name), None).unwrap(),
             AvailableSubjects::Messages.to_table(Some(self.apply_sequence_diagram_messages_task_name), None).unwrap(),
@@ -885,7 +903,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             AvailableSubjects::Blob.to_table(Some(self.apply_sequence_diagram_task_name), None).unwrap(),
 
             // Events
-            AvailableSubjects::Events.to_table(None, None).unwrap(),
+            AvailableSubjects::AnalyticsEvents.to_table(None, None).unwrap(),
             AvailableSubjects::MermaidKanbanTemplate.to_table(Some(self.events_select_and_cast_to_kanban_task_name), None).unwrap(),
             AvailableSubjects::Blob.to_table(Some(self.apply_kanban_task_name), None).unwrap(),
 
@@ -926,39 +944,39 @@ mod tests {
         let table = usss
             .get_session_context()
             .get_states()
-            .get(AvailableSubjects::Metrics.to_string().as_str())
+            .get(AvailableSubjects::SessionMetrics.to_string().as_str())
             .unwrap()
             .read();
         let metrics_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
-            .with_subject(table.get_name())
-            .with_update(&TablePublish::Replace { table_name: table.get_name().to_string() })
+            .with_subject(AvailableSubjects::AnalyticsMetrics.to_string().as_str())
+            .with_update(&TablePublish::Replace { table_name: AvailableSubjects::AnalyticsMetrics.to_string() })
             .with_publisher(diagnostic_session.session_context_name)
             .make_name()?
             .build()?;
         let table = usss
             .get_session_context()
             .get_states()
-            .get(AvailableSubjects::Traces.to_string().as_str())
+            .get(AvailableSubjects::SessionTraces.to_string().as_str())
             .unwrap()
             .read();
         let traces_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
-            .with_subject(table.get_name())
-            .with_update(&TablePublish::Replace { table_name: table.get_name().to_string() })
+            .with_subject(AvailableSubjects::AnalyticsTraces.to_string().as_str())
+            .with_update(&TablePublish::Replace { table_name: AvailableSubjects::AnalyticsTraces.to_string() })
             .with_publisher(diagnostic_session.session_context_name)
             .make_name()?
             .build()?;
         let table = usss
             .get_session_context()
             .get_states()
-            .get(AvailableSubjects::Events.to_string().as_str())
+            .get(AvailableSubjects::SessionEvents.to_string().as_str())
             .unwrap()
             .read();
         let events_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
-            .with_subject(table.get_name())
-            .with_update(&TablePublish::Replace { table_name: table.get_name().to_string() })
+            .with_subject(AvailableSubjects::AnalyticsEvents.to_string().as_str())
+            .with_update(&TablePublish::Replace { table_name: AvailableSubjects::AnalyticsEvents.to_string() })
             .with_publisher(diagnostic_session.session_context_name)
             .make_name()?
             .build()?;
@@ -970,8 +988,8 @@ mod tests {
             .read();
         let tasks_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
-            .with_subject(table.get_name())
-            .with_update(&TablePublish::Replace { table_name: table.get_name().to_string() })
+            .with_subject(AvailableSubjects::AnalyticsTasks.to_string().as_str())
+            .with_update(&TablePublish::Replace { table_name:AvailableSubjects::AnalyticsTasks.to_string() })
             .with_publisher(diagnostic_session.session_context_name)
             .make_name()?
             .build()?;
@@ -981,6 +999,25 @@ mod tests {
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        // Debug
+        let sss = session_stream_state.read();
+        let table = sss
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::SessionErrors.to_string().as_str())
+            .unwrap()
+            .read();
+        println!("__ERRORS__");
+        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
+        let table = sss
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::SessionTraces.to_string().as_str())
+            .unwrap()
+            .read();
+        println!("__TRACES__");
+        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
 
         let bytes = response
             .last_mut()

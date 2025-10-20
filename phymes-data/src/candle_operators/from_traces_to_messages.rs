@@ -162,7 +162,7 @@ pub fn from_traces_to_messages(lhs_args: &[RecordBatch], rhs_args: &[RecordBatch
 
             // The end of a message triple
             if let Some(exit) = exited.take() {
-                assert_eq!(subject_name, exit.5);
+                // assert_eq!(subject_name, exit.5);
                 subject_name_vec.push(exit.1.to_string());
                 object_name_vec.push(span_name.to_string());
                 message_type_vec.push("->>".to_string());

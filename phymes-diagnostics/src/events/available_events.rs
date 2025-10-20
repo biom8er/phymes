@@ -51,7 +51,8 @@ impl JSONObjectTrait for Event {
             let mut map = Map::new();
             map.insert("event_level".to_string(), self.to_string().into());
             map.insert("record_name".to_string(), k.into());
-            map.insert("record_value".to_string(), v);
+            // DM: we need to serialze the value to a string for later storage in a `RecordBatch`
+            map.insert("record_value".to_string(), serde_json::Value::String(serde_json::to_string(&v).unwrap()));
             object.push(map);
         }
         object
@@ -74,6 +75,6 @@ mod tests {
         assert_eq!(object.len(), 2);
         assert_eq!(object.first().unwrap().get("event_level").unwrap().as_str().unwrap(), event.to_string().as_str());
         assert_eq!(object.first().unwrap().get("record_name").unwrap().as_str().unwrap(), "first");
-        assert_eq!(object.first().unwrap().get("record_value").unwrap().as_u64().unwrap(), 1);
+        assert_eq!(object.first().unwrap().get("record_value").unwrap().as_str().unwrap(), "1");
     }
 }

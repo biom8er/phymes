@@ -82,7 +82,7 @@ mod tests {
     use futures::TryStreamExt;
     use futures_executor::block_on;
     use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
-    use phymes_core::{schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context::SessionContextTableNames}, table::{data_format::DataFormat, table_trait::TableTrait, table_publish::TablePublish}, task::message::MessageBuilderTrait};
+    use phymes_core::{schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table_publish::TablePublish, table_trait::TableTrait}, task::message::MessageBuilderTrait};
     use serde_json::{Map, Value};
 
     use crate::handlers::sign_in::{basic_auth, create_session_name};
@@ -156,7 +156,7 @@ mod tests {
             .with_publisher(session_name.as_str())
             .with_update(&TablePublish::None)
             .with_stream(false)
-            .with_subject(SessionContextTableNames::Subjects.to_string().as_str())
+            .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
             .make_name()
             .unwrap()
             .build()
@@ -218,7 +218,7 @@ mod tests {
             .with_publisher(session_name.as_str())
             .with_update(&TablePublish::None)
             .with_stream(false)
-            .with_subject(SessionContextTableNames::Subjects.to_string().as_str())
+            .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
             .make_name()
             .unwrap()
             .build()
@@ -249,7 +249,7 @@ mod tests {
             .with_publisher(session_name.as_str())
             .with_update(&TablePublish::None)
             .with_stream(false)
-            .with_subject(SessionContextTableNames::SubjectsNumRows.to_string().as_str())
+            .with_subject(AvailableSubjects::SessionSubjectsNumRows.to_string().as_str())
             .make_name()
             .unwrap()
             .build()
@@ -280,7 +280,7 @@ mod tests {
             .with_publisher(session_name.as_str())
             .with_update(&TablePublish::None)
             .with_stream(false)
-            .with_subject(SessionContextTableNames::MermaidJS.to_string().as_str())
+            .with_subject(AvailableSubjects::SessionMermaid.to_string().as_str())
             .make_name()
             .unwrap()
             .build()

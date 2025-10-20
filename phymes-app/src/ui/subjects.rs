@@ -1,10 +1,7 @@
 use dioxus::prelude::*;
 use phymes_core::{
-    session::{common_traits::{BuildableTrait, BuilderTrait}, 
-    message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}, 
-    session_context::SessionContextTableNames}, 
-    table::{data_format::DataFormat, table_publish::TablePublish}, 
-    task::message::MessageBuilderTrait
+    schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuildableTrait, BuilderTrait}, 
+    message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
 use phymes_server::handlers::sign_in::create_session_name;
 use serde_json::{Map, Value};
@@ -72,7 +69,7 @@ pub fn subjects_interface_view() -> Element {
         subject_schema_types.set(Vec::new());
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
-            .with_subject(SessionContextTableNames::Subjects.to_string().as_str())
+            .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
             .make_name()
             .unwrap()
             .build()
@@ -176,7 +173,7 @@ pub fn subjects_interface_view() -> Element {
         subject_num_rows.set(Vec::new());
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(&get_session_state()
-            .with_subject(SessionContextTableNames::SubjectsNumRows.to_string().as_str())
+            .with_subject(AvailableSubjects::SessionSubjectsNumRows.to_string().as_str())
             .make_name()
             .unwrap()
             .build()

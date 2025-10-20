@@ -2,7 +2,7 @@ use anyhow::Result;
 use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder, TraceBuilderTrait};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, SpanBuilder, TraceBuilderTrait};
 use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
@@ -144,14 +144,23 @@ impl SessionStreamStep {
         // Trace the session step
         let trace = diagnostic_builder.clone().messages(line!(), file!(), state.read().get_session_context().get_name());
         trace.enter(&messages.values().collect::<Vec<_>>());
+        let event = diagnostic_builder.clone().info(line!(), file!(), state.read().get_session_context().get_name());
+        event.insert("superstep", &serde_json::Value::Number(state.read().get_iter().into()));
 
-        // Update the state and handle any errors
-        let update = state.write().update_state_from_messages(messages)?;
+        // Update the state and handle any errors (without locking the state)
+        let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let update = match state.write().update_state_from_messages(messages) {
+            Ok(update) => update,
+            Err(err) => {
+                let message_map = create_error_message_map_stream(&err.into(), span.span().0)?;
+                response_streams.extend(message_map);
+                HashMap::<String, Vec<String>>::new()
+            },
+        };
         state.write().extend_superstep_updates(update);
 
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let mut tasks = Vec::new();
         for (task_name, task) in state.read().get_session_context().get_tasks().iter() {
             // Continue to the next task if all subscribed subjects are not updated
@@ -185,6 +194,7 @@ impl SessionStreamStep {
                 Err(err) => {
                     // Intercept the error and wrap into a `SendableRecordBatch` for consumption
                     event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name);
+                    println!("{} for task {}", err.to_string(), &task_name);
                     let message_map = create_error_message_map_stream(&err.into(), &task_name)?;
                     response_streams.extend(message_map);
                 },
@@ -193,35 +203,55 @@ impl SessionStreamStep {
 
         // Break if there is nothing to update
         if session_streams.is_empty() && response_streams.is_empty() {
-            return Ok(None);
+
+            // Collect metrics, logs, and traces and update their corresponding subjects
+            let (_metrics_updated, _traces_updated, _events_updated) = state.write().get_session_context_mut().update_metrics_table(&diagnostics_vec)?;
+
+            Ok(None)
+        } else {
+
+            // Remove the ran tasks from the update
+            for task_name in tasks.iter() {
+                state
+                    .write()
+                    .clear_subjects_from_task_for_superstep_updates(task_name.as_str());
+            }
+
+            // Join each of the response futures
+            let response_batches = match SessionStreamStep::join_message_streams(response_streams).await {
+                Ok(response_batches) => response_batches,
+                Err(err) => create_error_message_map(&err.into(), span.span().0)?,
+            };
+
+            // Update the state and handle any errors (without locking the state)    
+            let mut error_messages = HashMap::<String, IPCMessage>::new();   
+            let mut update = match state.write().update_state_from_messages(response_batches) {
+                Ok(update) => update,
+                Err(err) => {
+                    let message_map = create_error_message_map(&err.into(), span.span().0)?;
+                    error_messages.extend(message_map);
+                    HashMap::<String, Vec<String>>::new()
+                },
+            };
+            match state.write().update_state_from_messages(error_messages) {
+                Ok(u) => update.extend(u),
+                Err(err) => event!(Level::ERROR, "{err:?}"),
+            }
+            state.write().extend_superstep_updates(update);
+
+            // Join each of the response futures
+            let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
+            trace.exit(&session_batches.values().collect::<Vec<_>>());
+
+            // Collect metrics, logs, and traces and update their corresponding subjects
+            let (_metrics_updated, _traces_updated, _events_updated) = state.write().get_session_context_mut().update_metrics_table(&diagnostics_vec)?;
+
+            // Increment the step
+            let iter = state.read().get_iter() + 1;
+            state.write().set_iter(iter);
+
+            Ok(Some(session_batches))
         }
-
-        // Remove the ran tasks from the update
-        for task_name in tasks.iter() {
-            state
-                .write()
-                .clear_subjects_from_task_for_superstep_updates(task_name.as_str());
-        }
-
-        // Join each of the response futures
-        let response_batches = SessionStreamStep::join_message_streams(response_streams).await?;
-
-        // Update the state and handle any errors
-        let update = state.write().update_state_from_messages(response_batches)?;
-        state.write().extend_superstep_updates(update);
-
-        // Join each of the response futures
-        let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
-        trace.exit(&session_batches.values().collect::<Vec<_>>());
-
-        // Collect metrics, logs, and traces and update their corresponding subjects
-        let (_metrics_updated, _traces_updated, _events_updated) = state.write().get_session_context_mut().update_metrics_table(&diagnostics_vec)?;
-
-        // Increment the step
-        let iter = state.read().get_iter() + 1;
-        state.write().set_iter(iter);
-
-        return Ok(Some(session_batches));
     }
 }
 
@@ -229,7 +259,6 @@ impl SessionStreamStep {
 mod tests {
     use super::*;
     use crate::schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait};
-    use crate::session::session_context::SessionContextTableNames;
     use crate::session::session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan};
     use crate::table::table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe};
     use crate::task::processor::test_processor::{ProcessorError, ProcessorMock};
@@ -330,7 +359,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .is_none()
         );
 
@@ -346,7 +375,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .is_none()
         );
 
@@ -449,7 +478,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -471,7 +500,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -484,7 +513,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -590,7 +619,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -612,7 +641,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -625,7 +654,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -782,7 +811,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -804,7 +833,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -817,7 +846,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1063,7 +1092,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1084,7 +1113,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1097,7 +1126,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1174,7 +1203,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1196,7 +1225,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1209,7 +1238,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1341,7 +1370,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1362,7 +1391,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1375,7 +1404,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -1470,7 +1499,7 @@ mod tests {
         assert!(response.is_err());
 
         // Add the Error table and retry
-        session_context.state.insert(SessionContextTableNames::Errors.to_string(), Arc::new(RwLock::new(AvailableSubjects::Errors.to_table(None, None)?)));
+        session_context.state.insert(AvailableSubjects::SessionErrors.to_string(), Arc::new(RwLock::new(AvailableSubjects::SessionErrors.to_table(None, None)?)));
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
             .await?.unwrap();
@@ -1482,7 +1511,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Errors.to_string().as_str())
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()

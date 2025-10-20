@@ -5,7 +5,7 @@ use anyhow::Result;
 use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::SessionContextTableNames}, table::table_trait::{Table, TableBuilderTrait, TableTrait}};
+use crate::{schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}}, table::table_trait::{Table, TableBuilderTrait, TableTrait}};
 
 pub fn create_span_fields() -> Vec<Field> {
     let field_names = ["span_name", "parent_name"];
@@ -72,27 +72,28 @@ pub fn create_metrics_fields() -> Fields {
 }
 
 pub fn create_metrics_pivot_fields_vec() -> Vec<Field> {
-    let field_names = ["start_timestamp", "end_timestamp", "elapsed_compute", "output_rows"];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Int64, false))
-        .collect::<Vec<_>>();
-    fields_vec
+    vec![
+        Field::new("span_name", DataType::Utf8, false),
+        Field::new("span_id", DataType::Int64, false),
+        Field::new("parent_name", DataType::Utf8, false),
+        Field::new("parent_id", DataType::Int64, false),
+        Field::new("elapsed_compute-metric_value-Sum", DataType::Int64, false),
+        Field::new("end_timestamp-metric_value-Sum", DataType::Int64, false),
+        Field::new("output_rows-metric_value-Sum", DataType::Int64, false),
+        Field::new("start_timestamp-metric_value-Sum", DataType::Int64, false),
+    ]
 }
 
 pub fn create_metrics_pivot_fields() -> Fields {
-    let mut fields_vec = create_diagnostic_span_fields();
-    fields_vec.extend(create_metrics_pivot_fields_vec());
-    Fields::from(fields_vec)
+    Fields::from(create_metrics_pivot_fields_vec())
 }
 
 pub fn create_metrics_pivot_norm_time_fields() -> Fields {
-    let field_names = ["start_time_norm", "end_time_norm", "duration"];
+    let field_names = ["start_timestamp-metric_value-Sum-normalized", "end_timestamp-metric_value-Sum-normalized", "duration"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Int64, false))
         .collect::<Vec<_>>();
-    fields_vec.extend(create_diagnostic_span_fields());
     fields_vec.extend(create_metrics_pivot_fields_vec());
     Fields::from(fields_vec)
 }
@@ -271,8 +272,8 @@ pub fn from_diagnostics_to_tables(diagnostics_vec: &[Diagnostics]) -> Result<(Op
     } else {
         let values = metrics_vec.into_iter().map(|o| serde_json::Value::from(o)).collect::<Vec<_>>();
         let table = Table::get_builder()
-            .with_name(SessionContextTableNames::Metrics.to_string().as_str())
-            .with_schema(AvailableSubjects::Metrics.to_schema())
+            .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
+            .with_schema(AvailableSubjects::SessionMetrics.to_schema())
             .with_json_values(&values)?
             .build()?;
         Some(table)
@@ -282,8 +283,8 @@ pub fn from_diagnostics_to_tables(diagnostics_vec: &[Diagnostics]) -> Result<(Op
     } else {
         let values = traces_vec.into_iter().map(|o| serde_json::Value::from(o)).collect::<Vec<_>>();
         let table = Table::get_builder()
-            .with_name(SessionContextTableNames::Traces.to_string().as_str())
-            .with_schema(AvailableSubjects::Traces.to_schema())
+            .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+            .with_schema(AvailableSubjects::SessionTraces.to_schema())
             .with_json_values(&values)?
             .build()?;
         Some(table)
@@ -293,8 +294,8 @@ pub fn from_diagnostics_to_tables(diagnostics_vec: &[Diagnostics]) -> Result<(Op
     } else {
         let values = events_vec.into_iter().map(|o| serde_json::Value::from(o)).collect::<Vec<_>>();
         let table = Table::get_builder()
-            .with_name(SessionContextTableNames::Events.to_string().as_str())
-            .with_schema(AvailableSubjects::Events.to_schema())
+            .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
+            .with_schema(AvailableSubjects::SessionEvents.to_schema())
             .with_json_values(&values)?
             .build()?;
         Some(table)

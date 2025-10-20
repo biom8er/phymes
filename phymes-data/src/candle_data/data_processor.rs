@@ -1,5 +1,5 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
-use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
+use crate::candle_operators::data_operator::DataOperatorTrait;
 use phymes_core::{
     session::{
         common_traits::{
@@ -325,29 +325,12 @@ impl Stream for CandleDataStream {
                     // Extract the input from the config
                     match self.config.as_ref().unwrap().lhs_args.as_ref() {
                         Some(qs) => {
-                            let table = match TableBuilder::new().with_json(qs.as_bytes(), 512)
-                            {
-                                Ok(builder) => builder.with_name("").build()?,
-                                Err(err) => {
-                                    self.is_finished = true;
-                                    event!(Level::ERROR, "{}", err.to_string().as_str());
-                                    return Poll::Ready(Some(Ok(make_error_record_batch(
-                                        err.to_string().as_str(),
-                                    ))));
-                                }
-                            };
+                            let table = TableBuilder::new().with_json(qs.as_bytes(), 512)?.with_name("").build()?;
                             table.get_record_batches_own()
                         }
                         None => {
-                            self.is_finished = true;
-                            let error_str = format!(
-                                "lhs_name {lhs_name} does not exist. Available options are {:?}",
-                                self.messages.keys()
-                            );
-                            event!(Level::ERROR, error_str);
-                            return Poll::Ready(Some(Ok(make_error_record_batch(
-                                error_str.as_str(),
-                            ))));
+                            self.is_finished = true;                        
+                            return Poll::Ready(Some(Err(anyhow!("lhs_name {lhs_name} does not exist. Available options are {:?}", self.messages.keys()))));
                         }
                     }
                 }
@@ -385,29 +368,12 @@ impl Stream for CandleDataStream {
                     // Extract the input from the config
                     match self.config.as_ref().unwrap().rhs_args.as_ref() {
                         Some(qs) => {
-                            let table = match TableBuilder::new().with_json(qs.as_bytes(), 512)
-                            {
-                                Ok(builder) => builder.with_name("").build()?,
-                                Err(err) => {
-                                    self.is_finished = true;
-                                    event!(Level::ERROR, "{}", err.to_string().as_str());
-                                    return Poll::Ready(Some(Ok(make_error_record_batch(
-                                        err.to_string().as_str(),
-                                    ))));
-                                }
-                            };
+                            let table = TableBuilder::new().with_json(qs.as_bytes(), 512)?.with_name("").build()?;
                             table.get_record_batches_own()
                         }
                         None => {
-                            self.is_finished = true;
-                            let error_str = format!(
-                                "rhs_name {rhs_name} does not exist. Available options are {:?}",
-                                self.messages.keys()
-                            );
-                            event!(Level::ERROR, error_str);
-                            return Poll::Ready(Some(Ok(make_error_record_batch(
-                                error_str.as_str(),
-                            ))));
+                            self.is_finished = true;                            
+                            return Poll::Ready(Some(Err(anyhow!("rhs_name {rhs_name} does not exist. Available options are {:?}", self.messages.keys()))));
                         }
                     }
                 }

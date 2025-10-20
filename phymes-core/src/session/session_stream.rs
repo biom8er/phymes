@@ -53,6 +53,7 @@ impl Stream for SessionStream {
                     Ok(None) => return Poll::Ready(None),
                     Err(err) => {
                         event!(Level::ERROR, "{err:?}");
+                        println!("unhandled session step error: {err:?}");
                         HashMap::<String, IPCMessage>::new()
                     },
                 }
@@ -98,7 +99,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        session::{common_traits::{BuilderTrait, MappableTrait}, session_context::SessionContextTableNames, session_context_builder::test_session_context_builder::make_test_session_context_sequential_task}, table::{table_publish::TablePublish, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}}, task::{message::MessageTrait, task_trait::test_task::make_test_input_message}
+        schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuilderTrait, MappableTrait}, session_context_builder::test_session_context_builder::make_test_session_context_sequential_task}, table::{table_publish::TablePublish, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}}, task::{message::MessageTrait, task_trait::test_task::make_test_input_message}
     };
 
     #[tokio::test]
@@ -184,7 +185,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Metrics.to_string().as_str())
+                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -198,7 +199,7 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Traces.to_string().as_str())
+                .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
@@ -206,14 +207,19 @@ mod tests {
                 .len(),
             4
         );
-        assert!(
+        assert_eq!(
             session_stream_state
                 .try_read()
                 .unwrap()
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::Events.to_string().as_str())
-                .is_none()
+                .get(AvailableSubjects::SessionEvents.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            4
         );
 
         // Check gantt
@@ -227,13 +233,13 @@ mod tests {
             let metrics_table = sss
                 .get_session_context()
                 .get_states()
-                .get(SessionContextTableNames::MetricPivot.to_string().as_str())
+                .get(AvailableSubjects::MetricPivot.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap();
             let output_rows = metrics_table.get_column_as_vec_primitive::<i64>("output_rows")?;
             assert_eq!(output_rows.iter().sum::<i64>(), 5385);
-            let gantt = sss.get_session_context().get_states().get(SessionContextTableNames::MetricMermaidGantt.to_string().as_str()).unwrap().read();
+            let gantt = sss.get_session_context().get_states().get(AvailableSubjects::MetricMermaidGantt.to_string().as_str()).unwrap().read();
             assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
             assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
             assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));

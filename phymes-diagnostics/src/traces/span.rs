@@ -8,8 +8,8 @@ use crate::diagnostics::JSONObjectTrait;
 pub fn create_random_id() -> i64 {
     let mut buf = [0u8; 8];
     getrandom::fill(&mut buf).unwrap();
-    let id = i64::from_ne_bytes(buf);
-    id
+    let id = u64::from_ne_bytes(buf);
+    id as i64
 }
 
 /// The span

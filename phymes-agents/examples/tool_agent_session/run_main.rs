@@ -110,7 +110,7 @@ pub async fn run_main() -> Result<()> {
     //     .unwrap()
     //     .get_session_context()
     //     .get_states()
-    //     .get(SessionContextTableNames::MermaidJS.get_name())
+    //     .get(AvailableSubjects::MermaidJS.get_name())
     //     .unwrap()
     //     .try_read()
     //     .unwrap()

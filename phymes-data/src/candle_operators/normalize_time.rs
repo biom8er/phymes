@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use arrow::array::{ArrayRef, Int64Array, RecordBatch};
 use candle_core::{Device, Tensor};
 use phymes_core::{
@@ -17,7 +17,9 @@ use crate::{
 
 /// Compute the normalized start and end times in a [RecordBatch]
 #[derive(Debug)]
-pub struct NormalizeTime {}
+pub struct NormalizeTime {
+    lhs_values: Vec<String>,
+}
 
 impl MappableTrait for NormalizeTime {
     fn get_name(&self) -> &str {
@@ -32,10 +34,16 @@ impl DataOperatorTrait for NormalizeTime {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        normalize_time(lhs_args, device)
+        let lhs_values = self
+            .lhs_values
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        normalize_time(&lhs_values, lhs_args, device)
     }
-    fn new(_config: &DataConfig) -> Self {
-        NormalizeTime {}
+    fn new(config: &DataConfig) -> Self {
+        let lhs_values = config.lhs_values.to_owned();
+        NormalizeTime { lhs_values }
     }
     fn get_description() -> String {
         "Compute the normalized start and end times and duration between start and end times."
@@ -97,15 +105,19 @@ impl DataOperatorTrait for NormalizeTime {
 /// # Notes
 /// 
 /// * The existence of a `start_timestamp` and `end_timestamp` columns of types UInt64
-/// * New columns for `start_time_norm`, `end_time_norm`, and `duration` will be created
+/// * New columns for `start_time-Norm`, `end_time-Norm`, and `duration` will be created
 ///
 /// # Arguments
 ///
+/// * `lhs_values` - Slice of Strings specifying the `start_timestamp` and `end_timestamp` columns
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `device` - The compute device
 #[instrument(skip(lhs_args, device))]
-pub fn normalize_time(lhs_args: &[RecordBatch], device: &Device,
+pub fn normalize_time(lhs_values: &[&str], lhs_args: &[RecordBatch], device: &Device,
 ) -> Result<RecordBatch> {
+    if lhs_values.len() != 2 {
+        return Err(anyhow!("Two lhs_values columns for `start_timestamp` and `end_timestamp` need to be provided. lhs_values {:?} were provided.", lhs_values));
+    }
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
         .with_record_batches(lhs_args.to_vec())?
@@ -113,13 +125,13 @@ pub fn normalize_time(lhs_args: &[RecordBatch], device: &Device,
         .build()?;
 
     // Determine the minimum start time
-    let start_time_vec = lhs_table.get_column_as_vec_primitive::<u64>("start_timestamp")?.into_iter().map(|v| v as i64).collect::<Vec<_>>();
+    let start_time_vec = lhs_table.get_column_as_vec_primitive::<i64>(lhs_values.first().unwrap())?.into_iter().map(|v| v as i64).collect::<Vec<_>>();
     let start_time_tensor = Tensor::from_iter(start_time_vec, device)?;
     let min_tensor = start_time_tensor.min_all()?.broadcast_as(start_time_tensor.shape())?;
 
     // Normalize the start and time
     let start_time_norm_tensor = start_time_tensor.sub(&min_tensor)?;
-    let end_time_vec = lhs_table.get_column_as_vec_primitive::<u64>("end_timestamp")?.into_iter().map(|v| v as i64).collect::<Vec<_>>();
+    let end_time_vec = lhs_table.get_column_as_vec_primitive::<i64>(lhs_values.get(1).unwrap())?.into_iter().map(|v| v as i64).collect::<Vec<_>>();
     let end_time_tensor = Tensor::from_iter(end_time_vec, device)?;
     let end_time_norm_tensor = end_time_tensor.sub(&min_tensor)?;
 
@@ -135,9 +147,11 @@ pub fn normalize_time(lhs_args: &[RecordBatch], device: &Device,
     let duration_arr: ArrayRef = Arc::new(Int64Array::from_iter_values(duration_vec));
 
     // add the start_time_norm and end_time_norm columns to the table
+    let start_col_name = format!("{}-normalized", lhs_values.first().unwrap());
+    let end_col_name = format!("{}-normalized", lhs_values.get(1).unwrap());
     let mut batch_vec = vec![
-        ("start_time_norm", start_time_norm_arr),
-        ("end_time_norm", end_time_norm_arr),
+        (start_col_name.as_str(), start_time_norm_arr),
+        (end_col_name.as_str(), end_time_norm_arr),
         ("duration", duration_arr),
     ];
     let schema = lhs_table.get_schema();
@@ -150,7 +164,7 @@ pub fn normalize_time(lhs_args: &[RecordBatch], device: &Device,
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::{StringArray, UInt64Array};
+    use arrow::array::{StringArray, Int64Array};
     use phymes_core::session::common_traits::device;
 
     use super::*;
@@ -160,10 +174,10 @@ mod tests {
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
-        let lhs_start_vec_1: Vec<u64> = vec![5, 10];
-        let lhs_start_array: ArrayRef = Arc::new(UInt64Array::from(lhs_start_vec_1));
-        let lhs_end_vec_1: Vec<u64> = vec![10, 20];
-        let lhs_end_array: ArrayRef = Arc::new(UInt64Array::from(lhs_end_vec_1));
+        let lhs_start_vec_1: Vec<i64> = vec![5, 10];
+        let lhs_start_array: ArrayRef = Arc::new(Int64Array::from(lhs_start_vec_1));
+        let lhs_end_vec_1: Vec<i64> = vec![10, 20];
+        let lhs_end_array: ArrayRef = Arc::new(Int64Array::from(lhs_end_vec_1));
         let lhs_batch_1 = RecordBatch::try_from_iter(vec![
             ("lhs_pk", lhs_ids_array),
             ("start_timestamp", lhs_start_array),
@@ -171,10 +185,10 @@ mod tests {
         ])?;
         let lhs_ids_vec_2 = vec!["2", "3"];
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_2));
-        let lhs_start_vec_2: Vec<u64> = vec![20, 30];
-        let lhs_start_array: ArrayRef = Arc::new(UInt64Array::from(lhs_start_vec_2));
-        let lhs_end_vec_1: Vec<u64> = vec![30, 100];
-        let lhs_end_array: ArrayRef = Arc::new(UInt64Array::from(lhs_end_vec_1));
+        let lhs_start_vec_2: Vec<i64> = vec![20, 30];
+        let lhs_start_array: ArrayRef = Arc::new(Int64Array::from(lhs_start_vec_2));
+        let lhs_end_vec_1: Vec<i64> = vec![30, 100];
+        let lhs_end_array: ArrayRef = Arc::new(Int64Array::from(lhs_end_vec_1));
         let lhs_batch_2 = RecordBatch::try_from_iter(vec![
             ("lhs_pk", lhs_ids_array),
             ("start_timestamp", lhs_start_array),
@@ -184,9 +198,9 @@ mod tests {
         // Make the device
         let device = device(false)?;
 
-        // ------ String, UInt32, All ------
-        // Group the text
+        // Test
         let result = normalize_time(
+            &["start_timestamp", "end_timestamp"],
             &[lhs_batch_1, lhs_batch_2],
             &device,
         )?;

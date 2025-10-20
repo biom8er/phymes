@@ -183,16 +183,18 @@ pub enum AvailableSubjects {
     JoinUserInboxSessionContextsMermaid,
     #[value(name = "SessionMermaid")]
     SessionMermaid,
+    #[value(name = "BuilderMermaid")]
+    BuilderMermaid,
     #[value(name = "Errors")]
-    Errors,
+    SessionErrors,
     #[value(name = "Metrics")]
-    Metrics,
+    SessionMetrics,
     #[value(name = "MetricMermaidGantt")]
     MetricMermaidGantt,
     #[value(name = "Traces")]
-    Traces,
+    SessionTraces,
     #[value(name = "Events")]
-    Events,
+    SessionEvents,
     #[value(name = "MetricPivot")]
     MetricPivot,
     #[value(name = "MetricPivotNormTime")]
@@ -224,7 +226,17 @@ pub enum AvailableSubjects {
     #[value(name = "MermaidKanbanTemplate")]
     MermaidKanbanTemplate,
     #[value(name = "MermaidVisualization")]
-    MermaidVisualization,
+    MermaidVisualization,    
+    #[value(name = "AnalyticsErrors")]
+    AnalyticsErrors,
+    #[value(name = "AnalyticsMetrics")]
+    AnalyticsMetrics,
+    #[value(name = "AnalyticsTraces")]
+    AnalyticsTraces,
+    #[value(name = "AnalyticsEvents")]
+    AnalyticsEvents,
+    #[value(name = "AnalyticsTasks")]
+    AnalyticsTasks,
 }
 
 impl Display for AvailableSubjects {
@@ -247,11 +259,12 @@ impl Display for AvailableSubjects {
             AvailableSubjects::JoinUserInboxSessionContexts => write!(f, "JoinUserInboxSessionContexts"),
             AvailableSubjects::JoinUserInboxSessionContextsMermaid => write!(f, "JoinUserInboxSessionContextsMermaid"),
             AvailableSubjects::SessionMermaid => write!(f, "SessionMermaid"),
-            AvailableSubjects::Errors => write!(f, "Errors"),
-            AvailableSubjects::Metrics => write!(f, "Metrics"),
+            AvailableSubjects::BuilderMermaid => write!(f, "BuilderMermaid"),
+            AvailableSubjects::SessionErrors => write!(f, "SessionErrors"),
+            AvailableSubjects::SessionMetrics => write!(f, "SessionMetrics"),
             AvailableSubjects::MetricMermaidGantt => write!(f, "MetricMermaidGantt"),
-            AvailableSubjects::Traces => write!(f, "Traces"),
-            AvailableSubjects::Events => write!(f, "Events"),
+            AvailableSubjects::SessionTraces => write!(f, "SessionTraces"),
+            AvailableSubjects::SessionEvents => write!(f, "SessionEvents"),
             AvailableSubjects::MetricPivot => write!(f, "MetricPivot"),
             AvailableSubjects::MetricPivotNormTime => write!(f, "MetricPivotNormTime"),
             AvailableSubjects::SessionSubjects => write!(f, "SessionSubjects"),
@@ -268,6 +281,11 @@ impl Display for AvailableSubjects {
             AvailableSubjects::MermaidKanbanTemplate => write!(f, "MermaidKanbanTemplate"),
             AvailableSubjects::MermaidVisualization => write!(f, "MermaidVisualization"),
             AvailableSubjects::MermaidXYChart => write!(f, "MermaidXYChart"),
+            AvailableSubjects::AnalyticsErrors => write!(f, "AnalyticsErrors"),
+            AvailableSubjects::AnalyticsMetrics => write!(f, "AnalyticsMetrics"),
+            AvailableSubjects::AnalyticsTraces => write!(f, "AnalyticsTraces"),
+            AvailableSubjects::AnalyticsEvents => write!(f, "AnalyticsEvents"),
+            AvailableSubjects::AnalyticsTasks => write!(f, "AnalyticsTasks"),
         }
     }
 }
@@ -304,11 +322,12 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::JoinUserInboxSessionContexts => create_schema_from_fields(&create_join_user_inbox_session_contexts_fields),
             AvailableSubjects::JoinUserInboxSessionContextsMermaid => create_schema_from_fields(&create_join_user_inbox_session_contexts_mermaid_diagrams_fields),
             AvailableSubjects::SessionMermaid => create_schema_from_fields(&create_session_mermaid_fields),
-            AvailableSubjects::Errors => create_schema_from_fields(&create_error_fields),
-            AvailableSubjects::Metrics => create_schema_from_fields(&create_metrics_fields),
+            AvailableSubjects::BuilderMermaid => create_schema_from_fields(&create_session_mermaid_fields),
+            AvailableSubjects::SessionErrors => create_schema_from_fields(&create_error_fields),
+            AvailableSubjects::SessionMetrics => create_schema_from_fields(&create_metrics_fields),
             AvailableSubjects::MetricMermaidGantt => create_schema_from_fields(&create_metrics_mermaid_gantt_fields),
-            AvailableSubjects::Traces => create_schema_from_fields(&create_traces_fields),
-            AvailableSubjects::Events => create_schema_from_fields(&create_events_fields),
+            AvailableSubjects::SessionTraces => create_schema_from_fields(&create_traces_fields),
+            AvailableSubjects::SessionEvents => create_schema_from_fields(&create_events_fields),
             AvailableSubjects::MetricPivot => create_schema_from_fields(&create_metrics_pivot_fields),
             AvailableSubjects::MetricPivotNormTime => create_schema_from_fields(&create_metrics_pivot_norm_time_fields),
             AvailableSubjects::SessionSubjects => create_schema_from_fields(&create_session_subjects_fields),
@@ -324,7 +343,12 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::MermaidSequenceDiagramMessagesTemplate => create_schema_from_fields(&create_mermaid_sequence_diagram_messages_template_fields),
             AvailableSubjects::MermaidKanbanTemplate => create_schema_from_fields(&create_mermaid_kanban_template_fields),
             AvailableSubjects::MermaidVisualization => create_schema_from_fields(&create_mermaid_visualization_fields),
-            AvailableSubjects::MermaidXYChart => create_schema_from_fields(&create_mermaid_xychart_template_fields),
+            AvailableSubjects::MermaidXYChart => create_schema_from_fields(&create_mermaid_xychart_template_fields),            
+            AvailableSubjects::AnalyticsErrors => create_schema_from_fields(&create_error_fields),
+            AvailableSubjects::AnalyticsMetrics => create_schema_from_fields(&create_metrics_fields),
+            AvailableSubjects::AnalyticsTraces => create_schema_from_fields(&create_traces_fields),
+            AvailableSubjects::AnalyticsEvents => create_schema_from_fields(&create_events_fields),
+            AvailableSubjects::AnalyticsTasks => create_schema_from_fields(&create_session_tasks_fields),
         }
     }
 }

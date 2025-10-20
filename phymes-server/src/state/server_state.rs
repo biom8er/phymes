@@ -326,7 +326,7 @@ mod tests {
     #[test]
     fn test_server_state_update_user_session_contexts() -> Result<()> {
         let user = UserState::new(None);
-        let table = make_example_mermaid_table(true)?;
+        let table = make_example_mermaid_table(true, false)?;
         user.update_user_session_contexts("user@biom8er.com",
             &table.get_column_as_vec_nonprimitive::<String>("session_context_name")?,
             &table.get_column_as_vec_nonprimitive::<String>("flowchart_diagram")?,

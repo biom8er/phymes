@@ -8,8 +8,8 @@ use phymes_agents::{
     session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 use phymes_core::{
-    schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_context::SessionContextTableNames, session_stream::SessionStream, session_stream_state::SessionStreamState
+    schemas::{available_subjects::{AvailableSubjectsTrait, AvailableSubjects}, chat::ChatBuilderTraitExt}, session::{
+        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState
     }, table::{table_publish::TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, MessageBuilderTrait}
 };
 use phymes_diagnostics::HashMap;
@@ -130,7 +130,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .into_inner()
                     .get_session_context_own()
                     .get_states_own()
-                    .remove(SessionContextTableNames::MetricPivot.to_string().as_str())
+                    .remove(AvailableSubjects::MetricPivot.to_string().as_str())
                     .unwrap();
                 let batches = Arc::try_unwrap(metrics)
                     .unwrap()

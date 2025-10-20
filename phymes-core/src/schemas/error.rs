@@ -5,7 +5,7 @@ use anyhow::{Error, Result};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{session::{common_traits::{BuilderTrait, MappableTrait}, session_context::SessionContextTableNames}, table::{table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder}};
+use crate::{schemas::available_subjects::AvailableSubjects, session::common_traits::{BuilderTrait, MappableTrait}, table::{table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder}};
 
 pub fn create_error_fields() -> Fields {
     let error = Field::new("error", DataType::Utf8, false);
@@ -28,7 +28,7 @@ pub fn create_error_table(err: &Error) -> Result<Table> {
     let error_str = format!{"{err:?}"}; 
     let batch = create_error_batch(vec![error_str])?;
     TableBuilder::new()
-        .with_name(SessionContextTableNames::Errors.to_string().as_str())
+        .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
         .with_record_batches(vec![batch])?
         .build()
 }
@@ -38,12 +38,12 @@ pub fn create_error_message_map_stream(err: &Error, publisher: &str) -> Result<H
     let message = SendableRecordBatchStreamMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
-        .with_update(&TablePublish::Extend { table_name: SessionContextTableNames::Errors.to_string()})
+        .with_update(&TablePublish::Extend { table_name: AvailableSubjects::SessionErrors.to_string()})
         .with_message(table.to_record_batch_stream())
         .make_name()?
         .build()?;
     let mut message_map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-    let _ = message_map.insert(table.get_name().to_string(), message);
+    let _ = message_map.insert(message.get_name().to_string(), message);
     Ok(message_map)
 }
 
@@ -52,11 +52,11 @@ pub fn create_error_message_map(err: &Error, publisher: &str) -> Result<HashMap<
     let message = IPCMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
-        .with_update(&TablePublish::Extend { table_name: SessionContextTableNames::Errors.to_string()})
+        .with_update(&TablePublish::Extend { table_name: AvailableSubjects::SessionErrors.to_string()})
         .with_message(table.to_ipc_stream()?)
         .make_name()?
         .build()?;
     let mut message_map = HashMap::<String, IPCMessage>::new();
-    let _ = message_map.insert(table.get_name().to_string(), message);
+    let _ = message_map.insert(message.get_name().to_string(), message);
     Ok(message_map)
 }

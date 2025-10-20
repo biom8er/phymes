@@ -13,7 +13,7 @@ use phymes_diagnostics::create_timestamp_micros;
 use crate::{session_plans::available_session_plans::AvailableSessionPlans, session_traits::{agents::CustomAgentsBuilderTrait, mermaid::SessionContextBuilderMermaidTrait}};
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
-pub fn make_example_mermaid_table(deployable: bool) -> Result<Table> {
+pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Table> {
     let available_session_plans = if deployable {
         AvailableSessionPlans::get_deployable_session_plan_names()
     } else {
@@ -34,9 +34,14 @@ pub fn make_example_mermaid_table(deployable: bool) -> Result<Table> {
     }
     
     // Create the table
+    let table_name = if builder {
+        AvailableSubjects::BuilderMermaid.to_string()
+    } else {
+        AvailableSubjects::SessionMermaid.to_string()
+    };
     let batch = create_session_mermaid_batch(session_context_names, flowchart_diagram, er_diagram, timestamp)?;
     Table::get_builder()
-        .with_name(AvailableSubjects::SessionMermaid.to_string().as_str())
+        .with_name(table_name.as_str())
         .with_record_batches(vec![batch])?
         .build()
 }
@@ -102,7 +107,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 
     fn make_state_tables(&self) -> Option<Vec<Table>> {
         Some(vec![
-            make_example_mermaid_table(true).unwrap(),
+            make_example_mermaid_table(true, false).unwrap(),
         ])
     }
 }

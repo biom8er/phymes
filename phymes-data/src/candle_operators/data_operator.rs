@@ -1,17 +1,10 @@
 use anyhow::Result;
-use arrow::array::{ArrayRef, RecordBatch, StringArray};
+use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::session::common_traits::MappableTrait;
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
 use crate::candle_data::data_config::DataConfig;
-
-/// Helper function to create an error message that
-/// can be sent back to a function-calling agent
-pub fn make_error_record_batch(error: &str) -> RecordBatch {
-    let error: ArrayRef = Arc::new(StringArray::from(vec![error]));
-    RecordBatch::try_from_iter(vec![("error", error)]).unwrap()
-}
 
 /// Data operators and other tools that utilize tensor services
 pub trait DataOperatorTrait: MappableTrait + Send + Sync + Debug {
