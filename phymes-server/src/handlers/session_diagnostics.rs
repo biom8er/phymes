@@ -185,24 +185,6 @@ pub async fn session_diagnostics(
                         .collect::<Vec<_>>();
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
-                    let sss = session_stream_state.read();
-                    let table = sss
-                        .get_session_context()
-                        .get_states()
-                        .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                        .unwrap()
-                        .read();
-                    tracing::debug!("ERRORS: {}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
-                    println!("ERRORS: {}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
-                    let table = sss
-                        .get_session_context()
-                        .get_states()
-                        .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                        .unwrap()
-                        .read();
-                    tracing::debug!("TRACES: {}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
-                    println!("TRACES: {}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
-
                     // Send the stream
                     Body::from(response).into_response()
                 }

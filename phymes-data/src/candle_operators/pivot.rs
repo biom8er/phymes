@@ -314,9 +314,9 @@ pub fn pivot(
     // Group and aggregate by the lhs_values and pvt_columns
     // Note that the pvt_columns are last so that the gorup partition ranges can be used directly to extract out the columns for the pivot table
     let pvt_values: &[&str] = &lhs_values.iter().chain(pvt_columns).map(|&s| s).collect::<Vec<&str>>();
-    // let pvt_values_group = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
+    let pvt_values_group = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
     // DM: Workaround for out of memory error on the GPU when analyzing session metrics...
-    let pvt_values_group = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, &Device::Cpu)?;
+    // let pvt_values_group = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, &Device::Cpu)?;
     let pvt_values_table = Table::get_builder()
         .with_record_batches(vec![pvt_values_group])?
         .with_name("")

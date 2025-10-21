@@ -1019,24 +1019,24 @@ mod tests {
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        // Debug
-        let sss = session_stream_state.read();
-        let table = sss
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::SessionErrors.to_string().as_str())
-            .unwrap()
-            .read();
-        println!("__ERRORS__");
-        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
-        let table = sss
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::SessionTraces.to_string().as_str())
-            .unwrap()
-            .read();
-        println!("__TRACES__");
-        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
+        // DM: debugging
+        // let sss = session_stream_state.read();
+        // let table = sss
+        //     .get_session_context()
+        //     .get_states()
+        //     .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //     .unwrap()
+        //     .read();
+        // println!("__ERRORS__");
+        // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
+        // let table = sss
+        //     .get_session_context()
+        //     .get_states()
+        //     .get(AvailableSubjects::SessionTraces.to_string().as_str())
+        //     .unwrap()
+        //     .read();
+        // println!("__TRACES__");
+        // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
 
         let bytes = response
             .last_mut()
