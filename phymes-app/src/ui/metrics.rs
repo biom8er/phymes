@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
 use phymes_core::{
     schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
@@ -68,17 +69,16 @@ pub fn metrics_interface_view() -> Element {
         .with_stream(false)
     );
 
-    // Get the active session info for the metrics view
-    let got_metrics = use_memo(move || !mermaid_processor_traces().is_empty());
+    // Get the active session info for the metrics view;
     let _ = use_resource(move || async move {
         // Prevent re-fetching metrics if we already have them
-        if got_metrics() {
+        if !metric_names.is_empty() {
             return;
         }
 
-        let route = "/app/v1/get_state";
+        let route = "/app/v1/diagnostics";
         let data_serialized = serde_json::to_string(&get_session_state()
-            .with_subject(AvailableSubjects::MetricMermaidGantt.to_string().as_str())
+            .with_subject(AvailableInterfaceSubjects::AggregatedAttachments.to_string().as_str())
             .make_name()
             .unwrap()
             .build()
@@ -100,37 +100,26 @@ pub fn metrics_interface_view() -> Element {
                 while let Some(Ok(bytes)) = stream.next().await {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_slice(bytes.as_ref()).unwrap_or_else(|err| {
-                            tracing::error!(
-                                "There was a error parsing SyncCurrentMetricsMermaidJSState {err}."
-                            );
+                            tracing::error!("There was a error getting the session diagnostics {err}.");
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        metric_names.push("processor_traces".to_string());
-                        metric_visualizations.push(row
-                            .get("processor_traces")
+                        metric_names.push(row
+                            .get("filename")
                             .unwrap()
                             .as_str()
                             .unwrap()
                             .to_string());
-                        metric_names.push("elapsed_compute".to_string());
-                        metric_visualizations.push(row
-                            .get("elapsed_compute")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
-                        metric_names.push("output_rows".to_string());
-                        metric_visualizations.push(row
-                            .get("output_rows")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        let bytes = row.get("bytes").unwrap()
+                            .as_array().unwrap()
+                            .iter()
+                            .map(|v| v.as_u64().unwrap() as u8)
+                            .collect::<Vec<u8>>();
+                        metric_visualizations.push(String::from_utf8_lossy(bytes.as_ref()).into_owned());
                     }
                 }
             }
-            Err(err) => tracing::error!("There was a error getting metrics info {err}."),
+            Err(err) => tracing::error!("There was a error getting session diagnostics info {err}."),
         }
 
         #[cfg(feature = "serverless")]
@@ -154,9 +143,7 @@ pub fn metrics_interface_view() -> Element {
                 for byte in bytes.iter() {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_slice(byte.as_ref()).unwrap_or_else(|err| {
-                            tracing::error!(
-                                "There was a error parsing SyncCurrentMetricMermaidJSState {err}."
-                            );
+                            tracing::error!("There was a error getting the session diagnostics {err}.");
                             Vec::new()
                         });
                     for row in json_rows.iter() {
@@ -215,7 +202,7 @@ pub fn metrics_interface_view() -> Element {
                 class: "messaging_list",
                 p { "Please activate a session before searching metrics." },
             }
-        } else if mermaid_elapsed_compute.read().is_empty() {
+        } else if metric_names.read().is_empty() {
             div {
                 class: "messaging_list",
                 p { "Waiting to retrieve session plan metrics..." },

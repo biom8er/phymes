@@ -105,8 +105,7 @@ impl DataOperatorTrait for FromTracesToMessages {
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `rhs_args` - Slice of [RecordBatch]es
 /// * `device` - The compute device
-pub fn from_traces_to_messages(lhs_args: &[RecordBatch], rhs_args: &[RecordBatch], device: &Device,
-) -> Result<RecordBatch> {
+pub fn from_traces_to_messages(lhs_args: &[RecordBatch], rhs_args: &[RecordBatch], device: &Device) -> Result<RecordBatch> {
 
     // Get the unique tasks and processors
     let rhs_table = Table::get_builder()
@@ -116,18 +115,22 @@ pub fn from_traces_to_messages(lhs_args: &[RecordBatch], rhs_args: &[RecordBatch
     let task_name_set = rhs_table.get_column_as_vec_nonprimitive::<String>("task_name")?.into_iter().collect::<HashSet<_>>();
     let processor_name_set = rhs_table.get_column_as_vec_nonprimitive::<String>("processor_name")?.into_iter().collect::<HashSet<_>>();
 
-    // Presort the traces by columns
-    let lhs_values = ["tracer_event", "parent_name", "span_name", "timestamp", "subject_name"];
-    let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
-    for (iter, column_name) in lhs_values.iter().enumerate() {
-        if iter > 0 {
-            lhs_sorted = sort_column_and_indices(column_name, &[lhs_sorted], true, device)?;
-        } else {
-            lhs_sorted = sort_column_and_indices(column_name, lhs_args, true, device)?;
-        }
-    }
+    // // Presort the traces by columns
+    // let lhs_values = ["tracer_event", "parent_name", "span_name", "timestamp", "subject_name"];
+    // let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
+    // for (iter, column_name) in lhs_values.iter().enumerate() {
+    //     if iter > 0 {
+    //         lhs_sorted = sort_column_and_indices(column_name, &[lhs_sorted], true, device)?;
+    //     } else {
+    //         lhs_sorted = sort_column_and_indices(column_name, lhs_args, true, device)?;
+    //     }
+    // }
+    // let lhs_table = Table::get_builder()
+    //     .with_record_batches(vec![lhs_sorted])?
+    //     .with_name("")
+    //     .build()?;
     let lhs_table = Table::get_builder()
-        .with_record_batches(vec![lhs_sorted])?
+        .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?;
 

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, compute::{kernels::numeric::{add, sub}, min}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
@@ -6,6 +6,35 @@ use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::{schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}}, table::table_trait::{Table, TableBuilderTrait, TableTrait}};
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub enum DiagnosticsVisualizations {
+    /// Traces as a sequence diagram
+    TraceSequenceDiagram,
+    /// Events as a kanban diagram
+    EventKanban,
+    /// Metrics (processor traces) as a gantt chart
+    #[default]
+    MetricProcessorTracesGantt,
+    /// Metrics (elapsed compute) as a gantt chart
+    MetricElapsedComputeGantt,
+    /// Metrics (output rows) as a gantt chart
+    MetricOutputRowsGantt,
+}
+
+impl Display for DiagnosticsVisualizations {    
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TraceSequenceDiagram => write!(f, "TraceSequenceDiagram"),
+            Self::EventKanban => write!(f, "EventKanban"),
+            Self::MetricProcessorTracesGantt => write!(f, "MetricProcessorTracesGantt"),
+            Self::MetricElapsedComputeGantt => write!(f, "MetricElapsedComputeGantt"),
+            Self::MetricOutputRowsGantt => write!(f, "MetricOutputRowsGantt"),
+        }
+    }
+}
 
 pub fn create_span_fields() -> Vec<Field> {
     let field_names = ["span_name", "parent_name"];

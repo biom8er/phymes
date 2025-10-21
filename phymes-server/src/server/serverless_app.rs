@@ -342,5 +342,38 @@ mod tests {
         let values: Vec<Map<String, Value>> =
             serde_json::from_slice(bytes.first().unwrap()).unwrap();
         println!("{values:?}");
+
+        // Test session_diagnostics using serverless_app
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+            .with_subject("")
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
+        let data = serde_json::to_string(&session_response).unwrap();
+
+        let config = ServerlessConfig {
+            route: "app/v1/diagnostics".to_string(),
+            basic_auth: None,
+            bearer_auth: Some(bearer.clone()),
+            data: Some(data),
+        };
+        let response = serverless_app(config, &mut serverless).await.unwrap();
+        assert_eq!(200, response.status());
+
+        let bytes: Vec<Bytes> = response
+            .into_body()
+            .into_data_stream()
+            .try_collect()
+            .await
+            .unwrap();
+        let values: Vec<Map<String, Value>> =
+            serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        println!("{values:?}");
     }
 }

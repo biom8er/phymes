@@ -29,7 +29,7 @@ use crate::server::server_config::ServerConfig;
 
 // From lib
 use crate::{handlers::{
-    session_build::session_build, session_state::{session_get_state, session_put_state}, session_stream::session_stream, sign_in::{authorize, sign_in}},
+    session_build::session_build, session_diagnostics::session_diagnostics, session_state::{session_get_state, session_put_state}, session_stream::session_stream, sign_in::{authorize, sign_in}},
     state::server_state::{ServerState, UserState},
 };
 
@@ -62,6 +62,10 @@ impl AppBuilder {
             .route(
                 "/app/v1/build",
                 post(session_build).layer(middleware::from_fn_with_state(user_state.clone(), authorize)),
+            )
+            .route(
+                "/app/v1/diagnostics",
+                post(session_diagnostics).layer(middleware::from_fn_with_state(user_state.clone(), authorize)),
             )
             .with_state((user_state.clone(), server_state));
         Self { app }

@@ -59,9 +59,12 @@ pub enum DataFormat {
     #[default]
     #[value(name = "None")]
     None,
-    /// Arrow IPC stream
+    /// HTML format
     #[value(name = "Html")]
     Html,
+    /// HTML format
+    #[value(name = "Txt")]
+    Txt,
 }
 
 impl DataFormat {
@@ -74,7 +77,8 @@ impl DataFormat {
             "bytes" => DataFormat::Bytes,
             "ipc" => DataFormat::Ipc,
             "html" => DataFormat::Html,
-            _ => return Err(anyhow!("File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, and .html")),
+            "txt" => DataFormat::Txt,
+            _ => return Err(anyhow!("File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, .txt, and .html")),
         };
         Ok(format)
     }
@@ -88,6 +92,7 @@ impl DataFormat {
             Self::Ipc => "ipc",
             Self::Pdf => "pdf",
             Self::Html => "html",
+            Self::Txt => "txt",
             Self::None => "",
         }
     }
@@ -104,6 +109,7 @@ impl Display for DataFormat {
             Self::Ipc => write!(f, "Ipc"),
             Self::Pdf => write!(f, "Pdf"),
             Self::Html => write!(f, "Html"),
+            Self::Txt => write!(f, "Txt"),
             Self::None => write!(f, "None"),
         }
     }
