@@ -376,6 +376,11 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pvt_columns: Option<Vec<String>>,
 
+    /// Vec of [String]s for default values when missing values are encountered
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_values: Option<Vec<String>>,
+
     /// Data distance operator to apply between vectors
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -417,6 +422,7 @@ impl Default for DataConfig {
             cast_templates: None,
             asc: None,
             pvt_columns: None,
+            default_values: None,
             dist_operator: None,
         }
     }

@@ -63,6 +63,9 @@ pub struct DiagnosticSession<'a> {
     pub metrics_output_rows_apply_gantt_task_name: &'a str,
     pub metrics_output_rows_apply_gantt_processor_name: &'a str,
     pub metrics_runtime_env_name: &'a str,
+    pub metrics_processors_traces_runtime_env_name: &'a str,
+    pub metrics_elapsed_compute_runtime_env_name: &'a str,
+    pub metrics_output_rows_runtime_env_name: &'a str,
     
     /// Traces analytics
     pub traces_to_sequence_diagram_messages_task_name: &'a str,
@@ -120,6 +123,9 @@ impl Default for DiagnosticSession<'_> {
             metrics_output_rows_apply_gantt_task_name: "metrics_output_rows_apply_gantt_task_name",
             metrics_output_rows_apply_gantt_processor_name: "metrics_output_rows_apply_gantt_processor_name",
             metrics_runtime_env_name: "metrics_runtime_env_name",
+            metrics_processors_traces_runtime_env_name: "metrics_processors_traces_runtime_env_name",
+            metrics_elapsed_compute_runtime_env_name: "metrics_elapsed_compute_runtime_env_name",
+            metrics_output_rows_runtime_env_name: "metrics_output_rows_runtime_env_name",
             
             // Traces analytics
             traces_to_sequence_diagram_messages_task_name: "traces_to_sequence_diagram_messages_task_name",
@@ -167,32 +173,32 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             },
             TaskPlan {
                 task_name: self.metrics_processors_traces_select_and_cast_to_gantt_task_name.to_string(),
-                runtime_env_name: self.metrics_runtime_env_name.to_string(),
+                runtime_env_name: self.metrics_processors_traces_runtime_env_name.to_string(),
                 processor_names: vec![self.metrics_processors_traces_select_and_cast_to_gantt_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.metrics_elapsed_compute_select_and_cast_to_gantt_task_name.to_string(),
-                runtime_env_name: self.metrics_runtime_env_name.to_string(),
+                runtime_env_name: self.metrics_elapsed_compute_runtime_env_name.to_string(),
                 processor_names: vec![self.metrics_elapsed_compute_select_and_cast_to_gantt_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.metrics_output_rows_select_and_cast_to_gantt_task_name.to_string(),
-                runtime_env_name: self.metrics_runtime_env_name.to_string(),
+                runtime_env_name: self.metrics_output_rows_runtime_env_name.to_string(),
                 processor_names: vec![self.metrics_output_rows_select_and_cast_to_gantt_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.metrics_processors_traces_apply_gantt_task_name.to_string(),
-                runtime_env_name: self.metrics_runtime_env_name.to_string(),
+                runtime_env_name: self.metrics_processors_traces_runtime_env_name.to_string(),
                 processor_names: vec![self.metrics_processors_traces_apply_gantt_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.metrics_elapsed_compute_apply_gantt_task_name.to_string(),
-                runtime_env_name: self.metrics_runtime_env_name.to_string(),
+                runtime_env_name: self.metrics_elapsed_compute_runtime_env_name.to_string(),
                 processor_names: vec![self.metrics_elapsed_compute_apply_gantt_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.metrics_output_rows_apply_gantt_task_name.to_string(),
-                runtime_env_name: self.metrics_runtime_env_name.to_string(),
+                runtime_env_name: self.metrics_output_rows_runtime_env_name.to_string(),
                 processor_names: vec![self.metrics_output_rows_apply_gantt_processor_name.to_string()],
             },
             TaskPlan {
@@ -550,6 +556,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         Some(vec![
             RuntimeEnv::new().with_name("rt_default"),
             RuntimeEnv::new().with_name(self.metrics_runtime_env_name),
+            RuntimeEnv::new().with_name(self.metrics_processors_traces_runtime_env_name),
+            RuntimeEnv::new().with_name(self.metrics_elapsed_compute_runtime_env_name),
+            RuntimeEnv::new().with_name(self.metrics_output_rows_runtime_env_name),
             RuntimeEnv::new().with_name(self.traces_runtime_env_name),
             RuntimeEnv::new().with_name(self.events_runtime_env_name),
         ])
