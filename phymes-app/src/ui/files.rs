@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use phymes_core::{
     schemas::blob::create_blob_batch, 
     session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}}, 
-    table::{data_format::DataFormat, table_publish::TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, 
+    table::{DataFormat, TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, 
     task::message::MessageBuilderTrait
 };
 use phymes_diagnostics::create_timestamp_micros;

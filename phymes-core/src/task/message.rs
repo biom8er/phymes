@@ -1,13 +1,7 @@
 use std::sync::Arc;
 
-use crate::session::common_traits::{
-    BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait,
-};
-use crate::table::{
-    table_trait::{TableBuilder, TableBuilderTrait, TableTrait},
-    table_publish::TablePublish,
-    stream::SendableRecordBatchStream,
-};
+use crate::session::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait};
+use crate::table::{TableBuilder, TableBuilderTrait, TableTrait, TablePublish,SendableRecordBatchStream};
 
 use anyhow::{Result, anyhow};
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
@@ -428,7 +422,7 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::table::table_trait::test_table::{self, make_test_table, make_test_table_chat};
+    use crate::table::test_table::{self, make_test_table, make_test_table_chat};
 
     use super::*;
 

@@ -6,7 +6,7 @@ use candle_core::Device;
 use phymes_core::{
     schemas::{available_subjects::create_values_record_batch, chat_completion, types},
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::{data_format::DataFormat, table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
+    table::{DataFormat, table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
 };
 use serde_json::{json, Value};
 use tracing::instrument;

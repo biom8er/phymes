@@ -7,7 +7,7 @@ use phymes_core::{
         session_context_builder::TaskPlan,
     }, table::{
         table_trait::{Table, TableBuilder, TableBuilderTrait},
-        table_publish::TablePublish,
+        TablePublish,
         table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
     }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
@@ -304,7 +304,7 @@ mod tests {
     use phymes_core::{
         schemas::chat::ChatBuilderTraitExt, session::{
             common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
-        }, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
+        }, table::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
     use phymes_diagnostics::HashMap;
 

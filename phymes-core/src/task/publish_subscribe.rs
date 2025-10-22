@@ -1,15 +1,9 @@
 use phymes_diagnostics::HashMap;
 
 use crate::{
-    session::common_traits::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap},
-    table::{
-        table_publish::TablePublish,
-        table_subscribe::{TableSubscribe, TableSubscribeTrait},
-    },
-    task::message::{
-        MessageBuilderTrait, SendableRecordBatchStreamMessage,
-    },
-};
+    session::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap},
+    table::{TablePublish, TableSubscribe, TableSubscribeTrait},
+    task::{MessageBuilderTrait, SendableRecordBatchStreamMessage}};
 
 /// For task or processor objects that publish and
 /// subscribe to messages

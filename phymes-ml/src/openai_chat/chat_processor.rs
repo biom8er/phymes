@@ -21,11 +21,11 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-        processor::ProcessorTrait,
+        ProcessorTrait,
         publish_subscribe::PubSubTrait,
     },
 };
@@ -415,7 +415,7 @@ mod tests {
     #[allow(unused_imports)]
     use phymes_core::{
         metrics::HashMap, schemas::chat::ChatBuilderTraitExt,
-        table::table_trait::TableBuilder,
+        table::TableBuilder,
     };
 
     #[cfg(not(feature = "candle"))]

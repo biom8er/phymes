@@ -14,7 +14,7 @@ use phymes_core::{
             SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
         },
     }, table::{
-        data_types::{from_data_type_to_str, from_str_to_data_type}, table_publish::TablePublish, table_subscribe::{from_str_to_subscribe, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
+        data_types::{from_data_type_to_str, from_str_to_data_type}, TablePublish, table_subscribe::{from_str_to_subscribe, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
     }, task::processor::ProcessorBuilder
 };
 use phymes_diagnostics::{create_timestamp_micros, HashSet};

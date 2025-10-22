@@ -8,12 +8,12 @@ use phymes_core::{
         common_traits::{device, BuildableTrait, BuilderTrait},
         runtime_env::RuntimeEnv,
     }, table::{
-        table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{
+        TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{
             test_table::TestTableSizes, Table, TableBuilderTrait, TableTrait
         }
     }, task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-        processor::ProcessorTrait,
+        ProcessorTrait,
     }
 };
 use phymes_data::{

@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::{session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::{MessageBuilderTrait, MessageTrait}};
+use crate::{session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{DataFormat, TablePublish}, task::{MessageBuilderTrait, MessageTrait}};
 
 /// Composition of [MessageTrait] with additional functions for inter-session communication
 pub trait SessionInterfaceMessageTrait: MessageTrait {

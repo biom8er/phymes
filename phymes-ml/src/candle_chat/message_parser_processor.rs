@@ -17,11 +17,11 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-        processor::ProcessorTrait,
+        ProcessorTrait,
         publish_subscribe::PubSubTrait,
     },
 };
@@ -425,7 +425,7 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::table::{table_publish::TablePublish, table_trait::TableBuilder};
+    use phymes_core::table::{TablePublish, TableBuilder};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;

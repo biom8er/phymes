@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use clap::{Parser, ValueEnum};
-use phymes_core::table::data_format::DataFormat;
+use phymes_core::table::DataFormat;
 use serde::{Deserialize, Serialize};
 
 use crate::candle_operators::available_candle_operators::AvailableCandleOperators;

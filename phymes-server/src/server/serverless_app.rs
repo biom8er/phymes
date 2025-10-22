@@ -82,7 +82,7 @@ mod tests {
     use futures::TryStreamExt;
     use futures_executor::block_on;
     use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
-    use phymes_core::{schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table_publish::TablePublish, table_trait::TableTrait}, task::message::MessageBuilderTrait};
+    use phymes_core::{schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}}, table::{DataFormat, TablePublish, TableTrait}, task::message::MessageBuilderTrait};
     use serde_json::{Map, Value};
 
     use crate::handlers::sign_in::{basic_auth, create_session_name};

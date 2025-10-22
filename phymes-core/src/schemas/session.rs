@@ -3,7 +3,7 @@ use std::sync::Arc;
 use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt32Array, UInt64Array, UInt8Array}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
 
-pub fn create_session_subjects_fields() -> Fields {
+pub(crate) fn create_session_subjects_fields() -> Fields {
     let field_names = ["subject_name", "column_name", "type_name"];
     let fields_vec = field_names
         .iter()
@@ -28,7 +28,7 @@ pub fn create_session_subjects_batch(
     Ok(batch)
 }
 
-pub fn create_session_subjects_num_rows_fields() -> Fields {
+pub(crate) fn create_session_subjects_num_rows_fields() -> Fields {
     let field_names = ["subject_name"];
     let mut fields_vec = field_names
         .iter()
@@ -55,7 +55,7 @@ pub fn create_session_subjects_num_rows_batch(
     Ok(batch)
 }
 
-pub fn create_session_tasks_fields() -> Fields {
+pub(crate) fn create_session_tasks_fields() -> Fields {
     let field_names = ["task_name", "processor_name", "runtime_env_name"];
     let fields_vec = field_names
         .iter()
@@ -80,7 +80,7 @@ pub fn create_session_tasks_batch(
     Ok(batch)
 }
 
-pub fn create_session_processors_fields() -> Fields {
+pub(crate) fn create_session_processors_fields() -> Fields {
     let field_names = ["processor_name", "processor_type", "publication_subscription_name", "publication_subscription_table_names", "subscribe_type"];
     let mut fields_vec = field_names
         .iter()
@@ -119,7 +119,7 @@ pub fn create_session_processors_batch(
     Ok(batch)
 }
 
-pub fn create_session_runtime_envs_fields() -> Fields {
+pub(crate) fn create_session_runtime_envs_fields() -> Fields {
     let field_names = ["runtime_env_name"];
     let mut fields_vec = field_names
         .iter()

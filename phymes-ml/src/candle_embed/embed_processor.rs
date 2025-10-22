@@ -8,10 +8,10 @@ use phymes_core::{
         },
         runtime_env::RuntimeEnv,
     }, table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}
     }, task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-        processor::ProcessorTrait,
+        ProcessorTrait,
         publish_subscribe::PubSubTrait,
     }
 };

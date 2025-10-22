@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -68,6 +70,7 @@ use std::sync::Arc;
 /// 3. Eventually this may also be able to handle other optimizations such as a
 ///    combined filter/coalesce operation.
 ///
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct BatchCoalescer {
     /// The input schema

@@ -14,7 +14,7 @@ use phymes_core::{
         }
     },
     table::{
-        data_types::{from_data_type_to_str, from_str_to_data_type}, table_publish::TablePublish, table_subscribe::{from_str_to_subscribe, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
+        data_types::{from_data_type_to_str, from_str_to_data_type}, TablePublish, table_subscribe::{from_str_to_subscribe, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
     },
     task::processor::{
         test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho

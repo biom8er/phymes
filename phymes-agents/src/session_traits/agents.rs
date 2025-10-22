@@ -9,8 +9,8 @@ use phymes_core::{
         session_context::SessionContext,
         session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
     },
-    table::table_trait::Table,
-    task::processor::ProcessorTrait,
+    table::Table,
+    task::ProcessorTrait,
 };
 use phymes_diagnostics::HashMap;
 

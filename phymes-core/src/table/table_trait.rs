@@ -1,4 +1,4 @@
-use crate::session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait};
+use crate::session::{BuildableTrait, BuilderTrait, MappableTrait};
 
 use super::{
     stream::{SendableIPCRecordBatchStream, SendableRecordBatchStream},
@@ -1337,6 +1337,7 @@ pub mod test_table {
     }
 
     /// Make a test record batch schema with fields for id, title, text, metadata, score, and embeddings
+    #[allow(dead_code)]
     pub fn make_test_table_schema(embed_end: u32) -> Result<SchemaRef> {
         let id = Field::new("id", DataType::UInt32, false);
         let collection = Field::new("collection", DataType::Utf8, false);
@@ -1456,6 +1457,7 @@ pub mod test_table {
             .build()
     }
 
+    #[allow(dead_code)]
     pub enum TestTableSizes {
         XS,
         S,
@@ -1464,6 +1466,7 @@ pub mod test_table {
         XL,
     }
 
+    #[allow(dead_code)]
     impl TestTableSizes {
         /// Return the operation based on the name
         pub fn new_from_name(name: &str) -> Option<Self> {
@@ -1568,6 +1571,7 @@ pub mod test_table {
             .build()
     }
 
+    #[allow(dead_code)]
     pub fn make_test_table_tool(name: &str) -> Result<Table> {
         let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
             "tool1".to_string(),
@@ -1591,6 +1595,8 @@ pub mod test_table {
 
 #[cfg(test)]
 mod tests {
+    use crate::table::test_table::{TestTable, make_test_table_schema, make_test_table};
+
     use super::*;
 
     // Todo: additional tests for builder members
@@ -1602,7 +1608,7 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn test_to_from_ipc_file() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 8, 3)?;
+        let test_table = make_test_table("test_table", 4, 8, 3)?;
 
         // Create a file inside of `env::temp_dir()`.
         let mut file = tempfile()?;
@@ -1625,7 +1631,7 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn test_to_from_csv_file() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_table("test_table", 4, 0, 3)?;
 
         // Create a file inside of `env::temp_dir()`.
         let mut file = tempfile()?;
@@ -1675,7 +1681,7 @@ mod tests {
 
     #[test]
     fn test_to_from_ipc_stream() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 8, 3)?;
+        let test_table = make_test_table("test_table", 4, 8, 3)?;
 
         // Write data to IPC file
         let bytes = test_table.to_ipc_stream()?;
@@ -1695,7 +1701,7 @@ mod tests {
 
     #[test]
     fn test_to_from_json() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_table("test_table", 4, 0, 3)?;
 
         // Write data to json
         let bytes = test_table.to_json()?;
@@ -1738,7 +1744,7 @@ mod tests {
 
     #[test]
     fn test_to_from_csv_str() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_table("test_table", 4, 0, 3)?;
 
         // Write data to json
         let bytes = test_table.to_csv(b',', true)?;
@@ -1782,7 +1788,7 @@ mod tests {
 
     #[test]
     fn test_to_from_json_object() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_table("test_table", 4, 0, 3)?;
 
         // Write data to JSON object
         let json_rows = test_table.to_json_object()?;
@@ -1835,7 +1841,7 @@ mod tests {
 
     #[test]
     fn test_to_from_bytes() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_table("test_table", 4, 0, 3)?;
 
         // Write data to Bytes
         let json_bytes = test_table.to_bytes()?;
@@ -1867,7 +1873,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_from_record_batch_stream() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 8, 3)?;
+        let test_table = make_test_table("test_table", 4, 8, 3)?;
 
         // Write data to IPC file
         let stream = test_table.to_record_batch_stream();
@@ -1888,7 +1894,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_from_record_batch_stream_last_record_batch() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 8, 3)?;
+        let test_table = make_test_table("test_table", 4, 8, 3)?;
 
         // Write data to IPC file
         let stream = test_table.to_record_batch_stream_last_record_batch();
@@ -1910,14 +1916,14 @@ mod tests {
 
     #[test]
     fn test_to_from_struct() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_table("test_table", 4, 0, 3)?;
 
         // Write data struct
-        let s = test_table.to_struct::<test_table::TestTable>()?;
+        let s = test_table.to_struct::<TestTable>()?;
         let test_table_read = TableBuilder::new()
-            .with_schema(test_table::make_test_table_schema(0)?)
+            .with_schema(make_test_table_schema(0)?)
             .with_name("test_table")
-            .with_struct::<test_table::TestTable>(&s)?
+            .with_struct::<TestTable>(&s)?
             .build()?;
 
         assert_eq!(test_table.get_name(), test_table_read.get_name());
@@ -1932,7 +1938,7 @@ mod tests {
 
     #[test]
     fn test_concat_record_batches() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_table("test_table", 4, 0, 3)?;
 
         let concat_table = test_table.concat_record_batches()?;
 
@@ -1945,7 +1951,7 @@ mod tests {
 
     #[test]
     fn test_count_rows() -> Result<()> {
-        let test_table = test_table::make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_table("test_table", 4, 0, 3)?;
 
         let n_rows = test_table.count_rows();
         assert_eq!(n_rows, 12);

@@ -3,7 +3,7 @@ use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::session::common_traits::{MappableTrait, StateMap};
+use crate::session::{MappableTrait, StateMap};
 
 use super::{
     table_trait::{Table, TableTrait},

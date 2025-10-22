@@ -7,7 +7,7 @@ use phymes_core::{
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     }, table::{
-        data_format::DataFormat, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait}
+        DataFormat, TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait}
     }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
 use phymes_data::{candle_data::{attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::{DataAggregatorOperator, DataCastOperator, DataConfig}, data_processor::CandleDataProcessor}, candle_operators::available_candle_operators::AvailableCandleOperators, jinja2_templates::{mermaid_gantt::{MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_GANTT_TEMPLATE}, mermaid_kanban::{MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_KANBAN_TEMPLATE}, mermaid_sequence_diagram::{MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE}}};
@@ -937,7 +937,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{session::{common_traits::BuildableTrait, session_stream::SessionStream, session_stream_state::SessionStreamState}, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
+    use phymes_core::{session::{common_traits::BuildableTrait, session_stream::SessionStream, session_stream_state::SessionStreamState}, table::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
     use phymes_diagnostics::HashMap;
 
     use crate::{session_plans::{available_interface_subjects::create_message_map, user_session::user_session}, session_traits::agents::SessionContextBuilderAgentsTrait};

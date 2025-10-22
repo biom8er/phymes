@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::ValueEnum;
 use phymes_core::{
     session::common_traits::MappableTrait, table::{
-        table_publish::TablePublish,
+        TablePublish,
         table_subscribe::{TableSubscribe, SubscribeTrait},
     }, task::processor::{
         test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho, ProcessorTrait

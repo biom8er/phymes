@@ -10,7 +10,7 @@ use std::sync::Arc;
 use phymes_core::{
     schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::BlobBuilderTraitExt, mermaid::create_session_mermaid_batch, user::{create_user_inbox_batch, create_user_session_contexts_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilder}, 
-    table::{data_format::JsonFormat, table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, 
+    table::{data_format::JsonFormat, TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, 
     task::message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait}};
 
 use crate::handlers::sign_in::create_session_name;
@@ -318,7 +318,7 @@ mod tests {
     use phymes_diagnostics::HashSet;
 
     #[cfg(not(target_family = "wasm"))]
-    use phymes_core::{session::common_traits::MappableTrait, table::table_trait::TableTrait};
+    use phymes_core::{session::common_traits::MappableTrait, table::TableTrait};
 
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;

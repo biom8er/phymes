@@ -1,5 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use phymes_core::{schemas::diagnostics::{from_diagnostics_to_tables, pivot_metrics_table}, table::table_trait::TableTrait};
+use phymes_core::{schemas::diagnostics::{from_diagnostics_to_tables, pivot_metrics_table}, table::TableTrait};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, MetricBuilderTrait, SpanBuilder};
 use phymes_ml::{
     candle_assets::available_candle_assets::AvailableCandleAssets,

@@ -1,10 +1,6 @@
 use crate::session::runtime_env::RuntimeEnv;
-use crate::table::table_trait::Table;
-use crate::task::{
-    message::{IPCMessage, SendableRecordBatchStreamMessage},
-    processor::ProcessorTrait,
-    task_trait::Task,
-};
+use crate::table::Table;
+use crate::task::{IPCMessage, SendableRecordBatchStreamMessage, ProcessorTrait, Task};
 
 /// General imports
 use anyhow::Result;

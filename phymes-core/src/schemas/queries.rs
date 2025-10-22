@@ -5,9 +5,9 @@ use anyhow::Result;
 use phymes_diagnostics::create_timestamp_str;
 use serde::{Deserialize, Serialize};
 
-use crate::table::table_trait::TableBuilder;
+use crate::table::TableBuilder;
 
-pub fn create_queries_fields() -> Fields {
+pub(crate) fn create_queries_fields() -> Fields {
     let field_names = ["query_id", "text"];
     let fields_vec = field_names
         .iter()

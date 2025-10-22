@@ -5,7 +5,7 @@ use anyhow::Result;
 use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}}, table::table_trait::{Table, TableBuilderTrait, TableTrait}};
+use crate::{schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{BuildableTrait, BuilderTrait, MappableTrait}, table::{Table, TableBuilderTrait, TableTrait}};
 
 
 
@@ -36,7 +36,7 @@ impl Display for DiagnosticsVisualizations {
     }
 }
 
-pub fn create_span_fields() -> Vec<Field> {
+fn create_span_fields() -> Vec<Field> {
     let field_names = ["span_name", "parent_name"];
     let mut fields_vec = field_names
         .iter()
@@ -50,7 +50,7 @@ pub fn create_span_fields() -> Vec<Field> {
     fields_vec
 }
 
-pub fn create_current_context_fields() -> Vec<Field> {
+fn create_current_context_fields() -> Vec<Field> {
     let field_names = ["file", "thread", "function"];
     let mut fields_vec = field_names
         .iter()
@@ -69,7 +69,7 @@ pub fn create_current_context_fields() -> Vec<Field> {
     fields_vec
 }
 
-pub fn create_diagnostic_span_fields() -> Vec<Field> {
+fn create_diagnostic_span_fields() -> Vec<Field> {
     let field_names = ["labels"];
     let mut fields_vec = field_names
         .iter()
@@ -85,7 +85,7 @@ pub fn create_diagnostic_span_fields() -> Vec<Field> {
     fields_vec
 }
 
-pub fn create_metrics_fields() -> Fields {
+pub(crate) fn create_metrics_fields() -> Fields {
     let field_names = ["metric_name"];
     let mut fields_vec = field_names
         .iter()
@@ -100,7 +100,7 @@ pub fn create_metrics_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_metrics_pivot_fields_vec() -> Vec<Field> {
+fn create_metrics_pivot_fields_vec() -> Vec<Field> {
     vec![
         Field::new("span_name", DataType::Utf8, false),
         Field::new("span_id", DataType::Int64, false),
@@ -113,11 +113,11 @@ pub fn create_metrics_pivot_fields_vec() -> Vec<Field> {
     ]
 }
 
-pub fn create_metrics_pivot_fields() -> Fields {
+pub(crate) fn create_metrics_pivot_fields() -> Fields {
     Fields::from(create_metrics_pivot_fields_vec())
 }
 
-pub fn create_metrics_pivot_norm_time_fields() -> Fields {
+pub(crate) fn create_metrics_pivot_norm_time_fields() -> Fields {
     let field_names = ["start_timestamp-metric_value-Sum-normalized", "end_timestamp-metric_value-Sum-normalized", "duration"];
     let mut fields_vec = field_names
         .iter()
@@ -127,7 +127,7 @@ pub fn create_metrics_pivot_norm_time_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_metrics_mermaid_gantt_fields() -> Fields {
+pub(crate) fn create_metrics_mermaid_gantt_fields() -> Fields {
     let field_names = ["processor_traces", "elapsed_compute", "output_rows"];
     let fields_vec = field_names
         .iter()
@@ -159,7 +159,7 @@ pub struct MetricMermaidGanttSubject {
     pub output_rows: String,
 }
 
-pub fn create_traces_fields() -> Fields {
+pub(crate) fn create_traces_fields() -> Fields {
     let field_names = ["tracer_type", "tracer_event", "message_name", "subject_name"];
     let mut fields_vec = field_names
         .iter()
@@ -169,7 +169,7 @@ pub fn create_traces_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_events_fields() -> Fields {
+pub(crate) fn create_events_fields() -> Fields {
     let field_names = ["event_level", "record_name", "record_value"];
     let mut fields_vec = field_names
         .iter()

@@ -15,7 +15,7 @@ use phymes_agents::{session_plans::{available_interface_subjects::create_message
 use phymes_core::{
     schemas::{available_subjects::AvailableSubjects, user::JoinUserInboxSessionContextsMermaidDiagrams},
     session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState},
-    table::{data_format::DataFormat, table_publish::TablePublish, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}},
+    table::{DataFormat, TablePublish, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}},
     task::message::{IPCMessage, MessageBuilderTrait, MessageTrait},
 };
 

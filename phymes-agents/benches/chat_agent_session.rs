@@ -10,7 +10,7 @@ use phymes_agents::{
 use phymes_core::{
     schemas::{available_subjects::{AvailableSubjectsTrait, AvailableSubjects}, chat::ChatBuilderTraitExt}, session::{
         common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState
-    }, table::{table_publish::TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, MessageBuilderTrait}
+    }, table::{TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, MessageBuilderTrait}
 };
 use phymes_diagnostics::HashMap;
 

@@ -1,13 +1,7 @@
 use crate::{
-    session::{
-        common_traits::{MappableTrait, SendableRecordBatchStreamMessageMap},
-        runtime_env::RuntimeEnv,
-    },
-    table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
-    },
-    task::publish_subscribe::PubSubTrait,
-};
+    session::{MappableTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, StateMap},
+    table::{AllTableNamesSubscribe, RecordBatchStream, SendableRecordBatchStream, SubscribeTrait, TablePublish, TableSubscribe},
+    task::PubSubTrait};
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
@@ -257,7 +251,7 @@ impl PubSubTrait for ProcessorEcho {
     fn check_subscriptions(
         &self,
         updates: &HashMap<String, bool>,
-        state: &crate::session::common_traits::StateMap,
+        state: &StateMap,
     ) -> bool {
         self.subscribe
             .check_subscriptions(&self.subscriptions, updates, state)
@@ -378,12 +372,9 @@ impl ProcessorBuilder {
 pub mod test_processor {
     use super::*;
     use crate::{
-        session::common_traits::{BuildableTrait, BuilderTrait, StateMap},
-        table::table_trait::test_table::make_test_record_batch,
-        task::message::{
-            MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-        },
-    };
+        session::{BuildableTrait, BuilderTrait, StateMap},
+        table::test_table::make_test_record_batch,
+        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage}};
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
@@ -670,16 +661,9 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        session::{
-            common_traits::{BuildableTrait, BuilderTrait},
-            runtime_env::RuntimeEnv,
-        },
-        table::{
-            table_publish::TablePublish, table_trait::{
-                test_table::make_test_table, TableBuilder, TableBuilderTrait, TableTrait
-            }
-        },
-        task::message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage}
+        session::{BuildableTrait, BuilderTrait, RuntimeEnv},
+        table::{TablePublish, test_table::make_test_table, TableBuilder, TableBuilderTrait, TableTrait},
+        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage}
     };
     use anyhow::Result;
     use parking_lot::lock_api::Mutex;

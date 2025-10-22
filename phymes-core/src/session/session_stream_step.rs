@@ -8,16 +8,10 @@ use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
 
 use super::common_traits::{BuilderTrait, IPCMessageMap, MappableTrait, SendableRecordBatchStreamMessageMap, RunnableTrait};
-use crate::schemas::error::{create_error_message_map, create_error_message_map_stream};
+use crate::schemas::{create_error_message_map, create_error_message_map_stream};
 use crate::session::session_stream_state::SessionStreamState;
-use crate::table::table_trait::{TableBuilder, TableBuilderTrait, TableTrait};
-use crate::task::{
-    message::{
-        IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait,
-        SendableRecordBatchStreamMessage,
-    },
-    publish_subscribe::PubSubTrait,
-};
+use crate::table::{TableBuilder, TableBuilderTrait, TableTrait};
+use crate::task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, PubSubTrait};
 
 /// A single step of a [`SessionStream`]
 pub struct SessionStreamStep {}
@@ -260,20 +254,11 @@ impl SessionStreamStep {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait};
+    use crate::schemas::{AvailableSubjects, AvailableSubjectsTrait};
     use crate::session::session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan};
-    use crate::table::table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe};
-    use crate::task::processor::test_processor::{ProcessorError, ProcessorMock};
-    use crate::task::processor::ProcessorTrait;
-    use crate::task::task_trait::test_task::{make_runtime_env, make_state_tables};
-    use crate::{
-        session::session_context_builder::test_session_context_builder::{
-            make_test_session_context_parallel_task,
-            make_test_session_context_sequential_task,
-        },
-        table::table_publish::TablePublish,
-        task::task_trait::test_task::make_test_input_message,
-    };
+    use crate::table::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, TablePublish};
+    use crate::task::{test_processor::{ProcessorError, ProcessorMock}, ProcessorTrait, test_task::{make_runtime_env, make_state_tables, make_test_input_message}};
+    use crate::session::session_context_builder::test_session_context_builder::{make_test_session_context_parallel_task, make_test_session_context_sequential_task};
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {

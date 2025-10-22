@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -23,7 +25,7 @@ use std::task::{Context, Poll};
 
 use anyhow::Result;
 
-use crate::table::stream::{RecordBatchStream, SendableRecordBatchStream};
+use crate::table::{RecordBatchStream, SendableRecordBatchStream};
 
 use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;

@@ -9,12 +9,8 @@ use tracing::{Level, event, instrument};
 
 use super::common_traits::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait};
 use crate::session::session_context::SessionContext;
-use crate::table::table_publish::TablePublish;
-use crate::table::{
-    table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait},
-    table_publish::TableUpdateTrait,
-};
-use crate::task::message::MessageTrait;
+use crate::table::{Table, TableBuilder, TableBuilderTrait, TableTrait, TableUpdateTrait, TablePublish};
+use crate::task::MessageTrait;
 
 /// State tracked during the course of running a [`SessionStream`]
 #[derive(Default, Debug, Clone)]
@@ -294,7 +290,7 @@ mod tests {
         session::session_context_builder::test_session_context_builder::{
             make_test_session_context_parallel_task,
             make_test_session_context_sequential_task,
-        }, table::table_publish::TablePublish, task::task_trait::test_task::make_test_input_message
+        }, table::TablePublish, task::test_task::make_test_input_message
     };
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempfile;

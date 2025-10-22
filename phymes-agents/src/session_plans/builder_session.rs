@@ -6,7 +6,7 @@ use phymes_core::{
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     }, table::{
-        table_trait::{Table, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        table_trait::{Table, TableBuilderTrait}, TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
 use phymes_diagnostics::create_timestamp_micros;

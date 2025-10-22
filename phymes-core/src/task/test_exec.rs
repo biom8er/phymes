@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -33,10 +35,7 @@ use tokio::task::JoinSet;
 #[allow(unused_imports)]
 use super::task_trait::Task;
 
-use crate::table::{
-    stream::{RecordBatchStream, SendableRecordBatchStream},
-    stream_adapter::{EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStreamAdapter},
-};
+use crate::table::{RecordBatchStream, SendableRecordBatchStream, EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStreamAdapter};
 
 use arrow::{
     array::{ArrayRef, Int32Array},
@@ -46,6 +45,7 @@ use arrow::{
 
 /// For objects that run computation and send/recieve
 /// streaming `RecordBatch`es as messages
+#[allow(dead_code)]
 pub trait SendableRecordBatchExecTrait: Debug + Send + Sync {
     fn get_static_name() -> &'static str
     where

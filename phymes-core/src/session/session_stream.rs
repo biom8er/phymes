@@ -11,7 +11,7 @@ use tracing::{Level, event};
 use super::common_traits::IPCMessageMap;
 use crate::session::session_stream_state::SessionStreamState;
 use crate::session::session_stream_step::SessionStreamStep;
-use crate::task::message::IPCMessage;
+use crate::task::IPCMessage;
 
 pub struct SessionStream {
     /// The state
@@ -99,7 +99,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuilderTrait, MappableTrait}, session_context_builder::test_session_context_builder::make_test_session_context_sequential_task}, table::{table_publish::TablePublish, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}}, task::{message::MessageTrait, task_trait::test_task::make_test_input_message}
+        schemas::AvailableSubjects, session::{common_traits::{BuilderTrait, MappableTrait}, session_context_builder::test_session_context_builder::make_test_session_context_sequential_task}, table::{TablePublish, TableBuilder, TableBuilderTrait, TableTrait}, task::{MessageTrait, test_task::make_test_input_message}
     };
 
     #[tokio::test]

@@ -8,7 +8,7 @@ use anyhow::{Result, anyhow};
 use phymes_diagnostics::BaselineMetrics;
 
 use crate::table::stream::{RecordBatchStream, SendableRecordBatchStream};
-use crate::task::test_exec::SendableRecordBatchExecTrait;
+use crate::task::SendableRecordBatchExecTrait;
 
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
@@ -69,6 +69,7 @@ impl<O: Send + 'static + std::fmt::Debug> ReceiverStreamBuilder<O> {
     ///
     /// This is often used to spawn tasks that write to the sender
     /// retrieved from `Self::tx`.
+    #[allow(dead_code)]
     pub fn spawn_blocking<F>(&mut self, f: F)
     where
         F: FnOnce() -> Result<()>,
@@ -233,6 +234,7 @@ impl RecordBatchReceiverStreamBuilder {
     /// This is often used to spawn tasks that write to the sender
     /// retrieved from [`Self::tx`], for examples, see the document
     /// of this type.
+    #[allow(dead_code)]
     pub fn spawn_blocking<F>(&mut self, f: F)
     where
         F: FnOnce() -> Result<()>,
@@ -400,11 +402,13 @@ where
 
 /// `EmptyRecordBatchStream` can be used to create a [`RecordBatchStream`]
 /// that will produce no results
+#[allow(dead_code)]
 pub struct EmptyRecordBatchStream {
     /// Schema wrapped by Arc
     schema: SchemaRef,
 }
 
+#[allow(dead_code)]
 impl EmptyRecordBatchStream {
     /// Create an empty RecordBatchStream
     pub fn new(schema: SchemaRef) -> Self {
@@ -428,12 +432,14 @@ impl Stream for EmptyRecordBatchStream {
 
 /// Stream wrapper that records `BaselineMetrics` for a particular
 /// `[SendableRecordBatchStream]` (likely a partition)
+#[allow(dead_code)]
 pub struct ObservedStream {
     inner: SendableRecordBatchStream,
     baseline_metrics: BaselineMetrics,
 }
 
-impl ObservedStream {
+impl ObservedStream {    
+    #[allow(dead_code)]
     pub fn new(inner: SendableRecordBatchStream, baseline_metrics: BaselineMetrics) -> Self {
         Self {
             inner,
@@ -463,11 +469,11 @@ mod test {
     use arrow::datatypes::{DataType, Field, Schema};
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
-    use crate::task::test_exec::BlockingExec;
-    use crate::task::test_exec::{MockExec, PanicExecWrapper};
+    use crate::task::BlockingExec;
+    use crate::task::{MockExec, PanicExecWrapper};
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
-    use crate::task::test_exec::assert_strong_count_converges_to_zero;
+    use crate::task::assert_strong_count_converges_to_zero;
 
     fn schema() -> SchemaRef {
         Arc::new(Schema::new(vec![Field::new("a", DataType::Float32, true)]))

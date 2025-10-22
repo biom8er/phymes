@@ -10,7 +10,7 @@ use super::{
     message::{
         MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     },
-    processor::ProcessorTrait,
+    ProcessorTrait,
     publish_subscribe::PubSubTrait,
 };
 
@@ -19,20 +19,15 @@ use super::{
 use super::test_exec::{collect_partitions_runs, collect_task_runs};
 
 use crate::{
-    session::{
-        common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, RunnableTrait, SendableRecordBatchStreamMessageMap, StateMap
-        },
-        runtime_env::RuntimeEnv,
-    },
-    table::{table_publish::TablePublish, table_subscribe::TableSubscribe},
+    session::{BuildableTrait, BuilderTrait, MappableTrait, RunnableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv},
+    table::{TablePublish, TableSubscribe},
 };
 
 /// Trait to implement the actual task which could involve one or
 ///   more operators over [`RecordBatch`]s often originating from
 ///   structs implementing the [`TableTrait`].
 ///
-/// [`TableTrait`]: crate::table::table_trait::TableTrait
+/// [`TableTrait`]: crate::table::TableTrait
 ///
 /// The trait allows for the schema of the data to change (e.g. after joins),
 ///   but the logic must be implemented by the user
@@ -280,6 +275,7 @@ impl TaskBuilderTrait for TaskBuilder {
 /// This processortion iterates over the specified column indices and ensures that none
 /// of the columns contain null values. If any column contains null values, an error
 /// is returned.
+#[allow(dead_code)]
 pub fn check_not_null_constraints(
     batch: RecordBatch,
     column_indices: &Vec<usize>,
@@ -314,21 +310,9 @@ pub fn check_not_null_constraints(
 pub mod test_task {
     use super::*;
     use crate::{
-        session::{
-            common_traits::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait},
-            runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        },
-        table::{
-            table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait}, table_trait::{
-                test_table::{make_test_table, make_test_table_chat}, Table, TableBuilder, TableBuilderTrait, TableTrait
-            }
-        },
-        task::{
-            message::{
-                IPCMessage, IPCMessageBuilder, MessageBuilderTrait,
-            },
-            processor::test_processor::ProcessorMock,
-        },
+        session::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, RuntimeEnv, RuntimeEnvTrait},
+        table::{TablePublish, AllTableNamesSubscribe, SubscribeTrait, test_table::{make_test_table, make_test_table_chat}, Table, TableBuilder, TableBuilderTrait, TableTrait},
+        task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, test_processor::ProcessorMock},
     };
 
     use arrow::array::{ArrayRef, StringArray, UInt16Array, UInt32Array};
@@ -519,17 +503,11 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::table::table_trait::TableTrait;
-    use crate::table::table_trait::test_table::make_test_table;
-    use crate::table::{
-        table_trait::{TableBuilder, TableBuilderTrait},
-        table_publish::TablePublish,
-    };
+    use crate::table::{TableTrait, TableBuilder, TableBuilderTrait, TablePublish, test_table::make_test_table};
     use crate::task::message::MessageTrait;
     use arrow::array::{Array, DictionaryArray, Int32Array, NullArray, RunArray};
     use arrow::datatypes::{DataType, Field, Schema};
-    use hashbrown::HashMap;
-    use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_diagnostics::{Diagnostics, SpanBuilder, HashMap};
 
     /// A compilation test to ensure that the `Task::get_name()` method can
     /// be called from a trait object.

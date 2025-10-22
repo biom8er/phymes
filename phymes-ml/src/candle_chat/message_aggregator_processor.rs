@@ -9,11 +9,11 @@ use phymes_core::{
         runtime_env::RuntimeEnv,
     },
     table::{
-        table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
+        TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
     },
     task::{
         message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-        processor::ProcessorTrait,
+        ProcessorTrait,
         publish_subscribe::PubSubTrait,
     },
 };

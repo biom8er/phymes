@@ -4,7 +4,7 @@ use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, datatypes::
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-pub fn create_user_fields() -> Fields {
+pub(crate) fn create_user_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let first_name = Field::new("first_name", DataType::Utf8, false);
     let last_name = Field::new("last_name", DataType::Utf8, false);
@@ -67,7 +67,7 @@ pub fn create_user_batch(
     Ok(batch)
 }
 
-pub fn create_user_session_contexts_fields() -> Fields {
+pub(crate) fn create_user_session_contexts_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
     Fields::from(vec![
@@ -95,7 +95,7 @@ pub fn create_user_session_contexts_batch(
     Ok(batch)
 }
 
-pub fn create_user_inbox_fields() -> Fields {
+pub(crate) fn create_user_inbox_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     Fields::from(vec![
         email,
@@ -117,7 +117,7 @@ pub fn create_user_inbox_batch(
     Ok(batch)
 }
 
-pub fn create_join_user_inbox_session_contexts_fields() -> Fields {
+pub(crate) fn create_join_user_inbox_session_contexts_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
     Fields::from(vec![
@@ -135,7 +135,7 @@ pub struct JoinUserInboxSessionContextsMermaidDiagrams {
     pub timestamp: i64,
 }
 
-pub fn create_join_user_inbox_session_contexts_mermaid_diagrams_fields() -> Fields {
+pub (crate) fn create_join_user_inbox_session_contexts_mermaid_diagrams_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
     let flowchart_diagram = Field::new("flowchart_diagram", DataType::Utf8, false);

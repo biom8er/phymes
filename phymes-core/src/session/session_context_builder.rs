@@ -7,15 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     session::common_traits::{StateMap, TaskMap},
-    table::{
-        table_trait::Table, table_publish::TablePublish,
-        table_subscribe::TableSubscribe,
-    },
-    task::{
-        processor::ProcessorTrait,
-        task_trait::{Task, TaskBuilderTrait},
-    },
-};
+    table::{Table, TablePublish, TableSubscribe},
+    task::{ ProcessorTrait, Task, TaskBuilderTrait}};
 
 use super::{
     common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
@@ -417,11 +410,8 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use crate::{
-        table::table_subscribe::{AllTableNamesSubscribe, SubscribeTrait},
-        task::{
-            processor::{ProcessorEcho, test_processor::ProcessorMock},
-            task_trait::test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
-        },
+        table::{AllTableNamesSubscribe, SubscribeTrait},
+        task::{ProcessorEcho, test_processor::ProcessorMock, test_task::{make_runtime_env, make_state_tables, make_state_tables_empty}},
     };
 
     use super::*;
@@ -671,11 +661,8 @@ pub mod test_session_context_builder {
 mod tests {
     use super::*;
     use crate::{
-        table::table_subscribe::TableSubscribe,
-        task::{
-            processor::{ProcessorTrait, test_processor::ProcessorMock},
-            task_trait::test_task::{make_runtime_env, make_state_tables},
-        },
+        table::TableSubscribe,
+        task::{ProcessorTrait, test_processor::ProcessorMock, test_task::{make_runtime_env, make_state_tables}}
     };
 
     #[test]

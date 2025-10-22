@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use phymes_agents::{session_plans::available_session_plans::AvailableSessionPlans, session_traits::mermaid::SessionContextBuilderMermaidTrait};
-use phymes_core::{schemas::{available_subjects::{AvailableSubjects}, mermaid::create_session_mermaid_batch}, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context_builder::SessionContextBuilder}, table::{data_format::DataFormat, table_trait::{Table, TableBuilderTrait, TableTrait}, table_publish::TablePublish}, task::message::MessageBuilderTrait};
+use phymes_core::{schemas::{available_subjects::{AvailableSubjects}, mermaid::create_session_mermaid_batch}, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context_builder::SessionContextBuilder}, table::{DataFormat, table_trait::{Table, TableBuilderTrait, TableTrait}, TablePublish}, task::message::MessageBuilderTrait};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::handlers::sign_in::create_session_name;
 

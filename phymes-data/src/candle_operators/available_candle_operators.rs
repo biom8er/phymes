@@ -163,7 +163,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::table::table_trait::TableTrait;
+    use phymes_core::table::TableTrait;
 
     use super::*;
 

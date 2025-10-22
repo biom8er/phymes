@@ -7,12 +7,12 @@ use phymes_core::{
         },
         runtime_env::RuntimeEnv,
     }, table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}
+        stream::{RecordBatchStream, SendableRecordBatchStream}, TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}
     }, task::{
         message::{
             MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
         },
-        processor::ProcessorTrait,
+        ProcessorTrait,
         publish_subscribe::PubSubTrait,
     }
 };
@@ -488,7 +488,7 @@ mod tests {
     use crate::candle_operators::available_candle_operators::AvailableCandleOperators;
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
-    use phymes_core::table::{table_publish::TablePublish, table_trait::Table};
+    use phymes_core::table::{TablePublish, Table};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;

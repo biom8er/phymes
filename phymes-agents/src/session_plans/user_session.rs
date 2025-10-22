@@ -7,7 +7,7 @@ use phymes_core::{
         runtime_env::{RuntimeEnv, RuntimeEnvTrait},
         session_context_builder::TaskPlan,
     }, table::{
-        data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}
+        DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}
     }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
 use phymes_data::{candle_data::{data_config::DataConfig, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor}, candle_operators::available_candle_operators::AvailableCandleOperators};
@@ -337,7 +337,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 pub mod user_session {
     use anyhow::Result;
     use parking_lot::RwLock;
-    use phymes_core::{schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState}, table::table_trait::TableTrait, task::message::{IPCMessage, MessageBuilderTrait}};
+    use phymes_core::{schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState}, table::TableTrait, task::message::{IPCMessage, MessageBuilderTrait}};
 
     use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
 
@@ -385,7 +385,7 @@ pub mod user_session {
 mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{session::common_traits::MappableTrait, table::table_trait::TableTrait, task::message::{IPCMessage, MessageTrait}};
+    use phymes_core::{session::common_traits::MappableTrait, table::TableTrait, task::message::{IPCMessage, MessageTrait}};
     use phymes_diagnostics::HashMap;
 
     use super::*;

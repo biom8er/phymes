@@ -5,9 +5,9 @@ use anyhow::{Error, Result};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::AvailableSubjects, session::common_traits::{BuilderTrait, MappableTrait}, table::{table_publish::TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder}};
+use crate::{schemas::available_subjects::AvailableSubjects, session::{BuilderTrait, MappableTrait}, table::{TablePublish, Table, TableBuilder, TableBuilderTrait, TableTrait}, task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder}};
 
-pub fn create_error_fields() -> Fields {
+pub(crate) fn create_error_fields() -> Fields {
     let error = Field::new("error", DataType::Utf8, false);
     Fields::from(vec![error])
 }
@@ -23,7 +23,7 @@ pub fn create_error_batch(error: Vec<String>) -> Result<RecordBatch> {
     Ok(batch)
 }
 
-pub fn create_error_table(err: &Error) -> Result<Table> {
+fn create_error_table(err: &Error) -> Result<Table> {
     // DM: must use :? and not .to_string() with Anyhow::Error to see full backtrace if available
     let error_str = format!{"{err:?}"}; 
     let batch = create_error_batch(vec![error_str])?;

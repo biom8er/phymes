@@ -10,7 +10,7 @@ use phymes_core::{
         session_context_builder::TaskPlan,
     },
     table::{
-        data_format::DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, table_publish::TablePublish, table_subscribe::{
+        DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, TablePublish, table_subscribe::{
             AllTableNamesSubscribe, AnyTableNameSubscribe, ChatContentSubscribe, SubscribeTrait, TableSubscribe
         }
     },
@@ -762,7 +762,7 @@ mod tests {
     use phymes_core::{
         schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
             common_traits::MappableTrait, session_stream::SessionStream, session_stream_state::SessionStreamState,
-        }, table::{data_format::CsvFormat, table_trait::TableTrait}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
+        }, table::{data_format::CsvFormat, TableTrait}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
     };
     use phymes_data::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
     use phymes_diagnostics::HashMap;

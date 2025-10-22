@@ -12,14 +12,9 @@ use super::{
     runtime_env::RuntimeEnv,
     session_context_builder::SessionContextBuilder,
 };
-use crate::schemas::{available_subjects::AvailableSubjects, diagnostics::{from_diagnostics_to_tables, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, pivot_metrics_table}};
-use crate::schemas::session::create_session_subjects_num_rows_batch;
-use crate::table::table_publish::TablePublish;
-use crate::table::{
-    table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait},
-    table_publish::TableUpdateTrait,
-};
-use crate::task::publish_subscribe::PubSubTrait;
+use crate::schemas::{AvailableSubjects, create_session_subjects_num_rows_batch, from_diagnostics_to_tables, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, pivot_metrics_table};
+use crate::table::{TablePublish, Table, TableBuilder, TableBuilderTrait, TableTrait, TableUpdateTrait};
+use crate::task::PubSubTrait;
 
 // /// Reserved table names for the [SessionContext]
 // #[derive(Debug)]
@@ -42,7 +37,6 @@ use crate::task::publish_subscribe::PubSubTrait;
 /// `SessionPlan` and manages the running of individual tasks
 /// and the messages passed between tasks.
 #[derive(Default, Debug, Clone)]
-#[allow(dead_code)]
 pub struct SessionContext {
     /// A unique UUID that identifies the session
     pub(crate) name: String,
@@ -51,6 +45,7 @@ pub struct SessionContext {
     /// Data that should be persisted between queries
     pub(crate) state: StateMap,
     /// Runtime environment configuration to use during task runs
+    #[allow(dead_code)]
     pub(crate) runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     /// The maximum number of iterations before stopping
     pub(crate) max_iter: usize,
@@ -412,7 +407,7 @@ impl BuildableTrait for SessionContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::table::table_trait::test_table::make_test_table_schema;
+    use crate::table::test_table::make_test_table_schema;
     use crate::session::session_context_builder::test_session_context_builder::{make_test_session_context_parallel_task, make_test_session_context_parallel_task_empty};
     use arrow::array::UInt64Array;
     use phymes_diagnostics::HashSet;

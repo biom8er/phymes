@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use crate::table::{
-    table_script::TableScript,
-    table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait},
-    stream::SendableRecordBatchStream,
-    stream_adapter::RecordBatchReceiverStream,
-};
+use crate::table::{TableScript,Table, TableBuilder, TableBuilderTrait, TableTrait, SendableRecordBatchStream, RecordBatchReceiverStream};
 
 use anyhow::Result;
 use arrow::{
@@ -17,7 +12,7 @@ use tracing::{Level, event};
 
 use super::chat_completion::{self, ChatCompletionMessage, Content, MessageRole, ToolCall};
 
-pub fn create_chat_fields() -> Fields {
+pub(crate) fn create_chat_fields() -> Fields {
     let field_names = ["role", "content"];
     let mut fields_vec = field_names
         .iter()
@@ -28,6 +23,7 @@ pub fn create_chat_fields() -> Fields {
 }
 
 /// In combination with [ChatTraitExt]
+#[allow(dead_code)]
 pub struct ChatSubject {
     pub role: String,
     pub content: String,
@@ -311,20 +307,9 @@ impl ChatBuilderTraitExt for TableBuilder {
 mod test_messages {
     use super::*;
     use crate::{
-        session::{
-            common_traits::{BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap},
-            runtime_env::RuntimeEnv,
-        },
-        table::{
-            stream::{RecordBatchStream, SendableRecordBatchStream}, table_publish::TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
-        },
-        task::{
-            message::{
-                MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage
-            },
-            processor::ProcessorTrait,
-            publish_subscribe::PubSubTrait,
-        },
+        session::{BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv},
+        table::{RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe},
+        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait}
     };
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
@@ -556,19 +541,9 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        session::{
-            common_traits::{BuildableTrait, BuilderTrait},
-            runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        },
-        table::{
-            table_publish::TablePublish, table_trait::test_table::{make_test_table_chat, make_test_table_tool}
-        },
-        task::{
-            message::{
-                MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage
-            },
-            processor::ProcessorTrait,
-        },
+        session::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait},
+        table::{TablePublish, test_table::{make_test_table_chat, make_test_table_tool}},
+        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait},
     };
     use futures::TryStreamExt;
     use parking_lot::Mutex;

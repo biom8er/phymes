@@ -5,9 +5,9 @@ use anyhow::Result;
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
 
-use crate::table::table_trait::TableBuilder;
+use crate::table::TableBuilder;
 
-pub fn create_blob_fields() -> Fields {
+pub(crate) fn create_blob_fields() -> Fields {
     let filename = Field::new("filename", DataType::Utf8, false);
     let extension = Field::new("extension", DataType::Utf8, false);
     let list_data_type = DataType::List(

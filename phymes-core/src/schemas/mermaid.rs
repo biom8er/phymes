@@ -4,7 +4,7 @@ use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, datatypes::
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-pub fn create_session_mermaid_fields() -> Fields {
+pub(crate) fn create_session_mermaid_fields() -> Fields {
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
     let flowchart_diagram = Field::new("flowchart_diagram", DataType::Utf8, false);
     let er_diagram = Field::new("er_diagram", DataType::Utf8, false);
@@ -44,7 +44,7 @@ pub fn create_session_mermaid_batch(
     Ok(batch)
 }
 
-pub fn create_mermaid_visualization_fields() -> Fields {
+pub(crate) fn create_mermaid_visualization_fields() -> Fields {
     let field_names = ["visualization_name", "visualization_string"];
     let mut fields_vec = field_names
         .iter()
@@ -58,7 +58,7 @@ pub fn create_mermaid_visualization_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_mermaid_content_template_fields() -> Fields {
+pub(crate) fn create_mermaid_content_template_fields() -> Fields {
     let field_names = ["content"];
     let fields_vec = field_names
         .iter()
@@ -67,7 +67,7 @@ pub fn create_mermaid_content_template_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_mermaid_gantt_template_fields() -> Fields {
+pub(crate) fn create_mermaid_gantt_template_fields() -> Fields {
     let field_names = ["section", "task", "start", "end"];
     let fields_vec = field_names
         .iter()
@@ -76,7 +76,7 @@ pub fn create_mermaid_gantt_template_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_mermaid_flowchart_nodes_template_fields() -> Fields {
+pub(crate) fn create_mermaid_flowchart_nodes_template_fields() -> Fields {
     let field_names = ["node_name", "node_shape", "node_label"];
     let fields_vec = field_names
         .iter()
@@ -85,7 +85,7 @@ pub fn create_mermaid_flowchart_nodes_template_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_mermaid_flowchart_links_template_fields() -> Fields {
+pub(crate) fn create_mermaid_flowchart_links_template_fields() -> Fields {
     let field_names = ["subject_name", "object_name", "link_type", "link_text"];
     let fields_vec = field_names
         .iter()
@@ -94,7 +94,7 @@ pub fn create_mermaid_flowchart_links_template_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_mermaid_sequence_diagram_participants_template_fields() -> Fields {
+pub(crate) fn create_mermaid_sequence_diagram_participants_template_fields() -> Fields {
     let field_names = ["participant_name", "participant_type"];
     let fields_vec = field_names
         .iter()
@@ -116,7 +116,7 @@ pub fn create_mermaid_sequence_diagram_participants_template_batch(
     Ok(batch)
 }
 
-pub fn create_mermaid_sequence_diagram_messages_template_fields() -> Fields {
+pub(crate) fn create_mermaid_sequence_diagram_messages_template_fields() -> Fields {
     let field_names = ["subject_name", "object_name", "message_type", "activation_type", "message_content", "note_content", "note_location"];
     let fields_vec = field_names
         .iter()
@@ -125,6 +125,7 @@ pub fn create_mermaid_sequence_diagram_messages_template_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+#[allow(dead_code)]
 pub fn create_mermaid_sequence_diagram_messages_template_batch(
     subject_name: Vec<String>,
     object_name: Vec<String>,
@@ -153,7 +154,7 @@ pub fn create_mermaid_sequence_diagram_messages_template_batch(
     Ok(batch)
 }
 
-pub fn create_mermaid_kanban_template_fields() -> Fields {
+pub(crate) fn create_mermaid_kanban_template_fields() -> Fields {
     let field_names = ["column_name", "column_label", "task_name", "task_description", "task_assigned", "task_ticket", "task_priority"];
     let fields_vec = field_names
         .iter()
@@ -162,7 +163,7 @@ pub fn create_mermaid_kanban_template_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_mermaid_xychart_template_fields() -> Fields {
+pub(crate) fn create_mermaid_xychart_template_fields() -> Fields {
     let fields_vec = vec![
         Field::new("x", DataType::Utf8, false),
         Field::new("y", DataType::Float64, false)
