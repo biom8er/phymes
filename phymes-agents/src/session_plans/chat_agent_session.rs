@@ -11,7 +11,7 @@ use phymes_core::{
         table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
     }, task::processor::{ProcessorEcho, ProcessorTrait}
 };
-use phymes_data::{candle_data::data_config::DataConfig, candle_operators::available_candle_operators::AvailableCandleOperators};
+use phymes_data::{candle_data::DataConfig, candle_operators::available_candle_operators::AvailableCandleOperators};
 use phymes_ml::{
     candle_assets::available_candle_assets::AvailableCandleAssets,
     candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor, message_aggregator_processor::MessageAggregatorProcessor},

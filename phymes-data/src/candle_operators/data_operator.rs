@@ -1,10 +1,10 @@
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_core::session::common_traits::MappableTrait;
+use phymes_core::MappableTrait;
 use std::fmt::Debug;
 
-use crate::candle_data::data_config::DataConfig;
+use crate::candle_data::DataConfig;
 
 /// Data operators and other tools that utilize tensor services
 pub trait DataOperatorTrait: MappableTrait + Send + Sync + Debug {

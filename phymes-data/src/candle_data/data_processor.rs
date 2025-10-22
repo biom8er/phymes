@@ -1,21 +1,8 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
-use crate::candle_operators::data_operator::DataOperatorTrait;
-use phymes_core::{
-    session::{
-        common_traits::{
-            device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
-        },
-        runtime_env::RuntimeEnv,
-    }, table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{TableBuilder, TableBuilderTrait, TableTrait}
-    }, task::{
-        message::{
-            MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-        },
-        ProcessorTrait,
-        publish_subscribe::PubSubTrait,
-    }
-};
+use crate::candle_operators::DataOperatorTrait;
+use phymes_core::{device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv,
+    RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, TableBuilder, TableBuilderTrait, TableTrait,
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
 
 use arrow::{
     array::StringArray,
@@ -426,6 +413,7 @@ impl RecordBatchStream for CandleDataStream {
     }
 }
 
+#[allow(dead_code)]
 pub mod test_candle_ops_processor {
     use std::sync::Arc;
 
@@ -436,7 +424,7 @@ pub mod test_candle_ops_processor {
         datatypes::{DataType, Field},
     };
 
-    fn make_embeddings_f32(embeddings: Vec<Vec<f32>>) -> ArrayRef {
+    pub fn make_embeddings_f32(embeddings: Vec<Vec<f32>>) -> ArrayRef {
         // Parse the embeddings
         let dim_1 = embeddings.len();
         let dim_2 = embeddings.first().unwrap().len();
@@ -485,10 +473,10 @@ pub mod test_candle_ops_processor {
 
 #[cfg(test)]
 mod tests {
-    use crate::candle_operators::available_candle_operators::AvailableCandleOperators;
+    use crate::candle_operators::AvailableCandleOperators;
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
-    use phymes_core::table::{TablePublish, Table};
+    use phymes_core::{TablePublish, Table};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;

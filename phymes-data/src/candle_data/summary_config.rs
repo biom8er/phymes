@@ -1,5 +1,5 @@
 use clap::Parser;
-use phymes_core::table::DataFormat;
+use phymes_core::DataFormat;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]

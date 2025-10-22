@@ -3,15 +3,11 @@ use std::collections::HashMap;
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_core::{
-    schemas::{available_subjects::create_values_record_batch, chat_completion, types},
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::{DataFormat, table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}},
-};
+use phymes_core::{create_values_record_batch, BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType};
 use serde_json::{json, Value};
 use tracing::instrument;
 
-use crate::{candle_data::{data_config::DataConfig, summary_processor::table_and_data_format_to_record_batch}, candle_operators::data_operator::DataOperatorTrait};
+use crate::{candle_data::{DataConfig, table_and_data_format_to_record_batch}, candle_operators::DataOperatorTrait};
 
 /// Inject a table into a string template
 #[derive(Debug)]
@@ -74,27 +70,27 @@ impl DataOperatorTrait for ApplyTemplate {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "op_kwargs".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "template, table_expression, and input_template in the form of a JSON object".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
@@ -102,8 +98,8 @@ impl DataOperatorTrait for ApplyTemplate {
                     ]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -186,7 +182,7 @@ pub fn apply_template(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{session::common_traits::device, table::table_trait::test_table::make_test_table_chat};
+    use phymes_core::{device, test_table::make_test_table_chat};
 
     use super::*;
 

@@ -4,14 +4,13 @@ use arrow::array::{ArrayRef, RecordBatch, StringArray};
 
 /// General dependencies
 use clap::ValueEnum;
-use phymes_core::{
-    session::common_traits::{BuilderTrait, MappableTrait},
-    table::table_trait::{Table, TableBuilder, TableBuilderTrait},
-};
+use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilderTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::{
-    apply_template::ApplyTemplate, chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait, extract_pdf_text::ExtractPDFText, extract_tabular_data::ExtractTabularData, filter_columns_and_indices::FilterColumnsAndIndices, from_tasks_to_participants::FromTasksToParticipants, from_traces_to_messages::FromTracesToMessages, group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop, join_inner::JoinInner, normalize_time::NormalizeTime, pivot::Pivot, select_and_cast::SelectAndCast, sort_column_and_indices::SortColumnAndIndices, vector_distance::VectorDistance
+use crate::{candle_data::DataConfig, candle_operators::{
+    ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData, FilterColumnsAndIndices, 
+    FromTasksToParticipants, FromTracesToMessages, GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, 
+    SelectAndCast, SortColumnAndIndices, VectorDistance
 }};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -163,7 +162,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::table::TableTrait;
+    use phymes_core::TableTrait;
 
     use super::*;
 

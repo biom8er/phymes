@@ -8,7 +8,7 @@ use tokenizers::Tokenizer;
 use crate::openai_chat::chat_processor::OpenAIChatProcessor;
 use phymes_core::{
     schemas::{
-        available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::{create_chat_record_batch, ChatTraitExt}, chat_completion::Tool
+        available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::{create_chat_record_batch, ChatTraitExt}, Tool
     },
     session::{
         common_traits::{

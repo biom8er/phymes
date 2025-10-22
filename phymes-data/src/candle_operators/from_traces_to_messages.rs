@@ -6,15 +6,12 @@ use std::{collections::HashMap, sync::Arc};
 use anyhow::{anyhow, Result};
 use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, datatypes::Schema};
 use candle_core::Device;
-use phymes_core::{
-    schemas::{chat_completion, types},
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::table_trait::{Table, TableBuilderTrait, TableTrait},
-};
+use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
+    BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait};
 use phymes_diagnostics::HashSet;
 
 use crate::{
-    candle_data::data_config::DataConfig,
+    candle_data::DataConfig,
     candle_operators::{data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices},
 };
 
@@ -48,16 +45,16 @@ impl DataOperatorTrait for FromTracesToMessages {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "lhs_values".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::Array),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
                     "A list of value column identifiers for the left hand side table".to_string(),
                 ),
@@ -66,19 +63,19 @@ impl DataOperatorTrait for FromTracesToMessages {
         );
         properties.insert(
             "op_kwargs".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "DataCastOperator and DataType with optional column renaming and template injection in the form of a JSON object".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
@@ -87,8 +84,8 @@ impl DataOperatorTrait for FromTracesToMessages {
                 ]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -255,7 +252,7 @@ mod tests {
     use std::sync::Arc;
 
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::session::common_traits::device;
+    use phymes_core::device;
 
     use super::*;
 

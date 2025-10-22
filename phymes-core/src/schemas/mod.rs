@@ -2,7 +2,7 @@ mod available_subjects;
 pub use available_subjects::{create_schema_from_fields, AvailableSubjects, AvailableSubjectsTrait, create_values_record_batch, create_tools_record_batch, create_documents_batch};
 
 mod blob;
-pub use blob::{BlobSubject, create_blob_batch, BlobBuilderTraitExt};
+pub use blob::{BlobSubject, create_blob_fields, create_blob_batch, BlobBuilderTraitExt};
 
 mod mermaid;
 pub use mermaid::{SessionMermaidSubject, create_session_mermaid_batch, create_mermaid_sequence_diagram_participants_template_batch};
@@ -27,7 +27,7 @@ pub use session::{create_session_subjects_batch, create_session_subjects_num_row
 
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
 mod chat_completion;
-pub use chat_completion::{ToolChoiceType, ChatCompletionRequest, ToolCall};
+pub use chat_completion::{ToolChoiceType, ChatCompletionRequest, ToolCall, Tool, ToolType};
 
 mod common;
 mod embedding;

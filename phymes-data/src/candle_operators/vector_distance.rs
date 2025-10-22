@@ -5,17 +5,13 @@ use arrow::{
     datatypes::DataType,
     record_batch::RecordBatch,
 };
-use phymes_core::{
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::table_trait::{Table, TableBuilderTrait, TableTrait},
-};
+use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
+    BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait};
 
-use crate::candle_data::data_config::{DataConfig, DataDistanceOperator};
-
+use crate::candle_data::{DataConfig, DataDistanceOperator};
 use super::data_operator::DataOperatorTrait;
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
-use phymes_core::schemas::{chat_completion, types};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -75,24 +71,24 @@ impl DataOperatorTrait for VectorDistance {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "rhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the right hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "lhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the left hand side table".to_string(),
                 ),
@@ -101,8 +97,8 @@ impl DataOperatorTrait for VectorDistance {
         );
         properties.insert(
             "rhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the right hand side table".to_string(),
                 ),
@@ -111,8 +107,8 @@ impl DataOperatorTrait for VectorDistance {
         );
         properties.insert(
             "lhs_values".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::Array),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
                     "A list of value column identifiers for the left hand side table".to_string(),
                 ),
@@ -121,19 +117,19 @@ impl DataOperatorTrait for VectorDistance {
         );
         properties.insert(
             "rhs_values".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::Array),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
                     "A list of value column identifiers for the right hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
@@ -145,8 +141,8 @@ impl DataOperatorTrait for VectorDistance {
                 ]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -475,9 +471,9 @@ pub fn normalized_dot_product(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::session::common_traits::device;
+    use phymes_core::device;
 
-    use crate::candle_data::data_processor::test_candle_ops_processor::{
+    use crate::candle_data::test_candle_ops_processor::{
         make_embeddings_record_batch_str_f32, make_embeddings_record_batch_u32_f32,
     };
 

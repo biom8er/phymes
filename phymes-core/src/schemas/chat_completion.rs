@@ -1,5 +1,5 @@
-use super::{common, types};
-use crate::impl_builder_methods;
+use super::common;
+use crate::{impl_builder_methods, Function};
 
 use serde::de::{self, MapAccess, SeqAccess, Visitor};
 use serde::ser::SerializeMap;
@@ -310,7 +310,7 @@ where
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct Tool {
     pub r#type: ToolType,
-    pub function: types::Function,
+    pub function: Function,
 }
 
 #[derive(Debug, Deserialize, Serialize, Copy, Clone, PartialEq, Eq)]

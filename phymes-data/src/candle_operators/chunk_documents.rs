@@ -6,15 +6,11 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::Device;
-use phymes_core::{
-    schemas::{chat_completion, types},
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::table_trait::{Table, TableBuilderTrait, TableTrait},
-};
+use phymes_core::{BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::DataOperatorTrait};
+use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug)]
@@ -67,16 +63,16 @@ impl DataOperatorTrait for ChunkDocuments {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "lhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the left hand side table".to_string(),
                 ),
@@ -85,19 +81,19 @@ impl DataOperatorTrait for ChunkDocuments {
         );
         properties.insert(
             "lhs_values".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::Array),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
                     "A list of value column identifiers for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
@@ -106,8 +102,8 @@ impl DataOperatorTrait for ChunkDocuments {
                 ]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -134,7 +130,7 @@ Chunk documents by splitting a StringArray column in a [RecordBatch]
 
 */
 #[instrument(skip(lhs_pk, lhs_values, lhs_args, chunk_size, chunk_overlap, _device))]
-pub fn chunk_documents(
+fn chunk_documents(
     lhs_pk: &str,
     lhs_values: &str,
     lhs_args: &[RecordBatch],
@@ -557,7 +553,7 @@ pub fn chunk_str(text: &str, chunk_size: usize, chunk_overlap: usize) -> Vec<Str
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::session::common_traits::device;
+    use phymes_core::device;
 
     use super::*;
 

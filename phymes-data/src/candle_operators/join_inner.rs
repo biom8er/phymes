@@ -6,18 +6,12 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor, op::CmpOp};
-use phymes_core::{
-    schemas::{chat_completion, types},
-    session::common_traits::MappableTrait,
-};
-use phymes_core::{
-    session::common_traits::{BuildableTrait, BuilderTrait},
-    table::table_trait::{Table, TableBuilderTrait, TableTrait},
-};
+use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
+    MappableTrait, BuildableTrait, BuilderTrait, Table, TableBuilderTrait, TableTrait};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::{
+use crate::{candle_data::DataConfig, candle_operators::{
     data_operator::DataOperatorTrait,
     sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
 }};
@@ -71,24 +65,24 @@ impl DataOperatorTrait for JoinInner {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "rhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the right hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "lhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the left hand side table".to_string(),
                 ),
@@ -97,8 +91,8 @@ impl DataOperatorTrait for JoinInner {
         );
         properties.insert(
             "rhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the right hand side table".to_string(),
                 ),
@@ -107,8 +101,8 @@ impl DataOperatorTrait for JoinInner {
         );
         properties.insert(
             "lhs_fk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The foriegn key column identifier for the left hand side table".to_string(),
                 ),
@@ -117,19 +111,19 @@ impl DataOperatorTrait for JoinInner {
         );
         properties.insert(
             "rhs_fk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The foriegn key column identifier for the right hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
@@ -139,8 +133,8 @@ impl DataOperatorTrait for JoinInner {
                 ]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -409,7 +403,7 @@ pub fn join_inner(
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt8Array, UInt32Array};
-    use phymes_core::session::common_traits::device;
+    use phymes_core::device;
 
     use super::*;
 

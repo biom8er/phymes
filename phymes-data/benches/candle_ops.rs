@@ -3,27 +3,11 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
-use phymes_core::{
-    schemas::diagnostics::{from_diagnostics_to_tables, pivot_metrics_table}, session::{
-        common_traits::{device, BuildableTrait, BuilderTrait},
-        runtime_env::RuntimeEnv,
-    }, table::{
-        TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{
-            test_table::TestTableSizes, Table, TableBuilderTrait, TableTrait
-        }
-    }, task::{
-        message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-        ProcessorTrait,
-    }
-};
-use phymes_data::{
-    candle_data::{
-        data_config::{DataAggregatorOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager},
-        data_processor::CandleDataProcessor,
-        tensor_service::CandleTensorService,
-    },
-    candle_operators::available_candle_operators::AvailableCandleOperators,
-};
+use phymes_core::{from_diagnostics_to_tables, pivot_metrics_table, device, BuildableTrait, BuilderTrait, RuntimeEnv,
+    TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, test_table::TestTableSizes, Table, TableBuilderTrait, TableTrait,
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait};
+use phymes_data::{DataAggregatorOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager, CandleDataProcessor,
+    CandleTensorService, AvailableCandleOperators};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, MetricBuilderTrait, SpanBuilder};
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {

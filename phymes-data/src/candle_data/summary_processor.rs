@@ -5,25 +5,10 @@ use std::{
 };
 
 use bytes::Bytes;
-use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::create_blob_batch, chat::create_chat_record_batch},
-    session::{
-        common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap,
-        },
-        runtime_env::RuntimeEnv,
-    },
-    table::{
-        data_format::{CsvFormat, DataFormat}, stream::{RecordBatchStream, SendableRecordBatchStream}, TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
-    },
-    task::{
-        message::{
-            MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage
-        },
-        ProcessorTrait,
-        publish_subscribe::PubSubTrait,
-    },
-};
+use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, create_blob_batch, create_chat_record_batch, 
+    BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv,
+    CsvFormat, DataFormat, RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, 
+    Table, TableBuilderTrait, TableTrait, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
 
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -428,9 +413,7 @@ impl RecordBatchStream for DataSummaryStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{
-        table::{TablePublish, TableBuilder}, 
-        task::message::MessageTrait};
+    use phymes_core::{TablePublish, TableBuilder, MessageTrait};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
 
     use crate::candle_data::{data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32};

@@ -1,20 +1,12 @@
 use arrow::record_batch::RecordBatch;
 use phymes_diagnostics::create_timestamp_micros;
 
-use crate::candle_data::data_config::DataConfig;
+use crate::candle_data::DataConfig;
 
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
 use candle_core::Device;
-use phymes_core::{
-    schemas::{
-        chat_completion,
-        chat::create_chat_record_batch,
-        types,
-    },
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::table_trait::{Table, TableBuilderTrait, TableTrait},
-};
+use phymes_core::{create_chat_record_batch, BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType};
 use std::collections::HashMap;
 
 /// Redirect a tool call to the user for intervention
@@ -38,23 +30,23 @@ impl DataOperatorTrait for HumanInTheLoop {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_args".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("Format lhs_args value according to the schema {\"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your response for the user".to_string()),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec!["lhs_args".to_string()]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()

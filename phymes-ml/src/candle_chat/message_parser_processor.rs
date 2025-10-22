@@ -8,7 +8,7 @@ use phymes_core::{
     schemas::{
         available_subjects::{create_values_record_batch, AvailableSubjects, AvailableSubjectsTrait}, 
         chat::create_chat_record_batch,
-        chat_completion::ToolCall
+        ToolCall
     },
     session::{
         common_traits::{

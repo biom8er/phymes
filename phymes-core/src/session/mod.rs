@@ -7,7 +7,7 @@ mod session_stream;
 mod session_stream_state;
 mod session_stream_step;
 
-pub use common_traits::{device, RuntimeEnvMap, ProcessorMap, TaskMap, StateMap, IPCMessageMap, SendableRecordBatchStreamMessageMap, MappableTrait, BuildableTrait, BuilderTrait, RunnableTrait, TokenWrapper, TokenizerConfig, TokenProcessorTrait};
+pub use common_traits::{device, RuntimeEnvMap, ProcessorMap, TaskMap, StateMap, IPCMessageMap, SendableRecordBatchStreamMessageMap, MappableTrait, BuildableTrait, BuilderTrait, RunnableTrait, TokenWrapper, TokenizerConfig, TensorProcessorTrait, TokenProcessorTrait};
 pub use message::{SessionInterfaceMessageTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait};
 pub use runtime_env::{RuntimeEnv, RuntimeEnvTrait};
 pub use session_context::SessionContext;

@@ -32,7 +32,7 @@ mod tests {
 
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
-    use phymes_core::{session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{table_script::TableScript, table_trait::{Table, TableBuilderTrait, TableTrait}}};
+    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, TableScript, Table, TableBuilderTrait, TableTrait};
     use serde_json::Map;
     use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
 

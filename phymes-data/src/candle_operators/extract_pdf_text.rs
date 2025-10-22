@@ -8,14 +8,11 @@ use lopdf::{
     content::{Content, Operation},
     dictionary,
 };
-use phymes_core::{
-    schemas::{chat_completion, types},
-    session::common_traits::MappableTrait,
-};
+use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Tool, ToolType};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::{Level, event, instrument};
 
-use crate::{candle_data::data_config::DataConfig, candle_operators::data_operator::DataOperatorTrait};
+use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug)]
@@ -58,16 +55,16 @@ impl DataOperatorTrait for ExtractPDFText {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "lhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the left hand side table".to_string(),
                 ),
@@ -76,19 +73,19 @@ impl DataOperatorTrait for ExtractPDFText {
         );
         properties.insert(
             "lhs_values".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::Array),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
                     "A list of value column identifiers for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
@@ -97,8 +94,8 @@ impl DataOperatorTrait for ExtractPDFText {
                 ]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -366,10 +363,7 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{
-        session::common_traits::{BuildableTrait, BuilderTrait},
-        table::table_trait::{Table, TableBuilderTrait, TableTrait},
-    };
+    use phymes_core::{BuildableTrait, BuilderTrait, Table, TableBuilderTrait, TableTrait};
 
     use super::*;
 
