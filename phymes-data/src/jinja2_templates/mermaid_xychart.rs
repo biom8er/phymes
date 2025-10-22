@@ -16,8 +16,8 @@ pub static MERMAID_XYCHART_TABLE_EXPRESSION: &str = "rows";
 /// # Example
 ///
 /// ```rust
-/// use phymes_core::table::table_script::TableScript;
-/// use phymes_data::jinja2_templates::mermaid_xychart::MERMAID_XYCHART_INPUT;
+/// use phymes_core::TableScript;
+/// use phymes_data::MERMAID_XYCHART_INPUT;
 /// let inputs = serde_json::json!({
 ///     "title": "chart title",
 ///     "x_title": "x title",

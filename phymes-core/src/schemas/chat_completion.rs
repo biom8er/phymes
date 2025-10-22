@@ -223,7 +223,7 @@ pub struct ChatCompletionMessage {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub(crate) struct ChatCompletionMessageForResponse {
+pub struct ChatCompletionMessageForResponse {
     pub role: MessageRole,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
@@ -236,7 +236,7 @@ pub(crate) struct ChatCompletionMessageForResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub(crate) struct ChatCompletionChoice {
+pub struct ChatCompletionChoice {
     pub index: i64,
     pub message: ChatCompletionMessageForResponse,
     pub finish_reason: Option<FinishReason>,
@@ -244,7 +244,7 @@ pub(crate) struct ChatCompletionChoice {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub(crate) struct ChatCompletionResponse {
+pub struct ChatCompletionResponse {
     pub id: Option<String>,
     pub object: String,
     pub created: i64,
@@ -256,7 +256,7 @@ pub(crate) struct ChatCompletionResponse {
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
-pub(crate) enum FinishReason {
+pub enum FinishReason {
     stop,
     length,
     content_filter,
@@ -266,7 +266,7 @@ pub(crate) enum FinishReason {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[allow(non_camel_case_types)]
-pub(crate) struct FinishDetails {
+pub struct FinishDetails {
     pub r#type: FinishReason,
     pub stop: String,
 }

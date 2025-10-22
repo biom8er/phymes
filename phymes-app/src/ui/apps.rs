@@ -87,10 +87,7 @@ pub fn apps_interface_view() -> Element {
         let subject = if BUILDER() {
             AvailableSubjects::BuilderMermaid.to_string()
         } else {
-            AvailableSubjects::SessionMermaid
-                .to_string()
-                .as_str()
-                .to_string()
+            AvailableSubjects::SessionMermaid.to_string()
         };
         let data_serialized = serde_json::to_string(
             &get_session_state()

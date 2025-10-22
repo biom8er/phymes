@@ -5,7 +5,7 @@ use candle_transformers::generation::{LogitsProcessor, Sampling};
 use tokenizers::Tokenizer;
 
 #[cfg(feature = "openai_api")]
-use crate::openai_chat::chat_processor::OpenAIChatProcessor;
+use crate::openai_chat::OpenAIChatProcessor;
 use phymes_core::{
     AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
     BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,

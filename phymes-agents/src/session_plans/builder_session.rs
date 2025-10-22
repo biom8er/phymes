@@ -91,10 +91,10 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
         let processors = vec![ProcessorEcho::new_arc_with_pub_sub(
             self.session_context_name,
             &[TablePublish::Extend {
-                table_name: AvailableSubjects::SessionMermaid.to_string(),
+                table_name: AvailableSubjects::BuilderMermaid.to_string(),
             }],
             &[TableSubscribe::OnUpdateLastRecordBatch {
-                table_name: AvailableSubjects::SessionMermaid.to_string(),
+                table_name: AvailableSubjects::BuilderMermaid.to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
         )];
@@ -107,7 +107,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
     }
 
     fn make_state_tables(&self) -> Option<Vec<Table>> {
-        Some(vec![make_example_mermaid_table(true, false).unwrap()])
+        Some(vec![make_example_mermaid_table(true, true).unwrap()])
     }
 }
 

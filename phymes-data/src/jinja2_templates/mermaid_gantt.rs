@@ -29,8 +29,8 @@ pub static MERMAID_GANTT_TABLE_EXPRESSION: &str = "rows";
 /// # Example
 ///
 /// ```rust
-/// use phymes_core::table::table_script::TableScript;
-/// use phymes_data::jinja2_templates::mermaid_gantt::MERMAID_GANTT_INPUT;
+/// use phymes_core::TableScript;
+/// use phymes_data::MERMAID_GANTT_INPUT;
 /// let inputs = serde_json::json!({
 ///     "title": "chart title",
 ///     "dateFormat": "X",

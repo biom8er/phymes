@@ -43,10 +43,12 @@ pub use session::{
 
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
 mod chat_completion;
-pub use chat_completion::{ChatCompletionRequest, Tool, ToolCall, ToolChoiceType, ToolType};
+pub use chat_completion::{ChatCompletionRequest, Tool, ToolCall, ToolChoiceType, ToolType, ChatCompletionResponse, FinishReason};
 
 mod common;
+
 mod embedding;
+pub use embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat};
 
 // Based on openai-api-rs and modified to accomodate Apache Arrow
 mod types;

@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn test_current_context() {
         let current_context = CurrentContext::new("my_function", line!(), file!());
-        assert_eq!(current_context.line(), &72);
+        assert_eq!(current_context.line(), &78);
         assert_eq!(
             current_context.file(),
             "phymes-diagnostics/src/traces/current_context.rs"

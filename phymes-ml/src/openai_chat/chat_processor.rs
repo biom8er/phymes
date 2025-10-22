@@ -119,11 +119,7 @@ impl ProcessorTrait for OpenAIChatProcessor {
         };
 
         // Run the chat stream
-        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-            Some(trace.1.clone())
-        } else {
-            None
-        };
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(OpenAIChatStream::new(
             messages,
             tools,
@@ -331,11 +327,7 @@ impl Stream for OpenAIChatStream {
                         } else {
                             None
                         };
-                    let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-                        Some(baseline_metrics.elapsed_compute().timer())
-                    } else {
-                        None
-                    };
+                    let _timer = baseline_metrics.as_ref().map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Parse the response
                     let result = serde_json::from_str::<ChatCompletionResponse>(&text).unwrap();
@@ -407,12 +399,16 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
     #[allow(unused_imports)]
-    use phymes_core::{metrics::HashMap, schemas::chat::ChatBuilderTraitExt, table::TableBuilder};
+    use phymes_core::{ChatBuilderTraitExt, TableBuilder};
+    #[allow(unused_imports)]
+    use phymes_diagnostics::{HashMap, SpanBuilder, DiagnosticBuilder, Diagnostics};
 
     #[cfg(not(feature = "candle"))]
     #[tokio::test]
     async fn test_openai_chat_processor() -> Result<()> {
-        use phymes_core::session::runtime_env::RuntimeEnvTrait;
+        use phymes_core::RuntimeEnvTrait;
+
+        use crate::AvailableOpenAIAssets;
 
         let name = "OpenAIChatProcessor";
         let messages = "messages";
@@ -430,9 +426,7 @@ mod tests {
             repeat_penalty: 1.1,
             repeat_last_n: 64,
             api_url: Some("http://0.0.0.0:8000/v1".to_string()),
-            openai_asset: Some(
-                crate::openai_asset::available_openai_assets::AvailableOpenAIAssets::MetaLlamaV3p2_1B,
-            ),
+            openai_asset: Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B),
             ..Default::default()
         };
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;

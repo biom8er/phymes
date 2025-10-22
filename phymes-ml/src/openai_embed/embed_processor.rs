@@ -1,9 +1,4 @@
-use crate::{
-    candle_embed::{
-        embed_config::CandleEmbedConfig, embed_processor::convert_embedding_vector_to_record_batch,
-    },
-    openai_asset::OpenAIRequestState,
-};
+use crate::{CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch, openai_asset::OpenAIRequestState};
 
 use reqwest::{Client, header::CONTENT_TYPE};
 
@@ -15,10 +10,7 @@ use phymes_core::{
     SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilder,
     TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
 };
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
-    create_timestamp_micros,
-};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
@@ -122,11 +114,7 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
         };
 
         // Make the outbox and send
-        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-            Some(trace.1.clone())
-        } else {
-            None
-        };
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(OpenAIEmbedStream::new(
             documents,
             config,
@@ -326,11 +314,7 @@ impl Stream for OpenAIEmbedStream {
                             } else {
                                 None
                             };
-                        let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-                            Some(baseline_metrics.elapsed_compute().timer())
-                        } else {
-                            None
-                        };
+                        let _timer = baseline_metrics.as_ref().map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                         // Parse the response
                         let result = serde_json::from_str::<EmbeddingResponse>(&text).unwrap();
@@ -441,11 +425,7 @@ impl Stream for OpenAIEmbedStream {
                             } else {
                                 None
                             };
-                        let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-                            Some(baseline_metrics.elapsed_compute().timer())
-                        } else {
-                            None
-                        };
+                        let _timer = baseline_metrics.as_ref().map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                         // Parse the response
                         let result = serde_json::from_str::<EmbeddingResponse>(&text).unwrap();
@@ -512,11 +492,14 @@ mod tests {
     #[cfg(not(feature = "candle"))]
     #[tokio::test]
     async fn test_openai_embed_processor() -> Result<()> {
+        use phymes_diagnostics::{Diagnostics, SpanBuilder};
+
+        use crate::AvailableOpenAIAssets;
+
         let config = CandleEmbedConfig {
             input_type: "passage".to_string(),
             api_url: Some("http://0.0.0.0:8001/v1".to_string()),
-            openai_asset: Some(
-                crate::openai_asset::available_openai_assets::AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2,
+            openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2,
             ),
             ..Default::default()
         };
@@ -555,7 +538,7 @@ mod tests {
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            baseline_metrics,
+            Some(diagnostic_builder),
         )?;
         let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
         assert_eq!(embeddings.len(), 1);
@@ -621,15 +604,16 @@ mod tests {
             .build()?;
 
         // Make the metrics
+        let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
-        let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make and run the embeddings stream
         let embed_stream = OpenAIEmbedStream::new(
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            baseline_metrics,
+            Some(diagnostic_builder),
         )?;
         let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
         assert_eq!(embeddings.len(), 2);

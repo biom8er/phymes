@@ -62,7 +62,7 @@ pub type SendableRecordBatchStreamMessageMap = HashMap<String, SendableRecordBat
 /// based on their `name` attribute
 pub trait MappableTrait {
     /// Short name for the Task, Processor, or any other struct, such as 'AddRows'.
-    /// Like [`get_name`](ArrowTask::get_name) but can be called without an instance.
+    /// that can be called without an instance.
     fn get_static_name() -> &'static str
     where
         Self: Sized,
