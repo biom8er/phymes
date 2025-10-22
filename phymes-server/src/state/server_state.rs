@@ -1,19 +1,16 @@
-// General imports
+use std::sync::Arc;
+
 use anyhow::{anyhow, Result};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_agents::{session_plans::{available_interface_subjects::{create_message_map, AvailableInterfaceSubjects}, available_session_plans::AvailableSessionPlans}, session_traits::{agents::SessionContextBuilderAgentsTrait, mermaid::SessionContextBuilderMermaidTrait}};
+use phymes_agents::{create_message_map, AvailableInterfaceSubjects, AvailableSessionPlans, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait};
 use phymes_diagnostics::HashMap;
-use std::sync::Arc;
+use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject,
+    BuildableTrait, BuilderTrait, MappableTrait, SessionStream, SessionStreamState, SessionContextBuilder, 
+    JsonFormat, TablePublish, Table, TableBuilder, TableBuilderTrait, TableTrait, 
+    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait};
 
-// From crates
-use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, blob::BlobBuilderTraitExt, mermaid::create_session_mermaid_batch, user::{create_user_inbox_batch, create_user_session_contexts_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
-    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState, session_context_builder::SessionContextBuilder}, 
-    table::{data_format::JsonFormat, TablePublish, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}}, 
-    task::message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait}};
-
-use crate::handlers::sign_in::create_session_name;
+use crate::handlers::create_session_name;
 
 /// The user state
 /// 
@@ -314,11 +311,11 @@ impl ServerState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phymes_agents::session_plans::builder_session::make_example_mermaid_table;
+    use phymes_agents::make_example_mermaid_table;
     use phymes_diagnostics::HashSet;
 
     #[cfg(not(target_family = "wasm"))]
-    use phymes_core::{session::common_traits::MappableTrait, table::TableTrait};
+    use phymes_core::{MappableTrait, TableTrait};
 
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;

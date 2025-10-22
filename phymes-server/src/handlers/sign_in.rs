@@ -23,13 +23,15 @@ use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, deco
 // General imports
 use crate::{
     handlers::json_error::{ErrorToResponse, JsonError},
-    state::server_state::{ServerState, UserState},
+    state::{ServerState, UserState},
 };
+#[cfg(feature = "wasip2")]
 use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 /// From <https://github.com/seanmonstar/reqwest/blob/v0.12.22/src/util.rs#L4>
+#[cfg(feature = "wasip2")]
 pub fn basic_auth<U, P>(username: U, password: Option<P>) -> HeaderValue
 where
     U: std::fmt::Display,
@@ -53,22 +55,23 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Claims {
+struct Claims {
     pub exp: usize,
     pub iat: usize,
     pub email: String,
 }
 
-pub fn verify_password(password: &str, hash: &str) -> Result<bool, bcrypt::BcryptError> {
+fn verify_password(password: &str, hash: &str) -> Result<bool, bcrypt::BcryptError> {
     verify(password, hash)
 }
 
-pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
+#[allow(unused)]
+fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
     let hash = hash(password, DEFAULT_COST)?;
     Ok(hash)
 }
 
-pub fn encode_jwt(email: String) -> Result<String, StatusCode> {
+fn encode_jwt(email: String) -> Result<String, StatusCode> {
     let secret: String = "randomstring".to_string();
 
     let now = Utc::now();
@@ -86,7 +89,7 @@ pub fn encode_jwt(email: String) -> Result<String, StatusCode> {
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub fn decode_jwt(jwt: String) -> Result<TokenData<Claims>, StatusCode> {
+fn decode_jwt(jwt: String) -> Result<TokenData<Claims>, StatusCode> {
     let secret = "randomstring".to_string();
 
     let result: Result<TokenData<Claims>, StatusCode> = decode(
@@ -99,7 +102,7 @@ pub fn decode_jwt(jwt: String) -> Result<TokenData<Claims>, StatusCode> {
 }
 
 /// Remove all non alphanumeric characters
-pub fn remove_nonalphanumeric(email: &str) -> String {
+fn remove_nonalphanumeric(email: &str) -> String {
     let mut input = String::from(email);
     input.retain(|c| c.is_alphanumeric() || c.is_whitespace());
     input

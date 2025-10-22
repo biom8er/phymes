@@ -6,7 +6,7 @@ use tower_service::Service;
 
 // From lib
 use super::{server_app::AppBuilder, serverless_config::ServerlessConfig};
-use crate::handlers::sign_in::basic_auth;
+use crate::handlers::basic_auth;
 
 /// Stateful implementation of the router to enable
 /// continuous calls to the router
@@ -81,11 +81,11 @@ mod tests {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
-    use phymes_core::{schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}}, table::{DataFormat, TablePublish, TableTrait}, task::message::MessageBuilderTrait};
+    use phymes_agents::AvailableInterfaceSubjects;
+    use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, ChatBuilderTraitExt, BuildableTrait, BuilderTrait, MappableTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, TableTrait, MessageBuilderTrait};
     use serde_json::{Map, Value};
 
-    use crate::handlers::sign_in::{basic_auth, create_session_name};
+    use crate::handlers::{basic_auth, create_session_name};
 
     use super::*;
 

@@ -11,24 +11,20 @@ use axum::{
 use bytes::Bytes;
 use clap::ValueEnum;
 use futures::prelude::*;
-use phymes_agents::session_plans::available_interface_subjects::{create_message_map, AvailableInterfaceSubjects};
-use phymes_core::{
-    schemas::{available_subjects::AvailableSubjectsTrait, user::{JoinUserInboxSessionContextsMermaidDiagrams, UserSubject}},
-    session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageTrait}, session_stream::SessionStream},
-    table::{DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}},
-    task::message::{IPCMessage, MessageBuilderTrait, MessageTrait},
-};
+use phymes_agents::{create_message_map, AvailableInterfaceSubjects};
+use phymes_core::{AvailableSubjectsTrait, JoinUserInboxSessionContextsMermaidDiagrams,
+    BuildableTrait, BuilderTrait, MappableTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, SessionStream,
+    DataFormat, Table, TableBuilder, TableBuilderTrait, TableTrait, IPCMessage, MessageBuilderTrait, MessageTrait};
 
 // General imports
-use anyhow::{Error, Result};
+use anyhow::Result;
 use phymes_diagnostics::HashMap;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 // Library imports
 use crate::{
     handlers::json_error::{serde_json_error_response, ErrorToResponse, JsonError},
-    state::server_state::{ServerState, UserState},
+    state::{ServerState, UserState},
 };
 
 /// Chat inference endpoint
@@ -266,69 +262,6 @@ pub async fn session_stream(
             // include a catch-all case.
             JsonError::new("Unknown error".to_string())
                 .to_response(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
-}
-
-pub mod test_chat_handler {
-    use super::*;
-
-    #[derive(Serialize, Deserialize)]
-    pub struct StreamBytesInput {
-        pub num_bytes: u16,
-        pub greeting: String,
-    }
-
-    #[derive(Serialize, Deserialize)]
-    pub struct StreamBytesOutput {
-        pub message: String,
-    }
-
-    /// Chat inference endpoint
-    pub async fn stream_bytes(
-        Extension(_current_user): Extension<UserSubject>,
-        payload: Result<Json<StreamBytesInput>, JsonRejection>,
-    ) -> impl IntoResponse {
-        // Extract and process the payload
-        match payload {
-            Ok(payload) => {
-                // We got a valid JSON payload
-                let stream = stream::iter((0..payload.num_bytes).map(move |_idx| {
-                    let response = StreamBytesOutput {
-                        message: payload.greeting.clone(),
-                    };
-                    let buf = Bytes::from(serde_json::to_string(&response)?);
-                    Ok::<Bytes, Error>(buf)
-                }));
-                Body::from_stream(stream).into_response()
-            }
-            Err(JsonRejection::MissingJsonContentType(_err)) => {
-                // Request didn't have `Content-Type: application/json`
-                // header
-                JsonError::new("Missing `Content-Type: application/json` header".to_string())
-                    .to_response(StatusCode::BAD_REQUEST)
-            }
-            Err(JsonRejection::JsonDataError(err)) => {
-                // Couldn't deserialize the body into the target type
-                let (e_code, e_str) = serde_json_error_response(err);
-                JsonError::new(e_str).to_response(e_code)
-            }
-            Err(JsonRejection::JsonSyntaxError(err)) => {
-                // Syntax error in the body
-                let (e_code, e_str) = serde_json_error_response(err);
-                JsonError::new(e_str).to_response(e_code)
-            }
-            Err(JsonRejection::BytesRejection(_err)) => {
-                // Failed to extract the request body
-                JsonError::new("Failed to buffer request body".to_string())
-                    .to_response(StatusCode::INTERNAL_SERVER_ERROR)
-            }
-            Err(_err) => {
-                // `JsonRejection` is marked `#[non_exhaustive]` so match must
-                // include a catch-all case.
-                JsonError::new("Unknown error".to_string())
-                    .to_response(StatusCode::INTERNAL_SERVER_ERROR)
-            }
         }
     }
 }

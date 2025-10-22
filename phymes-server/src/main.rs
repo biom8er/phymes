@@ -1,6 +1,5 @@
 use anyhow::Result;
 use clap::Parser;
-use phymes_server::server;
 
 // DM: need to add CLI support
 #[cfg(feature = "wasip2")]
@@ -9,10 +8,7 @@ async fn main() -> Result<()> {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use server::{
-        serverless_app::{Serverless, serverless_app},
-        serverless_config::ServerlessConfig,
-    };
+    use phymes_server::{Serverless, serverless_app, ServerlessConfig};
 
     // parse the config
     let config = ServerlessConfig::parse();
@@ -37,7 +33,7 @@ async fn main() -> Result<()> {
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
 #[tokio::main]
 async fn main() -> Result<()> {
-    use server::{server_app::Server, server_config::ServerConfig};
+    use phymes_server::{Server, ServerConfig};
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
     // initialize tracing

@@ -14,7 +14,7 @@ mod queries;
 pub use queries::{create_queries_batch, QueriesBuilderTraitExt};
 
 mod user;
-pub use user::{create_user_batch, create_user_session_contexts_batch, create_user_inbox_batch};
+pub use user::{create_user_batch, create_user_session_contexts_batch, create_user_inbox_batch, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject};
 
 mod error;
 pub use error::{create_error_batch, create_error_message_map_stream, create_error_message_map};
