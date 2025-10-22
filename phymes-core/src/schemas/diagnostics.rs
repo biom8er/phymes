@@ -1,13 +1,22 @@
 use std::{fmt::Display, sync::Arc};
 
-use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, compute::{kernels::numeric::{add, sub}, min}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
+use arrow::{
+    array::{ArrayRef, Int64Array, RecordBatch, StringArray},
+    compute::{
+        kernels::numeric::{add, sub},
+        min,
+    },
+    datatypes::{DataType, Field, Fields},
+};
 use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{BuildableTrait, BuilderTrait, MappableTrait}, table::{Table, TableBuilderTrait, TableTrait}};
-
-
+use crate::{
+    schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait},
+    session::{BuildableTrait, BuilderTrait, MappableTrait},
+    table::{Table, TableBuilderTrait, TableTrait},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub enum DiagnosticsVisualizations {
@@ -24,7 +33,7 @@ pub enum DiagnosticsVisualizations {
     MetricOutputRowsGantt,
 }
 
-impl Display for DiagnosticsVisualizations {    
+impl Display for DiagnosticsVisualizations {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::TraceSequenceDiagram => write!(f, "TraceSequenceDiagram"),
@@ -43,10 +52,12 @@ fn create_span_fields() -> Vec<Field> {
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
     let field_names = ["span_id", "parent_id"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Int64, false))
-        .collect::<Vec<_>>());
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Int64, false))
+            .collect::<Vec<_>>(),
+    );
     fields_vec
 }
 
@@ -57,15 +68,19 @@ fn create_current_context_fields() -> Vec<Field> {
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
     let field_names = ["line"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::UInt32, false))
-        .collect::<Vec<_>>());
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt32, false))
+            .collect::<Vec<_>>(),
+    );
     let field_names = ["timestamp"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Int64, false))
-        .collect::<Vec<_>>());
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Int64, false))
+            .collect::<Vec<_>>(),
+    );
     fields_vec
 }
 
@@ -76,10 +91,12 @@ fn create_diagnostic_span_fields() -> Vec<Field> {
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
     let field_names = ["id"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Int64, false))
-        .collect::<Vec<_>>());
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Int64, false))
+            .collect::<Vec<_>>(),
+    );
     fields_vec.extend(create_span_fields());
     fields_vec.extend(create_current_context_fields());
     fields_vec
@@ -92,10 +109,12 @@ pub(crate) fn create_metrics_fields() -> Fields {
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
     let field_names = ["metric_value"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Int64, false))
-        .collect::<Vec<_>>());
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Int64, false))
+            .collect::<Vec<_>>(),
+    );
     fields_vec.extend(create_diagnostic_span_fields());
     Fields::from(fields_vec)
 }
@@ -118,7 +137,11 @@ pub(crate) fn create_metrics_pivot_fields() -> Fields {
 }
 
 pub(crate) fn create_metrics_pivot_norm_time_fields() -> Fields {
-    let field_names = ["start_timestamp-metric_value-Sum-normalized", "end_timestamp-metric_value-Sum-normalized", "duration"];
+    let field_names = [
+        "start_timestamp-metric_value-Sum-normalized",
+        "end_timestamp-metric_value-Sum-normalized",
+        "duration",
+    ];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Int64, false))
@@ -160,7 +183,12 @@ pub struct MetricMermaidGanttSubject {
 }
 
 pub(crate) fn create_traces_fields() -> Fields {
-    let field_names = ["tracer_type", "tracer_event", "message_name", "subject_name"];
+    let field_names = [
+        "tracer_type",
+        "tracer_event",
+        "message_name",
+        "subject_name",
+    ];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -181,7 +209,6 @@ pub(crate) fn create_events_fields() -> Fields {
 
 /// Pivot the metrics table
 pub fn pivot_metrics_table(table: Table, table_name: &str) -> Result<Table> {
-
     // extract out values from metrics
     let span_names_vec = table.get_column_as_vec_nonprimitive::<String>("span_name")?;
     let span_ids_vec = table.get_column_as_vec_primitive::<i64>("span_id")?;
@@ -207,11 +234,9 @@ pub fn pivot_metrics_table(table: Table, table_name: &str) -> Result<Table> {
         .zip(parent_ids_vec.iter())
         .map(|(((a, b), c), d)| (a, b, c, d))
         .collect::<std::collections::HashSet<_>>();
-    let mut unique_span_names = unique_span_names_hashset
-        .iter()
-        .collect::<Vec<_>>();
-    unique_span_names.sort_by(|a, b| a.0.cmp(&b.0));
-    unique_span_names.sort_by(|a, b| a.2.cmp(&b.2));
+    let mut unique_span_names = unique_span_names_hashset.iter().collect::<Vec<_>>();
+    unique_span_names.sort_by(|a, b| a.0.cmp(b.0));
+    unique_span_names.sort_by(|a, b| a.2.cmp(b.2));
 
     // create the pivot table columns and initialize with span names and metric IDs
     let mut pivot_columns = Vec::new();
@@ -283,23 +308,42 @@ pub fn pivot_metrics_table(table: Table, table_name: &str) -> Result<Table> {
 }
 
 /// Get the metrics for a single session as a table
-pub fn from_diagnostics_to_tables(diagnostics_vec: &[Diagnostics]) -> Result<(Option<Table>, Option<Table>, Option<Table>)> {
-
+pub fn from_diagnostics_to_tables(
+    diagnostics_vec: &[Diagnostics],
+) -> Result<(Option<Table>, Option<Table>, Option<Table>)> {
     // Extract out the diagnostics and partition into metrics, traces, and events
     let mut metrics_vec = Vec::new();
     let mut traces_vec = Vec::new();
     let mut events_vec = Vec::new();
     for diagnostics in diagnostics_vec {
-        metrics_vec.extend(diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Metric).to_json_object());
-        traces_vec.extend(diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Trace).to_json_object());
-        events_vec.extend(diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Event).to_json_object());
+        metrics_vec.extend(
+            diagnostics
+                .clone_inner()
+                .filter_by_diagnostic_type(DiagnosticsType::Metric)
+                .to_json_object(),
+        );
+        traces_vec.extend(
+            diagnostics
+                .clone_inner()
+                .filter_by_diagnostic_type(DiagnosticsType::Trace)
+                .to_json_object(),
+        );
+        events_vec.extend(
+            diagnostics
+                .clone_inner()
+                .filter_by_diagnostic_type(DiagnosticsType::Event)
+                .to_json_object(),
+        );
     }
 
     // Wrap the metrics, traces, and events into tables
     let metrics_table = if metrics_vec.is_empty() {
         None
     } else {
-        let values = metrics_vec.into_iter().map(|o| serde_json::Value::from(o)).collect::<Vec<_>>();
+        let values = metrics_vec
+            .into_iter()
+            .map(serde_json::Value::from)
+            .collect::<Vec<_>>();
         let table = Table::get_builder()
             .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
             .with_schema(AvailableSubjects::SessionMetrics.to_schema())
@@ -310,7 +354,10 @@ pub fn from_diagnostics_to_tables(diagnostics_vec: &[Diagnostics]) -> Result<(Op
     let traces_table = if traces_vec.is_empty() {
         None
     } else {
-        let values = traces_vec.into_iter().map(|o| serde_json::Value::from(o)).collect::<Vec<_>>();
+        let values = traces_vec
+            .into_iter()
+            .map(serde_json::Value::from)
+            .collect::<Vec<_>>();
         let table = Table::get_builder()
             .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
             .with_schema(AvailableSubjects::SessionTraces.to_schema())
@@ -321,7 +368,10 @@ pub fn from_diagnostics_to_tables(diagnostics_vec: &[Diagnostics]) -> Result<(Op
     let events_table = if events_vec.is_empty() {
         None
     } else {
-        let values = events_vec.into_iter().map(|o| serde_json::Value::from(o)).collect::<Vec<_>>();
+        let values = events_vec
+            .into_iter()
+            .map(serde_json::Value::from)
+            .collect::<Vec<_>>();
         let table = Table::get_builder()
             .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
             .with_schema(AvailableSubjects::SessionEvents.to_schema())
@@ -333,7 +383,7 @@ pub fn from_diagnostics_to_tables(diagnostics_vec: &[Diagnostics]) -> Result<(Op
 }
 
 /// Add normalized start and end time for use in gantt or barplot visualizations
-pub fn get_metrics_as_gantt_table(pivot_table: Table, table_name: &str,) -> Result<Table> {
+pub fn get_metrics_as_gantt_table(pivot_table: Table, table_name: &str) -> Result<Table> {
     // determine the minimum start time
     let start_time_arr: ArrayRef = pivot_table.get_column_as_array("start_timestamp");
     let start_time_arr_prim = start_time_arr
@@ -341,10 +391,8 @@ pub fn get_metrics_as_gantt_table(pivot_table: Table, table_name: &str,) -> Resu
         .downcast_ref::<Int64Array>()
         .unwrap();
     let min_start_time = min(start_time_arr_prim).unwrap();
-    let min_start_time_arr: ArrayRef = Arc::new(Int64Array::from_value(
-        min_start_time,
-        start_time_arr.len(),
-    ));
+    let min_start_time_arr: ArrayRef =
+        Arc::new(Int64Array::from_value(min_start_time, start_time_arr.len()));
 
     // normalize the start time
     let normalized_start_time_arr = sub(&start_time_arr, &min_start_time_arr).unwrap();
@@ -425,7 +473,11 @@ pub fn get_metrics_as_mermaid_gantt(pivot_table: Table) -> Result<Table> {
     let output_rows = output_rows_vec.join("");
 
     // create the record batch
-    let batch = create_metrics_mermaid_gantt_batch(vec![processor_traces], vec![elapsed_compute], vec![output_rows])?;
+    let batch = create_metrics_mermaid_gantt_batch(
+        vec![processor_traces],
+        vec![elapsed_compute],
+        vec![output_rows],
+    )?;
 
     // create the table
     Table::get_builder()

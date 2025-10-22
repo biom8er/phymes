@@ -13,15 +13,16 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Tool, ToolType, 
-    BuildableTrait, BuilderTrait, Table, TableBuilderTrait, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+};
 use tracing::instrument;
 
 use crate::{
     candle_data::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
     candle_operators::{
-        data_operator::DataOperatorTrait,
-        group_by_and_aggregate::build_aggregator_column_list,
+        data_operator::DataOperatorTrait, group_by_and_aggregate::build_aggregator_column_list,
         sort_column_and_indices::take_columns_by_indices,
     },
 };
@@ -70,9 +71,9 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
     }
     fn new(config: &DataConfig) -> Self {
         let lhs_values = config.lhs_values.to_owned();
-        let cmp_columns = config.cmp_columns.clone().unwrap_or(Vec::new());
-        let cmp_operators = config.cmp_operators.clone().unwrap_or(Vec::new());
-        let cmp_predicate = config.cmp_predicate.clone().unwrap_or(DataComparatorPredicate::default());
+        let cmp_columns = config.cmp_columns.clone().unwrap_or_default();
+        let cmp_operators = config.cmp_operators.clone().unwrap_or_default();
+        let cmp_predicate = config.cmp_predicate.clone().unwrap_or_default();
 
         FilterColumnsAndIndices {
             lhs_values,

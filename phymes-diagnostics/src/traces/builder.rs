@@ -1,4 +1,7 @@
-use crate::{diagnostics::{AvailableDiagnostics, DiagnosticBuilder, DiagnosticBuilderTrait}, traces::{tracer::TraceRecord, Trace}};
+use crate::{
+    diagnostics::{AvailableDiagnostics, DiagnosticBuilder, DiagnosticBuilderTrait},
+    traces::{Trace, tracer::TraceRecord},
+};
 
 /// Trait extension constructing traces
 pub trait TraceBuilderTrait: DiagnosticBuilderTrait {

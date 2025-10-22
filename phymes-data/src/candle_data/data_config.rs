@@ -177,19 +177,19 @@ impl Display for DataDistanceOperator {
 
 /// Data cast operators work in conjunction with DataCastAs to change the column name,
 ///   DataCastDataType to change the data type, and DataCastTemplate to apply a template
-/// 
+///
 /// # Notes
-/// 
+///
 /// Casting uses the [arrow_cast] crate to convert between [DatayType]s
-/// 
+///
 /// 1. Check if conversion is possible https://arrow.apache.org/rust/arrow_cast/cast/fn.can_cast_types.html
 /// 2. Convert between types https://arrow.apache.org/rust/arrow_cast/cast/fn.cast_with_options.html
 /// 3. Encode/Decode Base64 https://arrow.apache.org/rust/arrow_cast/base64/index.html with BASE64_URL_SAFE_NO_PAD engine
-/// 
+///
 /// Casting allows for applying a [String] template for formatting
-/// 
+///
 /// Casting allows for converting between DateTime strings and numeric Timestamps
-/// 
+///
 /// [arrow_cast]: https://arrow.apache.org/rust/arrow_cast/index.html
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataCastOperator {
@@ -319,7 +319,7 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<DataFormat>,
-    
+
     /// Vec of Strings for the comparator columns
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -343,7 +343,7 @@ pub struct DataConfig {
     /// Vec of [DataAggregatorOperator]s specifying the aggregator operator to apply to each agg_column
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub agg_operators: Option<Vec<DataAggregatorOperator>>,    
+    pub agg_operators: Option<Vec<DataAggregatorOperator>>,
 
     /// Vec of [String]s for the columns to rename to
     #[arg(long)]

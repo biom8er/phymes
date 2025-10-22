@@ -7,10 +7,8 @@ use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, Tra
 use tracing::{Level, event};
 
 use super::{
-    message::{
-        MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-    },
     ProcessorTrait,
+    message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
     publish_subscribe::PubSubTrait,
 };
 
@@ -19,7 +17,10 @@ use super::{
 use super::test_exec::{collect_partitions_runs, collect_task_runs};
 
 use crate::{
-    session::{BuildableTrait, BuilderTrait, MappableTrait, RunnableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv},
+    session::{
+        BuildableTrait, BuilderTrait, MappableTrait, RunnableTrait, RuntimeEnv,
+        SendableRecordBatchStreamMessageMap, StateMap,
+    },
     table::{TablePublish, TableSubscribe},
 };
 
@@ -68,7 +69,10 @@ pub trait TaskTrait:
     ///
     /// A unique name to protect against collisions when building
     ///   the final message map
-    fn make_outbox(&self, outbox: SendableRecordBatchStreamMessageMap) -> SendableRecordBatchStreamMessageMap {
+    fn make_outbox(
+        &self,
+        outbox: SendableRecordBatchStreamMessageMap,
+    ) -> SendableRecordBatchStreamMessageMap {
         let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         for (name, message) in outbox.into_iter() {
             let publications = self.get_publications();
@@ -141,12 +145,18 @@ impl BuildableTrait for Task {
 }
 
 impl RunnableTrait for Task {
-    fn run(&self, mut messages: SendableRecordBatchStreamMessageMap, diagnostic_builder: Option<&DiagnosticBuilder>) -> Result<SendableRecordBatchStreamMessageMap> {
+    fn run(
+        &self,
+        mut messages: SendableRecordBatchStreamMessageMap,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
             trace.enter(&messages.values().collect::<Vec<_>>());
             Some((trace, trace_builder))
         } else {
@@ -155,15 +165,12 @@ impl RunnableTrait for Task {
 
         // Process the incoming message resulting in a `SendableRecordBatchStream`
         for processor in self.processor.iter() {
-            let processor_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-                Some(trace.1.clone()) 
-            } else {
-                None
-            };   
+            let processor_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
             messages = processor.process(
-                messages, 
-                processor_diagnostic_builder.as_ref(), 
-                self.runtime_env.clone())?;
+                messages,
+                processor_diagnostic_builder.as_ref(),
+                self.runtime_env.clone(),
+            )?;
         }
 
         // make the output message
@@ -172,7 +179,7 @@ impl RunnableTrait for Task {
         // Trace the outbox
         if let Some(trace) = trace {
             trace.0.exit(&outbox.values().collect::<Vec<_>>());
-        }        
+        }
         Ok(outbox)
     }
 }
@@ -310,8 +317,14 @@ pub fn check_not_null_constraints(
 pub mod test_task {
     use super::*;
     use crate::{
-        session::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, RuntimeEnv, RuntimeEnvTrait},
-        table::{TablePublish, AllTableNamesSubscribe, SubscribeTrait, test_table::{make_test_table, make_test_table_chat}, Table, TableBuilder, TableBuilderTrait, TableTrait},
+        session::{
+            BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, RuntimeEnv, RuntimeEnvTrait,
+        },
+        table::{
+            AllTableNamesSubscribe, SubscribeTrait, Table, TableBuilder, TableBuilderTrait,
+            TablePublish, TableTrait,
+            test_table::{make_test_table, make_test_table_chat},
+        },
         task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, test_processor::ProcessorMock},
     };
 
@@ -475,7 +488,7 @@ pub mod test_task {
         subject: &str,
         table_name: &str,
         update: &TablePublish,
-        test_table: bool
+        test_table: bool,
     ) -> Result<IPCMessageMap> {
         // mock table as input
         let table = if test_table {
@@ -503,11 +516,13 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::table::{TableTrait, TableBuilder, TableBuilderTrait, TablePublish, test_table::make_test_table};
+    use crate::table::{
+        TableBuilder, TableBuilderTrait, TablePublish, TableTrait, test_table::make_test_table,
+    };
     use crate::task::message::MessageTrait;
     use arrow::array::{Array, DictionaryArray, Int32Array, NullArray, RunArray};
     use arrow::datatypes::{DataType, Field, Schema};
-    use phymes_diagnostics::{Diagnostics, SpanBuilder, HashMap};
+    use phymes_diagnostics::{Diagnostics, HashMap, SpanBuilder};
 
     /// A compilation test to ensure that the `Task::get_name()` method can
     /// be called from a trait object.
@@ -784,7 +799,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_task_single_processor() -> Result<()> {
-        let span = SpanBuilder::default().with_span("test_run_task_single_processor").build()?;
+        let span = SpanBuilder::default()
+            .with_span("test_run_task_single_processor")
+            .build()?;
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
         let test_task = test_task::make_test_task_single_processor(
@@ -834,7 +851,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_task_chained_processor() -> Result<()> {
-        let span = SpanBuilder::default().with_span("test_run_task_chained_processor").build()?;
+        let span = SpanBuilder::default()
+            .with_span("test_run_task_chained_processor")
+            .build()?;
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
         let test_task = test_task::make_test_task_chained_processor(

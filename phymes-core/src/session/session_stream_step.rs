@@ -2,23 +2,33 @@ use anyhow::Result;
 use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, SpanBuilder, TraceBuilderTrait};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap,
+    SpanBuilder, TraceBuilderTrait,
+};
 use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
 
-use super::common_traits::{BuilderTrait, IPCMessageMap, MappableTrait, SendableRecordBatchStreamMessageMap, RunnableTrait};
+use super::common_traits::{
+    BuilderTrait, IPCMessageMap, MappableTrait, RunnableTrait, SendableRecordBatchStreamMessageMap,
+};
 use crate::schemas::{create_error_message_map, create_error_message_map_stream};
 use crate::session::session_stream_state::SessionStreamState;
 use crate::table::{TableBuilder, TableBuilderTrait, TableTrait};
-use crate::task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, PubSubTrait};
+use crate::task::{
+    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, PubSubTrait,
+    SendableRecordBatchStreamMessage,
+};
 
 /// A single step of a [`SessionStream`]
 pub struct SessionStreamStep {}
 
 impl SessionStreamStep {
     /// Join the message streams using JointSet
-    async fn join_message_streams(messages: SendableRecordBatchStreamMessageMap) -> Result<IPCMessageMap> {
+    async fn join_message_streams(
+        messages: SendableRecordBatchStreamMessageMap,
+    ) -> Result<IPCMessageMap> {
         event!(Level::DEBUG, "Messages to join: {:?}.", &messages.keys());
         // Inspect each of the response futures
         let mut response_builder = HashMap::<String, IPCMessageBuilder>::new();
@@ -63,7 +73,7 @@ impl SessionStreamStep {
                 }
                 Err(err) => {
                     // Intercept the error and forward to the error subject
-                    event!(Level::ERROR, "{err}"); 
+                    event!(Level::ERROR, "{err}");
                     let message_map = create_error_message_map(&err.into(), "SessionStreamStep")?;
                     response_batches.extend(message_map);
                 }
@@ -124,11 +134,13 @@ impl SessionStreamStep {
     #[instrument(skip(state, messages))]
     pub async fn run_superstep(
         state: Arc<RwLock<SessionStreamState>>,
-        messages: IPCMessageMap
+        messages: IPCMessageMap,
     ) -> Result<Option<IPCMessageMap>> {
         // Initialize the channels for collecting the metrics, events, and traces)
         let mut diagnostics_vec = Vec::new();
-        let span = SpanBuilder::default().with_span(state.read().get_session_context().get_name()).build()?;
+        let span = SpanBuilder::default()
+            .with_span(state.read().get_session_context().get_name())
+            .build()?;
 
         // Create the diagnostics for the session step
         let diagnostics = Diagnostics::new();
@@ -136,20 +148,31 @@ impl SessionStreamStep {
         diagnostics_vec.push(diagnostics);
 
         // Trace the session step
-        let trace = diagnostic_builder.clone().messages(line!(), file!(), state.read().get_session_context().get_name());
+        let trace = diagnostic_builder.clone().messages(
+            line!(),
+            file!(),
+            state.read().get_session_context().get_name(),
+        );
         trace.enter(&messages.values().collect::<Vec<_>>());
-        let event = diagnostic_builder.clone().info(line!(), file!(), state.read().get_session_context().get_name());
-        event.insert("superstep", &serde_json::Value::Number(state.read().get_iter().into()));
+        let event = diagnostic_builder.clone().info(
+            line!(),
+            file!(),
+            state.read().get_session_context().get_name(),
+        );
+        event.insert(
+            "superstep",
+            &serde_json::Value::Number(state.read().get_iter().into()),
+        );
 
         // Update the state and handle any errors (without locking the state)
         let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let update = match state.write().update_state_from_messages(messages) {
             Ok(update) => update,
             Err(err) => {
-                let message_map = create_error_message_map_stream(&err.into(), span.span().0)?;
+                let message_map = create_error_message_map_stream(&err, span.span().0)?;
                 response_streams.extend(message_map);
                 HashMap::<String, Vec<String>>::new()
-            },
+            }
         };
         state.write().extend_superstep_updates(update);
 
@@ -188,22 +211,22 @@ impl SessionStreamStep {
                 Err(err) => {
                     // Intercept the error and wrap into a `SendableRecordBatch` for consumption
                     event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name);
-                    println!("{} for task {}", err.to_string(), &task_name);
-                    let message_map = create_error_message_map_stream(&err.into(), &task_name)?;
+                    let message_map = create_error_message_map_stream(&err, task_name)?;
                     response_streams.extend(message_map);
-                },
+                }
             }
         }
 
         // Break if there is nothing to update
         if session_streams.is_empty() && response_streams.is_empty() {
-
             // Collect metrics, logs, and traces and update their corresponding subjects
-            let (_metrics_updated, _traces_updated, _events_updated) = state.write().get_session_context_mut().update_metrics_table(&diagnostics_vec)?;
+            let (_metrics_updated, _traces_updated, _events_updated) = state
+                .write()
+                .get_session_context_mut()
+                .update_metrics_table(&diagnostics_vec)?;
 
             Ok(None)
         } else {
-
             // Remove the ran tasks from the update
             for task_name in tasks.iter() {
                 state
@@ -212,20 +235,21 @@ impl SessionStreamStep {
             }
 
             // Join each of the response futures
-            let response_batches = match SessionStreamStep::join_message_streams(response_streams).await {
-                Ok(response_batches) => response_batches,
-                Err(err) => create_error_message_map(&err.into(), span.span().0)?,
-            };
+            let response_batches =
+                match SessionStreamStep::join_message_streams(response_streams).await {
+                    Ok(response_batches) => response_batches,
+                    Err(err) => create_error_message_map(&err, span.span().0)?,
+                };
 
-            // Update the state and handle any errors (without locking the state)    
-            let mut error_messages = HashMap::<String, IPCMessage>::new();   
+            // Update the state and handle any errors (without locking the state)
+            let mut error_messages = HashMap::<String, IPCMessage>::new();
             let mut update = match state.write().update_state_from_messages(response_batches) {
                 Ok(update) => update,
                 Err(err) => {
-                    let message_map = create_error_message_map(&err.into(), span.span().0)?;
+                    let message_map = create_error_message_map(&err, span.span().0)?;
                     error_messages.extend(message_map);
                     HashMap::<String, Vec<String>>::new()
-                },
+                }
             };
             update.extend(state.write().update_state_from_messages(error_messages)?);
             // DM: uncommenting below and commenting above will silence any errors when writing to the Error message table
@@ -240,7 +264,10 @@ impl SessionStreamStep {
             trace.exit(&session_batches.values().collect::<Vec<_>>());
 
             // Collect metrics, logs, and traces and update their corresponding subjects
-            let (_metrics_updated, _traces_updated, _events_updated) = state.write().get_session_context_mut().update_metrics_table(&diagnostics_vec)?;
+            let (_metrics_updated, _traces_updated, _events_updated) = state
+                .write()
+                .get_session_context_mut()
+                .update_metrics_table(&diagnostics_vec)?;
 
             // Increment the step
             let iter = state.read().get_iter() + 1;
@@ -255,15 +282,22 @@ impl SessionStreamStep {
 mod tests {
     use super::*;
     use crate::schemas::{AvailableSubjects, AvailableSubjectsTrait};
-    use crate::session::session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan};
-    use crate::table::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, TablePublish};
-    use crate::task::{test_processor::{ProcessorError, ProcessorMock}, ProcessorTrait, test_task::{make_runtime_env, make_state_tables, make_test_input_message}};
-    use crate::session::session_context_builder::test_session_context_builder::{make_test_session_context_parallel_task, make_test_session_context_sequential_task};
+    use crate::session::session_context_builder::test_session_context_builder::{
+        make_test_session_context_parallel_task, make_test_session_context_sequential_task,
+    };
+    use crate::session::session_context_builder::{
+        SessionContextBuilder, SessionContextBuilderTrait, TaskPlan,
+    };
+    use crate::table::{AllTableNamesSubscribe, SubscribeTrait, TablePublish, TableSubscribe};
+    use crate::task::{
+        ProcessorTrait,
+        test_processor::{ProcessorError, ProcessorMock},
+        test_task::{make_runtime_env, make_state_tables, make_test_input_message},
+    };
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
-        let session_context =
-            make_test_session_context_parallel_task("session_1", 4)?;
+        let session_context = make_test_session_context_parallel_task("session_1", 4)?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
@@ -273,7 +307,7 @@ mod tests {
                 "state_1",
                 "state_1",
                 &TablePublish::None,
-                true
+                true,
             )?,
         )
         .await?;
@@ -371,8 +405,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
-        let session_context =
-            make_test_session_context_parallel_task("session_1", 4)?;
+        let session_context = make_test_session_context_parallel_task("session_1", 4)?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
@@ -384,7 +417,7 @@ mod tests {
                 &TablePublish::Extend {
                     table_name: "state_1".to_string(),
                 },
-                true
+                true,
             )?,
         )
         .await?
@@ -480,7 +513,7 @@ mod tests {
             .get_session_context_mut()
             .update_metrics_mermaid_gantt_table()?;
         assert!(updated);
-        
+
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -496,15 +529,15 @@ mod tests {
             1
         );
         let output_rows = session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_column_as_vec_primitive::<i64>("output_rows")?;
+            .try_read()
+            .unwrap()
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::MetricPivot.to_string().as_str())
+            .unwrap()
+            .try_read()
+            .unwrap()
+            .get_column_as_vec_primitive::<i64>("output_rows")?;
         assert_eq!(output_rows.iter().sum::<i64>(), 30);
 
         Ok(())
@@ -512,8 +545,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
-        let session_context =
-            make_test_session_context_parallel_task("session_1", 4)?;
+        let session_context = make_test_session_context_parallel_task("session_1", 4)?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
@@ -525,7 +557,7 @@ mod tests {
                 &TablePublish::Replace {
                     table_name: "state_1".to_string(),
                 },
-                true
+                true,
             )?,
         )
         .await?
@@ -637,15 +669,15 @@ mod tests {
             1
         );
         let output_rows = session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_column_as_vec_primitive::<i64>("output_rows")?;
+            .try_read()
+            .unwrap()
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::MetricPivot.to_string().as_str())
+            .unwrap()
+            .try_read()
+            .unwrap()
+            .get_column_as_vec_primitive::<i64>("output_rows")?;
         assert_eq!(output_rows.iter().sum::<i64>(), 15);
 
         Ok(())
@@ -654,8 +686,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
-        let session_context =
-            make_test_session_context_parallel_task("session_1", 4)?;
+        let session_context = make_test_session_context_parallel_task("session_1", 4)?;
         let mut input = make_test_input_message(
             "task_1",
             "session_1",
@@ -664,7 +695,7 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_1".to_string(),
             },
-            true
+            true,
         )?;
         input.extend(make_test_input_message(
             "task_2",
@@ -674,7 +705,7 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_2".to_string(),
             },
-            true
+            true,
         )?);
         input.extend(make_test_input_message(
             "task_3",
@@ -684,7 +715,7 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_3".to_string(),
             },
-            true
+            true,
         )?);
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
@@ -829,15 +860,15 @@ mod tests {
             1
         );
         let output_rows = session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_column_as_vec_primitive::<i64>("output_rows")?;
+            .try_read()
+            .unwrap()
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::MetricPivot.to_string().as_str())
+            .unwrap()
+            .try_read()
+            .unwrap()
+            .get_column_as_vec_primitive::<i64>("output_rows")?;
         assert_eq!(output_rows.iter().sum::<i64>(), 45);
 
         // Superstep 2
@@ -1109,15 +1140,15 @@ mod tests {
             1
         );
         let output_rows = session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_column_as_vec_primitive::<i64>("output_rows")?;
+            .try_read()
+            .unwrap()
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::MetricPivot.to_string().as_str())
+            .unwrap()
+            .try_read()
+            .unwrap()
+            .get_column_as_vec_primitive::<i64>("output_rows")?;
         assert_eq!(output_rows.iter().sum::<i64>(), 63);
 
         Ok(())
@@ -1126,8 +1157,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
-        let session_context =
-            make_test_session_context_sequential_task("session_1", 4)?;
+        let session_context = make_test_session_context_sequential_task("session_1", 4)?;
         let input = make_test_input_message(
             "task_1",
             "session_1",
@@ -1136,7 +1166,7 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_1".to_string(),
             },
-            true
+            true,
         )?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
@@ -1221,15 +1251,15 @@ mod tests {
             1
         );
         let output_rows = session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_column_as_vec_primitive::<i64>("output_rows")?;
+            .try_read()
+            .unwrap()
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::MetricPivot.to_string().as_str())
+            .unwrap()
+            .try_read()
+            .unwrap()
+            .get_column_as_vec_primitive::<i64>("output_rows")?;
         assert_eq!(output_rows.iter().sum::<i64>(), 45);
 
         // Supersteps 2, 3, and 4
@@ -1387,24 +1417,23 @@ mod tests {
             1
         );
         let output_rows = session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_column_as_vec_primitive::<i64>("output_rows")?;
+            .try_read()
+            .unwrap()
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::MetricPivot.to_string().as_str())
+            .unwrap()
+            .try_read()
+            .unwrap()
+            .get_column_as_vec_primitive::<i64>("output_rows")?;
         assert_eq!(output_rows.iter().sum::<i64>(), 5385);
 
         Ok(())
-    }    
+    }
 
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
-        let session_context =
-            make_test_session_context_sequential_task("session_1", 4)?;
+        let session_context = make_test_session_context_sequential_task("session_1", 4)?;
         let input = make_test_input_message(
             "task_1",
             "session_1",
@@ -1413,11 +1442,11 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_1".to_string(),
             },
-            false
+            false,
         )?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
-            .await;
+        let response =
+            SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input).await;
         assert!(response.is_err());
 
         Ok(())
@@ -1454,11 +1483,17 @@ mod tests {
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ProcessorError::new_arc_with_pub_sub("error_1",
-                &[TablePublish::Extend { table_name: "state_1".to_string() }],
-                &[TableSubscribe::OnUpdateFullTable { table_name: "state_1".to_string() }],
-            AllTableNamesSubscribe::new_box()
-        )];
+            ProcessorError::new_arc_with_pub_sub(
+                "error_1",
+                &[TablePublish::Extend {
+                    table_name: "state_1".to_string(),
+                }],
+                &[TableSubscribe::OnUpdateFullTable {
+                    table_name: "state_1".to_string(),
+                }],
+                AllTableNamesSubscribe::new_box(),
+            ),
+        ];
         let state = make_state_tables("state_1", "config_1")?;
         let mut session_context = SessionContextBuilder::new()
             .with_name("session_1")
@@ -1478,19 +1513,28 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_1".to_string(),
             },
-            true
+            true,
         )?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context.clone())));
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input.clone())
-            .await;
+        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(
+            session_context.clone(),
+        )));
+        let response =
+            SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input.clone())
+                .await;
         assert!(response.is_err());
 
         // Add the Error table and retry
-        session_context.state.insert(AvailableSubjects::SessionErrors.to_string(), Arc::new(RwLock::new(AvailableSubjects::SessionErrors.to_table(None, None)?)));
+        session_context.state.insert(
+            AvailableSubjects::SessionErrors.to_string(),
+            Arc::new(RwLock::new(
+                AvailableSubjects::SessionErrors.to_table(None, None)?,
+            )),
+        );
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
-            .await?.unwrap();
-        
+            .await?
+            .unwrap();
+
         assert!(response.is_empty());
         assert_eq!(
             session_stream_state

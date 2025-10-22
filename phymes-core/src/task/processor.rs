@@ -1,7 +1,11 @@
 use crate::{
     session::{MappableTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, StateMap},
-    table::{AllTableNamesSubscribe, RecordBatchStream, SendableRecordBatchStream, SubscribeTrait, TablePublish, TableSubscribe},
-    task::PubSubTrait};
+    table::{
+        AllTableNamesSubscribe, RecordBatchStream, SendableRecordBatchStream, SubscribeTrait,
+        TablePublish, TableSubscribe,
+    },
+    task::PubSubTrait,
+};
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
@@ -248,11 +252,7 @@ impl PubSubTrait for ProcessorEcho {
     fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect::<Vec<_>>()
     }
-    fn check_subscriptions(
-        &self,
-        updates: &HashMap<String, bool>,
-        state: &StateMap,
-    ) -> bool {
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
         self.subscribe
             .check_subscriptions(&self.subscriptions, updates, state)
     }
@@ -301,7 +301,9 @@ impl ProcessorTrait for ProcessorEcho {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
             trace.enter(&message.values().collect::<Vec<_>>());
             Some((trace, trace_builder))
         } else {
@@ -311,7 +313,7 @@ impl ProcessorTrait for ProcessorEcho {
         // Trace the outbox
         if let Some(trace) = trace {
             trace.0.exit(&message.values().collect::<Vec<_>>());
-        }  
+        }
 
         Ok(message)
     }
@@ -374,7 +376,8 @@ pub mod test_processor {
     use crate::{
         session::{BuildableTrait, BuilderTrait, StateMap},
         table::test_table::make_test_record_batch,
-        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage}};
+        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
+    };
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
@@ -409,11 +412,7 @@ pub mod test_processor {
         fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
             self.subscriptions.iter().collect::<Vec<_>>()
         }
-        fn check_subscriptions(
-            &self,
-            updates: &HashMap<String, bool>,
-            state: &StateMap,
-        ) -> bool {
+        fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
             self.subscribe
                 .check_subscriptions(&self.subscriptions, updates, state)
         }
@@ -462,7 +461,9 @@ pub mod test_processor {
             // Trace the inbox
             let trace = if let Some(diagnostic_builder) = diagnostic_builder {
                 let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-                let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+                let trace = trace_builder
+                    .clone()
+                    .messages(line!(), file!(), self.get_name());
                 trace.enter(&message.values().collect::<Vec<_>>());
                 Some((trace, trace_builder))
             } else {
@@ -472,12 +473,8 @@ pub mod test_processor {
             // Add another record batch to the input
             let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
             for (s_name, s) in message.into_iter() {
-                let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-                    Some(trace.1.clone()) 
-                } else {
-                    None
-                };  
-                
+                let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
+
                 let name = s_name.clone();
                 let source = s.get_publisher().to_string();
                 let subject = s.get_subject().to_string();
@@ -534,7 +531,12 @@ pub mod test_processor {
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             let poll;
             let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
-                Some(diagnostic_builder.clone().to_child("ProcessorMockStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("ProcessorMockStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
             } else {
                 None
             };
@@ -542,15 +544,13 @@ pub mod test_processor {
             loop {
                 match ready!(self.input.poll_next_unpin(cx)) {
                     Some(Ok(batch)) => {
-                        let timer = if let Some(baseline_metrics) = &baseline_metrics {
-                            Some(baseline_metrics.elapsed_compute().timer())
-                        } else {
-                            None
-                        };
+                        let timer = baseline_metrics
+                            .as_ref()
+                            .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
                         let processed_batch = add_test_table_row(batch)?;
                         if let Some(timer) = timer {
                             timer.done();
-                        }                        
+                        }
                         poll = Poll::Ready(Some(Ok(processed_batch)));
                         break;
                     }
@@ -577,7 +577,7 @@ pub mod test_processor {
         fn schema(&self) -> SchemaRef {
             Arc::clone(&self.schema)
         }
-    }    
+    }
 
     /// Error processor that emits an error
     #[derive(Debug)]
@@ -602,11 +602,7 @@ pub mod test_processor {
         fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
             self.subscriptions.iter().collect::<Vec<_>>()
         }
-        fn check_subscriptions(
-            &self,
-            updates: &HashMap<String, bool>,
-            state: &StateMap,
-        ) -> bool {
+        fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
             self.subscribe
                 .check_subscriptions(&self.subscriptions, updates, state)
         }
@@ -662,8 +658,10 @@ mod tests {
 
     use crate::{
         session::{BuildableTrait, BuilderTrait, RuntimeEnv},
-        table::{TablePublish, test_table::make_test_table, TableBuilder, TableBuilderTrait, TableTrait},
-        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage}
+        table::{
+            TableBuilder, TableBuilderTrait, TablePublish, TableTrait, test_table::make_test_table,
+        },
+        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
     };
     use anyhow::Result;
     use parking_lot::lock_api::Mutex;
@@ -690,8 +688,11 @@ mod tests {
                 .build()?,
         );
         let processor_1 = test_processor::ProcessorMock::new_arc("processor_1");
-        let mut stream =
-            processor_1.process(message, Some(&diagnostic_builder), Arc::new(Mutex::new(runtime_env)))?;
+        let mut stream = processor_1.process(
+            message,
+            Some(&diagnostic_builder),
+            Arc::new(Mutex::new(runtime_env)),
+        )?;
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove(&name).unwrap().get_message_own(),
         )

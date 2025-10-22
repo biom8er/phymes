@@ -3,14 +3,18 @@ use std::{collections::HashMap, sync::Arc};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        ArrayRef, Float32Array, Float64Array, Int64Array, RecordBatch, StringArray, UInt32Array, UInt8Array
+        ArrayRef, Float32Array, Float64Array, Int64Array, RecordBatch, StringArray, UInt8Array,
+        UInt32Array,
     },
     compute::cast,
     datatypes::DataType,
 };
 use candle_core::Device;
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
-    BuildableTrait, BuilderTrait, MappableTrait, from_str_to_data_type, TableScript, Table, TableBuilderTrait, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType,
+    from_str_to_data_type,
+};
 use serde_json::json;
 use tracing::instrument;
 
@@ -71,7 +75,10 @@ impl DataOperatorTrait for SelectAndCast {
         let lhs_values = config.lhs_values.to_owned();
         let as_columns = config.as_columns.clone().unwrap_or_default();
         let cast_operators = config.cast_operators.clone().unwrap_or_default();
-        let cast_datatypes = config.cast_datatypes.clone().unwrap_or_default()
+        let cast_datatypes = config
+            .cast_datatypes
+            .clone()
+            .unwrap_or_default()
             .iter()
             .map(|s| from_str_to_data_type(s).unwrap())
             .collect::<Vec<_>>();
@@ -216,15 +223,17 @@ pub fn select_and_cast(
     // Apply the cast and optional column renaming and template injection based on the lhs_values
     let mut batch_vec = Vec::new();
     for (index, column_name) in lhs_values.iter().enumerate() {
-
         // Try casting if possible
         let (column_cast, column_data_type) = match cast_operators.get(index).unwrap() {
             DataCastOperator::Cast => {
                 let to_type = cast_datatypes.get(index).unwrap();
                 let arr = cast(&lhs_table.get_column_as_array(column_name), to_type)?;
                 (arr, to_type.to_owned())
-            },
-            DataCastOperator::None => (lhs_table.get_column_as_array(column_name), lhs_table.get_column_data_type(column_name)?),
+            }
+            DataCastOperator::None => (
+                lhs_table.get_column_as_array(column_name),
+                lhs_table.get_column_data_type(column_name)?,
+            ),
         };
 
         // Inject into a string template
@@ -235,66 +244,108 @@ pub fn select_and_cast(
                 match column_data_type {
                     DataType::UInt8 => {
                         let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast.as_any()
+                        let arr_vec = column_cast
+                            .as_any()
                             .downcast_ref::<UInt8Array>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
                     }
                     DataType::UInt32 => {
                         let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast.as_any()
+                        let arr_vec = column_cast
+                            .as_any()
                             .downcast_ref::<UInt32Array>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
                     }
                     DataType::Int64 => {
                         let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast.as_any()
+                        let arr_vec = column_cast
+                            .as_any()
                             .downcast_ref::<Int64Array>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
                     }
                     DataType::Float32 => {
                         let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast.as_any()
+                        let arr_vec = column_cast
+                            .as_any()
                             .downcast_ref::<Float32Array>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
                     }
                     DataType::Float64 => {
                         let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast.as_any()
+                        let arr_vec = column_cast
+                            .as_any()
                             .downcast_ref::<Float64Array>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
                     }
                     DataType::Utf8 => {
                         let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast.as_any()
+                        let arr_vec = column_cast
+                            .as_any()
                             .downcast_ref::<StringArray>()
                             .unwrap()
                             .iter()
-                            .map(|s| template.apply_template(&json!({column_name.to_string(): s.unwrap_or_default()})).unwrap())
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
                             .collect::<Vec<_>>();
                         let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
                         arr
@@ -303,14 +354,13 @@ pub fn select_and_cast(
                         return Err(anyhow!(
                             "Unsupported data type {} for injecting into a String template for column {column_name}",
                             lhs_table.get_column_data_type(column_name)?.to_string()
-                        ));                    
+                        ));
                     }
                 }
             }
-        } else {            
+        } else {
             column_cast
         };
-        
 
         // Rename the columns
         if let Some(name) = as_columns.get(index) {
@@ -318,7 +368,7 @@ pub fn select_and_cast(
                 batch_vec.push((column_name, column_cast));
             } else {
                 batch_vec.push((name, column_cast));
-            }            
+            }
         } else {
             batch_vec.push((column_name, column_cast));
         }
@@ -369,7 +419,11 @@ mod tests {
             &["lhs_pk", "lhs_text", "lhs_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["new_pk", "", "new_metadata"],
-            &[DataCastOperator::Cast, DataCastOperator::None, DataCastOperator::Cast],
+            &[
+                DataCastOperator::Cast,
+                DataCastOperator::None,
+                DataCastOperator::Cast,
+            ],
             &[DataType::UInt32, DataType::Utf8, DataType::Float32],
             &["", "Into template {{ lhs_text }}", ""],
             &device,
@@ -380,7 +434,15 @@ mod tests {
             .build()?;
 
         let lhs_text = result_table.get_column_as_vec_str("lhs_text");
-        assert_eq!(lhs_text, vec!["Into template left", "Into template 1", "Into template left", "Into template 3"]);
+        assert_eq!(
+            lhs_text,
+            vec![
+                "Into template left",
+                "Into template 1",
+                "Into template left",
+                "Into template 3"
+            ]
+        );
         let lhs_id = result_table.get_column_as_vec_primitive::<u32>("new_pk")?;
         assert_eq!(lhs_id, vec![0, 1, 2, 3]);
         let metadata = result_table.get_column_as_vec_primitive::<f32>("new_metadata")?;

@@ -4,17 +4,21 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use phymes_core::{create_values_record_batch, AvailableSubjects, AvailableSubjectsTrait, create_chat_record_batch, ToolCall,
-    BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv,
-    RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, Table, TableBuilderTrait, TableTrait,
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
-use phymes_diagnostics::{create_timestamp_micros, DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
+use phymes_core::{
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilderTrait,
+    TablePublish, TableSubscribe, TableTrait, ToolCall, create_chat_record_batch,
+    create_values_record_batch,
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    create_timestamp_micros,
+};
 
 use anyhow::{Result, anyhow};
-use arrow::{
-    array::RecordBatch,
-    datatypes::SchemaRef,
-};
+use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use serde_json::json;
@@ -110,7 +114,9 @@ impl ProcessorTrait for MessageParserProcessor {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
             trace.enter(&message.values().collect::<Vec<_>>());
             Some((trace, trace_builder))
         } else {
@@ -129,11 +135,7 @@ impl ProcessorTrait for MessageParserProcessor {
         };
 
         // Make the outbox and send
-        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-            Some(trace.1.clone()) 
-        } else {
-            None
-        };
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(MessageParserStream::new(
             messages,
             config,
@@ -217,15 +219,18 @@ impl Stream for MessageParserStream {
         } else {
             // Initialize the metrics
             let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
-                Some(diagnostic_builder.clone().to_child("MessageParserStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("MessageParserStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
             } else {
                 None
             };
-            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-                Some(baseline_metrics.elapsed_compute().timer())
-            } else {
-                None
-            };
+            let _timer = baseline_metrics
+                .as_ref()
+                .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // Initialize the config
             let mut batches = Vec::new();
@@ -408,7 +413,7 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{TablePublish, TableBuilder};
+    use phymes_core::{TableBuilder, TablePublish};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;

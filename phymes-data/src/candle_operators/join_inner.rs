@@ -6,15 +6,20 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor, op::CmpOp};
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
-    MappableTrait, BuildableTrait, BuilderTrait, Table, TableBuilderTrait, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{candle_data::DataConfig, candle_operators::{
-    data_operator::DataOperatorTrait,
-    sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
-}};
+use crate::{
+    candle_data::DataConfig,
+    candle_operators::{
+        data_operator::DataOperatorTrait,
+        sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
+    },
+};
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
 #[derive(Debug)]
@@ -41,7 +46,7 @@ impl DataOperatorTrait for JoinInner {
             _lhs_pk: lhs_pk,
             lhs_fk,
             _rhs_pk: rhs_pk,
-            rhs_fk
+            rhs_fk,
         }
     }
     fn forward(

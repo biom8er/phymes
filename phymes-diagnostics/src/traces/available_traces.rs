@@ -2,10 +2,10 @@ use std::fmt::Display;
 
 use serde_json::{Map, Value};
 
-use crate::{diagnostics::JSONObjectTrait, traces::tracer::TraceRecord, Tracer};
+use crate::{Tracer, diagnostics::JSONObjectTrait, traces::tracer::TraceRecord};
 
 /// Traces to track the flow of subject messages through tasks and processors
-#[derive( Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum Trace {
     /// For extremely fine-grained information, useful for tracing program execution.
     Messages(TraceRecord),
@@ -39,7 +39,10 @@ impl JSONObjectTrait for Trace {
         for tracer in self.entered().into_iter() {
             let mut map = Map::new();
             map.insert("tracer_type".to_string(), self.to_string().into());
-            map.insert("tracer_event".to_string(), Value::String("entered".to_string()));
+            map.insert(
+                "tracer_event".to_string(),
+                Value::String("entered".to_string()),
+            );
             map.insert("message_name".to_string(), tracer.message_name.into());
             map.insert("subject_name".to_string(), tracer.subject_name.into());
             object.push(map);
@@ -47,7 +50,10 @@ impl JSONObjectTrait for Trace {
         for tracer in self.exited().into_iter() {
             let mut map = Map::new();
             map.insert("tracer_type".to_string(), self.to_string().into());
-            map.insert("tracer_event".to_string(), Value::String("exited".to_string()));
+            map.insert(
+                "tracer_event".to_string(),
+                Value::String("exited".to_string()),
+            );
             map.insert("message_name".to_string(), tracer.message_name.into());
             map.insert("subject_name".to_string(), tracer.subject_name.into());
             object.push(map);
@@ -65,12 +71,15 @@ pub mod available_tracers_tests {
 
     pub struct Message {
         message_name: String,
-        subject_name: String
+        subject_name: String,
     }
 
     impl Message {
         pub fn new(message_name: &str, subject_name: &str) -> Self {
-            Message { message_name: message_name.to_string(), subject_name: subject_name.to_string() }
+            Message {
+                message_name: message_name.to_string(),
+                subject_name: subject_name.to_string(),
+            }
         }
     }
 
@@ -101,16 +110,88 @@ mod tests {
             &Message::new("m3", "s3"),
             &Message::new("m4", "s4"),
         ]);
-        
+
         let object = trace.to_json_object();
         assert_eq!(object.len(), 6);
-        assert_eq!(object.first().unwrap().get("tracer_type").unwrap().as_str().unwrap(), trace.to_string().as_str());
-        assert_eq!(object.first().unwrap().get("tracer_event").unwrap().as_str().unwrap(), "entered");
-        assert_eq!(object.first().unwrap().get("message_name").unwrap().as_str().unwrap(), "m1");
-        assert_eq!(object.first().unwrap().get("subject_name").unwrap().as_str().unwrap(), "s1");
-        assert_eq!(object.last().unwrap().get("tracer_type").unwrap().as_str().unwrap(), trace.to_string().as_str());
-        assert_eq!(object.last().unwrap().get("tracer_event").unwrap().as_str().unwrap(), "exited");
-        assert_eq!(object.last().unwrap().get("message_name").unwrap().as_str().unwrap(), "m4");
-        assert_eq!(object.last().unwrap().get("subject_name").unwrap().as_str().unwrap(), "s4");
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("tracer_type")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            trace.to_string().as_str()
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("tracer_event")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "entered"
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("message_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "m1"
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("subject_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "s1"
+        );
+        assert_eq!(
+            object
+                .last()
+                .unwrap()
+                .get("tracer_type")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            trace.to_string().as_str()
+        );
+        assert_eq!(
+            object
+                .last()
+                .unwrap()
+                .get("tracer_event")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "exited"
+        );
+        assert_eq!(
+            object
+                .last()
+                .unwrap()
+                .get("message_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "m4"
+        );
+        assert_eq!(
+            object
+                .last()
+                .unwrap()
+                .get("subject_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "s4"
+        );
     }
 }

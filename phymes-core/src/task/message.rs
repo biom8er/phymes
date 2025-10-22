@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::session::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait};
-use crate::table::{TableBuilder, TableBuilderTrait, TableTrait, TablePublish,SendableRecordBatchStream};
+use crate::table::{
+    SendableRecordBatchStream, TableBuilder, TableBuilderTrait, TablePublish, TableTrait,
+};
 
 use anyhow::{Result, anyhow};
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
@@ -17,7 +19,7 @@ pub trait MessageTrait: MappableTrait + BuildableTrait + Send {
     fn get_update(&self) -> &TablePublish;
     fn get_message(&self) -> &<Self as MessageTrait>::T;
     fn get_message_own(self) -> <Self as MessageTrait>::T;
-    fn get_message_mut(&mut self) -> &mut <Self as MessageTrait>::T; 
+    fn get_message_mut(&mut self) -> &mut <Self as MessageTrait>::T;
 }
 
 #[derive(Clone, Default, Debug)]
@@ -86,7 +88,8 @@ impl IPCMessage {
                 .iter()
                 .map(|f| table.get_column_as_vec_str(f))
                 .collect::<Vec<_>>();
-            let n_rows: usize = table.get_record_batches()
+            let n_rows: usize = table
+                .get_record_batches()
                 .iter()
                 .map(|batches| batches.num_rows())
                 .sum::<usize>();
@@ -533,16 +536,12 @@ mod tests {
                 table_name: "d1".to_string()
             }
         );
-        let test_table = TableBuilder::new_from_ipc_stream(message_map
-                .get("data")
-                .unwrap()
-                .get_message())?
+        let test_table =
+            TableBuilder::new_from_ipc_stream(message_map.get("data").unwrap().get_message())?
                 .with_name("")
                 .build()?;
         assert_eq!(
-            *test_table.get_column_as_vec_str("values")
-                .first()
-                .unwrap(),
+            *test_table.get_column_as_vec_str("values").first().unwrap(),
             json_str_1
         );
         assert_eq!(message_map.get("chat").unwrap().get_name(), "from_s2_on_d2");
@@ -554,16 +553,12 @@ mod tests {
                 table_name: "d2".to_string()
             }
         );
-        let test_table = TableBuilder::new_from_ipc_stream(message_map
-                .get("chat")
-                .unwrap()
-                .get_message())?
+        let test_table =
+            TableBuilder::new_from_ipc_stream(message_map.get("chat").unwrap().get_message())?
                 .with_name("")
                 .build()?;
         assert_eq!(
-            *test_table.get_column_as_vec_str("values")
-                .first()
-                .unwrap(),
+            *test_table.get_column_as_vec_str("values").first().unwrap(),
             json_str_2
         );
 

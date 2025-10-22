@@ -6,14 +6,17 @@ use std::sync::Arc;
 use tracing::{Level, event};
 
 use super::{
-    common_traits::{
-        BuildableTrait, BuilderTrait, MappableTrait, StateMap, TaskMap,
-    },
+    common_traits::{BuildableTrait, BuilderTrait, MappableTrait, StateMap, TaskMap},
     runtime_env::RuntimeEnv,
     session_context_builder::SessionContextBuilder,
 };
-use crate::schemas::{AvailableSubjects, create_session_subjects_num_rows_batch, from_diagnostics_to_tables, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, pivot_metrics_table};
-use crate::table::{TablePublish, Table, TableBuilder, TableBuilderTrait, TableTrait, TableUpdateTrait};
+use crate::schemas::{
+    AvailableSubjects, create_session_subjects_num_rows_batch, from_diagnostics_to_tables,
+    get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, pivot_metrics_table,
+};
+use crate::table::{
+    Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait, TableUpdateTrait,
+};
 use crate::task::PubSubTrait;
 
 // /// Reserved table names for the [SessionContext]
@@ -84,13 +87,16 @@ impl SessionContext {
     }
 
     /// Create the metrics table if it does not exist or update with the new metrics
-    pub fn update_metrics_table(&mut self, diagnostics_vec: &[Diagnostics]) -> Result<(bool, bool, bool)> {
+    pub fn update_metrics_table(
+        &mut self,
+        diagnostics_vec: &[Diagnostics],
+    ) -> Result<(bool, bool, bool)> {
         // create the pivot table and clear the metrics
-        let (metrics_table, traces_table, events_table) = from_diagnostics_to_tables(diagnostics_vec)?;
+        let (metrics_table, traces_table, events_table) =
+            from_diagnostics_to_tables(diagnostics_vec)?;
 
         // update the state with the metrics
         let updated_metrics = if let Some(metrics_table) = metrics_table {
-
             // Add the metrics pivot table to the state or update
             if self
                 .state
@@ -104,7 +110,10 @@ impl SessionContext {
                     .update_table(
                         metrics_table.get_record_batches_own(),
                         TablePublish::Extend {
-                            table_name: AvailableSubjects::SessionMetrics.to_string().as_str().to_string(),
+                            table_name: AvailableSubjects::SessionMetrics
+                                .to_string()
+                                .as_str()
+                                .to_string(),
                         },
                     )?;
             } else {
@@ -121,7 +130,6 @@ impl SessionContext {
 
         // update the state with the traces
         let updated_traces = if let Some(traces_table) = traces_table {
-
             // Add the metrics pivot table to the state or update
             if self
                 .state
@@ -135,7 +143,10 @@ impl SessionContext {
                     .update_table(
                         traces_table.get_record_batches_own(),
                         TablePublish::Extend {
-                            table_name: AvailableSubjects::SessionTraces.to_string().as_str().to_string(),
+                            table_name: AvailableSubjects::SessionTraces
+                                .to_string()
+                                .as_str()
+                                .to_string(),
                         },
                     )?;
             } else {
@@ -152,7 +163,6 @@ impl SessionContext {
 
         // update the state with the events
         let updated_events = if let Some(events_table) = events_table {
-
             // Add the metrics pivot table to the state or update
             if self
                 .state
@@ -166,7 +176,10 @@ impl SessionContext {
                     .update_table(
                         events_table.get_record_batches_own(),
                         TablePublish::Extend {
-                            table_name: AvailableSubjects::SessionEvents.to_string().as_str().to_string(),
+                            table_name: AvailableSubjects::SessionEvents
+                                .to_string()
+                                .as_str()
+                                .to_string(),
                         },
                     )?;
             } else {
@@ -188,12 +201,14 @@ impl SessionContext {
     /// DM: in the future, move to a dedicated session that uses the data processor to update
     pub fn update_metrics_mermaid_gantt_table(&mut self) -> Result<bool> {
         // get the metrics table
-        if let Some(table) = self.state.get(AvailableSubjects::SessionMetrics.to_string().as_str()) {
+        if let Some(table) = self
+            .state
+            .get(AvailableSubjects::SessionMetrics.to_string().as_str())
+        {
             let table = table.read().clone();
 
             // update the state with the metrics
             if table.count_rows() > 0 {
-
                 // Create the pivot view
                 let pivot_table = pivot_metrics_table(
                     table,
@@ -213,7 +228,10 @@ impl SessionContext {
                         .update_table(
                             pivot_table.clone().get_record_batches_own(),
                             TablePublish::Replace {
-                                table_name: AvailableSubjects::MetricPivot.to_string().as_str().to_string(),
+                                table_name: AvailableSubjects::MetricPivot
+                                    .to_string()
+                                    .as_str()
+                                    .to_string(),
                             },
                         )?;
                 } else {
@@ -224,7 +242,10 @@ impl SessionContext {
                 }
 
                 // Create the gantt view
-                let gantt_table = get_metrics_as_gantt_table(pivot_table, AvailableSubjects::MetricMermaidGantt.to_string().as_str())?;
+                let gantt_table = get_metrics_as_gantt_table(
+                    pivot_table,
+                    AvailableSubjects::MetricMermaidGantt.to_string().as_str(),
+                )?;
                 let mermaid_gantt_table = get_metrics_as_mermaid_gantt(gantt_table)?;
 
                 // Add the metrics gantt table to the state or update
@@ -283,18 +304,28 @@ impl SessionContext {
 
         // create the table
         let subject_num_rows_table = Table::get_builder()
-            .with_name(AvailableSubjects::SessionSubjectsNumRows.to_string().as_str())
-            .with_record_batches(vec![batch]).unwrap()
+            .with_name(
+                AvailableSubjects::SessionSubjectsNumRows
+                    .to_string()
+                    .as_str(),
+            )
+            .with_record_batches(vec![batch])
+            .unwrap()
             .build()
             .unwrap();
 
         // Add the metrics pivot table to the state or update
-        if self
-            .state
-            .contains_key(AvailableSubjects::SessionSubjectsNumRows.to_string().as_str())
-        {
+        if self.state.contains_key(
+            AvailableSubjects::SessionSubjectsNumRows
+                .to_string()
+                .as_str(),
+        ) {
             self.state
-                .get_mut(AvailableSubjects::SessionSubjectsNumRows.to_string().as_str())
+                .get_mut(
+                    AvailableSubjects::SessionSubjectsNumRows
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .write()
                 .update_table(
@@ -302,7 +333,8 @@ impl SessionContext {
                     TablePublish::Replace {
                         table_name: AvailableSubjects::SessionSubjectsNumRows.to_string(),
                     },
-                ).unwrap();
+                )
+                .unwrap();
         } else {
             self.state.insert(
                 AvailableSubjects::SessionSubjectsNumRows.to_string(),
@@ -407,8 +439,10 @@ impl BuildableTrait for SessionContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::session::session_context_builder::test_session_context_builder::{
+        make_test_session_context_parallel_task, make_test_session_context_parallel_task_empty,
+    };
     use crate::table::test_table::make_test_table_schema;
-    use crate::session::session_context_builder::test_session_context_builder::{make_test_session_context_parallel_task, make_test_session_context_parallel_task_empty};
     use arrow::array::UInt64Array;
     use phymes_diagnostics::HashSet;
     #[cfg(not(target_family = "wasm"))]
@@ -416,8 +450,7 @@ mod tests {
 
     #[test]
     fn test_session_get_table_name_by_schema() -> Result<()> {
-        let session_context =
-            make_test_session_context_parallel_task("session_1", 25)?;
+        let session_context = make_test_session_context_parallel_task("session_1", 25)?;
 
         // table should be found
         let schema = make_test_table_schema(8)?;
@@ -433,10 +466,17 @@ mod tests {
 
     #[test]
     fn test_session_update_subject_num_rows_table() -> Result<()> {
-        let mut session_context =
-            make_test_session_context_parallel_task("session_1", 25)?;
+        let mut session_context = make_test_session_context_parallel_task("session_1", 25)?;
         session_context.update_subject_num_rows_table();
-        let info = session_context.get_states().get(AvailableSubjects::SessionSubjectsNumRows.to_string().as_str()).unwrap().read();
+        let info = session_context
+            .get_states()
+            .get(
+                AvailableSubjects::SessionSubjectsNumRows
+                    .to_string()
+                    .as_str(),
+            )
+            .unwrap()
+            .read();
 
         assert_eq!(
             info.get_column_as_vec_str("subject_name"),
@@ -466,8 +506,7 @@ mod tests {
 
     #[test]
     fn test_session_init_superstep_updates() -> Result<()> {
-        let session_context =
-            make_test_session_context_parallel_task("session_1", 25)?;
+        let session_context = make_test_session_context_parallel_task("session_1", 25)?;
         let init = session_context.init_superstep_updates();
         assert_eq!(init.len(), 4);
         assert_eq!(
@@ -530,8 +569,7 @@ mod tests {
     #[test]
     fn test_session_read_write_state() -> Result<()> {
         // Create the session
-        let session_context =
-            make_test_session_context_parallel_task("session_1", 25)?;
+        let session_context = make_test_session_context_parallel_task("session_1", 25)?;
 
         // Write the session to disk
         let tmp_dir = tempdir()?;

@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -35,7 +34,10 @@ use tokio::task::JoinSet;
 #[allow(unused_imports)]
 use super::task_trait::Task;
 
-use crate::table::{RecordBatchStream, SendableRecordBatchStream, EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStreamAdapter};
+use crate::table::{
+    EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStream, RecordBatchStreamAdapter,
+    SendableRecordBatchStream,
+};
 
 use arrow::{
     array::{ArrayRef, Int32Array},

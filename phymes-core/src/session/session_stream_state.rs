@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrow::array::ArrayRef;
 use arrow::array::{BooleanArray, StringArray};
 use arrow::record_batch::RecordBatch;
@@ -9,7 +9,9 @@ use tracing::{Level, event, instrument};
 
 use super::common_traits::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait};
 use crate::session::session_context::SessionContext;
-use crate::table::{Table, TableBuilder, TableBuilderTrait, TableTrait, TableUpdateTrait, TablePublish};
+use crate::table::{
+    Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait, TableUpdateTrait,
+};
 use crate::task::MessageTrait;
 
 /// State tracked during the course of running a [`SessionStream`]
@@ -112,24 +114,19 @@ impl SessionStreamState {
     ) -> Result<HashMap<String, Vec<String>>> {
         let mut subjects_updated = HashMap::<String, Vec<String>>::new();
         for (_name, message) in messages.into_iter() {
-
-            // Should the subject be updated?            
+            // Should the subject be updated?
             let update = message.get_update().clone();
-            if  update == TablePublish::None {
+            if update == TablePublish::None {
                 continue;
             }
 
             // Try to update the state with the new record batches
             let table_name = message.get_update().get_table_name().to_string();
-            if let Some(state) = self
-                .session_context
-                .get_states()
-                .get(table_name.as_str())
-            {
+            if let Some(state) = self.session_context.get_states().get(table_name.as_str()) {
                 let publisher = message.get_publisher().to_string();
 
                 // Check for any inconsistencies in the message and intercept any errors
-                let batches =  TableBuilder::new_from_ipc_stream(&message.get_message_own())?
+                let batches = TableBuilder::new_from_ipc_stream(&message.get_message_own())?
                     .with_name(table_name.as_str())
                     .build()?
                     .get_record_batches_own();
@@ -142,14 +139,14 @@ impl SessionStreamState {
                 if let Some(v) = subjects_updated.get_mut(state.read().get_name()) {
                     v.push(publisher);
                 } else {
-                    subjects_updated.insert(
-                        state.read().get_name().to_string(),
-                        vec![publisher],
-                    );
+                    subjects_updated.insert(state.read().get_name().to_string(), vec![publisher]);
                 }
             } else {
                 // Mismatch in table names of the update and state
-                return Err(anyhow!("Subject '{table_name}' with update '{update:?}' is not in the session state tables! Available tables are {:?}", self.session_context.get_states().keys()));
+                return Err(anyhow!(
+                    "Subject '{table_name}' with update '{update:?}' is not in the session state tables! Available tables are {:?}",
+                    self.session_context.get_states().keys()
+                ));
             }
         }
         Ok(subjects_updated)
@@ -288,9 +285,10 @@ mod tests {
     use super::*;
     use crate::{
         session::session_context_builder::test_session_context_builder::{
-            make_test_session_context_parallel_task,
-            make_test_session_context_sequential_task,
-        }, table::TablePublish, task::test_task::make_test_input_message
+            make_test_session_context_parallel_task, make_test_session_context_sequential_task,
+        },
+        table::TablePublish,
+        task::test_task::make_test_input_message,
     };
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempfile;
@@ -298,15 +296,14 @@ mod tests {
     #[test]
     fn test_session_update_state() -> Result<()> {
         // Case 1: no state update
-        let session_context =
-            make_test_session_context_parallel_task("session_1", 25)?;
+        let session_context = make_test_session_context_parallel_task("session_1", 25)?;
         let input = make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
             "state_1",
             &TablePublish::None,
-            true
+            true,
         )?;
         let session_stream_step = SessionStreamState::new(session_context);
         let updates = session_stream_step.update_state_from_messages(input)?;
@@ -373,7 +370,7 @@ mod tests {
             &TablePublish::Extend {
                 table_name: "state_1".to_string(),
             },
-            true
+            true,
         )?;
         let updates = session_stream_step.update_state_from_messages(input)?;
 
@@ -440,9 +437,11 @@ mod tests {
             "task_1",
             "session_1",
             "state_1",
-            "state_1",            
-            &TablePublish::Extend { table_name: "state_1".to_string() },
-            false
+            "state_1",
+            &TablePublish::Extend {
+                table_name: "state_1".to_string(),
+            },
+            false,
         )?;
         let updates = session_stream_step.update_state_from_messages(input);
         assert!(updates.is_err());
@@ -452,9 +451,11 @@ mod tests {
             "task_1",
             "session_1",
             "state_1",
-            "state_1",            
-            &TablePublish::Extend { table_name: "NotFound".to_string() },
-            true
+            "state_1",
+            &TablePublish::Extend {
+                table_name: "NotFound".to_string(),
+            },
+            true,
         )?;
         let updates = session_stream_step.update_state_from_messages(input);
         assert!(updates.is_err());
@@ -469,8 +470,7 @@ mod tests {
 
         use parking_lot::RwLock;
 
-        let session_context =
-            make_test_session_context_parallel_task("session_1", 4)?;
+        let session_context = make_test_session_context_parallel_task("session_1", 4)?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
 
         // write the session stream state to file
@@ -481,8 +481,7 @@ mod tests {
             .write_superstep_updates(&mut file)?;
 
         // read the session stream state back to file
-        let session_context =
-            make_test_session_context_sequential_task("session_1", 4)?;
+        let session_context = make_test_session_context_sequential_task("session_1", 4)?;
         let session_stream_state_test =
             Arc::new(RwLock::new(SessionStreamState::new(session_context)));
 

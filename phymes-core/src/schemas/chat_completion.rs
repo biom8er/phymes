@@ -1,5 +1,5 @@
 use super::common;
-use crate::{impl_builder_methods, Function};
+use crate::{Function, impl_builder_methods};
 
 use serde::de::{self, MapAccess, SeqAccess, Visitor};
 use serde::ser::SerializeMap;

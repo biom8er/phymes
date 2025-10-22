@@ -1,9 +1,14 @@
 use std::sync::Arc;
 
-use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait, TaskPlan,
-    Table, TableBuilder, TableBuilderTrait, TablePublish,AllTableNamesSubscribe, TableSubscribe, SubscribeTrait, ProcessorEcho, ProcessorTrait};
-use phymes_data::{DataConfig, AvailableCandleOperators};
-use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor};
+use phymes_core::{
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, ProcessorEcho,
+    ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
+};
+use phymes_data::{AvailableCandleOperators, DataConfig};
+use phymes_ml::{
+    AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor,
+};
 #[cfg(feature = "openai_api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor};
 
@@ -62,19 +67,22 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                 task_name: self.message_aggregator_task_1_name.to_string(),
                 runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
-            }, TaskPlan {
+            },
+            TaskPlan {
                 task_name: self.message_aggregator_task_2_name.to_string(),
                 runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
-            }, TaskPlan {
+            },
+            TaskPlan {
                 task_name: self.chat_task_name.to_string(),
                 runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.chat_processor_name.to_string()],
-            }, TaskPlan {
+            },
+            TaskPlan {
                 task_name: self.session_context_name.to_string(),
                 runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![self.session_context_name.to_string()],
-            }
+            },
         ];
 
         Some(tasks)
@@ -269,14 +277,23 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             .unwrap()
             .build()
             .unwrap();
-        
-        Some(vec![config, 
+
+        Some(vec![
+            config,
             aggregator_1_state,
-            aggregator_2_state,            
-            AvailableSubjects::Messages.to_table(Some(self.chat_task_name), None).unwrap(),
-            AvailableInterfaceSubjects::UserMessages.to_table(None, None).unwrap(),
-            AvailableInterfaceSubjects::AssistantMessages.to_table(None, None).unwrap(),
-            AvailableInterfaceSubjects::AggregatedMessages.to_table(None, None).unwrap(),
+            aggregator_2_state,
+            AvailableSubjects::Messages
+                .to_table(Some(self.chat_task_name), None)
+                .unwrap(),
+            AvailableInterfaceSubjects::UserMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AssistantMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AggregatedMessages
+                .to_table(None, None)
+                .unwrap(),
         ])
     }
 }
@@ -286,16 +303,20 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{ChatBuilderTraitExt, BuildableTrait, MappableTrait, SessionStream, SessionStreamState, TableTrait, IPCMessage, MessageBuilderTrait, MessageTrait};
+    use phymes_core::{
+        BuildableTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait,
+        MessageTrait, SessionStream, SessionStreamState, TableTrait,
+    };
     use phymes_diagnostics::HashMap;
 
-    use crate::{session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait};
+    use crate::{
+        session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait,
+    };
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_chat_agent_session() -> Result<()> {
-
         // initialize the session
         let chat_agent_session = ChatAgentSession::default();
         let session_ctx = chat_agent_session
@@ -311,18 +332,25 @@ mod tests {
             feature = "gpu"
         )) {
             // ----- Query #1 -----
-            let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
-                .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")?
+            let chat = AvailableInterfaceSubjects::UserMessages
+                .to_table_builder(None)
+                .append_new_user_query_str(
+                    "Write a function to count prime numbers up to N.",
+                    "user",
+                )?
                 .build()?;
             let message = IPCMessage::get_builder()
                 .with_message(chat.to_ipc_stream()?)
                 .with_subject(chat.get_name())
-                .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
+                .with_update(&TablePublish::Extend {
+                    table_name: chat.get_name().to_string(),
+                })
                 .with_publisher(chat_agent_session.session_context_name)
                 .make_name()?
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
-            let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+            let session_stream =
+                SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
@@ -365,18 +393,25 @@ mod tests {
 
             // ----- Query #2 -----
             session_stream_state.try_write().unwrap().set_iter(0);
-            let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
-                .append_new_user_query_str("Please provide an example using the functions.", "user")?
+            let chat = AvailableInterfaceSubjects::UserMessages
+                .to_table_builder(None)
+                .append_new_user_query_str(
+                    "Please provide an example using the functions.",
+                    "user",
+                )?
                 .build()?;
             let message = IPCMessage::get_builder()
                 .with_message(chat.to_ipc_stream()?)
                 .with_subject(chat.get_name())
-                .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
+                .with_update(&TablePublish::Extend {
+                    table_name: chat.get_name().to_string(),
+                })
                 .with_publisher(chat_agent_session.session_context_name)
                 .make_name()?
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
-            let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+            let session_stream =
+                SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 

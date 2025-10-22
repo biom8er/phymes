@@ -1,19 +1,19 @@
 /// Mermaid.js sequenceDiagram jinja2 template
-/// 
+///
 /// see <https://mermaid.js.org/syntax/sequenceDiagram.html>
-pub static MERMAID_SEQUENCE_DIAGRAM_TEMPLATE: &'static str = r#"
+pub static MERMAID_SEQUENCE_DIAGRAM_TEMPLATE: &str = r#"
         sequenceDiagram
 {%- for row in rows %}
             {{ row.content }}
 {%- endfor %}"#;
 
 /// Mermaid.js sequenceDiagram participants section jinja2 template
-pub static MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE: &'static str = r#"{%- for row in rows %}
+pub static MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE: &str = r#"{%- for row in rows %}
             participant {{ row.participant_name }}@{ 'type': '{{ row.participant_type }}' }
 {%- endfor %}"#;
 
 /// Mermaid.js sequenceDiagram messages section jinja2 template
-pub static MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE: &'static str = r#"
+pub static MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE: &str = r#"
 {%- for row in rows %}
     {%- if row.subject_name %}
             {{ row.subject_name }}{{ row.message_type }}{{ row.activation_type }}{{ row.object_name }}: {{ row.message_content }}
@@ -24,17 +24,20 @@ pub static MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE: &'static str = r#"
 {%- endfor %}"#;
 
 /// The `table_expression` variable name in `DataConfig`
-pub static MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION: &'static str = "rows";
+pub static MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION: &str = "rows";
 
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
+    use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, TableScript, Table, TableBuilderTrait, TableTrait};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
+        TableTrait,
+    };
     use serde_json::Map;
-    use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
 
     use super::*;
 
@@ -45,10 +48,16 @@ mod tests {
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let participant_type_vec = ["collections", "collections", "participant", "participant", "participant"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
+        let participant_type_vec = [
+            "collections",
+            "collections",
+            "participant",
+            "participant",
+            "participant",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
 
         let participant_arr: ArrayRef = Arc::new(StringArray::from(participant_vec));
         let participant_type_arr: ArrayRef = Arc::new(StringArray::from(participant_type_vec));
@@ -63,20 +72,31 @@ mod tests {
 
         // Update the input with the dummy chart data
         let mut input_object = Map::new();
-        let _ =  input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
+        let _ = input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
         let sequence_diagram_template_inputs = serde_json::to_value(input_object)?;
 
-        // Create and render the template with the inputs  
-        let participants_string = TableScript::new_from_template(MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE.to_string())
-            .apply_template(&sequence_diagram_template_inputs)?;
+        // Create and render the template with the inputs
+        let participants_string = TableScript::new_from_template(
+            MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE.to_string(),
+        )
+        .apply_template(&sequence_diagram_template_inputs)?;
 
-        assert_eq!(participants_string, "\n            participant Measurement@{ 'type': 'collections' }\n            participant DataAnalysis@{ 'type': 'collections' }\n            participant Group1@{ 'type': 'participant' }\n            participant Group2@{ 'type': 'participant' }\n            participant Group3@{ 'type': 'participant' }");
+        assert_eq!(
+            participants_string,
+            "\n            participant Measurement@{ 'type': 'collections' }\n            participant DataAnalysis@{ 'type': 'collections' }\n            participant Group1@{ 'type': 'participant' }\n            participant Group2@{ 'type': 'participant' }\n            participant Group3@{ 'type': 'participant' }"
+        );
 
         // Create the dummy data for the messages
-        let subject_vec = ["", "Measurement", "DataAnalysis", "DataAnalysis", "DataAnalysis"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
+        let subject_vec = [
+            "",
+            "Measurement",
+            "DataAnalysis",
+            "DataAnalysis",
+            "DataAnalysis",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
         let object_vec = ["Measurement", "DataAnalysis", "Group1", "Group2", "Group3"]
             .into_iter()
             .map(|s| s.to_string())
@@ -89,13 +109,16 @@ mod tests {
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let message_vec = ["", "n=4095<br/>n=904 statin users<br/>n=3191 non-statin users", 
-            "n=1808<br/>n=904 statin users<br/>n=904 non-statin users", 
-            "n=1232<br/>n=616 statin users<br/>n=616 non-statin users", 
-            "n=3609<br/>n=762 statin users<br/>n=2845 non-statin users"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
+        let message_vec = [
+            "",
+            "n=4095<br/>n=904 statin users<br/>n=3191 non-statin users",
+            "n=1808<br/>n=904 statin users<br/>n=904 non-statin users",
+            "n=1232<br/>n=616 statin users<br/>n=616 non-statin users",
+            "n=3609<br/>n=762 statin users<br/>n=2845 non-statin users",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
         let note_vec = ["RFFT<br/>VAT<br/>Statin use<br/>Other variables<br/>FRS<br/>Propensity score", 
             "two sample t-test with equal variance<br/>Mann-Whitney U-test<br/>one-way ANOVA<br/>ANCOVA<br/>regression analysis", 
             "matched on age, sex, education", 
@@ -132,22 +155,24 @@ mod tests {
 
         // Update the input with the dummy chart data
         let mut input_object = Map::new();
-        let _ =  input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
+        let _ = input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
         let sequence_diagram_template_inputs = serde_json::to_value(input_object)?;
 
-        // Create and render the template with the inputs  
-        let messages_string = TableScript::new_from_template(MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE.to_string())
-            .apply_template(&sequence_diagram_template_inputs)?;
+        // Create and render the template with the inputs
+        let messages_string =
+            TableScript::new_from_template(MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE.to_string())
+                .apply_template(&sequence_diagram_template_inputs)?;
 
-        assert_eq!(messages_string, "\n            note left of Measurement: RFFT<br/>VAT<br/>Statin use<br/>Other variables<br/>FRS<br/>Propensity score\n            Measurement->>+DataAnalysis: n=4095<br/>n=904 statin users<br/>n=3191 non-statin users\n            note left of DataAnalysis: two sample t-test with equal variance<br/>Mann-Whitney U-test<br/>one-way ANOVA<br/>ANCOVA<br/>regression analysis\n            DataAnalysis->>Group1: n=1808<br/>n=904 statin users<br/>n=904 non-statin users\n            note left of Group1: matched on age, sex, education\n            DataAnalysis->>Group2: n=1232<br/>n=616 statin users<br/>n=616 non-statin users\n            note left of Group2: matched on FRS score\n            DataAnalysis->>-Group3: n=3609<br/>n=762 statin users<br/>n=2845 non-statin users\n            note left of Group3: comparison based on propensity score");
+        assert_eq!(
+            messages_string,
+            "\n            note left of Measurement: RFFT<br/>VAT<br/>Statin use<br/>Other variables<br/>FRS<br/>Propensity score\n            Measurement->>+DataAnalysis: n=4095<br/>n=904 statin users<br/>n=3191 non-statin users\n            note left of DataAnalysis: two sample t-test with equal variance<br/>Mann-Whitney U-test<br/>one-way ANOVA<br/>ANCOVA<br/>regression analysis\n            DataAnalysis->>Group1: n=1808<br/>n=904 statin users<br/>n=904 non-statin users\n            note left of Group1: matched on age, sex, education\n            DataAnalysis->>Group2: n=1232<br/>n=616 statin users<br/>n=616 non-statin users\n            note left of Group2: matched on FRS score\n            DataAnalysis->>-Group3: n=3609<br/>n=762 statin users<br/>n=2845 non-statin users\n            note left of Group3: comparison based on propensity score"
+        );
 
-        // Combine the participants and messages        
+        // Combine the participants and messages
         let content_vec = vec![participants_string, messages_string];
 
         let content_arr: ArrayRef = Arc::new(StringArray::from(content_vec));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("content", content_arr),
-        ])?;
+        let batch = RecordBatch::try_from_iter(vec![("content", content_arr)])?;
         let table = Table::get_builder()
             .with_name(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
@@ -155,12 +180,18 @@ mod tests {
 
         // Update the input with the dummy chart data
         let mut input_object = Map::new();
-        let _ =  input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
+        let _ = input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
         let sequence_diagram_template_inputs = serde_json::to_value(input_object)?;
 
         // Create and render the template with the inputs
-        let template = [MERMAID_HTML_PRE, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_HTML_POST].join("");   
-        let script_string = TableScript::new_from_template(template).apply_template(&sequence_diagram_template_inputs)?;
+        let template = [
+            MERMAID_HTML_PRE,
+            MERMAID_SEQUENCE_DIAGRAM_TEMPLATE,
+            MERMAID_HTML_POST,
+        ]
+        .join("");
+        let script_string = TableScript::new_from_template(template)
+            .apply_template(&sequence_diagram_template_inputs)?;
 
         assert_eq!(
             script_string,

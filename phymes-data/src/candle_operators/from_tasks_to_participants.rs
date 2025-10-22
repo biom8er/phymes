@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Tool, ToolType, 
-    create_mermaid_sequence_diagram_participants_template_batch, BuildableTrait, BuilderTrait, Table, TableBuilderTrait, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    create_mermaid_sequence_diagram_participants_template_batch,
+};
 use phymes_diagnostics::HashSet;
 
-use crate::{
-    candle_data::DataConfig,
-    candle_operators::DataOperatorTrait,
-};
+use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Compute the normalized start and end times in a [RecordBatch]
 #[derive(Debug)]
@@ -35,8 +35,7 @@ impl DataOperatorTrait for FromTasksToParticipants {
         FromTasksToParticipants {}
     }
     fn get_description() -> String {
-        ""
-            .to_string()
+        "".to_string()
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
@@ -89,10 +88,10 @@ impl DataOperatorTrait for FromTasksToParticipants {
     }
 }
 
-/// Custom function to convert `SessionTasks` to Sequence Diagram Participants 
-/// 
+/// Custom function to convert `SessionTasks` to Sequence Diagram Participants
+///
 /// # Notes
-/// 
+///
 /// * LHS is SessionTasks
 /// * RHS is MermaidSequenceDiagramMessagesTemplate
 /// * Output schema is MermaidSequenceDiagramParticipantsTemplate
@@ -102,7 +101,10 @@ impl DataOperatorTrait for FromTasksToParticipants {
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `rhs_args` - Slice of [RecordBatch]es
 /// * `device` - The compute device
-pub fn from_tasks_to_participants(lhs_args: &[RecordBatch], rhs_args: &[RecordBatch], _device: &Device,
+pub fn from_tasks_to_participants(
+    lhs_args: &[RecordBatch],
+    rhs_args: &[RecordBatch],
+    _device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs and rhs into tables
     let lhs_table = Table::get_builder()
@@ -119,8 +121,14 @@ pub fn from_tasks_to_participants(lhs_args: &[RecordBatch], rhs_args: &[RecordBa
     let mut participant_type_vec = vec!["actor", "database"];
 
     // Get the unique tasks and processors
-    let task_name_set = lhs_table.get_column_as_vec_nonprimitive::<String>("task_name")?.into_iter().collect::<HashSet<_>>();
-    let processor_name_set = lhs_table.get_column_as_vec_nonprimitive::<String>("processor_name")?.into_iter().collect::<HashSet<_>>();
+    let task_name_set = lhs_table
+        .get_column_as_vec_nonprimitive::<String>("task_name")?
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let processor_name_set = lhs_table
+        .get_column_as_vec_nonprimitive::<String>("processor_name")?
+        .into_iter()
+        .collect::<HashSet<_>>();
 
     // Get the ordering of participants from MermaidSequenceDiagramMessages
     let subject_name_vec = rhs_table.get_column_as_vec_nonprimitive::<String>("subject_name")?;
@@ -151,8 +159,15 @@ pub fn from_tasks_to_participants(lhs_args: &[RecordBatch], rhs_args: &[RecordBa
     }
 
     create_mermaid_sequence_diagram_participants_template_batch(
-        participant_name_vec.iter().map(|s| s.to_string()).collect::<Vec<_>>(), 
-        participant_type_vec.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        participant_name_vec
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>(),
+        participant_type_vec
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>(),
+    )
 }
 
 #[cfg(test)]
@@ -175,9 +190,13 @@ mod tests {
             ("task_name", lhs_1_array),
             ("processor_name", lhs_2_array),
         ])?;
-        let rhs_1_vec = vec!["s", "t1", "p1", "p2", "t1", "s", "t2", "p3", "p4", "t2", "s", "t3", "p1", "t3"];
+        let rhs_1_vec = vec![
+            "s", "t1", "p1", "p2", "t1", "s", "t2", "p3", "p4", "t2", "s", "t3", "p1", "t3",
+        ];
         let rhs_1_array: ArrayRef = Arc::new(StringArray::from(rhs_1_vec));
-        let rhs_2_vec = vec!["t1", "p1", "p2", "t1", "s", "t2", "p3", "p4", "t2", "s", "t3", "p1", "t3", "s"];
+        let rhs_2_vec = vec![
+            "t1", "p1", "p2", "t1", "s", "t2", "p3", "p4", "t2", "s", "t3", "p1", "t3", "s",
+        ];
         let rhs_2_array: ArrayRef = Arc::new(StringArray::from(rhs_2_vec));
         let rhs_batch = RecordBatch::try_from_iter(vec![
             ("subject_name", rhs_1_array),
@@ -187,20 +206,32 @@ mod tests {
         // Make the device
         let device = device(false)?;
 
-        let result = from_tasks_to_participants(
-            &[lhs_batch],
-            &[rhs_batch],
-            &device,
-        )?;
+        let result = from_tasks_to_participants(&[lhs_batch], &[rhs_batch], &device)?;
         let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
 
         let participants = result_table.get_column_as_vec_str("participant_name");
-        assert_eq!(participants, ["User", "State", "t1", "p1", "p2", "t2", "p3", "p4", "t3"]);
+        assert_eq!(
+            participants,
+            ["User", "State", "t1", "p1", "p2", "t2", "p3", "p4", "t3"]
+        );
         let participants = result_table.get_column_as_vec_str("participant_type");
-        assert_eq!(participants, ["actor", "database", "collections", "participant", "participant", "collections", "participant", "participant", "collections"]);
+        assert_eq!(
+            participants,
+            [
+                "actor",
+                "database",
+                "collections",
+                "participant",
+                "participant",
+                "collections",
+                "participant",
+                "participant",
+                "collections"
+            ]
+        );
 
         Ok(())
     }

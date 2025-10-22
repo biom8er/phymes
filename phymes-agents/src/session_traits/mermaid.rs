@@ -1,18 +1,24 @@
 use std::sync::Arc;
 
-use crate::session_plans::{check_agent_subjects, AvailableProcessors};
+use crate::session_plans::{AvailableProcessors, check_agent_subjects};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
     datatypes::{Field, Schema},
 };
 use clap::ValueEnum;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
-    from_data_type_to_str, from_str_to_data_type, TablePublish, from_str_to_subscribe, TableSubscribe, Table, TableBuilderTrait, TableTrait,
-    test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, RuntimeEnv,
+    RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table,
+    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskPlanBuilder,
+    from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe,
+    test_processor::ProcessorMock,
+};
 use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor};
 use phymes_diagnostics::{HashMap, HashSet};
-use phymes_ml::{CandleChatProcessor, MessageAggregatorProcessor, MessageParserProcessor, CandleEmbedProcessor};
+use phymes_ml::{
+    CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
+};
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
@@ -31,7 +37,11 @@ pub trait SessionContextBuilderMermaidTrait {
         Self: Sized;
 
     /// Create the state from a mermaid ER Diagram
-    fn with_state_from_mermaid_erdiagram(self, erdiagram: &str, agent_subjects: bool) -> Result<Self>
+    fn with_state_from_mermaid_erdiagram(
+        self,
+        erdiagram: &str,
+        agent_subjects: bool,
+    ) -> Result<Self>
     where
         Self: Sized;
 }
@@ -943,8 +953,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         for name in processor_names_vec {
             let builder = processor_builders.remove(&name).unwrap();
             let available_processor = AvailableProcessors::from_str(
-                builder.processor_type.as_ref().unwrap().as_str(), 
-                false
+                builder.processor_type.as_ref().unwrap().as_str(),
+                false,
             )
             .unwrap();
             let processor = available_processor.build_with_builder(builder)?;
@@ -967,7 +977,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
         if agent_subjects {
             check_agent_subjects(&subject_names_vec)?;
-        }        
+        }
 
         let builder = Self::new()
             .with_tasks(task_plans)
@@ -976,7 +986,11 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         Ok(builder)
     }
 
-    fn with_state_from_mermaid_erdiagram(self, erdiagram: &str, agent_subjects: bool) -> Result<Self> {
+    fn with_state_from_mermaid_erdiagram(
+        self,
+        erdiagram: &str,
+        agent_subjects: bool,
+    ) -> Result<Self> {
         // Subjects to be collected
         let mut subjects = Vec::new();
         let mut subject_names = HashSet::new();
@@ -1058,16 +1072,12 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
 
         // Check the subjects
-        let subjects_vec =  subjects
+        let subjects_vec = subjects
             .iter()
             .map(|t| t.get_name().to_string())
             .collect::<Vec<_>>();
         if subjects_vec.len() != subject_names.len()
-            || subjects_vec
-                .clone()
-                .into_iter()
-                .collect::<HashSet<_>>()
-                != subject_names
+            || subjects_vec.clone().into_iter().collect::<HashSet<_>>() != subject_names
         {
             return Err(anyhow!(
                 "There is an inconsistency in the subject tables {:?} and subject mentions {:?}",
@@ -1077,7 +1087,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
         if agent_subjects {
             check_agent_subjects(&subject_names.into_iter().collect::<Vec<_>>())?;
-        }        
+        }
 
         Ok(self.with_state(subjects))
     }
@@ -1109,20 +1119,33 @@ impl BuilderTrait for SessionContextBuilderMermaid {
     }
 
     fn build(self) -> Result<Self::T>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         // Handle the mermaid.js input
         let flowchart = match self.flowchart {
             Some(flowchart) => flowchart,
-            None => return Err(anyhow!("Please add a mermaid.js flowchart diagram before trying to build the `SessionContext`.")),
+            None => {
+                return Err(anyhow!(
+                    "Please add a mermaid.js flowchart diagram before trying to build the `SessionContext`."
+                ));
+            }
         };
         let name = match self.name {
             Some(name) => name,
-            None => return Err(anyhow!("Please provide a for the `SessionContext` before trying to build the `SessionContext`.")),
+            None => {
+                return Err(anyhow!(
+                    "Please provide a for the `SessionContext` before trying to build the `SessionContext`."
+                ));
+            }
         };
         let erdiagram = match self.erdiagram {
             Some(erdiagram) => erdiagram,
-            None => return Err(anyhow!("Please add a mermaid.js ER diagram before trying to build the `SessionContext`.")),
+            None => {
+                return Err(anyhow!(
+                    "Please add a mermaid.js ER diagram before trying to build the `SessionContext`."
+                ));
+            }
         };
         let builder = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_name(&name)
@@ -1137,11 +1160,15 @@ impl BuilderTrait for SessionContextBuilderMermaid {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{test_session_context_builder::make_test_session_builder_parallel_task, test_task::{make_runtime_env, make_state_tables}};
+    use phymes_core::{
+        test_session_context_builder::make_test_session_builder_parallel_task,
+        test_task::{make_runtime_env, make_state_tables},
+    };
 
     use crate::{
         session_plans::{ChatAgentSession, DocumentRAGSession, ToolAgentSession},
-        session_traits::CustomAgentsBuilderTrait};
+        session_traits::CustomAgentsBuilderTrait,
+    };
 
     use super::*;
     #[test]

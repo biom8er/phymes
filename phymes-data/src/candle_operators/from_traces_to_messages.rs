@@ -3,16 +3,23 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use anyhow::{anyhow, Result};
-use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, datatypes::Schema};
+use anyhow::{Result, anyhow};
+use arrow::{
+    array::{ArrayRef, Int64Array, RecordBatch, StringArray},
+    datatypes::Schema,
+};
 use candle_core::Device;
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
-    BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+};
 use phymes_diagnostics::HashSet;
 
 use crate::{
     candle_data::DataConfig,
-    candle_operators::{data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices},
+    candle_operators::{
+        data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices,
+    },
 };
 
 /// Compute the normalized start and end times in a [RecordBatch]
@@ -38,8 +45,7 @@ impl DataOperatorTrait for FromTracesToMessages {
         FromTracesToMessages {}
     }
     fn get_description() -> String {
-        ""
-            .to_string()
+        "".to_string()
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
@@ -93,9 +99,9 @@ impl DataOperatorTrait for FromTracesToMessages {
 }
 
 /// Custom function to convert `SessionTasks` and `Traces` to Sequence Diagram Messages
-/// 
+///
 /// # Notes
-/// 
+///
 /// * LHS is Traces
 /// * RHS is SessionTasks
 /// * Output schema is MermaidSequenceDiagramMessagesTemplate
@@ -105,15 +111,24 @@ impl DataOperatorTrait for FromTracesToMessages {
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `rhs_args` - Slice of [RecordBatch]es
 /// * `device` - The compute device
-pub fn from_traces_to_messages(lhs_args: &[RecordBatch], rhs_args: &[RecordBatch], device: &Device) -> Result<RecordBatch> {
-
+pub fn from_traces_to_messages(
+    lhs_args: &[RecordBatch],
+    rhs_args: &[RecordBatch],
+    device: &Device,
+) -> Result<RecordBatch> {
     // Get the unique tasks and processors
     let rhs_table = Table::get_builder()
         .with_record_batches(rhs_args.to_vec())?
         .with_name("")
         .build()?;
-    let task_name_set = rhs_table.get_column_as_vec_nonprimitive::<String>("task_name")?.into_iter().collect::<HashSet<_>>();
-    let processor_name_set = rhs_table.get_column_as_vec_nonprimitive::<String>("processor_name")?.into_iter().collect::<HashSet<_>>();
+    let task_name_set = rhs_table
+        .get_column_as_vec_nonprimitive::<String>("task_name")?
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let processor_name_set = rhs_table
+        .get_column_as_vec_nonprimitive::<String>("processor_name")?
+        .into_iter()
+        .collect::<HashSet<_>>();
 
     // // Presort the traces by columns
     // let lhs_values = ["tracer_event", "parent_name", "span_name", "timestamp", "subject_name"];
@@ -135,14 +150,16 @@ pub fn from_traces_to_messages(lhs_args: &[RecordBatch], rhs_args: &[RecordBatch
         .build()?;
 
     // Convert to messages vec
-    let combined = lhs_table.get_column_as_vec_nonprimitive::<String>("tracer_event")?.into_iter()
-        .zip(lhs_table.get_column_as_vec_nonprimitive::<String>("span_name")?.into_iter())
-        .zip(lhs_table.get_column_as_vec_nonprimitive::<String>("parent_name")?.into_iter())
-        .zip(lhs_table.get_column_as_vec_primitive::<i64>("span_id")?.into_iter())
-        .zip(lhs_table.get_column_as_vec_primitive::<i64>("parent_id")?.into_iter())
-        .zip(lhs_table.get_column_as_vec_nonprimitive::<String>("subject_name")?.into_iter())
-        .zip(lhs_table.get_column_as_vec_nonprimitive::<String>("message_name")?.into_iter())
-        .zip(lhs_table.get_column_as_vec_primitive::<i64>("timestamp")?.into_iter())
+    let combined = lhs_table
+        .get_column_as_vec_nonprimitive::<String>("tracer_event")?
+        .into_iter()
+        .zip(lhs_table.get_column_as_vec_nonprimitive::<String>("span_name")?)
+        .zip(lhs_table.get_column_as_vec_nonprimitive::<String>("parent_name")?)
+        .zip(lhs_table.get_column_as_vec_primitive::<i64>("span_id")?)
+        .zip(lhs_table.get_column_as_vec_primitive::<i64>("parent_id")?)
+        .zip(lhs_table.get_column_as_vec_nonprimitive::<String>("subject_name")?)
+        .zip(lhs_table.get_column_as_vec_nonprimitive::<String>("message_name")?)
+        .zip(lhs_table.get_column_as_vec_primitive::<i64>("timestamp")?)
         .map(|(((((((a, b), c), d), e), f), g), h)| (a, b, c, d, e, f, g, h))
         .collect::<Vec<_>>();
     let mut subject_name_vec: Vec<String> = Vec::new();
@@ -160,16 +177,26 @@ pub fn from_traces_to_messages(lhs_args: &[RecordBatch], rhs_args: &[RecordBatch
     // let mut subject = &combined.first().unwrap().5;
     // let mut entered = None;
     // let mut exited = None;
-    for (tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp) in combined.iter() {
+    for (
+        tracer_event,
+        span_name,
+        parent_name,
+        span_id,
+        parent_id,
+        subject_name,
+        message_name,
+        timestamp,
+    ) in combined.iter()
+    {
         subject_name_vec.push("State".to_string());
         object_name_vec.push(span_name.to_string());
         message_type_vec.push("->>".to_string());
         activation_type_vec.push(String::new());
-        message_content_vec.push(format!("subject: {}", subject_name));
+        message_content_vec.push(format!("subject: {subject_name}"));
         note_content_vec.push(String::new());
         note_location_vec.push(String::new());
         timestamp_messages_vec.push(timestamp.to_owned());
-        
+
         // if subject_name != subject && tracer_event == "entered" && parent_name.is_empty() {
         //     // From user to state: enter() only with no parent
         //     subject_name_vec.push("User".to_string());
@@ -259,26 +286,371 @@ mod tests {
     #[test]
     fn test_from_traces_to_messages() -> Result<()> {
         // Make the test record batches
-        let tracer_type = ["Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages"];
-        let tracer_event = ["exited","entered","exited","entered","exited","entered","exited","entered","exited","entered","exited","entered","exited","entered","exited","entered","entered","exited","exited","entered","exited","entered","exited","exited","entered","exited","entered","exited","exited","entered","exited","entered","exited","entered","exited","entered","exited","entered","exited","entered","exited","entered","exited","entered","exited","entered","exited","entered"];
-        let message_name = ["state_1_145400443860007532692884143026107463224","state_1_145400443860007532692884143026107463224","state_1_186565055984087162001738051867427998330","state_1_186565055984087162001738051867427998330","state_1_261489347384847644355362190768032642075","state_1_261489347384847644355362190768032642075","state_1_228173522346316916885579131611404317204","state_1_228173522346316916885579131611404317204","state_1_243773822264980459180624445440384838248","state_1_243773822264980459180624445440384838248","state_1_37631294003838125574527916569345721805","state_1_37631294003838125574527916569345721805",
-            "state_1_26064730536607422073993808491441966412","state_1_26064730536607422073993808491441966412","state_1_80362914748176319296854015531470579852","state_1_80362914748176319296854015531470579852","task_1","from_session_1_on_state_1","from_session_1_on_state_1","state_1_41487522459421544509868281222405207298","state_1_41487522459421544509868281222405207298","state_1_41487522459421544509868281222405207298","from_session_1_on_state_1","from_session_1_on_state_1","state_1_244362090279249268952833896150924961301","state_1_244362090279249268952833896150924961301","state_1_244362090279249268952833896150924961301","from_session_1_on_state_1","from_session_1_on_state_1",
-            "state_1_238106427844863423206506895364015149421","state_1_238106427844863423206506895364015149421","state_1_238106427844863423206506895364015149421","from_task_1_on_state_1","state_1_145400443860007532692884143026107463224","from_task_1_on_state_1","state_1_186565055984087162001738051867427998330","from_task_1_on_state_1","state_1_261489347384847644355362190768032642075","from_task_1_on_state_1","state_1_228173522346316916885579131611404317204","from_task_2_on_state_1","state_1_243773822264980459180624445440384838248","from_task_2_on_state_1","state_1_37631294003838125574527916569345721805","from_task_2_on_state_1","state_1_26064730536607422073993808491441966412","from_task_2_on_state_1","state_1_80362914748176319296854015531470579852"];
-        let subject_name = ["state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1","state_1"];
-        let span_name = ["processor_1","processor_1","processor_1","processor_1","processor_1","processor_1","processor_1","processor_1","processor_2","processor_2","processor_2","processor_2","processor_2","processor_2","processor_2","processor_2","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","task_1","task_1","task_1","task_1","task_1","task_1","task_1","task_1","task_2","task_2","task_2","task_2","task_2","task_2","task_2","task_2"];
-        let parent_name = ["task_1","task_1","task_1","task_1","task_1","task_1","task_1","task_1","task_2","task_2","task_2","task_2","task_2","task_2","task_2","task_2","","","session_1","session_1","session_1","session_1","","session_1","session_1","session_1","session_1","","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1","session_1"];
-        let span_id: [i128; 48] = [16184082946072572162,16184082946072572162,2186547869047037942,2186547869047037942,3256812710579872580,3256812710579872580,14510244696094898731,14510244696094898731,14456963133862203229,14456963133862203229,1712640329960440735,1712640329960440735,13165260631272995056,13165260631272995056,16797564894134450851,16797564894134450851,13469193432104994765,7391730627494635845,14870679813591216503,14870679813591216503,10817813420396259474,10817813420396259474,188058941559050804,5644835324380142827,5644835324380142827,14010568442619868195,14010568442619868195,15574280659243175955,1298132286589933723,1298132286589933723,17936549320446211319,17936549320446211319,14509531658266103530,14509531658266103530,2257952061453635836,2257952061453635836,7283200596918334309,7283200596918334309,7053620394350563160,7053620394350563160,14042324002796455054,14042324002796455054,1187106305792110079,1187106305792110079,1038112178665446702,1038112178665446702,558667721896770324,558667721896770324];
-        let parent_id: [i128; 48] = [14509531658266103530,14509531658266103530,2257952061453635836,2257952061453635836,7283200596918334309,7283200596918334309,7053620394350563160,7053620394350563160,14042324002796455054,14042324002796455054,1187106305792110079,1187106305792110079,1038112178665446702,1038112178665446702,558667721896770324,558667721896770324,0,0,7391730627494635845,7391730627494635845,14870679813591216503,14870679813591216503,0,188058941559050804,188058941559050804,5644835324380142827,5644835324380142827,0,15574280659243175955,15574280659243175955,1298132286589933723,1298132286589933723,13469193432104994765,13469193432104994765,7391730627494635845,7391730627494635845,188058941559050804,188058941559050804,15574280659243175955,15574280659243175955,13469193432104994765,13469193432104994765,7391730627494635845,7391730627494635845,188058941559050804,188058941559050804,15574280659243175955,15574280659243175955];
-        let timestamp = [1760807167220159,1760807167220159,1760807167226960,1760807167226960,1760807167236238,1760807167236238,1760807167268072,1760807167268072,1760807167220113,1760807167220113,1760807167226933,1760807167226933,1760807167236201,1760807167236201,1760807167268017,1760807167268017,1760807167217971,1760807167226865,1760807167226896,1760807167226896,1760807167226901,1760807167226901,1760807167236091,1760807167236122,1760807167236122,1760807167236128,1760807167236128,1760807167267856,1760807167267892,1760807167267892,1760807167267898,1760807167267898,1760807167220155,1760807167220155,1760807167226957,1760807167226957,1760807167236234,1760807167236234,1760807167268068,1760807167268068,1760807167220101,1760807167220101,1760807167226929,1760807167226929,1760807167236195,1760807167236195,1760807167268013,1760807167268013];
+        let tracer_type = [
+            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
+            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
+            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
+            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
+            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
+            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
+            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
+        ];
+        let tracer_event = [
+            "exited", "entered", "exited", "entered", "exited", "entered", "exited", "entered",
+            "exited", "entered", "exited", "entered", "exited", "entered", "exited", "entered",
+            "entered", "exited", "exited", "entered", "exited", "entered", "exited", "exited",
+            "entered", "exited", "entered", "exited", "exited", "entered", "exited", "entered",
+            "exited", "entered", "exited", "entered", "exited", "entered", "exited", "entered",
+            "exited", "entered", "exited", "entered", "exited", "entered", "exited", "entered",
+        ];
+        let message_name = [
+            "state_1_145400443860007532692884143026107463224",
+            "state_1_145400443860007532692884143026107463224",
+            "state_1_186565055984087162001738051867427998330",
+            "state_1_186565055984087162001738051867427998330",
+            "state_1_261489347384847644355362190768032642075",
+            "state_1_261489347384847644355362190768032642075",
+            "state_1_228173522346316916885579131611404317204",
+            "state_1_228173522346316916885579131611404317204",
+            "state_1_243773822264980459180624445440384838248",
+            "state_1_243773822264980459180624445440384838248",
+            "state_1_37631294003838125574527916569345721805",
+            "state_1_37631294003838125574527916569345721805",
+            "state_1_26064730536607422073993808491441966412",
+            "state_1_26064730536607422073993808491441966412",
+            "state_1_80362914748176319296854015531470579852",
+            "state_1_80362914748176319296854015531470579852",
+            "task_1",
+            "from_session_1_on_state_1",
+            "from_session_1_on_state_1",
+            "state_1_41487522459421544509868281222405207298",
+            "state_1_41487522459421544509868281222405207298",
+            "state_1_41487522459421544509868281222405207298",
+            "from_session_1_on_state_1",
+            "from_session_1_on_state_1",
+            "state_1_244362090279249268952833896150924961301",
+            "state_1_244362090279249268952833896150924961301",
+            "state_1_244362090279249268952833896150924961301",
+            "from_session_1_on_state_1",
+            "from_session_1_on_state_1",
+            "state_1_238106427844863423206506895364015149421",
+            "state_1_238106427844863423206506895364015149421",
+            "state_1_238106427844863423206506895364015149421",
+            "from_task_1_on_state_1",
+            "state_1_145400443860007532692884143026107463224",
+            "from_task_1_on_state_1",
+            "state_1_186565055984087162001738051867427998330",
+            "from_task_1_on_state_1",
+            "state_1_261489347384847644355362190768032642075",
+            "from_task_1_on_state_1",
+            "state_1_228173522346316916885579131611404317204",
+            "from_task_2_on_state_1",
+            "state_1_243773822264980459180624445440384838248",
+            "from_task_2_on_state_1",
+            "state_1_37631294003838125574527916569345721805",
+            "from_task_2_on_state_1",
+            "state_1_26064730536607422073993808491441966412",
+            "from_task_2_on_state_1",
+            "state_1_80362914748176319296854015531470579852",
+        ];
+        let subject_name = [
+            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
+            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
+            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
+            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
+            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
+            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
+        ];
+        let span_name = [
+            "processor_1",
+            "processor_1",
+            "processor_1",
+            "processor_1",
+            "processor_1",
+            "processor_1",
+            "processor_1",
+            "processor_1",
+            "processor_2",
+            "processor_2",
+            "processor_2",
+            "processor_2",
+            "processor_2",
+            "processor_2",
+            "processor_2",
+            "processor_2",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_2",
+            "task_2",
+            "task_2",
+            "task_2",
+            "task_2",
+            "task_2",
+            "task_2",
+            "task_2",
+        ];
+        let parent_name = [
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_1",
+            "task_2",
+            "task_2",
+            "task_2",
+            "task_2",
+            "task_2",
+            "task_2",
+            "task_2",
+            "task_2",
+            "",
+            "",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+            "session_1",
+        ];
+        let span_id: [i128; 48] = [
+            16184082946072572162,
+            16184082946072572162,
+            2186547869047037942,
+            2186547869047037942,
+            3256812710579872580,
+            3256812710579872580,
+            14510244696094898731,
+            14510244696094898731,
+            14456963133862203229,
+            14456963133862203229,
+            1712640329960440735,
+            1712640329960440735,
+            13165260631272995056,
+            13165260631272995056,
+            16797564894134450851,
+            16797564894134450851,
+            13469193432104994765,
+            7391730627494635845,
+            14870679813591216503,
+            14870679813591216503,
+            10817813420396259474,
+            10817813420396259474,
+            188058941559050804,
+            5644835324380142827,
+            5644835324380142827,
+            14010568442619868195,
+            14010568442619868195,
+            15574280659243175955,
+            1298132286589933723,
+            1298132286589933723,
+            17936549320446211319,
+            17936549320446211319,
+            14509531658266103530,
+            14509531658266103530,
+            2257952061453635836,
+            2257952061453635836,
+            7283200596918334309,
+            7283200596918334309,
+            7053620394350563160,
+            7053620394350563160,
+            14042324002796455054,
+            14042324002796455054,
+            1187106305792110079,
+            1187106305792110079,
+            1038112178665446702,
+            1038112178665446702,
+            558667721896770324,
+            558667721896770324,
+        ];
+        let parent_id: [i128; 48] = [
+            14509531658266103530,
+            14509531658266103530,
+            2257952061453635836,
+            2257952061453635836,
+            7283200596918334309,
+            7283200596918334309,
+            7053620394350563160,
+            7053620394350563160,
+            14042324002796455054,
+            14042324002796455054,
+            1187106305792110079,
+            1187106305792110079,
+            1038112178665446702,
+            1038112178665446702,
+            558667721896770324,
+            558667721896770324,
+            0,
+            0,
+            7391730627494635845,
+            7391730627494635845,
+            14870679813591216503,
+            14870679813591216503,
+            0,
+            188058941559050804,
+            188058941559050804,
+            5644835324380142827,
+            5644835324380142827,
+            0,
+            15574280659243175955,
+            15574280659243175955,
+            1298132286589933723,
+            1298132286589933723,
+            13469193432104994765,
+            13469193432104994765,
+            7391730627494635845,
+            7391730627494635845,
+            188058941559050804,
+            188058941559050804,
+            15574280659243175955,
+            15574280659243175955,
+            13469193432104994765,
+            13469193432104994765,
+            7391730627494635845,
+            7391730627494635845,
+            188058941559050804,
+            188058941559050804,
+            15574280659243175955,
+            15574280659243175955,
+        ];
+        let timestamp = [
+            1760807167220159,
+            1760807167220159,
+            1760807167226960,
+            1760807167226960,
+            1760807167236238,
+            1760807167236238,
+            1760807167268072,
+            1760807167268072,
+            1760807167220113,
+            1760807167220113,
+            1760807167226933,
+            1760807167226933,
+            1760807167236201,
+            1760807167236201,
+            1760807167268017,
+            1760807167268017,
+            1760807167217971,
+            1760807167226865,
+            1760807167226896,
+            1760807167226896,
+            1760807167226901,
+            1760807167226901,
+            1760807167236091,
+            1760807167236122,
+            1760807167236122,
+            1760807167236128,
+            1760807167236128,
+            1760807167267856,
+            1760807167267892,
+            1760807167267892,
+            1760807167267898,
+            1760807167267898,
+            1760807167220155,
+            1760807167220155,
+            1760807167226957,
+            1760807167226957,
+            1760807167236234,
+            1760807167236234,
+            1760807167268068,
+            1760807167268068,
+            1760807167220101,
+            1760807167220101,
+            1760807167226929,
+            1760807167226929,
+            1760807167236195,
+            1760807167236195,
+            1760807167268013,
+            1760807167268013,
+        ];
 
-        let tracer_type: ArrayRef = Arc::new(StringArray::from(tracer_type.iter().map(|s| s.to_string()).collect::<Vec<_>>()));
-        let tracer_event: ArrayRef = Arc::new(StringArray::from(tracer_event.iter().map(|s| s.to_string()).collect::<Vec<_>>()));
-        let message_name: ArrayRef = Arc::new(StringArray::from(message_name.iter().map(|s| s.to_string()).collect::<Vec<_>>()));
-        let subject_name: ArrayRef = Arc::new(StringArray::from(subject_name.iter().map(|s| s.to_string()).collect::<Vec<_>>()));
-        let span_name: ArrayRef = Arc::new(StringArray::from(span_name.iter().map(|s| s.to_string()).collect::<Vec<_>>()));
-        let parent_name: ArrayRef = Arc::new(StringArray::from(parent_name.iter().map(|s| s.to_string()).collect::<Vec<_>>()));
-        let span_id: ArrayRef = Arc::new(Int64Array::from_iter(span_id.into_iter().map(|s| s as i64).collect::<Vec<_>>()));
-        let parent_id: ArrayRef = Arc::new(Int64Array::from_iter(parent_id.into_iter().map(|s| s as i64).collect::<Vec<_>>()));
+        let tracer_type: ArrayRef = Arc::new(StringArray::from(
+            tracer_type
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+        ));
+        let tracer_event: ArrayRef = Arc::new(StringArray::from(
+            tracer_event
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+        ));
+        let message_name: ArrayRef = Arc::new(StringArray::from(
+            message_name
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+        ));
+        let subject_name: ArrayRef = Arc::new(StringArray::from(
+            subject_name
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+        ));
+        let span_name: ArrayRef = Arc::new(StringArray::from(
+            span_name.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+        ));
+        let parent_name: ArrayRef = Arc::new(StringArray::from(
+            parent_name
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+        ));
+        let span_id: ArrayRef = Arc::new(Int64Array::from_iter(
+            span_id.into_iter().map(|s| s as i64).collect::<Vec<_>>(),
+        ));
+        let parent_id: ArrayRef = Arc::new(Int64Array::from_iter(
+            parent_id.into_iter().map(|s| s as i64).collect::<Vec<_>>(),
+        ));
         let timestamp: ArrayRef = Arc::new(Int64Array::from_iter(timestamp));
         let lhs_batch = RecordBatch::try_from_iter(vec![
             ("tracer_type", tracer_type),
@@ -294,26 +666,24 @@ mod tests {
 
         let tasks = ["task_1", "task_2"];
         let processors = ["processor_1", "processor_2"];
-        let tasks: ArrayRef = Arc::new(StringArray::from(tasks.iter().map(|s| s.to_string()).collect::<Vec<_>>()));
-        let processors: ArrayRef = Arc::new(StringArray::from(processors.iter().map(|s| s.to_string()).collect::<Vec<_>>()));
-        let rhs_batch = RecordBatch::try_from_iter(vec![
-            ("task_name", tasks),
-            ("processor_name", processors),
-        ])?;
+        let tasks: ArrayRef = Arc::new(StringArray::from(
+            tasks.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+        ));
+        let processors: ArrayRef = Arc::new(StringArray::from(
+            processors.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+        ));
+        let rhs_batch =
+            RecordBatch::try_from_iter(vec![("task_name", tasks), ("processor_name", processors)])?;
 
         // Make the device
         let device = device(false)?;
 
-        let result = from_traces_to_messages(
-            &[lhs_batch],
-            &[rhs_batch],
-            &device,
-        )?;
+        let result = from_traces_to_messages(&[lhs_batch], &[rhs_batch], &device)?;
         let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
-        
+
         // let bytes = result_table.to_csv(b',', true)?;
         // let string = String::from_utf8(bytes)?;
         // dbg!(&string);

@@ -3,11 +3,18 @@ use std::collections::HashMap;
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_core::{create_values_record_batch, BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType};
-use serde_json::{json, Value};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
+    JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool,
+    ToolType, create_values_record_batch,
+};
+use serde_json::{Value, json};
 use tracing::instrument;
 
-use crate::{candle_data::{DataConfig, table_and_data_format_to_record_batch}, candle_operators::DataOperatorTrait};
+use crate::{
+    candle_data::{DataConfig, table_and_data_format_to_record_batch},
+    candle_operators::DataOperatorTrait,
+};
 
 /// Inject a table into a string template
 #[derive(Debug)]
@@ -51,7 +58,7 @@ impl DataOperatorTrait for ApplyTemplate {
         } else {
             Value::default()
         };
-        let format = config.format.clone().unwrap_or_default();
+        let format = config.format.unwrap_or_default();
 
         // Make the object
         ApplyTemplate {
@@ -63,8 +70,7 @@ impl DataOperatorTrait for ApplyTemplate {
         }
     }
     fn get_description() -> String {
-        "Inject a table into a string template."
-            .to_string()
+        "Inject a table into a string template.".to_string()
     }
     fn get_json_tool_schema() -> String {
         let mut properties = HashMap::new();
@@ -81,7 +87,8 @@ impl DataOperatorTrait for ApplyTemplate {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "template, table_expression, and input_template in the form of a JSON object".to_string(),
+                    "template, table_expression, and input_template in the form of a JSON object"
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
@@ -92,10 +99,7 @@ impl DataOperatorTrait for ApplyTemplate {
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
-                required: Some(vec![
-                    "lhs_name".to_string(),
-                    "op_kwargs".to_string(),
-                    ]),
+                required: Some(vec!["lhs_name".to_string(), "op_kwargs".to_string()]),
             },
         };
         let tool = Tool {
@@ -109,14 +113,14 @@ impl DataOperatorTrait for ApplyTemplate {
 /// Inject [RecordBatch]es into a [String] template
 ///
 /// # Notes
-/// Equivalent using Minijinja2 would be the following: 
+/// Equivalent using Minijinja2 would be the following:
 /// {%- for row in TABLENAME %}
 ///     {{- 'COL1 value' + row.COL1 + '\\n' }}
 ///     {%- if OTHERCOLS %}
 ///         {{- 'COL2 value' + row.COL2 + '\\n' }}
 ///     {%- endif %}///     
 /// {%- endfor %}
-/// 
+///
 /// Where `table_expression` is TABLENAME
 ///   `input_template` is e.g., {OTHERCOLS: true}
 ///   and column names for the table are COL1 and COL2
@@ -159,25 +163,30 @@ pub fn apply_template(
     // Complete the input
     let input = if let Some(input_object) = doc_input.as_object() {
         let mut input_object = input_object.to_owned();
-        let _ =  input_object.insert(table_expression.to_string(), lhs_json_object.into());
+        let _ = input_object.insert(table_expression.to_string(), lhs_json_object.into());
         serde_json::to_value(input_object)?
     } else {
         json!({table_expression.to_string(): lhs_json_object})
     };
 
     // Apply the template
-    let document = TableScript::new_from_template(doc_template.to_string())
-        .apply_template(&input)?;
+    let document =
+        TableScript::new_from_template(doc_template.to_string()).apply_template(&input)?;
 
     // Wrap into a table
-    let batch = create_values_record_batch(vec![String::new()], vec![String::new()], vec![String::new()], vec![document])?;
+    let batch = create_values_record_batch(
+        vec![String::new()],
+        vec![String::new()],
+        vec![String::new()],
+        vec![document],
+    )?;
     let table = Table::get_builder()
         .with_name(doc_name)
         .with_record_batches(vec![batch])?
         .build()?;
 
     // Convert to the desired format
-    table_and_data_format_to_record_batch(&table, &format)
+    table_and_data_format_to_record_batch(&table, format)
 }
 
 #[cfg(test)]
@@ -224,13 +233,17 @@ mod tests {
         assert_eq!(lhs_text, ["html"]);
         let lhs_text = result_table.get_column_as_vec_str("metadata");
         assert_eq!(lhs_text, ["assistant"]);
-        let lhs_text = result_table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+        let lhs_text = result_table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .map(|bytes| String::from_utf8(bytes).unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_text, [
-            "\"\"\\n\\n<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n\\n\\n\\n\\n\\n<|im_start|>user\\nHi!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nHello how can I help?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>user\\nWhat is Deep Learning?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nmagic!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\n\\n\\n\"\""
-        ]);
+        assert_eq!(
+            lhs_text,
+            [
+                "\"\"\\n\\n<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n\\n\\n\\n\\n\\n<|im_start|>user\\nHi!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nHello how can I help?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>user\\nWhat is Deep Learning?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nmagic!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\n\\n\\n\"\""
+            ]
+        );
 
         Ok(())
     }

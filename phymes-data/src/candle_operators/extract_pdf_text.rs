@@ -8,7 +8,9 @@ use lopdf::{
     content::{Content, Operation},
     dictionary,
 };
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Tool, ToolType};
+use phymes_core::{
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Tool, ToolType,
+};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::{Level, event, instrument};
 
@@ -34,10 +36,7 @@ impl DataOperatorTrait for ExtractPDFText {
     {
         let lhs_pk = config.lhs_pk.to_owned();
         let lhs_values = config.lhs_values.first().unwrap().to_string();
-        ExtractPDFText {
-            lhs_pk,
-            lhs_values,
-        }
+        ExtractPDFText { lhs_pk, lhs_values }
     }
     fn forward(
         &self,

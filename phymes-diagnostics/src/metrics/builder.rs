@@ -2,7 +2,10 @@
 
 use std::borrow::Cow;
 
-use crate::{diagnostics::{AvailableDiagnostics, DiagnosticBuilder, DiagnosticBuilderTrait}, metrics::BaselineMetrics};
+use crate::{
+    diagnostics::{AvailableDiagnostics, DiagnosticBuilder, DiagnosticBuilderTrait},
+    metrics::BaselineMetrics,
+};
 
 use super::{Count, Gauge, Metric, Time, Timestamp};
 
@@ -17,22 +20,34 @@ pub trait MetricBuilderTrait: DiagnosticBuilderTrait {
 
     /// Consume self and create a new counter for recording the total spilled bytes
     /// triggered by an operator
-    fn spilled_bytes(self, line: u32, file: &str, function: &str) -> Count;    
+    fn spilled_bytes(self, line: u32, file: &str, function: &str) -> Count;
 
     /// Consume self and create a new counter for recording the total spilled rows
     /// triggered by an operator
     fn spilled_rows(self, line: u32, file: &str, function: &str) -> Count;
 
     /// Consume self and create a new gauge for reporting current memory usage
-    fn mem_used(self, line: u32, file: &str, function: &str) -> Gauge;    
+    fn mem_used(self, line: u32, file: &str, function: &str) -> Gauge;
 
     /// Consumes self and creates a new [`Count`] for recording a
     /// metric of an overall operator (not per task)
-    fn counter(self, counter_name: impl Into<Cow<'static, str>>, line: u32, file: &str, function: &str) -> Count;
+    fn counter(
+        self,
+        counter_name: impl Into<Cow<'static, str>>,
+        line: u32,
+        file: &str,
+        function: &str,
+    ) -> Count;
 
     /// Consumes self and creates a new [`Gauge`] for reporting a
     /// metric of an overall operator (not per task)
-    fn gauge(self, gauge_name: impl Into<Cow<'static, str>>, line: u32, file: &str, function: &str) -> Gauge;
+    fn gauge(
+        self,
+        gauge_name: impl Into<Cow<'static, str>>,
+        line: u32,
+        file: &str,
+        function: &str,
+    ) -> Gauge;
 
     /// Consume self and create a new Timer for recording the elapsed
     /// CPU time spent by an operator
@@ -40,7 +55,13 @@ pub trait MetricBuilderTrait: DiagnosticBuilderTrait {
 
     /// Consumes self and creates a new Timer for recording some
     /// subset of an operators execution time.
-    fn subset_time(self, subset_name: impl Into<Cow<'static, str>>, line: u32, file: &str, function: &str) -> Time;    
+    fn subset_time(
+        self,
+        subset_name: impl Into<Cow<'static, str>>,
+        line: u32,
+        file: &str,
+        function: &str,
+    ) -> Time;
 
     /// Consumes self and creates a new Timestamp for recording the
     /// starting time of execution for a task
@@ -90,7 +111,13 @@ impl MetricBuilderTrait for DiagnosticBuilder {
         gauge
     }
 
-    fn counter(self, counter_name: impl Into<Cow<'static, str>>, line: u32, file: &str, function: &str) -> Count {
+    fn counter(
+        self,
+        counter_name: impl Into<Cow<'static, str>>,
+        line: u32,
+        file: &str,
+        function: &str,
+    ) -> Count {
         let count = Count::new();
         let diagnostic = AvailableDiagnostics::Metric(Metric::Count {
             name: counter_name.into(),
@@ -100,7 +127,13 @@ impl MetricBuilderTrait for DiagnosticBuilder {
         count
     }
 
-    fn gauge(self, gauge_name: impl Into<Cow<'static, str>>, line: u32, file: &str, function: &str) -> Gauge {
+    fn gauge(
+        self,
+        gauge_name: impl Into<Cow<'static, str>>,
+        line: u32,
+        file: &str,
+        function: &str,
+    ) -> Gauge {
         let gauge = Gauge::new();
         let diagnostic = AvailableDiagnostics::Metric(Metric::Gauge {
             name: gauge_name.into(),
@@ -117,7 +150,13 @@ impl MetricBuilderTrait for DiagnosticBuilder {
         time
     }
 
-    fn subset_time(self, subset_name: impl Into<Cow<'static, str>>, line: u32, file: &str, function: &str) -> Time {
+    fn subset_time(
+        self,
+        subset_name: impl Into<Cow<'static, str>>,
+        line: u32,
+        file: &str,
+        function: &str,
+    ) -> Time {
         let time = Time::new();
 
         let diagnostic = AvailableDiagnostics::Metric(Metric::Time {

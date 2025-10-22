@@ -3,12 +3,20 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
-use phymes_core::{from_diagnostics_to_tables, pivot_metrics_table, device, BuildableTrait, BuilderTrait, RuntimeEnv,
-    TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, test_table::TestTableSizes, Table, TableBuilderTrait, TableTrait,
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait};
-use phymes_data::{DataAggregatorOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager, CandleDataProcessor,
-    CandleTensorService, AvailableCandleOperators};
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, MetricBuilderTrait, SpanBuilder};
+use phymes_core::{
+    AllTableNamesSubscribe, BuildableTrait, BuilderTrait, MessageBuilderTrait, MessageTrait,
+    ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SubscribeTrait, Table,
+    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, device,
+    from_diagnostics_to_tables, pivot_metrics_table, test_table::TestTableSizes,
+};
+use phymes_data::{
+    AvailableCandleOperators, CandleDataProcessor, CandleTensorService, DataAggregatorOperator,
+    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager,
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, MetricBuilderTrait,
+    SpanBuilder,
+};
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for dataset sizes
@@ -78,17 +86,28 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             operator: AvailableCandleOperators::GroupByAndAggregate,
             lhs_pk: "id".to_string(),
             lhs_fk: "id".to_string(),
-            lhs_values: vec!["title".to_string(),"collection".to_string()],
-            agg_columns: Some(vec!["id".to_string(), "text".to_string(), "score".to_string()]),
-            agg_operators: Some(vec![DataAggregatorOperator::Sum, DataAggregatorOperator::Count, DataAggregatorOperator::Max]),
+            lhs_values: vec!["title".to_string(), "collection".to_string()],
+            agg_columns: Some(vec![
+                "id".to_string(),
+                "text".to_string(),
+                "score".to_string(),
+            ]),
+            agg_operators: Some(vec![
+                DataAggregatorOperator::Sum,
+                DataAggregatorOperator::Count,
+                DataAggregatorOperator::Max,
+            ]),
             ..Default::default()
         },
         DataConfig {
             operator: AvailableCandleOperators::FilterColumnsAndIndices,
             lhs_pk: "id".to_string(),
-            lhs_values: vec!["title".to_string(),"id".to_string()],
-            cmp_columns: Some(vec!["title".to_string(),"id".to_string()]),
-            cmp_operators: Some(vec![DataComparatorOperator::Like, DataComparatorOperator::Equals]),
+            lhs_values: vec!["title".to_string(), "id".to_string()],
+            cmp_columns: Some(vec!["title".to_string(), "id".to_string()]),
+            cmp_operators: Some(vec![
+                DataComparatorOperator::Like,
+                DataComparatorOperator::Equals,
+            ]),
             cmp_predicate: Some(DataComparatorPredicate::All),
             ..Default::default()
         },
@@ -148,12 +167,17 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         // Build the metrics
                         let sample_id = format!("{id}_{iter}");
                         let name = format!("ops-processor_{id}_{iter}");
-                        let span = SpanBuilder::default().with_span(sample_id.as_str()).build().unwrap();
+                        let span = SpanBuilder::default()
+                            .with_span(sample_id.as_str())
+                            .build()
+                            .unwrap();
                         let diagnostics = Diagnostics::new();
-                        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+                        let diagnostic_builder =
+                            DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
                         // Build the input messages
-                        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+                        let mut messages =
+                            HashMap::<String, SendableRecordBatchStreamMessage>::new();
                         let _ = messages.insert(
                             lhs_name.to_owned(),
                             SendableRecordBatchStreamMessage::get_builder()
@@ -217,7 +241,11 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         let rt = tokio::runtime::Runtime::new().unwrap();
 
                         // Start the timer
-                        let baseline_metrics = diagnostic_builder.clone().baseline_metrics(line!(), file!(), &sample_id);
+                        let baseline_metrics = diagnostic_builder.clone().baseline_metrics(
+                            line!(),
+                            file!(),
+                            &sample_id,
+                        );
                         let timer = baseline_metrics.elapsed_compute().timer();
 
                         // Make the stream and run
@@ -267,7 +295,8 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
     // Export the metrics to CSV
     println!("exporting metrics");
-    let (metrics_table, _traces_table, _events_table) = from_diagnostics_to_tables(&metrics_vec).unwrap();
+    let (metrics_table, _traces_table, _events_table) =
+        from_diagnostics_to_tables(&metrics_vec).unwrap();
     let metrics_table = pivot_metrics_table(metrics_table.unwrap(), "metrics").unwrap();
     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let pathname =

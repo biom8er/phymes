@@ -11,17 +11,24 @@ use axum::{
 use anyhow::Result;
 use bytes::Bytes;
 use phymes_agents::create_message_map;
-use phymes_core::{JoinUserInboxSessionContextsMermaidDiagrams, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, 
-    CsvFormat, DataFormat, TableBuilder, TableBuilderTrait, TableTrait, IPCMessageBuilder, MessageBuilderTrait, MessageTrait};
+use phymes_core::{
+    BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
+    JoinUserInboxSessionContextsMermaidDiagrams, MessageBuilderTrait, MessageTrait,
+    SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder, TableBuilderTrait,
+    TableTrait,
+};
 
 // Library imports
-use crate::handlers::json_error::{serde_json_error_response, ErrorToResponse, JsonError};
-use crate::state::{UserState, ServerState};
+use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};
+use crate::state::{ServerState, UserState};
 
 /// Put state input
 #[axum::debug_handler]
 pub async fn session_put_state(
-    Extension((current_user, user_session_contexts)): Extension<(String, Vec<JoinUserInboxSessionContextsMermaidDiagrams>)>,
+    Extension((current_user, user_session_contexts)): Extension<(
+        String,
+        Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
+    )>,
     State((_, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
@@ -35,14 +42,20 @@ pub async fn session_put_state(
             );
 
             // Add user state if it does not exist already
-            if !state.user_session_names.try_read().unwrap().contains_key(&current_user) {
-
+            if !state
+                .user_session_names
+                .try_read()
+                .unwrap()
+                .contains_key(&current_user)
+            {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true) {
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true)
+                {
                     Ok(session_names) => session_names,
-                    Err(err) =>                     
+                    Err(err) => {
                         return JsonError::new(err.to_string())
-                            .to_response(StatusCode::INTERNAL_SERVER_ERROR),
+                            .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
                 };
 
                 // Read in any updates to the session context
@@ -51,7 +64,10 @@ pub async fn session_put_state(
                     &current_user,
                 ) {
                     Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!("Failed to read the session stream state {e:?} for {}", current_user),
+                    Err(e) => tracing::info!(
+                        "Failed to read the session stream state {e:?} for {}",
+                        current_user
+                    ),
                 }
             }
 
@@ -76,7 +92,12 @@ pub async fn session_put_state(
                         DataFormat::Csv(csv_format) => TableBuilder::new()
                             .with_schema(schema)
                             .with_name(payload.get_subject())
-                            .with_csv(payload.get_message(), csv_format.delimiter, csv_format.header, csv_format.batch_size)
+                            .with_csv(
+                                payload.get_message(),
+                                csv_format.delimiter,
+                                csv_format.header,
+                                csv_format.batch_size,
+                            )
                             .unwrap()
                             .build()
                             .unwrap()
@@ -87,15 +108,21 @@ pub async fn session_put_state(
                             TableBuilder::new()
                                 .with_schema(schema)
                                 .with_name(payload.get_subject())
-                                .with_csv(payload.get_message(), csv_format.delimiter, csv_format.header, csv_format.batch_size)
+                                .with_csv(
+                                    payload.get_message(),
+                                    csv_format.delimiter,
+                                    csv_format.header,
+                                    csv_format.batch_size,
+                                )
                                 .unwrap()
                                 .build()
                                 .unwrap()
                                 .to_ipc_stream()
                                 .unwrap()
-                        },
-                        DataFormat::JsonDefault => {                            
-                            let json_value: Vec<serde_json::Value> = serde_json::from_slice(payload.get_message()).unwrap();                            
+                        }
+                        DataFormat::JsonDefault => {
+                            let json_value: Vec<serde_json::Value> =
+                                serde_json::from_slice(payload.get_message()).unwrap();
                             TableBuilder::new()
                                 .with_schema(schema)
                                 .with_name(payload.get_subject())
@@ -105,18 +132,16 @@ pub async fn session_put_state(
                                 .unwrap()
                                 .to_ipc_stream()
                                 .unwrap()
-                        },
-                        DataFormat::Bytes => {                                                       
-                            TableBuilder::new()
-                                .with_schema(schema)
-                                .with_name(payload.get_subject())
-                                .with_bytes(payload.get_message())
-                                .unwrap()
-                                .build()
-                                .unwrap()
-                                .to_ipc_stream()
-                                .unwrap()
-                        },
+                        }
+                        DataFormat::Bytes => TableBuilder::new()
+                            .with_schema(schema)
+                            .with_name(payload.get_subject())
+                            .with_bytes(payload.get_message())
+                            .unwrap()
+                            .build()
+                            .unwrap()
+                            .to_ipc_stream()
+                            .unwrap(),
                         DataFormat::Ipc => payload.get_message().to_owned(),
                         _ => unimplemented!(),
                     };
@@ -127,7 +152,8 @@ pub async fn session_put_state(
                         .with_publisher(payload.get_publisher())
                         .with_message(bytes)
                         .with_update(payload.get_update())
-                        .make_name().unwrap()
+                        .make_name()
+                        .unwrap()
                         .build()
                         .unwrap();
                     let message_map = create_message_map(vec![message]);
@@ -161,7 +187,8 @@ pub async fn session_put_state(
             }
 
             // Send the response
-            Body::from(serde_json::to_string("State updated with subject content.").unwrap()).into_response()
+            Body::from(serde_json::to_string("State updated with subject content.").unwrap())
+                .into_response()
         }
         Err(JsonRejection::MissingJsonContentType(_err)) => {
             // Request didn't have `Content-Type: application/json`
@@ -196,7 +223,10 @@ pub async fn session_put_state(
 /// Get state endpoint
 #[axum::debug_handler]
 pub async fn session_get_state(
-    Extension((current_user, user_session_contexts)): Extension<(String, Vec<JoinUserInboxSessionContextsMermaidDiagrams>)>,
+    Extension((current_user, user_session_contexts)): Extension<(
+        String,
+        Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
+    )>,
     State((_, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
@@ -210,14 +240,20 @@ pub async fn session_get_state(
             );
 
             // Add user state if it does not exist already
-            if !state.user_session_names.try_read().unwrap().contains_key(&current_user) {
-
+            if !state
+                .user_session_names
+                .try_read()
+                .unwrap()
+                .contains_key(&current_user)
+            {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true) {
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true)
+                {
                     Ok(session_names) => session_names,
-                    Err(err) =>                     
+                    Err(err) => {
                         return JsonError::new(err.to_string())
-                            .to_response(StatusCode::INTERNAL_SERVER_ERROR),
+                            .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
                 };
 
                 // Read in any updates to the session context
@@ -226,7 +262,10 @@ pub async fn session_get_state(
                     &current_user,
                 ) {
                     Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!("Failed to read the session stream state {e:?} for {}", current_user),
+                    Err(e) => tracing::info!(
+                        "Failed to read the session stream state {e:?} for {}",
+                        current_user
+                    ),
                 }
             }
 
@@ -236,7 +275,6 @@ pub async fn session_get_state(
                 .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {
-                    
                     // Update the metrics and row counts just in case...
                     session_stream_state
                         .try_write()
@@ -333,7 +371,7 @@ pub async fn session_get_state(
                         }
                         _ => unimplemented!(),
                     }
-                },
+                }
                 None => JsonError::new("Failed to get the session stream state".to_string())
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR),
             }

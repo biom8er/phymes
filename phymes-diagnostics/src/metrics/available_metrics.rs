@@ -1,11 +1,11 @@
-use std::{
-    borrow::Cow,
-    fmt::Display,
-};
+use std::{borrow::Cow, fmt::Display};
 
 use serde_json::{Map, Value};
 
-use crate::{diagnostics::JSONObjectTrait, metrics::{Count, Gauge, Time, Timestamp}};
+use crate::{
+    diagnostics::JSONObjectTrait,
+    metrics::{Count, Gauge, Time, Timestamp},
+};
 
 /// Possible Metrics to track a value of interest (metric)
 ///
@@ -232,7 +232,7 @@ impl JSONObjectTrait for Metric {
 mod tests {
     use chrono::{TimeZone, Utc};
 
-    use super::*;    
+    use super::*;
 
     #[test]
     fn test_metric_values() {

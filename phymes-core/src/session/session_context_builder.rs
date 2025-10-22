@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     session::common_traits::{StateMap, TaskMap},
     table::{Table, TablePublish, TableSubscribe},
-    task::{ ProcessorTrait, Task, TaskBuilderTrait}};
+    task::{ProcessorTrait, Task, TaskBuilderTrait},
+};
 
 use super::{
     common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
@@ -91,10 +92,7 @@ type SessionContextInput = (
 
 impl SessionContextBuilder {
     // Get a list of subscriptions and publications for a specific task
-    pub fn get_task_sub_pub(
-        &self,
-        task_name: &str,
-    ) -> (Vec<&TableSubscribe>, Vec<&TablePublish>) {
+    pub fn get_task_sub_pub(&self, task_name: &str) -> (Vec<&TableSubscribe>, Vec<&TablePublish>) {
         // Get the processor name
         let processors = self
             .tasks
@@ -341,13 +339,7 @@ impl SessionContextBuilder {
 
         let name = self.name.unwrap();
         let max_iter = self.max_iter.unwrap_or(25);
-        Ok((
-            name,
-            task_map,
-            state_map,
-            runtime_env_map,
-            max_iter,
-        ))
+        Ok((name, task_map, state_map, runtime_env_map, max_iter))
     }
 }
 
@@ -411,7 +403,11 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 pub mod test_session_context_builder {
     use crate::{
         table::{AllTableNamesSubscribe, SubscribeTrait},
-        task::{ProcessorEcho, test_processor::ProcessorMock, test_task::{make_runtime_env, make_state_tables, make_state_tables_empty}},
+        task::{
+            ProcessorEcho,
+            test_processor::ProcessorMock,
+            test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
+        },
     };
 
     use super::*;
@@ -662,23 +658,23 @@ mod tests {
     use super::*;
     use crate::{
         table::TableSubscribe,
-        task::{ProcessorTrait, test_processor::ProcessorMock, test_task::{make_runtime_env, make_state_tables}}
+        task::{
+            ProcessorTrait,
+            test_processor::ProcessorMock,
+            test_task::{make_runtime_env, make_state_tables},
+        },
     };
 
     #[test]
     fn test_get_task_sub_pub_with_input() {
         let plan = test_session_context_builder::make_test_session_builder_parallel_task();
         let (subscriptions, publications) = plan.get_task_sub_pub("task_1");
-        assert!(
-            subscriptions.contains(&&TableSubscribe::AlwaysFullTable {
-                table_name: "config_1".to_string()
-            })
-        );
-        assert!(
-            subscriptions.contains(&&TableSubscribe::OnUpdateFullTable {
-                table_name: "state_1".to_string()
-            })
-        );
+        assert!(subscriptions.contains(&&TableSubscribe::AlwaysFullTable {
+            table_name: "config_1".to_string()
+        }));
+        assert!(subscriptions.contains(&&TableSubscribe::OnUpdateFullTable {
+            table_name: "state_1".to_string()
+        }));
         assert!(publications.contains(&&TablePublish::Extend {
             table_name: "state_1".to_string()
         }));
@@ -722,10 +718,8 @@ mod tests {
 
     #[test]
     fn test_session_build_success() -> Result<()> {
-        let session = test_session_context_builder::make_test_session_context_parallel_task(
-            "session_1",
-            10,
-        )?;
+        let session =
+            test_session_context_builder::make_test_session_context_parallel_task("session_1", 10)?;
         assert_eq!(session.get_states().len(), 6);
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");

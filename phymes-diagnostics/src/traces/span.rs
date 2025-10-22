@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -22,13 +22,23 @@ pub struct Span {
     /// The scope of execution name
     span_name: String,
     /// The scope of execution id
-    span_id: i64
+    span_id: i64,
 }
 
 impl Span {
     /// Create a new [Span]
-    pub fn new(parent_name: Option<&str>, parent_id: Option<i64>, span_name: &str, span_id: i64) -> Self {
-        Self { parent_name: parent_name.map(String::from), parent_id, span_name: span_name.to_string(), span_id }
+    pub fn new(
+        parent_name: Option<&str>,
+        parent_id: Option<i64>,
+        span_name: &str,
+        span_id: i64,
+    ) -> Self {
+        Self {
+            parent_name: parent_name.map(String::from),
+            parent_id,
+            span_name: span_name.to_string(),
+            span_id,
+        }
     }
     /// Access the parent span
     pub fn parent(&self) -> (&Option<String>, &Option<i64>) {
@@ -43,8 +53,14 @@ impl Span {
 impl JSONObjectTrait for Span {
     fn to_json_object(&self) -> Vec<Map<String, Value>> {
         let mut map = Map::new();
-        map.insert("parent_name".to_string(), self.parent_name.to_owned().unwrap_or_default().into());
-        map.insert("parent_id".to_string(), self.parent_id.to_owned().unwrap_or_default().into());
+        map.insert(
+            "parent_name".to_string(),
+            self.parent_name.to_owned().unwrap_or_default().into(),
+        );
+        map.insert(
+            "parent_id".to_string(),
+            self.parent_id.to_owned().unwrap_or_default().into(),
+        );
         map.insert("span_name".to_string(), self.span_name.to_owned().into());
         map.insert("span_id".to_string(), self.span_id.to_owned().into());
         vec![map]
@@ -79,17 +95,17 @@ impl SpanBuilder {
     pub fn build(self) -> Result<Span> {
         let span_name = match self.span_name {
             Some(name) => name,
-            None => return Err(anyhow!("Add a span_name before building the span!"))
+            None => return Err(anyhow!("Add a span_name before building the span!")),
         };
         let span_id = match self.span_id {
             Some(id) => id,
-            None => return Err(anyhow!("Add a span_id before building the span!"))
+            None => return Err(anyhow!("Add a span_id before building the span!")),
         };
-        Ok(Span { 
-            parent_name: self.parent_name, 
-            parent_id: self.parent_id, 
-            span_name, 
-            span_id 
+        Ok(Span {
+            parent_name: self.parent_name,
+            parent_id: self.parent_id,
+            span_name,
+            span_id,
         })
     }
 }

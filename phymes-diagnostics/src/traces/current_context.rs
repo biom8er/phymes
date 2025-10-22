@@ -26,7 +26,13 @@ impl CurrentContext {
         let thread = std::thread::current().id();
         let function = function.to_string();
         let timestamp = create_timestamp_micros();
-        Self { line, file, thread, function, timestamp }
+        Self {
+            line,
+            file,
+            thread,
+            function,
+            timestamp,
+        }
     }
 
     pub fn line(&self) -> &u32 {
@@ -36,7 +42,7 @@ impl CurrentContext {
     pub fn file(&self) -> &str {
         &self.file
     }
-    
+
     pub fn thread(&self) -> &ThreadId {
         &self.thread
     }
@@ -71,7 +77,10 @@ mod tests {
     fn test_current_context() {
         let current_context = CurrentContext::new("my_function", line!(), file!());
         assert_eq!(current_context.line(), &72);
-        assert_eq!(current_context.file(), "phymes-diagnostics/src/traces/current_context.rs");
+        assert_eq!(
+            current_context.file(),
+            "phymes-diagnostics/src/traces/current_context.rs"
+        );
         assert_eq!(current_context.thread(), &std::thread::current().id());
         assert_eq!(current_context.function(), "my_function");
         assert!(*current_context.timestamp() < create_timestamp_micros());

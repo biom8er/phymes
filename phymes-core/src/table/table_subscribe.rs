@@ -6,8 +6,8 @@ use std::fmt::Debug;
 use crate::session::{MappableTrait, StateMap};
 
 use super::{
-    table_trait::{Table, TableTrait},
     stream::SendableRecordBatchStream,
+    table_trait::{Table, TableTrait},
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
@@ -411,7 +411,10 @@ pub struct ChatContentSubscribe {
 }
 
 impl ChatContentSubscribe {
-    pub fn new_box_with_table_names(user_message_table_name: &str, tool_message_table_name: &str) -> Box<dyn SubscribeTrait> {
+    pub fn new_box_with_table_names(
+        user_message_table_name: &str,
+        tool_message_table_name: &str,
+    ) -> Box<dyn SubscribeTrait> {
         Box::new(Self {
             user_message_table_name: user_message_table_name.to_string(),
             tool_message_table_name: tool_message_table_name.to_string(),

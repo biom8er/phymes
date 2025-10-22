@@ -4,10 +4,18 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, create_blob_fields, device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap,
-    RuntimeEnv, RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, Table, TableBuilder, TableBuilderTrait, TableTrait,
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
+use phymes_core::{
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, create_blob_fields, device,
+};
 
+use crate::{
+    candle_data::{data_config::DataConfig, tensor_service::CandleTensorService},
+    candle_operators::DataOperatorTrait,
+};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
@@ -15,10 +23,8 @@ use arrow::{
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
-use crate::{
-    candle_data::{data_config::DataConfig, tensor_service::CandleTensorService},
-    candle_operators::DataOperatorTrait,
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
 };
 use tracing::{Level, event, instrument};
 
@@ -120,7 +126,9 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
             trace.enter(&message.values().collect::<Vec<_>>());
             Some((trace, trace_builder))
         } else {
@@ -137,11 +145,7 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         };
 
         // Make the outbox and send
-        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-            Some(trace.1.clone()) 
-        } else {
-            None
-        };
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(AggregatorStream::new(
             AvailableSubjects::Blob.to_schema(),
             input,
@@ -217,12 +221,7 @@ impl AggregatorStream {
     #[instrument(skip(self))]
     fn init_tensor_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
-            if self
-                .runtime_env
-                .lock()
-                .tensor_service
-                .is_none()
-            {
+            if self.runtime_env.lock().tensor_service.is_none() {
                 let device = device(config.cpu)?;
                 let service = CandleTensorService::new(device);
                 let _ = self
@@ -249,15 +248,18 @@ impl Stream for AggregatorStream {
         } else {
             // Initialize the metrics
             let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
-                Some(diagnostic_builder.clone().to_child("DataSummaryStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("DataSummaryStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
             } else {
                 None
             };
-            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-                Some(baseline_metrics.elapsed_compute().timer())
-            } else {
-                None
-            };
+            let _timer = baseline_metrics
+                .as_ref()
+                .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // initialize the config and tensor services
             let mut batches = Vec::new();
@@ -273,7 +275,12 @@ impl Stream for AggregatorStream {
 
             // Build the data operator
             if self.data_operator.is_none() {
-                let operator = self.config.as_ref().unwrap().operator.build(&self.config.as_ref().unwrap());
+                let operator = self
+                    .config
+                    .as_ref()
+                    .unwrap()
+                    .operator
+                    .build(self.config.as_ref().unwrap());
                 self.data_operator.replace(operator);
             }
 

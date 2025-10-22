@@ -1,10 +1,15 @@
 use std::sync::Arc;
 
-use crate::table::{TableScript,Table, TableBuilder, TableBuilderTrait, TableTrait, SendableRecordBatchStream, RecordBatchReceiverStream};
+use crate::table::{
+    RecordBatchReceiverStream, SendableRecordBatchStream, Table, TableBuilder, TableBuilderTrait,
+    TableScript, TableTrait,
+};
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, StringArray}, datatypes::{DataType, Field, Fields}, record_batch::RecordBatch
+    array::{ArrayRef, Int64Array, StringArray},
+    datatypes::{DataType, Field, Fields},
+    record_batch::RecordBatch,
 };
 use futures::StreamExt;
 use phymes_diagnostics::create_timestamp_micros;
@@ -307,9 +312,18 @@ impl ChatBuilderTraitExt for TableBuilder {
 mod test_messages {
     use super::*;
     use crate::{
-        session::{BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv},
-        table::{RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe},
-        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait}
+        session::{
+            BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
+            SendableRecordBatchStreamMessageMap, StateMap,
+        },
+        table::{
+            AllTableNamesSubscribe, RecordBatchStream, SendableRecordBatchStream, SubscribeTrait,
+            TablePublish, TableSubscribe,
+        },
+        task::{
+            MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
+            SendableRecordBatchStreamMessage,
+        },
     };
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
@@ -345,11 +359,7 @@ mod test_messages {
         fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
             self.subscriptions.iter().collect::<Vec<_>>()
         }
-        fn check_subscriptions(
-            &self,
-            updates: &HashMap<String, bool>,
-            state: &StateMap,
-        ) -> bool {
+        fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
             self.subscribe
                 .check_subscriptions(&self.subscriptions, updates, state)
         }
@@ -542,8 +552,13 @@ mod tests {
     use super::chat_completion::Tool;
     use crate::{
         session::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait},
-        table::{TablePublish, test_table::{make_test_table_chat, make_test_table_tool}},
-        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait},
+        table::{
+            TablePublish,
+            test_table::{make_test_table_chat, make_test_table_tool},
+        },
+        task::{
+            MessageBuilderTrait, MessageTrait, ProcessorTrait, SendableRecordBatchStreamMessage,
+        },
     };
     use futures::TryStreamExt;
     use parking_lot::Mutex;

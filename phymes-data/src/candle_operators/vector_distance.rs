@@ -5,11 +5,13 @@ use arrow::{
     datatypes::DataType,
     record_batch::RecordBatch,
 };
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
-    BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+};
 
-use crate::candle_data::{DataConfig, DataDistanceOperator};
 use super::data_operator::DataOperatorTrait;
+use crate::candle_data::{DataConfig, DataDistanceOperator};
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use std::{collections::HashMap, sync::Arc};
@@ -36,8 +38,14 @@ impl DataOperatorTrait for VectorDistance {
         let lhs_pk = config.lhs_pk.to_owned();
         let lhs_values = config.lhs_values.first().unwrap().to_string();
         let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
-        let rhs_values = config.rhs_values.clone().unwrap().first().unwrap().to_string();
-        let dist_operator = config.dist_operator.clone().unwrap_or(DataDistanceOperator::default());
+        let rhs_values = config
+            .rhs_values
+            .clone()
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_string();
+        let dist_operator = config.dist_operator.clone().unwrap_or_default();
         VectorDistance {
             lhs_pk,
             lhs_values,
@@ -230,11 +238,16 @@ fn tensor_to_scores(
 ) -> Result<ArrayRef> {
     // apply the distance operator
     let result = match dist_operator {
-        DataDistanceOperator::NormalizedDotProduct => normalized_dot_product(&lhs_tensor, &rhs_tensor)?.flatten_all()?,
-        _ => return Err(anyhow!(
+        DataDistanceOperator::NormalizedDotProduct => {
+            normalized_dot_product(&lhs_tensor, &rhs_tensor)?.flatten_all()?
+        }
+        _ => {
+            return Err(anyhow!(
                 "Unsupported distance operator for {}: {}",
                 lhs_values,
-                dist_operator)),        
+                dist_operator
+            ));
+        }
     };
 
     // convert tensor to array
@@ -287,6 +300,7 @@ Compute the relative similarity between two [RecordBatch]es
 * `device` - The compute device
 
 */
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip(lhs_pk, lhs_values, lhs_args, rhs_pk, rhs_values, rhs_args, device))]
 fn vector_distance(
     lhs_pk: &str,
@@ -312,7 +326,13 @@ fn vector_distance(
     let (lhs_dim_0, _lhs_dim_1, lhs_tensor) = embeddings_to_tensor(lhs_values, &lhs_table, device)?;
     let (rhs_dim_0, _rhs_dim_1, rhs_tensor) = embeddings_to_tensor(rhs_values, &rhs_table, device)?;
     let out_scores = tensor_to_scores(
-        lhs_values, &lhs_table, lhs_tensor, rhs_values, &rhs_table, rhs_tensor, dist_operator
+        lhs_values,
+        &lhs_table,
+        lhs_tensor,
+        rhs_values,
+        &rhs_table,
+        rhs_tensor,
+        dist_operator,
     )?;
 
     // Create the expanded LHS and RHS PKs

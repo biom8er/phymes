@@ -1,16 +1,15 @@
 use std::{collections::HashMap, sync::Arc};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrow::array::{ArrayRef, Int64Array, RecordBatch};
 use candle_core::{Device, Tensor};
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
-    BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+};
 use tracing::instrument;
 
-use crate::{
-    candle_data::DataConfig,
-    candle_operators::DataOperatorTrait,
-};
+use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Compute the normalized start and end times in a [RecordBatch]
 #[derive(Debug)]
@@ -98,9 +97,9 @@ impl DataOperatorTrait for NormalizeTime {
 }
 
 /// Compute the normalized start and end times in a [RecordBatch]
-/// 
+///
 /// # Notes
-/// 
+///
 /// * The existence of a `start_timestamp` and `end_timestamp` columns of types UInt64
 /// * New columns for `start_time-Norm`, `end_time-Norm`, and `duration` will be created
 ///
@@ -110,10 +109,16 @@ impl DataOperatorTrait for NormalizeTime {
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `device` - The compute device
 #[instrument(skip(lhs_args, device))]
-pub fn normalize_time(lhs_values: &[&str], lhs_args: &[RecordBatch], device: &Device,
+pub fn normalize_time(
+    lhs_values: &[&str],
+    lhs_args: &[RecordBatch],
+    device: &Device,
 ) -> Result<RecordBatch> {
     if lhs_values.len() != 2 {
-        return Err(anyhow!("Two lhs_values columns for `start_timestamp` and `end_timestamp` need to be provided. lhs_values {:?} were provided.", lhs_values));
+        return Err(anyhow!(
+            "Two lhs_values columns for `start_timestamp` and `end_timestamp` need to be provided. lhs_values {:?} were provided.",
+            lhs_values
+        ));
     }
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
@@ -122,13 +127,21 @@ pub fn normalize_time(lhs_values: &[&str], lhs_args: &[RecordBatch], device: &De
         .build()?;
 
     // Determine the minimum start time
-    let start_time_vec = lhs_table.get_column_as_vec_primitive::<i64>(lhs_values.first().unwrap())?.into_iter().map(|v| v as i64).collect::<Vec<_>>();
+    let start_time_vec = lhs_table
+        .get_column_as_vec_primitive::<i64>(lhs_values.first().unwrap())?
+        .into_iter()
+        .collect::<Vec<_>>();
     let start_time_tensor = Tensor::from_iter(start_time_vec, device)?;
-    let min_tensor = start_time_tensor.min_all()?.broadcast_as(start_time_tensor.shape())?;
+    let min_tensor = start_time_tensor
+        .min_all()?
+        .broadcast_as(start_time_tensor.shape())?;
 
     // Normalize the start and time
     let start_time_norm_tensor = start_time_tensor.sub(&min_tensor)?;
-    let end_time_vec = lhs_table.get_column_as_vec_primitive::<i64>(lhs_values.get(1).unwrap())?.into_iter().map(|v| v as i64).collect::<Vec<_>>();
+    let end_time_vec = lhs_table
+        .get_column_as_vec_primitive::<i64>(lhs_values.get(1).unwrap())?
+        .into_iter()
+        .collect::<Vec<_>>();
     let end_time_tensor = Tensor::from_iter(end_time_vec, device)?;
     let end_time_norm_tensor = end_time_tensor.sub(&min_tensor)?;
 
@@ -161,7 +174,7 @@ pub fn normalize_time(lhs_values: &[&str], lhs_args: &[RecordBatch], device: &De
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::{StringArray, Int64Array};
+    use arrow::array::{Int64Array, StringArray};
     use phymes_core::device;
 
     use super::*;
@@ -206,9 +219,11 @@ mod tests {
             .with_name("")
             .build()?;
 
-        let start_time_norm = result_table.get_column_as_vec_primitive::<i64>("start_timestamp-normalized")?;
+        let start_time_norm =
+            result_table.get_column_as_vec_primitive::<i64>("start_timestamp-normalized")?;
         assert_eq!(start_time_norm, [0, 5, 15, 25]);
-        let end_time_norm = result_table.get_column_as_vec_primitive::<i64>("end_timestamp-normalized")?;
+        let end_time_norm =
+            result_table.get_column_as_vec_primitive::<i64>("end_timestamp-normalized")?;
         assert_eq!(end_time_norm, [5, 15, 25, 95]);
         let end_time_norm = result_table.get_column_as_vec_primitive::<i64>("duration")?;
         assert_eq!(end_time_norm, [5, 10, 10, 70]);

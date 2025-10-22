@@ -11,11 +11,16 @@ use axum::{
 use bytes::Bytes;
 use futures::prelude::*;
 use parking_lot::RwLock;
-use phymes_agents::{create_message_map, DiagnosticSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
-use phymes_core::{AvailableSubjects, JoinUserInboxSessionContextsMermaidDiagrams,
-    BuildableTrait, BuilderTrait, MappableTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, SessionStream, SessionStreamState,
-    DataFormat, TablePublish, TableBuilder, TableBuilderTrait, TableTrait,
-    IPCMessage, MessageBuilderTrait, MessageTrait};
+use phymes_agents::{
+    CustomAgentsBuilderTrait, DiagnosticSession, SessionContextBuilderAgentsTrait,
+    create_message_map,
+};
+use phymes_core::{
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
+    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
+    SessionInterfaceMessage, SessionInterfaceMessageTrait, SessionStream, SessionStreamState,
+    TableBuilder, TableBuilderTrait, TablePublish, TableTrait,
+};
 
 // General imports
 use anyhow::Result;
@@ -24,14 +29,17 @@ use std::sync::Arc;
 
 // Library imports
 use crate::{
-    handlers::json_error::{serde_json_error_response, ErrorToResponse, JsonError},
+    handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response},
     state::{ServerState, UserState},
 };
 
 /// Chat inference endpoint
 #[axum::debug_handler]
 pub async fn session_diagnostics(
-    Extension((current_user, user_session_contexts)): Extension<(String, Vec<JoinUserInboxSessionContextsMermaidDiagrams>)>,
+    Extension((current_user, user_session_contexts)): Extension<(
+        String,
+        Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
+    )>,
     State((_, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
@@ -45,14 +53,20 @@ pub async fn session_diagnostics(
             );
 
             // Add user state if it does not exist already
-            if !state.user_session_names.try_read().unwrap().contains_key(&current_user) {
-
+            if !state
+                .user_session_names
+                .try_read()
+                .unwrap()
+                .contains_key(&current_user)
+            {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true) {
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true)
+                {
                     Ok(session_names) => session_names,
-                    Err(err) =>                     
+                    Err(err) => {
                         return JsonError::new(err.to_string())
-                            .to_response(StatusCode::INTERNAL_SERVER_ERROR),
+                            .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
                 };
 
                 // Read in any updates to the session context
@@ -61,7 +75,10 @@ pub async fn session_diagnostics(
                     &current_user,
                 ) {
                     Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!("Failed to read the session stream state {e:?} for {}", current_user),
+                    Err(e) => tracing::info!(
+                        "Failed to read the session stream state {e:?} for {}",
+                        current_user
+                    ),
                 }
             }
 
@@ -83,8 +100,10 @@ pub async fn session_diagnostics(
                     }
                     // Create new session
                     None => {
-                        return JsonError::new("Failed to get the session stream state".to_string())
-                            .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                        return JsonError::new(
+                            "Failed to get the session stream state".to_string(),
+                        )
+                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
                 let sss = session_stream_state.read();
@@ -97,10 +116,14 @@ pub async fn session_diagnostics(
                 let metrics_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsMetrics.to_string().as_str())
-                    .with_update(&TablePublish::Replace { table_name: AvailableSubjects::AnalyticsMetrics.to_string() })
+                    .with_update(&TablePublish::Replace {
+                        table_name: AvailableSubjects::AnalyticsMetrics.to_string(),
+                    })
                     .with_publisher(diagnostic_session.session_context_name)
-                    .make_name().unwrap()
-                    .build().unwrap();
+                    .make_name()
+                    .unwrap()
+                    .build()
+                    .unwrap();
                 let table = sss
                     .get_session_context()
                     .get_states()
@@ -110,10 +133,14 @@ pub async fn session_diagnostics(
                 let traces_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsTraces.to_string().as_str())
-                    .with_update(&TablePublish::Replace { table_name: AvailableSubjects::AnalyticsTraces.to_string() })
+                    .with_update(&TablePublish::Replace {
+                        table_name: AvailableSubjects::AnalyticsTraces.to_string(),
+                    })
                     .with_publisher(diagnostic_session.session_context_name)
-                    .make_name().unwrap()
-                    .build().unwrap();
+                    .make_name()
+                    .unwrap()
+                    .build()
+                    .unwrap();
                 let table = sss
                     .get_session_context()
                     .get_states()
@@ -123,10 +150,14 @@ pub async fn session_diagnostics(
                 let events_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsEvents.to_string().as_str())
-                    .with_update(&TablePublish::Replace { table_name: AvailableSubjects::AnalyticsEvents.to_string() })
+                    .with_update(&TablePublish::Replace {
+                        table_name: AvailableSubjects::AnalyticsEvents.to_string(),
+                    })
                     .with_publisher(diagnostic_session.session_context_name)
-                    .make_name().unwrap()
-                    .build().unwrap();
+                    .make_name()
+                    .unwrap()
+                    .build()
+                    .unwrap();
                 let table = sss
                     .get_session_context()
                     .get_states()
@@ -136,18 +167,28 @@ pub async fn session_diagnostics(
                 let tasks_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsTasks.to_string().as_str())
-                    .with_update(&TablePublish::Replace { table_name:AvailableSubjects::AnalyticsTasks.to_string() })
+                    .with_update(&TablePublish::Replace {
+                        table_name: AvailableSubjects::AnalyticsTasks.to_string(),
+                    })
                     .with_publisher(diagnostic_session.session_context_name)
-                    .make_name().unwrap()
-                    .build().unwrap();
-                create_message_map(vec![metrics_message, traces_message, events_message, tasks_message])
+                    .make_name()
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                create_message_map(vec![
+                    metrics_message,
+                    traces_message,
+                    events_message,
+                    tasks_message,
+                ])
             };
 
             // Make the diagnostics session stream
             let session_ctx = diagnostic_session
                 .build()
                 .with_name(diagnostic_session.session_context_name)
-                .build_with_tables().unwrap();
+                .build_with_tables()
+                .unwrap();
             let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
 
@@ -157,10 +198,19 @@ pub async fn session_diagnostics(
                     // Convert the output to bytes
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
-                            .filter(|(_k, v)| v.get_name().contains(diagnostic_session.session_context_name))
+                            .filter(|(_k, v)| {
+                                v.get_name()
+                                    .contains(diagnostic_session.session_context_name)
+                            })
                             .flat_map(|(_k, v)| {
                                 let name = v.get_name().to_string();
-                                TableBuilder::new_from_ipc_stream(&v.get_message_own()).unwrap().with_name(name.as_str()).build().unwrap().to_bytes().unwrap()
+                                TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                    .unwrap()
+                                    .with_name(name.as_str())
+                                    .build()
+                                    .unwrap()
+                                    .to_bytes()
+                                    .unwrap()
                             })
                             .collect::<Vec<_>>()
                     });
@@ -175,10 +225,19 @@ pub async fn session_diagnostics(
                     let response = response
                         .into_iter()
                         .flatten()
-                        .filter(|(_k, v)| v.get_name().contains(diagnostic_session.session_context_name))
+                        .filter(|(_k, v)| {
+                            v.get_name()
+                                .contains(diagnostic_session.session_context_name)
+                        })
                         .flat_map(|(_k, v)| {
                             let name = v.get_name().to_string();
-                            TableBuilder::new_from_ipc_stream(&v.get_message_own()).unwrap().with_name(name.as_str()).build().unwrap().to_json_object().unwrap()
+                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                .unwrap()
+                                .with_name(name.as_str())
+                                .build()
+                                .unwrap()
+                                .to_json_object()
+                                .unwrap()
                         })
                         .collect::<Vec<_>>();
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
@@ -190,7 +249,10 @@ pub async fn session_diagnostics(
                     // Convert the output to IPC
                     let response = session_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
-                            .filter(|(_k, v)| v.get_name().contains(diagnostic_session.session_context_name))
+                            .filter(|(_k, v)| {
+                                v.get_name()
+                                    .contains(diagnostic_session.session_context_name)
+                            })
                             .flat_map(|(_k, v)| v.get_message_own())
                             .collect::<Vec<_>>()
                     });
@@ -205,7 +267,10 @@ pub async fn session_diagnostics(
                     let response = response
                         .into_iter()
                         .flatten()
-                        .filter(|(_k, v)| v.get_name().contains(diagnostic_session.session_context_name))
+                        .filter(|(_k, v)| {
+                            v.get_name()
+                                .contains(diagnostic_session.session_context_name)
+                        })
                         .flat_map(|(_k, v)| v.get_message_own())
                         .collect::<Vec<_>>();
 

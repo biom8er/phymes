@@ -1,7 +1,11 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_core::{MappableTrait, SessionStream, SessionStreamState, test_session_context_builder::make_test_session_context_sequential_task, TablePublish, IPCMessage, test_task::make_test_input_message};
+use phymes_core::{
+    IPCMessage, MappableTrait, SessionStream, SessionStreamState, TablePublish,
+    test_session_context_builder::make_test_session_context_sequential_task,
+    test_task::make_test_input_message,
+};
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
@@ -18,8 +22,7 @@ async fn main() -> Result<()> {
         Some(guard)
     };
 
-    let session_context =
-        make_test_session_context_sequential_task("session_1", 4)?;
+    let session_context = make_test_session_context_sequential_task("session_1", 4)?;
     let input = make_test_input_message(
         "task_1",
         "session_1",
@@ -28,7 +31,7 @@ async fn main() -> Result<()> {
         &TablePublish::Replace {
             table_name: "state_1".to_string(),
         },
-        true
+        true,
     )?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
     let session_stream = SessionStream::new(input, session_stream_state.clone());

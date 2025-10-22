@@ -1,6 +1,6 @@
 use crate::session::runtime_env::RuntimeEnv;
 use crate::table::Table;
-use crate::task::{IPCMessage, SendableRecordBatchStreamMessage, ProcessorTrait, Task};
+use crate::task::{IPCMessage, ProcessorTrait, SendableRecordBatchStreamMessage, Task};
 
 /// General imports
 use anyhow::Result;
@@ -129,7 +129,11 @@ pub trait BuilderTrait {
 /// streaming `RecordBatch`es as messages
 pub trait RunnableTrait {
     /// Run the computation
-    fn run(&self, messages: SendableRecordBatchStreamMessageMap, diagnostic_builder: Option<&DiagnosticBuilder>) -> Result<SendableRecordBatchStreamMessageMap>;
+    fn run(
+        &self,
+        messages: SendableRecordBatchStreamMessageMap,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
+    ) -> Result<SendableRecordBatchStreamMessageMap>;
 }
 
 /// For services that process Tensors

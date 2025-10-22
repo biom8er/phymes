@@ -2,12 +2,21 @@ use anyhow::Result;
 use serde_json::json;
 use std::sync::Arc;
 
-use phymes_core::{create_schema_from_fields, create_tools_record_batch, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait, TaskPlan,
-    DataFormat, Table, TableBuilder, TableBuilderTrait, TablePublish, AllTableNamesSubscribe, AnyTableNameSubscribe, ChatContentSubscribe, SubscribeTrait, TableSubscribe,
-    ProcessorEcho, ProcessorTrait};
-use phymes_data::{AttachmentAggregatorProcessor, DataCastOperator, DataConfig, CandleDataProcessor, DataSummaryConfig, DataSummaryProcessor,
-    AvailableCandleOperators, MERMAID_HTML_POST, MERMAID_HTML_PRE, MERMAID_XYCHART_TABLE_EXPRESSION, MERMAID_XYCHART_TEMPLATE};
-use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor, MessageParserProcessor};
+use phymes_core::{
+    AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
+    BuildableTrait, BuilderTrait, ChatContentSubscribe, DataFormat, ProcessorEcho, ProcessorTrait,
+    RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder, TableBuilderTrait,
+    TablePublish, TableSubscribe, TaskPlan, create_schema_from_fields, create_tools_record_batch,
+};
+use phymes_data::{
+    AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator,
+    DataConfig, DataSummaryConfig, DataSummaryProcessor, MERMAID_HTML_POST, MERMAID_HTML_PRE,
+    MERMAID_XYCHART_TABLE_EXPRESSION, MERMAID_XYCHART_TEMPLATE,
+};
+use phymes_ml::{
+    AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor,
+    MessageParserProcessor,
+};
 #[cfg(feature = "openai_api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor};
 
@@ -156,7 +165,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![
                     self.tool_vis_renamecols_processor_name.to_string(),
-                    self.tool_vis_xychart_processor_name.to_string()
+                    self.tool_vis_xychart_processor_name.to_string(),
                 ],
             },
             TaskPlan {
@@ -207,100 +216,106 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
-        let mut processors = Vec::new();
-        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
-            self.message_aggregator_processor_1_name,
-            &[TablePublish::Replace {
-                table_name: self.chat_task_name.to_string(),
-            }],
-            &[
-                TableSubscribe::AlwaysFullTable {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.message_aggregator_processor_1_name.to_string(),
-                },
-            ],
-            ChatContentSubscribe::new_box_with_table_names(AvailableInterfaceSubjects::UserMessages.to_string().as_str(), AvailableInterfaceSubjects::ToolMessages.to_string().as_str()),
-        ));
-        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
-            self.message_aggregator_processor_2_name,
-            &[TablePublish::Extend {
-                table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.message_aggregator_processor_2_name.to_string(),
-                },
-            ],
-            AnyTableNameSubscribe::new_box(),
-        ));
-        processors.push(AttachmentAggregatorProcessor::new_arc_with_pub_sub(
-            self.attachment_aggregator_processor_name,
-            &[TablePublish::Extend {
-                table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateFullTable {
-                    table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
-                },
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
-                },
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
-                },
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.attachment_aggregator_processor_name.to_string(),
-                },
-            ],
-            AnyTableNameSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.tool_vis_renamecols_processor_name,
-            &[TablePublish::Replace {
-                table_name: AvailableSubjects::MermaidXYChart.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateFullTable {
-                    table_name: self.tool_summary_task_name.to_string(),
-                },
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.tool_vis_renamecols_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.tool_vis_xychart_processor_name,
-            &[TablePublish::Replace {
-                table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
-            }],
-            &[
-                TableSubscribe::AlwaysFullTable {
+        let processors = vec![
+            MessageAggregatorProcessor::new_arc_with_pub_sub(
+                self.message_aggregator_processor_1_name,
+                &[TablePublish::Replace {
+                    table_name: self.chat_task_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.message_aggregator_processor_1_name.to_string(),
+                    },
+                ],
+                ChatContentSubscribe::new_box_with_table_names(
+                    AvailableInterfaceSubjects::UserMessages
+                        .to_string()
+                        .as_str(),
+                    AvailableInterfaceSubjects::ToolMessages
+                        .to_string()
+                        .as_str(),
+                ),
+            ),
+            MessageAggregatorProcessor::new_arc_with_pub_sub(
+                self.message_aggregator_processor_2_name,
+                &[TablePublish::Extend {
+                    table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.message_aggregator_processor_2_name.to_string(),
+                    },
+                ],
+                AnyTableNameSubscribe::new_box(),
+            ),
+            AttachmentAggregatorProcessor::new_arc_with_pub_sub(
+                self.attachment_aggregator_processor_name,
+                &[TablePublish::Extend {
+                    table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
+                    },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
+                    },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.attachment_aggregator_processor_name.to_string(),
+                    },
+                ],
+                AnyTableNameSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.tool_vis_renamecols_processor_name,
+                &[TablePublish::Replace {
                     table_name: AvailableSubjects::MermaidXYChart.to_string(),
-                },
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.tool_vis_xychart_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        if cfg!(not(feature = "candle")) {
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.tool_summary_task_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.tool_vis_renamecols_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.tool_vis_xychart_processor_name,
+                &[TablePublish::Replace {
+                    table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: AvailableSubjects::MermaidXYChart.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.tool_vis_xychart_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
             #[cfg(feature = "openai_api")]
-            processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
+            OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[TablePublish::Replace {
                     table_name: self.message_parser_task_name.to_string(),
@@ -317,9 +332,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
-            ));
-        } else {
-            processors.push(CandleChatProcessor::new_arc_with_pub_sub(
+            ),
+            #[cfg(feature = "candle")]
+            CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
                 &[TablePublish::Replace {
                     table_name: self.message_parser_task_name.to_string(),
@@ -336,144 +351,144 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
-            ));
-        }
-        processors.push(MessageParserProcessor::new_arc_with_pub_sub(
-            self.message_parser_processor_name,
-            &[
-                TablePublish::Extend {
-                    // The first publication is the default publish target
-                    // table_name: self.chat_task_name.to_string(),
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-                TablePublish::Extend {
-                    table_name: self.tool_task_name.to_string(),
-                },
-                TablePublish::Extend {
-                    table_name: self.hitl_task_name.to_string(),
-                },
-            ],
-            &[
-                TableSubscribe::OnUpdateFullTable {
-                    table_name: self.message_parser_task_name.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.message_parser_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.extract_tabular_data_processor_name,
-            &[TablePublish::Replace {
-                table_name: self.state_scores_table_name.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateFullTable {
-                    table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.extract_tabular_data_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.tool_processor_name,
-            &[TablePublish::Replace {
-                table_name: self.tool_summary_task_name.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: self.tool_task_name.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
+            ),
+            MessageParserProcessor::new_arc_with_pub_sub(
+                self.message_parser_processor_name,
+                &[
+                    TablePublish::Extend {
+                        // The first publication is the default publish target
+                        // table_name: self.chat_task_name.to_string(),
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TablePublish::Extend {
+                        table_name: self.tool_task_name.to_string(),
+                    },
+                    TablePublish::Extend {
+                        table_name: self.hitl_task_name.to_string(),
+                    },
+                ],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.message_parser_task_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.message_parser_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.extract_tabular_data_processor_name,
+                &[TablePublish::Replace {
                     table_name: self.state_scores_table_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.hitl_processor_name,
-            &[TablePublish::Extend {
-                table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-            }],
-            &[TableSubscribe::OnUpdateLastRecordBatch {
-                table_name: self.hitl_task_name.to_string(),
-            }],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
-            self.tool_attachment_processor_name,
-            &[TablePublish::Extend {
-                table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
-            }],
-            &[
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.tool_attachment_processor_name.to_string(),
-                },
-                TableSubscribe::OnUpdateFullTable {
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.extract_tabular_data_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.tool_processor_name,
+                &[TablePublish::Replace {
                     table_name: self.tool_summary_task_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
-            self.tool_summary_processor_name,
-            &[TablePublish::Extend {
-                table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
-            }],
-            &[
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.tool_summary_processor_name.to_string(),
-                },
-                TableSubscribe::OnUpdateFullTable {
-                    table_name: self.tool_summary_task_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
-            self.hitl_summary_processor_name,
-            &[TablePublish::Extend {
-                table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-            }],
-            &[
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.hitl_summary_processor_name.to_string(),
-                },
-                TableSubscribe::AlwaysLastRecordBatch {
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: self.tool_task_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_scores_table_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.hitl_processor_name,
+                &[TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(ProcessorEcho::new_arc_with_pub_sub(
-            self.session_context_name,
-            &[
-                TablePublish::Extend {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TablePublish::Replace {
-                    table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
-                },
-                TablePublish::Extend {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-                TablePublish::Extend {
+                }],
+                &[TableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: self.hitl_task_name.to_string(),
+                }],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            DataSummaryProcessor::new_arc_with_pub_sub(
+                self.tool_attachment_processor_name,
+                &[TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
-                },
-            ],
-            &[
-                TableSubscribe::OnUpdateLastRecordBatch {
+                }],
+                &[
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.tool_attachment_processor_name.to_string(),
+                    },
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.tool_summary_task_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            DataSummaryProcessor::new_arc_with_pub_sub(
+                self.tool_summary_processor_name,
+                &[TablePublish::Extend {
+                    table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.tool_summary_processor_name.to_string(),
+                    },
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.tool_summary_task_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            DataSummaryProcessor::new_arc_with_pub_sub(
+                self.hitl_summary_processor_name,
+                &[TablePublish::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
-                }
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
+                }],
+                &[
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.hitl_summary_processor_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            ProcessorEcho::new_arc_with_pub_sub(
+                self.session_context_name,
+                &[
+                    TablePublish::Extend {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    },
+                    TablePublish::Replace {
+                        table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
+                    },
+                    TablePublish::Extend {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TablePublish::Extend {
+                        table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
+                    },
+                ],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+        ];
         Some(processors)
     }
 
@@ -595,7 +610,8 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             operator: AvailableCandleOperators::ExtractTabularData,
             ..Default::default()
         };
-        let extract_tabular_data_config_json = serde_json::to_vec(&extract_tabular_data_config).unwrap();
+        let extract_tabular_data_config_json =
+            serde_json::to_vec(&extract_tabular_data_config).unwrap();
         let extract_tabular_data_state = TableBuilder::new()
             .with_name(self.extract_tabular_data_processor_name)
             .with_json(&extract_tabular_data_config_json.clone(), 1)
@@ -609,7 +625,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_values: vec!["lhs_pk".to_string(), "score".to_string()],
             as_columns: Some(vec!["x".to_string(), "y".to_string()]),
             cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None]),
-            cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Float32.to_string()]),
+            cast_datatypes: Some(vec![
+                DataType::Utf8.to_string(),
+                DataType::Float32.to_string(),
+            ]),
             cast_templates: Some(vec!["".to_string(), "".to_string()]),
             operator: AvailableCandleOperators::SelectAndCast,
             ..Default::default()
@@ -625,13 +644,23 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         // Visualize tabular data config
         let vis_xychart_config = DataConfig {
             lhs_name: AvailableSubjects::MermaidXYChart.to_string(),
-            doc_template: Some([MERMAID_HTML_PRE, MERMAID_XYCHART_TEMPLATE, MERMAID_HTML_POST].join("")),
+            doc_template: Some(
+                [
+                    MERMAID_HTML_PRE,
+                    MERMAID_XYCHART_TEMPLATE,
+                    MERMAID_HTML_POST,
+                ]
+                .join(""),
+            ),
             doc_name: Some(self.state_scores_table_name.to_string()),
             table_expression: Some(MERMAID_XYCHART_TABLE_EXPRESSION.to_string()),
-            doc_input: Some(serde_json::to_string(&json!({
+            doc_input: Some(
+                serde_json::to_string(&json!({
                 "title": self.state_scores_table_name,
                 "x_title": "lhs_pk",
-                "y_title": "score"})).unwrap()),
+                "y_title": "score"}))
+                .unwrap(),
+            ),
             format: Some(DataFormat::Html),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
@@ -679,7 +708,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         fn create_scores_fields() -> Fields {
             let fields_vec = vec![
                 Field::new("lhs_pk", DataType::Utf8, false),
-                Field::new("score", DataType::Float64, false)
+                Field::new("score", DataType::Float64, false),
             ];
             Fields::from(fields_vec)
         }
@@ -712,20 +741,46 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             summary_state_2,
             scores_table,
             tool_summary_table,
-            AvailableSubjects::MermaidXYChart.to_table(None, None).unwrap(),
+            AvailableSubjects::MermaidXYChart
+                .to_table(None, None)
+                .unwrap(),
             self.make_tools_table().unwrap(),
-            AvailableInterfaceSubjects::AggregatedMessages.to_table(None, None).unwrap(),
-            AvailableInterfaceSubjects::UserMessages.to_table(None, None).unwrap(),
-            AvailableInterfaceSubjects::UserCsv.to_table(None, None).unwrap(),
-            AvailableInterfaceSubjects::AssistantMessages.to_table(None, None).unwrap(),
-            AvailableInterfaceSubjects::ToolMessages.to_table(None, None).unwrap(),
-            AvailableSubjects::Messages.to_table(Some(self.chat_task_name), None).unwrap(),      
-            AvailableSubjects::Messages.to_table(Some(self.message_parser_task_name), None).unwrap(),
-            AvailableSubjects::Configs.to_table(Some(self.tool_task_name), None).unwrap(),
-            AvailableSubjects::Configs.to_table(Some(self.hitl_task_name), None).unwrap(),
-            AvailableInterfaceSubjects::AssistantCsv.to_table(None, None).unwrap(),
-            AvailableInterfaceSubjects::AggregatedAttachments.to_table(None, None).unwrap(),
-            AvailableInterfaceSubjects::AssistantScript.to_table(None, None).unwrap(),
+            AvailableInterfaceSubjects::AggregatedMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::UserMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::UserCsv
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AssistantMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::ToolMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableSubjects::Messages
+                .to_table(Some(self.chat_task_name), None)
+                .unwrap(),
+            AvailableSubjects::Messages
+                .to_table(Some(self.message_parser_task_name), None)
+                .unwrap(),
+            AvailableSubjects::Configs
+                .to_table(Some(self.tool_task_name), None)
+                .unwrap(),
+            AvailableSubjects::Configs
+                .to_table(Some(self.hitl_task_name), None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AssistantCsv
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AggregatedAttachments
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AssistantScript
+                .to_table(None, None)
+                .unwrap(),
         ])
     }
 }
@@ -734,18 +789,21 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{BlobBuilderTraitExt, ChatBuilderTraitExt, MappableTrait, SessionStream, SessionStreamState,
-        CsvFormat, TableTrait, IPCMessage, MessageBuilderTrait, MessageTrait};
+    use phymes_core::{
+        BlobBuilderTraitExt, ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait,
+        MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState, TableTrait,
+    };
     use phymes_data::test_extract_tabular_data::make_scores_table;
     use phymes_diagnostics::HashMap;
 
-    use crate::{session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait};
+    use crate::{
+        session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait,
+    };
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_tool_agent_session() -> Result<()> {
-
         // initialize the session
         let tool_agent_session = ToolAgentSession::default();
         let session_ctx = tool_agent_session
@@ -766,17 +824,22 @@ mod tests {
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublish::Extend { table_name: chat.get_name().to_string() })
+            .with_update(&TablePublish::Extend {
+                table_name: chat.get_name().to_string(),
+            })
             .with_publisher(tool_agent_session.session_context_name)
             .make_name()?
             .build()?;
-        let blob = AvailableInterfaceSubjects::UserCsv.to_table_builder(None)
+        let blob = AvailableInterfaceSubjects::UserCsv
+            .to_table_builder(None)
             .with_blob(None, Some("csv"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublish::Extend { table_name: blob.get_name().to_string() })
+            .with_update(&TablePublish::Extend {
+                table_name: blob.get_name().to_string(),
+            })
             .with_publisher(tool_agent_session.session_context_name)
             .make_name()?
             .build()?;
@@ -828,11 +891,18 @@ mod tests {
                 .build()?
                 .to_json_object()?;
             for row in &attachment_data {
-                let bytes = row["bytes"].as_array().unwrap()
+                let bytes = row["bytes"]
+                    .as_array()
+                    .unwrap()
                     .iter()
                     .map(|v| v.as_u64().unwrap() as u8)
                     .collect::<Vec<u8>>();
-                println!("attachment {}.{}: {}", row["filename"], row["extension"], String::from_utf8_lossy(bytes.as_ref()).into_owned())
+                println!(
+                    "attachment {}.{}: {}",
+                    row["filename"],
+                    row["extension"],
+                    String::from_utf8_lossy(bytes.as_ref()).into_owned()
+                )
             }
 
             // for metric in metrics.clone_inner().iter() {

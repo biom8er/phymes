@@ -14,7 +14,7 @@ use candle_transformers::quantized_var_builder::VarBuilder as QuantVarBuilder;
 use tokenizers::Tokenizer;
 
 /// All supported models
-use crate::candle_models::{QuantizedBert, QuantizerdBertConfig, QuantizedQwen2};
+use crate::candle_models::{QuantizedBert, QuantizedQwen2, QuantizerdBertConfig};
 
 /// Crates
 use super::candle_asset::CandleAsset;

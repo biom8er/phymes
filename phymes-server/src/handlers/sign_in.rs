@@ -134,21 +134,28 @@ pub async fn authorize(
     };
 
     // Retrieve user from the database
-    let (user_info, user_session_contexts) = match state.get_user_by_email(&token_data.claims.email).await {
-        Ok((user_info, user_session_contexts)) => (user_info, user_session_contexts),
-        Err(err) => return Err(JsonError::new(err.to_string())
-            .to_response(StatusCode::INTERNAL_SERVER_ERROR)),
-    };
+    let (user_info, user_session_contexts) =
+        match state.get_user_by_email(&token_data.claims.email).await {
+            Ok((user_info, user_session_contexts)) => (user_info, user_session_contexts),
+            Err(err) => {
+                return Err(
+                    JsonError::new(err.to_string()).to_response(StatusCode::INTERNAL_SERVER_ERROR)
+                );
+            }
+        };
     if user_info.is_empty() {
         return Err(JsonError::new("You are not an authorized user".to_string())
             .to_response(StatusCode::UNAUTHORIZED));
     }
     if user_session_contexts.is_empty() {
-        return Err(JsonError::new("Failed to find session plans for user {token_data.claims.email}".to_string())
-            .to_response(StatusCode::UNAUTHORIZED));
+        return Err(JsonError::new(
+            "Failed to find session plans for user {token_data.claims.email}".to_string(),
+        )
+        .to_response(StatusCode::UNAUTHORIZED));
     }
 
-    req.extensions_mut().insert((token_data.claims.email.to_owned(), user_session_contexts));
+    req.extensions_mut()
+        .insert((token_data.claims.email.to_owned(), user_session_contexts));
     Ok(next.run(req).await)
 }
 
@@ -161,21 +168,25 @@ pub async fn sign_in(
     // Retrieve user from the database
     let (user_info, user_session_contexts) = match state.get_user_by_email(creds.username()).await {
         Ok((user_info, user_session_contexts)) => (user_info, user_session_contexts),
-        Err(err) => return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": format!("{err}")})))
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("{err}")})),
+            );
+        }
     };
 
     // Check that the user exists and has session plans
     if user_info.is_empty() {
-        return (StatusCode::UNAUTHORIZED, Json(json!({"error": "Unauthorized"})));
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "Unauthorized"})),
+        );
     }
     if user_session_contexts.is_empty() {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(
-                json!({"error": "Failed to find session plans for user {creds.username()}"}),
-            ),
+            Json(json!({"error": "Failed to find session plans for user {creds.username()}"})),
         );
     }
 
@@ -206,11 +217,14 @@ pub async fn sign_in(
     };
 
     // Return the sign-in confirmation
-    let session_plans = user_session_contexts.iter()
+    let session_plans = user_session_contexts
+        .iter()
         .map(|ctx| ctx.session_context_name.to_string())
         .collect::<Vec<_>>();
     (
         StatusCode::OK,
-        Json(json!({"jwt": jwt, "email": creds.username().to_string(), "session_plans": session_plans})),
+        Json(
+            json!({"jwt": jwt, "email": creds.username().to_string(), "session_plans": session_plans}),
+        ),
     )
 }

@@ -11,10 +11,13 @@ use axum::{
 use bytes::Bytes;
 use clap::ValueEnum;
 use futures::prelude::*;
-use phymes_agents::{create_message_map, AvailableInterfaceSubjects};
-use phymes_core::{AvailableSubjectsTrait, JoinUserInboxSessionContextsMermaidDiagrams,
-    BuildableTrait, BuilderTrait, MappableTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, SessionStream,
-    DataFormat, Table, TableBuilder, TableBuilderTrait, TableTrait, IPCMessage, MessageBuilderTrait, MessageTrait};
+use phymes_agents::{AvailableInterfaceSubjects, create_message_map};
+use phymes_core::{
+    AvailableSubjectsTrait, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
+    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
+    SessionInterfaceMessage, SessionInterfaceMessageTrait, SessionStream, Table, TableBuilder,
+    TableBuilderTrait, TableTrait,
+};
 
 // General imports
 use anyhow::Result;
@@ -23,14 +26,17 @@ use std::sync::Arc;
 
 // Library imports
 use crate::{
-    handlers::json_error::{serde_json_error_response, ErrorToResponse, JsonError},
+    handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response},
     state::{ServerState, UserState},
 };
 
 /// Chat inference endpoint
 #[axum::debug_handler]
 pub async fn session_stream(
-    Extension((current_user, user_session_contexts)): Extension<(String, Vec<JoinUserInboxSessionContextsMermaidDiagrams>)>,
+    Extension((current_user, user_session_contexts)): Extension<(
+        String,
+        Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
+    )>,
     State((_, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
@@ -44,14 +50,20 @@ pub async fn session_stream(
             );
 
             // Add user state if it does not exist already
-            if !state.user_session_names.try_read().unwrap().contains_key(&current_user) {
-
+            if !state
+                .user_session_names
+                .try_read()
+                .unwrap()
+                .contains_key(&current_user)
+            {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true) {
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true)
+                {
                     Ok(session_names) => session_names,
-                    Err(err) =>                     
+                    Err(err) => {
                         return JsonError::new(err.to_string())
-                            .to_response(StatusCode::INTERNAL_SERVER_ERROR),
+                            .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
                 };
 
                 // Read in any updates to the session context
@@ -60,7 +72,10 @@ pub async fn session_stream(
                     &current_user,
                 ) {
                     Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!("Failed to read the session stream state {e:?} for {}", current_user),
+                    Err(e) => tracing::info!(
+                        "Failed to read the session stream state {e:?} for {}",
+                        current_user
+                    ),
                 }
             }
 
@@ -90,11 +105,14 @@ pub async fn session_stream(
             let bytes = match &payload.get_format() {
                 DataFormat::Ipc => payload.get_message().to_owned(),
                 DataFormat::Bytes => {
-                    let schema = match AvailableInterfaceSubjects::from_str(payload.get_subject(), false) {
-                        Ok(subject) => subject.to_schema(),
-                        Err(err) => return JsonError::new(err.to_string())
-                            .to_response(StatusCode::INTERNAL_SERVER_ERROR),
-                    };
+                    let schema =
+                        match AvailableInterfaceSubjects::from_str(payload.get_subject(), false) {
+                            Ok(subject) => subject.to_schema(),
+                            Err(err) => {
+                                return JsonError::new(err.to_string())
+                                    .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                            }
+                        };
                     Table::get_builder()
                         .with_name(payload.get_subject())
                         .with_schema(schema)
@@ -105,7 +123,7 @@ pub async fn session_stream(
                         .to_ipc_stream()
                         .unwrap()
                 }
-                _ => unimplemented!()
+                _ => unimplemented!(),
             };
             let message = IPCMessage::get_builder()
                 .with_message(bytes)
@@ -133,7 +151,13 @@ pub async fn session_stream(
                             .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
                             .flat_map(|(_k, v)| {
                                 let name = v.get_name().to_string();
-                                TableBuilder::new_from_ipc_stream(&v.get_message_own()).unwrap().with_name(name.as_str()).build().unwrap().to_bytes().unwrap()
+                                TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                    .unwrap()
+                                    .with_name(name.as_str())
+                                    .build()
+                                    .unwrap()
+                                    .to_bytes()
+                                    .unwrap()
                             })
                             .collect::<Vec<_>>()
                     });
@@ -151,7 +175,13 @@ pub async fn session_stream(
                         .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
                         .flat_map(|(_k, v)| {
                             let name = v.get_name().to_string();
-                            TableBuilder::new_from_ipc_stream(&v.get_message_own()).unwrap().with_name(name.as_str()).build().unwrap().to_json_object().unwrap()
+                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                .unwrap()
+                                .with_name(name.as_str())
+                                .build()
+                                .unwrap()
+                                .to_json_object()
+                                .unwrap()
                         })
                         .collect::<Vec<_>>();
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());

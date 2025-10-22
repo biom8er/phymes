@@ -64,7 +64,12 @@ pub fn filter_in_mermaid_diagrams_by_session_name(
         .filter(|(i, _s)| indices.contains(i))
         .map(|(_i, s)| s.to_owned())
         .collect::<Vec<_>>();
-    (session_context_name, flowchart_diagram, er_diagram, timestamp)
+    (
+        session_context_name,
+        flowchart_diagram,
+        er_diagram,
+        timestamp,
+    )
 }
 
 /// Filter out mermaid diagrams by session name
@@ -105,7 +110,12 @@ pub fn filter_out_mermaid_diagrams_by_session_name(
         .filter(|(i, _s)| indices.contains(i))
         .map(|(_i, s)| s.to_owned())
         .collect::<Vec<_>>();
-    (session_context_name, flowchart_diagram, er_diagram, timestamp)
+    (
+        session_context_name,
+        flowchart_diagram,
+        er_diagram,
+        timestamp,
+    )
 }
 
 /// Get a non duplicated list of sorted subject names

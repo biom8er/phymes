@@ -3,7 +3,6 @@ use serde_json::{Map, Value};
 
 use crate::{diagnostics::JSONObjectTrait, events::Event, metrics::Metric, traces::Trace};
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub enum DiagnosticsType {
     /// Traces
@@ -12,7 +11,7 @@ pub enum DiagnosticsType {
     Event,
     /// Metrics
     #[default]
-    Metric
+    Metric,
 }
 
 /// The available diagnostics
@@ -23,7 +22,7 @@ pub enum AvailableDiagnostics {
     /// Events
     Event(Event),
     /// Metrics
-    Metric(Metric)
+    Metric(Metric),
 }
 
 impl AvailableDiagnostics {
@@ -31,7 +30,7 @@ impl AvailableDiagnostics {
         match self {
             Self::Event(_) => DiagnosticsType::Event,
             Self::Metric(_) => DiagnosticsType::Metric,
-            Self::Trace(_) => DiagnosticsType::Trace
+            Self::Trace(_) => DiagnosticsType::Trace,
         }
     }
 }

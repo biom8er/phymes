@@ -1,12 +1,21 @@
 use dioxus::prelude::*;
 use phymes_agents::{AvailableSessionPlans, SessionContextBuilderMermaidTrait};
-use phymes_core::{AvailableSubjects, create_session_mermaid_batch, BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, SessionContextBuilder, DataFormat, 
-    Table, TableBuilderTrait, TableTrait, TablePublish, MessageBuilderTrait};
+use phymes_core::{
+    create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
+    MessageBuilderTrait, SessionContextBuilder, SessionInterfaceMessage,
+    SessionInterfaceMessageBuilderTrait, Table, TableBuilderTrait, TablePublish, TableTrait,
+};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
 
-use crate::state::{filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, filter_out_mermaid_diagrams_by_session_name, sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES,
-    svg_icons::{ms_column_arrow_right_icon_svg, ms_deploy_icon_svg, ms_edit_icon_svg, b8_save_icon_svg, ms_sync_icon_svg, fa_trash_icon_svg}
+use crate::state::{
+    filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name,
+    get_non_duplicated_sorted_subjects,
+    svg_icons::{
+        b8_save_icon_svg, fa_trash_icon_svg, ms_column_arrow_right_icon_svg, ms_deploy_icon_svg,
+        ms_edit_icon_svg, ms_sync_icon_svg,
+    },
+    sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES,
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -24,8 +33,16 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 /// View for the builds drop down menu
 #[component]
-pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_session_name: Signal<String>, mut active_flowchart_diagram: Signal<String>, mut active_er_diagram: Signal<String>, 
-    mut mermaid_session_context_names: Signal<Vec<String>>, mut mermaid_flowchart_diagrams: Signal<Vec<String>>, mut mermaid_er_diagrams: Signal<Vec<String>>, mut mermaid_timestamps: Signal<Vec<i64>>) -> Element {
+pub fn builds_dropdown_view(
+    mut is_flowchart_shown: Signal<bool>,
+    mut active_session_name: Signal<String>,
+    mut active_flowchart_diagram: Signal<String>,
+    mut active_er_diagram: Signal<String>,
+    mut mermaid_session_context_names: Signal<Vec<String>>,
+    mut mermaid_flowchart_diagrams: Signal<Vec<String>>,
+    mut mermaid_er_diagrams: Signal<Vec<String>>,
+    mut mermaid_timestamps: Signal<Vec<i64>>,
+) -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_session_names_state);
     let sync_session_names = use_coroutine_handle::<SyncSessionNamesState>();
@@ -45,7 +62,7 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
     });
     let mut subjects_filtered: Signal<Vec<String>> = use_signal(Vec::new);
 
-    // Error message signal    
+    // Error message signal
     let mut build_errors = use_signal(String::new);
 
     rsx! {
@@ -79,7 +96,7 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
             },
 
             if !active_session_name().is_empty() {
-                button { 
+                button {
                     class: "dropdown_form_button",
                     onclick: move |_evt| async move {
                         // Make a defualt name for the copy of the active session
@@ -122,7 +139,7 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
                         let batch_deleted = create_session_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
                         // Filter out the active session
-                        let (session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_out_mermaid_diagrams_by_session_name(                        
+                        let (session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_out_mermaid_diagrams_by_session_name(
                             &active_session_name(),
                             &mermaid_session_context_names
                                 .read()
@@ -152,7 +169,7 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
                             .build()
                             .unwrap()
                             .to_ipc_stream()
-                            .unwrap();    
+                            .unwrap();
                         let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
                             .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
                             .with_format(&DataFormat::Ipc)
@@ -211,14 +228,14 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
                     },
                     svg { dangerous_inner_html: fa_trash_icon_svg() },
                 },
-                button { 
+                button {
                     onclick: move |_| async move {
                         let current = is_flowchart_shown.read().to_owned();
                         is_flowchart_shown.set(!current);
                     },
                     svg { dangerous_inner_html: ms_sync_icon_svg() },
                 },
-                button { 
+                button {
                     onclick: move |_| async move {
                         // Clear any text
                         build_errors.set(String::new());
@@ -260,7 +277,7 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
                             .build()
                             .unwrap()
                             .to_ipc_stream()
-                            .unwrap();    
+                            .unwrap();
                         let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
                             .with_session_name(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
                             .with_format(&DataFormat::Ipc)
@@ -360,8 +377,12 @@ pub fn builds_dropdown_view(mut is_flowchart_shown: Signal<bool>, mut active_ses
 
 /// Diagram code editor
 #[component]
-pub fn builds_interface_footer(is_flowchart_shown: Signal<bool>, active_session_name: Signal<String>, mut active_flowchart_diagram: Signal<String>, mut active_er_diagram: Signal<String>,) -> Element {
-    
+pub fn builds_interface_footer(
+    is_flowchart_shown: Signal<bool>,
+    active_session_name: Signal<String>,
+    mut active_flowchart_diagram: Signal<String>,
+    mut active_er_diagram: Signal<String>,
+) -> Element {
     let mut is_saved = use_signal(|| true);
 
     let diagram_code: Memo<String> = use_memo(move || {
@@ -369,7 +390,7 @@ pub fn builds_interface_footer(is_flowchart_shown: Signal<bool>, active_session_
             active_flowchart_diagram.read().to_string()
         } else {
             active_er_diagram.read().to_string()
-        }        
+        }
     });
 
     rsx! {
@@ -396,7 +417,7 @@ pub fn builds_interface_footer(is_flowchart_shown: Signal<bool>, active_session_
                         }
                     }
                 }
-                
+
                 div {
                     class: "submit_button",
                     // This must be outside the form or it will be refreshed on each submit
@@ -412,7 +433,7 @@ pub fn builds_interface_footer(is_flowchart_shown: Signal<bool>, active_session_
                                 .build()
                                 .unwrap()
                                 .to_ipc_stream()
-                                .unwrap();    
+                                .unwrap();
                             let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
                                 .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
@@ -465,7 +486,7 @@ pub fn builds_interface_footer(is_flowchart_shown: Signal<bool>, active_session_
                                 }
                                 Err(err) => tracing::error!("{err:?}"),
                             }
-                            
+
                             // DM: limit the history to 25
 
                             // Change to saved

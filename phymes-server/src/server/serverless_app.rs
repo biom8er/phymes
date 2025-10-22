@@ -82,7 +82,11 @@ mod tests {
     use futures::TryStreamExt;
     use futures_executor::block_on;
     use phymes_agents::AvailableInterfaceSubjects;
-    use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, ChatBuilderTraitExt, BuildableTrait, BuilderTrait, MappableTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, TableTrait, MessageBuilderTrait};
+    use phymes_core::{
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
+        ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait,
+        SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, TablePublish, TableTrait,
+    };
     use serde_json::{Map, Value};
 
     use crate::handlers::{basic_auth, create_session_name};
@@ -249,7 +253,11 @@ mod tests {
             .with_publisher(session_name.as_str())
             .with_update(&TablePublish::None)
             .with_stream(false)
-            .with_subject(AvailableSubjects::SessionSubjectsNumRows.to_string().as_str())
+            .with_subject(
+                AvailableSubjects::SessionSubjectsNumRows
+                    .to_string()
+                    .as_str(),
+            )
             .make_name()
             .unwrap()
             .build()
@@ -305,7 +313,8 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test session_stream using serverless_app
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages
+            .to_table_builder(None)
             .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")
             .unwrap()
             .build()
@@ -314,7 +323,9 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
+            .with_update(&TablePublish::Extend {
+                table_name: chat.get_name().to_string(),
+            })
             .with_stream(true)
             .with_subject(chat.get_name())
             .with_message(chat.to_bytes().unwrap().to_vec())

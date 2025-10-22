@@ -1,12 +1,12 @@
 /// Mermaid.js kanban jinja2 template
-/// 
+///
 /// see <https://mermaid.js.org/syntax/kanban.html>
-/// 
+///
 /// # Notes
 /// * The kanban table MUST be sorted by column_name!
 /// * <config> section is not yet supported
 /// * The `priority` metadata attribute is not included currently
-pub static MERMAID_KANBAN_TEMPLATE: &'static str = r#"
+pub static MERMAID_KANBAN_TEMPLATE: &str = r#"
         kanban
 {%- for row in rows %}
     {%- if loop.changed(row.column_name) %}
@@ -16,17 +16,20 @@ pub static MERMAID_KANBAN_TEMPLATE: &'static str = r#"
 {%- endfor %}"#;
 
 /// The `table_expression` variable name in `DataConfig`
-pub static MERMAID_KANBAN_TABLE_EXPRESSION: &'static str = "rows";
+pub static MERMAID_KANBAN_TABLE_EXPRESSION: &str = "rows";
 
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
+    use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, TableScript, Table, TableBuilderTrait, TableTrait};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
+        TableTrait,
+    };
     use serde_json::Map;
-    use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
 
     use super::*;
 
@@ -37,26 +40,39 @@ mod tests {
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let column_label_vec = ["Info", "Info", "Debug", "Debug", "Warn", "Warn", "Error", "Error"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
+        let column_label_vec = [
+            "Info", "Info", "Debug", "Debug", "Warn", "Warn", "Error", "Error",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
         let task_name_vec = ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let task_desc_vec = ["Task 1", "Task 2", "Task 3", "Task 4", "Task 5", "Task 6", "Task 7", "Task 8"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
+        let task_desc_vec = [
+            "Task 1", "Task 2", "Task 3", "Task 4", "Task 5", "Task 6", "Task 7", "Task 8",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
         let task_assigned_vec = ["p1", "p2", "p3", "p4", "p1", "p2", "p3", "p4"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let task_ticket_vec = ["id-1", "id-2", "id-3", "id-4", "DataAnalysis", "DataAnalysis", "DataAnalysis", "DataAnalysis"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
+        let task_ticket_vec = [
+            "id-1",
+            "id-2",
+            "id-3",
+            "id-4",
+            "DataAnalysis",
+            "DataAnalysis",
+            "DataAnalysis",
+            "DataAnalysis",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
         let task_priority_vec = ["Low", "Low", "Low", "Low", "Low", "Low", "Low", "Low"]
             .into_iter()
             .map(|s| s.to_string())
@@ -84,12 +100,13 @@ mod tests {
 
         // Update the input with the dummy chart data
         let mut input_object = Map::new();
-        let _ =  input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
+        let _ = input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
         let kanban_template_inputs = serde_json::to_value(input_object)?;
 
         // Create and render the template with the inputs
-        let template = [MERMAID_HTML_PRE, MERMAID_KANBAN_TEMPLATE, MERMAID_HTML_POST].join("");   
-        let script_string = TableScript::new_from_template(template).apply_template(&kanban_template_inputs)?;
+        let template = [MERMAID_HTML_PRE, MERMAID_KANBAN_TEMPLATE, MERMAID_HTML_POST].join("");
+        let script_string =
+            TableScript::new_from_template(template).apply_template(&kanban_template_inputs)?;
 
         assert_eq!(
             script_string,

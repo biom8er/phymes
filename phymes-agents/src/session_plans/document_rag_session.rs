@@ -1,10 +1,18 @@
 use std::{sync::Arc, vec};
 
-use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait, TaskPlan,
-    DataFormat, TablePublish, AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe, Table, TableBuilder, TableBuilderTrait, 
-    ProcessorEcho, ProcessorTrait};
-use phymes_data::{AttachmentAggregatorProcessor, DataCastOperator, DataConfig,CandleDataProcessor, DataSummaryConfig, DataSummaryProcessor, AvailableCandleOperators};
-use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor, CandleEmbedConfig, CandleEmbedProcessor};
+use phymes_core::{
+    AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
+    BuilderTrait, DataFormat, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait,
+    SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
+};
+use phymes_data::{
+    AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator,
+    DataConfig, DataSummaryConfig, DataSummaryProcessor,
+};
+use phymes_ml::{
+    AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
+    CandleEmbedProcessor, MessageAggregatorProcessor,
+};
 #[cfg(feature = "openai_api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
 
@@ -185,7 +193,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 task_name: self.session_context_name.to_string(),
                 runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![self.session_context_name.to_string()],
-            }
+            },
         ];
 
         Some(tasks)
@@ -193,301 +201,294 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
-        let mut processors = Vec::new();
-
-        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
-            self.message_aggregator_processor_1_name,
-            &[TablePublish::Replace {
-                table_name: self.chat_task_name.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateFullTable {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TableSubscribe::OnUpdateFullTable {
-                    table_name: self.state_top_k_docs_table_name.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.message_aggregator_processor_1_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
-            self.message_aggregator_processor_2_name,
-            &[TablePublish::Extend {
-                table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.message_aggregator_processor_2_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(AttachmentAggregatorProcessor::new_arc_with_pub_sub(
-            self.attachment_aggregator_processor_name,
-            &[TablePublish::Extend {
-                table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
-                },
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.attachment_aggregator_processor_name.to_string(),
-                },
-            ],
-            AnyTableNameSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.message_to_query_processor_name,
-            &[TablePublish::Replace {
-                table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.message_to_query_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        if cfg!(not(feature = "candle")) {
-            #[cfg(feature = "openai_api")]
-            processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
-                self.chat_processor_name,
-                &[TablePublish::ExtendChunks {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                    col_name: "content".to_string(),
+        let processors = vec![
+            MessageAggregatorProcessor::new_arc_with_pub_sub(
+                self.message_aggregator_processor_1_name,
+                &[TablePublish::Replace {
+                    table_name: self.chat_task_name.to_string(),
                 }],
                 &[
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: self.chat_task_name.to_string(),
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscribe::None,
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: self.chat_processor_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ));
-        } else {
-            processors.push(CandleChatProcessor::new_arc_with_pub_sub(
-                self.chat_processor_name,
-                &[TablePublish::ExtendChunks {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                    col_name: "content".to_string(),
-                }],
-                &[
                     TableSubscribe::OnUpdateFullTable {
-                        table_name: self.chat_task_name.to_string(),
+                        table_name: self.state_top_k_docs_table_name.to_string(),
                     },
-                    TableSubscribe::None,
                     TableSubscribe::AlwaysFullTable {
-                        table_name: self.chat_processor_name.to_string(),
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.message_aggregator_processor_1_name.to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
-            ));
-        }
-
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.extract_pdf_processor_name,
-            &[TablePublish::Extend {
-                table_name: self.document_chunk_task_name.to_string(),
-            }],
-            &[
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.extract_pdf_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.document_chunk_processor_name,
-            &[TablePublish::Extend {
-                table_name: self.state_documents_table_name.to_string(),
-            }],
-            &[
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.document_chunk_task_name.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.document_chunk_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-
-        if cfg!(not(feature = "candle")) {
-            #[cfg(feature = "openai_api")]
-            processors.push(OpenAIEmbedProcessor::new_arc_with_pub_sub(
-                self.embed_documents_processor_name,
+            ),
+            MessageAggregatorProcessor::new_arc_with_pub_sub(
+                self.message_aggregator_processor_2_name,
                 &[TablePublish::Extend {
-                    table_name: self.state_doc_embed_table_name.to_string(),
+                    table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }],
                 &[
                     TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: self.state_documents_table_name.to_string(),
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: self.embed_documents_processor_name.to_string(),
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.message_aggregator_processor_2_name.to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
-            ));
-            #[cfg(feature = "openai_api")]
-            processors.push(OpenAIEmbedProcessor::new_arc_with_pub_sub(
-                self.embed_query_processor_name,
+            ),
+            AttachmentAggregatorProcessor::new_arc_with_pub_sub(
+                self.attachment_aggregator_processor_name,
                 &[TablePublish::Extend {
-                    table_name: self.state_q_embed_table_name.to_string(),
+                    table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }],
                 &[
                     TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                        table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: self.embed_query_processor_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ));
-        } else {
-            processors.push(CandleEmbedProcessor::new_arc_with_pub_sub(
-                self.embed_documents_processor_name,
-                &[TablePublish::Extend {
-                    table_name: self.state_doc_embed_table_name.to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: self.state_documents_table_name.to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: self.embed_documents_processor_name.to_string(),
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.attachment_aggregator_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
-            ));
-            processors.push(CandleEmbedProcessor::new_arc_with_pub_sub(
-                self.embed_query_processor_name,
-                &[TablePublish::Extend {
-                    table_name: self.state_q_embed_table_name.to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: self.embed_query_processor_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ));
-        }
-
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.relative_similarity_processor_name,
-            &[TablePublish::Replace {
-                table_name: self.state_scores_table_name.to_string(),
-            }],
-            &[
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.state_doc_embed_table_name.to_string(),
-                },
-                TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: self.state_q_embed_table_name.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.relative_similarity_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.sort_scores_processor_name,
-            &[TablePublish::Replace {
-                table_name: self.state_scores_table_name.to_string(),
-            }],
-            &[
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.sort_scores_processor_name.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.state_scores_table_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.join_chunks_processor_name,
-            &[TablePublish::Replace {
-                table_name: self.state_scores_chunks_join_table_name.to_string(),
-            }],
-            &[
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.state_documents_table_name.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.state_scores_table_name.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.join_chunks_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
-            self.top_k_processor_name,
-            &[TablePublish::Replace {
-                table_name: self.state_top_k_docs_table_name.to_string(),
-            }],
-            &[
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self.top_k_processor_name.to_string(),
-                },
-                TableSubscribe::AlwaysFullTable {
-                    table_name: self
-                        .state_scores_chunks_join_table_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(ProcessorEcho::new_arc_with_pub_sub(
-            self.session_context_name,
-            &[
-                TablePublish::Extend {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TablePublish::Extend {
-                    table_name: self.state_documents_table_name.to_string(),
-                },
-                TablePublish::Extend {
+                AnyTableNameSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.message_to_query_processor_name,
+                &[TablePublish::Replace {
                     table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
-                },
-                TablePublish::Extend {
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.message_to_query_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "openai_api")]
+            OpenAIChatProcessor::new_arc_with_pub_sub(
+                self.chat_processor_name,
+                &[TablePublish::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-            ],
-            &[TableSubscribe::OnUpdateLastRecordBatch {
-                table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-            }],
-            AllTableNamesSubscribe::new_box(),
-        ));
+                    col_name: "content".to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.chat_task_name.to_string(),
+                    },
+                    TableSubscribe::None,
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.chat_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "candle")]
+            CandleChatProcessor::new_arc_with_pub_sub(
+                self.chat_processor_name,
+                &[TablePublish::ExtendChunks {
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    col_name: "content".to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.chat_task_name.to_string(),
+                    },
+                    TableSubscribe::None,
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.chat_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.extract_pdf_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.document_chunk_task_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.extract_pdf_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.document_chunk_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.state_documents_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.document_chunk_task_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.document_chunk_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "openai_api")]
+            OpenAIEmbedProcessor::new_arc_with_pub_sub(
+                self.embed_documents_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.state_doc_embed_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: self.state_documents_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.embed_documents_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "openai_api")]
+            OpenAIEmbedProcessor::new_arc_with_pub_sub(
+                self.embed_query_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.state_q_embed_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.embed_query_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "candle")]
+            CandleEmbedProcessor::new_arc_with_pub_sub(
+                self.embed_documents_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.state_doc_embed_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: self.state_documents_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.embed_documents_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "candle")]
+            CandleEmbedProcessor::new_arc_with_pub_sub(
+                self.embed_query_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.state_q_embed_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.embed_query_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.relative_similarity_processor_name,
+                &[TablePublish::Replace {
+                    table_name: self.state_scores_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_doc_embed_table_name.to_string(),
+                    },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: self.state_q_embed_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.relative_similarity_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.sort_scores_processor_name,
+                &[TablePublish::Replace {
+                    table_name: self.state_scores_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.sort_scores_processor_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_scores_table_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.join_chunks_processor_name,
+                &[TablePublish::Replace {
+                    table_name: self.state_scores_chunks_join_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_documents_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_scores_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.join_chunks_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            DataSummaryProcessor::new_arc_with_pub_sub(
+                self.top_k_processor_name,
+                &[TablePublish::Replace {
+                    table_name: self.state_top_k_docs_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.top_k_processor_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_scores_chunks_join_table_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            ProcessorEcho::new_arc_with_pub_sub(
+                self.session_context_name,
+                &[
+                    TablePublish::Extend {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    },
+                    TablePublish::Extend {
+                        table_name: self.state_documents_table_name.to_string(),
+                    },
+                    TablePublish::Extend {
+                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                    },
+                    TablePublish::Extend {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                ],
+                &[TableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                }],
+                AllTableNamesSubscribe::new_box(),
+            ),
+        ];
 
         Some(processors)
     }
@@ -807,7 +808,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .unwrap();
 
         Some(vec![
-            candle_chat_state, 
+            candle_chat_state,
             candle_doc_embed_state,
             candle_query_embed_state,
             aggregator_1_state,
@@ -820,20 +821,48 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             sort_scores_state,
             join_chunks_state,
             top_k_state,
-            AvailableSubjects::Messages.to_table(Some(self.chat_task_name), None).unwrap(),
-            AvailableInterfaceSubjects::AggregatedMessages.to_table(None, None).unwrap(),
-            AvailableInterfaceSubjects::UserMessages.to_table(None, None).unwrap(),
-            AvailableInterfaceSubjects::AssistantMessages.to_table(None, None).unwrap(),
-            AvailableSubjects::Messages.to_table(Some(self.state_top_k_docs_table_name), None).unwrap(),
-            AvailableInterfaceSubjects::UserPdf.to_table(None, None).unwrap(),
-            AvailableSubjects::Documents.to_table(Some(self.state_documents_table_name), None).unwrap(),
-            AvailableSubjects::Documents.to_table(Some(self.document_chunk_task_name), None).unwrap(),
-            AvailableInterfaceSubjects::UserQueries.to_table(None, None).unwrap(),
-            AvailableSubjects::DocumentEmbeddings.to_table(Some(self.state_doc_embed_table_name), None).unwrap(), 
-            AvailableSubjects::QueryEmbeddings.to_table(Some(self.state_q_embed_table_name), None).unwrap(),       
-            AvailableSubjects::EmbeddingScores.to_table(Some(self.state_scores_table_name), None).unwrap(),         
-            AvailableSubjects::JoinChunksScores.to_table(Some(self.state_scores_chunks_join_table_name), None).unwrap(),
-            AvailableInterfaceSubjects::AggregatedAttachments.to_table(None, None).unwrap(),
+            AvailableSubjects::Messages
+                .to_table(Some(self.chat_task_name), None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AggregatedMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::UserMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AssistantMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableSubjects::Messages
+                .to_table(Some(self.state_top_k_docs_table_name), None)
+                .unwrap(),
+            AvailableInterfaceSubjects::UserPdf
+                .to_table(None, None)
+                .unwrap(),
+            AvailableSubjects::Documents
+                .to_table(Some(self.state_documents_table_name), None)
+                .unwrap(),
+            AvailableSubjects::Documents
+                .to_table(Some(self.document_chunk_task_name), None)
+                .unwrap(),
+            AvailableInterfaceSubjects::UserQueries
+                .to_table(None, None)
+                .unwrap(),
+            AvailableSubjects::DocumentEmbeddings
+                .to_table(Some(self.state_doc_embed_table_name), None)
+                .unwrap(),
+            AvailableSubjects::QueryEmbeddings
+                .to_table(Some(self.state_q_embed_table_name), None)
+                .unwrap(),
+            AvailableSubjects::EmbeddingScores
+                .to_table(Some(self.state_scores_table_name), None)
+                .unwrap(),
+            AvailableSubjects::JoinChunksScores
+                .to_table(Some(self.state_scores_chunks_join_table_name), None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AggregatedAttachments
+                .to_table(None, None)
+                .unwrap(),
         ])
     }
 }
@@ -857,12 +886,16 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{BlobBuilderTraitExt, ChatBuilderTraitExt, BuildableTrait, MappableTrait, SessionStream, SessionStreamState, 
-        TableTrait, IPCMessage, MessageBuilderTrait, MessageTrait};
+    use phymes_core::{
+        BlobBuilderTraitExt, BuildableTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
+        MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState, TableTrait,
+    };
     use phymes_data::make_pdf_document;
     use phymes_diagnostics::HashMap;
 
-    use crate::{session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait};
+    use crate::{
+        session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait,
+    };
 
     use super::*;
 
@@ -892,23 +925,29 @@ mod tests {
         pdf.save_to(&mut bytes)?;
 
         // Wrap into the message
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages
+            .to_table_builder(None)
             .append_new_user_query_str("What are the four molecules that compose DNA?", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublish::Extend { table_name: chat.get_name().to_string() })
+            .with_update(&TablePublish::Extend {
+                table_name: chat.get_name().to_string(),
+            })
             .with_publisher(doc_rag_session.session_context_name)
             .make_name()?
             .build()?;
-        let blob = AvailableInterfaceSubjects::UserPdf.to_table_builder(None)
+        let blob = AvailableInterfaceSubjects::UserPdf
+            .to_table_builder(None)
             .with_blob(None, Some(".pdf"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublish::Extend { table_name: blob.get_name().to_string() })
+            .with_update(&TablePublish::Extend {
+                table_name: blob.get_name().to_string(),
+            })
             .with_publisher(doc_rag_session.session_context_name)
             .make_name()?
             .build()?;
@@ -924,8 +963,7 @@ mod tests {
             // Embed the documents
             let message_map = create_message_map(vec![blob_message]);
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
-            let _response: Vec<HashMap<String, IPCMessage>> =
-                session_stream.try_collect().await?;
+            let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             // Embed the query and invoke a response
             let message_map = create_message_map(vec![chat_message]);

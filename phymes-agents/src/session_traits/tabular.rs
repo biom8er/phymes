@@ -7,14 +7,17 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch,
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
-    from_data_type_to_str, from_str_to_data_type, TablePublish, from_str_to_subscribe, TableSubscribe, Table, TableBuilderTrait, TableTrait, ProcessorBuilder};
-use phymes_diagnostics::{create_timestamp_micros, HashSet};
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    ProcessorBuilder, RuntimeEnv, RuntimeEnvTrait, SessionContextBuilder,
+    SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
+    TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch,
+    create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch,
+    from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe,
+};
+use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
 use crate::{
-    session_plans::AvailableProcessors,
-    session_traits::SessionContextBuilderMermaidTrait,
+    session_plans::AvailableProcessors, session_traits::SessionContextBuilderMermaidTrait,
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
@@ -129,26 +132,25 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // extract the schema
         for table in tables {
-            if table.get_name() == AvailableSubjects::SessionSubjects.to_string().as_str() && state.is_none()
+            if table.get_name() == AvailableSubjects::SessionSubjects.to_string().as_str()
+                && state.is_none()
             {
                 builder = builder.with_subjects_as_tables(table)?;
             } else if table.get_name() == AvailableSubjects::SessionTasks.to_string().as_str() {
                 builder = builder.with_tasks_as_tables(table)?;
-            } else if table.get_name() == AvailableSubjects::SessionProcessors.to_string().as_str() {
+            } else if table.get_name() == AvailableSubjects::SessionProcessors.to_string().as_str()
+            {
                 builder = builder.with_processors_as_tables(table)?;
-            } else if table.get_name() == AvailableSubjects::SessionRuntimeEnvs.to_string().as_str() {
+            } else if table.get_name() == AvailableSubjects::SessionRuntimeEnvs.to_string().as_str()
+            {
                 builder = builder.with_runtime_envs_as_tables(table)?;
-            } else if table.get_name() == AvailableSubjects::SessionMermaid.to_string().as_str() {
-                continue;
-            } else if table.get_name() == AvailableSubjects::SessionErrors.to_string().as_str() {
-                continue;
-            } else if table.get_name() == AvailableSubjects::SessionTraces.to_string().as_str() {
-                continue;
-            } else if table.get_name() == AvailableSubjects::SessionMetrics.to_string().as_str() {
-                continue;
-            } else if table.get_name() == AvailableSubjects::SessionEvents.to_string().as_str() {
-                continue;
-            } else if table.get_name() == AvailableSubjects::MetricPivot.to_string().as_str() {
+            } else if table.get_name() == AvailableSubjects::SessionMermaid.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionErrors.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionTraces.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionMetrics.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionEvents.to_string().as_str()
+                || table.get_name() == AvailableSubjects::MetricPivot.to_string().as_str()
+            {
                 continue;
             } else {
                 return Err(anyhow!(
@@ -264,7 +266,14 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // create the record batch
-        let batch = create_session_processors_batch(processor_names, processor_types, pub_sub_name, pub_sub_table_names, subscribe_types, is_sub)?;
+        let batch = create_session_processors_batch(
+            processor_names,
+            processor_types,
+            pub_sub_name,
+            pub_sub_table_names,
+            subscribe_types,
+            is_sub,
+        )?;
 
         // create the table
         Table::get_builder()
@@ -300,7 +309,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // create the record batch
-        let batch = create_session_runtime_envs_batch(runtime_env_names, memory_limits, time_limits)?;
+        let batch =
+            create_session_runtime_envs_batch(runtime_env_names, memory_limits, time_limits)?;
 
         // create the table
         Table::get_builder()
@@ -317,10 +327,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // create the record batch
         let batch = create_session_mermaid_batch(
-            vec![session_context_name], 
-            vec![flowchart_diagram], 
-            vec![er_diagram], 
-            vec![timestamp])?;
+            vec![session_context_name],
+            vec![flowchart_diagram],
+            vec![er_diagram],
+            vec![timestamp],
+        )?;
 
         // create the table
         Table::get_builder()
@@ -470,7 +481,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             }
             let available_processor = AvailableProcessors::from_str(
                 builder.processor_type.as_ref().unwrap().as_str(),
-                false
+                false,
             )
             .unwrap();
             let processor = available_processor.build_with_builder(builder)?;
@@ -528,7 +539,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{test_session_context_builder::make_test_session_builder_parallel_task, test_task::{make_runtime_env, make_state_tables}};
+    use phymes_core::{
+        test_session_context_builder::make_test_session_builder_parallel_task,
+        test_task::{make_runtime_env, make_state_tables},
+    };
 
     use super::*;
 
@@ -772,24 +786,15 @@ mod tests {
                 .get(4)
                 .unwrap()
                 .get_column_as_vec_str("er_diagram"),
-            tables
-                .get(4)
-                .unwrap()
-                .get_column_as_vec_str("er_diagram")
-        );        
+            tables.get(4).unwrap().get_column_as_vec_str("er_diagram")
+        );
         assert_eq!(
             tables_test.get(5).unwrap().get_name(),
             tables.get(5).unwrap().get_name()
         );
         assert_eq!(
-            tables_test
-                .get(5)
-                .unwrap()
-                .get_column_as_vec_str("error"),
-            tables
-                .get(5)
-                .unwrap()
-                .get_column_as_vec_str("error")
+            tables_test.get(5).unwrap().get_column_as_vec_str("error"),
+            tables.get(5).unwrap().get_column_as_vec_str("error")
         );
 
         Ok(())

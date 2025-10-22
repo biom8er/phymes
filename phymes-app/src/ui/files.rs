@@ -1,5 +1,9 @@
 use dioxus::prelude::*;
-use phymes_core::{create_blob_batch, BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, Table, TableBuilderTrait, TableTrait, MessageBuilderTrait};
+use phymes_core::{
+    create_blob_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
+    SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, Table, TableBuilderTrait,
+    TablePublish, TableTrait,
+};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
 
@@ -23,18 +27,30 @@ use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
 use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
-use crate::state::{ACTIVE_SESSION_NAME, extension_and_file_to_data_href, extension_to_icon_svg, extension_to_subject, filename_and_extension_to_download, EMAIL, JWT, 
-    svg_icons::{b8_send_icon_svg, fa_trash_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_document_text_icon_svg}
+use crate::state::{
+    extension_and_file_to_data_href, extension_to_icon_svg, extension_to_subject,
+    filename_and_extension_to_download,
+    svg_icons::{
+        b8_send_icon_svg, fa_trash_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg,
+        ms_cloud_arrow_up_icon_svg, ms_document_text_icon_svg,
+    },
+    ACTIVE_SESSION_NAME, EMAIL, JWT,
 };
 
 #[component]
-pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<String>, active_subject_name: Option<Signal<String>>, mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
+pub fn attach_files_input(
+    extend_publish: Signal<bool>,
+    except_files: Signal<String>,
+    active_subject_name: Option<Signal<String>>,
+    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut filenames_uploaded: Signal<Vec<String>>,
+    mut extensions_uploaded: Signal<Vec<String>>,
+) -> Element {
     let enable_directory_upload = use_signal(|| false);
 
     let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublish| async move {
         let files = file_engine.files();
         for file_name in &files {
-
             // Determine the file type
             let file_path = std::path::Path::new(file_name);
             match file_path.extension() {
@@ -43,7 +59,6 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
                     Ok(data_format) => {
                         // if let Some(contents) = file_engine.read_file_to_string(file_name).await {
                         if let Some(contents) = file_engine.read_file(file_name).await {
-
                             // Determine the subject based on the file extension if no active subject is set
                             let extension = ext.to_str().unwrap();
                             let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
@@ -63,28 +78,42 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
                                         vec![contents],
                                         vec!["user".to_string()],
                                         vec![create_timestamp_micros()],
-                                    ).unwrap();
+                                    )
+                                    .unwrap();
                                     let message = Table::get_builder()
                                         .with_name(subject_name.as_str())
-                                        .with_record_batches(vec![batch]).unwrap()
-                                        .build().unwrap()
-                                        .to_ipc_stream().unwrap();
+                                        .with_record_batches(vec![batch])
+                                        .unwrap()
+                                        .build()
+                                        .unwrap()
+                                        .to_ipc_stream()
+                                        .unwrap();
                                     (message, DataFormat::Ipc)
                                 }
                             };
 
                             // Update the publish method
                             let publish = match publish {
-                                TablePublish::Extend {..} => TablePublish::Extend { table_name: subject_name.clone() },
-                                TablePublish::Replace {..} => TablePublish::Replace { table_name: subject_name.clone() },
+                                TablePublish::Extend { .. } => TablePublish::Extend {
+                                    table_name: subject_name.clone(),
+                                },
+                                TablePublish::Replace { .. } => TablePublish::Replace {
+                                    table_name: subject_name.clone(),
+                                },
                                 _ => TablePublish::None,
                             };
 
                             // Create the message to upload
                             let data = SessionInterfaceMessage::get_builder()
-                                .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                .with_session_name(&create_session_name(
+                                    EMAIL().as_str(),
+                                    ACTIVE_SESSION_NAME().as_str(),
+                                ))
                                 .with_format(&format)
-                                .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                .with_publisher(&create_session_name(
+                                    EMAIL().as_str(),
+                                    ACTIVE_SESSION_NAME().as_str(),
+                                ))
                                 .with_update(&publish)
                                 .with_stream(false)
                                 .with_subject(&subject_name)
@@ -108,7 +137,9 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
         if let Some(file_engine) = evt.files() {
             read_files(
                 file_engine,
-                TablePublish::Extend { table_name: "".to_string() }
+                TablePublish::Extend {
+                    table_name: "".to_string(),
+                },
             )
             .await;
         }
@@ -118,7 +149,9 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
         if let Some(file_engine) = evt.files() {
             read_files(
                 file_engine,
-                TablePublish::Replace { table_name: "".to_string() }
+                TablePublish::Replace {
+                    table_name: "".to_string(),
+                },
             )
             .await;
         }
@@ -133,7 +166,7 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
                 multiple: true,
                 id: "textread_extend",
                 directory: enable_directory_upload,
-                onchange: upload_files_extend,                
+                onchange: upload_files_extend,
             },
         } else {
             label { r#for: "textread_add", svg { dangerous_inner_html: ms_cloud_arrow_up_icon_svg() } }
@@ -144,13 +177,16 @@ pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<Str
                 id: "textread_add",
                 directory: enable_directory_upload,
                 onchange: upload_files_replace,
-            }                
+            }
         },
     }
 }
 
 #[component]
-pub fn attach_textfiles_input(except_files: Signal<String>, mut content: Signal<String>) -> Element {
+pub fn attach_textfiles_input(
+    except_files: Signal<String>,
+    mut content: Signal<String>,
+) -> Element {
     let enable_directory_upload = use_signal(|| false);
 
     let read_files = move |file_engine: Arc<dyn FileEngine>| async move {
@@ -176,13 +212,17 @@ pub fn attach_textfiles_input(except_files: Signal<String>, mut content: Signal<
             multiple: true,
             id: "textread",
             directory: enable_directory_upload,
-            onchange: upload_files,                
+            onchange: upload_files,
         },
     }
 }
 
 #[component]
-pub fn upload_files_list(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
+pub fn upload_files_list(
+    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut filenames_uploaded: Signal<Vec<String>>,
+    mut extensions_uploaded: Signal<Vec<String>>,
+) -> Element {
     rsx! {
         div {
             p { "Files to upload" },
@@ -210,7 +250,11 @@ pub fn upload_files_list(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>
 }
 
 #[component]
-pub fn upload_files_button(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
+pub fn upload_files_button(
+    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut filenames_uploaded: Signal<Vec<String>>,
+    mut extensions_uploaded: Signal<Vec<String>>,
+) -> Element {
     rsx! {
         button {
             onclick: move |_| async move {
@@ -272,7 +316,11 @@ pub fn upload_files_button(mut files_uploaded: Signal<Vec<SessionInterfaceMessag
 }
 
 #[component]
-pub fn clear_upload_files_button(mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {
+pub fn clear_upload_files_button(
+    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut filenames_uploaded: Signal<Vec<String>>,
+    mut extensions_uploaded: Signal<Vec<String>>,
+) -> Element {
     rsx! {
         button {
             onclick: move |_| {
@@ -286,7 +334,13 @@ pub fn clear_upload_files_button(mut files_uploaded: Signal<Vec<SessionInterface
 }
 
 #[component]
-pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_name: Signal<String>, mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
+pub fn download_files_button(
+    data_format: Signal<DataFormat>,
+    active_subject_name: Signal<String>,
+    mut files_downloaded: Signal<Vec<Vec<u8>>>,
+    mut filenames_downloaded: Signal<Vec<String>>,
+    mut extensions_downloaded: Signal<Vec<String>>,
+) -> Element {
     rsx! {
         button {
             class: "dropdown_form_button",
@@ -364,7 +418,11 @@ pub fn download_files_button(data_format: Signal<DataFormat>, active_subject_nam
 }
 
 #[component]
-pub fn download_files_list(mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
+pub fn download_files_list(
+    mut files_downloaded: Signal<Vec<Vec<u8>>>,
+    mut filenames_downloaded: Signal<Vec<String>>,
+    mut extensions_downloaded: Signal<Vec<String>>,
+) -> Element {
     rsx! {
         div {
             class: "files",
@@ -395,8 +453,11 @@ pub fn download_files_list(mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filen
 }
 
 #[component]
-pub fn clear_download_files_button(mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
-
+pub fn clear_download_files_button(
+    mut files_downloaded: Signal<Vec<Vec<u8>>>,
+    mut filenames_downloaded: Signal<Vec<String>>,
+    mut extensions_downloaded: Signal<Vec<String>>,
+) -> Element {
     rsx! {
         button {
             onclick: move |_| {

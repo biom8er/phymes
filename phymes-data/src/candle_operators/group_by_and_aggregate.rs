@@ -12,15 +12,16 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
-    MappableTrait, BuildableTrait, BuilderTrait, Table, TableBuilderTrait, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+};
 use tracing::instrument;
 
 use crate::{
     candle_data::{DataAggregatorOperator, DataConfig},
     candle_operators::{
-        data_operator::DataOperatorTrait,
-        sort_column_and_indices::sort_column_and_indices,
+        data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices,
     },
 };
 
@@ -66,9 +67,9 @@ impl DataOperatorTrait for GroupByAndAggregate {
     }
     fn new(config: &DataConfig) -> Self {
         let lhs_values = config.lhs_values.to_owned();
-        let agg_columns = config.agg_columns.clone().unwrap_or(Vec::new());
-        let agg_operators = config.agg_operators.clone().unwrap_or(Vec::new());
-        
+        let agg_columns = config.agg_columns.clone().unwrap_or_default();
+        let agg_operators = config.agg_operators.clone().unwrap_or_default();
+
         GroupByAndAggregate {
             lhs_values,
             agg_columns,
@@ -130,10 +131,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
 }
 
 /// Partition a lexocographically sorted slice of [RecordBatch]es
-fn partition_record_batches(
-    lhs_values: &[&str],
-    lhs_table: &Table,
-) -> Result<Vec<Range<usize>>> {
+fn partition_record_batches(lhs_values: &[&str], lhs_table: &Table) -> Result<Vec<Range<usize>>> {
     let mut columns = Vec::new();
     for column_name in lhs_values.iter() {
         columns.push(lhs_table.get_column_as_array(column_name));
@@ -315,7 +313,10 @@ where
 }
 
 /// Helper function to create the new aggregation column name based on the original column name plus the aggregation operator
-pub(crate) fn create_agg_column_name(agg_column: &str, agg_operator: &DataAggregatorOperator) -> String {    
+pub(crate) fn create_agg_column_name(
+    agg_column: &str,
+    agg_operator: &DataAggregatorOperator,
+) -> String {
     format!("{agg_column}-{agg_operator}")
 }
 
@@ -328,7 +329,7 @@ pub(crate) fn create_agg_column_name(agg_column: &str, agg_operator: &DataAggreg
 /// * `agg_columns` - Slice of Strings for the aggregation columns
 /// * `agg_operators` - Slice of [DataAggregatorOperator]s specifying the aggregator operator to apply to each agg_column
 /// * `device` - The compute device
-#[instrument(skip(lhs_values,lhs_args,agg_columns,agg_operators,device))]
+#[instrument(skip(lhs_values, lhs_args, agg_columns, agg_operators, device))]
 pub fn group_by_and_aggregate(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
@@ -725,7 +726,7 @@ pub fn group_by_and_aggregate(
                 ));
             }
         };
-        let columns_name = create_agg_column_name(&agg_column, agg_operator);
+        let columns_name = create_agg_column_name(agg_column, agg_operator);
         batch_vec.push((columns_name, lhs_agg));
     }
 

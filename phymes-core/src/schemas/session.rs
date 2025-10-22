@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
-use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt32Array, UInt64Array, UInt8Array}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
+use arrow::{
+    array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array, UInt64Array},
+    datatypes::{DataType, Field, Fields},
+};
 
 pub(crate) fn create_session_subjects_fields() -> Fields {
     let field_names = ["subject_name", "column_name", "type_name"];
@@ -35,10 +38,12 @@ pub(crate) fn create_session_subjects_num_rows_fields() -> Fields {
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
     let field_names = ["num_rows"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::UInt64, false))
-        .collect::<Vec<_>>());
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt64, false))
+            .collect::<Vec<_>>(),
+    );
     Fields::from(fields_vec)
 }
 
@@ -81,16 +86,24 @@ pub fn create_session_tasks_batch(
 }
 
 pub(crate) fn create_session_processors_fields() -> Fields {
-    let field_names = ["processor_name", "processor_type", "publication_subscription_name", "publication_subscription_table_names", "subscribe_type"];
+    let field_names = [
+        "processor_name",
+        "processor_type",
+        "publication_subscription_name",
+        "publication_subscription_table_names",
+        "subscribe_type",
+    ];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
     let field_names = ["is_subscription"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::UInt8, false))
-        .collect::<Vec<_>>());
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt8, false))
+            .collect::<Vec<_>>(),
+    );
     Fields::from(fields_vec)
 }
 
@@ -126,10 +139,12 @@ pub(crate) fn create_session_runtime_envs_fields() -> Fields {
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
     let field_names = ["memory_limit", "time_limit"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::UInt32, false))
-        .collect::<Vec<_>>());
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt32, false))
+            .collect::<Vec<_>>(),
+    );
     Fields::from(fields_vec)
 }
 
@@ -138,13 +153,13 @@ pub fn create_session_runtime_envs_batch(
     memory_limits: Vec<u32>,
     time_limits: Vec<u32>,
 ) -> Result<RecordBatch> {
-        let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
-        let memory_limits: ArrayRef = Arc::new(UInt32Array::from(memory_limits));
-        let time_limits: ArrayRef = Arc::new(UInt32Array::from(time_limits));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("runtime_env_name", runtime_env_names),
-            ("memory_limit", memory_limits),
-            ("time_limit", time_limits),
-        ])?;
+    let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
+    let memory_limits: ArrayRef = Arc::new(UInt32Array::from(memory_limits));
+    let time_limits: ArrayRef = Arc::new(UInt32Array::from(time_limits));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("runtime_env_name", runtime_env_names),
+        ("memory_limit", memory_limits),
+        ("time_limit", time_limits),
+    ])?;
     Ok(batch)
 }

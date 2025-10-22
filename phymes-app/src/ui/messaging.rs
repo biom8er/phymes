@@ -10,7 +10,11 @@ use serde_json::{self, Map, Value};
 use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
-use phymes_core::{AvailableSubjectsTrait, ChatBuilderTraitExt, BuildableTrait, BuilderTrait, MappableTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, TableTrait, MessageBuilderTrait};
+use phymes_core::{
+    AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat,
+    MappableTrait, MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
+    SessionInterfaceMessageBuilderTrait, TablePublish, TableTrait,
+};
 use phymes_server::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
@@ -28,8 +32,14 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 // mod imports
 use crate::{
-    state::{ACTIVE_SESSION_NAME, update_message_content_state, update_message_state, EMAIL, JWT, svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg}},
-    ui::attach_textfiles_input};
+    state::{
+        svg_icons::{
+            aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg,
+        },
+        update_message_content_state, update_message_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
+    },
+    ui::attach_textfiles_input,
+};
 
 /// View for messaging between the user and AI assistant
 #[component]
@@ -41,13 +51,20 @@ pub fn messaging_interface_view() -> Element {
     let messaging_timestamps = use_signal(Vec::<i64>::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
-        .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_format(&DataFormat::Bytes)
-        .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_update(&TablePublish::None)
-        .with_stream(false)
-    );
+    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
+        SessionInterfaceMessage::get_builder()
+            .with_session_name(&create_session_name(
+                EMAIL().as_str(),
+                ACTIVE_SESSION_NAME().as_str(),
+            ))
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(&create_session_name(
+                EMAIL().as_str(),
+                ACTIVE_SESSION_NAME().as_str(),
+            ))
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+    });
 
     // Get the last 25 messages for the messages view
     let got_messages = use_memo(move || !messaging_roles().is_empty());
@@ -58,7 +75,11 @@ pub fn messaging_interface_view() -> Element {
         }
 
         let data = get_session_state()
-            .with_subject(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+            .with_subject(
+                AvailableInterfaceSubjects::AggregatedMessages
+                    .to_string()
+                    .as_str(),
+            )
             .make_name()
             .unwrap()
             .build()
@@ -83,36 +104,36 @@ pub fn messaging_interface_view() -> Element {
                     let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!(
-                                "There was a error parsing messages {err}."
-                            );
+                            tracing::error!("There was a error parsing messages {err}.");
                             Vec::new()
                         });
                     if json_rows.is_empty() {
-                        // initialize the first message (if the are no messages for the session)          
+                        // initialize the first message (if the are no messages for the session)
 
                         use phymes_diagnostics::create_timestamp_micros;
-                        update_message_state(messaging_roles, 
-                            messaging_contents, 
-                            messaging_indices, 
+                        update_message_state(messaging_roles,
+                            messaging_contents,
+                            messaging_indices,
                             messaging_timestamps,
-                            "assistant", 
+                            "assistant",
                             "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊", 
                             create_timestamp_micros());
                     } else {
                         // append the messages to the state
                         for row in json_rows.iter() {
                             if row.get("role").is_some() {
-                                update_message_state(messaging_roles, 
-                                    messaging_contents, 
-                                    messaging_indices, 
+                                update_message_state(
+                                    messaging_roles,
+                                    messaging_contents,
+                                    messaging_indices,
                                     messaging_timestamps,
-                                    row.get("role").unwrap().as_str().unwrap(), 
-                                    row.get("content").unwrap().as_str().unwrap(), 
-                                    row.get("timestamp").unwrap().as_i64().unwrap());
+                                    row.get("role").unwrap().as_str().unwrap(),
+                                    row.get("content").unwrap().as_str().unwrap(),
+                                    row.get("timestamp").unwrap().as_i64().unwrap(),
+                                );
                             }
                         }
-                    }                    
+                    }
                 }
             }
             Err(err) => {
@@ -120,14 +141,16 @@ pub fn messaging_interface_view() -> Element {
 
                 tracing::error!("{err:?}");
 
-                // initialize the first message         
-                update_message_state(messaging_roles, 
-                    messaging_contents, 
-                    messaging_indices, 
+                // initialize the first message
+                update_message_state(
+                    messaging_roles,
+                    messaging_contents,
+                    messaging_indices,
                     messaging_timestamps,
-                    "assistant", 
-                    "Messaging is not enabled for this app 😞.", 
-                    create_timestamp_micros());
+                    "assistant",
+                    "Messaging is not enabled for this app 😞.",
+                    create_timestamp_micros(),
+                );
             }
         }
 
@@ -153,10 +176,10 @@ pub fn messaging_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     if json_rows.is_empty() {
-                        // initialize the first message (if the are no messages for the session)          
-                        update_message_state(messaging_roles, 
-                            messaging_contents, 
-                            messaging_indices, 
+                        // initialize the first message (if the are no messages for the session)
+                        update_message_state(messaging_roles,
+                            messaging_contents,
+                            messaging_indices,
                             messaging_timestamps,
                             "assistant", 
                             "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊", 
@@ -165,13 +188,15 @@ pub fn messaging_interface_view() -> Element {
                         // append the messages to the state
                         for row in json_rows.iter() {
                             if row.get("role").is_some() {
-                                update_message_state(messaging_roles, 
-                                    messaging_contents, 
-                                    messaging_indices, 
+                                update_message_state(
+                                    messaging_roles,
+                                    messaging_contents,
+                                    messaging_indices,
                                     messaging_timestamps,
-                                    row.get("role").unwrap().as_str().unwrap(), 
-                                    row.get("content").unwrap().as_str().unwrap(), 
-                                    row.get("timestamp").unwrap().as_i64().unwrap());
+                                    row.get("role").unwrap().as_str().unwrap(),
+                                    row.get("content").unwrap().as_str().unwrap(),
+                                    row.get("timestamp").unwrap().as_i64().unwrap(),
+                                );
                             }
                         }
                     }
@@ -180,14 +205,16 @@ pub fn messaging_interface_view() -> Element {
             Err(err) => {
                 tracing::error!("{err:?}");
 
-                // initialize the first message        
-                update_message_state(messaging_roles, 
-                    messaging_contents, 
-                    messaging_indices, 
+                // initialize the first message
+                update_message_state(
+                    messaging_roles,
+                    messaging_contents,
+                    messaging_indices,
                     messaging_timestamps,
-                    "assistant", 
+                    "assistant",
                     "Messaging is not enabled for this app 😞.",
-                    create_timestamp_micros());
+                    create_timestamp_micros(),
+                );
             }
         }
     });
@@ -248,7 +275,12 @@ pub fn messaging_interface_view() -> Element {
 }
 
 #[component]
-pub fn messaging_interface_footer(mut messaging_roles: Signal<Vec<String>>, mut messaging_contents: Signal<Vec<String>>, mut messaging_indices: Signal<Vec<usize>>, mut messaging_timestamps: Signal<Vec<i64>>) -> Element {
+pub fn messaging_interface_footer(
+    mut messaging_roles: Signal<Vec<String>>,
+    mut messaging_contents: Signal<Vec<String>>,
+    mut messaging_indices: Signal<Vec<usize>>,
+    mut messaging_timestamps: Signal<Vec<i64>>,
+) -> Element {
     let mut prompt = use_signal(String::new);
 
     rsx! {
@@ -281,21 +313,21 @@ pub fn messaging_interface_footer(mut messaging_roles: Signal<Vec<String>>, mut 
                     button {
                         onclick: move |_| async move {
                             // signed in and ready to chat
-                            update_message_state(messaging_roles, 
-                                messaging_contents, 
-                                messaging_indices, 
+                            update_message_state(messaging_roles,
+                                messaging_contents,
+                                messaging_indices,
                                 messaging_timestamps,
-                                "user", 
-                                &prompt(), 
+                                "user",
+                                &prompt(),
                                 create_timestamp_micros());
 
                             // let the user know that the response is being prepared
-                            update_message_state(messaging_roles, 
-                                messaging_contents, 
-                                messaging_indices, 
+                            update_message_state(messaging_roles,
+                                messaging_contents,
+                                messaging_indices,
                                 messaging_timestamps,
-                                "assistant", 
-                                "Preparing response...", 
+                                "assistant",
+                                "Preparing response...",
                                 create_timestamp_micros());
 
                             // create the message

@@ -3,9 +3,15 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_agents::{create_message_map, AvailableInterfaceSubjects, DocumentRAGSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
-use phymes_core::{AvailableSubjectsTrait, AvailableSubjects, BlobBuilderTraitExt, ChatBuilderTraitExt, QueriesBuilderTraitExt, BuildableTrait, BuilderTrait, MappableTrait, 
-    SessionStream, SessionStreamState, TablePublish, Table, TableBuilderTrait, TableTrait, IPCMessage, MessageBuilderTrait};
+use phymes_agents::{
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession,
+    SessionContextBuilderAgentsTrait, create_message_map,
+};
+use phymes_core::{
+    AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait,
+    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, QueriesBuilderTraitExt,
+    SessionStream, SessionStreamState, Table, TableBuilderTrait, TablePublish, TableTrait,
+};
 use phymes_data::make_pdf_document;
 use phymes_diagnostics::HashMap;
 
@@ -30,7 +36,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     let mut bytes_2 = Vec::new();
     pdf.save_to(&mut bytes_2).unwrap();
 
-    let bytes_vec = [("short", bytes_1), ("long",bytes_2)];
+    let bytes_vec = [("short", bytes_1), ("long", bytes_2)];
     let user_query = "What are the four molecules that compose DNA?";
 
     // Get the target and GPU configuration
@@ -139,45 +145,56 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .build()
                     .unwrap();
                 let _messages = rt.block_on(async {
-                    let blob = AvailableInterfaceSubjects::UserPdf.to_table_builder(None)
+                    let blob = AvailableInterfaceSubjects::UserPdf
+                        .to_table_builder(None)
                         .with_blob(None, Some(".pdf"), bytes, None)?
                         .build()?;
                     let blob_message = IPCMessage::get_builder()
                         .with_message(blob.to_ipc_stream()?)
                         .with_subject(blob.get_name())
-                        .with_update(&TablePublish::Extend { table_name: blob.get_name().to_string() })
+                        .with_update(&TablePublish::Extend {
+                            table_name: blob.get_name().to_string(),
+                        })
                         .with_publisher(session_context_name.as_str())
                         .make_name()?
                         .build()?;
                     let message_map = create_message_map(vec![blob_message]);
-                    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+                    let session_stream =
+                        SessionStream::new(message_map, Arc::clone(&session_stream_state));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
                 });
                 let _messages = rt.block_on(async {
-                    let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+                    let chat = AvailableInterfaceSubjects::UserMessages
+                        .to_table_builder(None)
                         .append_new_user_query_str(user_query, "user")?
                         .build()?;
                     let chat_message = IPCMessage::get_builder()
                         .with_message(chat.to_ipc_stream()?)
                         .with_subject(chat.get_name())
-                        .with_update(&TablePublish::Extend { table_name: chat.get_name().to_string() })
+                        .with_update(&TablePublish::Extend {
+                            table_name: chat.get_name().to_string(),
+                        })
                         .with_publisher(session_context_name.as_str())
                         .make_name()?
                         .build()?;
-                    let query = AvailableInterfaceSubjects::UserQueries.to_table_builder(None)
+                    let query = AvailableInterfaceSubjects::UserQueries
+                        .to_table_builder(None)
                         .with_text(user_query)?
                         .build()?;
                     let query_message = IPCMessage::get_builder()
                         .with_message(query.to_ipc_stream()?)
                         .with_subject(query.get_name())
-                        .with_update(&TablePublish::Extend { table_name: query.get_name().to_string() })
+                        .with_update(&TablePublish::Extend {
+                            table_name: query.get_name().to_string(),
+                        })
                         .with_publisher(session_context_name.as_str())
                         .make_name()?
                         .build()?;
                     let message_map = create_message_map(vec![chat_message, query_message]);
-                    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+                    let session_stream =
+                        SessionStream::new(message_map, Arc::clone(&session_stream_state));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
@@ -200,7 +217,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .unwrap()
                     .with_name(sample_id.as_str())
                     .build()
-                    .unwrap();                
+                    .unwrap();
                 metrics_vec.push(table);
 
                 // Increment the iteration counter

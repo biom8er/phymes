@@ -10,9 +10,15 @@ use parking_lot::RwLock;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
-use phymes_agents::{create_message_map, AvailableInterfaceSubjects, UserSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
-use phymes_core::{AvailableSubjectsTrait, BlobBuilderTraitExt, create_user_inbox_batch, BuildableTrait, BuilderTrait, MappableTrait, 
-    SessionStream, SessionStreamState, Table, TableBuilder, TableBuilderTrait, TableTrait, TablePublish, IPCMessage, MessageBuilderTrait, MessageTrait};
+use phymes_agents::{
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
+    UserSession, create_message_map,
+};
+use phymes_core::{
+    AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage,
+    MappableTrait, MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState, Table,
+    TableBuilder, TableBuilderTrait, TablePublish, TableTrait, create_user_inbox_batch,
+};
 
 pub async fn run_main() -> Result<()> {
     // initialize the session
@@ -32,13 +38,16 @@ pub async fn run_main() -> Result<()> {
         .to_json()?;
 
     // Wrap into the message
-    let blob = AvailableInterfaceSubjects::UserJson.to_table_builder(None)
+    let blob = AvailableInterfaceSubjects::UserJson
+        .to_table_builder(None)
         .with_blob(None, Some("json"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
         .with_subject(blob.get_name())
-        .with_update(&TablePublish::Replace { table_name: blob.get_name().to_string() })
+        .with_update(&TablePublish::Replace {
+            table_name: blob.get_name().to_string(),
+        })
         .with_publisher(user_agent_session.session_context_name)
         .make_name()?
         .build()?;
@@ -49,25 +58,39 @@ pub async fn run_main() -> Result<()> {
 
     let attachment_data = response
         .into_iter()
-        .map(|mut r| r.remove(&format!(
-            "from_{}_on_{}",
-            user_agent_session.session_context_name,
-            AvailableInterfaceSubjects::AssistantJson
-        )))
+        .map(|mut r| {
+            r.remove(&format!(
+                "from_{}_on_{}",
+                user_agent_session.session_context_name,
+                AvailableInterfaceSubjects::AssistantJson
+            ))
+        })
         .filter_map(|m| {
-            m.map(|message| TableBuilder::new_from_ipc_stream(&message.get_message_own()).unwrap()
-                .with_name("")
-                .build().unwrap()
-                .to_json_object().unwrap())
+            m.map(|message| {
+                TableBuilder::new_from_ipc_stream(&message.get_message_own())
+                    .unwrap()
+                    .with_name("")
+                    .build()
+                    .unwrap()
+                    .to_json_object()
+                    .unwrap()
+            })
         })
         .flatten()
         .collect::<Vec<_>>();
     for row in &attachment_data {
-        let bytes = row["bytes"].as_array().unwrap()
+        let bytes = row["bytes"]
+            .as_array()
+            .unwrap()
             .iter()
             .map(|v| v.as_u64().unwrap() as u8)
             .collect::<Vec<u8>>();
-        println!("attachment {}{}: {}", row["filename"].as_str().unwrap(), row["extension"].as_str().unwrap(), String::from_utf8_lossy(bytes.as_ref()).into_owned())
+        println!(
+            "attachment {}{}: {}",
+            row["filename"].as_str().unwrap(),
+            row["extension"].as_str().unwrap(),
+            String::from_utf8_lossy(bytes.as_ref()).into_owned()
+        )
     }
 
     Ok(())

@@ -19,21 +19,35 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
             if interface_subject == AvailableInterfaceSubjects::UserMessages {
                 has_messaging_publish = true;
             }
-            if interface_subject == AvailableInterfaceSubjects::AssistantMessages 
-            || interface_subject == AvailableInterfaceSubjects::AggregatedMessages
-            || interface_subject == AvailableInterfaceSubjects::ToolMessages {
+            if interface_subject == AvailableInterfaceSubjects::AssistantMessages
+                || interface_subject == AvailableInterfaceSubjects::AggregatedMessages
+                || interface_subject == AvailableInterfaceSubjects::ToolMessages
+            {
                 has_message_subscribe = true;
             }
         }
     }
 
     if !has_messaging_publish {
-        anyhow::bail!("At least one AvailableInterface Message and Publish subject {:?} must be provided. Provided subjects were {:?}.", 
-            [AvailableInterfaceSubjects::UserMessages, AvailableInterfaceSubjects::UserQueries], subjects);
+        anyhow::bail!(
+            "At least one AvailableInterface Message and Publish subject {:?} must be provided. Provided subjects were {:?}.",
+            [
+                AvailableInterfaceSubjects::UserMessages,
+                AvailableInterfaceSubjects::UserQueries
+            ],
+            subjects
+        );
     }
     if !has_message_subscribe {
-        anyhow::bail!("At least one AvailableInterface Message and Subscribe subject {:? }must be provided. Provided subjects were {:?}.", 
-            [AvailableInterfaceSubjects::AssistantMessages, AvailableInterfaceSubjects::ToolMessages, AvailableInterfaceSubjects::AggregatedMessages], subjects);
+        anyhow::bail!(
+            "At least one AvailableInterface Message and Subscribe subject {:? }must be provided. Provided subjects were {:?}.",
+            [
+                AvailableInterfaceSubjects::AssistantMessages,
+                AvailableInterfaceSubjects::ToolMessages,
+                AvailableInterfaceSubjects::AggregatedMessages
+            ],
+            subjects
+        );
     }
 
     Ok(())
@@ -42,7 +56,7 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
 /// Helper function to create the message map from a vector of messages
 pub fn create_message_map<T>(messages: Vec<T>) -> HashMap<String, T>
 where
-    T: MappableTrait
+    T: MappableTrait,
 {
     let mut incoming_message_map = HashMap::<String, T>::new();
     for message in messages {
@@ -54,7 +68,7 @@ where
 /// The available subjects that the user can publish on from the messaging interface
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableInterfaceSubjects {
-    #[default]    
+    #[default]
     #[value(name = "UserMessages")]
     UserMessages,
     #[value(name = "UserQueries")]
@@ -122,24 +136,28 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             None => self.to_string(),
         };
         match self {
-            Self::UserMessages 
+            Self::UserMessages
             | Self::AggregatedMessages
             | Self::AssistantMessages
-            | Self::ToolMessages => AvailableSubjects::Messages.to_table(Some(name.as_str()), batches),
+            | Self::ToolMessages => {
+                AvailableSubjects::Messages.to_table(Some(name.as_str()), batches)
+            }
             Self::UserQueries => AvailableSubjects::Queries.to_table(Some(name.as_str()), batches),
-            Self::UserPdf 
-            | Self::UserAudio 
+            Self::UserPdf
+            | Self::UserAudio
             | Self::UserVideo
-            | Self::UserImage 
-            | Self::UserScript 
-            | Self::UserCsv 
-            | Self::UserJson 
-            | Self::AssistantImage 
+            | Self::UserImage
+            | Self::UserScript
+            | Self::UserCsv
+            | Self::UserJson
+            | Self::AssistantImage
             | Self::AssistantCsv
             | Self::AssistantJson
-            | Self::AggregatedAttachments 
-            | Self::AssistantScript => AvailableSubjects::Blob.to_table(Some(name.as_str()), batches),
-        }        
+            | Self::AggregatedAttachments
+            | Self::AssistantScript => {
+                AvailableSubjects::Blob.to_table(Some(name.as_str()), batches)
+            }
+        }
     }
     fn to_table_builder(&self, name: Option<&str>) -> TableBuilder {
         let name = match name {
@@ -147,44 +165,48 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             None => self.to_string(),
         };
         match self {
-            Self::UserMessages 
+            Self::UserMessages
             | Self::AggregatedMessages
             | Self::AssistantMessages
-            | Self::ToolMessages => AvailableSubjects::Messages.to_table_builder(Some(name.as_str())),
+            | Self::ToolMessages => {
+                AvailableSubjects::Messages.to_table_builder(Some(name.as_str()))
+            }
             Self::UserQueries => AvailableSubjects::Queries.to_table_builder(Some(name.as_str())),
-            Self::UserPdf 
-            | Self::UserAudio 
+            Self::UserPdf
+            | Self::UserAudio
             | Self::UserVideo
-            | Self::UserImage 
-            | Self::UserScript 
-            | Self::UserCsv 
-            | Self::UserJson 
-            | Self::AssistantImage 
+            | Self::UserImage
+            | Self::UserScript
+            | Self::UserCsv
+            | Self::UserJson
+            | Self::AssistantImage
             | Self::AssistantCsv
             | Self::AssistantJson
-            | Self::AggregatedAttachments 
-            | Self::AssistantScript => AvailableSubjects::Blob.to_table_builder(Some(name.as_str())),
-        }        
+            | Self::AggregatedAttachments
+            | Self::AssistantScript => {
+                AvailableSubjects::Blob.to_table_builder(Some(name.as_str()))
+            }
+        }
     }
     fn to_schema(&self) -> arrow::datatypes::SchemaRef {
         match self {
-            Self::UserMessages 
+            Self::UserMessages
             | Self::AggregatedMessages
             | Self::AssistantMessages
             | Self::ToolMessages => AvailableSubjects::Messages.to_schema(),
             Self::UserQueries => AvailableSubjects::Queries.to_schema(),
-            Self::UserPdf 
-            | Self::UserAudio 
+            Self::UserPdf
+            | Self::UserAudio
             | Self::UserVideo
-            | Self::UserImage 
-            | Self::UserScript 
-            | Self::UserCsv 
-            | Self::UserJson 
-            | Self::AssistantImage 
+            | Self::UserImage
+            | Self::UserScript
+            | Self::UserCsv
+            | Self::UserJson
+            | Self::AssistantImage
             | Self::AssistantCsv
             | Self::AssistantJson
-            | Self::AggregatedAttachments 
+            | Self::AggregatedAttachments
             | Self::AssistantScript => AvailableSubjects::Blob.to_schema(),
-        } 
+        }
     }
 }

@@ -1,5 +1,9 @@
 use dioxus::prelude::*;
-use phymes_core::{AvailableSubjects, BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, MessageBuilderTrait};
+use phymes_core::{
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
+    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
+    TablePublish,
+};
 use phymes_server::create_session_name;
 use serde_json::{Map, Value};
 
@@ -20,8 +24,16 @@ use futures::TryStreamExt;
 use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 use crate::{
-    state::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME, EMAIL, JWT, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, SUBJECT_SCHEMA_HEADERS, svg_icons::ms_search_icon_svg},
-    ui::{attachments_interface_footer, clear_download_files_button, download_files_button, download_files_list}};
+    state::{
+        get_non_duplicated_sorted_subjects, get_subject_num_rows_by_subject_name,
+        get_subject_schema_col_type_by_subject_name, svg_icons::ms_search_icon_svg,
+        ACTIVE_SESSION_NAME, EMAIL, JWT, SUBJECT_SCHEMA_HEADERS,
+    },
+    ui::{
+        attachments_interface_footer, clear_download_files_button, download_files_button,
+        download_files_list,
+    },
+};
 
 /// View to display the subject tables for the session
 /// and to allow for easier upload by the user
@@ -39,29 +51,39 @@ pub fn subjects_interface_view() -> Element {
     let extensions_downloaded = use_signal(Vec::<String>::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
-        .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_format(&DataFormat::Bytes)
-        .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_update(&TablePublish::None)
-        .with_stream(false)
-    );
+    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
+        SessionInterfaceMessage::get_builder()
+            .with_session_name(&create_session_name(
+                EMAIL().as_str(),
+                ACTIVE_SESSION_NAME().as_str(),
+            ))
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(&create_session_name(
+                EMAIL().as_str(),
+                ACTIVE_SESSION_NAME().as_str(),
+            ))
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+    });
 
     // Get the active session schema for the subject view and
     // Get the active session row counts for the subject view
     // DM: these are combined into a single async block to prevent concurrent mutable borrows of the same user state
     let _ = use_resource(move || async move {
-        // Get the active session schema for the subject view        
+        // Get the active session schema for the subject view
         subject_schema_names.set(Vec::new());
         subject_schema_columns.set(Vec::new());
         subject_schema_types.set(Vec::new());
         let route = "/app/v1/get_state";
-        let data_serialized = serde_json::to_string(&get_session_state()
-            .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
-            .make_name()
-            .unwrap()
-            .build()
-            .unwrap()).unwrap();
+        let data_serialized = serde_json::to_string(
+            &get_session_state()
+                .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
+                .make_name()
+                .unwrap()
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
 
         #[cfg(not(feature = "serverless"))]
         let addr = format!("{ADDR_BACKEND}{route}");
@@ -86,24 +108,22 @@ pub fn subjects_interface_view() -> Element {
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        subject_schema_names.push(row
-                            .get("subject_name")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
-                        subject_schema_columns.push(row
-                            .get("column_name")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
-                        subject_schema_types.push(row
-                            .get("type_name")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        subject_schema_names.push(
+                            row.get("subject_name")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
+                        subject_schema_columns.push(
+                            row.get("column_name")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
+                        subject_schema_types
+                            .push(row.get("type_name").unwrap().as_str().unwrap().to_string());
                     }
                 }
             }
@@ -132,24 +152,22 @@ pub fn subjects_interface_view() -> Element {
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
-                        subject_schema_names.push(row
-                            .get("subject_name")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
-                        subject_schema_columns.push(row
-                            .get("column_name")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
-                        subject_schema_types.push(row
-                            .get("type_name")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        subject_schema_names.push(
+                            row.get("subject_name")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
+                        subject_schema_columns.push(
+                            row.get("column_name")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
+                        subject_schema_types
+                            .push(row.get("type_name").unwrap().as_str().unwrap().to_string());
                     }
                 }
             }
@@ -160,12 +178,19 @@ pub fn subjects_interface_view() -> Element {
         subject_names.set(Vec::new());
         subject_num_rows.set(Vec::new());
         let route = "/app/v1/get_state";
-        let data_serialized = serde_json::to_string(&get_session_state()
-            .with_subject(AvailableSubjects::SessionSubjectsNumRows.to_string().as_str())
-            .make_name()
-            .unwrap()
-            .build()
-            .unwrap()).unwrap();
+        let data_serialized = serde_json::to_string(
+            &get_session_state()
+                .with_subject(
+                    AvailableSubjects::SessionSubjectsNumRows
+                        .to_string()
+                        .as_str(),
+                )
+                .make_name()
+                .unwrap()
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
 
         #[cfg(not(feature = "serverless"))]
         let addr = format!("{ADDR_BACKEND}{route}");
@@ -194,12 +219,13 @@ pub fn subjects_interface_view() -> Element {
                         } else {
                             0
                         };
-                        subject_names.push(row
-                            .get("subject_name")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        subject_names.push(
+                            row.get("subject_name")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
                         subject_num_rows.push(num_rows);
                     }
                 }
@@ -234,12 +260,13 @@ pub fn subjects_interface_view() -> Element {
                         } else {
                             0
                         };
-                        subject_names.push(row
-                            .get("subject_name")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        subject_names.push(
+                            row.get("subject_name")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
                         subject_num_rows.push(num_rows);
                     }
                 }
@@ -272,12 +299,12 @@ pub fn subjects_interface_view() -> Element {
 
                 if !files_downloaded.read().is_empty() {
                     div {
-                        class: "file_upload_form",                      
+                        class: "file_upload_form",
                         download_files_list {filenames_downloaded, files_downloaded, extensions_downloaded}
-                    }                  
+                    }
                 }
             }
-            if !active_subject_name().is_empty() { 
+            if !active_subject_name().is_empty() {
                 attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| true), except_files: use_signal(||".csv".to_string()), active_subject_name }
             }
         }
@@ -285,7 +312,13 @@ pub fn subjects_interface_view() -> Element {
 }
 
 #[component]
-pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>, subject_schema_names: Signal<Vec<String>>, mut files_downloaded: Signal<Vec<Vec<u8>>>, mut filenames_downloaded: Signal<Vec<String>>, mut extensions_downloaded: Signal<Vec<String>>) -> Element {
+pub fn subjects_dropdown_menu(
+    mut active_subject_name: Signal<String>,
+    subject_schema_names: Signal<Vec<String>>,
+    mut files_downloaded: Signal<Vec<Vec<u8>>>,
+    mut filenames_downloaded: Signal<Vec<String>>,
+    mut extensions_downloaded: Signal<Vec<String>>,
+) -> Element {
     let mut show_subject_dropdown = use_signal(|| false);
     #[allow(clippy::redundant_closure)]
     let mut subject_dropdown = use_signal(|| String::new());
@@ -363,37 +396,46 @@ pub fn subjects_dropdown_menu(mut active_subject_name: Signal<String>, subject_s
 }
 
 #[component]
-pub fn subjects_schema_table(active_subject_name: Signal<String>, 
-    subject_schema_names: Signal<Vec<String>>, subject_schema_columns: Signal<Vec<String>>, subject_schema_types: Signal<Vec<String>>, 
-    subject_names: Signal<Vec<String>>, subject_num_rows: Signal<Vec<usize>>) -> Element {
-    let schema_columns_types = use_memo(move || get_subject_schema_col_type_by_subject_name(
-        active_subject_name.read().as_str(),
-        &subject_schema_names
-            .read()
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>(),
-        &subject_schema_columns
-            .read()
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>(),
-        &subject_schema_types
-            .read()
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>(),
-    ));
-    
-    let num_rows = use_memo(move || get_subject_num_rows_by_subject_name(
-        active_subject_name.read().as_str(),
-        &subject_names
-            .read()
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>(),
-        &subject_num_rows.read().iter().collect::<Vec<_>>(),
-    ));
+pub fn subjects_schema_table(
+    active_subject_name: Signal<String>,
+    subject_schema_names: Signal<Vec<String>>,
+    subject_schema_columns: Signal<Vec<String>>,
+    subject_schema_types: Signal<Vec<String>>,
+    subject_names: Signal<Vec<String>>,
+    subject_num_rows: Signal<Vec<usize>>,
+) -> Element {
+    let schema_columns_types = use_memo(move || {
+        get_subject_schema_col_type_by_subject_name(
+            active_subject_name.read().as_str(),
+            &subject_schema_names
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &subject_schema_columns
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &subject_schema_types
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+        )
+    });
+
+    let num_rows = use_memo(move || {
+        get_subject_num_rows_by_subject_name(
+            active_subject_name.read().as_str(),
+            &subject_names
+                .read()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            &subject_num_rows.read().iter().collect::<Vec<_>>(),
+        )
+    });
 
     rsx! {
         div {

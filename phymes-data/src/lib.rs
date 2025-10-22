@@ -2,6 +2,26 @@ mod candle_data;
 mod candle_operators;
 mod jinja2_templates;
 
-pub use candle_data::{DataStreamManager, DataAggregatorOperator, DataComparatorOperator, DataComparatorPredicate, DataDistanceOperator, DataCastOperator, DataConfig, CandleDataProcessor, DataSummaryConfig, DataSummaryProcessor, CandleTensorService, AttachmentAggregatorProcessor, AggregatorStream, collect_messages_by_schema};
-pub use candle_operators::{AvailableCandleOperators, convert_destinations_to_tools, ChunkDocuments, DataOperatorTrait, ExtractPDFText, make_pdf_document, ExtractTabularData, test_extract_tabular_data, FilterColumnsAndIndices, filter_columns_and_indices, GroupByAndAggregate, group_by_and_aggregate, HumanInTheLoop, JoinInner, VectorDistance, SortColumnAndIndices, sort_column_and_indices, SelectAndCast, ApplyTemplate, Pivot, NormalizeTime, FromTasksToParticipants, FromTracesToMessages};
-pub use jinja2_templates::{MERMAID_HTML_POST, MERMAID_HTML_PRE, MERMAID_XYCHART_INPUT, MERMAID_XYCHART_TABLE_EXPRESSION, MERMAID_XYCHART_TEMPLATE, MERMAID_GANTT_INPUT, MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_GANTT_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_INPUT, MERMAID_FLOWCHART_LINKS_TEMPLATE, MERMAID_FLOWCHART_NODES_TEMPLATE, MERMAID_FLOWCHART_TABLE_EXPRESSION, MERMAID_FLOWCHART_TEMPLATE, MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_KANBAN_TEMPLATE};
+pub use candle_data::{
+    AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
+    DataAggregatorOperator, DataCastOperator, DataComparatorOperator, DataComparatorPredicate,
+    DataConfig, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor,
+    collect_messages_by_schema,
+};
+pub use candle_operators::{
+    ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDFText,
+    ExtractTabularData, FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages,
+    GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, SelectAndCast,
+    SortColumnAndIndices, VectorDistance, convert_destinations_to_tools,
+    filter_columns_and_indices, group_by_and_aggregate, make_pdf_document, sort_column_and_indices,
+    test_extract_tabular_data,
+};
+pub use jinja2_templates::{
+    MERMAID_FLOWCHART_INPUT, MERMAID_FLOWCHART_LINKS_TEMPLATE, MERMAID_FLOWCHART_NODES_TEMPLATE,
+    MERMAID_FLOWCHART_TABLE_EXPRESSION, MERMAID_FLOWCHART_TEMPLATE, MERMAID_GANTT_INPUT,
+    MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST, MERMAID_HTML_PRE,
+    MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_KANBAN_TEMPLATE,
+    MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE,
+    MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE,
+    MERMAID_XYCHART_INPUT, MERMAID_XYCHART_TABLE_EXPRESSION, MERMAID_XYCHART_TEMPLATE,
+};

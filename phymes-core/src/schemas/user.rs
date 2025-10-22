@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
-use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
+use arrow::{
+    array::{ArrayRef, Int64Array, RecordBatch, StringArray},
+    datatypes::{DataType, Field, Fields},
+};
 use serde::{Deserialize, Serialize};
 
 pub(crate) fn create_user_fields() -> Fields {
@@ -70,10 +73,7 @@ pub fn create_user_batch(
 pub(crate) fn create_user_session_contexts_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
-    Fields::from(vec![
-        email,
-        session_context_name,
-    ])
+    Fields::from(vec![email, session_context_name])
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -97,9 +97,7 @@ pub fn create_user_session_contexts_batch(
 
 pub(crate) fn create_user_inbox_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
-    Fields::from(vec![
-        email,
-    ])
+    Fields::from(vec![email])
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -107,23 +105,16 @@ pub struct UserInboxSubject {
     pub email: String,
 }
 
-pub fn create_user_inbox_batch(
-    email: Vec<String>,
-) -> Result<RecordBatch> {
+pub fn create_user_inbox_batch(email: Vec<String>) -> Result<RecordBatch> {
     let email: ArrayRef = Arc::new(StringArray::from(email));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("email", email),
-    ])?;
+    let batch = RecordBatch::try_from_iter(vec![("email", email)])?;
     Ok(batch)
 }
 
 pub(crate) fn create_join_user_inbox_session_contexts_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
-    Fields::from(vec![
-        email,
-        session_context_name,
-    ])
+    Fields::from(vec![email, session_context_name])
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -135,7 +126,7 @@ pub struct JoinUserInboxSessionContextsMermaidDiagrams {
     pub timestamp: i64,
 }
 
-pub (crate) fn create_join_user_inbox_session_contexts_mermaid_diagrams_fields() -> Fields {
+pub(crate) fn create_join_user_inbox_session_contexts_mermaid_diagrams_fields() -> Fields {
     let email = Field::new("email", DataType::Utf8, false);
     let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
     let flowchart_diagram = Field::new("flowchart_diagram", DataType::Utf8, false);

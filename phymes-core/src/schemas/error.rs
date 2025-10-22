@@ -1,11 +1,22 @@
 use std::sync::Arc;
 
-use arrow::{array::{ArrayRef, RecordBatch, StringArray}, datatypes::{DataType, Field, Fields}};
 use anyhow::{Error, Result};
+use arrow::{
+    array::{ArrayRef, RecordBatch, StringArray},
+    datatypes::{DataType, Field, Fields},
+};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{schemas::available_subjects::AvailableSubjects, session::{BuilderTrait, MappableTrait}, table::{TablePublish, Table, TableBuilder, TableBuilderTrait, TableTrait}, task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder}};
+use crate::{
+    schemas::available_subjects::AvailableSubjects,
+    session::{BuilderTrait, MappableTrait},
+    table::{Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait},
+    task::{
+        IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage,
+        SendableRecordBatchStreamMessageBuilder,
+    },
+};
 
 pub(crate) fn create_error_fields() -> Fields {
     let error = Field::new("error", DataType::Utf8, false);
@@ -25,7 +36,7 @@ pub fn create_error_batch(error: Vec<String>) -> Result<RecordBatch> {
 
 fn create_error_table(err: &Error) -> Result<Table> {
     // DM: must use :? and not .to_string() with Anyhow::Error to see full backtrace if available
-    let error_str = format!{"{err:?}"}; 
+    let error_str = format! {"{err:?}"};
     let batch = create_error_batch(vec![error_str])?;
     TableBuilder::new()
         .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
@@ -33,12 +44,17 @@ fn create_error_table(err: &Error) -> Result<Table> {
         .build()
 }
 
-pub fn create_error_message_map_stream(err: &Error, publisher: &str) -> Result<HashMap<String, SendableRecordBatchStreamMessage>> {
+pub fn create_error_message_map_stream(
+    err: &Error,
+    publisher: &str,
+) -> Result<HashMap<String, SendableRecordBatchStreamMessage>> {
     let table = create_error_table(err)?;
     let message = SendableRecordBatchStreamMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
-        .with_update(&TablePublish::Extend { table_name: AvailableSubjects::SessionErrors.to_string()})
+        .with_update(&TablePublish::Extend {
+            table_name: AvailableSubjects::SessionErrors.to_string(),
+        })
         .with_message(table.to_record_batch_stream())
         .make_name()?
         .build()?;
@@ -47,12 +63,17 @@ pub fn create_error_message_map_stream(err: &Error, publisher: &str) -> Result<H
     Ok(message_map)
 }
 
-pub fn create_error_message_map(err: &Error, publisher: &str) -> Result<HashMap<String, IPCMessage>> {
+pub fn create_error_message_map(
+    err: &Error,
+    publisher: &str,
+) -> Result<HashMap<String, IPCMessage>> {
     let table = create_error_table(err)?;
     let message = IPCMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
-        .with_update(&TablePublish::Extend { table_name: AvailableSubjects::SessionErrors.to_string()})
+        .with_update(&TablePublish::Extend {
+            table_name: AvailableSubjects::SessionErrors.to_string(),
+        })
         .with_message(table.to_ipc_stream()?)
         .make_name()?
         .build()?;

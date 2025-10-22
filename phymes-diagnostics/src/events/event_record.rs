@@ -10,6 +10,12 @@ pub struct EventRecord {
     value: Arc<Mutex<Option<Map<String, Value>>>>,
 }
 
+impl Default for EventRecord {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EventRecord {
     /// Create a new event with no values
     pub fn new() -> Self {

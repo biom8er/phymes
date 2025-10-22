@@ -1,10 +1,19 @@
+mod diagnostics;
+mod events;
 mod metrics;
 mod traces;
-mod events;
-mod diagnostics;
 
 // public exports
-pub use metrics::{BaselineMetrics, MetricBuilderTrait, create_timestamp_micros, create_timestamp_str, convert_timestamp_micros_to_str, Metric, HashMap, HashSet};
-pub use traces::{CurrentContext, Span, SpanBuilder, create_random_id, Trace, TraceBuilderTrait, TraceableTrait, TraceRecord, Tracer};
-pub use events::{EventRecord, Event, EventBuilderTrait};
-pub use diagnostics::{AvailableDiagnostics, Diagnostics, DiagnosticSet, DiagnosticSpan, DiagnosticsType, DiagnosticBuilder, DiagnosticBuilderTrait, Label, JSONObjectTrait};
+pub use diagnostics::{
+    AvailableDiagnostics, DiagnosticBuilder, DiagnosticBuilderTrait, DiagnosticSet, DiagnosticSpan,
+    Diagnostics, DiagnosticsType, JSONObjectTrait, Label,
+};
+pub use events::{Event, EventBuilderTrait, EventRecord};
+pub use metrics::{
+    BaselineMetrics, HashMap, HashSet, Metric, MetricBuilderTrait, convert_timestamp_micros_to_str,
+    create_timestamp_micros, create_timestamp_str,
+};
+pub use traces::{
+    CurrentContext, Span, SpanBuilder, Trace, TraceBuilderTrait, TraceRecord, TraceableTrait,
+    Tracer, create_random_id,
+};

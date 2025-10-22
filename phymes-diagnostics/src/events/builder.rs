@@ -1,4 +1,7 @@
-use crate::{diagnostics::{AvailableDiagnostics, DiagnosticBuilder, DiagnosticBuilderTrait}, events::{available_events::Event, event_record::EventRecord}};
+use crate::{
+    diagnostics::{AvailableDiagnostics, DiagnosticBuilder, DiagnosticBuilderTrait},
+    events::{available_events::Event, event_record::EventRecord},
+};
 
 /// Trait extension constructing event records
 pub trait EventBuilderTrait: DiagnosticBuilderTrait {
@@ -21,28 +24,28 @@ impl EventBuilderTrait for DiagnosticBuilder {
         self.build(&diagnostic, line, file, function);
         record
     }
-    
+
     fn debug(self, line: u32, file: &str, function: &str) -> EventRecord {
         let record = EventRecord::new();
         let diagnostic = AvailableDiagnostics::Event(Event::Debug(record.clone()));
         self.build(&diagnostic, line, file, function);
         record
     }
-    
+
     fn info(self, line: u32, file: &str, function: &str) -> EventRecord {
         let record = EventRecord::new();
         let diagnostic = AvailableDiagnostics::Event(Event::Info(record.clone()));
         self.build(&diagnostic, line, file, function);
         record
     }
-    
+
     fn warn(self, line: u32, file: &str, function: &str) -> EventRecord {
         let record = EventRecord::new();
         let diagnostic = AvailableDiagnostics::Event(Event::Warn(record.clone()));
         self.build(&diagnostic, line, file, function);
         record
     }
-    
+
     fn error(self, line: u32, file: &str, function: &str) -> EventRecord {
         let record = EventRecord::new();
         let diagnostic = AvailableDiagnostics::Event(Event::Error(record.clone()));

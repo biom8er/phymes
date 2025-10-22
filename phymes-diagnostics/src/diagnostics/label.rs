@@ -1,5 +1,6 @@
 use std::{
-    borrow::Cow, fmt::{Debug, Display}
+    borrow::Cow,
+    fmt::{Debug, Display},
 };
 
 /// `name=value` pairs identifying a metric. This concept is called various things

@@ -40,11 +40,7 @@ impl Stream for SessionStream {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // Get the current iter
         let mut iter = self.state.read().get_iter();
-        let max_iter = self
-            .state
-            .read()
-            .get_session_context()
-            .get_max_iter();
+        let max_iter = self.state.read().get_session_context().get_max_iter();
         while iter < max_iter {
             // Poll the next item
             let res = if let Some(fut) = self.next.as_mut() {
@@ -55,7 +51,7 @@ impl Stream for SessionStream {
                         event!(Level::ERROR, "{err:?}");
                         println!("unhandled session step error: {err:?}");
                         HashMap::<String, IPCMessage>::new()
-                    },
+                    }
                 }
             } else {
                 return Poll::Ready(None);
@@ -83,12 +79,7 @@ impl Stream for SessionStream {
     fn size_hint(&self) -> (usize, Option<usize>) {
         (
             1,
-            Some(
-                self.state
-                    .read()
-                    .get_session_context()
-                    .get_max_iter(),
-            ),
+            Some(self.state.read().get_session_context().get_max_iter()),
         )
     }
 }
@@ -99,7 +90,13 @@ mod tests {
 
     use super::*;
     use crate::{
-        schemas::AvailableSubjects, session::{common_traits::{BuilderTrait, MappableTrait}, session_context_builder::test_session_context_builder::make_test_session_context_sequential_task}, table::{TablePublish, TableBuilder, TableBuilderTrait, TableTrait}, task::{MessageTrait, test_task::make_test_input_message}
+        schemas::AvailableSubjects,
+        session::{
+            common_traits::{BuilderTrait, MappableTrait},
+            session_context_builder::test_session_context_builder::make_test_session_context_sequential_task,
+        },
+        table::{TableBuilder, TableBuilderTrait, TablePublish, TableTrait},
+        task::{MessageTrait, test_task::make_test_input_message},
     };
 
     #[tokio::test]
@@ -108,8 +105,7 @@ mod tests {
         //         -> task_2: add a row
         //         -> task_3: add a row
         //         -> session
-        let session_context =
-            make_test_session_context_sequential_task("session_1", 4)?;
+        let session_context = make_test_session_context_sequential_task("session_1", 4)?;
         let input = make_test_input_message(
             "task_1",
             "session_1",
@@ -118,12 +114,11 @@ mod tests {
             &TablePublish::Replace {
                 table_name: "state_1".to_string(),
             },
-            true
+            true,
         )?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
         let session_stream = SessionStream::new(input, session_stream_state.clone());
-        let mut response: Vec<HashMap<String, IPCMessage>> =
-            session_stream.try_collect().await?;
+        let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // check the response
         assert_eq!(response.len(), 3); //was 2...
@@ -239,7 +234,12 @@ mod tests {
                 .unwrap();
             let output_rows = metrics_table.get_column_as_vec_primitive::<i64>("output_rows")?;
             assert_eq!(output_rows.iter().sum::<i64>(), 5385);
-            let gantt = sss.get_session_context().get_states().get(AvailableSubjects::MetricMermaidGantt.to_string().as_str()).unwrap().read();
+            let gantt = sss
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::MetricMermaidGantt.to_string().as_str())
+                .unwrap()
+                .read();
             assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
             assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
             assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));

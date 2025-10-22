@@ -1,2 +1,2 @@
 mod embed_processor;
-pub mod embed_processor::OpenAIEmbedProcessor;
+pub use embed_processor::OpenAIEmbedProcessor;

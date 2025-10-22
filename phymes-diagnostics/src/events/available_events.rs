@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 use crate::{diagnostics::JSONObjectTrait, events::event_record::EventRecord};
 
 /// Events to add context to enable building a comprehensive timeline of what happened, when it happened, and why it happened
-#[derive( Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum Event {
     /// For extremely fine-grained information, useful for tracing program execution.
     Trace(EventRecord),
@@ -52,7 +52,10 @@ impl JSONObjectTrait for Event {
             map.insert("event_level".to_string(), self.to_string().into());
             map.insert("record_name".to_string(), k.into());
             // DM: we need to serialze the value to a string for later storage in a `RecordBatch`
-            map.insert("record_value".to_string(), serde_json::Value::String(serde_json::to_string(&v).unwrap()));
+            map.insert(
+                "record_value".to_string(),
+                serde_json::Value::String(serde_json::to_string(&v).unwrap()),
+            );
             object.push(map);
         }
         object
@@ -63,7 +66,7 @@ impl JSONObjectTrait for Event {
 mod tests {
     use serde_json::json;
 
-    use super::*;    
+    use super::*;
 
     #[test]
     fn test_events_records() {
@@ -73,8 +76,35 @@ mod tests {
         record.insert("second", &json!(2));
         let object = event.to_json_object();
         assert_eq!(object.len(), 2);
-        assert_eq!(object.first().unwrap().get("event_level").unwrap().as_str().unwrap(), event.to_string().as_str());
-        assert_eq!(object.first().unwrap().get("record_name").unwrap().as_str().unwrap(), "first");
-        assert_eq!(object.first().unwrap().get("record_value").unwrap().as_str().unwrap(), "1");
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("event_level")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            event.to_string().as_str()
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("record_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "first"
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("record_value")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "1"
+        );
     }
 }

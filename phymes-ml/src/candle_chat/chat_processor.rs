@@ -6,10 +6,18 @@ use tokenizers::Tokenizer;
 
 #[cfg(feature = "openai_api")]
 use crate::openai_chat::chat_processor::OpenAIChatProcessor;
-use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, create_chat_record_batch, ChatTraitExt, Tool, device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, TokenWrapper,
-    RuntimeEnv, RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, Table, TableBuilder, TableBuilderTrait, TableTrait,
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
-use phymes_diagnostics::{create_timestamp_micros, DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
+use phymes_core::{
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
+    SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe,
+    TableTrait, TokenWrapper, Tool, create_chat_record_batch, device,
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    create_timestamp_micros,
+};
 
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
@@ -98,7 +106,9 @@ impl ProcessorTrait for CandleChatProcessor {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
             trace.enter(&message.values().collect::<Vec<_>>());
             Some((trace, trace_builder))
         } else {
@@ -108,22 +118,30 @@ impl ProcessorTrait for CandleChatProcessor {
         // Extract out the messages, documents, tools, and config
         let messages = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
             Some(i) => i.get_message_own(),
-            None => return Err(anyhow!("Messages not provided for {}. Available messages are {:?}", self.get_name(), message.keys())),
+            None => {
+                return Err(anyhow!(
+                    "Messages not provided for {}. Available messages are {:?}",
+                    self.get_name(),
+                    message.keys()
+                ));
+            }
         };
         let tools = message
             .remove(self.subscriptions.get(1).unwrap().get_table_name())
             .map(|i| i.get_message_own());
         let config = match message.remove(self.get_name()) {
             Some(s) => s.get_message_own(),
-            None => return Err(anyhow!("Config not provided for {}. Available messages are {:?}", self.get_name(), message.keys())),
+            None => {
+                return Err(anyhow!(
+                    "Config not provided for {}. Available messages are {:?}",
+                    self.get_name(),
+                    message.keys()
+                ));
+            }
         };
 
         // Run the chat stream
-        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-            Some(trace.1.clone()) 
-        } else {
-            None
-        };
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(CandleChatStream::new(
             messages,
             tools,
@@ -352,15 +370,18 @@ impl Stream for CandleChatStream {
         if self.to_sample == 0 {
             // Initialize the metrics
             let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
-                Some(diagnostic_builder.clone().to_child("CandleChatStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("CandleChatStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
             } else {
                 None
             };
-            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-                Some(baseline_metrics.elapsed_compute().timer())
-            } else {
-                None
-            };
+            let _timer = baseline_metrics
+                .as_ref()
+                .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // Collect the chat history
             let mut batches = Vec::new();
@@ -487,15 +508,18 @@ impl Stream for CandleChatStream {
         } else if self.sample < self.to_sample {
             // Initialize the metrics
             let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
-                Some(diagnostic_builder.clone().to_child("CandleChatStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("CandleChatStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
             } else {
                 None
             };
-            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-                Some(baseline_metrics.elapsed_compute().timer())
-            } else {
-                None
-            };
+            let _timer = baseline_metrics
+                .as_ref()
+                .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // Inference to generate the next token
             // This can be handled directly as a null in RecordBatch
@@ -780,7 +804,10 @@ mod tests {
     use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
-    use crate::{candle_assets::{load_model_asset_path, load_tokenizer}, AvailableCandleAssets};
+    use crate::{
+        AvailableCandleAssets,
+        candle_assets::{load_model_asset_path, load_tokenizer},
+    };
 
     use super::*;
 
@@ -860,9 +887,7 @@ mod tests {
                 "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(
-                AvailableCandleAssets::SmolLM2_135MChat,
-            ),
+            candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
             ..Default::default()
         };
 
@@ -920,9 +945,7 @@ mod tests {
                 "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(
-                AvailableCandleAssets::SmolLM2_135MChat,
-            ),
+            candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
             ..Default::default()
         };
 

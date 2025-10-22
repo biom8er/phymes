@@ -10,9 +10,15 @@ use parking_lot::RwLock;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
-use phymes_agents::{create_message_map, AvailableInterfaceSubjects, ChatAgentSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
-use phymes_core::{AvailableSubjectsTrait, ChatBuilderTraitExt, BuildableTrait, BuilderTrait, MappableTrait, SessionStream, SessionStreamState,
-    TableBuilder, TableBuilderTrait, TableTrait, TablePublish, IPCMessage, MessageBuilderTrait, MessageTrait};
+use phymes_agents::{
+    AvailableInterfaceSubjects, ChatAgentSession, CustomAgentsBuilderTrait,
+    SessionContextBuilderAgentsTrait, create_message_map,
+};
+use phymes_core::{
+    AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage,
+    MappableTrait, MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState,
+    TableBuilder, TableBuilderTrait, TablePublish, TableTrait,
+};
 
 pub async fn run_main() -> Result<()> {
     // initialize the session
@@ -27,20 +33,23 @@ pub async fn run_main() -> Result<()> {
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // ----- Query #1 -----
-    let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+    let chat = AvailableInterfaceSubjects::UserMessages
+        .to_table_builder(None)
         .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")?
         .build()?;
     let message = IPCMessage::get_builder()
         .with_message(chat.to_ipc_stream()?)
         .with_subject(chat.get_name())
-        .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
+        .with_update(&TablePublish::Extend {
+            table_name: chat.get_name().to_string(),
+        })
         .with_publisher(chat_agent_session.session_context_name)
         .make_name()?
         .build()?;
     let incoming_message_map = create_message_map(vec![message]);
-    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-    let mut response: Vec<HashMap<String, IPCMessage>> =
-        session_stream.try_collect().await?;
+    let session_stream =
+        SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+    let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response
     let bytes = response
@@ -65,20 +74,23 @@ pub async fn run_main() -> Result<()> {
 
     // ----- Query #2 -----
     session_stream_state.try_write().unwrap().set_iter(0);
-    let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+    let chat = AvailableInterfaceSubjects::UserMessages
+        .to_table_builder(None)
         .append_new_user_query_str("Please provide an example using the functions.", "user")?
         .build()?;
     let message = IPCMessage::get_builder()
         .with_message(chat.to_ipc_stream()?)
         .with_subject(chat.get_name())
-        .with_update(&TablePublish::Extend { table_name:chat.get_name().to_string() })
+        .with_update(&TablePublish::Extend {
+            table_name: chat.get_name().to_string(),
+        })
         .with_publisher(chat_agent_session.session_context_name)
         .make_name()?
         .build()?;
     let incoming_message_map = create_message_map(vec![message]);
-    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
-    let mut response: Vec<HashMap<String, IPCMessage>> =
-        session_stream.try_collect().await?;
+    let session_stream =
+        SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+    let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response
     let bytes = response

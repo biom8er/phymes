@@ -1,13 +1,17 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 
-use crate::{session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, table::{DataFormat, TablePublish}, task::{MessageBuilderTrait, MessageTrait}};
+use crate::{
+    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
+    table::{DataFormat, TablePublish},
+    task::{MessageBuilderTrait, MessageTrait},
+};
 
 /// Composition of [MessageTrait] with additional functions for inter-session communication
 pub trait SessionInterfaceMessageTrait: MessageTrait {
     fn get_session_name(&self) -> &str;
     fn get_format(&self) -> &DataFormat;
-    fn get_stream(&self) -> &bool;    
+    fn get_stream(&self) -> &bool;
 }
 
 /// Message format that can be communicated between different sessions
@@ -42,7 +46,7 @@ impl SessionInterfaceMessage {
         update: Option<TablePublish>,
         session_name: &str,
         format: &DataFormat,
-        stream: bool
+        stream: bool,
     ) -> Self {
         Self {
             name: name.to_string(),
@@ -52,7 +56,7 @@ impl SessionInterfaceMessage {
             update: update.unwrap_or_default(),
             session_name: session_name.to_string(),
             format: format.to_owned(),
-            stream
+            stream,
         }
     }
 }

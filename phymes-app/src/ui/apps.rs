@@ -1,13 +1,20 @@
 use dioxus::prelude::*;
 use phymes_agents::AvailableSessionPlans;
-use phymes_core::{AvailableSubjects, BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, MessageBuilderTrait};
+use phymes_core::{
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
+    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
+    TablePublish,
+};
 use phymes_server::create_session_name;
 use serde_json::{Map, Value};
 
 use crate::{
-    state::{filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME, 
+    state::{
+        filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects,
+        svg_icons::{ms_search_icon_svg, ms_sync_icon_svg},
+        sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME,
         BUILDER, EMAIL, JWT, SESSION_NAMES,
-        svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}},
+    },
     ui::{builds_dropdown_view, builds_interface_footer, split_panel_drag_handle},
 };
 
@@ -42,7 +49,7 @@ pub fn apps_interface_view() -> Element {
     let active_session_name = use_signal(String::new);
     let mut active_flowchart_diagram = use_signal(String::new);
     let mut active_er_diagram = use_signal(String::new);
-    
+
     let mut mermaid_session_context_names = use_signal(Vec::<String>::new);
     let mut mermaid_flowchart_diagrams = use_signal(Vec::<String>::new);
     let mut mermaid_er_diagrams = use_signal(Vec::<String>::new);
@@ -52,7 +59,10 @@ pub fn apps_interface_view() -> Element {
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
         let session_name = if BUILDER() {
             // DM: this can be better optimized to prevent redundant API calls each time the active session is changed in Builder mode
-            create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str())
+            create_session_name(
+                EMAIL().as_str(),
+                AvailableSessionPlans::Builder.to_string().as_str(),
+            )
         } else {
             create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
         };
@@ -66,7 +76,6 @@ pub fn apps_interface_view() -> Element {
 
     // Get the mermaid.js diagrams for the session
     let _ = use_resource(move || async move {
-        
         // clear the current mermaid state
         mermaid_session_context_names.set(Vec::new());
         mermaid_flowchart_diagrams.set(Vec::new());
@@ -78,14 +87,20 @@ pub fn apps_interface_view() -> Element {
         let subject = if BUILDER() {
             AvailableSubjects::BuilderMermaid.to_string()
         } else {
-            AvailableSubjects::SessionMermaid.to_string().as_str().to_string()
+            AvailableSubjects::SessionMermaid
+                .to_string()
+                .as_str()
+                .to_string()
         };
-        let data_serialized = serde_json::to_string(&get_session_state()
-            .with_subject(subject.as_str())
-            .make_name()
-            .unwrap()
-            .build()
-            .unwrap()).unwrap();
+        let data_serialized = serde_json::to_string(
+            &get_session_state()
+                .with_subject(subject.as_str())
+                .make_name()
+                .unwrap()
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
 
         #[cfg(not(feature = "serverless"))]
         let addr = format!("{ADDR_BACKEND}{route}");
@@ -104,9 +119,7 @@ pub fn apps_interface_view() -> Element {
                     let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
                     let json_rows: Vec<Map<String, Value>> =
                         serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!(
-                                "There was a error parsing mermaid state {err}."
-                            );
+                            tracing::error!("There was a error parsing mermaid state {err}.");
                             Vec::new()
                         });
                     for row in json_rows.iter() {
@@ -118,7 +131,6 @@ pub fn apps_interface_view() -> Element {
                             .unwrap()
                             .to_string();
                         if !session_context_name.contains("__deleted__") {
-
                             // Update the mermaid state
                             let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
                                 val.as_u64().unwrap().try_into().unwrap()
@@ -126,18 +138,15 @@ pub fn apps_interface_view() -> Element {
                                 0
                             };
                             mermaid_session_context_names.push(session_context_name);
-                            mermaid_flowchart_diagrams.push(row
-                                .get("flowchart_diagram")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string());
-                            mermaid_er_diagrams.push(row
-                                .get("er_diagram")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string());
+                            mermaid_flowchart_diagrams.push(
+                                row.get("flowchart_diagram")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                            );
+                            mermaid_er_diagrams
+                                .push(row.get("er_diagram").unwrap().as_str().unwrap().to_string());
                             mermaid_timestamps.push(timestamp);
                         }
                     }
@@ -176,7 +185,6 @@ pub fn apps_interface_view() -> Element {
                             .unwrap()
                             .to_string();
                         if !session_context_name.contains("__deleted__") {
-
                             // Update the mermaid state
                             let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
                                 val.as_u64().unwrap().try_into().unwrap()
@@ -184,18 +192,15 @@ pub fn apps_interface_view() -> Element {
                                 0
                             };
                             mermaid_session_context_names.push(session_context_name);
-                            mermaid_flowchart_diagrams.push(row
-                                .get("flowchart_diagram")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string());
-                            mermaid_er_diagrams.push(row
-                                .get("er_diagram")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string());
+                            mermaid_flowchart_diagrams.push(
+                                row.get("flowchart_diagram")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                            );
+                            mermaid_er_diagrams
+                                .push(row.get("er_diagram").unwrap().as_str().unwrap().to_string());
                             mermaid_timestamps.push(timestamp);
                         }
                     }
@@ -205,9 +210,9 @@ pub fn apps_interface_view() -> Element {
         }
     });
 
-    // Filter the mermaid.js diagrams for the session 
-    let filtered_diagrams = use_memo(move || { 
-        // The builder session names do not contain the email      
+    // Filter the mermaid.js diagrams for the session
+    let filtered_diagrams = use_memo(move || {
+        // The builder session names do not contain the email
         let session_name = if BUILDER() {
             active_session_name()
         } else {
@@ -215,24 +220,26 @@ pub fn apps_interface_view() -> Element {
         };
 
         // Filter in the active diagrams
-        let (_session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_in_mermaid_diagrams_by_session_name(
-            &session_name,
-            &mermaid_session_context_names
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-            &mermaid_flowchart_diagrams
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-            &mermaid_er_diagrams
-                .read()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-            &mermaid_timestamps());
+        let (_session_context_names, flowchart_diagrams, er_diagrams, timestamps) =
+            filter_in_mermaid_diagrams_by_session_name(
+                &session_name,
+                &mermaid_session_context_names
+                    .read()
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>(),
+                &mermaid_flowchart_diagrams
+                    .read()
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>(),
+                &mermaid_er_diagrams
+                    .read()
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>(),
+                &mermaid_timestamps(),
+            );
 
         // Sort by timestamp
         let mut combined = flowchart_diagrams
@@ -246,9 +253,9 @@ pub fn apps_interface_view() -> Element {
         // last is most recent
         match combined.last() {
             Some(diagrams) => (Some(diagrams.0.to_owned()), Some(diagrams.1.to_owned())),
-            None => (None, None)
+            None => (None, None),
         }
-    });  
+    });
 
     // Update the active mermaid.js diagrams for the session
     let _ = use_resource(move || async move {
@@ -256,7 +263,7 @@ pub fn apps_interface_view() -> Element {
             active_flowchart_diagram.set(diagram.to_string());
         }
         if let Some(diagram) = filtered_diagrams().1 {
-            active_er_diagram.set(diagram.to_string());      
+            active_er_diagram.set(diagram.to_string());
         }
     });
 
@@ -266,7 +273,7 @@ pub fn apps_interface_view() -> Element {
             active_flowchart_diagram.read().to_string()
         } else {
             active_er_diagram.read().to_string()
-        }        
+        }
     });
 
     rsx! {
@@ -287,7 +294,7 @@ pub fn apps_interface_view() -> Element {
                     builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
                 } else {
                     apps_dropdown_view { is_flowchart_shown }
-                }                            
+                }
                 mermaid_view { diagram_code, check_build: use_signal(|| true), is_flowchart_shown }
             }
             if BUILDER() {
@@ -354,7 +361,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
             },
 
             if !ACTIVE_SESSION_NAME().is_empty() {
-                button { 
+                button {
                     onclick: move |_| async move {
                         let current = is_flowchart_shown.read().to_owned();
                         is_flowchart_shown.set(!current);
@@ -362,7 +369,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                     svg { dangerous_inner_html: ms_sync_icon_svg() },
                 },
             }
-            
+
         }
 
         // Dynamic dropdown
@@ -399,7 +406,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
 pub fn mermaid_view(
     diagram_code: Memo<String>,
     check_build: Signal<bool>,
-    is_flowchart_shown: Signal<bool>
+    is_flowchart_shown: Signal<bool>,
 ) -> Element {
     let mut diagram_svg = use_signal(String::new);
     let mut error_mjs = use_signal(String::new);
@@ -438,7 +445,6 @@ pub fn mermaid_view(
         // Update the signals
         diagram_svg.set(mermaid_js_object.svg.unwrap_or_default());
         error_mjs.set(mermaid_js_object.error.unwrap_or_default());
-
     });
 
     let error_ctxb = use_memo(move || {
@@ -450,7 +456,9 @@ pub fn mermaid_view(
                     Err(err) => Some(err.to_string()),
                 }
             } else {
-                match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(&diagram_code(), true) {
+                match SessionContextBuilder::default()
+                    .with_state_from_mermaid_erdiagram(&diagram_code(), true)
+                {
                     Ok(_res) => None,
                     Err(err) => Some(err.to_string()),
                 }
@@ -460,8 +468,8 @@ pub fn mermaid_view(
             String::new()
         }
     });
-    
-    // Add pan and zoom to the svg    
+
+    // Add pan and zoom to the svg
     use_effect(move || {
         let _ = diagram_svg(); // needed to triger the effect
         document::eval(
@@ -496,17 +504,17 @@ pub fn mermaid_view(
         }
         if !diagram_svg().is_empty() {
             mermaid_div { diagram_svg }
-        }        
+        }
     }
 }
 
 #[component]
-pub fn mermaid_div(diagram_svg: Signal<String>) -> Element {  
+pub fn mermaid_div(diagram_svg: Signal<String>) -> Element {
     rsx! {
         div {
             id: "graphDiv",
             class: "mermaid",
             svg { dangerous_inner_html: diagram_svg() }
         }
-    }  
+    }
 }

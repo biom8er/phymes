@@ -7,11 +7,15 @@ use clap::ValueEnum;
 use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilderTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{candle_data::DataConfig, candle_operators::{
-    ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData, FilterColumnsAndIndices, 
-    FromTasksToParticipants, FromTracesToMessages, GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, 
-    SelectAndCast, SortColumnAndIndices, VectorDistance
-}};
+use crate::{
+    candle_data::DataConfig,
+    candle_operators::{
+        ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData,
+        FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages,
+        GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, SelectAndCast,
+        SortColumnAndIndices, VectorDistance,
+    },
+};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum AvailableCandleOperators {
@@ -68,7 +72,7 @@ impl Default for AvailableCandleOperators {
     }
 }
 
-impl Display for AvailableCandleOperators {    
+impl Display for AvailableCandleOperators {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::VectorDistance => write!(f, "{}", VectorDistance::get_static_name()),
@@ -78,13 +82,17 @@ impl Display for AvailableCandleOperators {
             Self::JoinInner => write!(f, "{}", JoinInner::get_static_name()),
             Self::ExtractPDFText => write!(f, "{}", ExtractPDFText::get_static_name()),
             Self::GroupByAndAggregate => write!(f, "{}", GroupByAndAggregate::get_static_name()),
-            Self::FilterColumnsAndIndices => write!(f, "{}", FilterColumnsAndIndices::get_static_name()),
+            Self::FilterColumnsAndIndices => {
+                write!(f, "{}", FilterColumnsAndIndices::get_static_name())
+            }
             Self::ExtractTabularData => write!(f, "{}", ExtractTabularData::get_static_name()),
             Self::SelectAndCast => write!(f, "{}", SelectAndCast::get_static_name()),
             Self::ApplyTemplate => write!(f, "{}", ApplyTemplate::get_static_name()),
             Self::Pivot => write!(f, "{}", Pivot::get_static_name()),
             Self::NormalizeTime => write!(f, "{}", NormalizeTime::get_static_name()),
-            Self::FromTasksToParticipants => write!(f, "{}", FromTasksToParticipants::get_static_name()),
+            Self::FromTasksToParticipants => {
+                write!(f, "{}", FromTasksToParticipants::get_static_name())
+            }
             Self::FromTracesToMessages => write!(f, "{}", FromTracesToMessages::get_static_name()),
         }
     }

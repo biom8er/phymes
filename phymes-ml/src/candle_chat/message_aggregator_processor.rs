@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, create_chat_fields,
-    BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv,
-    TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, 
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
+    RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
+    SubscribeTrait, TablePublish, TableSubscribe, create_chat_fields,
+};
 
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
-use phymes_data::{collect_messages_by_schema, AggregatorStream};
+use phymes_data::{AggregatorStream, collect_messages_by_schema};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use tracing::{Level, event, instrument};
 
@@ -92,7 +93,9 @@ impl ProcessorTrait for MessageAggregatorProcessor {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
             trace.enter(&message.values().collect::<Vec<_>>());
             Some((trace, trace_builder))
         } else {
@@ -109,11 +112,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
         };
 
         // Make the outbox and send
-        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-            Some(trace.1.clone()) 
-        } else {
-            None
-        };
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(AggregatorStream::new(
             AvailableSubjects::Messages.to_schema(),
             input,
@@ -140,8 +139,11 @@ impl ProcessorTrait for MessageAggregatorProcessor {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{device, test_table::{make_test_table, make_test_table_chat}, TableBuilder, TableBuilderTrait, TableTrait};
-    use phymes_data::{DataConfig, CandleTensorService, AvailableCandleOperators};
+    use phymes_core::{
+        TableBuilder, TableBuilderTrait, TableTrait, device,
+        test_table::{make_test_table, make_test_table_chat},
+    };
+    use phymes_data::{AvailableCandleOperators, CandleTensorService, DataConfig};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
@@ -225,7 +227,8 @@ mod tests {
 
         // Create the aggregator and run
         let agg_arc_1 = MessageAggregatorProcessor::new_arc("aggregator_processor");
-        let mut agg_stream = agg_arc_1.process(message_1, Some(&diagnostic_builder), runtime_env)?;
+        let mut agg_stream =
+            agg_arc_1.process(message_1, Some(&diagnostic_builder), runtime_env)?;
         assert_eq!(agg_stream.len(), 2);
         assert!(agg_stream.get("messages").is_some());
         assert!(agg_stream.get("m3").is_some());

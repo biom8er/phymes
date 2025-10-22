@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_server::{Serverless, serverless_app, ServerlessConfig};
+    use phymes_server::{Serverless, ServerlessConfig, serverless_app};
 
     // parse the config
     let config = ServerlessConfig::parse();
@@ -17,14 +17,11 @@ async fn main() -> Result<()> {
     let mut serverless = Serverless::new(None);
     // DM: blocking on serverless_app hangs indefinitely...
     // let response = block_on(serverless_app(config, &mut serverless)).unwrap();
-    let response = serverless_app(config, &mut serverless).await.unwrap();    
+    let response = serverless_app(config, &mut serverless).await.unwrap();
 
     // parse the response
-    let bytes: Vec<Bytes> = block_on(response
-        .into_body()
-        .into_data_stream()
-        .try_collect()
-    ).unwrap();
+    let bytes: Vec<Bytes> =
+        block_on(response.into_body().into_data_stream().try_collect()).unwrap();
 
     println!("{bytes:?}");
     Ok(())

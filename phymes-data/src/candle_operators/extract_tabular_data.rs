@@ -3,7 +3,11 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_core::{BuildableTrait, BuilderTrait, CsvFormat, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonFormat, MappableTrait, Table, TableBuilder, TableBuilderTrait, TableTrait, Tool, ToolType};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, CsvFormat, DataFormat, Function, FunctionParameters,
+    JSONSchemaDefine, JSONSchemaType, JsonFormat, MappableTrait, Table, TableBuilder,
+    TableBuilderTrait, TableTrait, Tool, ToolType,
+};
 use tracing::instrument;
 
 use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
@@ -27,11 +31,8 @@ impl DataOperatorTrait for ExtractTabularData {
         Self: Sized,
     {
         let lhs_values = config.lhs_values.first().unwrap().to_string();
-        let format = config.format.clone().unwrap_or(DataFormat::default());
-        ExtractTabularData {
-            lhs_values,
-            format
-        }
+        let format = config.format.unwrap_or_default();
+        ExtractTabularData { lhs_values, format }
     }
     fn forward(
         &self,
@@ -68,9 +69,7 @@ impl DataOperatorTrait for ExtractTabularData {
             "op_kwargs".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some(
-                    "DataSummaryFormat object as a String".to_string(),
-                ),
+                description: Some("DataSummaryFormat object as a String".to_string()),
                 ..Default::default()
             }),
         );
@@ -97,45 +96,58 @@ impl DataOperatorTrait for ExtractTabularData {
 
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[instrument(skip(lhs_values, lhs_args))]
-pub fn extract_tabular_data(lhs_values: &str, lhs_args: &[RecordBatch], format: &DataFormat) -> Result<RecordBatch> {
+pub fn extract_tabular_data(
+    lhs_values: &str,
+    lhs_args: &[RecordBatch],
+    format: &DataFormat,
+) -> Result<RecordBatch> {
     let args_table = Table::get_builder()
         .with_name("")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
     let table = match format {
-        DataFormat::Csv(csv_format) => {
-            Table::get_builder()
+        DataFormat::Csv(csv_format) => Table::get_builder()
             .with_name("attachment")
-            .with_csv(values_vec.last().unwrap(), csv_format.delimiter, csv_format.header, csv_format.batch_size)?
-            .build()?
-        }
+            .with_csv(
+                values_vec.last().unwrap(),
+                csv_format.delimiter,
+                csv_format.header,
+                csv_format.batch_size,
+            )?
+            .build()?,
         DataFormat::CsvDefault => {
             let csv_format = CsvFormat::default();
             Table::get_builder()
-            .with_name("attachment")
-            .with_csv(values_vec.last().unwrap(), csv_format.delimiter, csv_format.header, csv_format.batch_size)?
-            .build()?
+                .with_name("attachment")
+                .with_csv(
+                    values_vec.last().unwrap(),
+                    csv_format.delimiter,
+                    csv_format.header,
+                    csv_format.batch_size,
+                )?
+                .build()?
         }
-        DataFormat::Json(json_format) => {
-            Table::get_builder()
+        DataFormat::Json(json_format) => Table::get_builder()
             .with_name("attachment")
             .with_json(values_vec.last().unwrap(), json_format.batch_size)?
-            .build()?
-        }
+            .build()?,
         DataFormat::JsonDefault => {
             let json_format = JsonFormat::default();
             Table::get_builder()
-            .with_name("attachment")
-            .with_json(values_vec.last().unwrap(), json_format.batch_size)?
-            .build()?
+                .with_name("attachment")
+                .with_json(values_vec.last().unwrap(), json_format.batch_size)?
+                .build()?
         }
-        DataFormat::Ipc => {
-            TableBuilder::new_from_ipc_stream(values_vec.last().unwrap())?
+        DataFormat::Ipc => TableBuilder::new_from_ipc_stream(values_vec.last().unwrap())?
             .with_name("attachment")
-            .build()?
+            .build()?,
+        _ => {
+            return Err(anyhow!(
+                "Unsupported format {:?} for extract_tabular_data operator.",
+                format
+            ));
         }
-        _ => return Err(anyhow!("Unsupported format {:?} for extract_tabular_data operator.", format)),        
     };
 
     let batch = table.get_record_batches_own().remove(0);
@@ -143,12 +155,12 @@ pub fn extract_tabular_data(lhs_values: &str, lhs_args: &[RecordBatch], format: 
 }
 
 pub mod test_extract_tabular_data {
-    use super::*; 
+    use super::*;
     use std::sync::Arc;
 
     use arrow::array::{ArrayRef, Float32Array, StringArray};
-    use phymes_core::{BuildableTrait, BuilderTrait, Table, TableBuilderTrait}; 
-    
+    use phymes_core::{BuildableTrait, BuilderTrait, Table, TableBuilderTrait};
+
     pub fn make_scores_table() -> Result<Table> {
         let lhs_ids: ArrayRef = Arc::new(StringArray::from(vec!["a", "b", "c"]));
         let scores: ArrayRef = Arc::new(Float32Array::from(vec![3.0, 2.0, 1.0]));
@@ -162,7 +174,10 @@ pub mod test_extract_tabular_data {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{create_blob_batch, BuildableTrait, BuilderTrait, CsvFormat, DataFormat, JsonFormat, Table, TableBuilderTrait, TableTrait};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, CsvFormat, DataFormat, JsonFormat, Table, TableBuilderTrait,
+        TableTrait, create_blob_batch,
+    };
     use phymes_diagnostics::create_timestamp_micros;
 
     use crate::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
@@ -175,15 +190,21 @@ mod tests {
 
         // Make the tabular data
         let tabular_data = make_scores_table().unwrap();
-        let bytes = tabular_data.to_csv(csv_format.delimiter, csv_format.header).unwrap();
-        let csv_batch = create_blob_batch(vec!["attachment".to_string()], vec!["csv".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()]).unwrap();
+        let bytes = tabular_data
+            .to_csv(csv_format.delimiter, csv_format.header)
+            .unwrap();
+        let csv_batch = create_blob_batch(
+            vec!["attachment".to_string()],
+            vec!["csv".to_string()],
+            vec![bytes],
+            vec!["".to_string()],
+            vec![create_timestamp_micros()],
+        )
+        .unwrap();
 
         // Extract the tabular data
-        let extracted = extract_tabular_data(
-            "bytes",
-            &[csv_batch],
-            &DataFormat::Csv(csv_format),
-        ).unwrap();
+        let extracted =
+            extract_tabular_data("bytes", &[csv_batch], &DataFormat::Csv(csv_format)).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 2);
@@ -209,14 +230,18 @@ mod tests {
         // Make the tabular data
         let tabular_data = make_scores_table().unwrap();
         let bytes = tabular_data.to_json().unwrap();
-        let json_batch = create_blob_batch(vec!["attachment".to_string()], vec!["json".to_string()], vec![bytes], vec!["".to_string()], vec![create_timestamp_micros()]).unwrap();
+        let json_batch = create_blob_batch(
+            vec!["attachment".to_string()],
+            vec!["json".to_string()],
+            vec![bytes],
+            vec!["".to_string()],
+            vec![create_timestamp_micros()],
+        )
+        .unwrap();
 
         // Extract the tabular data
-        let extracted = extract_tabular_data(
-            "bytes",
-            &[json_batch],
-            &DataFormat::Json(json_format),
-        ).unwrap();
+        let extracted =
+            extract_tabular_data("bytes", &[json_batch], &DataFormat::Json(json_format)).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 2);

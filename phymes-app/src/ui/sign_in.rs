@@ -1,4 +1,10 @@
-use crate::state::{sync_current_active_session_state, SyncCurrentActiveSessionState, clear_jwt_state, clear_session_names_state, sync_builder_state, sync_debugger_state, sync_jwt_state, sync_session_names_state, ClearJWTState, ClearSessionNamesState, SignInState, SyncBuilderState, SyncDebuggerState, SyncJWTState, SyncSessionNamesState, BUILDER, DEBUGGER, EMAIL, JWT};
+use crate::state::{
+    clear_jwt_state, clear_session_names_state, sync_builder_state,
+    sync_current_active_session_state, sync_debugger_state, sync_jwt_state,
+    sync_session_names_state, ClearJWTState, ClearSessionNamesState, SignInState, SyncBuilderState,
+    SyncCurrentActiveSessionState, SyncDebuggerState, SyncJWTState, SyncSessionNamesState, BUILDER,
+    DEBUGGER, EMAIL, JWT,
+};
 use dioxus::prelude::*;
 
 #[cfg(not(feature = "serverless"))]
@@ -104,7 +110,7 @@ pub fn sign_in_form() -> Element {
 
                                 // Set the sign-in credentials
                                 sync_jwt.send(SyncJWTState { jwt: jwt_json.jwt.jwt, email: jwt_json.jwt.email });
-                                
+
                                 // Clear the signals
                                 content.write().clear();
                                 email.write().clear();
@@ -150,7 +156,7 @@ pub fn sign_in_form() -> Element {
 
                         // Set the sign-in credentials
                         sync_jwt.send(SyncJWTState { jwt: jwt_json.jwt.jwt, email: jwt_json.jwt.email });
-                                
+
                         // Clear the signals
                         content.write().clear();
                         email.write().clear();
@@ -170,7 +176,7 @@ pub fn sign_in_form() -> Element {
             },
             "forgot password"
         }
-        p { "{content.to_string()}" }          
+        p { "{content.to_string()}" }
     }
 }
 
@@ -236,8 +242,8 @@ pub fn application_mode() -> Element {
                 sync_debugger_state.send(SyncDebuggerState { show: !DEBUGGER()});
             },
             // If we are enabling builder mode, disable debugger mode
-            if !BUILDER() { 
-                "{debugger}" 
+            if !BUILDER() {
+                "{debugger}"
             }
         }
     }

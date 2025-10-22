@@ -8,7 +8,10 @@ use serde_json::{self, Map, Value};
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
-use phymes_core::{BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, MessageBuilderTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SessionInterfaceMessage,
+    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublish,
+};
 use phymes_server::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
@@ -26,9 +29,15 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 // mod imports
 use crate::{
-    state::{ACTIVE_SESSION_NAME, update_attachments_state, extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download, EMAIL, JWT,
-        svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg, ms_arrow_download_icon_svg}},
-    ui::{attach_files_input, clear_upload_files_button, upload_files_button}
+    state::{
+        extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download,
+        svg_icons::{
+            aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg,
+            ms_arrow_download_icon_svg,
+        },
+        update_attachments_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
+    },
+    ui::{attach_files_input, clear_upload_files_button, upload_files_button},
 };
 
 /// View for attachments between the user and AI assistant
@@ -43,13 +52,20 @@ pub fn attachments_interface_view() -> Element {
     let attachments_extensions = use_signal(Vec::<String>::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
-        .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_format(&DataFormat::Bytes)
-        .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_update(&TablePublish::None)
-        .with_stream(false)
-    );
+    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
+        SessionInterfaceMessage::get_builder()
+            .with_session_name(&create_session_name(
+                EMAIL().as_str(),
+                ACTIVE_SESSION_NAME().as_str(),
+            ))
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(&create_session_name(
+                EMAIL().as_str(),
+                ACTIVE_SESSION_NAME().as_str(),
+            ))
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+    });
 
     // Get the last 25 attachments (without the actual blob content) for the attachments view
     let got_attachments = use_memo(move || !attachments_roles().is_empty());
@@ -60,7 +76,11 @@ pub fn attachments_interface_view() -> Element {
         }
 
         let data = get_session_state()
-            .with_subject(AvailableInterfaceSubjects::AggregatedAttachments.to_string().as_str())
+            .with_subject(
+                AvailableInterfaceSubjects::AggregatedAttachments
+                    .to_string()
+                    .as_str(),
+            )
             .make_name()
             .unwrap()
             .build()
@@ -82,17 +102,24 @@ pub fn attachments_interface_view() -> Element {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
                 while let Some(Ok(bytes)) = stream.next().await {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(&bytes).unwrap_or_else(|err| {
+                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(&bytes)
+                        .unwrap_or_else(|err| {
                             tracing::error!(
                                 "There was a error parsing SyncCurrentAttachmentsState {err}."
                             );
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        let bytes: Vec<u8> = serde_json::from_value(row.get("bytes").unwrap().to_owned()).unwrap();
+                        let bytes: Vec<u8> =
+                            serde_json::from_value(row.get("bytes").unwrap().to_owned()).unwrap();
                         if row.get("metadata").is_some() {
-                            update_attachments_state(attachments_roles, attachments_contents, attachments_indices, attachments_timestamps, attachments_filenames, attachments_extensions,
+                            update_attachments_state(
+                                attachments_roles,
+                                attachments_contents,
+                                attachments_indices,
+                                attachments_timestamps,
+                                attachments_filenames,
+                                attachments_extensions,
                                 row.get("metadata").unwrap().as_str().unwrap(),
                                 Some(bytes),
                                 // None,
@@ -130,7 +157,13 @@ pub fn attachments_interface_view() -> Element {
                         serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
                     for row in json_rows.iter() {
                         if row.get("metadata").is_some() {
-                            update_attachments_state(attachments_roles, attachments_contents, attachments_indices, attachments_timestamps, attachments_filenames, attachments_extensions,
+                            update_attachments_state(
+                                attachments_roles,
+                                attachments_contents,
+                                attachments_indices,
+                                attachments_timestamps,
+                                attachments_filenames,
+                                attachments_extensions,
                                 row.get("metadata").unwrap().as_str().unwrap(),
                                 None,
                                 row.get("timestamp").unwrap().as_i64().unwrap(),
@@ -199,7 +232,7 @@ pub fn attachments_interface_view() -> Element {
                                         svg { dangerous_inner_html: ms_arrow_download_icon_svg() }
                                         // TODO: download the attachment
                                     }
-                                }                                
+                                }
                             }
                         }
                     }
@@ -211,15 +244,23 @@ pub fn attachments_interface_view() -> Element {
 }
 
 #[component]
-pub fn attachments_interface_footer(extend_input: Signal<bool>, add_input: Signal<bool>, except_files: Signal<String>, active_subject_name: Option<Signal<String>>) -> Element {
+pub fn attachments_interface_footer(
+    extend_input: Signal<bool>,
+    add_input: Signal<bool>,
+    except_files: Signal<String>,
+    active_subject_name: Option<Signal<String>>,
+) -> Element {
     let files_uploaded = use_signal(Vec::<SessionInterfaceMessage>::new);
     let filenames_uploaded = use_signal(Vec::<String>::new);
     let extensions_uploaded = use_signal(Vec::<String>::new);
-    
+
     let filenames = use_memo(move || {
         let mut filenames_vec = Vec::new();
         for i in 0..files_uploaded.len() {
-            let download = filename_and_extension_to_download(&filenames_uploaded.get(i).unwrap(), &extensions_uploaded.get(i).unwrap());
+            let download = filename_and_extension_to_download(
+                &filenames_uploaded.get(i).unwrap(),
+                &extensions_uploaded.get(i).unwrap(),
+            );
             filenames_vec.push(download);
         }
         filenames_vec.join(", ")
@@ -228,10 +269,10 @@ pub fn attachments_interface_footer(extend_input: Signal<bool>, add_input: Signa
     rsx! {
         footer {
             div {
-                class: "attach_button", 
-                if extend_input() {              
+                class: "attach_button",
+                if extend_input() {
                     attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, files_uploaded, filenames_uploaded, extensions_uploaded }
-                } 
+                }
                 if add_input() {
                     attach_files_input { extend_publish: use_signal(|| false), except_files, active_subject_name, files_uploaded, filenames_uploaded, extensions_uploaded }
                 }

@@ -438,7 +438,7 @@ pub struct ObservedStream {
     baseline_metrics: BaselineMetrics,
 }
 
-impl ObservedStream {    
+impl ObservedStream {
     #[allow(dead_code)]
     pub fn new(inner: SendableRecordBatchStream, baseline_metrics: BaselineMetrics) -> Self {
         Self {

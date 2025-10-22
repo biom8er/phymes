@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
-use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray}, datatypes::{DataType, Field, Fields}};
 use anyhow::Result;
+use arrow::{
+    array::{ArrayRef, Int64Array, RecordBatch, StringArray},
+    datatypes::{DataType, Field, Fields},
+};
 use serde::{Deserialize, Serialize};
 
 pub(crate) fn create_session_mermaid_fields() -> Fields {
@@ -19,8 +22,8 @@ pub(crate) fn create_session_mermaid_fields() -> Fields {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SessionMermaidSubject {
-    pub session_context_name: String, 
-    pub flowchart_diagram: String, 
+    pub session_context_name: String,
+    pub flowchart_diagram: String,
     pub er_diagram: String,
     pub timestamp: i64,
 }
@@ -51,10 +54,12 @@ pub(crate) fn create_mermaid_visualization_fields() -> Fields {
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
     let field_names = ["timestamp"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Int64, false))
-        .collect::<Vec<_>>());
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Int64, false))
+            .collect::<Vec<_>>(),
+    );
     Fields::from(fields_vec)
 }
 
@@ -105,7 +110,7 @@ pub(crate) fn create_mermaid_sequence_diagram_participants_template_fields() -> 
 
 pub fn create_mermaid_sequence_diagram_participants_template_batch(
     participant_name: Vec<String>,
-    participant_type: Vec<String>
+    participant_type: Vec<String>,
 ) -> Result<RecordBatch> {
     let participant_name: ArrayRef = Arc::new(StringArray::from(participant_name));
     let participant_type: ArrayRef = Arc::new(StringArray::from(participant_type));
@@ -117,7 +122,15 @@ pub fn create_mermaid_sequence_diagram_participants_template_batch(
 }
 
 pub(crate) fn create_mermaid_sequence_diagram_messages_template_fields() -> Fields {
-    let field_names = ["subject_name", "object_name", "message_type", "activation_type", "message_content", "note_content", "note_location"];
+    let field_names = [
+        "subject_name",
+        "object_name",
+        "message_type",
+        "activation_type",
+        "message_content",
+        "note_content",
+        "note_location",
+    ];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -155,7 +168,15 @@ pub fn create_mermaid_sequence_diagram_messages_template_batch(
 }
 
 pub(crate) fn create_mermaid_kanban_template_fields() -> Fields {
-    let field_names = ["column_name", "column_label", "task_name", "task_description", "task_assigned", "task_ticket", "task_priority"];
+    let field_names = [
+        "column_name",
+        "column_label",
+        "task_name",
+        "task_description",
+        "task_assigned",
+        "task_ticket",
+        "task_priority",
+    ];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -166,7 +187,7 @@ pub(crate) fn create_mermaid_kanban_template_fields() -> Fields {
 pub(crate) fn create_mermaid_xychart_template_fields() -> Fields {
     let fields_vec = vec![
         Field::new("x", DataType::Utf8, false),
-        Field::new("y", DataType::Float64, false)
+        Field::new("y", DataType::Float64, false),
     ];
     Fields::from(fields_vec)
 }

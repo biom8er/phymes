@@ -1,8 +1,12 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
 use crate::candle_operators::DataOperatorTrait;
-use phymes_core::{device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv,
-    RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, TableBuilder, TableBuilderTrait, TableTrait,
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
+use phymes_core::{
+    AllTableNamesSubscribe, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait,
+    MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, TableBuilder, TableBuilderTrait,
+    TablePublish, TableSubscribe, TableTrait, device,
+};
 
 use arrow::{
     array::StringArray,
@@ -13,7 +17,9 @@ use arrow::{
 use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+};
 use std::{
     pin::Pin,
     sync::Arc,
@@ -97,7 +103,9 @@ impl ProcessorTrait for CandleDataProcessor {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
             trace.enter(&message.values().collect::<Vec<_>>());
             Some((trace, trace_builder))
         } else {
@@ -131,11 +139,7 @@ impl ProcessorTrait for CandleDataProcessor {
         }
 
         // Run the ops
-        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-            Some(trace.1.clone()) 
-        } else {
-            None
-        };
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(CandleDataStream::new(
             subscriptions,
             config,
@@ -210,12 +214,7 @@ impl CandleDataStream {
     #[instrument(skip(self))]
     fn init_tensor_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
-            if self
-                .runtime_env
-                .lock()
-                .tensor_service
-                .is_none()
-            {
+            if self.runtime_env.lock().tensor_service.is_none() {
                 let device = device(config.cpu)?;
                 let service = CandleTensorService::new(device);
                 let _ = self
@@ -243,15 +242,18 @@ impl Stream for CandleDataStream {
 
         // Initialize the metrics
         let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
-            Some(diagnostic_builder.clone().to_child("CandleDataStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+            Some(
+                diagnostic_builder
+                    .clone()
+                    .to_child("CandleDataStream")?
+                    .baseline_metrics(line!(), file!(), "poll_next"),
+            )
         } else {
             None
         };
-        let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-            Some(baseline_metrics.elapsed_compute().timer())
-        } else {
-            None
-        };
+        let _timer = baseline_metrics
+            .as_ref()
+            .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
         // Intialize the config
         if self.config.is_none() {
@@ -292,7 +294,12 @@ impl Stream for CandleDataStream {
 
         // Build the data operator
         if self.data_operator.is_none() {
-            let operator = self.config.as_ref().unwrap().operator.build(&self.config.as_ref().unwrap());
+            let operator = self
+                .config
+                .as_ref()
+                .unwrap()
+                .operator
+                .build(self.config.as_ref().unwrap());
             self.data_operator.replace(operator);
         }
 
@@ -312,12 +319,18 @@ impl Stream for CandleDataStream {
                     // Extract the input from the config
                     match self.config.as_ref().unwrap().lhs_args.as_ref() {
                         Some(qs) => {
-                            let table = TableBuilder::new().with_json(qs.as_bytes(), 512)?.with_name("").build()?;
+                            let table = TableBuilder::new()
+                                .with_json(qs.as_bytes(), 512)?
+                                .with_name("")
+                                .build()?;
                             table.get_record_batches_own()
                         }
                         None => {
-                            self.is_finished = true;                        
-                            return Poll::Ready(Some(Err(anyhow!("lhs_name {lhs_name} does not exist. Available options are {:?}", self.messages.keys()))));
+                            self.is_finished = true;
+                            return Poll::Ready(Some(Err(anyhow!(
+                                "lhs_name {lhs_name} does not exist. Available options are {:?}",
+                                self.messages.keys()
+                            ))));
                         }
                     }
                 }
@@ -355,12 +368,18 @@ impl Stream for CandleDataStream {
                     // Extract the input from the config
                     match self.config.as_ref().unwrap().rhs_args.as_ref() {
                         Some(qs) => {
-                            let table = TableBuilder::new().with_json(qs.as_bytes(), 512)?.with_name("").build()?;
+                            let table = TableBuilder::new()
+                                .with_json(qs.as_bytes(), 512)?
+                                .with_name("")
+                                .build()?;
                             table.get_record_batches_own()
                         }
                         None => {
-                            self.is_finished = true;                            
-                            return Poll::Ready(Some(Err(anyhow!("rhs_name {rhs_name} does not exist. Available options are {:?}", self.messages.keys()))));
+                            self.is_finished = true;
+                            return Poll::Ready(Some(Err(anyhow!(
+                                "rhs_name {rhs_name} does not exist. Available options are {:?}",
+                                self.messages.keys()
+                            ))));
                         }
                     }
                 }
@@ -476,7 +495,7 @@ mod tests {
     use crate::candle_operators::AvailableCandleOperators;
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
-    use phymes_core::{TablePublish, Table};
+    use phymes_core::{Table, TablePublish};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
@@ -938,7 +957,8 @@ mod tests {
             ],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut ops_stream = ops_processor.process(messages, Some(&diagnostic_builder), runtime_env)?;
+        let mut ops_stream =
+            ops_processor.process(messages, Some(&diagnostic_builder), runtime_env)?;
         let result = ops_stream
             .remove("results")
             .unwrap()

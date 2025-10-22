@@ -6,7 +6,10 @@ use crate::candle_data::DataConfig;
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
 use candle_core::Device;
-use phymes_core::{create_chat_record_batch, BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_chat_record_batch,
+};
 use std::collections::HashMap;
 
 /// Redirect a tool call to the user for intervention

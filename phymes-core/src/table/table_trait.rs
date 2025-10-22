@@ -5,7 +5,6 @@ use super::{
     stream_adapter::RecordBatchStreamAdapter,
 };
 
-use arrow::{array::{ArrayData, Float32Builder, ListBuilder}, buffer::Buffer, datatypes::{Field, Schema}};
 use arrow::ipc::{
     reader::{FileReader, StreamReader},
     writer::{FileWriter, StreamWriter},
@@ -29,6 +28,11 @@ use arrow::{
     datatypes::DataType,
 };
 use arrow::{
+    array::{ArrayData, Float32Builder, ListBuilder},
+    buffer::Buffer,
+    datatypes::{Field, Schema},
+};
+use arrow::{
     array::{
         FixedSizeListArray, Int8Array, Int16Array, Int32Array, Int64Array, LargeStringArray,
         ListArray,
@@ -48,7 +52,7 @@ use anyhow::{Result, anyhow};
 use bytes::Bytes;
 use futures::TryStreamExt;
 use serde_json::{Map, Value};
-use tracing::{event, instrument, Level};
+use tracing::{Level, event, instrument};
 
 /// Traits for a columnar table where all [RecordBatch]es are guaranteed to have the same [Schema]
 pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
@@ -182,8 +186,8 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
 
     /// Convert to a vector of structs
     fn to_struct<T>(&self) -> Result<Vec<T>>
-    where 
-        T: Sized + for<'a> Deserialize<'a> 
+    where
+        T: Sized + for<'a> Deserialize<'a>,
     {
         let buf = Vec::new();
         let mut writer = ArrayWriter::new(buf);
@@ -776,7 +780,7 @@ pub trait TableBuilderTrait: BuilderTrait + Debug + Send + Sync {
     /// Create a new stream table with the provided batches
     /// from a vector of structs
     fn with_struct<T>(self, s: &[T]) -> Result<Self>
-    where 
+    where
         Self: Sized,
         T: Sized + Serialize;
 
@@ -1012,7 +1016,9 @@ impl TableBuilderTrait for TableBuilder {
 
     fn with_json_values(mut self, json_values: &[Value]) -> Result<Self> {
         if self.schema.is_none() {
-            return Err(anyhow!("Please define the schema before adding record batches!"));
+            return Err(anyhow!(
+                "Please define the schema before adding record batches!"
+            ));
         }
 
         // Prepare the data arrays
@@ -1182,7 +1188,7 @@ impl TableBuilderTrait for TableBuilder {
                     let array_ref: ArrayRef = Arc::new(BooleanArray::from(array_vec));
                     batch_vec.push((field.name(), array_ref));
                 }
-                DataType::FixedSizeList(f, s) => match f.data_type(){
+                DataType::FixedSizeList(f, s) => match f.data_type() {
                     DataType::Float32 => {
                         let mut array_vec: Vec<Vec<f32>> = Vec::with_capacity(n_rows);
                         for value in json_values {
@@ -1216,15 +1222,18 @@ impl TableBuilderTrait for TableBuilder {
                         let array_ref: ArrayRef = Arc::new(FixedSizeListArray::from(list_data));
                         batch_vec.push((field.name(), array_ref));
                     }
-                    _ => return Err(anyhow!(
-                        "Unsupported type {:?} found when converting JSON object to RecordBatch",
-                        field.data_type()
-                    ))
-                }
-                DataType::List(f) => match f.data_type(){
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported type {:?} found when converting JSON object to RecordBatch",
+                            field.data_type()
+                        ));
+                    }
+                },
+                DataType::List(f) => match f.data_type() {
                     DataType::Float32 => {
                         let value_builder = Float32Builder::new();
-                        let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Float32, false));
+                        let mut list_builder = ListBuilder::new(value_builder)
+                            .with_field(Field::new_list_field(DataType::Float32, false));
                         for value in json_values {
                             if let Value::Object(map) = value
                                 && let Some(Value::Array(val)) = map.get(field.name())
@@ -1242,15 +1251,19 @@ impl TableBuilderTrait for TableBuilder {
                         let array_ref: ArrayRef = Arc::new(list_builder.finish());
                         batch_vec.push((field.name(), array_ref));
                     }
-                    _ => return Err(anyhow!(
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported type {:?} found when converting JSON object to RecordBatch",
+                            field.data_type()
+                        ));
+                    }
+                },
+                _ => {
+                    return Err(anyhow!(
                         "Unsupported type {:?} found when converting JSON object to RecordBatch",
                         field.data_type()
-                    ))
+                    ));
                 }
-                _ => return Err(anyhow!(
-                        "Unsupported type {:?} found when converting JSON object to RecordBatch",
-                        field.data_type()
-                    ))
             }
         }
         let batch = RecordBatch::try_from_iter(batch_vec)?;
@@ -1268,7 +1281,12 @@ impl TableBuilderTrait for TableBuilder {
         let record_batches: Vec<RecordBatch> = stream.try_collect::<Vec<_>>().await?;
         let schema = record_batches.first().unwrap().schema();
         if !schema.eq(&stream_schema) {
-            event!(Level::WARN, "Schema mismatch between stream {:?} and record batch {:?}", stream_schema, schema);
+            event!(
+                Level::WARN,
+                "Schema mismatch between stream {:?} and record batch {:?}",
+                stream_schema,
+                schema
+            );
         }
 
         // Use the record batch schema
@@ -1294,9 +1312,10 @@ impl TableBuilderTrait for TableBuilder {
     }
 
     fn with_struct<T>(self, s: &[T]) -> Result<Self>
-    where 
+    where
         Self: Sized,
-        T: Sized + Serialize {
+        T: Sized + Serialize,
+    {
         let mut values = Vec::new();
         for row in s {
             values.push(serde_json::to_value(row)?);
@@ -1305,8 +1324,9 @@ impl TableBuilderTrait for TableBuilder {
     }
 
     fn with_bytes(self, bytes: &[u8]) -> Result<Self>
-    where 
-        Self: Sized {
+    where
+        Self: Sized,
+    {
         let values: Vec<serde_json::Value> = serde_json::from_slice(bytes)?;
         self.with_json_values(&values)
     }
@@ -1595,7 +1615,7 @@ pub mod test_table {
 
 #[cfg(test)]
 mod tests {
-    use crate::table::test_table::{TestTable, make_test_table_schema, make_test_table};
+    use crate::table::test_table::{TestTable, make_test_table, make_test_table_schema};
 
     use super::*;
 

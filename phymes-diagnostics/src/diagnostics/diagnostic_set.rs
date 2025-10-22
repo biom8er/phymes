@@ -1,12 +1,18 @@
-use std::{sync::Arc, thread::ThreadId};
 use anyhow::Result;
 use serde_json::{Map, Value};
+use std::{sync::Arc, thread::ThreadId};
 
-use crate::{diagnostics::{available_diagnostics::{AvailableDiagnostics, DiagnosticsType}, label::Label}, traces::create_random_id};
 pub use crate::traces::{CurrentContext, Span};
+use crate::{
+    diagnostics::{
+        available_diagnostics::{AvailableDiagnostics, DiagnosticsType},
+        label::Label,
+    },
+    traces::create_random_id,
+};
 
 /// Trait to convert a complex data structure into a `Vec<Map<String, Value>>`
-/// 
+///
 /// # Notes
 /// In the future, it would be better to implement custom serde Serializers
 pub trait JSONObjectTrait {
@@ -32,11 +38,18 @@ pub struct DiagnosticSpan {
 
 impl DiagnosticSpan {
     /// Create a new diagnostic span instantiating the [CurrentContext] and generating a unique `id`
-    pub fn new(diagnostic: &AvailableDiagnostics, span: &Span, line: u32, file: &str, function: &str, labels: &[Label]) -> Result<Self> {
-        Ok(Self { 
-            diagnostic: diagnostic.to_owned(), 
-            current_context: CurrentContext::new(function, line, file), 
-            span: span.to_owned(), 
+    pub fn new(
+        diagnostic: &AvailableDiagnostics,
+        span: &Span,
+        line: u32,
+        file: &str,
+        function: &str,
+        labels: &[Label],
+    ) -> Result<Self> {
+        Ok(Self {
+            diagnostic: diagnostic.to_owned(),
+            current_context: CurrentContext::new(function, line, file),
+            span: span.to_owned(),
             id: create_random_id(),
             labels: labels.to_owned(),
         })
@@ -58,7 +71,12 @@ impl JSONObjectTrait for DiagnosticSpan {
         // Start with the ID and Labels
         let mut map = Map::new();
         map.insert("id".to_string(), self.id.into());
-        let labels = self.labels.iter().map(|l| l.to_string()).collect::<Vec<_>>().join(";");
+        let labels = self
+            .labels
+            .iter()
+            .map(|l| l.to_string())
+            .collect::<Vec<_>>()
+            .join(";");
         map.insert("labels".to_string(), labels.into());
 
         // Convert the span and current context
@@ -98,20 +116,25 @@ impl DiagnosticSet {
 
     /// Filter by the [DiagnosticType]
     pub fn filter_by_diagnostic_type(&self, diagnostic_type: DiagnosticsType) -> Self {
-        let diagnostics = self.diagnostics.iter()
-            .filter_map(|d| 
+        let diagnostics = self
+            .diagnostics
+            .iter()
+            .filter_map(|d| {
                 if d.diagnostic.diagnostic_type() == diagnostic_type {
                     Some(d.clone())
                 } else {
                     None
                 }
-            )
+            })
             .collect::<Vec<_>>();
         Self { diagnostics }
     }
 
     /// Return a columnar representation of the [DiagnosticSet]
-    pub fn to_columns(&self) -> (
+    #[allow(clippy::type_complexity)]
+    pub fn to_columns(
+        &self,
+    ) -> (
         Vec<AvailableDiagnostics>,
         Vec<String>,
         Vec<i64>,
@@ -151,7 +174,7 @@ impl DiagnosticSet {
             let parent_span = diagnostic_span.span.parent();
             let span = diagnostic_span.span.span();
             parent_names_vec.push(parent_span.0.clone().unwrap_or_default());
-            parent_ids_vec.push(parent_span.1.clone().unwrap_or_default());
+            parent_ids_vec.push(parent_span.1.unwrap_or_default());
             span_names_vec.push(span.0.to_owned());
             span_ids_vec.push(span.1.to_owned());
             line_vec.push(diagnostic_span.current_context.line().to_owned());
@@ -159,18 +182,37 @@ impl DiagnosticSet {
             thread_vec.push(diagnostic_span.current_context.thread().to_owned());
             function_vec.push(diagnostic_span.current_context.function().to_owned());
             timestamp_vec.push(diagnostic_span.current_context.timestamp().to_owned());
-            let labels = diagnostic_span.labels.iter().map(|l| l.to_string()).collect::<Vec<_>>().join(";");
+            let labels = diagnostic_span
+                .labels
+                .iter()
+                .map(|l| l.to_string())
+                .collect::<Vec<_>>()
+                .join(";");
             labels_vec.push(labels);
             ids_vec.push(diagnostic_span.id.to_owned());
         }
 
-        (diagnostic_vec, parent_names_vec, parent_ids_vec, span_names_vec, span_ids_vec, line_vec, file_vec, thread_vec, function_vec, timestamp_vec, labels_vec, ids_vec)
+        (
+            diagnostic_vec,
+            parent_names_vec,
+            parent_ids_vec,
+            span_names_vec,
+            span_ids_vec,
+            line_vec,
+            file_vec,
+            thread_vec,
+            function_vec,
+            timestamp_vec,
+            labels_vec,
+            ids_vec,
+        )
     }
 }
 
 impl JSONObjectTrait for DiagnosticSet {
     fn to_json_object(&self) -> Vec<Map<String, Value>> {
-        self.diagnostics.iter()
+        self.diagnostics
+            .iter()
             .flat_map(|d| d.to_json_object())
             .collect::<Vec<_>>()
     }
@@ -180,7 +222,10 @@ impl JSONObjectTrait for DiagnosticSet {
 mod tests {
     use serde_json::json;
 
-    use crate::{traces::Message, DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, MetricBuilderTrait, SpanBuilder, TraceBuilderTrait};
+    use crate::{
+        DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait,
+        MetricBuilderTrait, SpanBuilder, TraceBuilderTrait, traces::Message,
+    };
 
     use super::*;
 
@@ -192,7 +237,9 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // 1. Trace record
-        let trace = diagnostic_builder.clone().messages(line!(), file!(), "my_function");
+        let trace = diagnostic_builder
+            .clone()
+            .messages(line!(), file!(), "my_function");
         trace.enter(&[
             &Message::new("m1", "s1"),
             &Message::new("m2", "s2"),
@@ -205,33 +252,163 @@ mod tests {
         ]);
 
         // 2. Event record
-        let event = diagnostic_builder.clone().info(line!(), file!(), "my_function");
+        let event = diagnostic_builder
+            .clone()
+            .info(line!(), file!(), "my_function");
         event.insert("first", &json!(1));
         event.insert("second", &json!(2));
 
         // 3. Metric
-        let metric = diagnostic_builder.clone().output_rows(line!(), file!(), "my_function");
+        let metric = diagnostic_builder
+            .clone()
+            .output_rows(line!(), file!(), "my_function");
         metric.add(1);
 
         // Filter
-        let object = diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Trace).to_json_object();
+        let object = diagnostics
+            .clone_inner()
+            .filter_by_diagnostic_type(DiagnosticsType::Trace)
+            .to_json_object();
         assert_eq!(object.len(), 6);
-        assert_eq!(object.first().unwrap().get("tracer_type").unwrap().as_str().unwrap(), "Messages");
-        assert_eq!(object.first().unwrap().get("tracer_event").unwrap().as_str().unwrap(), "entered");
-        assert_eq!(object.first().unwrap().get("message_name").unwrap().as_str().unwrap(), "m1");
-        assert_eq!(object.first().unwrap().get("subject_name").unwrap().as_str().unwrap(), "s1");
-        assert_eq!(object.last().unwrap().get("tracer_type").unwrap().as_str().unwrap(), "Messages");
-        assert_eq!(object.last().unwrap().get("tracer_event").unwrap().as_str().unwrap(), "exited");
-        assert_eq!(object.last().unwrap().get("message_name").unwrap().as_str().unwrap(), "m4");
-        assert_eq!(object.last().unwrap().get("subject_name").unwrap().as_str().unwrap(), "s4");
-        let object = diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Event).to_json_object();
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("tracer_type")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "Messages"
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("tracer_event")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "entered"
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("message_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "m1"
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("subject_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "s1"
+        );
+        assert_eq!(
+            object
+                .last()
+                .unwrap()
+                .get("tracer_type")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "Messages"
+        );
+        assert_eq!(
+            object
+                .last()
+                .unwrap()
+                .get("tracer_event")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "exited"
+        );
+        assert_eq!(
+            object
+                .last()
+                .unwrap()
+                .get("message_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "m4"
+        );
+        assert_eq!(
+            object
+                .last()
+                .unwrap()
+                .get("subject_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "s4"
+        );
+        let object = diagnostics
+            .clone_inner()
+            .filter_by_diagnostic_type(DiagnosticsType::Event)
+            .to_json_object();
         assert_eq!(object.len(), 2);
-        assert_eq!(object.first().unwrap().get("event_level").unwrap().as_str().unwrap(), "Info");
-        assert_eq!(object.first().unwrap().get("record_name").unwrap().as_str().unwrap(), "first");
-        assert_eq!(object.first().unwrap().get("record_value").unwrap().as_str().unwrap(), "1");
-        let object = diagnostics.clone_inner().filter_by_diagnostic_type(DiagnosticsType::Metric).to_json_object();
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("event_level")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "Info"
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("record_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "first"
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("record_value")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "1"
+        );
+        let object = diagnostics
+            .clone_inner()
+            .filter_by_diagnostic_type(DiagnosticsType::Metric)
+            .to_json_object();
         assert_eq!(object.len(), 1);
-        assert_eq!(object.first().unwrap().get("metric_name").unwrap().as_str().unwrap(), "output_rows");
-        assert_eq!(object.first().unwrap().get("metric_value").unwrap().as_i64().unwrap(), 1);
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("metric_name")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "output_rows"
+        );
+        assert_eq!(
+            object
+                .first()
+                .unwrap()
+                .get("metric_value")
+                .unwrap()
+                .as_i64()
+                .unwrap(),
+            1
+        );
     }
 }

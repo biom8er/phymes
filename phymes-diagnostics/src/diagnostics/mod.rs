@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
+mod available_diagnostics;
 mod builder;
 mod diagnostic_set;
-mod available_diagnostics;
 mod label;
 
 use parking_lot::Mutex;
 
-pub use diagnostic_set::{DiagnosticSet, DiagnosticSpan, JSONObjectTrait};
-pub use builder::{DiagnosticBuilder, DiagnosticBuilderTrait};
-pub use label::Label;
 pub use available_diagnostics::{AvailableDiagnostics, DiagnosticsType};
+pub use builder::{DiagnosticBuilder, DiagnosticBuilderTrait};
+pub use diagnostic_set::{DiagnosticSet, DiagnosticSpan, JSONObjectTrait};
+pub use label::Label;
 
 #[derive(Default, Debug, Clone)]
 pub struct Diagnostics {

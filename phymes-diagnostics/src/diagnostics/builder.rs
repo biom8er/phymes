@@ -1,9 +1,14 @@
 //! Builder for creating diagnostics
 
+use anyhow::{Result, anyhow};
 use std::{borrow::Cow, sync::Arc};
-use anyhow::{anyhow, Result};
 
-use crate::{diagnostics::{available_diagnostics::AvailableDiagnostics, label::Label, DiagnosticSpan, Diagnostics}, traces::{Span, SpanBuilder}};
+use crate::{
+    diagnostics::{
+        DiagnosticSpan, Diagnostics, available_diagnostics::AvailableDiagnostics, label::Label,
+    },
+    traces::{Span, SpanBuilder},
+};
 
 /// Trait for diagnostic builders (traces, events, and metrics) to extend
 pub trait DiagnosticBuilderTrait {
@@ -24,7 +29,9 @@ pub trait DiagnosticBuilderTrait {
     fn with_span(self, span: &Span) -> Self;
 
     /// Move the current span to parent and add in the child span
-    fn to_child(self, span_name: &str) -> Result<Self> where Self: Sized;
+    fn to_child(self, span_name: &str) -> Result<Self>
+    where
+        Self: Sized;
 
     /// Consume self and create a [DiagnosticSpan] of the specified value
     /// registered with the [Diagnostics]
@@ -69,11 +76,14 @@ impl DiagnosticBuilderTrait for DiagnosticBuilder {
 
     fn to_child(mut self, span_name: &str) -> Result<Self> {
         let span = if let Some(s) = self.span {
-            SpanBuilder::default().with_parent_span(s.span())
+            SpanBuilder::default()
+                .with_parent_span(s.span())
                 .with_span(span_name)
                 .build()?
         } else {
-            return Err(anyhow!("Provide a `span` before attempting to create a child diagnostic builder!"));
+            return Err(anyhow!(
+                "Provide a `span` before attempting to create a child diagnostic builder!"
+            ));
         };
         self.span = Some(span);
         Ok(self)
@@ -85,7 +95,9 @@ impl DiagnosticBuilderTrait for DiagnosticBuilder {
             span,
             labels,
         } = self;
-        let diagnostic_span = Arc::new(DiagnosticSpan::new(diagnostic, &span.unwrap(), line, file, function, &labels).unwrap());
+        let diagnostic_span = Arc::new(
+            DiagnosticSpan::new(diagnostic, &span.unwrap(), line, file, function, &labels).unwrap(),
+        );
         diagnostics.register(diagnostic_span);
     }
 }
@@ -98,17 +110,28 @@ mod tests {
     fn test_diagnostic_builder_to_child() -> Result<()> {
         // Initialize the diagnostics and span
         let diagnostics = Diagnostics::new();
-        let span = SpanBuilder::default().with_parent("parent_span").with_span("span_name").build()?;
+        let span = SpanBuilder::default()
+            .with_parent("parent_span")
+            .with_span("span_name")
+            .build()?;
 
         // Test error when trying to create a child without a parent
         let builder_err = DiagnosticBuilder::new(&diagnostics).to_child("child_span");
         assert!(builder_err.is_err());
 
         // Test for the expected span
-        let builder = DiagnosticBuilder::new(&diagnostics).with_span(&span).to_child("child_span")?;
+        let builder = DiagnosticBuilder::new(&diagnostics)
+            .with_span(&span)
+            .to_child("child_span")?;
         assert_ne!(builder.span.as_ref().unwrap(), &span);
-        assert_eq!(builder.span.as_ref().unwrap().parent().0.as_ref().unwrap(), span.span().0);
-        assert_eq!(builder.span.as_ref().unwrap().parent().1.as_ref().unwrap(), span.span().1);
+        assert_eq!(
+            builder.span.as_ref().unwrap().parent().0.as_ref().unwrap(),
+            span.span().0
+        );
+        assert_eq!(
+            builder.span.as_ref().unwrap().parent().1.as_ref().unwrap(),
+            span.span().1
+        );
 
         Ok(())
     }

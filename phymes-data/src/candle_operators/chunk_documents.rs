@@ -6,7 +6,10 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::Device;
-use phymes_core::{BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 

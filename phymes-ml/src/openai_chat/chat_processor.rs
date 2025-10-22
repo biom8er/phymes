@@ -8,11 +8,18 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, create_chat_record_batch, ChatTraitExt, ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType,
-    BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv,
-    RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, Table, TableBuilderTrait, TableTrait,
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
-use phymes_diagnostics::{create_timestamp_micros, DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
+use phymes_core::{
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt, FinishReason,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilderTrait,
+    TablePublish, TableSubscribe, TableTrait, Tool, ToolChoiceType, create_chat_record_batch,
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    create_timestamp_micros,
+};
 use reqwest::{Client, header::CONTENT_TYPE};
 use tracing::{Level, event};
 
@@ -89,7 +96,9 @@ impl ProcessorTrait for OpenAIChatProcessor {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
             trace.enter(&message.values().collect::<Vec<_>>());
             Some((trace, trace_builder))
         } else {
@@ -111,7 +120,7 @@ impl ProcessorTrait for OpenAIChatProcessor {
 
         // Run the chat stream
         let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-            Some(trace.1.clone()) 
+            Some(trace.1.clone())
         } else {
             None
         };
@@ -190,11 +199,7 @@ impl OpenAIChatStream {
     }
 
     /// Create the request
-    fn make_request(
-        &self,
-        messages: Table,
-        tools: Option<Vec<Tool>>,
-    ) -> ChatCompletionRequest {
+    fn make_request(&self, messages: Table, tools: Option<Vec<Tool>>) -> ChatCompletionRequest {
         // Convert messages to openAI schema
         let messages_openai = messages.to_openai_messages();
 
@@ -315,11 +320,17 @@ impl Stream for OpenAIChatStream {
             OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(text) => {
                     // Initialize the metrics
-                    let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
-                        Some(diagnostic_builder.clone().to_child("OpenAIChatStream")?.baseline_metrics(line!(), file!(), "poll_next"))
-                    } else {
-                        None
-                    };
+                    let baseline_metrics =
+                        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                            Some(
+                                diagnostic_builder
+                                    .clone()
+                                    .to_child("OpenAIChatStream")?
+                                    .baseline_metrics(line!(), file!(), "poll_next"),
+                            )
+                        } else {
+                            None
+                        };
                     let _timer = if let Some(baseline_metrics) = &baseline_metrics {
                         Some(baseline_metrics.elapsed_compute().timer())
                     } else {
@@ -396,10 +407,7 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
     #[allow(unused_imports)]
-    use phymes_core::{
-        metrics::HashMap, schemas::chat::ChatBuilderTraitExt,
-        table::TableBuilder,
-    };
+    use phymes_core::{metrics::HashMap, schemas::chat::ChatBuilderTraitExt, table::TableBuilder};
 
     #[cfg(not(feature = "candle"))]
     #[tokio::test]

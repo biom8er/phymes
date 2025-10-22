@@ -1,12 +1,18 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-use crate::ui::{attachments_interface_view,messaging_interface_view,metrics_interface_view,apps_interface_view,sign_in_view,subjects_interface_view};
 use crate::state::{
     svg_icons::{
-        ms_database_icon_svg, aws_help_icon_svg, b8_logo_icon_svg, b8_menu_icon_svg, ms_message_icon_svg,
-        ms_person_icon_svg, ms_apps_icon_svg, ms_top_speed_icon_svg, ms_tools_icon_svg, ms_attachment_icon_svg},
-    BUILDER, DEBUGGER};
+        aws_help_icon_svg, b8_logo_icon_svg, b8_menu_icon_svg, ms_apps_icon_svg,
+        ms_attachment_icon_svg, ms_database_icon_svg, ms_message_icon_svg, ms_person_icon_svg,
+        ms_tools_icon_svg, ms_top_speed_icon_svg,
+    },
+    BUILDER, DEBUGGER,
+};
+use crate::ui::{
+    apps_interface_view, attachments_interface_view, messaging_interface_view,
+    metrics_interface_view, sign_in_view, subjects_interface_view,
+};
 
 #[component]
 pub fn title() -> Element {
@@ -164,7 +170,7 @@ pub fn main_window_view() -> Element {
                         },
                         svg { dangerous_inner_html: ms_top_speed_icon_svg() }
                     }
-                }                
+                }
             }
 
             // DM: required because each component is its own type!
@@ -190,7 +196,7 @@ pub fn main_window_view() -> Element {
 }
 
 /// Split panel vertical drag
-/// 
+///
 /// # Notes
 /// * this component is a work in progress...
 /// * the JS listeners are necessary for the component to work
@@ -202,7 +208,7 @@ pub fn split_panel_drag_handle() -> Element {
     // let mut is_dragging: Signal<bool> = use_signal(|| false);
     // let mut y_coordinate: Signal<f64> = use_signal(|| 0.0 as f64);
     let mut js_trigger: Signal<bool> = use_signal(|| false);
-    
+
     // use_effect(move || {
     //     // Resize the two window windows
     //     let y_coordinate = y_coordinate.read().to_owned();
@@ -258,7 +264,7 @@ pub fn split_panel_drag_handle() -> Element {
             document.addEventListener('mouseup', () => {
                 isDragging = false;
                 document.body.style.cursor = 'default';
-            });"#
+            });"#,
         );
     });
 
@@ -299,7 +305,6 @@ pub fn split_panel_drag_handle() -> Element {
         }
     }
 }
-
 
 /// About text view with information on using the application
 ///

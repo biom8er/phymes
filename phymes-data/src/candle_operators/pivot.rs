@@ -1,15 +1,25 @@
-use arrow::{array::{ArrayRef, RecordBatch, UInt32Array}, datatypes::{Field, Schema}};
+use arrow::{
+    array::{ArrayRef, RecordBatch, UInt32Array},
+    datatypes::{Field, Schema},
+};
 
 use anyhow::Result;
 use candle_core::{Device, Tensor};
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
-    MappableTrait, BuildableTrait, BuilderTrait, Table, TableBuilderTrait, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{candle_data::{DataAggregatorOperator, DataConfig}, candle_operators::{
-    data_operator::DataOperatorTrait, group_by_and_aggregate::{create_agg_column_name, group_by_and_aggregate}, sort_column_and_indices::take_columns_by_indices
-}};
+use crate::{
+    candle_data::{DataAggregatorOperator, DataConfig},
+    candle_operators::{
+        data_operator::DataOperatorTrait,
+        group_by_and_aggregate::{create_agg_column_name, group_by_and_aggregate},
+        sort_column_and_indices::take_columns_by_indices,
+    },
+};
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
 #[derive(Debug)]
@@ -30,17 +40,17 @@ impl MappableTrait for Pivot {
 impl DataOperatorTrait for Pivot {
     fn new(config: &DataConfig) -> Self {
         let lhs_values = config.lhs_values.to_owned();
-        let agg_columns = config.agg_columns.clone().unwrap_or(Vec::new());
-        let agg_operators = config.agg_operators.clone().unwrap_or(Vec::new());
-        let default_values = config.default_values.clone().unwrap_or(Vec::new());
-        let pvt_columns = config.pvt_columns.clone().unwrap_or(Vec::new());
-        
+        let agg_columns = config.agg_columns.clone().unwrap_or_default();
+        let agg_operators = config.agg_operators.clone().unwrap_or_default();
+        let default_values = config.default_values.clone().unwrap_or_default();
+        let pvt_columns = config.pvt_columns.clone().unwrap_or_default();
+
         Pivot {
             lhs_values,
             agg_columns,
             agg_operators,
             default_values,
-            pvt_columns
+            pvt_columns,
         }
     }
     fn forward(
@@ -69,10 +79,15 @@ impl DataOperatorTrait for Pivot {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        pivot(&lhs_values, &lhs_args, &agg_columns, 
+        pivot(
+            &lhs_values,
+            lhs_args,
+            &agg_columns,
             &self.agg_operators,
             &default_values,
-            &pvt_columns, device)
+            &pvt_columns,
+            device,
+        )
     }
     fn get_description() -> String {
         "Pivot on selected columns".to_string()
@@ -158,11 +173,19 @@ impl DataOperatorTrait for Pivot {
 }
 
 /// CPU only pivot operation to account for missing values
-fn pivot_missing_values(pvt_columns: &[&str], default_values: &[&str], new_agg_columns: &[String], pvt_columns_table: &Table, pvt_rows_table: &Table, pvt_values_table: &Table) -> Result<RecordBatch> {
-   
+fn pivot_missing_values(
+    pvt_columns: &[&str],
+    default_values: &[&str],
+    new_agg_columns: &[String],
+    pvt_columns_table: &Table,
+    pvt_rows_table: &Table,
+    pvt_values_table: &Table,
+) -> Result<RecordBatch> {
     // Initialize the pivot table schema
-    let mut pvt_fields = pvt_rows_table.get_schema()
-        .fields.into_iter()
+    let mut pvt_fields = pvt_rows_table
+        .get_schema()
+        .fields
+        .into_iter()
         .map(|f| Field::new(f.name(), f.data_type().to_owned(), false))
         .collect::<Vec<_>>();
 
@@ -172,13 +195,12 @@ fn pivot_missing_values(pvt_columns: &[&str], default_values: &[&str], new_agg_c
     let pvt_columns_json = pvt_columns_table.to_json_object()?;
     let pvt_values_json = pvt_values_table.to_json_object()?;
     for row in pvt_rows_json.iter() {
-
         // Make the new row
         let mut map = row.clone();
         for column in pvt_columns_json.iter() {
-
             // Prepare the new column name
-            let column_name_vec = pvt_columns.iter()
+            let column_name_vec = pvt_columns
+                .iter()
                 .map(|&key| column.get(key).unwrap().as_str().unwrap().to_string())
                 .collect::<Vec<_>>();
             let column_name = column_name_vec.join("-");
@@ -202,37 +224,55 @@ fn pivot_missing_values(pvt_columns: &[&str], default_values: &[&str], new_agg_c
                     }
                 }
                 if rows_match && columns_match {
-
                     // Add new columns to the row
                     for agg_column_name in new_agg_columns.iter() {
                         let new_column_name = format!("{column_name}-{agg_column_name}");
-                        map.insert(new_column_name.clone(), item.get(agg_column_name).unwrap().to_owned());
+                        map.insert(
+                            new_column_name.clone(),
+                            item.get(agg_column_name).unwrap().to_owned(),
+                        );
                         let field = Field::new(
-                            new_column_name, 
-                            pvt_values_table.get_schema().field_with_name(agg_column_name).unwrap().data_type().to_owned(), 
-                            false);
+                            new_column_name,
+                            pvt_values_table
+                                .get_schema()
+                                .field_with_name(agg_column_name)
+                                .unwrap()
+                                .data_type()
+                                .to_owned(),
+                            false,
+                        );
                         if !pvt_fields.contains(&field) {
                             pvt_fields.push(field);
-                        }                        
+                        }
                     }
                     found = true;
                     break;
                 }
             }
             if !found {
-
                 // Add new columns to the row with default values
-                for (agg_column_name, agg_default_value) in new_agg_columns.iter().zip(default_values.iter()) {
+                for (agg_column_name, agg_default_value) in
+                    new_agg_columns.iter().zip(default_values.iter())
+                {
                     let new_column_name = format!("{column_name}-{agg_column_name}");
                     let default_value = agg_default_value.parse::<i64>()?;
-                    map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
+                    map.insert(
+                        new_column_name.clone(),
+                        serde_json::Value::from(default_value),
+                    );
                     let field = Field::new(
-                        new_column_name, 
-                        pvt_values_table.get_schema().field_with_name(agg_column_name).unwrap().data_type().to_owned(), 
-                        false);
+                        new_column_name,
+                        pvt_values_table
+                            .get_schema()
+                            .field_with_name(agg_column_name)
+                            .unwrap()
+                            .data_type()
+                            .to_owned(),
+                        false,
+                    );
                     if !pvt_fields.contains(&field) {
                         pvt_fields.push(field);
-                    } 
+                    }
                 }
             }
         }
@@ -249,34 +289,55 @@ fn pivot_missing_values(pvt_columns: &[&str], default_values: &[&str], new_agg_c
 }
 
 /// Hardware accelerated version when there are not missing values
-fn pivot_values(lhs_values: &[&str], pvt_columns: &[&str], new_agg_columns: &[String], pvt_columns_table: &Table, pvt_rows_table: &Table, pvt_values_table: &Table, device: &Device) -> Result<RecordBatch> {
+fn pivot_values(
+    lhs_values: &[&str],
+    pvt_columns: &[&str],
+    new_agg_columns: &[String],
+    pvt_columns_table: &Table,
+    pvt_rows_table: &Table,
+    pvt_values_table: &Table,
+    device: &Device,
+) -> Result<RecordBatch> {
     // Build the pivot table columns
     let mut batch_vec = Vec::new();
     for (i, obj) in pvt_columns_table.to_json_object()?.iter().enumerate() {
         let start: u32 = i as u32 * pvt_rows_table.count_rows() as u32;
         let end: u32 = start + pvt_rows_table.count_rows() as u32;
-        let asort_arr: ArrayRef = Arc::new(UInt32Array::from_iter_values((start..end).collect::<Vec<u32>>()));
+        let asort_arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(
+            (start..end).collect::<Vec<u32>>(),
+        ));
         let asort_tensor = Tensor::arange(start, end, device)?;
 
         // Take each lhs_values column (only once)
         if i == 0 {
             let taken = take_columns_by_indices(
-                &lhs_values.iter().map(|s| s.to_string()).collect::<Vec<_>>(), 
-                &pvt_values_table, &asort_arr, &asort_tensor, device)?;
+                &lhs_values.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+                pvt_values_table,
+                &asort_arr,
+                &asort_tensor,
+                device,
+            )?;
             batch_vec.extend(taken);
         }
 
         // Prepare the new column name
-        let column_name_vec = pvt_columns.iter()
+        let column_name_vec = pvt_columns
+            .iter()
             .map(|&key| obj.get(key).unwrap().as_str().unwrap().to_string())
             .collect::<Vec<_>>();
         let column_name = column_name_vec.join("-");
 
         // take each agg_column based on the pvt_columns_group
-        let taken = take_columns_by_indices(&new_agg_columns, &pvt_values_table, &asort_arr, &asort_tensor, device)?;
+        let taken = take_columns_by_indices(
+            new_agg_columns,
+            pvt_values_table,
+            &asort_arr,
+            &asort_tensor,
+            device,
+        )?;
         for (name, arr) in taken {
             batch_vec.push((format!("{column_name}-{name}"), arr));
-        }        
+        }
     }
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
@@ -294,7 +355,7 @@ fn pivot_values(lhs_values: &[&str], pvt_columns: &[&str], new_agg_columns: &[St
 /// * `pvt_columns` - Slice of Strings for the columns to group by
 /// * `fill_value` - Value to replace missing values with (in the resulting pivot table, after aggregation)
 /// * `device` - The compute device
-#[instrument(skip(lhs_values,lhs_args,agg_columns,agg_operators,pvt_columns,device))]
+#[instrument(skip(lhs_values, lhs_args, agg_columns, agg_operators, pvt_columns, device))]
 pub fn pivot(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
@@ -306,8 +367,13 @@ pub fn pivot(
 ) -> Result<RecordBatch> {
     // Group and aggregate by the lhs_values and pvt_columns
     // Note that the pvt_columns are last so that the gorup partition ranges can be used directly to extract out the columns for the pivot table
-    let pvt_values: &[&str] = &lhs_values.iter().chain(pvt_columns).map(|&s| s).collect::<Vec<&str>>();
-    let pvt_values_group = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
+    let pvt_values: &[&str] = &lhs_values
+        .iter()
+        .chain(pvt_columns)
+        .copied()
+        .collect::<Vec<&str>>();
+    let pvt_values_group =
+        group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
     // DM: Workaround for out of memory error on the GPU when analyzing session metrics...
     // let pvt_values_group = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, &Device::Cpu)?;
     let pvt_values_table = Table::get_builder()
@@ -316,7 +382,9 @@ pub fn pivot(
         .build()?;
 
     // Make the values column names
-    let new_agg_columns = agg_columns.iter().zip(agg_operators.iter())
+    let new_agg_columns = agg_columns
+        .iter()
+        .zip(agg_operators.iter())
         .map(|(agg_col, agg_op)| create_agg_column_name(agg_col, agg_op))
         .collect::<Vec<_>>();
 
@@ -335,8 +403,10 @@ pub fn pivot(
     // Group the columns and the rows
     let pvt_columns_batch = RecordBatch::try_from_iter(pvt_columns_vec)?;
     let pvt_values_batches = RecordBatch::try_from_iter(pvt_values_vec)?;
-    let pvt_columns_group = group_by_and_aggregate(pvt_columns, &[pvt_columns_batch], &[], &[], device)?;
-    let pvt_rows_group = group_by_and_aggregate(lhs_values, &[pvt_values_batches], &[], &[], device)?;
+    let pvt_columns_group =
+        group_by_and_aggregate(pvt_columns, &[pvt_columns_batch], &[], &[], device)?;
+    let pvt_rows_group =
+        group_by_and_aggregate(lhs_values, &[pvt_values_batches], &[], &[], device)?;
 
     // Wrap the all grouped batches into tables
     let pvt_columns_table = Table::get_builder()
@@ -349,10 +419,26 @@ pub fn pivot(
         .build()?;
 
     // Check that there are no missing values
-    if pvt_columns_table.count_rows() * pvt_rows_table.count_rows() == pvt_values_table.count_rows() {
-        pivot_values(lhs_values, pvt_columns, &new_agg_columns, &pvt_columns_table, &pvt_rows_table, &pvt_values_table, device)
-    } else {        
-        pivot_missing_values(pvt_columns, default_values, &new_agg_columns, &pvt_columns_table, &pvt_rows_table, &pvt_values_table)
+    if pvt_columns_table.count_rows() * pvt_rows_table.count_rows() == pvt_values_table.count_rows()
+    {
+        pivot_values(
+            lhs_values,
+            pvt_columns,
+            &new_agg_columns,
+            &pvt_columns_table,
+            &pvt_rows_table,
+            &pvt_values_table,
+            device,
+        )
+    } else {
+        pivot_missing_values(
+            pvt_columns,
+            default_values,
+            &new_agg_columns,
+            &pvt_columns_table,
+            &pvt_rows_table,
+            &pvt_values_table,
+        )
     }
 }
 

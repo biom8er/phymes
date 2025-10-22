@@ -2,9 +2,14 @@ use std::{fmt::Display, sync::Arc};
 
 use anyhow::Result;
 use clap::ValueEnum;
-use phymes_core::{MappableTrait, TablePublish, TableSubscribe, SubscribeTrait, test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho, ProcessorTrait};
+use phymes_core::{
+    MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, SubscribeTrait, TablePublish,
+    TableSubscribe, test_processor::ProcessorMock,
+};
 use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor};
-use phymes_ml::{CandleChatProcessor, MessageAggregatorProcessor, MessageParserProcessor, CandleEmbedProcessor};
+use phymes_ml::{
+    CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
+};
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
@@ -46,10 +51,16 @@ impl Display for AvailableProcessors {
             Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
             Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
             Self::DataSummaryProcessor => write!(f, "{}", DataSummaryProcessor::get_static_name()),
-            Self::AttachmentAggregatorProcessor => write!(f, "{}", AttachmentAggregatorProcessor::get_static_name()),
+            Self::AttachmentAggregatorProcessor => {
+                write!(f, "{}", AttachmentAggregatorProcessor::get_static_name())
+            }
             Self::CandleChatProcessor => write!(f, "{}", CandleChatProcessor::get_static_name()),
-            Self::MessageAggregatorProcessor => write!(f, "{}", MessageAggregatorProcessor::get_static_name()),
-            Self::MessageParserProcessor => write!(f, "{}", MessageParserProcessor::get_static_name()),
+            Self::MessageAggregatorProcessor => {
+                write!(f, "{}", MessageAggregatorProcessor::get_static_name())
+            }
+            Self::MessageParserProcessor => {
+                write!(f, "{}", MessageParserProcessor::get_static_name())
+            }
             Self::CandleEmbedProcessor => write!(f, "{}", CandleEmbedProcessor::get_static_name()),
             #[cfg(feature = "openai_api")]
             Self::OpenAIChatProcessor => write!(f, "{}", OpenAIChatProcessor::get_static_name()),
@@ -91,18 +102,12 @@ impl AvailableProcessors {
         subscribe: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         match self {
-            Self::ProcessorMock => ProcessorMock::new_arc_with_pub_sub(
-                name,
-                publications,
-                subscriptions,
-                subscribe,
-            ),
-            Self::ProcessorEcho => ProcessorEcho::new_arc_with_pub_sub(
-                name,
-                publications,
-                subscriptions,
-                subscribe,
-            ),
+            Self::ProcessorMock => {
+                ProcessorMock::new_arc_with_pub_sub(name, publications, subscriptions, subscribe)
+            }
+            Self::ProcessorEcho => {
+                ProcessorEcho::new_arc_with_pub_sub(name, publications, subscriptions, subscribe)
+            }
             Self::CandleDataProcessor => CandleDataProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
@@ -115,12 +120,14 @@ impl AvailableProcessors {
                 subscriptions,
                 subscribe,
             ),
-            Self::AttachmentAggregatorProcessor => AttachmentAggregatorProcessor::new_arc_with_pub_sub(
-                name,
-                publications,
-                subscriptions,
-                subscribe,
-            ),
+            Self::AttachmentAggregatorProcessor => {
+                AttachmentAggregatorProcessor::new_arc_with_pub_sub(
+                    name,
+                    publications,
+                    subscriptions,
+                    subscribe,
+                )
+            }
             Self::CandleChatProcessor => CandleChatProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
@@ -162,10 +169,7 @@ impl AvailableProcessors {
         }
     }
 
-    pub fn build_with_builder(
-        self,
-        builder: ProcessorBuilder,
-    ) -> Result<Arc<dyn ProcessorTrait>> {
+    pub fn build_with_builder(self, builder: ProcessorBuilder) -> Result<Arc<dyn ProcessorTrait>> {
         let (name, publications, subscriptions, subscribe) = builder.take()?;
         Ok(self.build_arc_with_pub_sub(&name, &publications, &subscriptions, subscribe))
     }

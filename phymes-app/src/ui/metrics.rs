@@ -1,6 +1,9 @@
 use dioxus::prelude::*;
 use phymes_agents::AvailableInterfaceSubjects;
-use phymes_core::{BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, MessageBuilderTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SessionInterfaceMessage,
+    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublish,
+};
 use phymes_server::create_session_name;
 use serde_json::{Map, Value};
 
@@ -21,8 +24,12 @@ use futures::TryStreamExt;
 use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 use crate::{
-    state::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME, EMAIL, JWT, svg_icons::ms_search_icon_svg},
-    ui::mermaid_view};
+    state::{
+        get_non_duplicated_sorted_subjects, svg_icons::ms_search_icon_svg, ACTIVE_SESSION_NAME,
+        EMAIL, JWT,
+    },
+    ui::mermaid_view,
+};
 
 pub fn get_metric_visualizations_by_metric_name(
     active_subject: &str,
@@ -51,13 +58,20 @@ pub fn metrics_interface_view() -> Element {
     let mut metric_visualizations = use_signal(Vec::<String>::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || SessionInterfaceMessage::get_builder()
-        .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_format(&DataFormat::Bytes)
-        .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-        .with_update(&TablePublish::None)
-        .with_stream(false)
-    );
+    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
+        SessionInterfaceMessage::get_builder()
+            .with_session_name(&create_session_name(
+                EMAIL().as_str(),
+                ACTIVE_SESSION_NAME().as_str(),
+            ))
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(&create_session_name(
+                EMAIL().as_str(),
+                ACTIVE_SESSION_NAME().as_str(),
+            ))
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+    });
 
     // Get the active session info for the metrics view;
     let _ = use_resource(move || async move {
@@ -69,12 +83,19 @@ pub fn metrics_interface_view() -> Element {
         let route = "/app/v1/get_state";
         // DM: https://github.com/biom8er/phymes/issues/111#issue-3492849457
         // let route = "/app/v1/diagnostics";
-        let data_serialized = serde_json::to_string(&get_session_state()
-            .with_subject(AvailableInterfaceSubjects::AggregatedAttachments.to_string().as_str())
-            .make_name()
-            .unwrap()
-            .build()
-            .unwrap()).unwrap();
+        let data_serialized = serde_json::to_string(
+            &get_session_state()
+                .with_subject(
+                    AvailableInterfaceSubjects::AggregatedAttachments
+                        .to_string()
+                        .as_str(),
+                )
+                .make_name()
+                .unwrap()
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
 
         #[cfg(not(feature = "serverless"))]
         let addr = format!("{ADDR_BACKEND}{route}");
@@ -90,33 +111,38 @@ pub fn metrics_interface_view() -> Element {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
                 while let Some(Ok(bytes)) = stream.next().await {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(bytes.as_ref()).unwrap_or_else(|err| {
-                            tracing::error!("There was a error getting the session diagnostics {err}.");
+                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(bytes.as_ref())
+                        .unwrap_or_else(|err| {
+                            tracing::error!(
+                                "There was a error getting the session diagnostics {err}."
+                            );
                             Vec::new()
                         });
                     for row in json_rows.iter() {
                         metric_names.push("processor_traces".to_string());
-                        metric_visualizations.push(row
-                            .get("processor_traces")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        metric_visualizations.push(
+                            row.get("processor_traces")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
                         metric_names.push("elapsed_compute".to_string());
-                        metric_visualizations.push(row
-                            .get("elapsed_compute")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        metric_visualizations.push(
+                            row.get("elapsed_compute")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
                         metric_names.push("output_rows".to_string());
-                        metric_visualizations.push(row
-                            .get("output_rows")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        metric_visualizations.push(
+                            row.get("output_rows")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
                         // DM: https://github.com/biom8er/phymes/issues/111#issue-3492849457
                         // metric_names.push(row
                         //     .get("filename")
@@ -133,7 +159,9 @@ pub fn metrics_interface_view() -> Element {
                     }
                 }
             }
-            Err(err) => tracing::error!("There was a error getting session diagnostics info {err}."),
+            Err(err) => {
+                tracing::error!("There was a error getting session diagnostics info {err}.")
+            }
         }
 
         #[cfg(feature = "serverless")]
@@ -155,33 +183,38 @@ pub fn metrics_interface_view() -> Element {
                     .await
                     .unwrap();
                 for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte.as_ref()).unwrap_or_else(|err| {
-                            tracing::error!("There was a error getting the session diagnostics {err}.");
+                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte.as_ref())
+                        .unwrap_or_else(|err| {
+                            tracing::error!(
+                                "There was a error getting the session diagnostics {err}."
+                            );
                             Vec::new()
                         });
                     for row in json_rows.iter() {
                         metric_names.push("processor_traces".to_string());
-                        metric_visualizations.push(row
-                            .get("processor_traces")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        metric_visualizations.push(
+                            row.get("processor_traces")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
                         metric_names.push("elapsed_compute".to_string());
-                        metric_visualizations.push(row
-                            .get("elapsed_compute")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        metric_visualizations.push(
+                            row.get("elapsed_compute")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
                         metric_names.push("output_rows".to_string());
-                        metric_visualizations.push(row
-                            .get("output_rows")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string());
+                        metric_visualizations.push(
+                            row.get("output_rows")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        );
                     }
                 }
             }
@@ -201,7 +234,8 @@ pub fn metrics_interface_view() -> Element {
                 .read()
                 .iter()
                 .map(|s| s.as_str())
-                .collect::<Vec<_>>());
+                .collect::<Vec<_>>(),
+        );
         visualizations.pop().unwrap_or("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tWaiting to retrieve session plan metrics...".to_string())
     });
 
@@ -238,8 +272,10 @@ pub fn metrics_interface_view() -> Element {
 
 /// Metrics dropdown
 #[component]
-pub fn metrics_dropdown(mut active_metric: Signal<String>, metric_names: Signal<Vec<String>>) -> Element {
-
+pub fn metrics_dropdown(
+    mut active_metric: Signal<String>,
+    metric_names: Signal<Vec<String>>,
+) -> Element {
     // Dropdown signals
     let mut show_metric_dropdown = use_signal(|| false);
     let mut metric_dropdown = use_signal(String::new);
@@ -252,7 +288,7 @@ pub fn metrics_dropdown(mut active_metric: Signal<String>, metric_names: Signal<
                 .collect::<Vec<_>>(),
         )
     });
-    let mut metrics_filtered = use_signal(|| Vec::<String>::new());
+    let mut metrics_filtered = use_signal(Vec::<String>::new);
 
     rsx! {
         div {
@@ -291,7 +327,7 @@ pub fn metrics_dropdown(mut active_metric: Signal<String>, metric_names: Signal<
                 class: "dropdown_list",
                 ul {
                     id: "sessions_dropdown_list",
-                    {metrics_vec().iter().filter(|s| active_metric().to_string()!=**s && !metrics_filtered.read().contains(&s.to_string())).enumerate().map(|(i, sub)|  {
+                    {metrics_vec().iter().filter(|s| active_metric()!=**s && !metrics_filtered.read().contains(&s.to_string())).enumerate().map(|(i, sub)|  {
                         let sub = sub.clone();
                         rsx! {
                             li {

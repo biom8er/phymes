@@ -9,7 +9,7 @@ pub trait TraceableTrait {
 }
 
 /// A tracer often a [SendableRecordBatchStreamMessage]
-/// 
+///
 /// [SendableRecordBatchStreamMessage]: phymes_core::tasks::messages::SendableRecordBatchStreamMessage
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct Tracer {
@@ -30,7 +30,11 @@ impl Tracer {
 
 impl Display for Tracer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "message:{};subject:{}", self.message_name, self.subject_name)
+        write!(
+            f,
+            "message:{};subject:{}",
+            self.message_name, self.subject_name
+        )
     }
 }
 
@@ -39,6 +43,12 @@ impl Display for Tracer {
 pub struct TraceRecord {
     entered: Arc<Mutex<Option<Vec<Tracer>>>>,
     exited: Arc<Mutex<Option<Vec<Tracer>>>>,
+}
+
+impl Default for TraceRecord {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TraceRecord {

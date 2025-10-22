@@ -23,7 +23,12 @@ pub struct BaselineMetrics {
 
 impl BaselineMetrics {
     /// Create a new BaselineMetric structure, and set `start_time` to now
-    pub fn new(start_time: Timestamp, end_time: Timestamp, elapsed_compute: Time, output_rows: Count) -> Self {
+    pub fn new(
+        start_time: Timestamp,
+        end_time: Timestamp,
+        elapsed_compute: Time,
+        output_rows: Count,
+    ) -> Self {
         start_time.record();
 
         Self {
@@ -165,16 +170,18 @@ impl RecordOutput for Result<RecordBatch> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
     use arrow::array::{ArrayRef, UInt32Array};
 
-    use crate::{diagnostics::JSONObjectTrait, DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, MetricBuilderTrait, SpanBuilder};
+    use crate::{
+        DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, MetricBuilderTrait, SpanBuilder,
+        diagnostics::JSONObjectTrait,
+    };
 
-    use super::*;    
+    use super::*;
 
     #[test]
     fn test_baseline_metrics_timer() {
@@ -185,7 +192,10 @@ mod tests {
 
         // Case 1: Stop the timer with no poll
         {
-            let baseline_metrics = diagnostic_builder.clone().baseline_metrics(line!(), file!(), "my_function");
+            let baseline_metrics =
+                diagnostic_builder
+                    .clone()
+                    .baseline_metrics(line!(), file!(), "my_function");
             let timer = baseline_metrics.elapsed_compute().timer();
             timer.done();
         }
@@ -193,17 +203,16 @@ mod tests {
             dbg!(&metric);
             if metric.get("metric_name").unwrap().as_str().unwrap() == "output_rows" {
                 assert_eq!(metric.get("metric_value").unwrap().as_u64().unwrap(), 0);
-            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "start_timestamp" {
-                assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
-            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "end_timestamp" {
-                assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
-            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "elapsed_compute" {
+            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "start_timestamp"
+                || metric.get("metric_name").unwrap().as_str().unwrap() == "end_timestamp"
+                || metric.get("metric_name").unwrap().as_str().unwrap() == "elapsed_compute"
+            {
                 assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
             } else {
                 unreachable!()
             }
-        }        
-    }  
+        }
+    }
 
     #[test]
     fn test_baseline_metrics_poll() {
@@ -219,7 +228,10 @@ mod tests {
 
         // Case 2: Stop the timer with a poll
         {
-            let baseline_metrics = diagnostic_builder.clone().baseline_metrics(line!(), file!(), "my_function");
+            let baseline_metrics =
+                diagnostic_builder
+                    .clone()
+                    .baseline_metrics(line!(), file!(), "my_function");
             let _timer = baseline_metrics.elapsed_compute().timer();
             let _ = baseline_metrics.record_poll(poll);
         }
@@ -227,11 +239,10 @@ mod tests {
             dbg!(&metric);
             if metric.get("metric_name").unwrap().as_str().unwrap() == "output_rows" {
                 assert_eq!(metric.get("metric_value").unwrap().as_u64().unwrap(), 9);
-            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "start_timestamp" {
-                assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
-            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "end_timestamp" {
-                assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
-            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "elapsed_compute" {
+            } else if metric.get("metric_name").unwrap().as_str().unwrap() == "start_timestamp"
+                || metric.get("metric_name").unwrap().as_str().unwrap() == "end_timestamp"
+                || metric.get("metric_name").unwrap().as_str().unwrap() == "elapsed_compute"
+            {
                 assert!(metric.get("metric_value").unwrap().as_u64().unwrap() > 0);
             } else {
                 unreachable!()

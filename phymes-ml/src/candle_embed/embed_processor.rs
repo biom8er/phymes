@@ -1,10 +1,16 @@
 use candle_core::{DType, Tensor};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
-use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, TokenWrapper,
-    RuntimeEnv, RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, Table, TableBuilder, TableBuilderTrait, TableTrait,
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
+use phymes_core::{
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TokenWrapper, device,
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+};
 
 use arrow::{
     array::{ArrayRef, Float32Builder, ListBuilder, StringArray},
@@ -95,7 +101,9 @@ impl ProcessorTrait for CandleEmbedProcessor {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
             trace.enter(&message.values().collect::<Vec<_>>());
             Some((trace, trace_builder))
         } else {
@@ -113,11 +121,7 @@ impl ProcessorTrait for CandleEmbedProcessor {
         };
 
         // Make the outbox and send
-        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-            Some(trace.1.clone()) 
-        } else {
-            None
-        };
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(CandleEmbedStream::new(
             documents,
             config,
@@ -261,15 +265,18 @@ impl Stream for CandleEmbedStream {
         if self.sample == 0 {
             // Initialize the metrics
             let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
-                Some(diagnostic_builder.clone().to_child("CandleEmbedStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("CandleEmbedStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
             } else {
                 None
             };
-            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-                Some(baseline_metrics.elapsed_compute().timer())
-            } else {
-                None
-            };
+            let _timer = baseline_metrics
+                .as_ref()
+                .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // initialize the config
             let mut batches = Vec::new();
@@ -351,15 +358,18 @@ impl Stream for CandleEmbedStream {
             // Keep embedding the remaining streams
             // Initialize the metrics
             let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
-                Some(diagnostic_builder.clone().to_child("CandleEmbedStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("CandleEmbedStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
             } else {
                 None
             };
-            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-                Some(baseline_metrics.elapsed_compute().timer())
-            } else {
-                None
-            };
+            let _timer = baseline_metrics
+                .as_ref()
+                .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // Collect the next batch of queries
             let batch = match ready!(self.document_stream.poll_next_unpin(cx)) {
@@ -453,7 +463,8 @@ pub fn convert_embedding_vector_to_record_batch(
 
     // Wrap into a record batch
     let value_builder = Float32Builder::new();
-    let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Float32, false));
+    let mut list_builder =
+        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Float32, false));
     for values in embedding_vec.into_iter() {
         list_builder.values().append_slice(&values);
         list_builder.append(true);
@@ -589,7 +600,10 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
-    use crate::{candle_assets::{load_model_asset_path, load_tokenizer}, AvailableCandleAssets};
+    use crate::{
+        AvailableCandleAssets,
+        candle_assets::{load_model_asset_path, load_tokenizer},
+    };
 
     use super::*;
 
@@ -744,9 +758,7 @@ mod tests {
                 "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(
-                AvailableCandleAssets::QwenV2_1p5bEmbed,
-            ),
+            candle_asset: Some(AvailableCandleAssets::QwenV2_1p5bEmbed),
             ..Default::default()
         };
 

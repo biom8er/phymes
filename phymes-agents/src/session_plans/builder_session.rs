@@ -1,10 +1,15 @@
-use std::sync::Arc;
+use crate::{
+    session_plans::AvailableSessionPlans,
+    session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait},
+};
 use anyhow::Result;
-use phymes_core::{AvailableSubjects, create_session_mermaid_batch, BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait,
-    TaskPlan, Table, TableBuilderTrait, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, 
-    ProcessorEcho, ProcessorTrait};
+use phymes_core::{
+    AllTableNamesSubscribe, AvailableSubjects, BuildableTrait, BuilderTrait, ProcessorEcho,
+    ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table, TableBuilderTrait,
+    TablePublish, TableSubscribe, TaskPlan, create_session_mermaid_batch,
+};
 use phymes_diagnostics::create_timestamp_micros;
-use crate::{session_plans::AvailableSessionPlans, session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait}};
+use std::sync::Arc;
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Table> {
@@ -20,20 +25,28 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Tab
     let mut er_diagram = Vec::new();
     let mut timestamp = Vec::new();
     for session_context_name in available_session_plans {
-        let builder = AvailableSessionPlans::get_session_context_builder_by_name(&session_context_name, &session_context_name)?;
+        let builder = AvailableSessionPlans::get_session_context_builder_by_name(
+            &session_context_name,
+            &session_context_name,
+        )?;
         flowchart_diagram.push(builder.to_mermaid_flowchart()?);
         er_diagram.push(builder.to_mermaid_erdiagram()?);
         session_context_names.push(session_context_name);
         timestamp.push(create_timestamp_micros());
     }
-    
+
     // Create the table
     let table_name = if builder {
         AvailableSubjects::BuilderMermaid.to_string()
     } else {
         AvailableSubjects::SessionMermaid.to_string()
     };
-    let batch = create_session_mermaid_batch(session_context_names, flowchart_diagram, er_diagram, timestamp)?;
+    let batch = create_session_mermaid_batch(
+        session_context_names,
+        flowchart_diagram,
+        er_diagram,
+        timestamp,
+    )?;
     Table::get_builder()
         .with_name(table_name.as_str())
         .with_record_batches(vec![batch])?
@@ -75,34 +88,26 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
-        let processors = vec![
-            ProcessorEcho::new_arc_with_pub_sub(
-                self.session_context_name,
-                &[
-                    TablePublish::Extend {
-                        table_name: AvailableSubjects::SessionMermaid.to_string(),
-                    },
-                ],
-                &[TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableSubjects::SessionMermaid.to_string(),
-                }],
-                AllTableNamesSubscribe::new_box(),
-            )
-        ];
+        let processors = vec![ProcessorEcho::new_arc_with_pub_sub(
+            self.session_context_name,
+            &[TablePublish::Extend {
+                table_name: AvailableSubjects::SessionMermaid.to_string(),
+            }],
+            &[TableSubscribe::OnUpdateLastRecordBatch {
+                table_name: AvailableSubjects::SessionMermaid.to_string(),
+            }],
+            AllTableNamesSubscribe::new_box(),
+        )];
 
         Some(processors)
     }
 
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
-        Some(vec![
-            RuntimeEnv::new().with_name("rt_default"),
-        ])
+        Some(vec![RuntimeEnv::new().with_name("rt_default")])
     }
 
     fn make_state_tables(&self) -> Option<Vec<Table>> {
-        Some(vec![
-            make_example_mermaid_table(true, false).unwrap(),
-        ])
+        Some(vec![make_example_mermaid_table(true, false).unwrap()])
     }
 }
 

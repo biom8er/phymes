@@ -9,8 +9,10 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
-use phymes_core::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, 
-    MappableTrait, BuildableTrait, BuilderTrait, Table, TableBuilderTrait, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -34,10 +36,7 @@ impl DataOperatorTrait for SortColumnAndIndices {
         let lhs_values = config.lhs_values.first().unwrap().to_string();
         let asc = config.asc.unwrap_or(true);
 
-        SortColumnAndIndices {
-            lhs_values,
-            asc,
-        }
+        SortColumnAndIndices { lhs_values, asc }
     }
     fn forward(
         &self,

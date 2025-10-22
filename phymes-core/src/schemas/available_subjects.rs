@@ -1,4 +1,37 @@
-use crate::{schemas::{blob::create_blob_fields, chat::create_chat_fields, diagnostics::{create_events_fields, create_metrics_fields, create_metrics_mermaid_gantt_fields, create_metrics_pivot_fields, create_metrics_pivot_norm_time_fields, create_traces_fields}, error::create_error_fields, mermaid::{create_mermaid_content_template_fields, create_mermaid_flowchart_links_template_fields, create_mermaid_flowchart_nodes_template_fields, create_mermaid_gantt_template_fields, create_mermaid_kanban_template_fields, create_mermaid_sequence_diagram_messages_template_fields, create_mermaid_sequence_diagram_participants_template_fields, create_mermaid_visualization_fields, create_mermaid_xychart_template_fields, create_session_mermaid_fields}, queries::create_queries_fields, session::{create_session_processors_fields, create_session_runtime_envs_fields, create_session_subjects_fields, create_session_subjects_num_rows_fields, create_session_tasks_fields}, user::{create_join_user_inbox_session_contexts_fields, create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields, create_user_inbox_fields, create_user_session_contexts_fields}}, session::{BuildableTrait, BuilderTrait}, table::{Table, TableBuilder, TableBuilderTrait}};
+use crate::{
+    schemas::{
+        blob::create_blob_fields,
+        chat::create_chat_fields,
+        diagnostics::{
+            create_events_fields, create_metrics_fields, create_metrics_mermaid_gantt_fields,
+            create_metrics_pivot_fields, create_metrics_pivot_norm_time_fields,
+            create_traces_fields,
+        },
+        error::create_error_fields,
+        mermaid::{
+            create_mermaid_content_template_fields, create_mermaid_flowchart_links_template_fields,
+            create_mermaid_flowchart_nodes_template_fields, create_mermaid_gantt_template_fields,
+            create_mermaid_kanban_template_fields,
+            create_mermaid_sequence_diagram_messages_template_fields,
+            create_mermaid_sequence_diagram_participants_template_fields,
+            create_mermaid_visualization_fields, create_mermaid_xychart_template_fields,
+            create_session_mermaid_fields,
+        },
+        queries::create_queries_fields,
+        session::{
+            create_session_processors_fields, create_session_runtime_envs_fields,
+            create_session_subjects_fields, create_session_subjects_num_rows_fields,
+            create_session_tasks_fields,
+        },
+        user::{
+            create_join_user_inbox_session_contexts_fields,
+            create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
+            create_user_inbox_fields, create_user_session_contexts_fields,
+        },
+    },
+    session::{BuildableTrait, BuilderTrait},
+    table::{Table, TableBuilder, TableBuilderTrait},
+};
 
 use anyhow::Result;
 use arrow::{
@@ -60,16 +93,10 @@ pub fn create_tools_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_tools_record_batch(
-    tool_ids: Vec<String>,
-    tools: Vec<String>,
-) -> Result<RecordBatch> {
+pub fn create_tools_record_batch(tool_ids: Vec<String>, tools: Vec<String>) -> Result<RecordBatch> {
     let tool_ids: ArrayRef = Arc::new(StringArray::from(tool_ids));
     let tools: ArrayRef = Arc::new(StringArray::from(tools));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("tool_id", tool_ids),
-        ("tool", tools),
-    ])?;
+    let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_ids), ("tool", tools)])?;
     Ok(batch)
 }
 
@@ -101,18 +128,14 @@ pub fn create_documents_batch(
 pub fn create_document_embeddings_fields() -> Fields {
     let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
     let document_id = Field::new("document_id", DataType::Utf8, false);
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::Float32, false))
-    );
+    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Float32, false)));
     let embedding = Field::new("embedding", list_data_type, false);
     Fields::from(vec![chunk_id, document_id, embedding])
 }
 
 pub fn create_query_embeddings_fields() -> Fields {
     let query_id = Field::new("query_id", DataType::Utf8, false);
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::Float32, false))
-    );
+    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Float32, false)));
     let embedding = Field::new("embedding", list_data_type, false);
     Fields::from(vec![query_id, embedding])
 }
@@ -130,13 +153,7 @@ pub fn create_join_chunks_scores_fields() -> Fields {
     let score = Field::new("score", DataType::Float32, false);
     let document_id = Field::new("document_id", DataType::Utf8, false);
     let text = Field::new("text", DataType::Utf8, false);
-    Fields::from(vec![
-        chunk_id,
-        query_id,
-        score,
-        document_id,
-        text,
-    ])
+    Fields::from(vec![chunk_id, query_id, score, document_id, text])
 }
 
 pub trait AvailableSubjectsTrait {
@@ -226,7 +243,7 @@ pub enum AvailableSubjects {
     #[value(name = "MermaidKanbanTemplate")]
     MermaidKanbanTemplate,
     #[value(name = "MermaidVisualization")]
-    MermaidVisualization,    
+    MermaidVisualization,
     #[value(name = "AnalyticsErrors")]
     AnalyticsErrors,
     #[value(name = "AnalyticsMetrics")]
@@ -256,8 +273,12 @@ impl Display for AvailableSubjects {
             AvailableSubjects::User => write!(f, "User"),
             AvailableSubjects::UserSessionContexts => write!(f, "UserSessionContexts"),
             AvailableSubjects::UserInbox => write!(f, "UserInbox"),
-            AvailableSubjects::JoinUserInboxSessionContexts => write!(f, "JoinUserInboxSessionContexts"),
-            AvailableSubjects::JoinUserInboxSessionContextsMermaid => write!(f, "JoinUserInboxSessionContextsMermaid"),
+            AvailableSubjects::JoinUserInboxSessionContexts => {
+                write!(f, "JoinUserInboxSessionContexts")
+            }
+            AvailableSubjects::JoinUserInboxSessionContextsMermaid => {
+                write!(f, "JoinUserInboxSessionContextsMermaid")
+            }
             AvailableSubjects::SessionMermaid => write!(f, "SessionMermaid"),
             AvailableSubjects::BuilderMermaid => write!(f, "BuilderMermaid"),
             AvailableSubjects::SessionErrors => write!(f, "SessionErrors"),
@@ -274,10 +295,18 @@ impl Display for AvailableSubjects {
             AvailableSubjects::SessionSubjectsNumRows => write!(f, "SessionSubjectsNumRows"),
             AvailableSubjects::MermaidContentTemplate => write!(f, "MermaidContentTemplate"),
             AvailableSubjects::MermaidGanttTemplate => write!(f, "MermaidGanttTemplate"),
-            AvailableSubjects::MermaidFlowchartNodesTemplate => write!(f, "MermaidFlowchartNodesTemplate"),
-            AvailableSubjects::MermaidFlowchartLinksTemplate => write!(f, "MermaidFlowchartLinksTemplate"),
-            AvailableSubjects::MermaidSequenceDiagramParticipantsTemplate => write!(f, "MermaidSequenceDiagramParticipantsTemplate"),
-            AvailableSubjects::MermaidSequenceDiagramMessagesTemplate => write!(f, "MermaidSequenceDiagramMessagesTemplate"),
+            AvailableSubjects::MermaidFlowchartNodesTemplate => {
+                write!(f, "MermaidFlowchartNodesTemplate")
+            }
+            AvailableSubjects::MermaidFlowchartLinksTemplate => {
+                write!(f, "MermaidFlowchartLinksTemplate")
+            }
+            AvailableSubjects::MermaidSequenceDiagramParticipantsTemplate => {
+                write!(f, "MermaidSequenceDiagramParticipantsTemplate")
+            }
+            AvailableSubjects::MermaidSequenceDiagramMessagesTemplate => {
+                write!(f, "MermaidSequenceDiagramMessagesTemplate")
+            }
             AvailableSubjects::MermaidKanbanTemplate => write!(f, "MermaidKanbanTemplate"),
             AvailableSubjects::MermaidVisualization => write!(f, "MermaidVisualization"),
             AvailableSubjects::MermaidXYChart => write!(f, "MermaidXYChart"),
@@ -301,7 +330,9 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             Some(name) => name.to_string(),
             None => self.to_string(),
         };
-        Table::get_builder().with_name(&name).with_schema(self.to_schema())
+        Table::get_builder()
+            .with_name(&name)
+            .with_schema(self.to_schema())
     }
     fn to_schema(&self) -> SchemaRef {
         match self {
@@ -311,44 +342,102 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::Tools => create_schema_from_fields(&create_tools_fields),
             AvailableSubjects::Documents => create_schema_from_fields(&create_documents_fields),
             AvailableSubjects::Queries => create_schema_from_fields(&create_queries_fields),
-            AvailableSubjects::DocumentEmbeddings => create_schema_from_fields(&create_document_embeddings_fields),
-            AvailableSubjects::QueryEmbeddings => create_schema_from_fields(&create_query_embeddings_fields),
-            AvailableSubjects::EmbeddingScores => create_schema_from_fields(&create_embeddings_scores_fields),
-            AvailableSubjects::JoinChunksScores => create_schema_from_fields(&create_join_chunks_scores_fields),
+            AvailableSubjects::DocumentEmbeddings => {
+                create_schema_from_fields(&create_document_embeddings_fields)
+            }
+            AvailableSubjects::QueryEmbeddings => {
+                create_schema_from_fields(&create_query_embeddings_fields)
+            }
+            AvailableSubjects::EmbeddingScores => {
+                create_schema_from_fields(&create_embeddings_scores_fields)
+            }
+            AvailableSubjects::JoinChunksScores => {
+                create_schema_from_fields(&create_join_chunks_scores_fields)
+            }
             AvailableSubjects::Blob => create_schema_from_fields(&create_blob_fields),
             AvailableSubjects::User => create_schema_from_fields(&create_user_fields),
-            AvailableSubjects::UserSessionContexts => create_schema_from_fields(&create_user_session_contexts_fields),
+            AvailableSubjects::UserSessionContexts => {
+                create_schema_from_fields(&create_user_session_contexts_fields)
+            }
             AvailableSubjects::UserInbox => create_schema_from_fields(&create_user_inbox_fields),
-            AvailableSubjects::JoinUserInboxSessionContexts => create_schema_from_fields(&create_join_user_inbox_session_contexts_fields),
-            AvailableSubjects::JoinUserInboxSessionContextsMermaid => create_schema_from_fields(&create_join_user_inbox_session_contexts_mermaid_diagrams_fields),
-            AvailableSubjects::SessionMermaid => create_schema_from_fields(&create_session_mermaid_fields),
-            AvailableSubjects::BuilderMermaid => create_schema_from_fields(&create_session_mermaid_fields),
+            AvailableSubjects::JoinUserInboxSessionContexts => {
+                create_schema_from_fields(&create_join_user_inbox_session_contexts_fields)
+            }
+            AvailableSubjects::JoinUserInboxSessionContextsMermaid => create_schema_from_fields(
+                &create_join_user_inbox_session_contexts_mermaid_diagrams_fields,
+            ),
+            AvailableSubjects::SessionMermaid => {
+                create_schema_from_fields(&create_session_mermaid_fields)
+            }
+            AvailableSubjects::BuilderMermaid => {
+                create_schema_from_fields(&create_session_mermaid_fields)
+            }
             AvailableSubjects::SessionErrors => create_schema_from_fields(&create_error_fields),
             AvailableSubjects::SessionMetrics => create_schema_from_fields(&create_metrics_fields),
-            AvailableSubjects::MetricMermaidGantt => create_schema_from_fields(&create_metrics_mermaid_gantt_fields),
+            AvailableSubjects::MetricMermaidGantt => {
+                create_schema_from_fields(&create_metrics_mermaid_gantt_fields)
+            }
             AvailableSubjects::SessionTraces => create_schema_from_fields(&create_traces_fields),
             AvailableSubjects::SessionEvents => create_schema_from_fields(&create_events_fields),
-            AvailableSubjects::MetricPivot => create_schema_from_fields(&create_metrics_pivot_fields),
-            AvailableSubjects::MetricPivotNormTime => create_schema_from_fields(&create_metrics_pivot_norm_time_fields),
-            AvailableSubjects::SessionSubjects => create_schema_from_fields(&create_session_subjects_fields),
-            AvailableSubjects::SessionTasks => create_schema_from_fields(&create_session_tasks_fields),
-            AvailableSubjects::SessionProcessors => create_schema_from_fields(&create_session_processors_fields),
-            AvailableSubjects::SessionRuntimeEnvs => create_schema_from_fields(&create_session_runtime_envs_fields),
-            AvailableSubjects::SessionSubjectsNumRows => create_schema_from_fields(&create_session_subjects_num_rows_fields),
-            AvailableSubjects::MermaidContentTemplate => create_schema_from_fields(&create_mermaid_content_template_fields),
-            AvailableSubjects::MermaidGanttTemplate => create_schema_from_fields(&create_mermaid_gantt_template_fields),
-            AvailableSubjects::MermaidFlowchartNodesTemplate => create_schema_from_fields(&create_mermaid_flowchart_nodes_template_fields),
-            AvailableSubjects::MermaidFlowchartLinksTemplate => create_schema_from_fields(&create_mermaid_flowchart_links_template_fields),
-            AvailableSubjects::MermaidSequenceDiagramParticipantsTemplate => create_schema_from_fields(&create_mermaid_sequence_diagram_participants_template_fields),
-            AvailableSubjects::MermaidSequenceDiagramMessagesTemplate => create_schema_from_fields(&create_mermaid_sequence_diagram_messages_template_fields),
-            AvailableSubjects::MermaidKanbanTemplate => create_schema_from_fields(&create_mermaid_kanban_template_fields),
-            AvailableSubjects::MermaidVisualization => create_schema_from_fields(&create_mermaid_visualization_fields),
-            AvailableSubjects::MermaidXYChart => create_schema_from_fields(&create_mermaid_xychart_template_fields),            
+            AvailableSubjects::MetricPivot => {
+                create_schema_from_fields(&create_metrics_pivot_fields)
+            }
+            AvailableSubjects::MetricPivotNormTime => {
+                create_schema_from_fields(&create_metrics_pivot_norm_time_fields)
+            }
+            AvailableSubjects::SessionSubjects => {
+                create_schema_from_fields(&create_session_subjects_fields)
+            }
+            AvailableSubjects::SessionTasks => {
+                create_schema_from_fields(&create_session_tasks_fields)
+            }
+            AvailableSubjects::SessionProcessors => {
+                create_schema_from_fields(&create_session_processors_fields)
+            }
+            AvailableSubjects::SessionRuntimeEnvs => {
+                create_schema_from_fields(&create_session_runtime_envs_fields)
+            }
+            AvailableSubjects::SessionSubjectsNumRows => {
+                create_schema_from_fields(&create_session_subjects_num_rows_fields)
+            }
+            AvailableSubjects::MermaidContentTemplate => {
+                create_schema_from_fields(&create_mermaid_content_template_fields)
+            }
+            AvailableSubjects::MermaidGanttTemplate => {
+                create_schema_from_fields(&create_mermaid_gantt_template_fields)
+            }
+            AvailableSubjects::MermaidFlowchartNodesTemplate => {
+                create_schema_from_fields(&create_mermaid_flowchart_nodes_template_fields)
+            }
+            AvailableSubjects::MermaidFlowchartLinksTemplate => {
+                create_schema_from_fields(&create_mermaid_flowchart_links_template_fields)
+            }
+            AvailableSubjects::MermaidSequenceDiagramParticipantsTemplate => {
+                create_schema_from_fields(
+                    &create_mermaid_sequence_diagram_participants_template_fields,
+                )
+            }
+            AvailableSubjects::MermaidSequenceDiagramMessagesTemplate => {
+                create_schema_from_fields(&create_mermaid_sequence_diagram_messages_template_fields)
+            }
+            AvailableSubjects::MermaidKanbanTemplate => {
+                create_schema_from_fields(&create_mermaid_kanban_template_fields)
+            }
+            AvailableSubjects::MermaidVisualization => {
+                create_schema_from_fields(&create_mermaid_visualization_fields)
+            }
+            AvailableSubjects::MermaidXYChart => {
+                create_schema_from_fields(&create_mermaid_xychart_template_fields)
+            }
             AvailableSubjects::AnalyticsErrors => create_schema_from_fields(&create_error_fields),
-            AvailableSubjects::AnalyticsMetrics => create_schema_from_fields(&create_metrics_fields),
+            AvailableSubjects::AnalyticsMetrics => {
+                create_schema_from_fields(&create_metrics_fields)
+            }
             AvailableSubjects::AnalyticsTraces => create_schema_from_fields(&create_traces_fields),
             AvailableSubjects::AnalyticsEvents => create_schema_from_fields(&create_events_fields),
-            AvailableSubjects::AnalyticsTasks => create_schema_from_fields(&create_session_tasks_fields),
+            AvailableSubjects::AnalyticsTasks => {
+                create_schema_from_fields(&create_session_tasks_fields)
+            }
         }
     }
 }

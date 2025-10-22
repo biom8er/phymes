@@ -5,18 +5,26 @@ use std::{
 };
 
 use bytes::Bytes;
-use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, create_blob_batch, create_chat_record_batch, 
-    BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv,
-    CsvFormat, DataFormat, RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, 
-    Table, TableBuilderTrait, TableTrait, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
+use phymes_core::{
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, CsvFormat, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
+    ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
+    SubscribeTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
+    create_blob_batch, create_chat_record_batch,
+};
 
 use anyhow::{Result, anyhow};
 use arrow::{
-    array::RecordBatch, datatypes::{Schema, SchemaRef}
+    array::RecordBatch,
+    datatypes::{Schema, SchemaRef},
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_diagnostics::{create_timestamp_micros, DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    create_timestamp_micros,
+};
 use tracing::{Level, event, instrument};
 
 use super::summary_config::DataSummaryConfig;
@@ -100,7 +108,9 @@ impl ProcessorTrait for DataSummaryProcessor {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder.clone().messages(line!(), file!(), self.get_name());
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
             trace.enter(&message.values().collect::<Vec<_>>());
             Some((trace, trace_builder))
         } else {
@@ -124,9 +134,12 @@ impl ProcessorTrait for DataSummaryProcessor {
                         table_names.push(subs.get_table_name())
                     }
                     None => {
-                        event!(Level::WARN, "Subscription {} not provided for {}.",
+                        event!(
+                            Level::WARN,
+                            "Subscription {} not provided for {}.",
                             subs.get_table_name(),
-                            self.get_name());
+                            self.get_name()
+                        );
                     }
                 }
             }
@@ -138,11 +151,7 @@ impl ProcessorTrait for DataSummaryProcessor {
         }
 
         // Make the outbox and send
-        let stream_diagnostic_builder = if let Some(trace) = trace.as_ref() {
-            Some(trace.1.clone()) 
-        } else {
-            None
-        };
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(DataSummaryStream::new(
             subscriptions.swap_remove(0).get_message_own(),
             table_names.swap_remove(0).to_string(),
@@ -217,7 +226,10 @@ impl DataSummaryStream {
 }
 
 /// Helper function to convert a table into the desired output format
-pub fn table_and_data_format_to_record_batch(table: &Table, format: &DataFormat) -> Result<RecordBatch> {    
+pub fn table_and_data_format_to_record_batch(
+    table: &Table,
+    format: &DataFormat,
+) -> Result<RecordBatch> {
     match format {
         DataFormat::None => {
             // Wrap into a record batch
@@ -231,33 +243,63 @@ pub fn table_and_data_format_to_record_batch(table: &Table, format: &DataFormat)
         DataFormat::Csv(csv_format) => {
             // Convert to CSV and wrap into a blob batch
             let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-            create_blob_batch(vec![table.get_name().to_string()], vec![format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])
+            create_blob_batch(
+                vec![table.get_name().to_string()],
+                vec![format.to_extension().to_string()],
+                vec![bytes],
+                vec!["assistant".to_string()],
+                vec![create_timestamp_micros()],
+            )
         }
         DataFormat::CsvDefault => {
             // Convert to CSV and wrap into a blob batch
-            let csv_format = CsvFormat { ..Default::default()};
+            let csv_format = CsvFormat {
+                ..Default::default()
+            };
             let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-            create_blob_batch(vec![table.get_name().to_string()], vec![format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])
+            create_blob_batch(
+                vec![table.get_name().to_string()],
+                vec![format.to_extension().to_string()],
+                vec![bytes],
+                vec!["assistant".to_string()],
+                vec![create_timestamp_micros()],
+            )
         }
         DataFormat::Bytes => {
             // Convert to bytes directly
             let bytes = table.to_bytes()?;
-            create_blob_batch(vec![table.get_name().to_string()], vec![format.to_extension().to_string()], vec![bytes.to_vec()], vec!["assistant".to_string()], vec![create_timestamp_micros()])
+            create_blob_batch(
+                vec![table.get_name().to_string()],
+                vec![format.to_extension().to_string()],
+                vec![bytes.to_vec()],
+                vec!["assistant".to_string()],
+                vec![create_timestamp_micros()],
+            )
         }
         DataFormat::Json(_) | DataFormat::JsonDefault => {
             // Convert to JSON
             let bytes = table.to_json()?;
-            create_blob_batch(vec![table.get_name().to_string()], vec![format.to_extension().to_string()], vec![bytes], vec!["assistant".to_string()], vec![create_timestamp_micros()])
+            create_blob_batch(
+                vec![table.get_name().to_string()],
+                vec![format.to_extension().to_string()],
+                vec![bytes],
+                vec!["assistant".to_string()],
+                vec![create_timestamp_micros()],
+            )
         }
         DataFormat::Html | DataFormat::Txt => {
             // Extract out the values column and concatenate into a single String to form the document
             let values = table.get_column_as_vec_str("values").join("");
             let bytes = Bytes::from(values);
-            create_blob_batch(vec![table.get_name().to_string()], vec![format.to_extension().to_string()], vec![bytes.to_vec()], vec!["assistant".to_string()], vec![create_timestamp_micros()])
+            create_blob_batch(
+                vec![table.get_name().to_string()],
+                vec![format.to_extension().to_string()],
+                vec![bytes.to_vec()],
+                vec!["assistant".to_string()],
+                vec![create_timestamp_micros()],
+            )
         }
-        DataFormat::Pdf | DataFormat::Ipc => {
-            Err(anyhow!("{format} format is not yet supported."))
-        }
+        DataFormat::Pdf | DataFormat::Ipc => Err(anyhow!("{format} format is not yet supported.")),
     }
 }
 
@@ -273,15 +315,18 @@ impl Stream for DataSummaryStream {
         } else {
             // Initialize the metrics
             let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
-                Some(diagnostic_builder.clone().to_child("DataSummaryStream")?.baseline_metrics(line!(), file!(), "poll_next"))
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("DataSummaryStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
             } else {
                 None
             };
-            let _timer = if let Some(baseline_metrics) = &baseline_metrics {
-                Some(baseline_metrics.elapsed_compute().timer())
-            } else {
-                None
-            };
+            let _timer = baseline_metrics
+                .as_ref()
+                .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // Initialize the config
             let mut batches = Vec::new();
@@ -343,7 +388,12 @@ impl Stream for DataSummaryStream {
                                 .filter(|(_, field)| !columns_to_remove.contains(field.name()))
                                 .map(|(column, _)| Arc::clone(column))
                                 .collect::<Vec<_>>();
-                            event!(Level::DEBUG, "New schema: {:?}, new columns: {:?}", new_schema, new_columns);
+                            event!(
+                                Level::DEBUG,
+                                "New schema: {:?}, new columns: {:?}",
+                                new_schema,
+                                new_columns
+                            );
 
                             RecordBatch::try_new(new_schema, new_columns).unwrap()
                         })
@@ -377,7 +427,8 @@ impl Stream for DataSummaryStream {
             }
 
             // Wrap into a table
-            let values = batch_limit.into_iter()
+            let values = batch_limit
+                .into_iter()
                 .map(|m| serde_json::to_value(m).unwrap())
                 .collect::<Vec<_>>();
             let table = Table::get_builder()
@@ -387,7 +438,10 @@ impl Stream for DataSummaryStream {
                 .build()?;
 
             // Convert to the desired format
-            let batch = table_and_data_format_to_record_batch(&table, &self.config.as_ref().unwrap().format)?;
+            let batch = table_and_data_format_to_record_batch(
+                &table,
+                &self.config.as_ref().unwrap().format,
+            )?;
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -413,10 +467,10 @@ impl RecordBatchStream for DataSummaryStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{TablePublish, TableBuilder, MessageTrait};
+    use phymes_core::{MessageTrait, TableBuilder, TablePublish};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
 
-    use crate::candle_data::{data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32};
+    use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
 
     use super::*;
 
@@ -440,7 +494,7 @@ mod tests {
         let config = DataSummaryConfig {
             num_rows: Some(2),
             num_batches: Some(1),
-            col_names: Some(vec!["embedding".to_string(),"lhs_pk".to_string()]),
+            col_names: Some(vec!["embedding".to_string(), "lhs_pk".to_string()]),
             format: DataFormat::None,
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -495,7 +549,8 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
+        let mut stream =
+            processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
@@ -536,7 +591,9 @@ mod tests {
             num_rows: Some(2),
             num_batches: Some(1),
             col_names: Some(vec!["lhs_pk".to_string()]),
-            format: DataFormat::Csv(CsvFormat { ..Default::default() }),
+            format: DataFormat::Csv(CsvFormat {
+                ..Default::default()
+            }),
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()
@@ -590,7 +647,8 @@ mod tests {
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
+        let mut stream =
+            processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(

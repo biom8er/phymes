@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
@@ -48,7 +48,7 @@ pub enum DataFormat {
     Json(JsonFormat),
     /// Pdf attachment
     #[value(name = "Pdf")]
-    Pdf,    
+    Pdf,
     /// JSON Object written to Bytes
     #[value(name = "Bytes")]
     Bytes,
@@ -78,11 +78,15 @@ impl DataFormat {
             "ipc" => DataFormat::Ipc,
             "html" => DataFormat::Html,
             "txt" => DataFormat::Txt,
-            _ => return Err(anyhow!("File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, .txt, and .html")),
+            _ => {
+                return Err(anyhow!(
+                    "File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, .txt, and .html"
+                ));
+            }
         };
         Ok(format)
     }
-    
+
     /// The file extension for the format
     pub fn to_extension(&self) -> &str {
         match self {

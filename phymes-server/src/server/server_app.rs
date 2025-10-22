@@ -16,6 +16,8 @@ use tower_http::{
 };
 
 // General imports
+#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+use crate::server::server_config::ServerConfig;
 #[allow(unused_imports)]
 use anyhow::Result;
 #[allow(unused_imports)]
@@ -24,12 +26,13 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
 use tokio::net::TcpListener;
-#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
-use crate::server::server_config::ServerConfig;
 
 // From lib
-use crate::{handlers::{
-    session_build, session_diagnostics, session_get_state, session_put_state, session_stream, authorize, sign_in},
+use crate::{
+    handlers::{
+        authorize, session_build, session_diagnostics, session_get_state, session_put_state,
+        session_stream, sign_in,
+    },
     state::{ServerState, UserState},
 };
 
@@ -49,23 +52,38 @@ impl AppBuilder {
             .route("/app/v1/sign_in", post(sign_in))
             .route(
                 "/app/v1/chat",
-                post(session_stream).layer(middleware::from_fn_with_state(user_state.clone(), authorize)),
+                post(session_stream).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
             )
             .route(
                 "/app/v1/put_state",
-                post(session_put_state).layer(middleware::from_fn_with_state(user_state.clone(), authorize)),
+                post(session_put_state).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
             )
             .route(
                 "/app/v1/get_state",
-                post(session_get_state).layer(middleware::from_fn_with_state(user_state.clone(), authorize)),
+                post(session_get_state).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
             )
             .route(
                 "/app/v1/build",
-                post(session_build).layer(middleware::from_fn_with_state(user_state.clone(), authorize)),
+                post(session_build).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
             )
             .route(
                 "/app/v1/diagnostics",
-                post(session_diagnostics).layer(middleware::from_fn_with_state(user_state.clone(), authorize)),
+                post(session_diagnostics).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
             )
             .with_state((user_state.clone(), server_state));
         Self { app }

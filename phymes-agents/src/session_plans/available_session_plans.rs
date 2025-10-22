@@ -3,10 +3,15 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use parking_lot::RwLock;
-use phymes_core::{BuilderTrait, SessionStreamState, SessionContextBuilder};
+use phymes_core::{BuilderTrait, SessionContextBuilder, SessionStreamState};
 use serde::{Deserialize, Serialize};
 
-use crate::{session_plans::{BuilderSession, UserSession, ChatAgentSession, DocumentRAGSession, ToolAgentSession}, session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait}};
+use crate::{
+    session_plans::{
+        BuilderSession, ChatAgentSession, DocumentRAGSession, ToolAgentSession, UserSession,
+    },
+    session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
+};
 
 /// The available session plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -92,10 +97,7 @@ impl AvailableSessionPlans {
     pub fn get_session_stream_state(&self, session_name: &str) -> Arc<RwLock<SessionStreamState>> {
         // Initialize the session
         let builder = self.get_session_context_builder(session_name);
-        let session_ctx = builder
-            .with_name(session_name)
-            .build_with_tables()
-            .unwrap();
+        let session_ctx = builder.with_name(session_name).build_with_tables().unwrap();
         Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
     }
 
