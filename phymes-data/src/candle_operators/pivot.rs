@@ -1,6 +1,6 @@
-use arrow::{array::{ArrayRef, RecordBatch, UInt32Array}, datatypes::{DataType, Field, Schema}};
+use arrow::{array::{ArrayRef, RecordBatch, UInt32Array}, datatypes::{Field, Schema}};
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use candle_core::{Device, Tensor};
 use phymes_core::{
     schemas::{chat_completion, types},
@@ -10,12 +10,11 @@ use phymes_core::{
     session::common_traits::{BuildableTrait, BuilderTrait},
     table::table_trait::{Table, TableBuilderTrait, TableTrait},
 };
-use serde_json::Map;
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{candle_data::data_config::{DataAggregatorOperator, DataCastOperator, DataConfig}, candle_operators::{
-    data_operator::DataOperatorTrait, group_by_and_aggregate::{create_agg_column_name, group_by_and_aggregate}, select_and_cast::select_and_cast, sort_column_and_indices::take_columns_by_indices
+use crate::{candle_data::data_config::{DataAggregatorOperator, DataConfig}, candle_operators::{
+    data_operator::DataOperatorTrait, group_by_and_aggregate::{create_agg_column_name, group_by_and_aggregate}, sort_column_and_indices::take_columns_by_indices
 }};
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
@@ -165,7 +164,7 @@ impl DataOperatorTrait for Pivot {
 }
 
 /// CPU only pivot operation to account for missing values
-fn pivot_missing_values(lhs_values: &[&str], pvt_columns: &[&str], default_values: &[&str], new_agg_columns: &[String], pvt_columns_table: &Table, pvt_rows_table: &Table, pvt_values_table: &Table, device: &Device) -> Result<RecordBatch> {
+fn pivot_missing_values(pvt_columns: &[&str], default_values: &[&str], new_agg_columns: &[String], pvt_columns_table: &Table, pvt_rows_table: &Table, pvt_values_table: &Table) -> Result<RecordBatch> {
    
     // Initialize the pivot table schema
     let mut pvt_fields = pvt_rows_table.get_schema()
@@ -359,7 +358,7 @@ pub fn pivot(
     if pvt_columns_table.count_rows() * pvt_rows_table.count_rows() == pvt_values_table.count_rows() {
         pivot_values(lhs_values, pvt_columns, &new_agg_columns, &pvt_columns_table, &pvt_rows_table, &pvt_values_table, device)
     } else {        
-        pivot_missing_values(lhs_values, pvt_columns, default_values, &new_agg_columns, &pvt_columns_table, &pvt_rows_table, &pvt_values_table, device)
+        pivot_missing_values(pvt_columns, default_values, &new_agg_columns, &pvt_columns_table, &pvt_rows_table, &pvt_values_table)
     }
 }
 

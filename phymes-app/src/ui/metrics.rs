@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
 use phymes_core::{
-    schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
+    session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{data_format::DataFormat, table_publish::TablePublish}, task::message::MessageBuilderTrait
 };
 use phymes_server::handlers::sign_in::create_session_name;
 use serde_json::{Map, Value};
@@ -76,7 +76,9 @@ pub fn metrics_interface_view() -> Element {
             return;
         }
 
-        let route = "/app/v1/diagnostics";
+        let route = "/app/v1/get_state";
+        // DM: https://github.com/biom8er/phymes/issues/111#issue-3492849457
+        // let route = "/app/v1/diagnostics";
         let data_serialized = serde_json::to_string(&get_session_state()
             .with_subject(AvailableInterfaceSubjects::AggregatedAttachments.to_string().as_str())
             .make_name()
@@ -104,18 +106,40 @@ pub fn metrics_interface_view() -> Element {
                             Vec::new()
                         });
                     for row in json_rows.iter() {
-                        metric_names.push(row
-                            .get("filename")
+                        metric_names.push("processor_traces".to_string());
+                        metric_visualizations.push(row
+                            .get("processor_traces")
                             .unwrap()
                             .as_str()
                             .unwrap()
                             .to_string());
-                        let bytes = row.get("bytes").unwrap()
-                            .as_array().unwrap()
-                            .iter()
-                            .map(|v| v.as_u64().unwrap() as u8)
-                            .collect::<Vec<u8>>();
-                        metric_visualizations.push(String::from_utf8_lossy(bytes.as_ref()).into_owned());
+                        metric_names.push("elapsed_compute".to_string());
+                        metric_visualizations.push(row
+                            .get("elapsed_compute")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        metric_names.push("output_rows".to_string());
+                        metric_visualizations.push(row
+                            .get("output_rows")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string());
+                        // DM: https://github.com/biom8er/phymes/issues/111#issue-3492849457
+                        // metric_names.push(row
+                        //     .get("filename")
+                        //     .unwrap()
+                        //     .as_str()
+                        //     .unwrap()
+                        //     .to_string());
+                        // let bytes = row.get("bytes").unwrap()
+                        //     .as_array().unwrap()
+                        //     .iter()
+                        //     .map(|v| v.as_u64().unwrap() as u8)
+                        //     .collect::<Vec<u8>>();
+                        // metric_visualizations.push(String::from_utf8_lossy(bytes.as_ref()).into_owned());
                     }
                 }
             }

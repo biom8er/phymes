@@ -1,3 +1,6 @@
+#![allow(unused)]
+// DM: https://github.com/biom8er/phymes/issues/111#issue-3492849457
+
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{anyhow, Result};

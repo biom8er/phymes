@@ -56,6 +56,8 @@ impl JSONObjectTrait for Trace {
     }
 }
 
+// DM: linting does not realize that it is used in `diagnostic_set` tests
+#[allow(unused)]
 pub mod available_tracers_tests {
     use crate::TraceableTrait;
 
