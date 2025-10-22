@@ -1,12 +1,11 @@
 use dioxus::prelude::*;
-use phymes_agents::{session_plans::available_session_plans::AvailableSessionPlans, session_traits::mermaid::SessionContextBuilderMermaidTrait};
-use phymes_core::{schemas::{available_subjects::{AvailableSubjects}, mermaid::create_session_mermaid_batch}, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}, session_context_builder::SessionContextBuilder}, table::{DataFormat, table_trait::{Table, TableBuilderTrait, TableTrait}, TablePublish}, task::message::MessageBuilderTrait};
+use phymes_agents::{AvailableSessionPlans, SessionContextBuilderMermaidTrait};
+use phymes_core::{AvailableSubjects, create_session_mermaid_batch, BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, SessionContextBuilder, DataFormat, 
+    Table, TableBuilderTrait, TableTrait, TablePublish, MessageBuilderTrait};
 use phymes_diagnostics::create_timestamp_micros;
-use phymes_server::handlers::sign_in::create_session_name;
+use phymes_server::create_session_name;
 
-use crate::state::{
-    apps::{filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, filter_out_mermaid_diagrams_by_session_name},
-    sign_in::{sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES},
+use crate::state::{filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, filter_out_mermaid_diagrams_by_session_name, sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES,
     svg_icons::{ms_column_arrow_right_icon_svg, ms_deploy_icon_svg, ms_edit_icon_svg, b8_save_icon_svg, ms_sync_icon_svg, fa_trash_icon_svg}
 };
 
@@ -21,10 +20,7 @@ use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
-use phymes_server::server::{
-    serverless_app::{serverless_app, Serverless},
-    serverless_config::ServerlessConfig,
-};
+use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 /// View for the builds drop down menu
 #[component]

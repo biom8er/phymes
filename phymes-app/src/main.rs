@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 // UI components
 mod state;
 mod ui;
-use ui::main_window::main_window;
+use ui::main_window_view;
 
 // CSS
 static MAIN_CSS: Asset = asset!("/assets/main.css");
@@ -24,7 +24,7 @@ fn main() {
     #[cfg(feature = "server")]
     use clap::Parser;
     #[cfg(feature = "server")]
-    use phymes_server::server::{server_app::Server, server_config::ServerConfig};
+    use phymes_server::{Server, ServerConfig};
     #[cfg(feature = "server")]
     tokio::runtime::Runtime::new()
         .unwrap()
@@ -45,7 +45,7 @@ fn app() -> Element {
         mermaid_js {},
         div {
             id: "container",
-            main_window {}
+            main_window_view {}
         }
     }
 }

@@ -10,10 +10,8 @@ pub struct SignInState {
     pub session_names: SyncSessionNamesState,
 }
 
-#[allow(clippy::redundant_closure)]
-pub static JWT: GlobalSignal<String> = Signal::global(|| String::new());
-#[allow(clippy::redundant_closure)]
-pub static EMAIL: GlobalSignal<String> = Signal::global(|| String::new());
+pub static JWT: GlobalSignal<String> = Signal::global(String::new);
+pub static EMAIL: GlobalSignal<String> = Signal::global(String::new);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyncJWTState {
@@ -40,8 +38,7 @@ pub async fn clear_jwt_state(mut rx: UnboundedReceiver<ClearJWTState>) {
     }
 }
 
-#[allow(clippy::redundant_closure)]
-pub static SESSION_NAMES: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
+pub static SESSION_NAMES: GlobalSignal<Vec<String>> = Signal::global(Vec::new);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyncSessionNamesState {
@@ -65,7 +62,6 @@ pub async fn clear_session_names_state(mut rx: UnboundedReceiver<ClearSessionNam
     }
 }
 
-#[allow(clippy::redundant_closure)]
 pub static BUILDER: GlobalSignal<bool> = Signal::global(|| false);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -79,7 +75,6 @@ pub async fn sync_builder_state(mut rx: UnboundedReceiver<SyncBuilderState>) {
     }
 }
 
-#[allow(clippy::redundant_closure)]
 pub static DEBUGGER: GlobalSignal<bool> = Signal::global(|| false);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

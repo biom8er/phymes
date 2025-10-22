@@ -1,9 +1,6 @@
 use dioxus::prelude::*;
-use phymes_core::{
-    schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuildableTrait, BuilderTrait}, 
-    message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{DataFormat, TablePublish}, task::message::MessageBuilderTrait
-};
-use phymes_server::handlers::sign_in::create_session_name;
+use phymes_core::{AvailableSubjects, BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, MessageBuilderTrait};
+use phymes_server::create_session_name;
 use serde_json::{Map, Value};
 
 #[cfg(not(feature = "serverless"))]
@@ -20,20 +17,11 @@ use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
-use phymes_server::server::{
-    serverless_app::{serverless_app, Serverless},
-    serverless_config::ServerlessConfig,
-};
+use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 use crate::{
-    state::{
-        apps::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME},
-        sign_in::{EMAIL, JWT},
-        subjects::{
-            get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, SUBJECT_SCHEMA_HEADERS
-        }, svg_icons::ms_search_icon_svg,
-    }, ui::{attachments::attachments_interface_footer, files::{clear_download_files_button, download_files_button, download_files_list}},
-};
+    state::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME, EMAIL, JWT, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, SUBJECT_SCHEMA_HEADERS, svg_icons::ms_search_icon_svg},
+    ui::{attachments_interface_footer, clear_download_files_button, download_files_button, download_files_list}};
 
 /// View to display the subject tables for the session
 /// and to allow for easier upload by the user

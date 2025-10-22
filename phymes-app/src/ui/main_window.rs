@@ -1,20 +1,12 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-use crate::ui::{
-    attachments::attachments_interface_view,
-    messaging::messaging_interface_view,
-    metrics::metrics_interface_view,
-    apps::apps_interface_view,
-    sign_in::sign_in_view,
-    subjects::subjects_interface_view
-};
+use crate::ui::{attachments_interface_view,messaging_interface_view,metrics_interface_view,apps_interface_view,sign_in_view,subjects_interface_view};
 use crate::state::{
     svg_icons::{
         ms_database_icon_svg, aws_help_icon_svg, b8_logo_icon_svg, b8_menu_icon_svg, ms_message_icon_svg,
         ms_person_icon_svg, ms_apps_icon_svg, ms_top_speed_icon_svg, ms_tools_icon_svg, ms_attachment_icon_svg},
-    sign_in::{BUILDER, DEBUGGER}
-};
+    BUILDER, DEBUGGER};
 
 #[component]
 pub fn title() -> Element {
@@ -50,7 +42,7 @@ impl HeaderMenu {
 }
 
 #[component]
-pub fn main_window() -> Element {
+pub fn main_window_view() -> Element {
     // View control signals
     let mut header_menu: Signal<HeaderMenu> = use_signal(|| HeaderMenu::Account);
     let mut navbar_toggle: Signal<bool> = use_signal(|| false);

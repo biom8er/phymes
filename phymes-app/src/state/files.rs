@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
+use phymes_agents::AvailableInterfaceSubjects;
 use crate::state::svg_icons::{aws_table_icon_svg, b8_microphone_icon_svg, ms_attachment_icon_svg, ms_code_icon_svg, ms_document_icon_svg, ms_search_icon_svg, ms_video_icon_svg};
 
 pub fn extension_to_icon_svg(extension: &str) -> String {
@@ -28,7 +28,7 @@ pub fn extension_to_subject(extension: &str) -> Result<AvailableInterfaceSubject
 }
 
 /// Based on https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types
-pub fn extension_to_mime_type(extension: &str) -> Result<&str> {
+fn extension_to_mime_type(extension: &str) -> Result<&str> {
     let mime_type = match extension.to_lowercase().as_str() {
         "txt" => "text/plain",
         "svg" => "image/svg+xml",

@@ -1,29 +1,25 @@
 use dioxus::prelude::*;
-use phymes_agents::session_plans::available_session_plans::AvailableSessionPlans;
-use phymes_core::{
-    schemas::available_subjects::AvailableSubjects, session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{DataFormat, TablePublish}, task::message::MessageBuilderTrait
-};
-use phymes_server::handlers::sign_in::create_session_name;
+use phymes_agents::AvailableSessionPlans;
+use phymes_core::{AvailableSubjects, BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, MessageBuilderTrait};
+use phymes_server::create_session_name;
 use serde_json::{Map, Value};
 
 use crate::{
-    state::{
-        apps::{filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME}, 
-        sign_in::{BUILDER, EMAIL, JWT, SESSION_NAMES},
-        svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}
-    },
-    ui::{builds::{builds_dropdown_view, builds_interface_footer}, main_window::split_panel_drag_handle},
+    state::{filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME, 
+        BUILDER, EMAIL, JWT, SESSION_NAMES,
+        svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}},
+    ui::{builds_dropdown_view, builds_interface_footer, split_panel_drag_handle},
 };
 
 #[cfg(not(feature = "serverless"))]
 use futures::StreamExt;
 
 #[cfg(feature = "mermaid_js")]
-use crate::state::apps::MermaidJsObject;
+use crate::state::MermaidJsObject;
 #[cfg(feature = "mermaid_js")]
-use phymes_agents::session_traits::mermaid::SessionContextBuilderMermaidTrait;
+use phymes_agents::SessionContextBuilderMermaidTrait;
 #[cfg(feature = "mermaid_js")]
-use phymes_core::session::session_context_builder::SessionContextBuilder;
+use phymes_core::SessionContextBuilder;
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -36,10 +32,7 @@ use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
-use phymes_server::server::{
-    serverless_app::{serverless_app, Serverless},
-    serverless_config::ServerlessConfig,
-};
+use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 /// View for the per runtime settings
 #[component]

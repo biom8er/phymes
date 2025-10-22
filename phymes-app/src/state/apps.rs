@@ -3,8 +3,7 @@ use futures::StreamExt;
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
-#[allow(clippy::redundant_closure)]
-pub static ACTIVE_SESSION_NAME: GlobalSignal<String> = Signal::global(|| String::new());
+pub static ACTIVE_SESSION_NAME: GlobalSignal<String> = Signal::global(String::new);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyncCurrentActiveSessionState {

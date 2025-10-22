@@ -1,12 +1,7 @@
 use dioxus::prelude::*;
-use phymes_core::{
-    schemas::blob::create_blob_batch, 
-    session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait}}, 
-    table::{DataFormat, TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, 
-    task::message::MessageBuilderTrait
-};
+use phymes_core::{create_blob_batch, BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, Table, TableBuilderTrait, TableTrait, MessageBuilderTrait};
 use phymes_diagnostics::create_timestamp_micros;
-use phymes_server::handlers::sign_in::create_session_name;
+use phymes_server::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -26,17 +21,11 @@ use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
-use phymes_server::server::{
-    serverless_app::{serverless_app, Serverless},
-    serverless_config::ServerlessConfig,
-};
+use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
-use crate::state::{
-        apps::ACTIVE_SESSION_NAME, 
-        files::{extension_and_file_to_data_href, extension_to_icon_svg, extension_to_subject, filename_and_extension_to_download}, 
-        sign_in::{EMAIL, JWT}, 
-        svg_icons::{b8_send_icon_svg, fa_trash_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_document_text_icon_svg}
-    };
+use crate::state::{ACTIVE_SESSION_NAME, extension_and_file_to_data_href, extension_to_icon_svg, extension_to_subject, filename_and_extension_to_download, EMAIL, JWT, 
+    svg_icons::{b8_send_icon_svg, fa_trash_icon_svg, ms_cloud_add_icon_svg, ms_cloud_arrow_down_icon_svg, ms_cloud_arrow_up_icon_svg, ms_document_text_icon_svg}
+};
 
 #[component]
 pub fn attach_files_input(extend_publish: Signal<bool>, except_files: Signal<String>, active_subject_name: Option<Signal<String>>, mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>, mut filenames_uploaded: Signal<Vec<String>>, mut extensions_uploaded: Signal<Vec<String>>) -> Element {

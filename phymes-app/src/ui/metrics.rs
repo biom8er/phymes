@@ -1,9 +1,7 @@
 use dioxus::prelude::*;
-use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
-use phymes_core::{
-    session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{DataFormat, TablePublish}, task::message::MessageBuilderTrait
-};
-use phymes_server::handlers::sign_in::create_session_name;
+use phymes_agents::AvailableInterfaceSubjects;
+use phymes_core::{BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, MessageBuilderTrait};
+use phymes_server::create_session_name;
 use serde_json::{Map, Value};
 
 #[cfg(not(feature = "serverless"))]
@@ -20,19 +18,11 @@ use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
-use phymes_server::server::{
-    serverless_app::{serverless_app, Serverless},
-    serverless_config::ServerlessConfig,
-};
+use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 use crate::{
-    state::{
-        apps::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME},
-        sign_in::{EMAIL, JWT},
-        svg_icons::ms_search_icon_svg
-    },
-    ui::apps::mermaid_view
-};
+    state::{get_non_duplicated_sorted_subjects, ACTIVE_SESSION_NAME, EMAIL, JWT, svg_icons::ms_search_icon_svg},
+    ui::mermaid_view};
 
 pub fn get_metric_visualizations_by_metric_name(
     active_subject: &str,

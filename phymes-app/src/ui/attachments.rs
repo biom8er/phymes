@@ -1,19 +1,15 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-// General imports
-use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
+use phymes_agents::AvailableInterfaceSubjects;
 use phymes_diagnostics::convert_timestamp_micros_to_str;
 use serde_json::{self, Map, Value};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
-// Phymes imports
-use phymes_core::{
-    session::{common_traits::{BuildableTrait, BuilderTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{DataFormat, TablePublish}, task::message::MessageBuilderTrait
-};
-use phymes_server::handlers::sign_in::create_session_name;
+use phymes_core::{BuildableTrait, BuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, MessageBuilderTrait};
+use phymes_server::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
@@ -26,21 +22,13 @@ use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
-use phymes_server::server::{
-    serverless_app::{serverless_app, Serverless},
-    serverless_config::ServerlessConfig,
-};
+use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 // mod imports
 use crate::{
-    state::{
-        apps::ACTIVE_SESSION_NAME, 
-        attachments::update_attachments_state, 
-        files::{extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download},
-        sign_in::{EMAIL, JWT},
-        svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg, ms_arrow_download_icon_svg}
-    },
-    ui::files::{attach_files_input, clear_upload_files_button, upload_files_button}
+    state::{ACTIVE_SESSION_NAME, update_attachments_state, extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download, EMAIL, JWT,
+        svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg, ms_arrow_download_icon_svg}},
+    ui::{attach_files_input, clear_upload_files_button, upload_files_button}
 };
 
 /// View for attachments between the user and AI assistant

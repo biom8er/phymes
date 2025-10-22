@@ -2,7 +2,7 @@
 use dioxus::prelude::*;
 
 // General imports
-use phymes_agents::session_plans::available_interface_subjects::AvailableInterfaceSubjects;
+use phymes_agents::AvailableInterfaceSubjects;
 use phymes_diagnostics::{convert_timestamp_micros_to_str, create_timestamp_micros};
 use serde_json::{self, Map, Value};
 
@@ -10,10 +10,8 @@ use serde_json::{self, Map, Value};
 use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
-use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjectsTrait}, chat::ChatBuilderTraitExt}, session::{common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait}}, table::{DataFormat, TablePublish, TableTrait}, task::message::MessageBuilderTrait
-};
-use phymes_server::handlers::sign_in::create_session_name;
+use phymes_core::{AvailableSubjectsTrait, ChatBuilderTraitExt, BuildableTrait, BuilderTrait, MappableTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, DataFormat, TablePublish, TableTrait, MessageBuilderTrait};
+use phymes_server::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
@@ -26,21 +24,12 @@ use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
-use phymes_server::server::{
-    serverless_app::{serverless_app, Serverless},
-    serverless_config::ServerlessConfig,
-};
+use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 // mod imports
 use crate::{
-    state::{
-        apps::ACTIVE_SESSION_NAME, 
-        messaging::{update_message_content_state, update_message_state}, 
-        sign_in::{EMAIL, JWT},
-        svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg}
-    },
-    ui::files::attach_textfiles_input
-};
+    state::{ACTIVE_SESSION_NAME, update_message_content_state, update_message_state, EMAIL, JWT, svg_icons::{aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg}},
+    ui::attach_textfiles_input};
 
 /// View for messaging between the user and AI assistant
 #[component]
