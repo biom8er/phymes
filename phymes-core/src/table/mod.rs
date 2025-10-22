@@ -14,4 +14,4 @@ pub use table_subscribe::{TableSubscribe, TableSubscribeTrait, from_str_to_subsc
 pub use stream::{RecordBatchStream, SendableRecordBatchStream};
 pub use data_format::{CsvFormat, JsonFormat, DataFormat};
 pub use data_types::{from_data_type_to_str, from_str_to_data_type};
-pub use stream_adapter::{EmptyRecordBatchStream, RecordBatchStreamAdapter, RecordBatchReceiverStream};
+pub use stream_adapter::{EmptyRecordBatchStream, RecordBatchStreamAdapter, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder};

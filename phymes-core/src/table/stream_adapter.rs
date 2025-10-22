@@ -156,8 +156,8 @@ impl<O: Send + 'static + std::fmt::Debug> ReceiverStreamBuilder<O> {
 /// # use std::sync::Arc;
 /// # use arrow::datatypes::{Schema, Field, DataType};
 /// # use arrow::array::RecordBatch;
-/// # use phymes_core::table::stream::SendableRecordBatchStream;
-/// # use phymes_core::table::stream_adapter::RecordBatchReceiverStreamBuilder;
+/// # use phymes_core::SendableRecordBatchStream;
+/// # use phymes_core::RecordBatchReceiverStreamBuilder;
 /// # use futures::stream::StreamExt;
 /// # use tokio::runtime::Builder;
 /// # let rt = Builder::new_current_thread().build().unwrap();
@@ -348,8 +348,8 @@ impl<S> RecordBatchStreamAdapter<S> {
     /// # use arrow::array::ArrayRef;
     /// # use arrow::record_batch::RecordBatch;
     /// # use std::sync::Arc;
-    /// # use phymes_core::table::stream::SendableRecordBatchStream;
-    /// # use phymes_core::table::stream_adapter::RecordBatchStreamAdapter;
+    /// # use phymes_core::SendableRecordBatchStream;
+    /// # use phymes_core::RecordBatchStreamAdapter;
     /// // Create stream of Result<RecordBatch>
     /// let int_arr: ArrayRef = Arc::new(Int32Array::from(vec![1, 2, 3]));
     /// let float_arr: ArrayRef = Arc::new(Float64Array::from(vec![Some(4.0), None, Some(5.0)]));

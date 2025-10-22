@@ -128,9 +128,9 @@ pub trait ProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
     /// # use arrow::array::RecordBatch;
     /// # use arrow::datatypes::SchemaRef;
     /// # use anyhow::Result;
-    /// # use phymes_core::table::stream::SendableRecordBatchStream;
-    /// # use phymes_core::table::stream_adapter::RecordBatchStreamAdapter;
-    /// # use phymes_core::session::common_traits::StateMap;
+    /// # use phymes_core::SendableRecordBatchStream;
+    /// # use phymes_core::RecordBatchStreamAdapter;
+    /// # use phymes_core::StateMap;
     ///
     /// struct MyProcessor {
     ///     batch: RecordBatch,
@@ -156,9 +156,9 @@ pub trait ProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
     /// # use arrow::array::RecordBatch;
     /// # use arrow::datatypes::SchemaRef;
     /// # use anyhow::Result;
-    /// # use phymes_core::table::stream::SendableRecordBatchStream;
-    /// # use phymes_core::table::stream_adapter::RecordBatchStreamAdapter;
-    /// # use phymes_core::session::common_traits::StateMap;
+    /// # use phymes_core::SendableRecordBatchStream;
+    /// # use phymes_core::RecordBatchStreamAdapter;
+    /// # use phymes_core::StateMap;
     ///
     /// struct MyProcessor {
     ///     schema: SchemaRef,
@@ -190,9 +190,9 @@ pub trait ProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
     /// # use arrow::datatypes::SchemaRef;
     /// # use futures::TryStreamExt;
     /// # use anyhow::Result;
-    /// # use phymes_core::table::stream::SendableRecordBatchStream;
-    /// # use phymes_core::table::stream_adapter::RecordBatchStreamAdapter;
-    /// # use phymes_core::session::common_traits::StateMap;
+    /// # use phymes_core::SendableRecordBatchStream;
+    /// # use phymes_core::RecordBatchStreamAdapter;
+    /// # use phymes_core::StateMap;
     ///
     /// struct MyProcessor {
     ///     schema: SchemaRef,
