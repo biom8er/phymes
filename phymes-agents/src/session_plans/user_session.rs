@@ -1,19 +1,14 @@
 use std::sync::Arc;
 use anyhow::Result;
 
-use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, user::{create_user_batch, create_user_session_contexts_batch}}, session::{
-        common_traits::BuilderTrait,
-        runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context_builder::TaskPlan,
-    }, table::{
-        DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}
-    }, task::processor::{ProcessorEcho, ProcessorTrait}
-};
-use phymes_data::{candle_data::{data_config::DataConfig, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor}, candle_operators::available_candle_operators::AvailableCandleOperators};
+use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, create_user_batch, create_user_session_contexts_batch, 
+    BuilderTrait, RuntimeEnv, RuntimeEnvTrait, TaskPlan,
+    DataFormat, Table, TableBuilder, TableBuilderTrait, TablePublish, AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe,
+    ProcessorEcho, ProcessorTrait};
+use phymes_data::{DataConfig, CandleDataProcessor, DataSummaryConfig, DataSummaryProcessor, AvailableCandleOperators};
 use phymes_diagnostics::create_timestamp_micros;
 
-use crate::{session_plans::{available_interface_subjects::AvailableInterfaceSubjects, available_session_plans::AvailableSessionPlans, builder_session::make_example_mermaid_table}, session_traits::agents::CustomAgentsBuilderTrait};
+use crate::{session_plans::{AvailableInterfaceSubjects, AvailableSessionPlans, make_example_mermaid_table}, session_traits::CustomAgentsBuilderTrait};
 
 /// A session for all user management tasks
 /// 
@@ -334,12 +329,13 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     }
 }
 
-pub mod user_session {
+#[allow(dead_code)]
+pub(crate) mod user_session_inner {
     use anyhow::Result;
     use parking_lot::RwLock;
-    use phymes_core::{schemas::{blob::BlobBuilderTraitExt, user::create_user_inbox_batch}, session::{common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState}, table::TableTrait, task::message::{IPCMessage, MessageBuilderTrait}};
+    use phymes_core::{BlobBuilderTraitExt, create_user_inbox_batch, BuildableTrait, MappableTrait, SessionStream, SessionStreamState, TableTrait, IPCMessage, MessageBuilderTrait};
 
-    use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait};
 
     use super::*;
 
@@ -385,14 +381,14 @@ pub mod user_session {
 mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{session::common_traits::MappableTrait, table::TableTrait, task::message::{IPCMessage, MessageTrait}};
+    use phymes_core::{MappableTrait, TableTrait, IPCMessage, MessageTrait};
     use phymes_diagnostics::HashMap;
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_user_session() -> Result<()> {
-        let (session_stream_state, session_stream) = user_session::user_session()?;
+        let (session_stream_state, session_stream) = user_session_inner::user_session()?;
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         let attachment_data = response

@@ -3,15 +3,9 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_agents::{
-    session_plans::{available_interface_subjects::{create_message_map, AvailableInterfaceSubjects}, chat_agent_session::ChatAgentSession},
-    session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
-};
-use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjectsTrait, AvailableSubjects}, chat::ChatBuilderTraitExt}, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState
-    }, table::{TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, MessageBuilderTrait}
-};
+use phymes_agents::{create_message_map, AvailableInterfaceSubjects,ChatAgentSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
+use phymes_core::{AvailableSubjectsTrait, AvailableSubjects, ChatBuilderTraitExt, BuildableTrait, BuilderTrait, MappableTrait, SessionStream, SessionStreamState,
+    TablePublish, Table, TableBuilderTrait, TableTrait, IPCMessage, MessageBuilderTrait};
 use phymes_diagnostics::HashMap;
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {

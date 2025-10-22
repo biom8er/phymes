@@ -1,16 +1,10 @@
 use std::sync::Arc;
 use anyhow::Result;
-use phymes_core::{
-    schemas::{available_subjects::AvailableSubjects, mermaid::create_session_mermaid_batch}, session::{
-        common_traits::{BuildableTrait, BuilderTrait},
-        runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context_builder::TaskPlan,
-    }, table::{
-        table_trait::{Table, TableBuilderTrait}, TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
-    }, task::processor::{ProcessorEcho, ProcessorTrait}
-};
+use phymes_core::{AvailableSubjects, create_session_mermaid_batch, BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait,
+    TaskPlan, Table, TableBuilderTrait, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, 
+    ProcessorEcho, ProcessorTrait};
 use phymes_diagnostics::create_timestamp_micros;
-use crate::{session_plans::available_session_plans::AvailableSessionPlans, session_traits::{agents::CustomAgentsBuilderTrait, mermaid::SessionContextBuilderMermaidTrait}};
+use crate::{session_plans::AvailableSessionPlans, session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait}};
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Table> {
@@ -116,9 +110,9 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
-    use phymes_core::session::session_stream_state::SessionStreamState;
+    use phymes_core::SessionStreamState;
 
-    use crate::session_traits::agents::SessionContextBuilderAgentsTrait;
+    use crate::session_traits::SessionContextBuilderAgentsTrait;
 
     use super::*;
 

@@ -2,43 +2,18 @@ use anyhow::Result;
 use serde_json::json;
 use std::sync::Arc;
 
-use phymes_core::{
-    schemas::available_subjects::{create_schema_from_fields, create_tools_record_batch, AvailableSubjects, AvailableSubjectsTrait},
-    session::{
-        common_traits::{BuildableTrait, BuilderTrait},
-        runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context_builder::TaskPlan,
-    },
-    table::{
-        DataFormat, table_trait::{Table, TableBuilder, TableBuilderTrait}, TablePublish, table_subscribe::{
-            AllTableNamesSubscribe, AnyTableNameSubscribe, ChatContentSubscribe, SubscribeTrait, TableSubscribe
-        }
-    },
-    task::processor::{ProcessorEcho, ProcessorTrait},
-};
-use phymes_data::{
-    candle_data::{
-        attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::{DataCastOperator, DataConfig}, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor
-    },
-    candle_operators::available_candle_operators::AvailableCandleOperators, jinja2_templates::{mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}, mermaid_xychart::{MERMAID_XYCHART_TABLE_EXPRESSION, MERMAID_XYCHART_TEMPLATE}},
-};
-use phymes_ml::{
-    candle_assets::available_candle_assets::AvailableCandleAssets,
-    candle_chat::{
-        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
-        message_aggregator_processor::MessageAggregatorProcessor,
-        message_parser_processor::MessageParserProcessor,
-    },
-};
+use phymes_core::{create_schema_from_fields, create_tools_record_batch, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait, TaskPlan,
+    DataFormat, Table, TableBuilder, TableBuilderTrait, TablePublish, AllTableNamesSubscribe, AnyTableNameSubscribe, ChatContentSubscribe, SubscribeTrait, TableSubscribe,
+    ProcessorEcho, ProcessorTrait};
+use phymes_data::{AttachmentAggregatorProcessor, DataCastOperator, DataConfig, CandleDataProcessor, DataSummaryConfig, DataSummaryProcessor,
+    AvailableCandleOperators, MERMAID_HTML_POST, MERMAID_HTML_PRE, MERMAID_XYCHART_TABLE_EXPRESSION, MERMAID_XYCHART_TEMPLATE};
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor, MessageParserProcessor};
 #[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_asset::available_openai_assets::AvailableOpenAIAssets,
-    openai_chat::chat_processor::OpenAIChatProcessor,
-};
+use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor};
 
 use arrow::datatypes::{DataType, Field, Fields};
 
-use crate::{session_plans::available_interface_subjects::AvailableInterfaceSubjects, session_traits::agents::CustomAgentsBuilderTrait};
+use crate::{session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
@@ -759,15 +734,12 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{
-        schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
-            common_traits::MappableTrait, session_stream::SessionStream, session_stream_state::SessionStreamState,
-        }, table::{data_format::CsvFormat, TableTrait}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
-    };
-    use phymes_data::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
+    use phymes_core::{BlobBuilderTraitExt, ChatBuilderTraitExt, MappableTrait, SessionStream, SessionStreamState,
+        CsvFormat, TableTrait, IPCMessage, MessageBuilderTrait, MessageTrait};
+    use phymes_data::test_extract_tabular_data::make_scores_table;
     use phymes_diagnostics::HashMap;
 
-    use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait};
 
     use super::*;
 

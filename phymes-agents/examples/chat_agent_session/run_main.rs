@@ -10,15 +10,9 @@ use parking_lot::RwLock;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
-use phymes_agents::{
-    session_plans::{available_interface_subjects::{create_message_map, AvailableInterfaceSubjects}, chat_agent_session::ChatAgentSession},
-    session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
-};
-use phymes_core::{
-    schemas::{available_subjects::AvailableSubjectsTrait, chat::ChatBuilderTraitExt}, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
-    }, table::{table_trait::{TableBuilder, TableBuilderTrait, TableTrait}, TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
-};
+use phymes_agents::{create_message_map, AvailableInterfaceSubjects, ChatAgentSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
+use phymes_core::{AvailableSubjectsTrait, ChatBuilderTraitExt, BuildableTrait, BuilderTrait, MappableTrait, SessionStream, SessionStreamState,
+    TableBuilder, TableBuilderTrait, TableTrait, TablePublish, IPCMessage, MessageBuilderTrait, MessageTrait};
 
 pub async fn run_main() -> Result<()> {
     // initialize the session

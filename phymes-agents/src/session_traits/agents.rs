@@ -2,16 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use parking_lot::{Mutex, RwLock};
-use phymes_core::{
-    session::{
-        common_traits::{MappableTrait, StateMap, TaskMap},
-        runtime_env::RuntimeEnv,
-        session_context::SessionContext,
-        session_context_builder::{SessionContextBuilder, SessionContextBuilderTrait, TaskPlan},
-    },
-    table::Table,
-    task::ProcessorTrait,
-};
+use phymes_core::{MappableTrait, StateMap, TaskMap, RuntimeEnv, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, TaskPlan, Table, ProcessorTrait};
 use phymes_diagnostics::HashMap;
 
 use crate::session_traits::tabular::SessionContextBuilderTabularTrait;

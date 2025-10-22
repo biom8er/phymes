@@ -1,28 +1,13 @@
 use std::sync::Arc;
 
-use phymes_core::{
-    schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{
-        common_traits::BuilderTrait,
-        runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context_builder::TaskPlan,
-    }, table::{
-        table_trait::{Table, TableBuilder, TableBuilderTrait},
-        TablePublish,
-        table_subscribe::{AllTableNamesSubscribe, TableSubscribe, SubscribeTrait},
-    }, task::processor::{ProcessorEcho, ProcessorTrait}
-};
-use phymes_data::{candle_data::DataConfig, candle_operators::available_candle_operators::AvailableCandleOperators};
-use phymes_ml::{
-    candle_assets::available_candle_assets::AvailableCandleAssets,
-    candle_chat::{chat_config::CandleChatConfig, chat_processor::CandleChatProcessor, message_aggregator_processor::MessageAggregatorProcessor},
-};
+use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait, TaskPlan,
+    Table, TableBuilder, TableBuilderTrait, TablePublish,AllTableNamesSubscribe, TableSubscribe, SubscribeTrait, ProcessorEcho, ProcessorTrait};
+use phymes_data::{DataConfig, AvailableCandleOperators};
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor};
 #[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_asset::available_openai_assets::AvailableOpenAIAssets,
-    openai_chat::chat_processor::OpenAIChatProcessor,
-};
+use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor};
 
-use crate::{session_plans::available_interface_subjects::AvailableInterfaceSubjects, session_traits::agents::CustomAgentsBuilderTrait};
+use crate::{session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
 
 pub struct ChatAgentSession<'a> {
     /// Chat tasks
@@ -301,14 +286,10 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{
-        schemas::chat::ChatBuilderTraitExt, session::{
-            common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
-        }, table::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
-    };
+    use phymes_core::{ChatBuilderTraitExt, BuildableTrait, MappableTrait, SessionStream, SessionStreamState, TableTrait, IPCMessage, MessageBuilderTrait, MessageTrait};
     use phymes_diagnostics::HashMap;
 
-    use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait};
 
     use super::*;
 

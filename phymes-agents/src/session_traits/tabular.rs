@@ -7,21 +7,14 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, mermaid::create_session_mermaid_batch, session::{create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch}}, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-        runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context_builder::{
-            SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
-        },
-    }, table::{
-        data_types::{from_data_type_to_str, from_str_to_data_type}, TablePublish, table_subscribe::{from_str_to_subscribe, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
-    }, task::processor::ProcessorBuilder
-};
+    AvailableSubjects, AvailableSubjectsTrait, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch,
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
+    from_data_type_to_str, from_str_to_data_type, TablePublish, from_str_to_subscribe, TableSubscribe, Table, TableBuilderTrait, TableTrait, ProcessorBuilder};
 use phymes_diagnostics::{create_timestamp_micros, HashSet};
 
 use crate::{
-    session_plans::available_processors::AvailableProcessors,
-    session_traits::mermaid::SessionContextBuilderMermaidTrait,
+    session_plans::AvailableProcessors,
+    session_traits::SessionContextBuilderMermaidTrait,
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
@@ -535,10 +528,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{
-        session::session_context_builder::test_session_context_builder::make_test_session_builder_parallel_task,
-        task::task_trait::test_task::{make_runtime_env, make_state_tables},
-    };
+    use phymes_core::{test_session_context_builder::make_test_session_builder_parallel_task, test_task::{make_runtime_env, make_state_tables}};
 
     use super::*;
 

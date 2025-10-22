@@ -1,20 +1,15 @@
 use std::sync::Arc;
 
 use arrow::datatypes::DataType;
-use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, diagnostics::DiagnosticsVisualizations}, session::{
-        common_traits::BuilderTrait,
-        runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context_builder::TaskPlan,
-    }, table::{
-        DataFormat, TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait}
-    }, task::processor::{ProcessorEcho, ProcessorTrait}
-};
-use phymes_data::{candle_data::{attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::{DataAggregatorOperator, DataCastOperator, DataConfig}, data_processor::CandleDataProcessor}, candle_operators::available_candle_operators::AvailableCandleOperators, jinja2_templates::{mermaid_gantt::{MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_GANTT_TEMPLATE}, mermaid_kanban::{MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_KANBAN_TEMPLATE}, mermaid_sequence_diagram::{MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE}}};
-use phymes_ml::candle_chat::message_aggregator_processor::MessageAggregatorProcessor;
+use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, DiagnosticsVisualizations, BuilderTrait, RuntimeEnv, RuntimeEnvTrait, TaskPlan,
+    DataFormat, TablePublish, AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe, Table, TableBuilder, TableBuilderTrait,
+    ProcessorEcho, ProcessorTrait};
+use phymes_data::{AttachmentAggregatorProcessor, DataAggregatorOperator, DataCastOperator, DataConfig, CandleDataProcessor, AvailableCandleOperators, 
+    MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_GANTT_TEMPLATE, MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_KANBAN_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE};
+use phymes_ml::MessageAggregatorProcessor;
 use serde_json::json;
 
-use crate::{session_plans::available_interface_subjects::AvailableInterfaceSubjects, session_traits::agents::CustomAgentsBuilderTrait};
+use crate::{session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
 
 /// A session for gathering analytics based on the session metrics
 /// 
@@ -937,10 +932,10 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{session::{common_traits::BuildableTrait, session_stream::SessionStream, session_stream_state::SessionStreamState}, table::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}};
+    use phymes_core::{BuildableTrait, SessionStream, SessionStreamState, TableTrait, IPCMessage, MessageBuilderTrait, MessageTrait};
     use phymes_diagnostics::HashMap;
 
-    use crate::{session_plans::{available_interface_subjects::create_message_map, user_session::user_session}, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::{create_message_map, user_session_inner}, session_traits::SessionContextBuilderAgentsTrait};
 
     use super::*;
 
@@ -956,7 +951,7 @@ mod tests {
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Make diagnostic data and session tasks data        
-        let (user_session_stream_state, user_session_stream) = user_session::user_session()?;
+        let (user_session_stream_state, user_session_stream) = user_session_inner::user_session()?;
         let _user_response: Vec<HashMap<String, IPCMessage>> = user_session_stream.try_collect().await?;
 
         let usss = user_session_stream_state.read();

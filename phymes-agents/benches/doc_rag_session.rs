@@ -3,16 +3,10 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_agents::{
-    session_plans::{available_interface_subjects::{create_message_map, AvailableInterfaceSubjects}, document_rag_session:: DocumentRAGSession},
-    session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
-};
-use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjectsTrait, AvailableSubjects}, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt, queries::QueriesBuilderTraitExt}, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState
-    }, table::{TablePublish, table_trait::{Table, TableBuilderTrait, TableTrait}}, task::message::{IPCMessage, MessageBuilderTrait}
-};
-use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
+use phymes_agents::{create_message_map, AvailableInterfaceSubjects, DocumentRAGSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
+use phymes_core::{AvailableSubjectsTrait, AvailableSubjects, BlobBuilderTraitExt, ChatBuilderTraitExt, QueriesBuilderTraitExt, BuildableTrait, BuilderTrait, MappableTrait, 
+    SessionStream, SessionStreamState, TablePublish, Table, TableBuilderTrait, TableTrait, IPCMessage, MessageBuilderTrait};
+use phymes_data::make_pdf_document;
 use phymes_diagnostics::HashMap;
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {

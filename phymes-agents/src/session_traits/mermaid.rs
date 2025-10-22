@@ -1,42 +1,20 @@
 use std::sync::Arc;
 
-use crate::session_plans::{available_interface_subjects::check_agent_subjects, available_processors::AvailableProcessors};
+use crate::session_plans::{check_agent_subjects, AvailableProcessors};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
     datatypes::{Field, Schema},
 };
 use clap::ValueEnum;
-use phymes_core::{
-    session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, runtime_env::{RuntimeEnv, RuntimeEnvTrait}, session_context::SessionContext, session_context_builder::{
-            SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
-        }
-    },
-    table::{
-        data_types::{from_data_type_to_str, from_str_to_data_type}, TablePublish, table_subscribe::{from_str_to_subscribe, TableSubscribe}, table_trait::{Table, TableBuilderTrait, TableTrait}
-    },
-    task::processor::{
-        test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho
-    },
-};
-use phymes_data::candle_data::{
-    attachment_aggregator_processor::AttachmentAggregatorProcessor, data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor
-};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
+    from_data_type_to_str, from_str_to_data_type, TablePublish, from_str_to_subscribe, TableSubscribe, Table, TableBuilderTrait, TableTrait,
+    test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho};
+use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor};
 use phymes_diagnostics::{HashMap, HashSet};
-use phymes_ml::{
-    candle_chat::{
-        chat_processor::CandleChatProcessor,
-        message_aggregator_processor::MessageAggregatorProcessor,
-        message_parser_processor::MessageParserProcessor,
-    },
-    candle_embed::embed_processor::CandleEmbedProcessor,
-};
+use phymes_ml::{CandleChatProcessor, MessageAggregatorProcessor, MessageParserProcessor, CandleEmbedProcessor};
 #[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_chat::chat_processor::OpenAIChatProcessor,
-    openai_embed::embed_processor::OpenAIEmbedProcessor,
-};
+use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from mermaid.js
@@ -1159,18 +1137,11 @@ impl BuilderTrait for SessionContextBuilderMermaid {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{
-        session::session_context_builder::test_session_context_builder::make_test_session_builder_parallel_task,
-        task::task_trait::test_task::{make_runtime_env, make_state_tables},
-    };
+    use phymes_core::{test_session_context_builder::make_test_session_builder_parallel_task, test_task::{make_runtime_env, make_state_tables}};
 
     use crate::{
-        session_plans::{
-            chat_agent_session::ChatAgentSession, document_rag_session::DocumentRAGSession,
-            tool_agent_session::ToolAgentSession,
-        },
-        session_traits::agents::CustomAgentsBuilderTrait,
-    };
+        session_plans::{ChatAgentSession, DocumentRAGSession, ToolAgentSession},
+        session_traits::CustomAgentsBuilderTrait};
 
     use super::*;
     #[test]

@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use clap::ValueEnum;
-use phymes_core::{schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::common_traits::MappableTrait, table::Table};
+use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Table, TableBuilder};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
@@ -141,7 +141,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantScript => AvailableSubjects::Blob.to_table(Some(name.as_str()), batches),
         }        
     }
-    fn to_table_builder(&self, name: Option<&str>) -> phymes_core::table::TableBuilder {
+    fn to_table_builder(&self, name: Option<&str>) -> TableBuilder {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),

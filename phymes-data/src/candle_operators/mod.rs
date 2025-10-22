@@ -16,7 +16,7 @@ mod pivot;
 pub use available_candle_operators::{AvailableCandleOperators, convert_destinations_to_tools};
 pub use chunk_documents::ChunkDocuments;
 pub use data_operator::DataOperatorTrait;
-pub use extract_pdf_text::ExtractPDFText;
+pub use extract_pdf_text::{ExtractPDFText, make_pdf_document};
 pub use extract_tabular_data::{ExtractTabularData, test_extract_tabular_data};
 pub use filter_columns_and_indices::{FilterColumnsAndIndices, filter_columns_and_indices};
 pub use group_by_and_aggregate::{GroupByAndAggregate, group_by_and_aggregate};

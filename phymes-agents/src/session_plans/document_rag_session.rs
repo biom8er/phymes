@@ -1,41 +1,16 @@
 use std::{sync::Arc, vec};
 
-use phymes_core::{
-    schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait},
-    session::{
-        common_traits::BuilderTrait,
-        runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context_builder::TaskPlan,
-    },
-    table::{
-        DataFormat, TablePublish, table_subscribe::{AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait}
-    },
-    task::processor::{ProcessorEcho, ProcessorTrait},
-};
-use phymes_data::{
-    candle_data::{
-        attachment_aggregator_processor::AttachmentAggregatorProcessor, data_config::{DataCastOperator, DataConfig}, data_processor::CandleDataProcessor, summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor
-    },
-    candle_operators::available_candle_operators::AvailableCandleOperators,
-};
-use phymes_ml::{
-    candle_assets::available_candle_assets::AvailableCandleAssets,
-    candle_chat::{
-        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
-        message_aggregator_processor::MessageAggregatorProcessor,
-    },
-    candle_embed::{embed_config::CandleEmbedConfig, embed_processor::CandleEmbedProcessor},
-};
+use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait, TaskPlan,
+    DataFormat, TablePublish, AllTableNamesSubscribe, AnyTableNameSubscribe, SubscribeTrait, TableSubscribe, Table, TableBuilder, TableBuilderTrait, 
+    ProcessorEcho, ProcessorTrait};
+use phymes_data::{AttachmentAggregatorProcessor, DataCastOperator, DataConfig,CandleDataProcessor, DataSummaryConfig, DataSummaryProcessor, AvailableCandleOperators};
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor, CandleEmbedConfig, CandleEmbedProcessor};
 #[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_asset::available_openai_assets::AvailableOpenAIAssets,
-    openai_chat::chat_processor::OpenAIChatProcessor,
-    openai_embed::embed_processor::OpenAIEmbedProcessor,
-};
+use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
 
 use arrow::datatypes::{DataType, SchemaRef};
 
-use crate::{session_plans::available_interface_subjects::AvailableInterfaceSubjects, session_traits::agents::CustomAgentsBuilderTrait};
+use crate::{session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
 
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///
@@ -863,6 +838,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
     }
 }
 
+#[allow(dead_code)]
 pub fn fields_in_schemas(lhs_schema: SchemaRef, rhs_schema: SchemaRef) -> Vec<String> {
     let mut found_fields = Vec::new();
     for lhs_field in lhs_schema.fields() {
@@ -881,15 +857,12 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{
-        schemas::{blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
-            common_traits::{BuildableTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
-        }, table::TableTrait, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
-    };
-    use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
+    use phymes_core::{BlobBuilderTraitExt, ChatBuilderTraitExt, BuildableTrait, MappableTrait, SessionStream, SessionStreamState, 
+        TableTrait, IPCMessage, MessageBuilderTrait, MessageTrait};
+    use phymes_data::make_pdf_document;
     use phymes_diagnostics::HashMap;
 
-    use crate::{session_plans::available_interface_subjects::create_message_map, session_traits::agents::SessionContextBuilderAgentsTrait};
+    use crate::{session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait};
 
     use super::*;
 

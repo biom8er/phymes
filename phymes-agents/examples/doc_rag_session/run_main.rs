@@ -7,19 +7,13 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_data::candle_operators::extract_pdf_text::make_pdf_document;
+use phymes_data::make_pdf_document;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
-use phymes_agents::{
-    session_plans::{available_interface_subjects::{create_message_map, AvailableInterfaceSubjects}, document_rag_session::DocumentRAGSession},
-    session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
-};
-use phymes_core::{
-    schemas::{available_subjects::AvailableSubjectsTrait, blob::BlobBuilderTraitExt, chat::ChatBuilderTraitExt}, session::{
-        common_traits::{BuildableTrait, BuilderTrait, MappableTrait}, session_stream::SessionStream, session_stream_state::SessionStreamState,
-    }, table::{table_trait::{TableBuilder, TableBuilderTrait, TableTrait}, TablePublish}, task::message::{IPCMessage, MessageBuilderTrait, MessageTrait}
-};
+use phymes_agents::{create_message_map, AvailableInterfaceSubjects, DocumentRAGSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
+use phymes_core::{AvailableSubjectsTrait, BlobBuilderTraitExt, ChatBuilderTraitExt, BuildableTrait, BuilderTrait, MappableTrait, SessionStream, SessionStreamState,
+    TableBuilder, TableBuilderTrait, TableTrait, TablePublish, IPCMessage, MessageBuilderTrait, MessageTrait};
 
 pub async fn run_main() -> Result<()> {
 

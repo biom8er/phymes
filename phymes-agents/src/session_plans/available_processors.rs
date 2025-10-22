@@ -2,30 +2,11 @@ use std::{fmt::Display, sync::Arc};
 
 use anyhow::Result;
 use clap::ValueEnum;
-use phymes_core::{
-    session::common_traits::MappableTrait, table::{
-        TablePublish,
-        table_subscribe::{TableSubscribe, SubscribeTrait},
-    }, task::processor::{
-        test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho, ProcessorTrait
-    }
-};
-use phymes_data::candle_data::{
-    attachment_aggregator_processor::AttachmentAggregatorProcessor, data_processor::CandleDataProcessor, summary_processor::DataSummaryProcessor
-};
-use phymes_ml::{
-    candle_chat::{
-        chat_processor::CandleChatProcessor,
-        message_aggregator_processor::MessageAggregatorProcessor,
-        message_parser_processor::MessageParserProcessor,
-    },
-    candle_embed::embed_processor::CandleEmbedProcessor,
-};
+use phymes_core::{MappableTrait, TablePublish, TableSubscribe, SubscribeTrait, test_processor::ProcessorMock, ProcessorBuilder, ProcessorEcho, ProcessorTrait};
+use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor};
+use phymes_ml::{CandleChatProcessor, MessageAggregatorProcessor, MessageParserProcessor, CandleEmbedProcessor};
 #[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_chat::chat_processor::OpenAIChatProcessor,
-    openai_embed::embed_processor::OpenAIEmbedProcessor,
-};
+use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
 
 /// The available session plans
