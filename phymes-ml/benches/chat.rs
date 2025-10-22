@@ -1,12 +1,7 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use phymes_core::{schemas::diagnostics::{from_diagnostics_to_tables, pivot_metrics_table}, table::TableTrait};
+use phymes_core::{from_diagnostics_to_tables, pivot_metrics_table, TableTrait};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, MetricBuilderTrait, SpanBuilder};
-use phymes_ml::{
-    candle_assets::available_candle_assets::AvailableCandleAssets,
-    candle_chat::{
-        chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor,
-    },
-};
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig, bench_chat_processor};
 
 fn benchmark_chat_processor(c: &mut Criterion) {
     // Cases for different input/output lengths
@@ -150,7 +145,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                     let baseline_metrics = diagnostic_builder.clone().baseline_metrics(line!(), file!(), &sample_id);
                     let timer = baseline_metrics.elapsed_compute().timer();
                     let _messages = rt.block_on(async {
-                        bench_chat_processor(Some(&diagnostic_builder), config, user_content, name.as_str())
+                        bench_chat_processor::bench_chat_processor(Some(&diagnostic_builder), config, user_content, name.as_str())
                             .await
                     });
                     timer.done();

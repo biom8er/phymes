@@ -1,8 +1,8 @@
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 
-use crate::candle_assets::available_candle_assets::AvailableCandleAssets;
-use crate::openai_asset::available_openai_assets::AvailableOpenAIAssets;
+use crate::candle_assets::AvailableCandleAssets;
+use crate::openai_asset::AvailableOpenAIAssets;
 
 /// Configuration for chat completion
 ///

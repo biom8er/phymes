@@ -12,7 +12,7 @@ use tracing::{Level, event};
 
 use super::chat_completion::{self, ChatCompletionMessage, Content, MessageRole, ToolCall};
 
-pub(crate) fn create_chat_fields() -> Fields {
+pub fn create_chat_fields() -> Fields {
     let field_names = ["role", "content"];
     let mut fields_vec = field_names
         .iter()

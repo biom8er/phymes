@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! BERT (Bidirectional Encoder Representations from Transformers)
 //!
 //! Bert is a general large language model that can be used for various language tasks:
@@ -14,7 +16,7 @@ use candle_transformers::quantized_nn::{Embedding, Linear, layer_norm, linear};
 use candle_transformers::quantized_var_builder::VarBuilder;
 use serde::Deserialize;
 
-pub const DTYPE: DType = DType::F32;
+const DTYPE: DType = DType::F32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]

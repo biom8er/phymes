@@ -6,11 +6,9 @@ extern crate accelerate_src;
 
 use anyhow::Result;
 use clap::Parser;
-use phymes_core::table::TableTrait;
+use phymes_core::TableTrait;
 
-use phymes_ml::candle_chat::{
-    chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor,
-};
+use phymes_ml::{CandleChatConfig, bench_chat_processor::bench_chat_processor};
 
 pub async fn run_main() -> Result<()> {
     println!(

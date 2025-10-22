@@ -1,8 +1,8 @@
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-use crate::candle_assets::available_candle_assets::AvailableCandleAssets;
-use crate::openai_asset::available_openai_assets::AvailableOpenAIAssets;
+use crate::candle_assets::AvailableCandleAssets;
+use crate::openai_asset::AvailableOpenAIAssets;
 
 #[derive(Debug, ValueEnum, PartialEq, Clone, Eq, Serialize, Deserialize)]
 pub enum Pool {

@@ -1,26 +1,14 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, chat::create_chat_fields},
-    session::{
-        common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
-        },
-        runtime_env::RuntimeEnv,
-    },
-    table::{
-        TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}
-    },
-    task::{
-        message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-        ProcessorTrait,
-        publish_subscribe::PubSubTrait,
-    },
-};
+    AvailableSubjects, AvailableSubjectsTrait, create_chat_fields,
+    BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv,
+    TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, 
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
 
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
-use phymes_data::candle_data::attachment_aggregator_processor::{collect_messages_by_schema, AggregatorStream};
+use phymes_data::{collect_messages_by_schema, AggregatorStream};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use tracing::{Level, event, instrument};
 
@@ -152,12 +140,8 @@ impl ProcessorTrait for MessageAggregatorProcessor {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{
-        session::common_traits::device, table::table_trait::{
-            test_table::{make_test_table, make_test_table_chat}, TableBuilder, TableBuilderTrait, TableTrait
-        }
-    };
-    use phymes_data::{candle_data::{data_config::DataConfig, tensor_service::CandleTensorService}, candle_operators::available_candle_operators::AvailableCandleOperators};
+    use phymes_core::{device, test_table::{make_test_table, make_test_table_chat}, TableBuilder, TableBuilderTrait, TableTrait};
+    use phymes_data::{DataConfig, CandleTensorService, AvailableCandleOperators};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;

@@ -7,23 +7,10 @@ use crate::{
 
 use reqwest::{Client, header::CONTENT_TYPE};
 
-use phymes_core::{
-    schemas::{available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat}},
-    session::{
-        common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap
-        },
-        runtime_env::RuntimeEnv,
-    },
-    table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}
-    },
-    task::{
-        message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-        ProcessorTrait,
-        publish_subscribe::PubSubTrait,
-    },
-};
+use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, EmbeddingRequest, EmbeddingResponse, EncodingFormat,
+    BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, RuntimeEnv,
+    RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, Table, TableBuilder, TableBuilderTrait, TableTrait, 
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
 use phymes_diagnostics::{create_timestamp_micros, DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 
 use arrow::{

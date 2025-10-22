@@ -12,4 +12,4 @@ pub(crate) use data_processor::test_candle_ops_processor;
 pub use summary_config::DataSummaryConfig;
 pub use summary_processor::{DataSummaryProcessor, table_and_data_format_to_record_batch};
 pub use tensor_service::CandleTensorService;
-pub use attachment_aggregator_processor::{AttachmentAggregatorProcessor, AggregatorStream};
+pub use attachment_aggregator_processor::{AttachmentAggregatorProcessor, AggregatorStream, collect_messages_by_schema};

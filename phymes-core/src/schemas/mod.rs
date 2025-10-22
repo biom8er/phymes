@@ -8,7 +8,7 @@ mod mermaid;
 pub use mermaid::{SessionMermaidSubject, create_session_mermaid_batch, create_mermaid_sequence_diagram_participants_template_batch};
 
 mod chat;
-pub use chat::{create_chat_record_batch, ChatTraitExt, ChatBuilderTraitExt};
+pub use chat::{create_chat_fields, create_chat_record_batch, ChatTraitExt, ChatBuilderTraitExt};
 
 mod queries;
 pub use queries::{create_queries_batch, QueriesBuilderTraitExt};

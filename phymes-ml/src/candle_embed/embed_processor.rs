@@ -1,20 +1,9 @@
 use candle_core::{DType, Tensor};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
-use phymes_core::{
-    schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait}, session::{
-        common_traits::{
-            device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, TokenWrapper
-        },
-        runtime_env::RuntimeEnv,
-    }, table::{
-        stream::{RecordBatchStream, SendableRecordBatchStream}, TablePublish, table_subscribe::{AllTableNamesSubscribe, SubscribeTrait, TableSubscribe}, table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait}
-    }, task::{
-        message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-        ProcessorTrait,
-        publish_subscribe::PubSubTrait,
-    }
-};
+use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, device, BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStreamMessageMap, StateMap, TokenWrapper,
+    RuntimeEnv, RecordBatchStream, SendableRecordBatchStream, TablePublish, AllTableNamesSubscribe, SubscribeTrait, TableSubscribe, Table, TableBuilder, TableBuilderTrait, TableTrait,
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, ProcessorTrait, PubSubTrait};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
 
 use arrow::{
@@ -600,7 +589,7 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
-    use crate::candle_assets::available_candle_assets::{load_model_asset_path, load_tokenizer};
+    use crate::{candle_assets::{load_model_asset_path, load_tokenizer}, AvailableCandleAssets};
 
     use super::*;
 
@@ -660,7 +649,7 @@ mod tests {
             )),
             candle_asset: Some(
                 // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
-                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QuantizedBertEmbed,
+                AvailableCandleAssets::QuantizedBertEmbed,
             ),
             ..Default::default()
         };
@@ -756,7 +745,7 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             candle_asset: Some(
-                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QwenV2_1p5bEmbed,
+                AvailableCandleAssets::QwenV2_1p5bEmbed,
             ),
             ..Default::default()
         };
@@ -973,7 +962,7 @@ mod tests {
             )),
             candle_asset: Some(
                 // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
-                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QuantizedBertEmbed,
+                AvailableCandleAssets::QuantizedBertEmbed,
             ),
             ..Default::default()
         };
