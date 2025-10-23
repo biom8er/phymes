@@ -16,9 +16,7 @@ mkl-dynamic = ["dep:intel-mkl-src", "intel-mkl-src/mkl-dynamic-lp64-iomp", "cand
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 nccl = ["cuda", "cudarc/nccl"]
-wasip2 = ["phymes-core/wasip2", "phymes-diagnostics/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", 
-    #"lopdf/wasm_js" # flate2 -> miniz_oxide -> simd-adler32 breaks now...
-]
+wasip2 = ["phymes-core/wasip2", "phymes-diagnostics/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "lopdf/wasm_js"]
 wsl = ["phymes-core/wsl", "phymes-diagnostics/wsl", "tokio/full", "lopdf/async", "lopdf/rayon"]
 gpu = ["cuda", "cudnn", "nccl"]
 openai_api = []
@@ -50,7 +48,6 @@ getrandom = { version = "0.3.1", features = ["wasm_js"] }
 getrandom_0_2 = { package = "getrandom", version = "0.2.15", features = ["js"] }
 chrono = "0.4.41"
 rayon = { version = "1.6"}
-#lopdf = { path = "../../lopdf", default-features = false, features = ["rayon"], optional = true }
 lopdf = { version = "0.38.0", default-features = false, features = ["rayon"], optional = true }
 num-traits = { version = "0.2", default-features = false }
 

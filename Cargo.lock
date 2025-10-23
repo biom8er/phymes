@@ -2533,8 +2533,7 @@ dependencies = [
 [[package]]
 name = "flate2"
 version = "1.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc5a4e564e38c699f2880d3fda590bedc2e69f3f84cd48b457bd892ce61d0aa9"
+source = "git+https://github.com/dmccloskey/flate2-rs.git?branch=fix%2Fwasm32#31e35f48170a1c82fcc19c1495871caa2f28bc63"
 dependencies = [
  "crc32fast",
  "miniz_oxide",

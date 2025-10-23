@@ -21,3 +21,6 @@ inherits = "dev"
 
 [profile.android-dev]
 inherits = "dev"
+
+[patch.crates-io]
+flate2 = { git = "https://github.com/dmccloskey/flate2-rs.git", branch = "fix/wasm32" }
