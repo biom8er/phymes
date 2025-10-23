@@ -1,14 +1,9 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, get_metrics_as_pivot_table},
-    table::arrow_table::ArrowTableTrait,
+use phymes_core::{TableTrait, from_diagnostics_to_tables, pivot_metrics_table};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, MetricBuilderTrait, SpanBuilder,
 };
-use phymes_ml::{
-    candle_assets::available_candle_assets::AvailableCandleAssets,
-    candle_chat::{
-        chat_config::CandleChatConfig, chat_processor::bench_chat_processor::bench_chat_processor,
-    },
-};
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig, bench_chat_processor};
 
 fn benchmark_chat_processor(c: &mut Criterion) {
     // Cases for different input/output lengths
@@ -137,8 +132,13 @@ fn benchmark_chat_processor(c: &mut Criterion) {
             let mut iter = 0;
             c.bench_function(id.as_str(), |b| {
                 b.iter(|| {
-                    let metrics = ArrowTaskMetricsSet::new();
                     let sample_id = format!("{id}_{iter}");
+                    let span = SpanBuilder::default()
+                        .with_span(&sample_id)
+                        .build()
+                        .unwrap();
+                    let diagnostics = Diagnostics::new();
+                    let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
                     let name = format!("chat_processor_{id}_{iter}");
                     // DM: Cannot use tokio::runtime::Runtime in WASM context
                     #[cfg(feature = "wasip2")]
@@ -147,17 +147,25 @@ fn benchmark_chat_processor(c: &mut Criterion) {
                         .unwrap();
                     #[cfg(not(feature = "wasip2"))]
                     let rt = tokio::runtime::Runtime::new().unwrap();
-                    let baseline_metrics = BaselineMetrics::new(&metrics, sample_id.as_str());
+                    let baseline_metrics =
+                        diagnostic_builder
+                            .clone()
+                            .baseline_metrics(line!(), file!(), &sample_id);
                     let timer = baseline_metrics.elapsed_compute().timer();
                     let _messages = rt.block_on(async {
-                        bench_chat_processor(metrics.clone(), config, user_content, name.as_str())
-                            .await
+                        bench_chat_processor::bench_chat_processor(
+                            Some(&diagnostic_builder),
+                            config,
+                            user_content,
+                            name.as_str(),
+                        )
+                        .await
                     });
                     timer.done();
                     baseline_metrics.done();
 
                     // Collect the metrics
-                    metrics_vec.push(metrics);
+                    metrics_vec.push(diagnostics);
 
                     // Increment the iteration counter
                     iter += 1;
@@ -167,7 +175,9 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     }
 
     // Export the metrics to CSV
-    let metrics_table = get_metrics_as_pivot_table(&metrics_vec, "metrics").unwrap();
+    let (metrics_table, _traces_table, _events_table) =
+        from_diagnostics_to_tables(&metrics_vec).unwrap();
+    let metrics_table = pivot_metrics_table(metrics_table.unwrap(), "metrics").unwrap();
     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let pathname =
         format!("{target_dir}/.cache/metrics/benchmark_chat_processor_{wasm}_{gpu}_{candle}.csv");

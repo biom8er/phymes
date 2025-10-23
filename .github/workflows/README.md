@@ -39,6 +39,7 @@ cargo run --package phymes-agents --features wsl,gpu,candle --release --example 
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example doc_rag_session
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example tool_agent_session
 cargo check --all-targets
+cargo check -p phymes-diagnostics --all-targets --no-default-features --features wsl
 cargo check -p phymes-core --all-targets --no-default-features --features wsl
 cargo check -p phymes-data --all-targets --no-default-features --features wsl
 cargo check -p phymes-ml --all-targets --no-default-features --features wsl
@@ -54,6 +55,9 @@ cargo check -p phymes-app --all-targets --no-default-features --features mobile
 cargo check -p phymes-app --all-targets --no-default-features --features desktop
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all -- --check
+cargo check -p phymes-diagnostics --features wasip2 --no-default-features --target wasm32-unknown-unknown
+cargo test -p phymes-diagnostics --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
+for file in target/wasm32-wasip2/release/deps/phymes_diagnostics-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
 cargo check -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
 cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_core-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
@@ -82,6 +86,7 @@ for file in target/wasm32-wasip2/release/deps/phymes_server-*.wasm; do [ -f "$fi
 cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release
 mdbook test phymes-book
 mdbook build phymes-book
+cargo doc --document-private-items --no-deps -p phymes-diagnostics
 cargo doc --document-private-items --no-deps -p phymes-core
 cargo doc --document-private-items --no-deps -p phymes-ml
 cargo doc --document-private-items --no-deps -p phymes-data
@@ -138,9 +143,12 @@ The following will change the version of all `Cargo.toml` and `Cargo.lock` files
 
 ```bash
 export RELEASE_VERSION="0.2.0"
-export PACKAGES="phymes-app phymes-agents phymes-ml phymes-data phymes-core phymes-server"
+export PACKAGES="phymes-app phymes-agents phymes-ml phymes-data phymes-core phymes-server phymes-diagnostics"
 for p in $PACKAGES; do cd $p;  awk -v ver="$RELEASE_VERSION" '/^version = / {sub(/= "[^"]*"/, "= \""ver"\""); print; next} {print}' Cargo.toml > Cargo.toml.new;  mv Cargo.toml.new Cargo.toml; cd ..; awk -v ver="$RELEASE_VERSION" -v package="$p" '"^name = \"\"package\"\"$" {print; getline; sub(/version = "[^"]*"/, "version = \""ver"\""); print; next} {print}' Cargo.lock > Cargo.lock.new; mv Cargo.lock.new Cargo.lock; done
 ```
+
+### Known issues
+`Cargo.lock` does not update correctly. Workaround is to delete it and regenerate it.
 
 ## Release builds
 

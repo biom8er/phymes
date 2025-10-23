@@ -9,47 +9,27 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    schemas::{
-        chat_completion::{
-            ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType,
-        },
-        message_history::{
-            MessageHistoryTraitExt, create_messages_record_batch, create_messages_schema,
-            create_timestamp_micros,
-        },
-    },
-    session::{
-        common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
-        },
-        runtime_env::RuntimeEnv,
-    },
-    table::{
-        arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
-        stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
-    task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
-        },
-        arrow_processor::ArrowProcessorTrait,
-        publish_subscribe::PubSubTrait,
-    },
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt, FinishReason,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilderTrait,
+    TablePublish, TableSubscribe, TableTrait, Tool, ToolChoiceType, create_chat_record_batch,
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    create_timestamp_micros,
 };
 use reqwest::{Client, header::CONTENT_TYPE};
 use tracing::{Level, event};
 
-use crate::{candle_chat::chat_config::CandleChatConfig, openai_asset::OpenAIRequestState};
+use crate::{candle_chat::CandleChatConfig, openai_asset::OpenAIRequestState};
 
 #[derive(Debug)]
 pub struct OpenAIChatProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
@@ -60,11 +40,11 @@ impl MappableTrait for OpenAIChatProcessor {
 }
 
 impl PubSubTrait for OpenAIChatProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
@@ -73,13 +53,13 @@ impl PubSubTrait for OpenAIChatProcessor {
     }
 }
 
-impl ArrowProcessorTrait for OpenAIChatProcessor {
+impl ProcessorTrait for OpenAIChatProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -88,11 +68,11 @@ impl ArrowProcessorTrait for OpenAIChatProcessor {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -107,11 +87,23 @@ impl ArrowProcessorTrait for OpenAIChatProcessor {
 
     fn process(
         &self,
-        mut message: OutgoingMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        mut message: SendableRecordBatchStreamMessageMap,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
+
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
 
         // Extract out the messages, documents, tools, and config
         let messages = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
@@ -127,14 +119,15 @@ impl ArrowProcessorTrait for OpenAIChatProcessor {
         };
 
         // Run the chat stream
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(OpenAIChatStream::new(
             messages,
             tools,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics.clone(), self.get_name()),
+            stream_diagnostic_builder,
         )?);
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
@@ -142,6 +135,11 @@ impl ArrowProcessorTrait for OpenAIChatProcessor {
             .with_update(self.publications.first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -158,7 +156,7 @@ pub struct OpenAIChatStream {
     /// The candle assets needed for inference
     _runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
     config: Option<CandleChatConfig>,
     /// State of the OpenAI API request
@@ -171,13 +169,13 @@ impl OpenAIChatStream {
         tools_stream: Option<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
-            schema: create_messages_schema(),
+            schema: AvailableSubjects::Messages.to_schema(),
             message_stream,
             tools_stream,
-            baseline_metrics,
+            diagnostic_builder,
             config_stream,
             _runtime_env: runtime_env,
             config: None,
@@ -186,7 +184,7 @@ impl OpenAIChatStream {
     }
 
     /// Initialize the config for text generation inference
-    fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
+    fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
             let config: CandleChatConfig = serde_json::from_value(serde_json::Value::Object(
                 config_table.to_json_object()?.first().unwrap().to_owned(),
@@ -197,11 +195,7 @@ impl OpenAIChatStream {
     }
 
     /// Create the request
-    fn make_request(
-        &self,
-        messages: ArrowTable,
-        tools: Option<Vec<Tool>>,
-    ) -> ChatCompletionRequest {
+    fn make_request(&self, messages: Table, tools: Option<Vec<Tool>>) -> ChatCompletionRequest {
         // Convert messages to openAI schema
         let messages_openai = messages.to_openai_messages();
 
@@ -244,7 +238,7 @@ impl Stream for OpenAIChatStream {
                 while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
                     batches.push(batch);
                 }
-                let messages = ArrowTable::get_builder()
+                let messages = Table::get_builder()
                     .with_name("messages")
                     .with_record_batches(batches)?
                     .build()?;
@@ -256,7 +250,7 @@ impl Stream for OpenAIChatStream {
                         while let Some(Ok(batch)) = ready!(tools.poll_next_unpin(cx)) {
                             batches.push(batch);
                         }
-                        let tool_table = ArrowTable::get_builder()
+                        let tool_table = Table::get_builder()
                             .with_name("messages")
                             .with_record_batches(batches)?
                             .build()?;
@@ -278,7 +272,7 @@ impl Stream for OpenAIChatStream {
                 while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                     batches.push(batch);
                 }
-                let config_table = ArrowTable::get_builder()
+                let config_table = Table::get_builder()
                     .with_name("config")
                     .with_record_batches(batches)?
                     .build()?;
@@ -322,8 +316,20 @@ impl Stream for OpenAIChatStream {
             OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(text) => {
                     // Initialize the metrics
-                    let metrics = self.baseline_metrics.clone();
-                    let _timer = metrics.elapsed_compute().timer();
+                    let baseline_metrics =
+                        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                            Some(
+                                diagnostic_builder
+                                    .clone()
+                                    .to_child("OpenAIChatStream")?
+                                    .baseline_metrics(line!(), file!(), "poll_next"),
+                            )
+                        } else {
+                            None
+                        };
+                    let _timer = baseline_metrics
+                        .as_ref()
+                        .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Parse the response
                     let result = serde_json::from_str::<ChatCompletionResponse>(&text).unwrap();
@@ -355,16 +361,20 @@ impl Stream for OpenAIChatStream {
                     );
 
                     // Wrap into a record batch
-                    let batch = create_messages_record_batch(
+                    let batch = create_chat_record_batch(
                         vec!["assistant".to_string()],
                         vec![content.to_string()],
                         vec![create_timestamp_micros()],
                     )?;
+                    self.state = OpenAIRequestState::Done;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
-                    self.state = OpenAIRequestState::Done;
-                    metrics.record_poll(poll)
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        baseline_metrics.record_poll(poll)
+                    } else {
+                        poll
+                    }
                 }
                 Err(err) => {
                     self.state = OpenAIRequestState::Done;
@@ -391,19 +401,24 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
     #[allow(unused_imports)]
-    use phymes_core::{
-        metrics::HashMap, schemas::message_history::MessageHistoryBuilderTraitExt,
-        session::runtime_env::RuntimeEnvTrait, table::arrow_table::ArrowTableBuilder,
-    };
+    use phymes_core::{ChatBuilderTraitExt, TableBuilder};
+    #[allow(unused_imports)]
+    use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
     #[cfg(not(feature = "candle"))]
     #[tokio::test]
     async fn test_openai_chat_processor() -> Result<()> {
+        use phymes_core::RuntimeEnvTrait;
+
+        use crate::AvailableOpenAIAssets;
+
         let name = "OpenAIChatProcessor";
         let messages = "messages";
 
         // Metrics to compute time and rows
-        let metrics = ArrowTaskMetricsSet::new();
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // State for the chat processor config
         let candle_chat_config = CandleChatConfig {
@@ -413,19 +428,17 @@ mod tests {
             repeat_penalty: 1.1,
             repeat_last_n: 64,
             api_url: Some("http://0.0.0.0:8000/v1".to_string()),
-            openai_asset: Some(
-                crate::openai_asset::available_openai_assets::AvailableOpenAIAssets::MetaLlamaV3p2_1B,
-            ),
+            openai_asset: Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B),
             ..Default::default()
         };
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;
-        let candle_chat_config_table = ArrowTableBuilder::new()
+        let candle_chat_config_table = TableBuilder::new()
             .with_name(name)
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = ArrowTableBuilder::new()
+        let message_builder = TableBuilder::new()
             .with_name(messages)
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(
@@ -434,24 +447,24 @@ mod tests {
             )?;
 
         // Build the current message state
-        let mut message = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
             messages.to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
         let _ = message.insert(
             candle_chat_config_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(candle_chat_config_table.get_name())
                 .with_publisher("")
                 .with_subject(candle_chat_config_table.get_name())
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(candle_chat_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -459,16 +472,16 @@ mod tests {
         // Build the chat task
         let chat_processor = OpenAIChatProcessor::new_arc_with_pub_sub(
             name,
-            &[ArrowTablePublish::ExtendChunks {
+            &[TablePublish::ExtendChunks {
                 table_name: messages.to_string(),
                 col_name: "content".to_string(),
             }],
             &[
-                ArrowTableSubscribe::OnUpdateFullTable {
+                TableSubscribe::OnUpdateFullTable {
                     table_name: messages.to_string(),
                 },
-                ArrowTableSubscribe::None,
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::None,
+                TableSubscribe::AlwaysFullTable {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
@@ -476,7 +489,7 @@ mod tests {
         );
         let mut stream = chat_processor.process(
             message,
-            metrics.clone(),
+            Some(&diagnostic_builder),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
 
@@ -497,9 +510,6 @@ mod tests {
 
         // Expected
         // "**Counting Prime Numbers Up to N**\n=====================================\n\nHere is a Python function that counts prime numbers up to a given number `N`:\n\n```python\ndef count_prime_numbers(n):\n    \"\"\"\n    Returns the count of prime numbers up to n.\n\n    Args:\n        n (int): The upper limit (exclusive) for counting prime numbers.\n\n    Returns:\n        int: The count of prime numbers up to n.\n    \"\"\"\n    def is_prime(num):\n        \"\"\"\n        Checks if a number is prime.\n\n        Args:\n            num (int): The number to check.\n\n        Returns:\n            bool: True if the number is prime, False otherwise.\n        \"\"\"\n        if num < 2:\n            return False\n        for i in range(2, int(num ** 0.5) + 1):\n            if num % i == 0:\n                return False\n        return True\n\n    count = 0\n    for i in range(2, n):\n        if is_prime(i):\n            count += 1\n    return count\n```\n\n**Example Use Cases**\n---------------------\n\n```python\n# Count prime numbers up to 20\nprint(count_prime_numbers(20))  # Output: 8\n\n# Count prime numbers up to 50\nprint(count_prime_numbers(50))  # Output: 15\n```\n\nThis function works by defining a helper function `is_prime` that checks whether a given number is prime or not. It then uses a simple loop to iterate from 2 to `n-1`, and increments the count each time it finds a prime number. The final count is returned by the main function `count_prime_numbers`."
-
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
 
         assert_eq!(json_data.first().unwrap().get("role").unwrap(), "system");
         assert_eq!(

@@ -5,40 +5,20 @@ use std::{
 };
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    schemas::{
-        chat_completion::ToolCall,
-        message_history::{
-            create_messages_record_batch, create_timestamp_micros, create_values_record_batch,
-        },
-    },
-    session::{
-        common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
-        },
-        runtime_env::RuntimeEnv,
-    },
-    table::{
-        arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
-        stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
-    task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
-        },
-        arrow_processor::ArrowProcessorTrait,
-        publish_subscribe::PubSubTrait,
-    },
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilderTrait,
+    TablePublish, TableSubscribe, TableTrait, ToolCall, create_chat_record_batch,
+    create_values_record_batch,
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    create_timestamp_micros,
 };
 
 use anyhow::{Result, anyhow};
-use arrow::{
-    array::RecordBatch,
-    datatypes::{DataType, Field, Schema, SchemaRef},
-};
+use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use serde_json::json;
@@ -66,8 +46,8 @@ use super::tool_parser::extract_tool_calls_str;
 #[derive(Debug)]
 pub struct MessageParserProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
@@ -78,10 +58,10 @@ impl MappableTrait for MessageParserProcessor {
 }
 
 impl PubSubTrait for MessageParserProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect()
     }
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
@@ -90,13 +70,13 @@ impl PubSubTrait for MessageParserProcessor {
     }
 }
 
-impl ArrowProcessorTrait for MessageParserProcessor {
+impl ProcessorTrait for MessageParserProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -105,11 +85,11 @@ impl ArrowProcessorTrait for MessageParserProcessor {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -122,14 +102,26 @@ impl ArrowProcessorTrait for MessageParserProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics, runtime_env))]
+    #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
     fn process(
         &self,
-        mut message: OutgoingMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        mut message: SendableRecordBatchStreamMessageMap,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
+
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
 
         // Extract out the messages and config
         let messages =
@@ -143,17 +135,18 @@ impl ArrowProcessorTrait for MessageParserProcessor {
         };
 
         // Make the outbox and send
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(MessageParserStream::new(
             messages,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name()),
+            stream_diagnostic_builder,
         )?);
 
         // By default, we send back to the publisher in case of any errors which the publisher
         //  can correct before moving on.
         // DM: this is not rigorously tested yet...
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.get_publications().first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.get_publications().first().unwrap().get_table_name())
@@ -161,6 +154,11 @@ impl ArrowProcessorTrait for MessageParserProcessor {
             .with_update(self.get_publications().first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -176,7 +174,7 @@ pub struct MessageParserStream {
     /// The Candle model assets needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
     config: Option<CandleChatConfig>,
 }
@@ -186,27 +184,19 @@ impl MessageParserStream {
         message_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
-        // Output schema
-        let field_names = ["name", "publisher", "subject", "values"];
-        let fields_vec = field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Utf8, false))
-            .collect::<Vec<_>>();
-        let schema = Arc::new(Schema::new(fields_vec));
-
         Ok(Self {
-            schema,
+            schema: AvailableSubjects::Values.to_schema(),
             message_stream,
             config_stream,
             runtime_env,
-            baseline_metrics,
+            diagnostic_builder,
             config: None,
         })
     }
 
-    fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
+    fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
             let config: CandleChatConfig = serde_json::from_value(serde_json::Value::Object(
                 config_table.to_json_object()?.first().unwrap().to_owned(),
@@ -228,15 +218,26 @@ impl Stream for MessageParserStream {
             Poll::Ready(None)
         } else {
             // Initialize the metrics
-            let metrics = self.baseline_metrics.clone();
-            let _timer = metrics.elapsed_compute().timer();
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("MessageParserStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
+            } else {
+                None
+            };
+            let _timer = baseline_metrics
+                .as_ref()
+                .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // Initialize the config
             let mut batches = Vec::new();
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = ArrowTable::get_builder()
+            let config_table = Table::get_builder()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -249,7 +250,7 @@ impl Stream for MessageParserStream {
             }
 
             // Concatenate into a single record batch
-            let message = ArrowTable::get_builder()
+            let message = Table::get_builder()
                 .with_name("")
                 .with_record_batches(batches)?
                 .build()?
@@ -382,7 +383,7 @@ impl Stream for MessageParserStream {
                             // timestamp_vec.push(create_timestamp_micros());
                             // role_vec.push("user".to_string());
                             // content_vec.push(format!("Reformat your response to follow the tool schemas. If trying to respond to the user, use the human-in-the-loop tool."));
-                            create_messages_record_batch(role_vec, content_vec, timestamp_vec)?
+                            create_chat_record_batch(role_vec, content_vec, timestamp_vec)?
                         }
                     }
                 }
@@ -390,7 +391,11 @@ impl Stream for MessageParserStream {
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
         }
     }
 
@@ -408,10 +413,8 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{
-        metrics::HashMap,
-        table::{arrow_table::ArrowTableBuilder, arrow_table_publish::ArrowTablePublish},
-    };
+    use phymes_core::{TableBuilder, TablePublish};
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
 
@@ -429,16 +432,16 @@ mod tests {
             "\"get_weather\", \"arguments\": {\"location\": \"Santa Ana, CA\", \"time\": \"08:00\"}}\n</tool_call><|im_end|>\n",
         ]));
         let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content)])?;
-        let mut message_map = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message_map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message_map.insert(
             "messages".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(
-                    ArrowTable::get_builder()
+                    Table::get_builder()
                         .with_name("messages")
                         .with_record_batches(vec![batch])?
                         .build()?
@@ -448,13 +451,13 @@ mod tests {
         );
         let _ = message_map.insert(
             "message_processor".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(
-                    ArrowTable::get_builder()
+                    Table::get_builder()
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
@@ -468,7 +471,9 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -481,27 +486,25 @@ mod tests {
         // Create the processor and run
         let processor = MessageParserProcessor::new_arc_with_pub_sub(
             "message_processor",
-            &[ArrowTablePublish::ExtendChunks {
+            &[TablePublish::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable {
+            &[TableSubscribe::AlwaysFullTable {
                 table_name: "messages".to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
+        let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
-        let partitions = ArrowTableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove("messages").unwrap().get_message_own(),
         )
         .await?
         .with_name("")
         .build()?;
         assert_eq!(partitions.count_rows(), 2);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 2);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         assert_eq!(
             partitions.get_column_as_vec_str("name"),
             ["get_current_weather", "get_weather"]
@@ -533,16 +536,16 @@ mod tests {
             "[{\"id\":\"fc_12345xyz\",\"type\":\"function\",\"function\":{\"name\":\"get_current_weather\",\"arguments\":\"{\\\"location\\\":\\\"San Francisco, CA\\\",\\\"format\\\":\\\"celsius\\\"}\"}}]",
         ]));
         let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content)])?;
-        let mut message_map = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message_map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message_map.insert(
             "messages".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(
-                    ArrowTable::get_builder()
+                    Table::get_builder()
                         .with_name("messages")
                         .with_record_batches(vec![batch])?
                         .build()?
@@ -552,13 +555,13 @@ mod tests {
         );
         let _ = message_map.insert(
             "message_processor".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(
-                    ArrowTable::get_builder()
+                    Table::get_builder()
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
@@ -572,7 +575,9 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -585,27 +590,25 @@ mod tests {
         // Create the processor and run
         let processor = MessageParserProcessor::new_arc_with_pub_sub(
             "message_processor",
-            &[ArrowTablePublish::ExtendChunks {
+            &[TablePublish::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable {
+            &[TableSubscribe::AlwaysFullTable {
                 table_name: "messages".to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
+        let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
-        let partitions = ArrowTableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove("messages").unwrap().get_message_own(),
         )
         .await?
         .with_name("")
         .build()?;
         assert_eq!(partitions.count_rows(), 1);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         assert_eq!(
             partitions.get_column_as_vec_str("name"),
             ["get_current_weather"]
@@ -628,7 +631,7 @@ mod tests {
         Ok(())
     }
 
-    #[ignore = "dynamic schema update breaks `RecordBatchStream` in tests"]
+    //#[ignore = "dynamic schema update breaks `RecordBatchStream` in tests"]
     #[tokio::test]
     async fn test_message_processor_error() -> Result<()> {
         // Create the input
@@ -637,16 +640,16 @@ mod tests {
             "<get_current_weather location=\"Boston, MA\" unit=\"fahrenheit\">",
         ]));
         let batch = RecordBatch::try_from_iter(vec![("role", role), ("content", content)])?;
-        let mut message_map = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut message_map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message_map.insert(
             "messages".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(
-                    ArrowTable::get_builder()
+                    Table::get_builder()
                         .with_name("messages")
                         .with_record_batches(vec![batch])?
                         .build()?
@@ -656,13 +659,13 @@ mod tests {
         );
         let _ = message_map.insert(
             "message_processor".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(
-                    ArrowTable::get_builder()
+                    Table::get_builder()
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
@@ -676,7 +679,9 @@ mod tests {
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
             token_service: None,
@@ -689,27 +694,25 @@ mod tests {
         // Create the processor and run
         let processor = MessageParserProcessor::new_arc_with_pub_sub(
             "message_processor",
-            &[ArrowTablePublish::ExtendChunks {
+            &[TablePublish::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             }],
-            &[ArrowTableSubscribe::AlwaysFullTable {
+            &[TableSubscribe::AlwaysFullTable {
                 table_name: "messages".to_string(),
             }],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut stream = processor.process(message_map, metrics.clone(), runtime_env)?;
+        let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // DM: this will result in an error because the schema is dynamically updated
-        let partitions = ArrowTableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove("messages").unwrap().get_message_own(),
         )
         .await?
         .with_name("")
         .build()?;
         assert_eq!(partitions.count_rows(), 1);
-        assert_eq!(metrics.clone_inner().output_rows().unwrap(), 1);
-        assert!(metrics.clone_inner().elapsed_compute().unwrap() > 10);
         assert_eq!(partitions.get_column_as_vec_str("role"), ["assistant"]);
         assert_eq!(
             partitions.get_column_as_vec_str("content"),

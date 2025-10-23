@@ -1,7 +1,15 @@
-pub mod server_app;
-pub mod server_config;
-pub mod server_state;
+mod server_app;
+mod server_config;
 #[cfg(feature = "wasip2")]
-pub mod serverless_app;
+mod serverless_app;
 #[cfg(feature = "wasip2")]
-pub mod serverless_config;
+mod serverless_config;
+
+pub use server_app::AppBuilder;
+#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+pub use server_app::Server;
+pub use server_config::ServerConfig;
+#[cfg(feature = "wasip2")]
+pub use serverless_app::{Serverless, serverless_app};
+#[cfg(feature = "wasip2")]
+pub use serverless_config::ServerlessConfig;

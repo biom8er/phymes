@@ -1,6 +1,6 @@
 [package]
 name = "phymes-core"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 authors = ["Douglas McCloskey"]
 description = "The core subject-based message passing algorithm of PHYMES"
@@ -14,20 +14,24 @@ wasip2 = ["tokenizers/unstable_wasm",
     "tokio/sync",
     "tokio/macros",
     "tokio/io-util",
-    "tokio/rt"]
+    "tokio/rt",
+    "phymes-diagnostics/wasip2"]
 wsl = ["dep:tempfile",
     "tokenizers/onig",
-    "tokio/full"]
+    "tokio/full",
+    "phymes-diagnostics/wsl"]
 hf_hub = [] # for compatibility with agents
 openai_api = [] # for compatibility with agents
 gpu = [] # for compatibility with agents
 candle = [] # for compatibility with agents
 
 [dependencies]
+phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 arrow = { version = "54.3.1", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
 pin-project-lite = "0.2.16"
 async-trait = "0.1.88"
 anyhow = "1.0.95"
+clap = { version = "4.2.4", features = ["derive"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 tokio = { version = "1.45.1", default-features = false, features = [], optional = true}
 tracing = "0.1.41"

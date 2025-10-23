@@ -1,4 +1,11 @@
 # User Interface (UI)
+## User journey
+### User
+
+### Debugger
+
+### Builder
+
 ## Main menu
 ### Help
 
@@ -10,11 +17,11 @@ Description of menu items
 
 User registration and sign in. Each account corresponds to a single email.
 
-### Session plans
+### Apps
 
-![session plans](../assets/2025-07-05_phymes-app_session-plans.png)
+![Apps](../assets/2025-07-05_phymes-app_session-plans.png)
 
-A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans.
+A list of session plans (i.e., applications) available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans.
 
 ### Subjects
 

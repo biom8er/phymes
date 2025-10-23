@@ -14,17 +14,15 @@ use arrow::{
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
 use phymes_core::{
-    schemas::{chat_completion, types},
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
 use tracing::instrument;
 
 use crate::{
-    candle_data::data_config::{DataComparatorOperator, DataComparatorPredicate},
+    candle_data::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
     candle_operators::{
-        data_operator::{DataOperatorTrait, make_error_record_batch},
-        group_by_and_aggregate::build_aggregator_column_list,
+        data_operator::DataOperatorTrait, group_by_and_aggregate::build_aggregator_column_list,
         sort_column_and_indices::take_columns_by_indices,
     },
 };
@@ -62,58 +60,21 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        match filter_columns_and_indices(
+        filter_columns_and_indices(
             &lhs_values,
             lhs_args,
             &cmp_columns,
             &self.cmp_operators,
             &self.cmp_predicate,
             device,
-        ) {
-            Ok(batch) => Ok(batch),
-            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
-        }
-    }
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self {
-        // Attempt to parse the lhs_values
-        let lhs_values: Vec<String> = serde_json::from_str(lhs_values).unwrap_or_default();
-
-        // Attempt to parse the op_kwargs
-        let ops_kwargs_default =
-            "{\"cmp_columns\": [], \"cmp_operators\": [], \"cmp_comparator\": \"All\"}";
-        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
-            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
-        let cmp_columns = ops_kwargs
-            .get("cmp_columns")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<_>>();
-        let cmp_operators = ops_kwargs
-            .get("cmp_operators")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| serde_json::from_value::<DataComparatorOperator>(v.clone()).unwrap())
-            .collect::<Vec<_>>();
-        let cmp_predicate = serde_json::from_value::<DataComparatorPredicate>(
-            ops_kwargs.get("cmp_comparator").unwrap().clone(),
         )
-        .unwrap();
+    }
+    fn new(config: &DataConfig) -> Self {
+        let lhs_values = config.lhs_values.to_owned();
+        let cmp_columns = config.cmp_columns.clone().unwrap_or_default();
+        let cmp_operators = config.cmp_operators.clone().unwrap_or_default();
+        let cmp_predicate = config.cmp_predicate.clone().unwrap_or_default();
 
-        // Make the object
         FilterColumnsAndIndices {
             lhs_values,
             cmp_columns,
@@ -129,16 +90,16 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "lhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the left hand side table".to_string(),
                 ),
@@ -147,19 +108,19 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
         );
         properties.insert(
             "lhs_values".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The values column identifier for the left hand side table in the form of a JSON list of strings".to_string(),
+                    "A list of value column identifiers for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
@@ -168,8 +129,8 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
                 ]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -182,7 +143,7 @@ fn comparator_operator_tensor<T>(
     index: usize,
     cmp_columns: &[&str],
     cmp_operators: &[DataComparatorOperator],
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     device: &Device,
 ) -> Result<Tensor>
 where
@@ -203,7 +164,7 @@ where
             return Err(anyhow!(
                 "Unsupported data type {} and comparator {} for column {column_name}",
                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                cmp_operators.get(index).unwrap().get_name()
+                cmp_operators.get(index).unwrap()
             ));
         }
     };
@@ -261,7 +222,7 @@ pub fn filter_columns_and_indices(
     }
 
     // Wrap the lhs into an ArrowTable
-    let lhs_table = ArrowTable::get_builder()
+    let lhs_table = Table::get_builder()
         .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?;
@@ -334,7 +295,7 @@ pub fn filter_columns_and_indices(
                         return Err(anyhow!(
                             "Unsupported data type {} and comparator {} for column {column_name}",
                             lhs_table.get_column_data_type(column_name)?.to_string(),
-                            cmp_operators.get(index).unwrap().get_name()
+                            cmp_operators.get(index).unwrap()
                         ));
                     }
                 };
@@ -361,7 +322,7 @@ pub fn filter_columns_and_indices(
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
                                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                                cmp_operators.get(index).unwrap().get_name()
+                                cmp_operators.get(index).unwrap()
                             ));
                         }
                     };
@@ -387,7 +348,7 @@ pub fn filter_columns_and_indices(
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
                                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                                cmp_operators.get(index).unwrap().get_name()
+                                cmp_operators.get(index).unwrap()
                             ));
                         }
                     };
@@ -413,7 +374,7 @@ pub fn filter_columns_and_indices(
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
                                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                                cmp_operators.get(index).unwrap().get_name()
+                                cmp_operators.get(index).unwrap()
                             ));
                         }
                     };
@@ -439,7 +400,7 @@ pub fn filter_columns_and_indices(
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
                                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                                cmp_operators.get(index).unwrap().get_name()
+                                cmp_operators.get(index).unwrap()
                             ));
                         }
                     };
@@ -465,7 +426,7 @@ pub fn filter_columns_and_indices(
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
                                 lhs_table.get_column_data_type(column_name)?.to_string(),
-                                cmp_operators.get(index).unwrap().get_name()
+                                cmp_operators.get(index).unwrap()
                             ));
                         }
                     };
@@ -575,8 +536,8 @@ pub fn filter_columns_and_indices(
     batch_vec.extend(take_columns_by_indices(
         &columns,
         &lhs_table,
-        take_arr,
-        take_tensor,
+        &take_arr,
+        &take_tensor,
         device,
     )?);
 
@@ -586,7 +547,7 @@ pub fn filter_columns_and_indices(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::session::common_traits::device;
+    use phymes_core::device;
 
     use super::*;
 
@@ -629,7 +590,7 @@ mod tests {
             &DataComparatorPredicate::All,
             &device,
         )?;
-        let result_table = ArrowTable::get_builder()
+        let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -654,7 +615,7 @@ mod tests {
             &DataComparatorPredicate::Any,
             &device,
         )?;
-        let result_table = ArrowTable::get_builder()
+        let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -676,7 +637,7 @@ mod tests {
             &DataComparatorPredicate::Any,
             &device,
         )?;
-        let result_table = ArrowTable::get_builder()
+        let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;

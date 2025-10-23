@@ -79,10 +79,23 @@ Alternatively, you can make REST API requests against the server using e.g., `cu
 curl -X POST -u EMAIL:PASSWORD http://localhost:4000/app/v1/sign_in
 # mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["Chat","DocChat","ToolChat"]}
 
+# View a subject table from the session state
+curl -H "Content-Type: application/json" -H "Authorization: Bearer JWTTOKEN" -d '{"name":"","subject":"chat_processor_1","publisher":"EMAILChat","message":[],"update":"None","session_name":"EMAILChat","format":"Bytes","stream":false}' http://localhost:4000/app/v1/get_state
+
 # Chat request
-# Be sure to replace EMAIL and JWTTOKEN with your actual email and JWT token!
-# Note that the session_name = email + session_plan
-curl -H "Content-Type: application/json" -H "Authorization: Bearer JWTTOKEN" -d '{"content": "Write a python function to count prime numbers", "session_name": "EMAILChat", "subject_name": "messages"}' http://localhost:4000/app/v1/chat
+# Make the user query and encode into bytes
+query_str=$(printf '[{"content":"Write a python function to count prime numbers","role":"user","timestamp":%s}]' "$(date +%s)")
+query_bytes=$(echo -n "$query_str" | od -An -t u1)
+query_array=$(echo "$query_bytes" | xargs | tr ' ' ',')
+
+# Make the message to send to the server
+# Be sure to replace EMAIL with your actual email!
+# Note that the session_name = email + session_plan (which we also use for the publisher)
+message=$(printf '{"name":"query","subject":"UserMessages","publisher":"EMAILChat","message":[%s],"update":{"Extend":{"table_name":"UserMessages"}},"session_name":"EMAILChat","format":"Bytes","stream":false}' "$query_array")
+
+# Make the chat request to the server
+# Be sure to replace JWTTOKEN with your actual JWT token!
+curl -H "Content-Type: application/json" -H "Authorization: Bearer JWTTOKEN" -d $message http://localhost:4000/app/v1/chat
 ```
 
 Before running the `phymes-server`, setup the environmental variables *as needed* to access the local or remote OpenAI API token service endpoints.
@@ -113,13 +126,16 @@ WASM builds of `phymes-server` can be ran as stateless functions for embedded ap
 
 ```bash
 # Sign-in and get our JWT token
-wastime phymes-server.wasm -- --route app/v1/sign_in --basic-auth EMAIL:PASSWORD
+wasmtime target/wasm32-wasip2/release/phymes-server.wasm --route app/v1/sign_in --basic-auth EMAIL:PASSWORD
 # mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["Chat","DocChat","ToolChat"]}
 
+# View a subject table from the session state
+wasmtime --dir=$HOME/.cache target/wasm32-wasip2/release/phymes-server.wasm --route app/v1/get_state --bearer-auth JWTTOKEN --data '{"name":"","subject":"chat_processor_1","publisher":"EMAILChat","message":[],"update":"None","session_name":"EMAILChat","format":"Bytes","stream":false}'
+
 # Chat request
-# Be sure to replace EMAIL and JWTTOKEN with your actual email and JWT token!
-# Note that the session_name = email + session_plan
-wastime phymes-server.wasm curl -- --route app/v1/chat --bearer-auth JWTTOKEN --data '{"content": "Write a python function to count prime numbers", "session_name": "EMAILChat", "subject_name": "messages"}'
+# Be sure to replace JWTTOKEN with your actual JWT token!
+# Note that message is the same as in the previous example
+wasmtime --dir=$HOME/.cache target/wasm32-wasip2/release/phymes-server.wasm --route app/v1/chat --bearer-auth JWTTOKEN --data $message
 ```
 
 The phymes application is available for desktop (Linux, Windows, MacOS) and mobile (Android, iOS), but requires building from source on the target platform (i.e., Linux for Linux desktop, Windows for Windows desktop, MacOS for MacOS desktop, Linux for Android, and MacOS for iOS). See [contributing] guide for detailed installation and build instructions.
@@ -137,6 +153,7 @@ The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes
 
 | Crate | Description | Latest API Docs | README |
 | ----- | ----------- | --------------- | ------ |
+| [`phymes-diagnostics`] | Diagnostic tools for debugging and optimizing | [docs.rs](https://docs.rs/phymes-diagnostics/latest) | [README](phymes-diagnostics/README.md) |
 | [`phymes-core`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-core/latest) | [README](phymes-core/README.md) |
 | [`phymes-ml`] | Support for machine learning (ML) and generative artificial intelligence (AI) | [docs.rs](https://docs.rs/phymes-ml/latest) | [README](phymes-ml/README.md) |
 | [`phymes-data`] | Support for GPU accelerated data wrangling | [docs.rs](https://docs.rs/phymes-data/latest) | [README](phymes-data/README.md) |
@@ -144,6 +161,7 @@ The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes
 | [`phymes-server`] | Server that runs the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-server/latest) | [README](phymes-server/README.md) |
 | [`phymes-app`] | Frontend UI for dynamically interacting with the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-app/latest) | [README](phymes-app/README.md) |
 
+[`phymes-diagnostics`]: https://crates.io/crates/phymes-diagnostics
 [`phymes-core`]: https://crates.io/crates/phymes-core
 [`phymes-ml`]: https://crates.io/crates/phymes-ml
 [`phymes-data`]: https://crates.io/crates/phymes-data

@@ -1,24 +1,16 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use parking_lot::RwLock;
-use phymes_core::{
-    metrics::ArrowTaskMetricsSet,
-    session::{
-        common_traits::{BuilderTrait, MappableTrait},
-        session_context::{SessionStream, SessionStreamState},
-        session_context_builder::SessionContextBuilderTrait,
-    },
-};
+use phymes_core::{BuilderTrait, SessionContextBuilder, SessionStreamState};
 use serde::{Deserialize, Serialize};
 
-use crate::session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
-
-use super::{
-    chat_agent_session::{ChatAgentSession, test_chat_agent_session::bench_chat_agent_session_2},
-    document_rag_session::{DocumentRAGSession, test_doc_rag_session::bench_doc_rag_session_query},
-    tool_agent_session::{ToolAgentSession, test_tool_agent_session::bench_tool_agent_session},
+use crate::{
+    session_plans::{
+        BuilderSession, ChatAgentSession, DocumentRAGSession, ToolAgentSession, UserSession,
+    },
+    session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
 };
 
 /// The available session plans
@@ -30,14 +22,20 @@ pub enum AvailableSessionPlans {
     DocChat,
     #[value(name = "ToolChat")]
     ToolChat,
+    #[value(name = "Builder")]
+    Builder,
+    #[value(name = "Users")]
+    Users,
 }
 
-impl MappableTrait for AvailableSessionPlans {
-    fn get_name(&self) -> &str {
+impl Display for AvailableSessionPlans {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Chat => "Chat",
-            Self::DocChat => "DocChat",
-            Self::ToolChat => "ToolChat",
+            Self::Chat => write!(f, "Chat"),
+            Self::DocChat => write!(f, "DocChat"),
+            Self::ToolChat => write!(f, "ToolChat"),
+            Self::Builder => write!(f, "Builder"),
+            Self::Users => write!(f, "Users"),
         }
     }
 }
@@ -45,6 +43,15 @@ impl MappableTrait for AvailableSessionPlans {
 impl AvailableSessionPlans {
     /// Get all available session plans
     pub fn get_all_session_plan_names() -> Vec<String> {
+        let session_plans = ["Chat", "DocChat", "ToolChat", "Builder"];
+        session_plans
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+    }
+
+    /// Get all available session plans
+    pub fn get_deployable_session_plan_names() -> Vec<String> {
         let session_plans = ["Chat", "DocChat", "ToolChat"];
         session_plans
             .iter()
@@ -53,56 +60,32 @@ impl AvailableSessionPlans {
     }
 
     /// Get the session stream state
-    pub fn get_session_stream_state(&self, session_name: &str) -> Arc<RwLock<SessionStreamState>> {
-        // Initialize the metrics
-        let metrics = ArrowTaskMetricsSet::new();
-
-        // Initialize the session
+    pub fn get_session_context_builder(&self, session_name: &str) -> SessionContextBuilder {
+        // Initialize the session context builder
         match self {
-            Self::Chat => {
-                let session = ChatAgentSession::new_with_session_name(session_name);
-                let session_ctx = session
-                    .build()
-                    .with_metrics(metrics.clone())
-                    .with_name(session_name)
-                    .build_with_tables()
-                    .unwrap();
-                Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
-            }
-            Self::DocChat => {
-                let session = DocumentRAGSession::new_with_session_name(session_name);
-                let session_ctx = session
-                    .build()
-                    .with_metrics(metrics.clone())
-                    .with_name(session_name)
-                    .build_with_tables()
-                    .unwrap();
-                Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
-            }
-            Self::ToolChat => {
-                let session = ToolAgentSession::new_with_session_name(session_name);
-                let session_ctx = session
-                    .build()
-                    .with_metrics(metrics.clone())
-                    .with_name(session_name)
-                    .build_with_tables()
-                    .unwrap();
-                Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
-            }
+            Self::Chat => ChatAgentSession::new_with_session_name(session_name).build(),
+            Self::DocChat => DocumentRAGSession::new_with_session_name(session_name).build(),
+            Self::ToolChat => ToolAgentSession::new_with_session_name(session_name).build(),
+            Self::Builder => BuilderSession::new_with_session_name(session_name).build(),
+            Self::Users => UserSession::new_with_session_name(session_name).build(),
         }
     }
 
     /// Get the session stream state by name
-    pub fn get_session_stream_state_by_name(
+    pub fn get_session_context_builder_by_name(
         session_plan_name: &str,
         session_name: &str,
-    ) -> Result<Arc<RwLock<SessionStreamState>>> {
-        if session_plan_name == Self::Chat.get_name() {
-            Ok(Self::Chat.get_session_stream_state(session_name))
-        } else if session_plan_name == Self::DocChat.get_name() {
-            Ok(Self::DocChat.get_session_stream_state(session_name))
-        } else if session_plan_name == Self::ToolChat.get_name() {
-            Ok(Self::ToolChat.get_session_stream_state(session_name))
+    ) -> Result<SessionContextBuilder> {
+        if session_plan_name == Self::Chat.to_string() {
+            Ok(Self::Chat.get_session_context_builder(session_name))
+        } else if session_plan_name == Self::DocChat.to_string() {
+            Ok(Self::DocChat.get_session_context_builder(session_name))
+        } else if session_plan_name == Self::ToolChat.to_string() {
+            Ok(Self::ToolChat.get_session_context_builder(session_name))
+        } else if session_plan_name == Self::Builder.to_string() {
+            Ok(Self::Builder.get_session_context_builder(session_name))
+        } else if session_plan_name == Self::Users.to_string() {
+            Ok(Self::Users.get_session_context_builder(session_name))
         } else {
             Err(anyhow!(
                 "Plan name {session_plan_name} was not found in the available session plans."
@@ -110,34 +93,29 @@ impl AvailableSessionPlans {
         }
     }
 
-    /// Get the session stream by name
-    pub fn get_session_stream_by_name(
+    /// Get the session stream state
+    pub fn get_session_stream_state(&self, session_name: &str) -> Arc<RwLock<SessionStreamState>> {
+        // Initialize the session
+        let builder = self.get_session_context_builder(session_name);
+        let session_ctx = builder.with_name(session_name).build_with_tables().unwrap();
+        Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
+    }
+
+    /// Get the session stream state by name
+    pub fn get_session_stream_state_by_name(
         session_plan_name: &str,
         session_name: &str,
-        session_stream_state: Arc<RwLock<SessionStreamState>>,
-        user_query: &str,
-    ) -> Result<SessionStream> {
-        if session_plan_name == Self::Chat.get_name() {
-            let session = ChatAgentSession::new_with_session_name(session_name);
-            Ok(bench_chat_agent_session_2(
-                Arc::clone(&session_stream_state),
-                &session,
-                user_query,
-            ))
-        } else if session_plan_name == Self::DocChat.get_name() {
-            let session = DocumentRAGSession::new_with_session_name(session_name);
-            Ok(bench_doc_rag_session_query(
-                Arc::clone(&session_stream_state),
-                &session,
-                user_query,
-            ))
-        } else if session_plan_name == Self::ToolChat.get_name() {
-            let session = ToolAgentSession::new_with_session_name(session_name);
-            Ok(bench_tool_agent_session(
-                Arc::clone(&session_stream_state),
-                &session,
-                user_query,
-            ))
+    ) -> Result<Arc<RwLock<SessionStreamState>>> {
+        if session_plan_name == Self::Chat.to_string() {
+            Ok(Self::Chat.get_session_stream_state(session_name))
+        } else if session_plan_name == Self::DocChat.to_string() {
+            Ok(Self::DocChat.get_session_stream_state(session_name))
+        } else if session_plan_name == Self::ToolChat.to_string() {
+            Ok(Self::ToolChat.get_session_stream_state(session_name))
+        } else if session_plan_name == Self::Builder.to_string() {
+            Ok(Self::Builder.get_session_stream_state(session_name))
+        } else if session_plan_name == Self::Users.to_string() {
+            Ok(Self::Users.get_session_stream_state(session_name))
         } else {
             Err(anyhow!(
                 "Plan name {session_plan_name} was not found in the available session plans."

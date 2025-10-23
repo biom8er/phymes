@@ -1,14 +1,17 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-use super::messaging::{messaging_interface_footer, messaging_interface_view};
-use super::metrics::metrics_modal;
-use super::settings::{settings_interface_footer, settings_interface_view};
-use super::sign_in::sign_in_modal;
-use super::subjects::subjects_modal;
-use super::svg_icons::{
-    database_icon_svg, help_icon_svg, logo_icon_svg, menu_icon_svg, message_icon_svg,
-    person_icon_svg, settings_icon_svg, top_speed_icon_svg,
+use crate::state::{
+    svg_icons::{
+        aws_help_icon_svg, b8_logo_icon_svg, b8_menu_icon_svg, ms_apps_icon_svg,
+        ms_attachment_icon_svg, ms_database_icon_svg, ms_message_icon_svg, ms_person_icon_svg,
+        ms_tools_icon_svg, ms_top_speed_icon_svg,
+    },
+    BUILDER, DEBUGGER,
+};
+use crate::ui::{
+    apps_interface_view, attachments_interface_view, messaging_interface_view,
+    metrics_interface_view, sign_in_view, subjects_interface_view,
 };
 
 #[component]
@@ -21,9 +24,11 @@ pub fn title() -> Element {
 pub enum HeaderMenu {
     Help,
     Account,
-    Settings,
+    Apps,
+    Builds,
+    Messages,
+    Attachments,
     Subjects,
-    Message,
     Metrics,
 }
 
@@ -32,21 +37,24 @@ impl HeaderMenu {
         match self {
             Self::Help => "Help",
             Self::Account => "Account",
-            Self::Settings => "Settings",
+            Self::Apps => "Apps",
+            Self::Builds => "Builds",
+            Self::Messages => "Messages",
+            Self::Attachments => "Attachments",
             Self::Subjects => "Subjects",
-            Self::Message => "Message",
             Self::Metrics => "Metrics",
         }
     }
 }
 
 #[component]
-pub fn main_window() -> Element {
+pub fn main_window_view() -> Element {
+    // View control signals
     let mut header_menu: Signal<HeaderMenu> = use_signal(|| HeaderMenu::Account);
     let mut navbar_toggle: Signal<bool> = use_signal(|| false);
 
+    // Toggle the sidebar visibility
     use_effect(move || {
-        // Toggle the sidebar visibility
         let navbar_toggle = navbar_toggle.read();
         document::eval(
             format!(
@@ -83,7 +91,7 @@ pub fn main_window() -> Element {
                     label {
                         class: "checkbtn",
                         r#for: "navbartoggle",
-                        svg { dangerous_inner_html: menu_icon_svg() }
+                        svg { dangerous_inner_html: b8_menu_icon_svg() }
                     }
                     input {
                         r#type: "checkbox",
@@ -100,23 +108,14 @@ pub fn main_window() -> Element {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Help);
                         },
-                        svg { dangerous_inner_html: help_icon_svg() }
+                        svg { dangerous_inner_html: aws_help_icon_svg() }
                     }
                     a {
                         href: "https://github.com/biom8er/phymes",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        svg { dangerous_inner_html: logo_icon_svg() }
+                        svg { dangerous_inner_html: b8_logo_icon_svg() }
                     }
-                    // form {
-                    //     id: "search_form",
-                    //     input {
-                    //         r#type: "text",
-                    //         placeholder: "search messages",
-                    //     }
-                    // }
-                    // // DM: convert to buttons that actually do something
-                    // button { svg { dangerous_inner_html: search_icon_svg() } }
                 }
             }
 
@@ -128,31 +127,49 @@ pub fn main_window() -> Element {
                     onclick: move |_| async move {
                         header_menu.set(HeaderMenu::Account);
                     },
-                    svg { dangerous_inner_html: person_icon_svg() }
+                    svg { dangerous_inner_html: ms_person_icon_svg() }
                 }
-                button {
-                    onclick: move |_| async move {
-                        header_menu.set(HeaderMenu::Settings);
-                    },
-                    svg { dangerous_inner_html: settings_icon_svg() }
+                if BUILDER() {
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Builds);
+                        },
+                        svg { dangerous_inner_html: ms_tools_icon_svg() }
+                    }
+                } else {
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Apps);
+                        },
+                        // svg { dangerous_inner_html: settings_icon_svg() }
+                        svg { dangerous_inner_html: ms_apps_icon_svg() }
+                    }
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Messages);
+                        },
+                        svg { dangerous_inner_html: ms_message_icon_svg() }
+                    }
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Attachments);
+                        },
+                        svg { dangerous_inner_html: ms_attachment_icon_svg() }
+                    }
                 }
-                button {
-                    onclick: move |_| async move {
-                        header_menu.set(HeaderMenu::Subjects);
-                    },
-                    svg { dangerous_inner_html: database_icon_svg() }
-                }
-                button {
-                    onclick: move |_| async move {
-                        header_menu.set(HeaderMenu::Message);
-                    },
-                    svg { dangerous_inner_html: message_icon_svg() }
-                }
-                button {
-                    onclick: move |_| async move {
-                        header_menu.set(HeaderMenu::Metrics);
-                    },
-                    svg { dangerous_inner_html: top_speed_icon_svg() }
+                if DEBUGGER() {
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Subjects);
+                        },
+                        svg { dangerous_inner_html: ms_database_icon_svg() }
+                    }
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Metrics);
+                        },
+                        svg { dangerous_inner_html: ms_top_speed_icon_svg() }
+                    }
                 }
             }
 
@@ -160,18 +177,131 @@ pub fn main_window() -> Element {
             if header_menu.read().as_str() == "Help" {
                 about_text_modal {},
             } else if header_menu.read().as_str() == "Account" {
-                sign_in_modal {},
-            } else if header_menu.read().as_str() == "Settings" {
-                settings_interface_view {},
-                settings_interface_footer {},
+                sign_in_view {},
+            } else if header_menu.read().as_str() == "Builds" {
+                apps_interface_view {},
+            } else if header_menu.read().as_str() == "Apps" {
+                apps_interface_view {},
             } else if header_menu.read().as_str() == "Subjects" {
-                subjects_modal {},
-            } else if header_menu.read().as_str() == "Message" {
+                subjects_interface_view {},
+            } else if header_menu.read().as_str() == "Messages" {
                 messaging_interface_view {},
-                messaging_interface_footer {},
-            }else if header_menu.read().as_str() == "Metrics" {
-                metrics_modal {},
+            } else if header_menu.read().as_str() == "Attachments" {
+                attachments_interface_view {},
+            } else if header_menu.read().as_str() == "Metrics" {
+                metrics_interface_view {},
             }
+        }
+    }
+}
+
+/// Split panel vertical drag
+///
+/// # Notes
+/// * this component is a work in progress...
+/// * the JS listeners are necessary for the component to work
+/// * the dioxus signals are also needed to trigger the JS code
+/// * attempting to call the JS directly without the listeners results in bugs
+///   See commented code for trying to resize with JS directly
+#[component]
+pub fn split_panel_drag_handle() -> Element {
+    // let mut is_dragging: Signal<bool> = use_signal(|| false);
+    // let mut y_coordinate: Signal<f64> = use_signal(|| 0.0 as f64);
+    let mut js_trigger: Signal<bool> = use_signal(|| false);
+
+    // use_effect(move || {
+    //     // Resize the two window windows
+    //     let y_coordinate = y_coordinate.read().to_owned();
+    //     document::eval(format!(
+    //         r#"const container = document.querySelector('#container');
+    //         const topPane = document.querySelector('.messaging_list');
+    //         const bottomPane = document.querySelector('.resizable_text_input');
+    //         const dragHandle = document.querySelector('.drag-handle');
+
+    //         const containerHeight = container.offsetHeight;
+    //         const offsetY = {y_coordinate} - container.getBoundingClientRect().top;
+    //         let percentHeight = (offsetY / containerHeight) * 100;
+
+    //         // Clamp between 10% and 90% for usability
+    //         percentHeight = Math.max(10, Math.min(90, percentHeight));
+    //         percentHeightChange = 100 - percentHeight;
+
+    //         topPane.style.height = `${{percentHeight}}%`;
+    //         bottomPane.style.height = `${{percentHeightChange}}%`;"#).as_str()
+    //     );
+    // });
+    use_effect(move || {
+        // Resize the two window windows
+        let _js_trigger = js_trigger.read().to_owned();
+        document::eval(
+            r#"const container = document.querySelector('#container');
+            const topPane = document.querySelector('.messaging_list');
+            const bottomPane = document.querySelector('.resizable_text_input');
+            const dragHandle = document.querySelector('.drag-handle');
+
+            let isDragging = false;
+
+            dragHandle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                document.body.style.cursor = 'row-resize';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const containerHeight = container.offsetHeight;
+                const offsetY = e.clientY - container.getBoundingClientRect().top;
+                let percentHeight = (offsetY / containerHeight) * 100;
+
+                // Clamp between 10% and 90% for usability
+                percentHeight = Math.max(10, Math.min(90, percentHeight));
+                percentHeightChange = 100 - percentHeight;
+
+                topPane.style.height = `${percentHeight}%`;
+                bottomPane.style.height = `${percentHeightChange}%`;
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                document.body.style.cursor = 'default';
+            });"#,
+        );
+    });
+
+    rsx! {
+        div {
+            class: "drag-handle",
+            // onmousemove: move |event| {
+            //     if is_dragging() {
+            //         y_coordinate.set(event.client_coordinates().y);
+            //     }
+            // },
+            // onmousedown: move |_| is_dragging.set(true),
+            // onmouseup: move |_| is_dragging.set(false),
+            onclick: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+            onmousedown: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+            onmouseup: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+            onmousemove: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+            onmouseenter: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
+            onmouseleave: move |_| {
+                let current = js_trigger.read().to_owned();
+                js_trigger.set(!current);
+            },
         }
     }
 }
@@ -191,7 +321,7 @@ pub fn about_text_modal() -> Element {
                     div {
                         class: "help_li_item",
                         h2 { "{HeaderMenu::Help.as_str()}" }
-                        svg { dangerous_inner_html: help_icon_svg() }
+                        svg { dangerous_inner_html: aws_help_icon_svg() }
                         p { "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHubp https://github.com/biom8er/phymes/issues if you run into problems." }
                     }
                 }
@@ -199,39 +329,55 @@ pub fn about_text_modal() -> Element {
                     div {
                         class: "help_li_item",
                         h2 { "Menu" }
-                        svg { dangerous_inner_html: menu_icon_svg() }
+                        svg { dangerous_inner_html: b8_menu_icon_svg() }
                         p { "Hide or show the menu items below." }
                     }
                 }
                 li {
                     div {
                         class: "help_li_item",
-                        h2 { "{HeaderMenu::Settings.as_str()}" }
-                        svg { dangerous_inner_html: settings_icon_svg() }
+                        h2 { "{HeaderMenu::Builds.as_str()}" }
+                        svg { dangerous_inner_html: ms_tools_icon_svg() }
                         p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
                     }
                 }
                 li {
                     div {
                         class: "help_li_item",
-                        h2 { "{HeaderMenu::Subjects.as_str()}" }
-                        svg { dangerous_inner_html: database_icon_svg() }
-                        p { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
+                        h2 { "{HeaderMenu::Apps.as_str()}" }
+                        svg { dangerous_inner_html: ms_apps_icon_svg() }
+                        p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
                     }
                 }
                 li {
                     div {
                         class: "help_li_item",
-                        h2 { "{HeaderMenu::Message.as_str()}" }
-                        svg { dangerous_inner_html: message_icon_svg() }
+                        h2 { "{HeaderMenu::Messages.as_str()}" }
+                        svg { dangerous_inner_html: ms_message_icon_svg() }
                         p { "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated." }
                     }
                 }
                 li {
                     div {
                         class: "help_li_item",
+                        h2 { "{HeaderMenu::Attachments.as_str()}" }
+                        svg { dangerous_inner_html: ms_message_icon_svg() }
+                        p { "The attachment history for the active session plan. A file upload and download interface is provided for users to publish attachments to the attachments subject and to receive subscriptions from the attachments subjects when the attachments subjects are updated." }
+                    }
+                }
+                li {
+                    div {
+                        class: "help_li_item",
+                        h2 { "{HeaderMenu::Subjects.as_str()}" }
+                        svg { dangerous_inner_html: ms_database_icon_svg() }
+                        p { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
+                    }
+                }
+                li {
+                    div {
+                        class: "help_li_item",
                         h2 { "{HeaderMenu::Metrics.as_str()}" }
-                        svg { dangerous_inner_html: top_speed_icon_svg() }
+                        svg { dangerous_inner_html: ms_top_speed_icon_svg() }
                         p { "A list of metrics associated with the active session plan. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest." }
                     }
                 }

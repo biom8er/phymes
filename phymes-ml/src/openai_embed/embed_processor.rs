@@ -1,41 +1,23 @@
 use crate::{
-    candle_embed::{
-        embed_config::CandleEmbedConfig, embed_processor::convert_embedding_vector_to_record_batch,
-    },
+    CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch,
     openai_asset::OpenAIRequestState,
 };
 
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    schemas::embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat},
-    session::{
-        common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
-        },
-        runtime_env::RuntimeEnv,
-    },
-    table::{
-        arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
-        stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
-    task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
-        },
-        arrow_processor::ArrowProcessorTrait,
-        publish_subscribe::PubSubTrait,
-    },
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, EmbeddingRequest, EmbeddingResponse, EncodingFormat, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
 };
 
-use arrow::{
-    datatypes::{Schema, SchemaRef},
-    record_batch::RecordBatch,
-};
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
 use anyhow::{Result, anyhow};
 use futures::{FutureExt, Stream, StreamExt};
@@ -50,8 +32,8 @@ use tracing::{Level, event};
 #[derive(Debug)]
 pub struct OpenAIEmbedProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
@@ -62,11 +44,11 @@ impl MappableTrait for OpenAIEmbedProcessor {
 }
 
 impl PubSubTrait for OpenAIEmbedProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
@@ -75,13 +57,13 @@ impl PubSubTrait for OpenAIEmbedProcessor {
     }
 }
 
-impl ArrowProcessorTrait for OpenAIEmbedProcessor {
+impl ProcessorTrait for OpenAIEmbedProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -89,11 +71,11 @@ impl ArrowProcessorTrait for OpenAIEmbedProcessor {
             subscribe,
         })
     }
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -108,11 +90,23 @@ impl ArrowProcessorTrait for OpenAIEmbedProcessor {
 
     fn process(
         &self,
-        mut message: OutgoingMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        mut message: SendableRecordBatchStreamMessageMap,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
+
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
 
         // Extract out the documents and config
         let documents = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
@@ -125,13 +119,14 @@ impl ArrowProcessorTrait for OpenAIEmbedProcessor {
         };
 
         // Make the outbox and send
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(OpenAIEmbedStream::new(
             documents,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name()),
+            stream_diagnostic_builder,
         )?);
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
@@ -139,6 +134,11 @@ impl ArrowProcessorTrait for OpenAIEmbedProcessor {
             .with_update(self.publications.first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -153,11 +153,11 @@ pub struct OpenAIEmbedStream {
     /// The Candle model assets needed for inference
     _runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for embed inference
     config: Option<CandleEmbedConfig>,
     /// The input documents
-    documents: Option<ArrowTable>,
+    documents: Option<Table>,
     /// State of the OpenAI API request
     state: OpenAIRequestState,
     /// sample number
@@ -169,17 +169,13 @@ impl OpenAIEmbedStream {
         document_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
-        // Initialize with an empty schema
-        // since it is not so straight forward to know the size of the vector embeddings beforehand
-        // i.e., it is defined as the "hidden_size" in the model_config.json
-        let schema = Arc::new(Schema::empty());
         Ok(Self {
-            schema,
+            schema: AvailableSubjects::DocumentEmbeddings.to_schema(),
             document_stream,
             config_stream,
-            baseline_metrics,
+            diagnostic_builder,
             _runtime_env: runtime_env,
             config: None,
             documents: None,
@@ -189,7 +185,7 @@ impl OpenAIEmbedStream {
     }
 
     /// Initialize the config for text embedding inference
-    fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
+    fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
             let config: CandleEmbedConfig = serde_json::from_value(serde_json::Value::Object(
                 config_table.to_json_object()?.first().unwrap().to_owned(),
@@ -250,7 +246,7 @@ impl Stream for OpenAIEmbedStream {
                     while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                         batches.push(batch);
                     }
-                    let config_table = ArrowTableBuilder::new()
+                    let config_table = TableBuilder::new()
                         .with_name("config")
                         .with_record_batches(batches)?
                         .build()?;
@@ -263,7 +259,7 @@ impl Stream for OpenAIEmbedStream {
                     };
 
                     // Convert to a list of queries
-                    let table = ArrowTableBuilder::new()
+                    let table = TableBuilder::new()
                         .with_name("queries")
                         .with_record_batches(vec![batch])?
                         .build()?;
@@ -312,8 +308,20 @@ impl Stream for OpenAIEmbedStream {
                 OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
-                        let metrics = self.baseline_metrics.clone();
-                        let _timer = metrics.elapsed_compute().timer();
+                        let baseline_metrics =
+                            if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                                Some(
+                                    diagnostic_builder
+                                        .clone()
+                                        .to_child("OpenAIEmbedStream")?
+                                        .baseline_metrics(line!(), file!(), "poll_next"),
+                                )
+                            } else {
+                                None
+                            };
+                        let _timer = baseline_metrics
+                            .as_ref()
+                            .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                         // Parse the response
                         let result = serde_json::from_str::<EmbeddingResponse>(&text).unwrap();
@@ -331,11 +339,15 @@ impl Stream for OpenAIEmbedStream {
 
                         // Record the schema
                         self.schema = batch.schema();
+                        self.state = OpenAIRequestState::Done;
 
                         // record the poll
                         let poll = Poll::Ready(Some(Ok(batch)));
-                        self.state = OpenAIRequestState::Done;
-                        metrics.record_poll(poll)
+                        if let Some(baseline_metrics) = &baseline_metrics {
+                            baseline_metrics.record_poll(poll)
+                        } else {
+                            poll
+                        }
                     }
                     Err(err) => {
                         self.state = OpenAIRequestState::Done;
@@ -360,7 +372,7 @@ impl Stream for OpenAIEmbedStream {
                     };
 
                     // Convert to a list of queries
-                    let table = ArrowTableBuilder::new()
+                    let table = TableBuilder::new()
                         .with_name("queries")
                         .with_record_batches(vec![batch])?
                         .build()?;
@@ -409,8 +421,20 @@ impl Stream for OpenAIEmbedStream {
                 OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
-                        let metrics = self.baseline_metrics.clone();
-                        let _timer = metrics.elapsed_compute().timer();
+                        let baseline_metrics =
+                            if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                                Some(
+                                    diagnostic_builder
+                                        .clone()
+                                        .to_child("OpenAIEmbedStream")?
+                                        .baseline_metrics(line!(), file!(), "poll_next"),
+                                )
+                            } else {
+                                None
+                            };
+                        let _timer = baseline_metrics
+                            .as_ref()
+                            .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                         // Parse the response
                         let result = serde_json::from_str::<EmbeddingResponse>(&text).unwrap();
@@ -428,11 +452,15 @@ impl Stream for OpenAIEmbedStream {
 
                         // Record the schema
                         self.schema = batch.schema();
+                        self.state = OpenAIRequestState::Done;
 
                         // record the poll
                         let poll = Poll::Ready(Some(Ok(batch)));
-                        self.state = OpenAIRequestState::Done;
-                        metrics.record_poll(poll)
+                        if let Some(baseline_metrics) = &baseline_metrics {
+                            baseline_metrics.record_poll(poll)
+                        } else {
+                            poll
+                        }
                     }
                     Err(err) => {
                         self.state = OpenAIRequestState::Done;
@@ -473,17 +501,19 @@ mod tests {
     #[cfg(not(feature = "candle"))]
     #[tokio::test]
     async fn test_openai_embed_processor() -> Result<()> {
+        use phymes_diagnostics::{Diagnostics, SpanBuilder};
+
+        use crate::AvailableOpenAIAssets;
+
         let config = CandleEmbedConfig {
             input_type: "passage".to_string(),
             api_url: Some("http://0.0.0.0:8001/v1".to_string()),
-            openai_asset: Some(
-                crate::openai_asset::available_openai_assets::AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2,
-            ),
+            openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
             ..Default::default()
         };
 
         // Make the config
-        let config_table = ArrowTable::get_builder()
+        let config_table = Table::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config.clone())?, 1)?
             .build()?;
@@ -501,21 +531,22 @@ mod tests {
         ];
         let text: ArrayRef = Arc::new(StringArray::from(query_vec));
         let batch = RecordBatch::try_from_iter(vec![("text", text)])?;
-        let document_table = ArrowTableBuilder::new()
+        let document_table = TableBuilder::new()
             .with_name("text")
             .with_record_batches(vec![batch])?
             .build()?;
 
         // Make the metrics
-        let metrics = ArrowTaskMetricsSet::new();
-        let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make and run the embeddings stream
         let embed_stream = OpenAIEmbedStream::new(
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            baseline_metrics,
+            Some(diagnostic_builder),
         )?;
         let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
         assert_eq!(embeddings.len(), 1);
@@ -575,21 +606,22 @@ mod tests {
         let embeddings2: ArrayRef = Arc::new(StringArray::from(query_vec2));
         let batch1 = RecordBatch::try_from_iter(vec![("text", embeddings1)])?;
         let batch2 = RecordBatch::try_from_iter(vec![("text", embeddings2)])?;
-        let document_table = ArrowTableBuilder::new()
+        let document_table = TableBuilder::new()
             .with_name("text")
             .with_record_batches(vec![batch1, batch2])?
             .build()?;
 
         // Make the metrics
-        let metrics = ArrowTaskMetricsSet::new();
-        let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make and run the embeddings stream
         let embed_stream = OpenAIEmbedStream::new(
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            baseline_metrics,
+            Some(diagnostic_builder),
         )?;
         let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
         assert_eq!(embeddings.len(), 2);

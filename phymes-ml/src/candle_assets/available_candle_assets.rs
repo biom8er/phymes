@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::ValueEnum;
-use phymes_core::session::common_traits::TokenizerConfig;
+use phymes_core::TokenizerConfig;
 use serde::{Deserialize, Serialize};
 /// General dependencies
 use std::fs::File;
@@ -14,10 +14,7 @@ use candle_transformers::quantized_var_builder::VarBuilder as QuantVarBuilder;
 use tokenizers::Tokenizer;
 
 /// All supported models
-use crate::candle_models::{
-    quantized_bert::{BertModel as QuantizedBert, Config as QuantizerdBertConfig},
-    quantized_qwen2::ModelWeights as QuantizedQwen2,
-};
+use crate::candle_models::{QuantizedBert, QuantizedQwen2, QuantizerdBertConfig};
 
 /// Crates
 use super::candle_asset::CandleAsset;
@@ -655,7 +652,7 @@ mod tests {
     }
 
     use candle_core::DType;
-    use phymes_core::session::common_traits::device;
+    use phymes_core::device;
 
     #[test]
     fn load_model_varbuilder_test() {

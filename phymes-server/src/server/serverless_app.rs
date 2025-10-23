@@ -6,7 +6,7 @@ use tower_service::Service;
 
 // From lib
 use super::{server_app::AppBuilder, serverless_config::ServerlessConfig};
-use crate::handlers::sign_in::basic_auth;
+use crate::handlers::basic_auth;
 
 /// Stateful implementation of the router to enable
 /// continuous calls to the router
@@ -16,9 +16,9 @@ pub struct Serverless {
 }
 
 impl Serverless {
-    pub fn new() -> Self {
+    pub fn new(user_session_context_name: Option<&str>) -> Self {
         Self {
-            router: AppBuilder::new().build(),
+            router: AppBuilder::new(user_session_context_name).build(),
         }
     }
 
@@ -32,9 +32,6 @@ pub async fn serverless_app(
     config: ServerlessConfig,
     serverless: &mut Serverless,
 ) -> Result<Response> {
-    // // initialize the server
-    // let mut serverless = Serverless::new();
-
     // start building the request
     let url = format!("https://serverless/{}", config.route);
     let request_builder = Request::builder().method("POST").uri(url);
@@ -84,13 +81,15 @@ mod tests {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_core::table::arrow_table_publish::ArrowTablePublish;
+    use phymes_agents::AvailableInterfaceSubjects;
+    use phymes_core::{
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
+        ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait,
+        SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, TablePublish, TableTrait,
+    };
     use serde_json::{Map, Value};
 
-    use crate::handlers::{
-        session_info::{SessionResponse, SessionResponseFormat},
-        sign_in::{basic_auth, create_session_name},
-    };
+    use crate::handlers::{basic_auth, create_session_name};
 
     use super::*;
 
@@ -120,10 +119,10 @@ mod tests {
     #[tokio::test]
     async fn test_serverless_call() {
         // Check sign_in
-        let mut server = Serverless::new();
+        let mut server = Serverless::new(None);
 
         // Make the credentials with basic authorization
-        let credentials = basic_auth("myemail@gmail.com", Some("myemail@gmail.com"));
+        let credentials = basic_auth("contact@biom8er.com", Some("contact@biom8er.com"));
 
         // Make the sign_in request
         let request: Request<String> = Request::builder()
@@ -146,7 +145,7 @@ mod tests {
         let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_schema
-        let mut server = Serverless::new();
+        let mut server = Serverless::new(None);
 
         // Extract out the JWT token
         let token = values.get("jwt").unwrap().as_str().unwrap();
@@ -155,22 +154,23 @@ mod tests {
         // Create the session state JSON value
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
-        let session_response = SessionResponse {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "".to_string(),
-            format: SessionResponseFormat::Bytes,
-            publish: ArrowTablePublish::None,
-            content: "".to_string().into(),
-            metadata: "".to_string(),
-            stream: false,
-        };
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+            .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         // Make the request for the subjects_schema
         let request: Request<String> = Request::builder()
             .method("POST")
-            .uri("http://127.0.0.1:8000/app/v1/subjects_schema")
+            .uri("http://127.0.0.1:8000/app/v1/get_state")
             .header("Content-type", "application/json")
             .header("Authorization", bearer.as_str())
             .body(data)
@@ -190,12 +190,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_serverless_app() {
-        let mut serverless = Serverless::new();
+        let mut serverless = Serverless::new(None);
 
         // Sign in using serverless_app
         let config = ServerlessConfig {
             route: "app/v1/sign_in".to_string(),
-            basic_auth: Some("myemail@gmail.com:myemail@gmail.com".to_string()),
+            basic_auth: Some("contact@biom8er.com:contact@biom8er.com".to_string()),
             bearer_auth: None,
             data: None,
         };
@@ -216,20 +216,21 @@ mod tests {
         let bearer = token.to_string();
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "Chat");
-        let session_response = SessionResponse {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "".to_string(),
-            format: SessionResponseFormat::Bytes,
-            publish: ArrowTablePublish::None,
-            content: "".to_string().into(),
-            metadata: "".to_string(),
-            stream: false,
-        };
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+            .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         let config = ServerlessConfig {
-            route: "app/v1/subjects_schema".to_string(),
+            route: "app/v1/get_state".to_string(),
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
@@ -246,20 +247,25 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_num_rows using serverless_app
-        let session_response = SessionResponse {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "".to_string(),
-            format: SessionResponseFormat::Bytes,
-            publish: ArrowTablePublish::None,
-            content: "".to_string().into(),
-            metadata: "".to_string(),
-            stream: false,
-        };
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+            .with_subject(
+                AvailableSubjects::SessionSubjectsNumRows
+                    .to_string()
+                    .as_str(),
+            )
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         let config = ServerlessConfig {
-            route: "app/v1/subjects_num_rows".to_string(),
+            route: "app/v1/get_state".to_string(),
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
@@ -276,20 +282,21 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test mermaid_js using serverless_app
-        let session_response = SessionResponse {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "".to_string(),
-            format: SessionResponseFormat::Bytes,
-            publish: ArrowTablePublish::None,
-            content: "".to_string().into(),
-            metadata: "".to_string(),
-            stream: false,
-        };
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+            .with_subject(AvailableSubjects::SessionMermaid.to_string().as_str())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         let config = ServerlessConfig {
-            route: "app/v1/mermaid_js".to_string(),
+            route: "app/v1/get_state".to_string(),
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
@@ -306,18 +313,26 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test session_stream using serverless_app
-        let session_response = SessionResponse {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "messages".to_string(),
-            format: SessionResponseFormat::Bytes,
-            publish: ArrowTablePublish::Extend {
-                table_name: "messages".to_string(),
-            },
-            content: "What is the world's tallest mountain?".to_string().into(),
-            metadata: "".to_string(),
-            stream: true,
-        };
+        let chat = AvailableInterfaceSubjects::UserMessages
+            .to_table_builder(None)
+            .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")
+            .unwrap()
+            .build()
+            .unwrap();
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::Extend {
+                table_name: chat.get_name().to_string(),
+            })
+            .with_stream(true)
+            .with_subject(chat.get_name())
+            .with_message(chat.to_bytes().unwrap().to_vec())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         let config = ServerlessConfig {
@@ -339,21 +354,22 @@ mod tests {
             serde_json::from_slice(bytes.first().unwrap()).unwrap();
         println!("{values:?}");
 
-        // Test metrics using serverless_app
-        let session_response = SessionResponse {
-            session_plan: "Chat".to_string(),
-            session_name: session_name.clone(),
-            subject_name: "".to_string(),
-            format: SessionResponseFormat::Bytes,
-            publish: ArrowTablePublish::None,
-            content: "".to_string().into(),
-            metadata: "".to_string(),
-            stream: false,
-        };
+        // Test session_diagnostics using serverless_app
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&TablePublish::None)
+            .with_stream(false)
+            .with_subject("")
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
         let config = ServerlessConfig {
-            route: "app/v1/metrics_info".to_string(),
+            route: "app/v1/diagnostics".to_string(),
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
@@ -367,6 +383,8 @@ mod tests {
             .try_collect()
             .await
             .unwrap();
-        let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        let values: Vec<Map<String, Value>> =
+            serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        println!("{values:?}");
     }
 }

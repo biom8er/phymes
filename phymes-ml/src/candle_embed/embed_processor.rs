@@ -2,34 +2,19 @@ use candle_core::{DType, Tensor};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::{
-        common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap,
-            TokenWrapper, device,
-        },
-        runtime_env::RuntimeEnv,
-    },
-    table::{
-        arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
-        stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
-    task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowOutgoingMessage, ArrowOutgoingMessageBuilderTrait,
-            ArrowOutgoingMessageTrait,
-        },
-        arrow_processor::ArrowProcessorTrait,
-        publish_subscribe::PubSubTrait,
-    },
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TokenWrapper, device,
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
 };
 
 use arrow::{
-    array::{ArrayData, ArrayRef, FixedSizeListArray, StringArray},
-    buffer::Buffer,
-    datatypes::{DataType, Field, Schema, SchemaRef},
+    array::{ArrayRef, Float32Builder, ListBuilder, StringArray},
+    datatypes::{DataType, Field, SchemaRef},
     record_batch::RecordBatch,
 };
 
@@ -48,8 +33,8 @@ use super::embed_config::CandleEmbedConfig;
 #[derive(Debug)]
 pub struct CandleEmbedProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
@@ -60,10 +45,10 @@ impl MappableTrait for CandleEmbedProcessor {
 }
 
 impl PubSubTrait for CandleEmbedProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect()
     }
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
@@ -72,13 +57,13 @@ impl PubSubTrait for CandleEmbedProcessor {
     }
 }
 
-impl ArrowProcessorTrait for CandleEmbedProcessor {
+impl ProcessorTrait for CandleEmbedProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -87,11 +72,11 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -104,14 +89,26 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics, runtime_env))]
+    #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
     fn process(
         &self,
-        mut message: OutgoingMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        mut message: SendableRecordBatchStreamMessageMap,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
+
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
 
         // Extract out the documents and config
         let documents = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
@@ -124,13 +121,14 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
         };
 
         // Make the outbox and send
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(CandleEmbedStream::new(
             documents,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name()),
+            stream_diagnostic_builder,
         )?);
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
@@ -138,6 +136,11 @@ impl ArrowProcessorTrait for CandleEmbedProcessor {
             .with_update(self.publications.first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
         Ok(message)
     }
 }
@@ -152,7 +155,7 @@ pub struct CandleEmbedStream {
     /// The Candle model assets needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for embed inference
     config: Option<CandleEmbedConfig>,
     /// sample number
@@ -166,17 +169,13 @@ impl CandleEmbedStream {
         document_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
-        // Initialize with an empty schema
-        // since it is not so straight forward to know the size of the vector embeddings beforehand
-        // i.e., it is defined as the "hidden_size" in the model_config.json
-        let schema = Arc::new(Schema::empty());
         Ok(Self {
-            schema,
+            schema: AvailableSubjects::DocumentEmbeddings.to_schema(),
             document_stream,
             config_stream,
-            baseline_metrics,
+            diagnostic_builder,
             runtime_env,
             config: None,
             sample: 0,
@@ -187,7 +186,7 @@ impl CandleEmbedStream {
     #[instrument(skip(self))]
     fn init_token_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
-            if self.runtime_env.try_lock().unwrap().token_service.is_none() {
+            if self.runtime_env.lock().token_service.is_none() {
                 let device = device(config.cpu)?;
                 let mut asset = config.candle_asset.unwrap().build(
                     config.weights_config_file.clone(),
@@ -209,8 +208,7 @@ impl CandleEmbedStream {
                 // Concurrent embeddings can hold onto the lock simultaneous
                 let _ = self
                     .runtime_env
-                    .try_lock()
-                    .unwrap()
+                    .lock()
                     .token_service
                     .replace(Box::new(asset));
             }
@@ -222,7 +220,7 @@ impl CandleEmbedStream {
         Ok(())
     }
 
-    fn init_config(&mut self, config_table: ArrowTable) -> Result<()> {
+    fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
             let config: CandleEmbedConfig = serde_json::from_value(serde_json::Value::Object(
                 config_table.to_json_object()?.first().unwrap().to_owned(),
@@ -266,15 +264,26 @@ impl Stream for CandleEmbedStream {
         // record batch row is a query
         if self.sample == 0 {
             // Initialize the metrics
-            let metrics = self.baseline_metrics.clone();
-            let _timer = metrics.elapsed_compute().timer();
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("CandleEmbedStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
+            } else {
+                None
+            };
+            let _timer = baseline_metrics
+                .as_ref()
+                .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // initialize the config
             let mut batches = Vec::new();
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = ArrowTableBuilder::new()
+            let config_table = TableBuilder::new()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -287,7 +296,7 @@ impl Stream for CandleEmbedStream {
             };
 
             // Convert to a list of queries
-            let table = ArrowTableBuilder::new()
+            let table = TableBuilder::new()
                 .with_name("queries")
                 .with_record_batches(vec![batch])?
                 .build()?;
@@ -340,12 +349,27 @@ impl Stream for CandleEmbedStream {
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
         } else {
             // Keep embedding the remaining streams
             // Initialize the metrics
-            let metrics = self.baseline_metrics.clone();
-            let _timer = metrics.elapsed_compute().timer();
+            let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                Some(
+                    diagnostic_builder
+                        .clone()
+                        .to_child("CandleEmbedStream")?
+                        .baseline_metrics(line!(), file!(), "poll_next"),
+                )
+            } else {
+                None
+            };
+            let _timer = baseline_metrics
+                .as_ref()
+                .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // Collect the next batch of queries
             let batch = match ready!(self.document_stream.poll_next_unpin(cx)) {
@@ -354,7 +378,7 @@ impl Stream for CandleEmbedStream {
             };
 
             // Convert to a list of queries
-            let table = ArrowTableBuilder::new()
+            let table = TableBuilder::new()
                 .with_name("queries")
                 .with_record_batches(vec![batch])?
                 .build()?;
@@ -403,7 +427,11 @@ impl Stream for CandleEmbedStream {
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
-            metrics.record_poll(poll)
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
         }
     }
 
@@ -422,7 +450,6 @@ pub fn convert_embedding_vector_to_record_batch(
     embedding_vec: Vec<Vec<f32>>,
     other: Vec<RecordBatch>,
 ) -> Result<RecordBatch> {
-    let embedding_len = embedding_vec.first().unwrap().len();
     let n_embedding = embedding_vec.len();
     assert_eq!(
         n_embedding,
@@ -433,26 +460,16 @@ pub fn convert_embedding_vector_to_record_batch(
             .iter()
             .sum::<usize>()
     );
-    let total_len = embedding_len * n_embedding;
 
     // Wrap into a record batch
-    let value_data = ArrayData::builder(DataType::Float32)
-        .len(total_len)
-        .add_buffer(Buffer::from_slice_ref(
-            embedding_vec.into_iter().flatten().collect::<Vec<_>>(),
-        ))
-        .build()
-        .unwrap();
-    let list_data_type = DataType::FixedSizeList(
-        Arc::new(Field::new_list_field(DataType::Float32, false)),
-        embedding_len.try_into().unwrap(),
-    );
-    let list_data = ArrayData::builder(list_data_type.clone())
-        .len(n_embedding)
-        .add_child_data(value_data.clone())
-        .build()
-        .unwrap();
-    let embeddings: ArrayRef = Arc::new(FixedSizeListArray::from(list_data));
+    let value_builder = Float32Builder::new();
+    let mut list_builder =
+        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Float32, false));
+    for values in embedding_vec.into_iter() {
+        list_builder.values().append_slice(&values);
+        list_builder.append(true);
+    }
+    let embeddings: ArrayRef = Arc::new(list_builder.finish());
 
     // Extract out all of the other columns
     let mut batch_vec = Vec::new();
@@ -578,11 +595,15 @@ pub fn process_prompt_embed(
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::{Float32Array, StringArray};
+    use arrow::array::{Float32Array, ListArray, StringArray};
     use candle_core::Device;
     use futures::TryStreamExt;
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
-    use crate::candle_assets::available_candle_assets::{load_model_asset_path, load_tokenizer};
+    use crate::{
+        AvailableCandleAssets,
+        candle_assets::{load_model_asset_path, load_tokenizer},
+    };
 
     use super::*;
 
@@ -642,7 +663,7 @@ mod tests {
             )),
             candle_asset: Some(
                 // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
-                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QuantizedBertEmbed,
+                AvailableCandleAssets::QuantizedBertEmbed,
             ),
             ..Default::default()
         };
@@ -699,7 +720,7 @@ mod tests {
             .column_by_name("embedding")
             .unwrap()
             .as_any()
-            .downcast_ref::<FixedSizeListArray>()
+            .downcast_ref::<ListArray>()
             .unwrap()
             .iter()
             .map(|s| {
@@ -737,14 +758,12 @@ mod tests {
                 "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer_config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
-            candle_asset: Some(
-                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QwenV2_1p5bEmbed,
-            ),
+            candle_asset: Some(AvailableCandleAssets::QwenV2_1p5bEmbed),
             ..Default::default()
         };
 
         // Make the config
-        let config_table = ArrowTable::get_builder()
+        let config_table = Table::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config.clone())?, 1)?
             .build()?;
@@ -777,21 +796,22 @@ mod tests {
         ];
         let text: ArrayRef = Arc::new(StringArray::from(query_vec));
         let batch = RecordBatch::try_from_iter(vec![("text", text)])?;
-        let document_table = ArrowTableBuilder::new()
+        let document_table = TableBuilder::new()
             .with_name("text")
             .with_record_batches(vec![batch])?
             .build()?;
 
         // Make the metrics
-        let metrics = ArrowTaskMetricsSet::new();
-        let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make and run the embeddings stream
         let embed_stream = CandleEmbedStream::new(
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            baseline_metrics,
+            Some(diagnostic_builder.clone()),
         )?;
 
         // DM: Skip actually running the tests as they take too long on the CPU
@@ -816,7 +836,7 @@ mod tests {
                 .column_by_name("embedding")
                 .unwrap()
                 .as_any()
-                .downcast_ref::<FixedSizeListArray>()
+                .downcast_ref::<ListArray>()
                 .unwrap()
                 .iter()
                 .map(|s| {
@@ -862,21 +882,17 @@ mod tests {
             let embeddings2: ArrayRef = Arc::new(StringArray::from(query_vec2));
             let batch1 = RecordBatch::try_from_iter(vec![("text", embeddings1)])?;
             let batch2 = RecordBatch::try_from_iter(vec![("text", embeddings2)])?;
-            let document_table = ArrowTableBuilder::new()
+            let document_table = TableBuilder::new()
                 .with_name("text")
                 .with_record_batches(vec![batch1, batch2])?
                 .build()?;
-
-            // Make the metrics
-            let metrics = ArrowTaskMetricsSet::new();
-            let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
 
             // Make and run the embeddings stream
             let embed_stream = CandleEmbedStream::new(
                 document_table.to_record_batch_stream(),
                 config_table.to_record_batch_stream(),
                 Arc::clone(&runtime_env),
-                baseline_metrics,
+                Some(diagnostic_builder.clone()),
             )?;
             let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
             assert_eq!(embeddings.len(), 2);
@@ -886,7 +902,7 @@ mod tests {
                 .column_by_name("embedding")
                 .unwrap()
                 .as_any()
-                .downcast_ref::<FixedSizeListArray>()
+                .downcast_ref::<ListArray>()
                 .unwrap()
                 .iter()
                 .map(|s| {
@@ -932,7 +948,7 @@ mod tests {
         ];
         let text: ArrayRef = Arc::new(StringArray::from(query_vec));
         let batch = RecordBatch::try_from_iter(vec![("text", text)])?;
-        let document_table = ArrowTableBuilder::new()
+        let document_table = TableBuilder::new()
             .with_name("text")
             .with_record_batches(vec![batch])?
             .build()?;
@@ -958,18 +974,19 @@ mod tests {
             )),
             candle_asset: Some(
                 // crate::candle_assets::candle_which::WhichCandleAsset::BertEmbed,
-                crate::candle_assets::available_candle_assets::AvailableCandleAssets::QuantizedBertEmbed,
+                AvailableCandleAssets::QuantizedBertEmbed,
             ),
             ..Default::default()
         };
-        let config_table = ArrowTable::get_builder()
+        let config_table = Table::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config)?, 1)?
             .build()?;
 
         // Make the metrics
-        let metrics = ArrowTaskMetricsSet::new();
-        let baseline_metrics = BaselineMetrics::new(&metrics, "candle_embed_processor");
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime
         let asset = config.candle_asset.unwrap().build(
@@ -994,7 +1011,7 @@ mod tests {
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            baseline_metrics,
+            Some(diagnostic_builder.clone()),
         )?;
 
         // DM: Skip actually running the tests as they take too long on the CPU
@@ -1019,7 +1036,7 @@ mod tests {
                 .column_by_name("embedding")
                 .unwrap()
                 .as_any()
-                .downcast_ref::<FixedSizeListArray>()
+                .downcast_ref::<ListArray>()
                 .unwrap()
                 .iter()
                 .map(|s| {

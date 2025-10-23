@@ -13,19 +13,15 @@ use arrow::{
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
 use phymes_core::{
-    schemas::{chat_completion, types},
-    session::common_traits::MappableTrait,
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
-use phymes_core::{
-    session::common_traits::{BuildableTrait, BuilderTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
-};
+use tracing::instrument;
 
 use crate::{
-    candle_data::data_config::DataAggregatorOperator,
+    candle_data::{DataAggregatorOperator, DataConfig},
     candle_operators::{
-        data_operator::{DataOperatorTrait, make_error_record_batch},
-        sort_column_and_indices::sort_column_and_indices,
+        data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices,
     },
 };
 
@@ -60,52 +56,20 @@ impl DataOperatorTrait for GroupByAndAggregate {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        match group_by_and_aggregate(
+        let batches = group_by_and_aggregate(
             &lhs_values,
             lhs_args,
             &agg_columns,
             &self.agg_operators,
             device,
-        ) {
-            Ok(batch) => Ok(batch),
-            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
-        }
+        )?;
+        Ok(batches)
     }
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self {
-        // Attempt to parse the lhs_values
-        let lhs_values: Vec<String> = serde_json::from_str(lhs_values).unwrap_or_default();
+    fn new(config: &DataConfig) -> Self {
+        let lhs_values = config.lhs_values.to_owned();
+        let agg_columns = config.agg_columns.clone().unwrap_or_default();
+        let agg_operators = config.agg_operators.clone().unwrap_or_default();
 
-        // Attempt to parse the op_kwargs
-        let ops_kwargs_default = "{\"agg_columns\": [], \"agg_operators\": []}";
-        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
-            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
-        let agg_columns = ops_kwargs
-            .get("agg_columns")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<_>>();
-        let agg_operators = ops_kwargs
-            .get("agg_operators")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| serde_json::from_value::<DataAggregatorOperator>(v.clone()).unwrap())
-            .collect::<Vec<_>>();
-
-        // Make the object
         GroupByAndAggregate {
             lhs_values,
             agg_columns,
@@ -119,16 +83,16 @@ impl DataOperatorTrait for GroupByAndAggregate {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "lhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the left hand side table".to_string(),
                 ),
@@ -137,19 +101,19 @@ impl DataOperatorTrait for GroupByAndAggregate {
         );
         properties.insert(
             "lhs_values".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The values column identifier for the left hand side table in the form of a JSON list of strings".to_string(),
+                    "A list of value column identifiers for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
@@ -158,8 +122,8 @@ impl DataOperatorTrait for GroupByAndAggregate {
                 ]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -167,10 +131,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
 }
 
 /// Partition a lexocographically sorted slice of [RecordBatch]es
-fn partition_record_batches(
-    lhs_values: &[&str],
-    lhs_table: &ArrowTable,
-) -> Result<Vec<Range<usize>>> {
+fn partition_record_batches(lhs_values: &[&str], lhs_table: &Table) -> Result<Vec<Range<usize>>> {
     let mut columns = Vec::new();
     for column_name in lhs_values.iter() {
         columns.push(lhs_table.get_column_as_array(column_name));
@@ -183,7 +144,7 @@ fn partition_record_batches(
 fn aggregator_operator_tensor(
     agg_column: &str,
     agg_operator: &DataAggregatorOperator,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     tensor: &Tensor,
     range: &Range<usize>,
     device: &Device,
@@ -209,7 +170,7 @@ fn aggregator_operator_tensor(
             return Err(anyhow!(
                 "Unsupported data type {} and aggregator operator {} for column {}",
                 lhs_table.get_column_data_type(agg_column)?.to_string(),
-                agg_operator.get_name(),
+                agg_operator,
                 agg_column,
             ));
         }
@@ -220,7 +181,7 @@ fn aggregator_operator_tensor(
 /// Helper function to extract the aggregator column for primitive types
 fn extract_aggregator_column_primitive<T>(
     group_column: &str,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     ranges: &[Range<usize>],
 ) -> Vec<T>
 where
@@ -240,7 +201,7 @@ where
 /// Helper function to extract the aggregator column for primitive types
 fn extract_aggregator_column_nonprimitive<T>(
     group_column: &str,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     ranges: &[Range<usize>],
 ) -> Vec<T>
 where
@@ -260,7 +221,7 @@ where
 /// Helper function to extract the aggregator column for primitive types
 fn extract_aggregator_column_nested_primitive<T>(
     group_column: &str,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     ranges: &[Range<usize>],
 ) -> Vec<Vec<T>>
 where
@@ -327,7 +288,7 @@ where
 fn build_aggregation_column_primitive<T>(
     agg_column: &str,
     agg_operator: &DataAggregatorOperator,
-    lhs_table: &ArrowTable,
+    lhs_table: &Table,
     ranges: &[Range<usize>],
     device: &Device,
 ) -> Result<Vec<T>>
@@ -351,6 +312,14 @@ where
     Ok(agg_vec)
 }
 
+/// Helper function to create the new aggregation column name based on the original column name plus the aggregation operator
+pub(crate) fn create_agg_column_name(
+    agg_column: &str,
+    agg_operator: &DataAggregatorOperator,
+) -> String {
+    format!("{agg_column}-{agg_operator}")
+}
+
 /// Group by specified columns and aggregate using a specified aggregation operator over specified columns
 ///
 /// # Arguments
@@ -360,6 +329,7 @@ where
 /// * `agg_columns` - Slice of Strings for the aggregation columns
 /// * `agg_operators` - Slice of [DataAggregatorOperator]s specifying the aggregator operator to apply to each agg_column
 /// * `device` - The compute device
+#[instrument(skip(lhs_values, lhs_args, agg_columns, agg_operators, device))]
 pub fn group_by_and_aggregate(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
@@ -387,7 +357,7 @@ pub fn group_by_and_aggregate(
     }
 
     // Wrap the lhs and rhs into an ArrowTable
-    let lhs_table = ArrowTable::get_builder()
+    let lhs_table = Table::get_builder()
         .with_record_batches(vec![lhs_sorted])?
         .with_name("")
         .build()?;
@@ -617,7 +587,7 @@ pub fn group_by_and_aggregate(
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
                                 lhs_table.get_column_data_type(agg_column)?.to_string(),
-                                agg_operator.get_name(),
+                                agg_operator,
                                 agg_column,
                             ));
                         }
@@ -635,7 +605,7 @@ pub fn group_by_and_aggregate(
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
                                 lhs_table.get_column_data_type(agg_column)?.to_string(),
-                                agg_operator.get_name(),
+                                agg_operator,
                                 agg_column,
                             ));
                         }
@@ -696,7 +666,7 @@ pub fn group_by_and_aggregate(
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
                                 lhs_table.get_column_data_type(agg_column)?.to_string(),
-                                agg_operator.get_name(),
+                                agg_operator,
                                 agg_column,
                             ));
                         }
@@ -756,7 +726,7 @@ pub fn group_by_and_aggregate(
                 ));
             }
         };
-        let columns_name = format!("{agg_column}-{}", agg_operator.get_name());
+        let columns_name = create_agg_column_name(agg_column, agg_operator);
         batch_vec.push((columns_name, lhs_agg));
     }
 
@@ -767,7 +737,7 @@ pub fn group_by_and_aggregate(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::session::common_traits::device;
+    use phymes_core::device;
 
     use super::*;
 
@@ -814,7 +784,7 @@ mod tests {
             ],
             &device,
         )?;
-        let result_table = ArrowTable::get_builder()
+        let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -863,7 +833,7 @@ mod tests {
             &[DataAggregatorOperator::Count],
             &device,
         )?;
-        let result_table = ArrowTable::get_builder()
+        let result_table = Table::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;

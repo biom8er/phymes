@@ -16,4 +16,5 @@ pub enum OpenAIRequestState {
     Done,
 }
 
-pub mod available_openai_assets;
+mod available_openai_assets;
+pub use available_openai_assets::AvailableOpenAIAssets;

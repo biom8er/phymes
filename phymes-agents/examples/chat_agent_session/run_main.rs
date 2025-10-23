@@ -7,64 +7,64 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
+use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::chat_agent_session::{
-        ChatAgentSession,
-        test_chat_agent_session::{bench_chat_agent_session_1, bench_chat_agent_session_2},
-    },
-    session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
+    AvailableInterfaceSubjects, ChatAgentSession, CustomAgentsBuilderTrait,
+    SessionContextBuilderAgentsTrait, create_message_map,
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap},
-    session::{
-        common_traits::BuilderTrait, session_context::SessionStreamState,
-        session_context_builder::SessionContextBuilderTrait,
-    },
-    table::arrow_table::ArrowTableTrait,
-    task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
+    AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage,
+    MappableTrait, MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState,
+    TableBuilder, TableBuilderTrait, TablePublish, TableTrait,
 };
 
 pub async fn run_main() -> Result<()> {
-    // initialize the metrics
-    let metrics = ArrowTaskMetricsSet::new();
-
     // initialize the session
     let chat_agent_session = ChatAgentSession {
-        session_context_name: "session_1",
-        chat_processor_name: "chat_processor_1",
-        chat_task_name: "chat_task_1",
-        runtime_env_name: "rt_1",
-        chat_subscription_name: "messages",
         chat_api_url: Some("http://0.0.0.0:8000/v1"),
+        ..Default::default()
     };
     let session_ctx = chat_agent_session
         .build()
-        .with_metrics(metrics.clone())
         .with_name(chat_agent_session.session_context_name)
         .build_with_tables()?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
     // ----- Query #1 -----
-    let session_stream = bench_chat_agent_session_1(
-        Arc::clone(&session_stream_state),
-        &chat_agent_session,
-        "Write a function to count prime numbers up to N.",
-    );
-    let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-        session_stream.try_collect().await?;
+    let chat = AvailableInterfaceSubjects::UserMessages
+        .to_table_builder(None)
+        .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")?
+        .build()?;
+    let message = IPCMessage::get_builder()
+        .with_message(chat.to_ipc_stream()?)
+        .with_subject(chat.get_name())
+        .with_update(&TablePublish::Extend {
+            table_name: chat.get_name().to_string(),
+        })
+        .with_publisher(chat_agent_session.session_context_name)
+        .make_name()?
+        .build()?;
+    let incoming_message_map = create_message_map(vec![message]);
+    let session_stream =
+        SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+    let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response
-    let json_data = response
+    let bytes = response
         .last_mut()
         .unwrap()
         .remove(&format!(
             "from_{}_on_{}",
-            chat_agent_session.session_context_name, chat_agent_session.chat_subscription_name
+            chat_agent_session.session_context_name,
+            AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
-        .get_message_own()
+        .get_message_own();
+    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+        .with_name("")
+        .build()?
         .to_json_object()?;
     for row in &json_data {
         if row["role"] != "system" {
@@ -73,39 +73,45 @@ pub async fn run_main() -> Result<()> {
     }
 
     // ----- Query #2 -----
-    let session_stream = bench_chat_agent_session_2(
-        Arc::clone(&session_stream_state),
-        &chat_agent_session,
-        "Please provide an example using the functions.",
-    );
-    let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-        session_stream.try_collect().await?;
+    session_stream_state.try_write().unwrap().set_iter(0);
+    let chat = AvailableInterfaceSubjects::UserMessages
+        .to_table_builder(None)
+        .append_new_user_query_str("Please provide an example using the functions.", "user")?
+        .build()?;
+    let message = IPCMessage::get_builder()
+        .with_message(chat.to_ipc_stream()?)
+        .with_subject(chat.get_name())
+        .with_update(&TablePublish::Extend {
+            table_name: chat.get_name().to_string(),
+        })
+        .with_publisher(chat_agent_session.session_context_name)
+        .make_name()?
+        .build()?;
+    let incoming_message_map = create_message_map(vec![message]);
+    let session_stream =
+        SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+    let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response
-    let json_data = response
-        .first_mut()
+    let bytes = response
+        .last_mut()
         .unwrap()
         .remove(&format!(
             "from_{}_on_{}",
-            chat_agent_session.session_context_name, chat_agent_session.chat_subscription_name
+            chat_agent_session.session_context_name,
+            AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
-        .get_message_own()
+        .get_message_own();
+    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+        .with_name("")
+        .build()?
         .to_json_object()?;
     for row in &json_data {
         if row["role"] != "system" {
             println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
         }
     }
-
-    println!(
-        "number of rows {}",
-        metrics.clone_inner().output_rows().unwrap()
-    );
-    println!(
-        "elasped compute {}",
-        metrics.clone_inner().elapsed_compute().unwrap()
-    );
 
     Ok(())
 }

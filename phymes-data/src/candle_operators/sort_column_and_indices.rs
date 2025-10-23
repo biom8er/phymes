@@ -10,17 +10,13 @@ use arrow::{
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use phymes_core::{
-    schemas::{chat_completion, types},
-    session::common_traits::MappableTrait,
-};
-use phymes_core::{
-    session::common_traits::{BuildableTrait, BuilderTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
+use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Sort the [RecordBatch] according to the `score` column and then apply the sorting order to the rest of the record batch columns
 #[derive(Debug)]
@@ -36,27 +32,11 @@ impl MappableTrait for SortColumnAndIndices {
 }
 
 impl DataOperatorTrait for SortColumnAndIndices {
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        lhs_value: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_value: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self {
-        // Attempt to parse the op_kwargs
-        let ops_kwargs_default = "{\"asc\": false}";
-        let ops_kwargs_str = kwargs.unwrap_or(ops_kwargs_default);
-        let ops_kwargs: serde_json::Value = serde_json::from_str(ops_kwargs_str)
-            .unwrap_or(serde_json::from_str(ops_kwargs_default).unwrap());
-        SortColumnAndIndices {
-            lhs_values: lhs_value.to_string(),
-            asc: ops_kwargs
-                .get("asc")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false),
-        }
+    fn new(config: &DataConfig) -> Self {
+        let lhs_values = config.lhs_values.first().unwrap().to_string();
+        let asc = config.asc.unwrap_or(true);
+
+        SortColumnAndIndices { lhs_values, asc }
     }
     fn forward(
         &self,
@@ -64,10 +44,7 @@ impl DataOperatorTrait for SortColumnAndIndices {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        match sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device) {
-            Ok(batch) => Ok(batch),
-            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
-        }
+        sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device)
     }
     fn get_description() -> String {
         "Sort the the list of computed scores in ascending order".to_string()
@@ -76,77 +53,37 @@ impl DataOperatorTrait for SortColumnAndIndices {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
                 ..Default::default()
             }),
         );
-        // properties.insert(
-        //     "rhs_name".to_string(),
-        //     Box::new(types::JSONSchemaDefine {
-        //         schema_type: Some(types::JSONSchemaType::String),
-        //         description: Some("The name of the right hand side table".to_string()),
-        //         ..Default::default()
-        //     }),
-        // );
         properties.insert(
             "lhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        // properties.insert(
-        //     "rhs_pk".to_string(),
-        //     Box::new(types::JSONSchemaDefine {
-        //         schema_type: Some(types::JSONSchemaType::String),
-        //         description: Some("The primary key column identifier for the right hand side table".to_string()),
-        //         ..Default::default()
-        //     }),
-        // );
-        // properties.insert(
-        //     "lhs_fk".to_string(),
-        //     Box::new(types::JSONSchemaDefine {
-        //         schema_type: Some(types::JSONSchemaType::String),
-        //         description: Some("The foriegn key column identifier for the left hand side table".to_string()),
-        //         ..Default::default()
-        //     }),
-        // );
-        // properties.insert(
-        //     "rhs_fk".to_string(),
-        //     Box::new(types::JSONSchemaDefine {
-        //         schema_type: Some(types::JSONSchemaType::String),
-        //         description: Some("The foriegn key column identifier for the right hand side table".to_string()),
-        //         ..Default::default()
-        //     }),
-        // );
         properties.insert(
             "lhs_values".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The values column identifier for the left hand side table".to_string(),
+                    "A list of value column identifiers for the left hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        // properties.insert(
-        //     "rhs_values".to_string(),
-        //     Box::new(types::JSONSchemaDefine {
-        //         schema_type: Some(types::JSONSchemaType::String),
-        //         description: Some("The values column identifier for the right hand side table".to_string()),
-        //         ..Default::default()
-        //     }),
-        // );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
@@ -155,8 +92,8 @@ impl DataOperatorTrait for SortColumnAndIndices {
                 ]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -166,9 +103,9 @@ impl DataOperatorTrait for SortColumnAndIndices {
 /// Take the columns according to the indices over the specified columns
 pub fn take_columns_by_indices(
     column_names: &[String],
-    table: &ArrowTable,
-    asort_arr: ArrayRef,
-    asort_tensor: Tensor,
+    table: &Table,
+    asort_arr: &ArrayRef,
+    asort_tensor: &Tensor,
     device: &Device,
 ) -> Result<Vec<(String, Arc<dyn Array>)>> {
     let mut batch_vec = Vec::new();
@@ -177,35 +114,35 @@ pub fn take_columns_by_indices(
             DataType::UInt8 => {
                 let array_vec = table.get_column_as_vec_primitive::<u8>(column).unwrap();
                 let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let sorted = tensor.gather(asort_tensor, candle_core::D::Minus1)?;
                 let array_vec = sorted.to_vec1::<u8>()?;
                 Arc::new(UInt8Array::from(array_vec))
             }
             DataType::UInt32 => {
                 let array_vec = table.get_column_as_vec_primitive::<u32>(column).unwrap();
                 let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let sorted = tensor.gather(asort_tensor, candle_core::D::Minus1)?;
                 let array_vec = sorted.to_vec1::<u32>()?;
                 Arc::new(UInt32Array::from(array_vec))
             }
             DataType::Int64 => {
                 let array_vec = table.get_column_as_vec_primitive::<i64>(column).unwrap();
                 let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let sorted = tensor.gather(asort_tensor, candle_core::D::Minus1)?;
                 let array_vec = sorted.to_vec1::<i64>()?;
                 Arc::new(Int64Array::from(array_vec))
             }
             DataType::Float32 => {
                 let array_vec = table.get_column_as_vec_primitive::<f32>(column).unwrap();
                 let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let sorted = tensor.gather(asort_tensor, candle_core::D::Minus1)?;
                 let array_vec = sorted.to_vec1::<f32>()?;
                 Arc::new(Float32Array::from(array_vec))
             }
             DataType::Float64 => {
                 let array_vec = table.get_column_as_vec_primitive::<f64>(column).unwrap();
                 let tensor = Tensor::from_iter(array_vec, device)?;
-                let sorted = tensor.gather(&asort_tensor, candle_core::D::Minus1)?;
+                let sorted = tensor.gather(asort_tensor, candle_core::D::Minus1)?;
                 let array_vec = sorted.to_vec1::<f64>()?;
                 Arc::new(Float64Array::from(array_vec))
             }
@@ -213,15 +150,15 @@ pub fn take_columns_by_indices(
                 // StringArray must be sorted on the CPU
                 let array_ref: ArrayRef =
                     Arc::new(StringArray::from(table.get_column_as_vec_str(column)));
-                arrow::compute::take(&array_ref, &asort_arr, None)?
+                arrow::compute::take(&array_ref, asort_arr, None)?
             }
             DataType::FixedSizeList(_f, _s) => {
                 let array_ref: ArrayRef = table.get_column_as_array(column);
-                arrow::compute::take(&array_ref, &asort_arr, None)?
+                arrow::compute::take(&array_ref, asort_arr, None)?
             }
             DataType::List(_f) => {
                 let array_ref: ArrayRef = table.get_column_as_array(column);
-                arrow::compute::take(&array_ref, &asort_arr, None)?
+                arrow::compute::take(&array_ref, asort_arr, None)?
             }
             // Note: Candle::Tensor library supports u8, u32, i64, bf16, f16, f32, f64
             _ => {
@@ -257,7 +194,7 @@ pub fn sort_column_and_indices(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
-    let lhs_table = ArrowTable::get_builder()
+    let lhs_table = Table::get_builder()
         .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?;
@@ -399,8 +336,8 @@ pub fn sort_column_and_indices(
     batch_vec.extend(take_columns_by_indices(
         &columns,
         &lhs_table,
-        asort_arr,
-        asort_tensor,
+        &asort_arr,
+        &asort_tensor,
         device,
     )?);
 
@@ -419,7 +356,7 @@ mod tests {
         buffer::Buffer,
         datatypes::Field,
     };
-    use phymes_core::session::common_traits::device;
+    use phymes_core::device;
 
     use super::*;
 

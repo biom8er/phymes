@@ -1,0 +1,32 @@
+[package]
+name = "phymes-diagnostics"
+version = "0.2.2"
+edition = "2024"
+authors = ["Douglas McCloskey"]
+description = "The diagnostics tools for debugging and optimizing PHYMES applications"
+license = "MIT AND Apache-2.0"
+repository = "https://github.com/biom8er/phymes"
+documentation = "https://docs.rs/phymes-diagnostics"
+
+[features]
+default = ["wsl"]
+wasip2 = [] # for compatibility with agents
+wsl = [] # for compatibility with agents
+hf_hub = [] # for compatibility with agents
+openai_api = [] # for compatibility with agents
+gpu = [] # for compatibility with agents
+candle = [] # for compatibility with agents
+
+[dependencies]
+arrow = { version = "54.3.1", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
+anyhow = "1.0.95"
+clap = { version = "4.2.4", features = ["derive"] }
+futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.135"
+parking_lot = "0.12.3"
+web-time = "1.1.0"
+hashbrown = "0.15.4"
+chrono = { version = "0.4.41", features = ["wasmbind"] }
+bytes = "1.10.1"
+getrandom = { version = "0.3.1", features = ["wasm_js"] }

@@ -1,18 +1,14 @@
 use arrow::record_batch::RecordBatch;
+use phymes_diagnostics::create_timestamp_micros;
 
-use crate::candle_operators::data_operator::make_error_record_batch;
+use crate::candle_data::DataConfig;
 
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
 use candle_core::Device;
 use phymes_core::{
-    schemas::{
-        chat_completion,
-        message_history::{create_messages_record_batch, create_timestamp_micros},
-        types,
-    },
-    session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_chat_record_batch,
 };
 use std::collections::HashMap;
 
@@ -27,15 +23,7 @@ impl MappableTrait for HumanInTheLoop {
 }
 
 impl DataOperatorTrait for HumanInTheLoop {
-    fn new(
-        _lhs_pk: &str,
-        _lhs_fk: &str,
-        _lhs_values: &str,
-        _rhs_pk: Option<&str>,
-        _rhs_fk: Option<&str>,
-        _rhs_values: Option<&str>,
-        _kwargs: Option<&str>,
-    ) -> Self {
+    fn new(_config: &DataConfig) -> Self {
         HumanInTheLoop {}
     }
     fn get_description() -> String {
@@ -45,23 +33,23 @@ impl DataOperatorTrait for HumanInTheLoop {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_args".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("Format lhs_args value according to the schema {\"content\": \"`RESPONSE`\"} where `RESPONSE` is where you put your response for the user".to_string()),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec!["lhs_args".to_string()]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -72,15 +60,12 @@ impl DataOperatorTrait for HumanInTheLoop {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        match create_hitl_record_batch(lhs_args) {
-            Ok(batch) => Ok(batch),
-            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
-        }
+        create_hitl_record_batch(lhs_args)
     }
 }
 
 fn create_hitl_record_batch(lhs_args: &[RecordBatch]) -> Result<RecordBatch> {
-    let content = ArrowTable::get_builder()
+    let content = Table::get_builder()
         .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?
@@ -88,7 +73,7 @@ fn create_hitl_record_batch(lhs_args: &[RecordBatch]) -> Result<RecordBatch> {
         .first()
         .unwrap()
         .to_string();
-    create_messages_record_batch(
+    create_chat_record_batch(
         vec!["assistant".to_string()],
         vec![content],
         vec![create_timestamp_micros()],

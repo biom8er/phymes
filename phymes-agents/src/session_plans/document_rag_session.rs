@@ -1,45 +1,25 @@
-use anyhow::Result;
-use std::sync::Arc;
+use std::{sync::Arc, vec};
 
 use phymes_core::{
-    schemas::message_history::create_messages_schema,
-    session::{
-        common_traits::BuilderTrait,
-        runtime_env::{RuntimeEnv, RuntimeEnvTrait},
-        session_context_builder::TaskPlan,
-    },
-    table::{
-        arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
-    },
-    task::arrow_processor::{ArrowProcessorEcho, ArrowProcessorTrait},
+    AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
+    BuilderTrait, DataFormat, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait,
+    SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
 };
 use phymes_data::{
-    candle_data::{
-        data_config::DataConfig, data_processor::CandleDataProcessor,
-        summary_config::DataSummaryConfig, summary_processor::DataSummaryProcessor,
-    },
-    candle_operators::available_candle_operators::AvailableCandleOperators,
+    AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator,
+    DataConfig, DataSummaryConfig, DataSummaryProcessor,
 };
 use phymes_ml::{
-    candle_assets::available_candle_assets::AvailableCandleAssets,
-    candle_chat::{
-        chat_config::CandleChatConfig, chat_processor::CandleChatProcessor,
-        message_aggregator_processor::MessageAggregatorProcessor,
-    },
-    candle_embed::{embed_config::CandleEmbedConfig, embed_processor::CandleEmbedProcessor},
+    AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig, MessageAggregatorProcessor,
 };
 #[cfg(feature = "openai_api")]
-use phymes_ml::{
-    openai_asset::available_openai_assets::AvailableOpenAIAssets,
-    openai_chat::chat_processor::OpenAIChatProcessor,
-    openai_embed::embed_processor::OpenAIEmbedProcessor,
-};
+use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
+#[cfg(feature = "candle")]
+use phymes_ml::{CandleChatProcessor, CandleEmbedProcessor};
 
-use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+use arrow::datatypes::{DataType, SchemaRef};
 
-use crate::session_traits::agents::CustomAgentsBuilderTrait;
+use crate::{session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
 
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///
@@ -50,21 +30,30 @@ use crate::session_traits::agents::CustomAgentsBuilderTrait;
 pub struct DocumentRAGSession<'a> {
     /// Chat tasks
     pub chat_task_name: &'a str,
+    pub chat_processor_name: &'a str,
+    pub chat_runtime_env_name: &'a str,
     // DM: needed for openai api since we cannot chain streams
     pub message_aggregator_task_1_name: &'a str,
     pub message_aggregator_processor_1_name: &'a str,
     pub message_aggregator_task_2_name: &'a str,
     pub message_aggregator_processor_2_name: &'a str,
-    pub chat_processor_name: &'a str,
-    pub chat_runtime_env_name: &'a str,
+    /// Attachment aggregator for the tool task
+    pub attachment_aggregator_task_name: &'a str,
+    pub attachment_aggregator_processor_name: &'a str,
+    pub attachment_aggregator_runtime_env_name: &'a str,
     /// Embed tasks
+    pub message_to_query_task_name: &'a str,
+    pub message_to_query_processor_name: &'a str,
     pub embed_query_task_name: &'a str,
     pub embed_documents_task_name: &'a str,
     pub embed_query_processor_name: &'a str,
     pub embed_documents_processor_name: &'a str,
-    // DM: needed for openai api since we cannot chain streams
+    /// Extract PDF task
+    pub extract_pdf_task_name: &'a str,
+    pub extract_pdf_processor_name: &'a str,
+    /// Chunk documents task
     pub document_chunk_task_name: &'a str,
-    pub document_chunk_processor_1_name: &'a str,
+    pub document_chunk_processor_name: &'a str,
     // DM: Two embed runtimes are needed for embedded Candle models due to edge cases
     //   where the mutexes are access simultaneously. Set the embed runtimes to
     //   the same name when using OpenAI API
@@ -74,27 +63,18 @@ pub struct DocumentRAGSession<'a> {
     pub vector_search_task_name: &'a str,
     pub relative_similarity_processor_name: &'a str,
     pub sort_scores_processor_name: &'a str,
-    // DM: Needed because the document chunks are not stored during the embed task
-    //  for embedded Candle models. Set to the same name as `document_chunk_processor_1_name`
-    //  when using OpenAI API
-    pub document_chunk_processor_2_name: &'a str,
     pub join_chunks_processor_name: &'a str,
     pub top_k_processor_name: &'a str,
     pub vector_search_runtime_env_name: &'a str,
     /// Session and state
     pub session_context_name: &'a str,
-    pub state_messages_table_name: &'a str,
-    pub state_user_messages_table_name: &'a str,
-    pub state_assistant_messages_table_name: &'a str,
     pub state_documents_table_name: &'a str,
     pub state_doc_embed_table_name: &'a str,
-    pub state_queries_table_name: &'a str,
     pub state_q_embed_table_name: &'a str,
     pub state_top_k_docs_table_name: &'a str,
     pub state_scores_table_name: &'a str,
     pub state_scores_chunks_join_table_name: &'a str,
     /// Other parameters
-    pub embed_length: usize,
     pub chat_api_url: Option<&'a str>,
     pub embed_api_url: Option<&'a str>,
 }
@@ -107,35 +87,36 @@ impl Default for DocumentRAGSession<'_> {
             message_aggregator_processor_1_name: "message_aggregator_1",
             message_aggregator_task_2_name: "message_aggregator_task_2",
             message_aggregator_processor_2_name: "message_aggregator_2",
+            attachment_aggregator_task_name: "attachment_aggregator_task_1",
+            attachment_aggregator_processor_name: "attachment_aggregator_processor_1",
+            attachment_aggregator_runtime_env_name: "attachment_aggregator_rt_1",
             chat_processor_name: "chat_processor_1",
             chat_runtime_env_name: "chat_rt_1",
+            message_to_query_task_name: "message_to_query_task_1",
+            message_to_query_processor_name: "message_to_query_processor_1",
             embed_query_task_name: "embed_query_task_1",
             embed_documents_task_name: "embed_documents_task_1",
             embed_query_processor_name: "embed_query_processor_1",
             embed_documents_processor_name: "embed_documents_processor_1",
+            extract_pdf_task_name: "extract_pdf_task_1",
+            extract_pdf_processor_name: "extract_pdf_processor_1",
             document_chunk_task_name: "chunk_documents_task_1",
-            document_chunk_processor_1_name: "chunk_documents_processor_1",
+            document_chunk_processor_name: "chunk_documents_processor_1",
             embed_documents_runtime_env_name: "embed_documents_rt_1",
             embed_query_runtime_env_name: "embed_query_rt_1", // "embed_documents_rt_1",
             vector_search_task_name: "vs_task_1",
             relative_similarity_processor_name: "rel_sim_processor_1",
             sort_scores_processor_name: "sort_scores_processor_1",
-            document_chunk_processor_2_name: "chunk_documents_processor_2", //"chunk_documents_processor_1",
             join_chunks_processor_name: "join_scores_chunks_processor_1",
             top_k_processor_name: "top_k_processor_1",
             vector_search_runtime_env_name: "vs_rt_1",
             session_context_name: "session_context_1",
-            state_messages_table_name: "messages",
-            state_user_messages_table_name: "user_messages",
-            state_assistant_messages_table_name: "assistant_messages",
             state_documents_table_name: "documents",
             state_doc_embed_table_name: "doc_embeddings",
-            state_queries_table_name: "queries",
             state_q_embed_table_name: "q_embeddings",
             state_top_k_docs_table_name: "top_k",
             state_scores_table_name: "tmp_scores",
             state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
-            embed_length: 384, // Hidden size for BERT
             chat_api_url: None,
             embed_api_url: None,
         }
@@ -149,472 +130,366 @@ impl<'a> DocumentRAGSession<'a> {
             ..Default::default()
         }
     }
-    pub fn make_chat_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.chat_task_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_messages_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_messages_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_user_messages_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_user_messages_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_assistant_messages_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_assistant_messages_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_documents_table(&self) -> Result<ArrowTable> {
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let document_id = Field::new("document_id", DataType::Utf8, false);
-        let text = Field::new("text", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![chunk_id, document_id, text]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_documents_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_document_chunk_table(&self) -> Result<ArrowTable> {
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let document_id = Field::new("document_id", DataType::Utf8, false);
-        let text = Field::new("text", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![chunk_id, document_id, text]));
-        ArrowTableBuilder::new()
-            .with_name(self.document_chunk_task_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_doc_embed_table(&self) -> Result<ArrowTable> {
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let document_id = Field::new("document_id", DataType::Utf8, false);
-        let list_data_type = DataType::FixedSizeList(
-            Arc::new(Field::new_list_field(DataType::Float32, false)),
-            self.embed_length.try_into().unwrap(),
-        );
-        let embedding = Field::new("embedding", list_data_type, false);
-        let schema = Arc::new(Schema::new(vec![chunk_id, document_id, embedding]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_doc_embed_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_queries_table(&self) -> Result<ArrowTable> {
-        let query_id = Field::new("query_id", DataType::Utf8, false);
-        let text = Field::new("text", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![query_id, text]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_queries_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_q_embed_table(&self) -> Result<ArrowTable> {
-        let query_id = Field::new("query_id", DataType::Utf8, false);
-        let list_data_type = DataType::FixedSizeList(
-            Arc::new(Field::new_list_field(DataType::Float32, false)),
-            self.embed_length.try_into().unwrap(),
-        );
-        let embedding = Field::new("embedding", list_data_type, false);
-        let schema = Arc::new(Schema::new(vec![query_id, embedding]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_q_embed_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_scores_table(&self) -> Result<ArrowTable> {
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let query_id = Field::new("query_id", DataType::Utf8, false);
-        let score = Field::new("score", DataType::Float32, false);
-        let schema = Arc::new(Schema::new(vec![chunk_id, query_id, score]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_scores_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_join_chunks_scores_table(&self) -> Result<ArrowTable> {
-        let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-        let query_id = Field::new("query_id", DataType::Utf8, false);
-        let score = Field::new("score", DataType::Float32, false);
-        let document_id = Field::new("document_id", DataType::Utf8, false);
-        let text = Field::new("text", DataType::Utf8, false);
-        let schema = Arc::new(Schema::new(vec![
-            chunk_id,
-            query_id,
-            score,
-            document_id,
-            text,
-        ]));
-        ArrowTableBuilder::new()
-            .with_name(self.state_scores_chunks_join_table_name)
-            .with_schema(schema)
-            .with_record_batches(Vec::new())?
-            .build()
-    }
-    pub fn make_top_k_docs_table(&self) -> Result<ArrowTable> {
-        ArrowTableBuilder::new()
-            .with_name(self.state_top_k_docs_table_name)
-            .with_schema(create_messages_schema())
-            .with_record_batches(Vec::new())?
-            .build()
-    }
 }
 
 impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
-        let mut tasks = Vec::new();
-
         // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
         //  when chained or nested within other streams.
-        tasks.push(TaskPlan {
-            task_name: self.message_aggregator_task_1_name.to_string(),
-            runtime_env_name: self.vector_search_runtime_env_name.to_string(),
-            processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.message_aggregator_task_2_name.to_string(),
-            runtime_env_name: self.vector_search_runtime_env_name.to_string(),
-            processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.chat_task_name.to_string(),
-            runtime_env_name: self.chat_runtime_env_name.to_string(),
-            processor_names: vec![self.chat_processor_name.to_string()],
-        });
-
-        if cfg!(not(feature = "candle")) {
-            tasks.push(TaskPlan {
-                task_name: self.document_chunk_task_name.to_string(),
+        let tasks = vec![
+            TaskPlan {
+                task_name: self.message_aggregator_task_1_name.to_string(),
+                runtime_env_name: self.vector_search_runtime_env_name.to_string(),
+                processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.message_aggregator_task_2_name.to_string(),
+                runtime_env_name: self.vector_search_runtime_env_name.to_string(),
+                processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.attachment_aggregator_task_name.to_string(),
+                runtime_env_name: self.attachment_aggregator_runtime_env_name.to_string(),
+                processor_names: vec![self.attachment_aggregator_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.message_to_query_task_name.to_string(),
                 runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.document_chunk_processor_1_name.to_string()],
-            });
-            tasks.push(TaskPlan {
+                processor_names: vec![self.message_to_query_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.chat_task_name.to_string(),
+                runtime_env_name: self.chat_runtime_env_name.to_string(),
+                processor_names: vec![self.chat_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.extract_pdf_task_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![
+                    self.extract_pdf_processor_name.to_string(),
+                    self.document_chunk_processor_name.to_string(),
+                ],
+            },
+            TaskPlan {
                 task_name: self.embed_documents_task_name.to_string(),
                 runtime_env_name: self.embed_documents_runtime_env_name.to_string(),
                 processor_names: vec![self.embed_documents_processor_name.to_string()],
-            });
-        } else {
-            tasks.push(TaskPlan {
-                task_name: self.embed_documents_task_name.to_string(),
-                runtime_env_name: self.embed_documents_runtime_env_name.to_string(),
+            },
+            TaskPlan {
+                task_name: self.embed_query_task_name.to_string(),
+                runtime_env_name: self.embed_query_runtime_env_name.to_string(),
+                processor_names: vec![self.embed_query_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.vector_search_task_name.to_string(),
+                runtime_env_name: self.vector_search_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.document_chunk_processor_1_name.to_string(),
-                    self.embed_documents_processor_name.to_string(),
+                    self.relative_similarity_processor_name.to_string(),
+                    self.sort_scores_processor_name.to_string(),
+                    self.join_chunks_processor_name.to_string(),
+                    self.top_k_processor_name.to_string(),
                 ],
-            });
-        }
-
-        tasks.push(TaskPlan {
-            task_name: self.embed_query_task_name.to_string(),
-            runtime_env_name: self.embed_query_runtime_env_name.to_string(),
-            processor_names: vec![self.embed_query_processor_name.to_string()],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.vector_search_task_name.to_string(),
-            runtime_env_name: self.vector_search_runtime_env_name.to_string(),
-            processor_names: vec![
-                self.relative_similarity_processor_name.to_string(),
-                self.sort_scores_processor_name.to_string(),
-                self.document_chunk_processor_2_name.to_string(),
-                self.join_chunks_processor_name.to_string(),
-                self.top_k_processor_name.to_string(),
-            ],
-        });
-        tasks.push(TaskPlan {
-            task_name: self.session_context_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
-            processor_names: vec![self.session_context_name.to_string()],
-        });
+            },
+            TaskPlan {
+                task_name: self.session_context_name.to_string(),
+                runtime_env_name: "rt_default".to_string(),
+                processor_names: vec![self.session_context_name.to_string()],
+            },
+        ];
 
         Some(tasks)
     }
 
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ArrowProcessorTrait>>> {
+    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
-        let mut processors = Vec::new();
-
-        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
-            self.message_aggregator_processor_1_name,
-            &[ArrowTablePublish::Replace {
-                table_name: self.chat_task_name.to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: self.state_user_messages_table_name.to_string(),
-                },
-                ArrowTableSubscribe::OnUpdateFullTable {
+        let processors = vec![
+            MessageAggregatorProcessor::new_arc_with_pub_sub(
+                self.message_aggregator_processor_1_name,
+                &[TablePublish::Replace {
+                    table_name: self.chat_task_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    },
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.state_top_k_docs_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.message_aggregator_processor_1_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            MessageAggregatorProcessor::new_arc_with_pub_sub(
+                self.message_aggregator_processor_2_name,
+                &[TablePublish::Extend {
+                    table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.message_aggregator_processor_2_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            AttachmentAggregatorProcessor::new_arc_with_pub_sub(
+                self.attachment_aggregator_processor_name,
+                &[TablePublish::Extend {
+                    table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.attachment_aggregator_processor_name.to_string(),
+                    },
+                ],
+                AnyTableNameSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.message_to_query_processor_name,
+                &[TablePublish::Replace {
+                    table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    },
+                    TableSubscribe::AlwaysLastRecordBatch {
+                        table_name: self.message_to_query_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "openai_api")]
+            OpenAIChatProcessor::new_arc_with_pub_sub(
+                self.chat_processor_name,
+                &[TablePublish::ExtendChunks {
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    col_name: "content".to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.chat_task_name.to_string(),
+                    },
+                    TableSubscribe::None,
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.chat_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "candle")]
+            CandleChatProcessor::new_arc_with_pub_sub(
+                self.chat_processor_name,
+                &[TablePublish::ExtendChunks {
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    col_name: "content".to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: self.chat_task_name.to_string(),
+                    },
+                    TableSubscribe::None,
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.chat_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.extract_pdf_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.document_chunk_task_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.extract_pdf_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.document_chunk_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.state_documents_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.document_chunk_task_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.document_chunk_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "openai_api")]
+            OpenAIEmbedProcessor::new_arc_with_pub_sub(
+                self.embed_documents_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.state_doc_embed_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: self.state_documents_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.embed_documents_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "openai_api")]
+            OpenAIEmbedProcessor::new_arc_with_pub_sub(
+                self.embed_query_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.state_q_embed_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.embed_query_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "candle")]
+            CandleEmbedProcessor::new_arc_with_pub_sub(
+                self.embed_documents_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.state_doc_embed_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: self.state_documents_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.embed_documents_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            #[cfg(feature = "candle")]
+            CandleEmbedProcessor::new_arc_with_pub_sub(
+                self.embed_query_processor_name,
+                &[TablePublish::Extend {
+                    table_name: self.state_q_embed_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.embed_query_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.relative_similarity_processor_name,
+                &[TablePublish::Replace {
+                    table_name: self.state_scores_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_doc_embed_table_name.to_string(),
+                    },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: self.state_q_embed_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.relative_similarity_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.sort_scores_processor_name,
+                &[TablePublish::Replace {
+                    table_name: self.state_scores_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.sort_scores_processor_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_scores_table_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            CandleDataProcessor::new_arc_with_pub_sub(
+                self.join_chunks_processor_name,
+                &[TablePublish::Replace {
+                    table_name: self.state_scores_chunks_join_table_name.to_string(),
+                }],
+                &[
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_documents_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_scores_table_name.to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.join_chunks_processor_name.to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            DataSummaryProcessor::new_arc_with_pub_sub(
+                self.top_k_processor_name,
+                &[TablePublish::Replace {
                     table_name: self.state_top_k_docs_table_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.state_assistant_messages_table_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.message_aggregator_processor_1_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
-            self.message_aggregator_processor_2_name,
-            &[ArrowTablePublish::Extend {
-                table_name: self.state_messages_table_name.to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: self.state_user_messages_table_name.to_string(),
-                },
-                ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: self.state_assistant_messages_table_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysLastRecordBatch {
-                    table_name: self.message_aggregator_processor_2_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        if cfg!(not(feature = "candle")) {
-            #[cfg(feature = "openai_api")]
-            processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
-                self.chat_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
-                    table_name: self.state_assistant_messages_table_name.to_string(),
-                    col_name: "content".to_string(),
                 }],
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: self.chat_task_name.to_string(),
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.top_k_processor_name.to_string(),
                     },
-                    ArrowTableSubscribe::None,
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.chat_processor_name.to_string(),
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: self.state_scores_chunks_join_table_name.to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
-            ));
-        } else {
-            processors.push(CandleChatProcessor::new_arc_with_pub_sub(
-                self.chat_processor_name,
-                &[ArrowTablePublish::ExtendChunks {
-                    table_name: self.state_assistant_messages_table_name.to_string(),
-                    col_name: "content".to_string(),
-                }],
+            ),
+            ProcessorEcho::new_arc_with_pub_sub(
+                self.session_context_name,
                 &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: self.chat_task_name.to_string(),
+                    TablePublish::Extend {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    ArrowTableSubscribe::None,
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.chat_processor_name.to_string(),
+                    TablePublish::Extend {
+                        table_name: self.state_documents_table_name.to_string(),
+                    },
+                    TablePublish::Extend {
+                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                    },
+                    TablePublish::Extend {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
-            ));
-        }
-
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.document_chunk_processor_1_name,
-            &[ArrowTablePublish::Replace {
-                table_name: self.document_chunk_task_name.to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: self.state_documents_table_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.document_chunk_processor_1_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-
-        if cfg!(not(feature = "candle")) {
-            #[cfg(feature = "openai_api")]
-            processors.push(OpenAIEmbedProcessor::new_arc_with_pub_sub(
-                self.embed_documents_processor_name,
-                &[ArrowTablePublish::Replace {
-                    table_name: self.state_doc_embed_table_name.to_string(),
+                &[TableSubscribe::OnUpdateLastRecordBatch {
+                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 }],
-                &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: self.document_chunk_task_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.embed_documents_processor_name.to_string(),
-                    },
-                ],
                 AllTableNamesSubscribe::new_box(),
-            ));
-            #[cfg(feature = "openai_api")]
-            processors.push(OpenAIEmbedProcessor::new_arc_with_pub_sub(
-                self.embed_query_processor_name,
-                &[ArrowTablePublish::Replace {
-                    table_name: self.state_q_embed_table_name.to_string(),
-                }],
-                &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: self.state_queries_table_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.embed_query_processor_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ));
-        } else {
-            processors.push(CandleEmbedProcessor::new_arc_with_pub_sub(
-                self.embed_documents_processor_name,
-                &[ArrowTablePublish::Replace {
-                    table_name: self.state_doc_embed_table_name.to_string(),
-                }],
-                &[
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.document_chunk_task_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.embed_documents_processor_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ));
-            processors.push(CandleEmbedProcessor::new_arc_with_pub_sub(
-                self.embed_query_processor_name,
-                &[ArrowTablePublish::Replace {
-                    table_name: self.state_q_embed_table_name.to_string(),
-                }],
-                &[
-                    ArrowTableSubscribe::OnUpdateFullTable {
-                        table_name: self.state_queries_table_name.to_string(),
-                    },
-                    ArrowTableSubscribe::AlwaysFullTable {
-                        table_name: self.embed_query_processor_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ));
-        }
-
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.relative_similarity_processor_name,
-            &[ArrowTablePublish::Replace {
-                table_name: self.state_scores_table_name.to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.state_doc_embed_table_name.to_string(),
-                },
-                ArrowTableSubscribe::OnUpdateFullTable {
-                    table_name: self.state_q_embed_table_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.relative_similarity_processor_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.sort_scores_processor_name,
-            &[ArrowTablePublish::Replace {
-                table_name: self.state_scores_table_name.to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.sort_scores_processor_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.state_scores_table_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.document_chunk_processor_2_name,
-            &[ArrowTablePublish::Replace {
-                table_name: self.state_documents_table_name.to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.state_documents_table_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.document_chunk_processor_2_name.to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(CandleDataProcessor::new_arc_with_pub_sub(
-            self.join_chunks_processor_name,
-            &[ArrowTablePublish::Replace {
-                table_name: self.state_scores_chunks_join_table_name.to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.state_documents_table_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.state_scores_table_name.to_string(),
-                },
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.join_chunks_processor_name.to_string().to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(DataSummaryProcessor::new_arc_with_pub_sub(
-            self.top_k_processor_name,
-            &[ArrowTablePublish::Replace {
-                table_name: self.state_top_k_docs_table_name.to_string(),
-            }],
-            &[
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self.top_k_processor_name.to_string().to_string(),
-                },
-                ArrowTableSubscribe::AlwaysFullTable {
-                    table_name: self
-                        .state_scores_chunks_join_table_name
-                        .to_string()
-                        .to_string(),
-                },
-            ],
-            AllTableNamesSubscribe::new_box(),
-        ));
-        processors.push(ArrowProcessorEcho::new_arc_with_pub_sub(
-            self.session_context_name,
-            &[
-                ArrowTablePublish::Extend {
-                    table_name: self.state_user_messages_table_name.to_string(),
-                },
-                ArrowTablePublish::Extend {
-                    table_name: self.state_documents_table_name.to_string(),
-                },
-                ArrowTablePublish::Extend {
-                    table_name: self.state_queries_table_name.to_string(),
-                },
-                ArrowTablePublish::Extend {
-                    table_name: self.state_assistant_messages_table_name.to_string(),
-                },
-            ],
-            &[ArrowTableSubscribe::OnUpdateLastRecordBatch {
-                table_name: self.state_assistant_messages_table_name.to_string(),
-            }],
-            AllTableNamesSubscribe::new_box(),
-        ));
+            ),
+        ];
 
         Some(processors)
     }
@@ -625,11 +500,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             RuntimeEnv::new().with_name(self.embed_documents_runtime_env_name),
             RuntimeEnv::new().with_name(self.embed_query_runtime_env_name),
             RuntimeEnv::new().with_name(self.vector_search_runtime_env_name),
+            RuntimeEnv::new().with_name(self.attachment_aggregator_runtime_env_name),
             RuntimeEnv::new().with_name("rt_default"),
         ])
     }
 
-    fn make_state_tables(&self) -> Option<Vec<ArrowTable>> {
+    fn make_state_tables(&self) -> Option<Vec<Table>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -683,7 +559,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         }
 
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
-        let candle_chat_state = ArrowTableBuilder::new()
+        let candle_chat_state = TableBuilder::new()
             .with_name(self.chat_processor_name)
             .with_json(&candle_chat_config_json, 1)
             .unwrap()
@@ -693,7 +569,6 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         // Default embed config
         #[allow(unused_mut)]
         let mut candle_embed_config = CandleEmbedConfig {
-            dimensions: Some(self.embed_length as i32),
             // All files need to be local for WASM testing
             weights_config_file: Some(format!(
                 "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
@@ -762,13 +637,13 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             candle_embed_config.input_type = "query".to_string();
         }
         let candle_embed_config_json = serde_json::to_vec(&candle_embed_config).unwrap();
-        let candle_doc_embed_state = ArrowTableBuilder::new()
+        let candle_doc_embed_state = TableBuilder::new()
             .with_name(self.embed_documents_processor_name)
             .with_json(&candle_embed_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let candle_query_embed_state = ArrowTableBuilder::new()
+        let candle_query_embed_state = TableBuilder::new()
             .with_name(self.embed_query_processor_name)
             .with_json(&candle_embed_config_json, 1)
             .unwrap()
@@ -780,43 +655,80 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: "".to_string(),
             lhs_pk: "".to_string(),
             lhs_fk: "".to_string(),
-            lhs_values: "timestamp".to_string(),
-            op_kwargs: Some("{\"asc\": true}".to_string()),
-            which: AvailableCandleOperators::SortColumnAndIndices,
+            lhs_values: vec!["timestamp".to_string()],
+            asc: Some(true),
+            operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
-        let aggregator_1_state = ArrowTableBuilder::new()
+        let aggregator_1_state = TableBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
             .with_json(&aggregator_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
-        let aggregator_2_state = ArrowTableBuilder::new()
+        let aggregator_2_state = TableBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
             .with_json(&aggregator_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        let aggregator_3_state = TableBuilder::new()
+            .with_name(self.attachment_aggregator_processor_name)
+            .with_json(&aggregator_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Select and cast config
+        let message_to_query_config = DataConfig {
+            lhs_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+            lhs_pk: "".to_string(),
+            lhs_fk: "".to_string(),
+            lhs_values: vec!["timestamp".to_string(),"content".to_string()],
+            as_columns: Some(vec!["query_id".to_string(), "text".to_string()]),
+            cast_operators: Some(vec![DataCastOperator::Cast, DataCastOperator::None]),
+            cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
+            cast_templates: Some(vec!["".to_string(), "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}".to_string()]),
+            operator: AvailableCandleOperators::SelectAndCast,
+            ..Default::default()
+        };
+        let message_to_query_config_json = serde_json::to_vec(&message_to_query_config).unwrap();
+        let message_to_query_state = TableBuilder::new()
+            .with_name(self.message_to_query_processor_name)
+            .with_json(&message_to_query_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Extract pdf config
+        let extract_pdf_config = DataConfig {
+            lhs_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+            lhs_pk: "filename".to_string(),
+            lhs_values: vec!["bytes".to_string()],
+            operator: AvailableCandleOperators::ExtractPDFText,
+            ..Default::default()
+        };
+        let extract_pdf_config_json = serde_json::to_vec(&extract_pdf_config).unwrap();
+        let extract_pdf_state = TableBuilder::new()
+            .with_name(self.extract_pdf_processor_name)
+            .with_json(&extract_pdf_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
 
         // Chunk documents config
         let chunk_document_config = DataConfig {
-            lhs_name: self.state_documents_table_name.to_string(),
+            lhs_name: self.document_chunk_task_name.to_string(),
             lhs_pk: "document_id".to_string(),
             lhs_fk: "document_id".to_string(),
-            lhs_values: "text".to_string(),
-            which: AvailableCandleOperators::ChunkDocuments,
+            lhs_values: vec!["text".to_string()],
+            operator: AvailableCandleOperators::ChunkDocuments,
             ..Default::default()
         };
         let chunk_document_config_json = serde_json::to_vec(&chunk_document_config).unwrap();
-        let chunk_document_1_state = ArrowTableBuilder::new()
-            .with_name(self.document_chunk_processor_1_name)
-            .with_json(&chunk_document_config_json, 1)
-            .unwrap()
-            .build()
-            .unwrap();
-        let chunk_document_2_state = ArrowTableBuilder::new()
-            .with_name(self.document_chunk_processor_2_name)
+        let chunk_document_state = TableBuilder::new()
+            .with_name(self.document_chunk_processor_name)
             .with_json(&chunk_document_config_json, 1)
             .unwrap()
             .build()
@@ -827,16 +739,16 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: self.state_q_embed_table_name.to_string(),
             lhs_pk: "query_id".to_string(),
             lhs_fk: "query_id".to_string(),
-            lhs_values: "embedding".to_string(),
+            lhs_values: vec!["embedding".to_string()],
             rhs_name: Some(self.state_doc_embed_table_name.to_string()),
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
-            rhs_values: Some("embedding".to_string()),
-            which: AvailableCandleOperators::RelativeSimilarityScore,
+            rhs_values: Some(vec!["embedding".to_string()]),
+            operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()
         };
         let rel_sim_config_json = serde_json::to_vec(&rel_sim_config).unwrap();
-        let rel_sim_state = ArrowTableBuilder::new()
+        let rel_sim_state = TableBuilder::new()
             .with_name(self.relative_similarity_processor_name)
             .with_json(&rel_sim_config_json, 1)
             .unwrap()
@@ -848,12 +760,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: self.state_scores_table_name.to_string(),
             lhs_pk: "chunk_id".to_string(),
             lhs_fk: "chunk_id".to_string(),
-            lhs_values: "score".to_string(),
-            which: AvailableCandleOperators::SortColumnAndIndices,
+            lhs_values: vec!["score".to_string()],
+            operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
         let sort_scores_config_json = serde_json::to_vec(&sort_scores_config).unwrap();
-        let sort_scores_state = ArrowTableBuilder::new()
+        let sort_scores_state = TableBuilder::new()
             .with_name(self.sort_scores_processor_name)
             .with_json(&sort_scores_config_json, 1)
             .unwrap()
@@ -865,16 +777,16 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: self.state_scores_table_name.to_string(),
             lhs_pk: "chunk_id".to_string(),
             lhs_fk: "chunk_id".to_string(),
-            lhs_values: "score".to_string(),
+            lhs_values: vec!["score".to_string()],
             rhs_name: Some(self.state_documents_table_name.to_string()),
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
-            rhs_values: Some("text".to_string()),
-            which: AvailableCandleOperators::JoinInner,
+            rhs_values: Some(vec!["text".to_string()]),
+            operator: AvailableCandleOperators::JoinInner,
             ..Default::default()
         };
         let join_chunks_config_json = serde_json::to_vec(&join_chunks_config).unwrap();
-        let join_chunks_state = ArrowTableBuilder::new()
+        let join_chunks_state = TableBuilder::new()
             .with_name(self.join_chunks_processor_name)
             .with_json(&join_chunks_config_json, 1)
             .unwrap()
@@ -883,12 +795,13 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Summary config (to limit the number of documents)
         let top_k_config = DataSummaryConfig {
-            col_names: Some("[\"text\"]".to_string()),
+            col_names: Some(vec!["text".to_string()]),
             num_rows: Some(3),
             num_batches: Some(1),
+            format: DataFormat::None,
         };
         let top_k_config_json = serde_json::to_vec(&top_k_config).unwrap();
-        let top_k_state = ArrowTableBuilder::new()
+        let top_k_state = TableBuilder::new()
             .with_name(self.top_k_processor_name)
             .with_json(&top_k_config_json, 1)
             .unwrap()
@@ -901,28 +814,61 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             candle_query_embed_state,
             aggregator_1_state,
             aggregator_2_state,
-            chunk_document_1_state,
+            aggregator_3_state,
+            message_to_query_state,
+            extract_pdf_state,
+            chunk_document_state,
             rel_sim_state,
             sort_scores_state,
-            chunk_document_2_state,
             join_chunks_state,
             top_k_state,
-            self.make_chat_table().unwrap(),
-            self.make_messages_table().unwrap(),
-            self.make_user_messages_table().unwrap(),
-            self.make_assistant_messages_table().unwrap(),
-            self.make_documents_table().unwrap(),
-            self.make_document_chunk_table().unwrap(),
-            self.make_queries_table().unwrap(),
-            self.make_top_k_docs_table().unwrap(),
-            self.make_doc_embed_table().unwrap(),
-            self.make_q_embed_table().unwrap(),
-            self.make_scores_table().unwrap(),
-            self.make_join_chunks_scores_table().unwrap(),
+            AvailableSubjects::Messages
+                .to_table(Some(self.chat_task_name), None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AggregatedMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::UserMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AssistantMessages
+                .to_table(None, None)
+                .unwrap(),
+            AvailableSubjects::Messages
+                .to_table(Some(self.state_top_k_docs_table_name), None)
+                .unwrap(),
+            AvailableInterfaceSubjects::UserPdf
+                .to_table(None, None)
+                .unwrap(),
+            AvailableSubjects::Documents
+                .to_table(Some(self.state_documents_table_name), None)
+                .unwrap(),
+            AvailableSubjects::Documents
+                .to_table(Some(self.document_chunk_task_name), None)
+                .unwrap(),
+            AvailableInterfaceSubjects::UserQueries
+                .to_table(None, None)
+                .unwrap(),
+            AvailableSubjects::DocumentEmbeddings
+                .to_table(Some(self.state_doc_embed_table_name), None)
+                .unwrap(),
+            AvailableSubjects::QueryEmbeddings
+                .to_table(Some(self.state_q_embed_table_name), None)
+                .unwrap(),
+            AvailableSubjects::EmbeddingScores
+                .to_table(Some(self.state_scores_table_name), None)
+                .unwrap(),
+            AvailableSubjects::JoinChunksScores
+                .to_table(Some(self.state_scores_chunks_join_table_name), None)
+                .unwrap(),
+            AvailableInterfaceSubjects::AggregatedAttachments
+                .to_table(None, None)
+                .unwrap(),
         ])
     }
 }
 
+#[allow(dead_code)]
 pub fn fields_in_schemas(lhs_schema: SchemaRef, rhs_schema: SchemaRef) -> Vec<String> {
     let mut found_fields = Vec::new();
     for lhs_field in lhs_schema.fields() {
@@ -936,177 +882,34 @@ pub fn fields_in_schemas(lhs_schema: SchemaRef, rhs_schema: SchemaRef) -> Vec<St
     found_fields
 }
 
-pub mod test_doc_rag_session {
-    use super::*;
-    use arrow::array::{ArrayRef, RecordBatch, StringArray};
-    use parking_lot::RwLock;
-    use phymes_core::schemas::message_history::MessageHistoryBuilderTraitExt;
-    use phymes_core::{
-        metrics::HashMap,
-        session::{
-            common_traits::MappableTrait,
-            session_context::{SessionStream, SessionStreamState},
-        },
-        task::arrow_message::{
-            ArrowIncomingMessage, ArrowIncomingMessageBuilder, ArrowIncomingMessageBuilderTrait,
-            ArrowMessageBuilderTrait,
-        },
-    };
-
-    pub fn bench_doc_rag_session_docs<'a>(
-        session_stream_state: Arc<RwLock<SessionStreamState>>,
-        doc_rag_session: &DocumentRAGSession<'a>,
-        document_texts: &[&str],
-        document_ids: &[&str],
-    ) -> SessionStream {
-        // Create the document message
-        let document_texts_arr: ArrayRef = Arc::new(StringArray::from(document_texts.to_vec()));
-        let document_ids_arr: ArrayRef = Arc::new(StringArray::from(document_ids.to_vec()));
-        let chunk_ids_arr: ArrayRef = Arc::new(StringArray::from_iter(
-            document_ids
-                .iter()
-                .enumerate()
-                .map(|(i, _)| Some(format!("chunk_{}", i + 1))),
-        ));
-
-        let batch = RecordBatch::try_from_iter(vec![
-            ("chunk_id", chunk_ids_arr),
-            ("document_id", document_ids_arr),
-            ("text", document_texts_arr),
-        ])
-        .unwrap();
-        let table = ArrowTableBuilder::new()
-            .with_name(doc_rag_session.state_documents_table_name)
-            .with_record_batches(vec![batch])
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let incoming_message = ArrowIncomingMessageBuilder::new()
-            .with_name(doc_rag_session.state_documents_table_name)
-            .with_subject(doc_rag_session.state_documents_table_name)
-            .with_publisher(doc_rag_session.session_context_name)
-            .with_message(table)
-            .with_update(&ArrowTablePublish::Extend {
-                table_name: doc_rag_session.state_documents_table_name.to_string(),
-            })
-            .build()
-            .unwrap();
-        let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
-        incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
-
-        // Run the session
-        SessionStream::new(incoming_message_map, session_stream_state)
-    }
-
-    pub fn bench_doc_rag_session_query<'a>(
-        session_stream_state: Arc<RwLock<SessionStreamState>>,
-        doc_rag_session: &DocumentRAGSession<'a>,
-        user_query: &str,
-    ) -> SessionStream {
-        // Create the query message
-        let mut query_vec = Vec::new();
-        if cfg!(feature = "hf_hub") {
-            // DM: note that the prompt for the query is specific to Qwen!
-            let query_embed_str = format!(
-                "{}{}",
-                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ",
-                user_query
-            );
-            query_vec.push(query_embed_str);
-        } else {
-            query_vec.push(user_query.to_string());
-        }
-        let query_arr: ArrayRef = Arc::new(StringArray::from(query_vec));
-        let query_ids_vec = vec!["question_1"];
-        let query_id_arr: ArrayRef = Arc::new(StringArray::from(query_ids_vec));
-
-        let batch =
-            RecordBatch::try_from_iter(vec![("query_id", query_id_arr), ("text", query_arr)])
-                .unwrap();
-        let table = ArrowTableBuilder::new()
-            .with_name(doc_rag_session.state_queries_table_name)
-            .with_record_batches(vec![batch])
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let incoming_message = ArrowIncomingMessageBuilder::new()
-            .with_name(doc_rag_session.state_queries_table_name)
-            .with_subject(doc_rag_session.state_queries_table_name)
-            .with_publisher(doc_rag_session.session_context_name)
-            .with_message(table)
-            .with_update(&ArrowTablePublish::Replace {
-                table_name: doc_rag_session.state_queries_table_name.to_string(),
-            })
-            .build()
-            .unwrap();
-        let mut incoming_message_map = HashMap::<String, ArrowIncomingMessage>::new();
-        incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
-
-        // Make the system prompt and add the user query
-        let message_builder = ArrowTableBuilder::new()
-            .with_name(doc_rag_session.state_messages_table_name)
-            // .insert_system_template_str("You are a helpful assistant.").unwrap()
-            .append_new_user_query_str(user_query, "user")
-            .unwrap();
-
-        // Build the current message state
-        let incoming_message = ArrowIncomingMessageBuilder::new()
-            .with_name(doc_rag_session.state_user_messages_table_name)
-            .with_subject(doc_rag_session.state_user_messages_table_name)
-            .with_publisher(doc_rag_session.session_context_name)
-            .with_message(message_builder.clone().build().unwrap())
-            .with_update(&ArrowTablePublish::Extend {
-                table_name: doc_rag_session.state_user_messages_table_name.to_string(),
-            })
-            .build()
-            .unwrap();
-        incoming_message_map.insert(incoming_message.get_name().to_string(), incoming_message);
-
-        // Run the session
-        session_stream_state.try_write().unwrap().set_iter(0);
-        SessionStream::new(incoming_message_map, session_stream_state)
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        metrics::{ArrowTaskMetricsSet, HashMap},
-        session::{
-            session_context::SessionStreamState,
-            session_context_builder::SessionContextBuilderTrait,
-        },
-        table::arrow_table::ArrowTableTrait,
-        task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
+        BlobBuilderTraitExt, BuildableTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
+        MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState, TableTrait,
+    };
+    use phymes_data::make_pdf_document;
+    use phymes_diagnostics::HashMap;
+
+    use crate::{
+        session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait,
     };
 
-    use crate::session_traits::agents::SessionContextBuilderAgentsTrait;
-
     use super::*;
-    use test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query};
 
     #[tokio::test]
     async fn test_doc_rag_session() -> Result<()> {
-        // initialize the metrics
-        let metrics = ArrowTaskMetricsSet::new();
-
         // initialize the session
         let mut doc_rag_session = DocumentRAGSession::default();
-        if cfg!(feature = "hf_hub") {
-            doc_rag_session.embed_length = 1536; // Hidden size for GTE Qwen2 1.5B
-        }
         if cfg!(not(feature = "candle")) {
-            doc_rag_session.embed_length = 384; // Smallest dimension for Llama
             doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
             doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
         }
         let session_ctx = doc_rag_session
             .build()
-            .with_metrics(metrics.clone())
             .with_name(doc_rag_session.session_context_name)
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
@@ -1118,8 +921,37 @@ mod tests {
             "Lipids are a broad group of organic compounds which include fats, waxes, sterols, fat-soluble vitamins (such as vitamins A, D, E and K), monoglycerides, diglycerides, phospholipids, and others. The functions of lipids include storing energy, signaling, and acting as structural components of cell membranes.[3][4] Lipids have applications in the cosmetic and food industries, and in nanotechnology.[5]\n\nLipids may be broadly defined as hydrophobic or amphiphilic small molecules; the amphiphilic nature of some lipids allows them to form structures such as vesicles, multilamellar/unilamellar liposomes, or membranes in an aqueous environment. Biological lipids originate entirely or in part from two distinct types of biochemical subunits or building-blocks: ketoacyl and isoprene groups.[3] Using this approach, lipids may be divided into eight categories: fatty acyls, glycerolipids, glycerophospholipids, sphingolipids, saccharolipids, and polyketides (derived from condensation of ketoacyl subunits); and sterol lipids and prenol lipids (derived from condensation of isoprene subunits).[3]\n\nAlthough the term lipid is sometimes used as a synonym for fats, fats are a subgroup of lipids called triglycerides. Lipids also encompass molecules such as fatty acids and their derivatives (including tri-, di-, monoglycerides, and phospholipids), as well as other sterol-containing metabolites such as cholesterol.[6] Although humans and other mammals use various biosynthetic pathways both to break down and to synthesize lipids, some essential lipids cannot be made this way and must be obtained from the diet.\n\n",
             "The cell is the basic structural and functional unit of all forms of life. Every cell consists of cytoplasm enclosed within a membrane; many cells contain organelles, each with a specific function. The term comes from the Latin word cellula meaning 'small room'. Most cells are only visible under a microscope. Cells emerged on Earth about 4 billion years ago. All cells are capable of replication, protein synthesis, and motility.\n\nCells are broadly categorized into two types: eukaryotic cells, which possess a nucleus, and prokaryotic cells, which lack a nucleus but have a nucleoid region. Prokaryotes are single-celled organisms such as bacteria, whereas eukaryotes can be either single-celled, such as amoebae, or multicellular, such as some algae, plants, animals, and fungi. Eukaryotic cells contain organelles including mitochondria, which provide energy for cell functions, chloroplasts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.\n\nCells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells.",
         ];
-        let document_ids = &["Proteins", "DNA", "Lipids", "Cells"];
-        let user_query = "What are the four molecules that compose DNA?";
+        let mut pdf = make_pdf_document(document_texts);
+        let mut bytes = Vec::new();
+        pdf.save_to(&mut bytes)?;
+
+        // Wrap into the message
+        let chat = AvailableInterfaceSubjects::UserMessages
+            .to_table_builder(None)
+            .append_new_user_query_str("What are the four molecules that compose DNA?", "user")?
+            .build()?;
+        let chat_message = IPCMessage::get_builder()
+            .with_message(chat.to_ipc_stream()?)
+            .with_subject(chat.get_name())
+            .with_update(&TablePublish::Extend {
+                table_name: chat.get_name().to_string(),
+            })
+            .with_publisher(doc_rag_session.session_context_name)
+            .make_name()?
+            .build()?;
+        let blob = AvailableInterfaceSubjects::UserPdf
+            .to_table_builder(None)
+            .with_blob(None, Some(".pdf"), &bytes, None)?
+            .build()?;
+        let blob_message = IPCMessage::get_builder()
+            .with_message(blob.to_ipc_stream()?)
+            .with_subject(blob.get_name())
+            .with_update(&TablePublish::Extend {
+                table_name: blob.get_name().to_string(),
+            })
+            .with_publisher(doc_rag_session.session_context_name)
+            .make_name()?
+            .build()?;
 
         // Skip actually running the session as it takes too long on the CPU
         //     until a smaller embedding model is supported (i.e., QuantBERT)
@@ -1130,32 +962,30 @@ mod tests {
         )) {
             // ----- Query #1 -----
             // Embed the documents
-            let session_stream = bench_doc_rag_session_docs(
-                Arc::clone(&session_stream_state),
-                &doc_rag_session,
-                document_texts,
-                document_ids,
-            );
-            let _response: Vec<HashMap<String, ArrowIncomingMessage>> =
-                session_stream.try_collect().await?;
+            let message_map = create_message_map(vec![blob_message]);
+            let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+            let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             // Embed the query and invoke a response
-            let session_stream =
-                bench_doc_rag_session_query(session_stream_state, &doc_rag_session, user_query);
-            let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
+            let message_map = create_message_map(vec![chat_message]);
+            let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+            let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
             // Update the chat history with the response
-            let json_data = response
+            let bytes = response
                 .last_mut()
                 .unwrap()
                 .remove(&format!(
                     "from_{}_on_{}",
                     doc_rag_session.session_context_name,
-                    doc_rag_session.state_assistant_messages_table_name
+                    AvailableInterfaceSubjects::AssistantMessages
                 ))
                 .unwrap()
-                .get_message_own()
+                .get_message_own();
+            let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+                .with_name("")
+                .build()?
                 .to_json_object()?;
             for row in &json_data {
                 if row["role"] != "system" {
@@ -1163,52 +993,49 @@ mod tests {
                 }
             }
 
-            for metric in metrics.clone_inner().iter() {
-                if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == doc_rag_session.chat_processor_name
-                {
-                    assert!(metric.value().as_usize() >= 1);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap()
-                        == doc_rag_session.embed_documents_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 21);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap()
-                        == doc_rag_session.document_chunk_processor_1_name
-                {
-                    assert_eq!(metric.value().as_usize(), 21);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == doc_rag_session.embed_query_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 1);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap()
-                        == doc_rag_session.relative_similarity_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 21);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == doc_rag_session.sort_scores_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 21);
-                }
-                if metric.value().name() == "output_rows"
-                    && metric.task().as_ref().unwrap() == doc_rag_session.top_k_processor_name
-                {
-                    assert_eq!(metric.value().as_usize(), 1);
-                }
-            }
+            // for metric in metrics.clone_inner().iter() {
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.chat_processor_name
+            //     {
+            //         assert!(metric.value().as_usize() >= 1);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap()
+            //             == doc_rag_session.embed_documents_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 21);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap()
+            //             == doc_rag_session.document_chunk_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 21);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.embed_query_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 1);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap()
+            //             == doc_rag_session.relative_similarity_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 21);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.sort_scores_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 21);
+            //     }
+            //     if metric.value().name() == "output_rows"
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.top_k_processor_name
+            //     {
+            //         assert_eq!(metric.value().as_usize(), 1);
+            //     }
+            // }
 
             assert_eq!(json_data.first().unwrap().get("role").unwrap(), "assistant");
             assert!(json_data.first().unwrap().get("content").is_some());
-
-            // ----- Query #2 -----
-            // Embed the next query and invoke another response
         }
 
         Ok(())

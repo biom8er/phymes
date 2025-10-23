@@ -7,42 +7,29 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
+use phymes_data::make_pdf_document;
+use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
 use phymes_agents::{
-    session_plans::document_rag_session::{
-        DocumentRAGSession,
-        test_doc_rag_session::{bench_doc_rag_session_docs, bench_doc_rag_session_query},
-    },
-    session_traits::agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession,
+    SessionContextBuilderAgentsTrait, create_message_map,
 };
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, HashMap},
-    session::{
-        common_traits::BuilderTrait, session_context::SessionStreamState,
-        session_context_builder::SessionContextBuilderTrait,
-    },
-    table::arrow_table::ArrowTableTrait,
-    task::arrow_message::{ArrowIncomingMessage, ArrowIncomingMessageTrait},
+    AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
+    IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, SessionStream,
+    SessionStreamState, TableBuilder, TableBuilderTrait, TablePublish, TableTrait,
 };
 
 pub async fn run_main() -> Result<()> {
-    // initialize the metrics
-    let metrics = ArrowTaskMetricsSet::new();
-
     // initialize the session
     let mut doc_rag_session = DocumentRAGSession::default();
-    if cfg!(feature = "hf_hub") {
-        doc_rag_session.embed_length = 1536; // Hidden size for GTE Qwen2 1.5B
-    }
     if cfg!(not(feature = "candle")) {
-        doc_rag_session.embed_length = 384; // Smallest dimension for Llama
         doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
         doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
     }
     let session_ctx = doc_rag_session
         .build()
-        .with_metrics(metrics.clone())
         .with_name(doc_rag_session.session_context_name)
         .build_with_tables()?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
@@ -54,52 +41,69 @@ pub async fn run_main() -> Result<()> {
         "Lipids are a broad group of organic compounds which include fats, waxes, sterols, fat-soluble vitamins (such as vitamins A, D, E and K), monoglycerides, diglycerides, phospholipids, and others. The functions of lipids include storing energy, signaling, and acting as structural components of cell membranes.[3][4] Lipids have applications in the cosmetic and food industries, and in nanotechnology.[5]\n\nLipids may be broadly defined as hydrophobic or amphiphilic small molecules; the amphiphilic nature of some lipids allows them to form structures such as vesicles, multilamellar/unilamellar liposomes, or membranes in an aqueous environment. Biological lipids originate entirely or in part from two distinct types of biochemical subunits or building-blocks: ketoacyl and isoprene groups.[3] Using this approach, lipids may be divided into eight categories: fatty acyls, glycerolipids, glycerophospholipids, sphingolipids, saccharolipids, and polyketides (derived from condensation of ketoacyl subunits); and sterol lipids and prenol lipids (derived from condensation of isoprene subunits).[3]\n\nAlthough the term lipid is sometimes used as a synonym for fats, fats are a subgroup of lipids called triglycerides. Lipids also encompass molecules such as fatty acids and their derivatives (including tri-, di-, monoglycerides, and phospholipids), as well as other sterol-containing metabolites such as cholesterol.[6] Although humans and other mammals use various biosynthetic pathways both to break down and to synthesize lipids, some essential lipids cannot be made this way and must be obtained from the diet.\n\n",
         "The cell is the basic structural and functional unit of all forms of life. Every cell consists of cytoplasm enclosed within a membrane; many cells contain organelles, each with a specific function. The term comes from the Latin word cellula meaning 'small room'. Most cells are only visible under a microscope. Cells emerged on Earth about 4 billion years ago. All cells are capable of replication, protein synthesis, and motility.\n\nCells are broadly categorized into two types: eukaryotic cells, which possess a nucleus, and prokaryotic cells, which lack a nucleus but have a nucleoid region. Prokaryotes are single-celled organisms such as bacteria, whereas eukaryotes can be either single-celled, such as amoebae, or multicellular, such as some algae, plants, animals, and fungi. Eukaryotic cells contain organelles including mitochondria, which provide energy for cell functions, chloroplasts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.\n\nCells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells.",
     ];
-    let document_ids = &["Proteins", "DNA", "Lipids", "Cells"];
-    let user_query = "What are the four molecules that compose DNA?";
+    let mut pdf = make_pdf_document(document_texts);
+    let mut bytes = Vec::new();
+    pdf.save_to(&mut bytes)?;
+
+    // Wrap into the message
+    let chat = AvailableInterfaceSubjects::UserMessages
+        .to_table_builder(None)
+        .append_new_user_query_str("What are the four molecules that compose DNA?", "user")?
+        .build()?;
+    let chat_message = IPCMessage::get_builder()
+        .with_message(chat.to_ipc_stream()?)
+        .with_subject(chat.get_name())
+        .with_update(&TablePublish::Extend {
+            table_name: chat.get_name().to_string(),
+        })
+        .with_publisher(doc_rag_session.session_context_name)
+        .make_name()?
+        .build()?;
+    let blob = AvailableInterfaceSubjects::UserPdf
+        .to_table_builder(None)
+        .with_blob(None, Some(".pdf"), &bytes, None)?
+        .build()?;
+    let blob_message = IPCMessage::get_builder()
+        .with_message(blob.to_ipc_stream()?)
+        .with_subject(blob.get_name())
+        .with_update(&TablePublish::Extend {
+            table_name: blob.get_name().to_string(),
+        })
+        .with_publisher(doc_rag_session.session_context_name)
+        .make_name()?
+        .build()?;
 
     // ----- Query #1 -----
     // Embed the documents
-    let session_stream = bench_doc_rag_session_docs(
-        Arc::clone(&session_stream_state),
-        &doc_rag_session,
-        document_texts,
-        document_ids,
-    );
-    let _response: Vec<HashMap<String, ArrowIncomingMessage>> =
-        session_stream.try_collect().await?;
+    let message_map = create_message_map(vec![blob_message]);
+    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+    let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Embed the query and invoke a response
-    let session_stream =
-        bench_doc_rag_session_query(session_stream_state.clone(), &doc_rag_session, user_query);
-    let mut response: Vec<HashMap<String, ArrowIncomingMessage>> =
-        session_stream.try_collect().await?;
+    let message_map = create_message_map(vec![chat_message]);
+    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+    let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response
-    let json_data = response
+    let bytes = response
         .last_mut()
         .unwrap()
         .remove(&format!(
             "from_{}_on_{}",
             doc_rag_session.session_context_name,
-            doc_rag_session.state_assistant_messages_table_name
+            AvailableInterfaceSubjects::AssistantMessages
         ))
         .unwrap()
-        .get_message_own()
+        .get_message_own();
+    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+        .with_name("")
+        .build()?
         .to_json_object()?;
     for row in &json_data {
         if row["role"] != "system" {
             println!("{} @ {}: {}", row["role"], row["timestamp"], row["content"])
         }
     }
-
-    println!(
-        "number of rows {}",
-        metrics.clone_inner().output_rows().unwrap()
-    );
-    println!(
-        "elasped compute {}",
-        metrics.clone_inner().elapsed_compute().unwrap()
-    );
 
     Ok(())
 }

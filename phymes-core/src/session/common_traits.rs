@@ -1,15 +1,11 @@
-use crate::metrics::HashMap;
 use crate::session::runtime_env::RuntimeEnv;
-use crate::table::arrow_table::ArrowTable;
-use crate::task::{
-    arrow_message::{ArrowIncomingIPCMessage, ArrowIncomingMessage, ArrowOutgoingMessage},
-    arrow_processor::ArrowProcessorTrait,
-    arrow_task::ArrowTask,
-};
+use crate::table::Table;
+use crate::task::{IPCMessage, ProcessorTrait, SendableRecordBatchStreamMessage, Task};
 
 /// General imports
 use anyhow::Result;
 use parking_lot::{Mutex, RwLock};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -48,28 +44,25 @@ pub fn device(cpu: bool) -> candle_core::Result<Device> {
 pub type RuntimeEnvMap = HashMap<String, Arc<Mutex<RuntimeEnv>>>;
 
 /// Processor HashMap with Arc-based abstraction
-pub type ProcessorMap = HashMap<String, Arc<dyn ArrowProcessorTrait>>;
+pub type ProcessorMap = HashMap<String, Arc<dyn ProcessorTrait>>;
 
 /// Task HashMap
-pub type TaskMap = HashMap<String, Arc<ArrowTask>>;
+pub type TaskMap = HashMap<String, Arc<Task>>;
 
 /// Table HashMap with Arc/RwLock for thread-safe multiple reads
-pub type StateMap = HashMap<String, Arc<RwLock<ArrowTable>>>;
+pub type StateMap = HashMap<String, Arc<RwLock<Table>>>;
 
 /// Incoming Message HashMap
-pub type IncomingMessageMap = HashMap<String, ArrowIncomingMessage>;
+pub type IPCMessageMap = HashMap<String, IPCMessage>;
 
 /// Outgoing Message HashMap
-pub type OutgoingMessageMap = HashMap<String, ArrowOutgoingMessage>;
-
-/// Incoming IPCMessage HashMap
-pub type IPCMessageMap = HashMap<String, ArrowIncomingIPCMessage>;
+pub type SendableRecordBatchStreamMessageMap = HashMap<String, SendableRecordBatchStreamMessage>;
 
 /// For all objects that can be inserted into a HashMap
 /// based on their `name` attribute
 pub trait MappableTrait {
     /// Short name for the Task, Processor, or any other struct, such as 'AddRows'.
-    /// Like [`get_name`](ArrowTask::get_name) but can be called without an instance.
+    /// that can be called without an instance.
     fn get_static_name() -> &'static str
     where
         Self: Sized,
@@ -136,7 +129,11 @@ pub trait BuilderTrait {
 /// streaming `RecordBatch`es as messages
 pub trait RunnableTrait {
     /// Run the computation
-    fn run(&self, messages: OutgoingMessageMap) -> Result<OutgoingMessageMap>;
+    fn run(
+        &self,
+        messages: SendableRecordBatchStreamMessageMap,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
+    ) -> Result<SendableRecordBatchStreamMessageMap>;
 }
 
 /// For services that process Tensors

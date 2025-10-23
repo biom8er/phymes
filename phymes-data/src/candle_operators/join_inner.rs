@@ -7,19 +7,18 @@ use arrow::{
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor, op::CmpOp};
 use phymes_core::{
-    schemas::{chat_completion, types},
-    session::common_traits::MappableTrait,
-};
-use phymes_core::{
-    session::common_traits::{BuildableTrait, BuilderTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilderTrait, ArrowTableTrait},
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::candle_operators::{
-    data_operator::{DataOperatorTrait, make_error_record_batch},
-    sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
+use crate::{
+    candle_data::DataConfig,
+    candle_operators::{
+        data_operator::DataOperatorTrait,
+        sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
+    },
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
@@ -38,20 +37,16 @@ impl MappableTrait for JoinInner {
 }
 
 impl DataOperatorTrait for JoinInner {
-    fn new(
-        lhs_pk: &str,
-        lhs_fk: &str,
-        _lhs_value: &str,
-        rhs_pk: Option<&str>,
-        rhs_fk: Option<&str>,
-        _rhs_value: Option<&str>,
-        _kwargs: Option<&str>,
-    ) -> Self {
+    fn new(config: &DataConfig) -> Self {
+        let lhs_pk = config.lhs_pk.to_owned();
+        let lhs_fk = config.lhs_fk.to_owned();
+        let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
+        let rhs_fk = config.rhs_fk.to_owned().unwrap_or_default();
         JoinInner {
-            _lhs_pk: lhs_pk.to_string(),
-            lhs_fk: lhs_fk.to_string(),
-            _rhs_pk: rhs_pk.unwrap_or("rhs_pk").to_string(),
-            rhs_fk: rhs_fk.unwrap_or("rhs_fk").to_string(),
+            _lhs_pk: lhs_pk,
+            lhs_fk,
+            _rhs_pk: rhs_pk,
+            rhs_fk,
         }
     }
     fn forward(
@@ -60,16 +55,13 @@ impl DataOperatorTrait for JoinInner {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        match join_inner(
+        join_inner(
             &self.lhs_fk,
             lhs_args,
             &self.rhs_fk,
             rhs_args.unwrap(),
             device,
-        ) {
-            Ok(batch) => Ok(batch),
-            Err(err) => Ok(make_error_record_batch(err.to_string().as_str())),
-        }
+        )
     }
     fn get_description() -> String {
         "Join two tables on their foreign keys".to_string()
@@ -78,24 +70,24 @@ impl DataOperatorTrait for JoinInner {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "rhs_name".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the right hand side table".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
             "lhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the left hand side table".to_string(),
                 ),
@@ -104,8 +96,8 @@ impl DataOperatorTrait for JoinInner {
         );
         properties.insert(
             "rhs_pk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The primary key column identifier for the right hand side table".to_string(),
                 ),
@@ -114,8 +106,8 @@ impl DataOperatorTrait for JoinInner {
         );
         properties.insert(
             "lhs_fk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The foriegn key column identifier for the left hand side table".to_string(),
                 ),
@@ -124,19 +116,19 @@ impl DataOperatorTrait for JoinInner {
         );
         properties.insert(
             "rhs_fk".to_string(),
-            Box::new(types::JSONSchemaDefine {
-                schema_type: Some(types::JSONSchemaType::String),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
                     "The foriegn key column identifier for the right hand side table".to_string(),
                 ),
                 ..Default::default()
             }),
         );
-        let function = types::Function {
+        let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(Self::get_description()),
-            parameters: types::FunctionParameters {
-                schema_type: types::JSONSchemaType::Object,
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
@@ -146,8 +138,8 @@ impl DataOperatorTrait for JoinInner {
                 ]),
             },
         };
-        let tool = chat_completion::Tool {
-            r#type: chat_completion::ToolType::Function,
+        let tool = Tool {
+            r#type: ToolType::Function,
             function,
         };
         serde_json::to_string(&tool).unwrap()
@@ -228,11 +220,11 @@ pub fn join_inner(
     let rhs_sorted = sort_column_and_indices(rhs_fk, rhs_args, true, device)?;
 
     // Wrap the lhs and rhs into an ArrowTable
-    let lhs_table = ArrowTable::get_builder()
+    let lhs_table = Table::get_builder()
         .with_record_batches(vec![lhs_sorted])?
         .with_name("")
         .build()?;
-    let rhs_table = ArrowTable::get_builder()
+    let rhs_table = Table::get_builder()
         .with_record_batches(vec![rhs_sorted])?
         .with_name("")
         .build()?;
@@ -328,10 +320,18 @@ pub fn join_inner(
 
                 // Find matches between foreign keys
                 for (li, lfk) in lhs_fk_vec.iter().enumerate() {
+                    // check for the start of rfk_run
+                    let mut rfk_found = false;
                     for (ri, rfk) in rhs_fk_vec.iter().enumerate() {
                         if lfk == rfk {
                             lhs_indices.push(li as u8);
                             rhs_indices.push(ri as u8);
+                            rfk_found = true;
+                        }
+
+                        // take advantage of the presorting of fks to break early
+                        if lfk != rfk && rfk_found {
+                            break;
                         }
                     }
                 }
@@ -367,21 +367,38 @@ pub fn join_inner(
     batch_vec.extend(take_columns_by_indices(
         &lhs_columns,
         &lhs_table,
-        lhs_asort_arr,
-        lhs_asort_tensor,
+        &lhs_asort_arr,
+        &lhs_asort_tensor,
         device,
     )?);
-    let rhs_columns: Vec<String> = rhs_table
-        .get_schema()
-        .fields()
-        .iter()
-        .map(|field| field.name().to_owned())
-        .collect();
+
+    // Skip the rhs_fk if it matches the lhs_fk
+    let rhs_columns: Vec<String> = if lhs_fk == rhs_fk {
+        rhs_table
+            .get_schema()
+            .fields()
+            .iter()
+            .filter_map(|field| {
+                if field.name() == rhs_fk {
+                    None
+                } else {
+                    Some(field.name().to_owned())
+                }
+            })
+            .collect()
+    } else {
+        rhs_table
+            .get_schema()
+            .fields()
+            .iter()
+            .map(|field| field.name().to_owned())
+            .collect()
+    };
     batch_vec.extend(take_columns_by_indices(
         &rhs_columns,
         &rhs_table,
-        rhs_asort_arr,
-        rhs_asort_tensor,
+        &rhs_asort_arr,
+        &rhs_asort_tensor,
         device,
     )?);
     let batch = RecordBatch::try_from_iter(batch_vec)?;
@@ -391,7 +408,7 @@ pub fn join_inner(
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt8Array, UInt32Array};
-    use phymes_core::session::common_traits::device;
+    use phymes_core::device;
 
     use super::*;
 

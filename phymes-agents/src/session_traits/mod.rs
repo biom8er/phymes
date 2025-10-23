@@ -1,3 +1,7 @@
-pub mod agents;
-pub mod mermaid_js;
-pub mod tabular;
+mod agents;
+mod mermaid;
+mod tabular;
+
+pub use agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
+pub use mermaid::{SessionContextBuilderMermaid, SessionContextBuilderMermaidTrait};
+pub use tabular::SessionContextBuilderTabularTrait;

@@ -1,36 +1,20 @@
 use anyhow::Result;
-use arrow::array::{ArrayRef, RecordBatch, StringArray};
+use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_core::session::common_traits::MappableTrait;
-use std::{fmt::Debug, sync::Arc};
+use phymes_core::MappableTrait;
+use std::fmt::Debug;
 
-/// Helper function to create an error message that
-/// can be sent back to a function-calling agent
-pub fn make_error_record_batch(error: &str) -> RecordBatch {
-    let error: ArrayRef = Arc::new(StringArray::from(vec![error]));
-    RecordBatch::try_from_iter(vec![("error", error)]).unwrap()
-}
+use crate::candle_data::DataConfig;
 
 /// Data operators and other tools that utilize tensor services
 pub trait DataOperatorTrait: MappableTrait + Send + Sync + Debug {
     /// Create a new instance of the data operator
-    /// with the given keyword arguments.
+    /// with the given [DataConfig].
     ///
     /// # Arguments
-    /// * `lhs_pk` - Primary Key for the LHS table
-    /// * `lhs_fk` - Foreign Key for the LHS table
-    /// * `lhs_values` - Values column(s) for the LHS table
-    ///   Either a string or a JSON list of strings
-    /// * `kwargs` - Optional JSON string with keyword arguments
-    fn new(
-        lhs_pk: &str,
-        lhs_fk: &str,
-        lhs_values: &str,
-        rhs_pk: Option<&str>,
-        rhs_fk: Option<&str>,
-        rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Self
+    /// * `config` - [DataConfig] struct describing the input parameters
+    ///   including an optional `ops_kwargs` JSON string with keyword arguments
+    fn new(config: &DataConfig) -> Self
     where
         Self: Sized;
 

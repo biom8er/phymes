@@ -1,5 +1,5 @@
-use anyhow::Result;
 use clap::Parser;
+use phymes_core::DataFormat;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
@@ -7,22 +7,21 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 pub struct DataSummaryConfig {
     /// The column names
-    #[arg(long, default_value = "[\"lhs_pk\", \"lhs_fk\"]")]
-    pub col_names: Option<String>,
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub col_names: Option<Vec<String>>,
 
     /// The number of rows
     #[arg(long, default_value = "10")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub num_rows: Option<usize>,
 
     /// The number of batches
     #[arg(long, default_value = "1")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub num_batches: Option<usize>,
-}
 
-impl DataSummaryConfig {
-    #[allow(dead_code)]
-    fn new_from_json(input: &str) -> Result<Self> {
-        let self_data: DataSummaryConfig = serde_json::from_str(input)?;
-        Ok(self_data)
-    }
+    /// The output format
+    #[arg(long)]
+    pub format: DataFormat,
 }

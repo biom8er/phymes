@@ -1,28 +1,27 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
 
 /// General dependencies
 use clap::ValueEnum;
-use phymes_core::{
-    session::common_traits::{BuilderTrait, MappableTrait},
-    table::arrow_table::{ArrowTable, ArrowTableBuilder, ArrowTableBuilderTrait},
-};
+use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilderTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::candle_operators::{
-    chunk_documents::ChunkDocuments, data_operator::DataOperatorTrait,
-    extract_pdf_text::ExtractPDFText, filter_columns_and_indices::FilterColumnsAndIndices,
-    group_by_and_aggregate::GroupByAndAggregate, human_in_the_loop::HumanInTheLoop,
-    join_inner::JoinInner, relative_similarity_score::RelativeSimilarityScore,
-    sort_column_and_indices::SortColumnAndIndices,
+use crate::{
+    candle_data::DataConfig,
+    candle_operators::{
+        ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData,
+        FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages,
+        GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, SelectAndCast,
+        SortColumnAndIndices, VectorDistance,
+    },
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum AvailableCandleOperators {
-    #[value(name = "RelativeSimilarityScore")]
-    #[serde(alias = "relative-similarity-score")]
-    RelativeSimilarityScore,
+    #[value(name = "VectorDistance")]
+    #[serde(alias = "vector-distance")]
+    VectorDistance,
     #[value(name = "SortColumnAndIndices")]
     #[serde(alias = "sort-column-and-indices")]
     SortColumnAndIndices,
@@ -44,33 +43,66 @@ pub enum AvailableCandleOperators {
     #[value(name = "FilterColumnsAndIndices")]
     #[serde(alias = "filter-columns-and-indices")]
     FilterColumnsAndIndices,
+    #[value(name = "ExtractTabularData")]
+    #[serde(alias = "extract-tabular-data")]
+    ExtractTabularData,
+    #[value(name = "SelectAndCast")]
+    #[serde(alias = "select-and-cast")]
+    SelectAndCast,
+    #[value(name = "ApplyTemplate")]
+    #[serde(alias = "apply-template")]
+    ApplyTemplate,
+    #[value(name = "Pivot")]
+    #[serde(alias = "pivot")]
+    Pivot,
+    #[value(name = "NormalizeTime")]
+    #[serde(alias = "NormalizeTime")]
+    NormalizeTime,
+    #[value(name = "FromTasksToParticipants")]
+    #[serde(alias = "FromTasksToParticipants")]
+    FromTasksToParticipants,
+    #[value(name = "FromTracesToMessages")]
+    #[serde(alias = "FromTracesToMessages")]
+    FromTracesToMessages,
 }
 
 impl Default for AvailableCandleOperators {
     fn default() -> Self {
-        Self::RelativeSimilarityScore
+        Self::VectorDistance
+    }
+}
+
+impl Display for AvailableCandleOperators {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::VectorDistance => write!(f, "{}", VectorDistance::get_static_name()),
+            Self::SortColumnAndIndices => write!(f, "{}", SortColumnAndIndices::get_static_name()),
+            Self::HumanInTheLoop => write!(f, "{}", HumanInTheLoop::get_static_name()),
+            Self::ChunkDocuments => write!(f, "{}", ChunkDocuments::get_static_name()),
+            Self::JoinInner => write!(f, "{}", JoinInner::get_static_name()),
+            Self::ExtractPDFText => write!(f, "{}", ExtractPDFText::get_static_name()),
+            Self::GroupByAndAggregate => write!(f, "{}", GroupByAndAggregate::get_static_name()),
+            Self::FilterColumnsAndIndices => {
+                write!(f, "{}", FilterColumnsAndIndices::get_static_name())
+            }
+            Self::ExtractTabularData => write!(f, "{}", ExtractTabularData::get_static_name()),
+            Self::SelectAndCast => write!(f, "{}", SelectAndCast::get_static_name()),
+            Self::ApplyTemplate => write!(f, "{}", ApplyTemplate::get_static_name()),
+            Self::Pivot => write!(f, "{}", Pivot::get_static_name()),
+            Self::NormalizeTime => write!(f, "{}", NormalizeTime::get_static_name()),
+            Self::FromTasksToParticipants => {
+                write!(f, "{}", FromTasksToParticipants::get_static_name())
+            }
+            Self::FromTracesToMessages => write!(f, "{}", FromTracesToMessages::get_static_name()),
+        }
     }
 }
 
 impl AvailableCandleOperators {
-    /// Wrapper to return the name of any SortColumnAndIndices
-    pub fn get_name(&self) -> &str {
-        match self {
-            Self::RelativeSimilarityScore => RelativeSimilarityScore::get_static_name(),
-            Self::SortColumnAndIndices => SortColumnAndIndices::get_static_name(),
-            Self::HumanInTheLoop => HumanInTheLoop::get_static_name(),
-            Self::ChunkDocuments => ChunkDocuments::get_static_name(),
-            Self::JoinInner => JoinInner::get_static_name(),
-            Self::ExtractPDFText => ExtractPDFText::get_static_name(),
-            Self::GroupByAndAggregate => GroupByAndAggregate::get_static_name(),
-            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_static_name(),
-        }
-    }
-
     /// Wrapper to return the JSON schema SortColumnAndIndices
     pub fn get_json_tool_schema(&self) -> String {
         match self {
-            Self::RelativeSimilarityScore => RelativeSimilarityScore::get_json_tool_schema(),
+            Self::VectorDistance => VectorDistance::get_json_tool_schema(),
             Self::SortColumnAndIndices => SortColumnAndIndices::get_json_tool_schema(),
             Self::HumanInTheLoop => HumanInTheLoop::get_json_tool_schema(),
             Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
@@ -78,79 +110,45 @@ impl AvailableCandleOperators {
             Self::ExtractPDFText => ExtractPDFText::get_json_tool_schema(),
             Self::GroupByAndAggregate => GroupByAndAggregate::get_json_tool_schema(),
             Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_json_tool_schema(),
-        }
-    }
-
-    /// Return the operatiSortColumnAndIndices
-    pub fn new_from_name(name: &str) -> Option<Self> {
-        if name == RelativeSimilarityScore::get_static_name() {
-            Some(Self::RelativeSimilarityScore)
-        } else if name == SortColumnAndIndices::get_static_name() {
-            Some(Self::SortColumnAndIndices)
-        } else if name == HumanInTheLoop::get_static_name() {
-            Some(Self::HumanInTheLoop)
-        } else if name == ChunkDocuments::get_static_name() {
-            Some(Self::ChunkDocuments)
-        } else if name == JoinInner::get_static_name() {
-            Some(Self::JoinInner)
-        } else if name == ExtractPDFText::get_static_name() {
-            Some(Self::ExtractPDFText)
-        } else if name == GroupByAndAggregate::get_static_name() {
-            Some(Self::GroupByAndAggregate)
-        } else if name == FilterColumnsAndIndices::get_static_name() {
-            Some(Self::FilterColumnsAndIndices)
-        } else {
-            None
+            Self::ExtractTabularData => ExtractTabularData::get_json_tool_schema(),
+            Self::SelectAndCast => SelectAndCast::get_json_tool_schema(),
+            Self::ApplyTemplate => ApplyTemplate::get_json_tool_schema(),
+            Self::Pivot => Pivot::get_json_tool_schema(),
+            Self::NormalizeTime => NormalizeTime::get_json_tool_schema(),
+            Self::FromTasksToParticipants => FromTasksToParticipants::get_json_tool_schema(),
+            Self::FromTracesToMessages => FromTracesToMessages::get_json_tool_schema(),
         }
     }
 
     /// Build the actual operator
     #[allow(clippy::too_many_arguments)]
-    pub fn build(
-        &self,
-        lhs_pk: &str,
-        lhs_fk: &str,
-        lhs_values: &str,
-        rhs_pk: Option<&str>,
-        rhs_fk: Option<&str>,
-        rhs_values: Option<&str>,
-        kwargs: Option<&str>,
-    ) -> Box<dyn DataOperatorTrait> {
+    pub fn build(&self, config: &DataConfig) -> Box<dyn DataOperatorTrait> {
         match self {
-            Self::RelativeSimilarityScore => Box::new(RelativeSimilarityScore::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::SortColumnAndIndices => Box::new(SortColumnAndIndices::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::ChunkDocuments => Box::new(ChunkDocuments::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::JoinInner => Box::new(JoinInner::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::ExtractPDFText => Box::new(ExtractPDFText::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::GroupByAndAggregate => Box::new(GroupByAndAggregate::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
-            Self::FilterColumnsAndIndices => Box::new(FilterColumnsAndIndices::new(
-                lhs_pk, lhs_fk, lhs_values, rhs_pk, rhs_fk, rhs_values, kwargs,
-            )),
+            Self::VectorDistance => Box::new(VectorDistance::new(config)),
+            Self::SortColumnAndIndices => Box::new(SortColumnAndIndices::new(config)),
+            Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(config)),
+            Self::ChunkDocuments => Box::new(ChunkDocuments::new(config)),
+            Self::JoinInner => Box::new(JoinInner::new(config)),
+            Self::ExtractPDFText => Box::new(ExtractPDFText::new(config)),
+            Self::GroupByAndAggregate => Box::new(GroupByAndAggregate::new(config)),
+            Self::FilterColumnsAndIndices => Box::new(FilterColumnsAndIndices::new(config)),
+            Self::ExtractTabularData => Box::new(ExtractTabularData::new(config)),
+            Self::SelectAndCast => Box::new(SelectAndCast::new(config)),
+            Self::ApplyTemplate => Box::new(ApplyTemplate::new(config)),
+            Self::Pivot => Box::new(Pivot::new(config)),
+            Self::NormalizeTime => Box::new(NormalizeTime::new(config)),
+            Self::FromTasksToParticipants => Box::new(FromTasksToParticipants::new(config)),
+            Self::FromTracesToMessages => Box::new(FromTracesToMessages::new(config)),
         }
     }
 }
 
-pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Option<ArrowTable> {
+pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Option<Table> {
     let mut tool_id_vec = Vec::new();
     let mut tool_vec = Vec::new();
     for destination in destinations.iter() {
-        if let Some(ops) = AvailableCandleOperators::new_from_name(destination) {
-            tool_id_vec.push(ops.get_name().to_string());
+        if let Ok(ops) = AvailableCandleOperators::from_str(destination, false) {
+            tool_id_vec.push(ops.to_string());
             tool_vec.push(ops.get_json_tool_schema());
         }
     }
@@ -160,7 +158,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
         let tool_id: ArrayRef = Arc::new(StringArray::from(tool_id_vec));
         let tool: ArrayRef = Arc::new(StringArray::from(tool_vec));
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)]).unwrap();
-        let table = ArrowTableBuilder::new()
+        let table = TableBuilder::new()
             .with_name(name)
             .with_record_batches(vec![batch])
             .unwrap()
@@ -172,7 +170,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::table::arrow_table::ArrowTableTrait;
+    use phymes_core::TableTrait;
 
     use super::*;
 
@@ -181,170 +179,41 @@ mod tests {
         let result = convert_destinations_to_tools(
             "test",
             &[
-                "RelativeSimilarityScore".to_string(),
+                "VectorDistance".to_string(),
                 "SortColumnAndIndices".to_string(),
                 "ChunkDocuments".to_string(),
                 "JoinInner".to_string(),
                 "HumanInTheLoop".to_string(),
                 "GroupByAndAggregate".to_string(),
                 "FilterColumnsAndIndices".to_string(),
+                "ExtractTabularData".to_string(),
+                "SelectAndCast".to_string(),
+                "ApplyTemplate".to_string(),
+                "Pivot".to_string(),
+                "NormalizeTime".to_string(),
+                "FromTasksToParticipants".to_string(),
+                "FromTracesToMessages".to_string(),
             ],
         )
         .unwrap();
         assert_eq!(
             result.get_column_as_vec_str("tool_id"),
             &[
-                "RelativeSimilarityScore",
+                "VectorDistance",
                 "SortColumnAndIndices",
                 "ChunkDocuments",
                 "JoinInner",
                 "HumanInTheLoop",
                 "GroupByAndAggregate",
-                "FilterColumnsAndIndices"
+                "FilterColumnsAndIndices",
+                "ExtractTabularData",
+                "SelectAndCast",
+                "ApplyTemplate",
+                "Pivot",
+                "NormalizeTime",
+                "FromTasksToParticipants",
+                "FromTracesToMessages",
             ]
-        );
-        let functions = result.get_column_as_vec_str("tool");
-        assert!(functions.first().unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"RelativeSimilarityScore\",\"description\":\"Compute the relative similarity score between two different lists of embedding vectors\"")
-        );
-        assert!(
-            functions
-                .first()
-                .unwrap()
-                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
-        );
-        assert!(functions.first().unwrap().contains("\"lhs_name\":{\"type\":\"string\",\"description\":\"The name of the left hand side table\"")
-        );
-        assert!(functions.first().unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the left hand side table\"")
-        );
-        assert!(functions.first().unwrap().contains("\"lhs_pk\":{\"type\":\"string\",\"description\":\"The primary key column identifier for the left hand side table\"")
-        );
-        assert!(functions.first().unwrap().contains("\"rhs_name\":{\"type\":\"string\",\"description\":\"The name of the right hand side table\"")
-        );
-        assert!(functions.first().unwrap().contains("\"rhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the right hand side table\"")
-        );
-        assert!(functions.first().unwrap().contains("\"rhs_pk\":{\"type\":\"string\",\"description\":\"The primary key column identifier for the right hand side table\"")
-        );
-        assert!(
-            functions
-                .first()
-                .unwrap()
-                .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\",\"rhs_name\",\"rhs_pk\",\"rhs_values\"]}}}")
-        );
-
-        assert!(functions.get(1).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"SortColumnAndIndices\",\"description\":\"Sort the the list of computed scores in ascending order\"")
-        );
-        assert!(
-            functions
-                .get(1)
-                .unwrap()
-                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
-        );
-        assert!(functions.get(1).unwrap().contains("\"lhs_name\":{\"type\":\"string\",\"description\":\"The name of the left hand side table\"")
-        );
-        assert!(functions.get(1).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the left hand side table\"")
-        );
-        assert!(functions.get(1).unwrap().contains("\"lhs_pk\":{\"type\":\"string\",\"description\":\"The primary key column identifier for the left hand side table\"")
-        );
-        assert!(
-            functions
-                .get(1)
-                .unwrap()
-                .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
-        );
-
-        assert!(functions.get(2).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"ChunkDocuments\",\"description\":\"Chunk documents by splitting the document text\"")
-        );
-        assert!(
-            functions
-                .get(2)
-                .unwrap()
-                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
-        );
-        assert!(functions.get(2).unwrap().contains("\"lhs_name\":{\"type\":\"string\",\"description\":\"The name of the left hand side table\"")
-        );
-        assert!(functions.get(2).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the left hand side table\"")
-        );
-        assert!(functions.get(2).unwrap().contains("\"lhs_pk\":{\"type\":\"string\",\"description\":\"The primary key column identifier for the left hand side table\"")
-        );
-        assert!(
-            functions
-                .get(2)
-                .unwrap()
-                .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
-        );
-
-        assert!(functions.get(3).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"JoinInner\",\"description\":\"Join two tables on their foreign keys\"")
-        );
-        assert!(
-            functions
-                .get(3)
-                .unwrap()
-                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
-        );
-        assert!(functions.get(3).unwrap().contains("\"lhs_name\":{\"type\":\"string\",\"description\":\"The name of the left hand side table\"")
-        );
-        assert!(functions.get(3).unwrap().contains("\"rhs_name\":{\"type\":\"string\",\"description\":\"The name of the right hand side table\"")
-        );
-        assert!(functions.get(3).unwrap().contains("\"lhs_fk\":{\"type\":\"string\",\"description\":\"The foriegn key column identifier for the left hand side table\"")
-        );
-        assert!(functions.get(3).unwrap().contains("\"rhs_fk\":{\"type\":\"string\",\"description\":\"The foriegn key column identifier for the right hand side table\"")
-        );
-        assert!(
-            functions
-                .get(3)
-                .unwrap()
-                .contains("\"required\":[\"lhs_name\",\"rhs_name\",\"lhs_fk\",\"rhs_fk\"]}}}")
-        );
-
-        assert!(functions.get(4).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"HumanInTheLoop\",\"description\":\"The response to the user.\"")
-        );
-        assert!(
-            functions
-                .get(4)
-                .unwrap()
-                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
-        );
-        assert!(functions.get(4).unwrap().contains("\"lhs_args\":{\"type\":\"string\",\"description\":\"Format lhs_args value according to the schema {\\\"content\\\": \\\"`RESPONSE`\\\"} where `RESPONSE` is where you put your response for the user\"")
-        );
-        assert!(
-            functions
-                .get(4)
-                .unwrap()
-                .contains("\"required\":[\"lhs_args\"]}}}")
-        );
-
-        assert!(functions.get(5).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"GroupByAndAggregate\",\"description\":\"Group by user specified columns and aggregate user specified aggregation columns using the user specified aggregation operators.\"")
-        );
-        assert!(
-            functions
-                .get(5)
-                .unwrap()
-                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
-        );
-        assert!(functions.get(5).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the left hand side table in the form of a JSON list of strings\"")
-        );
-        assert!(
-            functions
-                .get(5)
-                .unwrap()
-                .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
-        );
-
-        assert!(functions.get(6).unwrap().contains("{\"type\":\"function\",\"function\":{\"name\":\"FilterColumnsAndIndices\",\"description\":\"Filter by specified columns using a specified comparator operator over specified columns.\"")
-        );
-        assert!(
-            functions
-                .get(6)
-                .unwrap()
-                .contains("\"parameters\":{\"type\":\"object\",\"properties\":{")
-        );
-        assert!(functions.get(6).unwrap().contains("\"lhs_values\":{\"type\":\"string\",\"description\":\"The values column identifier for the left hand side table in the form of a JSON list of strings\"")
-        );
-        assert!(
-            functions
-                .get(6)
-                .unwrap()
-                .contains("\"required\":[\"lhs_name\",\"lhs_pk\",\"lhs_values\"]}}}")
         );
     }
 

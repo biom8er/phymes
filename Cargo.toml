@@ -5,7 +5,8 @@ members = [
     "phymes-app",
     "phymes-core",
     "phymes-data",
-    "phymes-server"
+    "phymes-server",
+    "phymes-diagnostics"
 ]
 resolver = "3"
 

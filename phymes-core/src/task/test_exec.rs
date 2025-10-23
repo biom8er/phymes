@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -31,11 +32,11 @@ use tokio::task::JoinSet;
 
 // Required for documentation
 #[allow(unused_imports)]
-use super::arrow_task::ArrowTask;
+use super::task_trait::Task;
 
 use crate::table::{
-    stream::{RecordBatchStream, SendableRecordBatchStream},
-    stream_adapter::{EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStreamAdapter},
+    EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStream, RecordBatchStreamAdapter,
+    SendableRecordBatchStream,
 };
 
 use arrow::{
@@ -46,6 +47,7 @@ use arrow::{
 
 /// For objects that run computation and send/recieve
 /// streaming `RecordBatch`es as messages
+#[allow(dead_code)]
 pub trait SendableRecordBatchExecTrait: Debug + Send + Sync {
     fn get_static_name() -> &'static str
     where
@@ -104,7 +106,7 @@ pub async fn collect_partitions_runs(
     Ok(batches)
 }
 
-/// Run the [`ArrowTask`] and return a vec with one stream per output
+/// Run the [`Task`] and return a vec with one stream per output
 /// partition
 ///
 /// # Aborting Execution
@@ -138,7 +140,7 @@ pub async fn collect_stream_helper(stream: SendableRecordBatchStream) -> Result<
     stream.try_collect::<Vec<_>>().await
 }
 
-/// Run the [`ArrowTask`] and return a single stream of `RecordBatch`es.
+/// Run the [`Task`] and return a single stream of `RecordBatch`es.
 ///
 /// # Aborting Execution
 ///

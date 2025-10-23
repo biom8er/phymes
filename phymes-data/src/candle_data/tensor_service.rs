@@ -1,5 +1,5 @@
 use candle_core::Device;
-use phymes_core::session::common_traits::TensorProcessorTrait;
+use phymes_core::TensorProcessorTrait;
 
 /// The actual asset struct
 #[derive(Debug)]

@@ -5,10 +5,10 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use anyhow::{Result, anyhow};
+use phymes_diagnostics::BaselineMetrics;
 
-use crate::metrics::BaselineMetrics;
 use crate::table::stream::{RecordBatchStream, SendableRecordBatchStream};
-use crate::task::test_exec::SendableRecordBatchExecTrait;
+use crate::task::SendableRecordBatchExecTrait;
 
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
@@ -69,6 +69,7 @@ impl<O: Send + 'static + std::fmt::Debug> ReceiverStreamBuilder<O> {
     ///
     /// This is often used to spawn tasks that write to the sender
     /// retrieved from `Self::tx`.
+    #[allow(dead_code)]
     pub fn spawn_blocking<F>(&mut self, f: F)
     where
         F: FnOnce() -> Result<()>,
@@ -155,8 +156,8 @@ impl<O: Send + 'static + std::fmt::Debug> ReceiverStreamBuilder<O> {
 /// # use std::sync::Arc;
 /// # use arrow::datatypes::{Schema, Field, DataType};
 /// # use arrow::array::RecordBatch;
-/// # use phymes_core::table::stream::SendableRecordBatchStream;
-/// # use phymes_core::table::stream_adapter::RecordBatchReceiverStreamBuilder;
+/// # use phymes_core::SendableRecordBatchStream;
+/// # use phymes_core::RecordBatchReceiverStreamBuilder;
 /// # use futures::stream::StreamExt;
 /// # use tokio::runtime::Builder;
 /// # let rt = Builder::new_current_thread().build().unwrap();
@@ -233,6 +234,7 @@ impl RecordBatchReceiverStreamBuilder {
     /// This is often used to spawn tasks that write to the sender
     /// retrieved from [`Self::tx`], for examples, see the document
     /// of this type.
+    #[allow(dead_code)]
     pub fn spawn_blocking<F>(&mut self, f: F)
     where
         F: FnOnce() -> Result<()>,
@@ -346,8 +348,8 @@ impl<S> RecordBatchStreamAdapter<S> {
     /// # use arrow::array::ArrayRef;
     /// # use arrow::record_batch::RecordBatch;
     /// # use std::sync::Arc;
-    /// # use phymes_core::table::stream::SendableRecordBatchStream;
-    /// # use phymes_core::table::stream_adapter::RecordBatchStreamAdapter;
+    /// # use phymes_core::SendableRecordBatchStream;
+    /// # use phymes_core::RecordBatchStreamAdapter;
     /// // Create stream of Result<RecordBatch>
     /// let int_arr: ArrayRef = Arc::new(Int32Array::from(vec![1, 2, 3]));
     /// let float_arr: ArrayRef = Arc::new(Float64Array::from(vec![Some(4.0), None, Some(5.0)]));
@@ -400,11 +402,13 @@ where
 
 /// `EmptyRecordBatchStream` can be used to create a [`RecordBatchStream`]
 /// that will produce no results
+#[allow(dead_code)]
 pub struct EmptyRecordBatchStream {
     /// Schema wrapped by Arc
     schema: SchemaRef,
 }
 
+#[allow(dead_code)]
 impl EmptyRecordBatchStream {
     /// Create an empty RecordBatchStream
     pub fn new(schema: SchemaRef) -> Self {
@@ -428,12 +432,14 @@ impl Stream for EmptyRecordBatchStream {
 
 /// Stream wrapper that records `BaselineMetrics` for a particular
 /// `[SendableRecordBatchStream]` (likely a partition)
+#[allow(dead_code)]
 pub struct ObservedStream {
     inner: SendableRecordBatchStream,
     baseline_metrics: BaselineMetrics,
 }
 
 impl ObservedStream {
+    #[allow(dead_code)]
     pub fn new(inner: SendableRecordBatchStream, baseline_metrics: BaselineMetrics) -> Self {
         Self {
             inner,
@@ -463,11 +469,11 @@ mod test {
     use arrow::datatypes::{DataType, Field, Schema};
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
-    use crate::task::test_exec::BlockingExec;
-    use crate::task::test_exec::{MockExec, PanicExecWrapper};
+    use crate::task::BlockingExec;
+    use crate::task::{MockExec, PanicExecWrapper};
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
-    use crate::task::test_exec::assert_strong_count_converges_to_zero;
+    use crate::task::assert_strong_count_converges_to_zero;
 
     fn schema() -> SchemaRef {
         Arc::new(Schema::new(vec![Field::new("a", DataType::Float32, true)]))

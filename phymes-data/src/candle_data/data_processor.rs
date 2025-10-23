@@ -1,27 +1,11 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
-use crate::candle_operators::data_operator::{DataOperatorTrait, make_error_record_batch};
+use crate::candle_operators::DataOperatorTrait;
 use phymes_core::{
-    metrics::{ArrowTaskMetricsSet, BaselineMetrics, HashMap},
-    session::{
-        common_traits::{
-            BuildableTrait, BuilderTrait, MappableTrait, OutgoingMessageMap, StateMap, device,
-        },
-        runtime_env::RuntimeEnv,
-    },
-    table::{
-        arrow_table::{ArrowTableBuilder, ArrowTableBuilderTrait, ArrowTableTrait},
-        arrow_table_publish::ArrowTablePublish,
-        arrow_table_subscribe::{AllTableNamesSubscribe, ArrowTableSubscribe, SubscribeTrait},
-        stream::{RecordBatchStream, SendableRecordBatchStream},
-    },
-    task::{
-        arrow_message::{
-            ArrowMessageBuilderTrait, ArrowMessageTrait, ArrowOutgoingMessage,
-            ArrowOutgoingMessageBuilderTrait, ArrowOutgoingMessageTrait,
-        },
-        arrow_processor::ArrowProcessorTrait,
-        publish_subscribe::PubSubTrait,
-    },
+    AllTableNamesSubscribe, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait,
+    MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, TableBuilder, TableBuilderTrait,
+    TablePublish, TableSubscribe, TableTrait, device,
 };
 
 use arrow::{
@@ -33,6 +17,9 @@ use arrow::{
 use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+};
 use std::{
     pin::Pin,
     sync::Arc,
@@ -47,8 +34,8 @@ use tracing::{Level, event, instrument};
 #[derive(Debug)]
 pub struct CandleDataProcessor {
     name: String,
-    publications: Vec<ArrowTablePublish>,
-    subscriptions: Vec<ArrowTableSubscribe>,
+    publications: Vec<TablePublish>,
+    subscriptions: Vec<TableSubscribe>,
     subscribe: Box<dyn SubscribeTrait>,
 }
 
@@ -59,11 +46,11 @@ impl MappableTrait for CandleDataProcessor {
 }
 
 impl PubSubTrait for CandleDataProcessor {
-    fn get_publications(&self) -> Vec<&ArrowTablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublish> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&ArrowTableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
@@ -72,13 +59,13 @@ impl PubSubTrait for CandleDataProcessor {
     }
 }
 
-impl ArrowProcessorTrait for CandleDataProcessor {
+impl ProcessorTrait for CandleDataProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[ArrowTablePublish],
-        subscriptions: &[ArrowTableSubscribe],
+        publications: &[TablePublish],
+        subscriptions: &[TableSubscribe],
         subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ArrowProcessorTrait> {
+    ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
@@ -87,11 +74,11 @@ impl ArrowProcessorTrait for CandleDataProcessor {
         })
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ArrowProcessorTrait> {
+    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![ArrowTablePublish::None],
-            subscriptions: vec![ArrowTableSubscribe::None],
+            publications: vec![TablePublish::None],
+            subscriptions: vec![TableSubscribe::None],
             subscribe: AllTableNamesSubscribe::new_box(),
         })
     }
@@ -104,14 +91,26 @@ impl ArrowProcessorTrait for CandleDataProcessor {
         Self::get_static_name()
     }
 
-    #[instrument(skip(self, message, metrics, runtime_env))]
+    #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
     fn process(
         &self,
-        mut message: OutgoingMessageMap,
-        metrics: ArrowTaskMetricsSet,
+        mut message: SendableRecordBatchStreamMessageMap,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<OutgoingMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
+
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
 
         // Extract out the config
         let config = match message.remove(self.get_name()) {
@@ -120,7 +119,7 @@ impl ArrowProcessorTrait for CandleDataProcessor {
         };
 
         // Remove subscriptions
-        let mut subscriptions = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut subscriptions = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         for subs in self.subscriptions.iter() {
             if subs.get_table_name() != self.get_name() {
                 match message.remove(subs.get_table_name()) {
@@ -140,13 +139,14 @@ impl ArrowProcessorTrait for CandleDataProcessor {
         }
 
         // Run the ops
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(CandleDataStream::new(
             subscriptions,
             config,
             Arc::clone(&runtime_env),
-            BaselineMetrics::new(&metrics, self.get_name()),
+            stream_diagnostic_builder,
         )?);
-        let out_m = ArrowOutgoingMessage::get_builder()
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
@@ -154,6 +154,12 @@ impl ArrowProcessorTrait for CandleDataProcessor {
             .with_update(self.publications.first().unwrap())
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&message.values().collect::<Vec<_>>());
+        }
+
         Ok(message)
     }
 }
@@ -163,13 +169,13 @@ impl ArrowProcessorTrait for CandleDataProcessor {
 pub struct CandleDataStream {
     /// The messages containing the lhs and rhs
     /// which we cannot determine until we intialize the config
-    messages: OutgoingMessageMap,
+    messages: SendableRecordBatchStreamMessageMap,
     /// Parameters for tensor operations
     config_stream: SendableRecordBatchStream,
     /// The tensor services needed for inference
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
-    baseline_metrics: BaselineMetrics,
+    diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for tensor operations
     config: Option<DataConfig>,
     /// The data operator to run
@@ -186,15 +192,15 @@ pub struct CandleDataStream {
 
 impl CandleDataStream {
     pub fn new(
-        messages: OutgoingMessageMap,
+        messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        baseline_metrics: BaselineMetrics,
+        diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
             messages,
             config_stream,
-            baseline_metrics,
+            diagnostic_builder,
             runtime_env,
             config: None,
             data_operator: None,
@@ -208,19 +214,12 @@ impl CandleDataStream {
     #[instrument(skip(self))]
     fn init_tensor_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
-            if self
-                .runtime_env
-                .try_lock()
-                .unwrap()
-                .tensor_service
-                .is_none()
-            {
+            if self.runtime_env.lock().tensor_service.is_none() {
                 let device = device(config.cpu)?;
                 let service = CandleTensorService::new(device);
                 let _ = self
                     .runtime_env
-                    .try_lock()
-                    .unwrap()
+                    .lock()
                     .tensor_service
                     .replace(Box::new(service));
             }
@@ -242,11 +241,21 @@ impl Stream for CandleDataStream {
         }
 
         // Initialize the metrics
-        let metrics = self.baseline_metrics.clone();
-        let _timer = metrics.elapsed_compute().timer();
+        let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            Some(
+                diagnostic_builder
+                    .clone()
+                    .to_child("CandleDataStream")?
+                    .baseline_metrics(line!(), file!(), "poll_next"),
+            )
+        } else {
+            None
+        };
+        let _timer = baseline_metrics
+            .as_ref()
+            .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
         // Intialize the config
-        event!(Level::DEBUG, "Initializing config.");
         if self.config.is_none() {
             let mut batches = Vec::new();
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
@@ -267,12 +276,12 @@ impl Stream for CandleDataStream {
                     .collect::<Vec<_>>()
                     .join("");
                 let mut config_values: serde_json::Value = serde_json::from_str(&config_json)?;
-                config_values["arguments"]["which"] = config_values["name"].clone();
+                config_values["arguments"]["operator"] = config_values["name"].clone();
                 let config: DataConfig =
                     serde_json::from_value(config_values.get("arguments").unwrap().clone())?;
                 self.config.replace(config);
             } else {
-                let config_table = ArrowTableBuilder::new()
+                let config_table = TableBuilder::new()
                     .with_name("config")
                     .with_record_batches(batches)?
                     .build()?;
@@ -285,20 +294,16 @@ impl Stream for CandleDataStream {
 
         // Build the data operator
         if self.data_operator.is_none() {
-            let config = self.config.as_ref().unwrap().clone();
-            self.data_operator.replace(config.which.build(
-                &config.lhs_pk,
-                &config.lhs_fk,
-                &config.lhs_values,
-                config.rhs_pk.as_deref(),
-                config.rhs_fk.as_deref(),
-                config.rhs_values.as_deref(),
-                config.op_kwargs.as_deref(),
-            ));
+            let operator = self
+                .config
+                .as_ref()
+                .unwrap()
+                .operator
+                .build(self.config.as_ref().unwrap());
+            self.data_operator.replace(operator);
         }
 
         // Collect the LHS queries
-        event!(Level::DEBUG, "Collecting LHS.");
         if self.lhs_inbox.is_empty() {
             let lhs_name = self.config.as_ref().unwrap().lhs_name.clone();
             let lhs = match self.messages.get_mut(lhs_name.as_str()) {
@@ -314,28 +319,17 @@ impl Stream for CandleDataStream {
                     // Extract the input from the config
                     match self.config.as_ref().unwrap().lhs_args.as_ref() {
                         Some(qs) => {
-                            let table = match ArrowTableBuilder::new().with_json(qs.as_bytes(), 512)
-                            {
-                                Ok(builder) => builder.with_name("").build()?,
-                                Err(err) => {
-                                    self.is_finished = true;
-                                    event!(Level::ERROR, "{}", err.to_string().as_str());
-                                    return Poll::Ready(Some(Ok(make_error_record_batch(
-                                        err.to_string().as_str(),
-                                    ))));
-                                }
-                            };
+                            let table = TableBuilder::new()
+                                .with_json(qs.as_bytes(), 512)?
+                                .with_name("")
+                                .build()?;
                             table.get_record_batches_own()
                         }
                         None => {
                             self.is_finished = true;
-                            let error_str = format!(
+                            return Poll::Ready(Some(Err(anyhow!(
                                 "lhs_name {lhs_name} does not exist. Available options are {:?}",
                                 self.messages.keys()
-                            );
-                            event!(Level::ERROR, error_str);
-                            return Poll::Ready(Some(Ok(make_error_record_batch(
-                                error_str.as_str(),
                             ))));
                         }
                     }
@@ -345,7 +339,6 @@ impl Stream for CandleDataStream {
         };
 
         // Collect the RHS document chunks
-        event!(Level::DEBUG, "Collecting RHS.");
         if self.rhs_inbox.is_empty() && self.config.as_ref().unwrap().rhs_name.is_some() {
             let rhs_name = self
                 .config
@@ -375,28 +368,17 @@ impl Stream for CandleDataStream {
                     // Extract the input from the config
                     match self.config.as_ref().unwrap().rhs_args.as_ref() {
                         Some(qs) => {
-                            let table = match ArrowTableBuilder::new().with_json(qs.as_bytes(), 512)
-                            {
-                                Ok(builder) => builder.with_name("").build()?,
-                                Err(err) => {
-                                    self.is_finished = true;
-                                    event!(Level::ERROR, "{}", err.to_string().as_str());
-                                    return Poll::Ready(Some(Ok(make_error_record_batch(
-                                        err.to_string().as_str(),
-                                    ))));
-                                }
-                            };
+                            let table = TableBuilder::new()
+                                .with_json(qs.as_bytes(), 512)?
+                                .with_name("")
+                                .build()?;
                             table.get_record_batches_own()
                         }
                         None => {
                             self.is_finished = true;
-                            let error_str = format!(
+                            return Poll::Ready(Some(Err(anyhow!(
                                 "rhs_name {rhs_name} does not exist. Available options are {:?}",
                                 self.messages.keys()
-                            );
-                            event!(Level::ERROR, error_str);
-                            return Poll::Ready(Some(Ok(make_error_record_batch(
-                                error_str.as_str(),
                             ))));
                         }
                     }
@@ -406,11 +388,6 @@ impl Stream for CandleDataStream {
         }
 
         // Compute the data operator
-        event!(
-            Level::DEBUG,
-            "Executing {}.",
-            self.config.as_ref().unwrap().which.get_name()
-        );
         self.init_tensor_service()?;
         let batch = self.data_operator.as_ref().unwrap().forward(
             &self.lhs_inbox,
@@ -437,7 +414,11 @@ impl Stream for CandleDataStream {
         // record the poll
         self.is_finished = true;
         let poll = Poll::Ready(Some(Ok(batch)));
-        metrics.record_poll(poll)
+        if let Some(baseline_metrics) = &baseline_metrics {
+            baseline_metrics.record_poll(poll)
+        } else {
+            poll
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -451,6 +432,7 @@ impl RecordBatchStream for CandleDataStream {
     }
 }
 
+#[allow(dead_code)]
 pub mod test_candle_ops_processor {
     use std::sync::Arc;
 
@@ -461,7 +443,7 @@ pub mod test_candle_ops_processor {
         datatypes::{DataType, Field},
     };
 
-    fn make_embeddings_f32(embeddings: Vec<Vec<f32>>) -> ArrayRef {
+    pub fn make_embeddings_f32(embeddings: Vec<Vec<f32>>) -> ArrayRef {
         // Parse the embeddings
         let dim_1 = embeddings.len();
         let dim_2 = embeddings.first().unwrap().len();
@@ -510,10 +492,11 @@ pub mod test_candle_ops_processor {
 
 #[cfg(test)]
 mod tests {
-    use crate::candle_operators::available_candle_operators::AvailableCandleOperators;
+    use crate::candle_operators::AvailableCandleOperators;
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
-    use phymes_core::table::{arrow_table::ArrowTable, arrow_table_publish::ArrowTablePublish};
+    use phymes_core::{Table, TablePublish};
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
 
@@ -531,7 +514,7 @@ mod tests {
             lhs_ids_vec,
             lhs_embeddings_vec,
         )?;
-        let lhs_table = ArrowTable::get_builder()
+        let lhs_table = Table::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
@@ -547,30 +530,30 @@ mod tests {
             rhs_ids_vec,
             rhs_embeddings_vec,
         )?;
-        let rhs_table = ArrowTable::get_builder()
+        let rhs_table = Table::get_builder()
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch])?
             .build()?;
 
         // Make the input message
-        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = messages.insert(
             lhs_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
         let _ = messages.insert(
             rhs_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -581,21 +564,22 @@ mod tests {
             rhs_name: Some("rhs_name".to_string()),
             lhs_pk: "lhs_pk".to_string(),
             lhs_fk: "lhs_fk".to_string(),
-            lhs_values: "embedding".to_string(),
+            lhs_values: vec!["embedding".to_string()],
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
-            rhs_values: Some("embedding".to_string()),
-            which: AvailableCandleOperators::RelativeSimilarityScore,
+            rhs_values: Some(vec!["embedding".to_string()]),
+            operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()
         };
-        let config_table = ArrowTable::get_builder()
+        let config_table = Table::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config)?, 1)?
             .build()?;
 
         // Make the metrics
-        let metrics = ArrowTaskMetricsSet::new();
-        let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor");
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
         let device = device(config.cpu)?;
@@ -614,7 +598,7 @@ mod tests {
             messages,
             config_table.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            baseline_metrics,
+            Some(diagnostic_builder.clone()),
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
@@ -672,26 +656,25 @@ mod tests {
         assert_eq!(scores, scores_test);
 
         // Case 2: LHS and RHS from config
-        let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor");
 
         // Make the config
         let config_args = DataConfig {
-            which: AvailableCandleOperators::HumanInTheLoop,
+            operator: AvailableCandleOperators::HumanInTheLoop,
             lhs_args: Some("{\"role\": \"assistant\", \"content\": \"RESPONSE\"}".to_string()),
             rhs_args: None,
             ..Default::default()
         };
-        let config_args_table = ArrowTable::get_builder()
+        let config_args_table = Table::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config_args)?, 1)?
             .build()?;
 
         // Make the stream and run
         let ops_stream = CandleDataStream::new(
-            HashMap::<String, ArrowOutgoingMessage>::new(),
+            HashMap::<String, SendableRecordBatchStreamMessage>::new(),
             config_args_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            baseline_metrics,
+            Some(diagnostic_builder.clone()),
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
@@ -741,7 +724,7 @@ mod tests {
             lhs_ids_vec_2,
             lhs_embeddings_vec_2,
         )?;
-        let lhs_table = ArrowTable::get_builder()
+        let lhs_table = Table::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch_1, lhs_batch_2])?
             .build()?;
@@ -759,43 +742,40 @@ mod tests {
             rhs_ids_vec_2,
             rhs_embeddings_vec_2,
         )?;
-        let rhs_table = ArrowTable::get_builder()
+        let rhs_table = Table::get_builder()
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch_1, rhs_batch_2])?
             .build()?;
 
         // Make the input message
-        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = messages.insert(
             lhs_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
         let _ = messages.insert(
             rhs_table.get_name().to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
-
-        // Make the config and metrics
-        let baseline_metrics = BaselineMetrics::new(&metrics.clone(), "candle_ops_processor");
 
         // Make the stream and run
         let ops_stream = CandleDataStream::new(
             messages,
             config_table.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
-            baseline_metrics,
+            Some(diagnostic_builder.clone()),
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
@@ -863,7 +843,7 @@ mod tests {
     #[tokio::test]
     async fn test_candle_ops_processor() -> Result<()> {
         // LHS and RHS messages
-        let mut messages = HashMap::<String, ArrowOutgoingMessage>::new();
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let lhs_ids_vec = vec!["1", "2", "3"];
         let lhs_embeddings_vec: Vec<Vec<f32>> = vec![
             vec![1., 1., 1., 1.],
@@ -875,17 +855,17 @@ mod tests {
             lhs_ids_vec,
             lhs_embeddings_vec,
         )?;
-        let lhs_table = ArrowTable::get_builder()
+        let lhs_table = Table::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
         let _ = messages.insert(
             "lhs_name".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("lhs_name")
                 .with_publisher("")
                 .with_subject("lhs_name")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(lhs_table.to_record_batch_stream())
                 .build()?,
         );
@@ -901,17 +881,17 @@ mod tests {
             rhs_ids_vec,
             rhs_embeddings_vec,
         )?;
-        let rhs_table = ArrowTable::get_builder()
+        let rhs_table = Table::get_builder()
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch])?
             .build()?;
         let _ = messages.insert(
             "rhs_name".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("rhs_name")
                 .with_publisher("")
                 .with_subject("rhs_name")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(rhs_table.to_record_batch_stream())
                 .build()?,
         );
@@ -922,30 +902,32 @@ mod tests {
             rhs_name: Some("rhs_name".to_string()),
             lhs_pk: "lhs_pk".to_string(),
             lhs_fk: "lhs_fk".to_string(),
-            lhs_values: "embedding".to_string(),
+            lhs_values: vec!["embedding".to_string()],
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
-            rhs_values: Some("embedding".to_string()),
-            which: AvailableCandleOperators::RelativeSimilarityScore,
+            rhs_values: Some(vec!["embedding".to_string()]),
+            operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = ArrowTableBuilder::new()
+        let config_table = TableBuilder::new()
             .with_name("candle_ops_processor")
             .with_json(&config_json, 1)?
             .build()?;
         let _ = messages.insert(
             "candle_ops_processor".to_string(),
-            ArrowOutgoingMessage::get_builder()
+            SendableRecordBatchStreamMessage::get_builder()
                 .with_name("candle_ops_processor")
                 .with_publisher("")
                 .with_subject("")
-                .with_update(&ArrowTablePublish::None)
+                .with_update(&TablePublish::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );
 
-        let metrics = ArrowTaskMetricsSet::new();
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
         let device = device(config.cpu)?;
@@ -962,20 +944,21 @@ mod tests {
         // Make the stream and run
         let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
             "candle_ops_processor",
-            &[ArrowTablePublish::Replace {
+            &[TablePublish::Replace {
                 table_name: "results".to_string(),
             }],
             &[
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: "lhs_name".to_string(),
                 },
-                ArrowTableSubscribe::AlwaysFullTable {
+                TableSubscribe::AlwaysFullTable {
                     table_name: "rhs_name".to_string(),
                 },
             ],
             AllTableNamesSubscribe::new_box(),
         );
-        let mut ops_stream = ops_processor.process(messages, metrics, runtime_env)?;
+        let mut ops_stream =
+            ops_processor.process(messages, Some(&diagnostic_builder), runtime_env)?;
         let result = ops_stream
             .remove("results")
             .unwrap()

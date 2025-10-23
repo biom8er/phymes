@@ -16,6 +16,8 @@ use tower_http::{
 };
 
 // General imports
+#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+use crate::server::server_config::ServerConfig;
 #[allow(unused_imports)]
 use anyhow::Result;
 #[allow(unused_imports)]
@@ -26,16 +28,12 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 
 // From lib
-#[allow(unused_imports)]
-use super::{server_config::ServerConfig, server_state::ServerState};
-use crate::handlers::{
-    session_info::{
-        session_mermaid_js, session_metrics_info, session_subjects_num_rows,
-        session_subjects_schema,
+use crate::{
+    handlers::{
+        authorize, session_build, session_diagnostics, session_get_state, session_put_state,
+        session_stream, sign_in,
     },
-    session_state::{session_get_state, session_put_state},
-    session_stream::session_stream,
-    sign_in::{authorize, sign_in},
+    state::{ServerState, UserState},
 };
 
 #[derive(Default)]
@@ -44,42 +42,50 @@ pub struct AppBuilder {
 }
 
 impl AppBuilder {
-    pub fn new() -> Self {
+    pub fn new(user_session_context_name: Option<&str>) -> Self {
         // Application state
-        let state = ServerState::new();
+        let user_state = UserState::new(user_session_context_name);
+        let server_state = ServerState::new();
 
         // Router
         let app: Router = Router::new()
             .route("/app/v1/sign_in", post(sign_in))
             .route(
                 "/app/v1/chat",
-                post(session_stream).layer(middleware::from_fn(authorize)),
-            )
-            .route(
-                "/app/v1/subjects_schema",
-                post(session_subjects_schema).layer(middleware::from_fn(authorize)),
-            )
-            .route(
-                "/app/v1/subjects_num_rows",
-                post(session_subjects_num_rows).layer(middleware::from_fn(authorize)),
-            )
-            .route(
-                "/app/v1/mermaid_js",
-                post(session_mermaid_js).layer(middleware::from_fn(authorize)),
-            )
-            .route(
-                "/app/v1/metrics_info",
-                post(session_metrics_info).layer(middleware::from_fn(authorize)),
+                post(session_stream).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
             )
             .route(
                 "/app/v1/put_state",
-                post(session_put_state).layer(middleware::from_fn(authorize)),
+                post(session_put_state).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
             )
             .route(
                 "/app/v1/get_state",
-                post(session_get_state).layer(middleware::from_fn(authorize)),
+                post(session_get_state).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
             )
-            .with_state(state);
+            .route(
+                "/app/v1/build",
+                post(session_build).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
+            )
+            .route(
+                "/app/v1/diagnostics",
+                post(session_diagnostics).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
+            )
+            .with_state((user_state.clone(), server_state));
         Self { app }
     }
 
@@ -147,7 +153,7 @@ impl Server {
     pub async fn run(&self) -> Result<()> {
         // initialize the front-end
         let frontend = async {
-            let app: Router = AppBuilder::new()
+            let app: Router = AppBuilder::new(None)
                 .with_fallback(self.config.try_read().unwrap().assets_dir.as_str())
                 .with_trace_layer()
                 .with_cors_layer()
