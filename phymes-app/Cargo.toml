@@ -1,6 +1,6 @@
 [package]
 name = "phymes-app"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Douglas McCloskey"]
 # DM: updating to 2024 causes many "error[E0716]: temporary value dropped while borrowed"
 #  when using dioxus `use_memo`
