@@ -175,6 +175,7 @@ pub fn create_metrics_mermaid_gantt_batch(
     Ok(batch)
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MetricMermaidGanttSubject {
     pub processor_traces: String,

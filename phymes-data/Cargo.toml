@@ -16,7 +16,9 @@ mkl-dynamic = ["dep:intel-mkl-src", "intel-mkl-src/mkl-dynamic-lp64-iomp", "cand
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 nccl = ["cuda", "cudarc/nccl"]
-wasip2 = ["phymes-core/wasip2", "phymes-diagnostics/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "lopdf/wasm_js"]
+wasip2 = ["phymes-core/wasip2", "phymes-diagnostics/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", 
+    #"lopdf/wasm_js" # flate2 -> miniz_oxide -> simd-adler32 breaks now...
+]
 wsl = ["phymes-core/wsl", "phymes-diagnostics/wsl", "tokio/full", "lopdf/async", "lopdf/rayon"]
 gpu = ["cuda", "cudnn", "nccl"]
 openai_api = []
@@ -25,12 +27,12 @@ candle = [] # force use of candle models when openai_api is available
 [dependencies]
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
-arrow = { version = "54.3.1", default-features = false }
-candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.9.1" }
-tokio = { version = "1.45.1", default-features = false, optional = true}
+arrow = { version = "56.2.0", default-features = false }
+candle-core = { version = "0.9.1" }
+tokio = { version = "1.47.0", default-features = false, optional = true}
 futures = { version = "0.3.31", default-features = false }
 clap = { version = "4.2.4", features = ["derive"] }
-anyhow = { version = "1", features = ["backtrace"] }
+anyhow = { version = "1", default-features = false }
 tracing = "0.1.41"
 tracing-chrome = "0.7.1"
 tracing-subscriber = "0.3.7"
@@ -48,11 +50,12 @@ getrandom = { version = "0.3.1", features = ["wasm_js"] }
 getrandom_0_2 = { package = "getrandom", version = "0.2.15", features = ["js"] }
 chrono = "0.4.41"
 rayon = { version = "1.6"}
-lopdf = { git = "https://github.com/J-F-Liu/lopdf.git", version = "0.38.0", default-features = false, features = ["rayon"], optional = true }
+#lopdf = { path = "../../lopdf", default-features = false, features = ["rayon"], optional = true }
+lopdf = { version = "0.38.0", default-features = false, features = ["rayon"], optional = true }
 num-traits = { version = "0.2", default-features = false }
 
 [dev-dependencies]
-criterion = { version = "0.3", default-features = false, features = ["cargo_bench_support"] }
+criterion = { version = "0.7", default-features = false, features = ["cargo_bench_support"] }
 
 [[bench]]
 name = "candle_ops"

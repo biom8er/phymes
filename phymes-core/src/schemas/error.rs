@@ -23,6 +23,7 @@ pub(crate) fn create_error_fields() -> Fields {
     Fields::from(vec![error])
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct ErrorSubject {
     pub error: String,

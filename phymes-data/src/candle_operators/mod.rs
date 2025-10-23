@@ -2,6 +2,7 @@ mod apply_template;
 mod available_candle_operators;
 mod chunk_documents;
 mod data_operator;
+#[cfg(not(target_family = "wasm"))]
 mod extract_pdf_text;
 mod extract_tabular_data;
 mod filter_columns_and_indices;
@@ -17,6 +18,7 @@ pub use apply_template::ApplyTemplate;
 pub use available_candle_operators::{AvailableCandleOperators, convert_destinations_to_tools};
 pub use chunk_documents::ChunkDocuments;
 pub use data_operator::DataOperatorTrait;
+#[cfg(not(target_family = "wasm"))]
 pub use extract_pdf_text::{ExtractPDFText, make_pdf_document};
 pub use extract_tabular_data::{ExtractTabularData, test_extract_tabular_data};
 pub use filter_columns_and_indices::{FilterColumnsAndIndices, filter_columns_and_indices};

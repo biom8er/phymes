@@ -76,6 +76,7 @@ pub(crate) fn create_user_session_contexts_fields() -> Fields {
     Fields::from(vec![email, session_context_name])
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct UserSessionContextsSubject {
     pub email: String,
@@ -100,6 +101,7 @@ pub(crate) fn create_user_inbox_fields() -> Fields {
     Fields::from(vec![email])
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct UserInboxSubject {
     pub email: String,

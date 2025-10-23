@@ -7,10 +7,12 @@ use clap::ValueEnum;
 use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilderTrait};
 use serde::{Deserialize, Serialize};
 
+#[cfg(not(target_family = "wasm"))]
+use crate::candle_operators::ExtractPDFText;
 use crate::{
     candle_data::DataConfig,
     candle_operators::{
-        ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData,
+        ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractTabularData,
         FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages,
         GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, SelectAndCast,
         SortColumnAndIndices, VectorDistance,
@@ -33,7 +35,8 @@ pub enum AvailableCandleOperators {
     ChunkDocuments,
     #[value(name = "JoinInner")]
     #[serde(alias = "join-inner")]
-    JoinInner,
+    JoinInner,    
+    #[cfg(not(target_family = "wasm"))]
     #[value(name = "ExtractPDFText")]
     #[serde(alias = "extract-pdf-text")]
     ExtractPDFText,
@@ -80,6 +83,7 @@ impl Display for AvailableCandleOperators {
             Self::HumanInTheLoop => write!(f, "{}", HumanInTheLoop::get_static_name()),
             Self::ChunkDocuments => write!(f, "{}", ChunkDocuments::get_static_name()),
             Self::JoinInner => write!(f, "{}", JoinInner::get_static_name()),
+            #[cfg(not(target_family = "wasm"))]
             Self::ExtractPDFText => write!(f, "{}", ExtractPDFText::get_static_name()),
             Self::GroupByAndAggregate => write!(f, "{}", GroupByAndAggregate::get_static_name()),
             Self::FilterColumnsAndIndices => {
@@ -106,7 +110,8 @@ impl AvailableCandleOperators {
             Self::SortColumnAndIndices => SortColumnAndIndices::get_json_tool_schema(),
             Self::HumanInTheLoop => HumanInTheLoop::get_json_tool_schema(),
             Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
-            Self::JoinInner => JoinInner::get_json_tool_schema(),
+            Self::JoinInner => JoinInner::get_json_tool_schema(),            
+            #[cfg(not(target_family = "wasm"))]
             Self::ExtractPDFText => ExtractPDFText::get_json_tool_schema(),
             Self::GroupByAndAggregate => GroupByAndAggregate::get_json_tool_schema(),
             Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_json_tool_schema(),
@@ -129,6 +134,7 @@ impl AvailableCandleOperators {
             Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(config)),
             Self::ChunkDocuments => Box::new(ChunkDocuments::new(config)),
             Self::JoinInner => Box::new(JoinInner::new(config)),
+            #[cfg(not(target_family = "wasm"))]
             Self::ExtractPDFText => Box::new(ExtractPDFText::new(config)),
             Self::GroupByAndAggregate => Box::new(GroupByAndAggregate::new(config)),
             Self::FilterColumnsAndIndices => Box::new(FilterColumnsAndIndices::new(config)),

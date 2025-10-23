@@ -284,7 +284,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             }
             _ => Err(anyhow!(
                 "Unsupported data type {} for column {}",
-                data_type.to_string(),
+                data_type,
                 column_name
             )),
         }
@@ -479,7 +479,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             }
             _ => Err(anyhow!(
                 "Unsupported data type {} for column {}",
-                data_type.to_string(),
+                data_type,
                 column_name
             )),
         }
@@ -540,7 +540,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             }
             _ => Err(anyhow!(
                 "Unsupported data type {} for column {}",
-                data_type.to_string(),
+                data_type,
                 column_name
             )),
         }
@@ -601,7 +601,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             }
             _ => Err(anyhow!(
                 "Unsupported data type {} for column {}",
-                data_type.to_string(),
+                data_type,
                 column_name
             )),
         }

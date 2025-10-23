@@ -34,7 +34,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup Rust toolchain
@@ -48,7 +48,7 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           name: mdbook
           path: target/book
@@ -68,17 +68,14 @@ jobs:
       pages: write  # To push to a GitHub Pages site
       id-token: write # To update the deployment status
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Install python dev
-        run: |
-          apt update
-          apt install -y libpython3.11-dev
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
       - name: Run cargo doc
         run: |
+          cargo doc --document-private-items --no-deps -p phymes-diagnostics
           cargo doc --document-private-items --no-deps -p phymes-core
           cargo doc --document-private-items --no-deps -p phymes-ml
           cargo doc --document-private-items --no-deps -p phymes-data
@@ -93,7 +90,7 @@ jobs:
               echo "::warning title=Invalid file permissions automatically fixed::$line"
           done
       - name: Upload cargo docs artifacts
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           name: crate-docs
           path: target/doc

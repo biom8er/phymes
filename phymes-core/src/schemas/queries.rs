@@ -26,6 +26,7 @@ pub fn create_queries_batch(query_ids: Vec<String>, text: Vec<String>) -> Result
     Ok(batch)
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct QueriesSubject {
     pub query_id: String,

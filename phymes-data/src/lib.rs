@@ -8,12 +8,14 @@ pub use candle_data::{
     DataConfig, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor,
     collect_messages_by_schema,
 };
+#[cfg(not(target_family = "wasm"))]
+pub use candle_operators::{ExtractPDFText, make_pdf_document};
 pub use candle_operators::{
-    ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDFText,
+    ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait,
     ExtractTabularData, FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages,
     GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, SelectAndCast,
     SortColumnAndIndices, VectorDistance, convert_destinations_to_tools,
-    filter_columns_and_indices, group_by_and_aggregate, make_pdf_document, sort_column_and_indices,
+    filter_columns_and_indices, group_by_and_aggregate, sort_column_and_indices,
     test_extract_tabular_data,
 };
 pub use jinja2_templates::{
