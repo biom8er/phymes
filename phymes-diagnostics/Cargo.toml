@@ -18,7 +18,7 @@ gpu = [] # for compatibility with agents
 candle = [] # for compatibility with agents
 
 [dependencies]
-arrow = { version = "54.3.1", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
+arrow = { version = "56.2.0", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
 anyhow = "1.0.95"
 clap = { version = "4.2.4", features = ["derive"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
