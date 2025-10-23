@@ -905,9 +905,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             || task_names_vec.clone().into_iter().collect::<HashSet<_>>() != task_names
         {
             return Err(anyhow!(
-                "There is an inconsistency in the task labels {:?} and task mentions {:?}",
-                task_names_vec,
-                task_names
+                "There is an inconsistency in the task labels {task_names_vec:?} and task mentions {task_names:?}"
             ));
         }
         for name in task_names_vec {
@@ -925,9 +923,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 != runtime_envs_names
         {
             return Err(anyhow!(
-                "There is an inconsistency in the runtime environment labels {:?} and runtime environment mentions {:?}",
-                runtime_env_names_vec,
-                runtime_envs_names
+                "There is an inconsistency in the runtime environment labels {runtime_env_names_vec:?} and runtime environment mentions {runtime_envs_names:?}"
             ));
         }
         for name in runtime_env_names_vec {
@@ -945,9 +941,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 != processor_names
         {
             return Err(anyhow!(
-                "There is an inconsistency in the processor labels {:?} and processor mentions {:?}",
-                processor_names_vec,
-                processor_names
+                "There is an inconsistency in the processor labels {processor_names_vec:?} and processor mentions {processor_names:?}"
             ));
         }
         for name in processor_names_vec {
@@ -970,9 +964,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 != subject_names
         {
             return Err(anyhow!(
-                "There is an inconsistency in the subject labels {:?} and subject mentions {:?}",
-                subject_names_vec,
-                subject_names
+                "There is an inconsistency in the subject labels {subject_names_vec:?} and subject mentions {subject_names:?}"
             ));
         }
         if agent_subjects {
@@ -1080,9 +1072,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             || subjects_vec.clone().into_iter().collect::<HashSet<_>>() != subject_names
         {
             return Err(anyhow!(
-                "There is an inconsistency in the subject tables {:?} and subject mentions {:?}",
-                subjects_vec,
-                subject_names
+                "There is an inconsistency in the subject tables {subjects_vec:?} and subject mentions {subject_names:?}"
             ));
         }
         if agent_subjects {

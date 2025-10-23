@@ -215,13 +215,13 @@ fn embeddings_to_tensor(
             _ => Err(anyhow!(
                 "Unsupported data type for column {}: {}",
                 values,
-                field.data_type().to_string()
+                field.data_type()
             )),
         },
         _ => Err(anyhow!(
             "Unsupported data type for column {}: {}",
             values,
-            table.get_column_data_type(values)?.to_string()
+            table.get_column_data_type(values)?
         )),
     }
 }
@@ -243,9 +243,7 @@ fn tensor_to_scores(
         }
         _ => {
             return Err(anyhow!(
-                "Unsupported distance operator for {}: {}",
-                lhs_values,
-                dist_operator
+                "Unsupported distance operator for {lhs_values}: {dist_operator}"
             ));
         }
     };
@@ -278,13 +276,13 @@ fn tensor_to_scores(
             _ => Err(anyhow!(
                 "Unsupported data type for column {}: {}",
                 lhs_values,
-                field.data_type().to_string()
+                field.data_type()
             )),
         },
         _ => Err(anyhow!(
             "Unsupported data type for column {}: {}",
             lhs_values,
-            lhs_table.get_column_data_type(lhs_values)?.to_string()
+            lhs_table.get_column_data_type(lhs_values)?
         )),
     }
 }
@@ -397,7 +395,7 @@ fn vector_distance(
             return Err(anyhow!(
                 "Unsupported data type for column {}: {}",
                 lhs_pk,
-                lhs_table.get_column_data_type(lhs_pk)?.to_string()
+                lhs_table.get_column_data_type(lhs_pk)?
             ));
         }
     };
@@ -463,7 +461,7 @@ fn vector_distance(
             return Err(anyhow!(
                 "Unsupported data type for column {}: {}",
                 rhs_pk,
-                rhs_table.get_column_data_type(rhs_pk)?.to_string()
+                rhs_table.get_column_data_type(rhs_pk)?
             ));
         }
     };

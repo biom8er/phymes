@@ -246,15 +246,14 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     {
         let data_type = arr.data_type();
         if data_type.is_primitive() {
-            return Err(anyhow!("Column {} is a primitive type", column_name));
+            return Err(anyhow!("Column {column_name} is a primitive type"));
         }
         use std::any::TypeId;
         match data_type {
             DataType::Utf8 => {
                 if TypeId::of::<T>() != TypeId::of::<String>() {
                     return Err(anyhow!(
-                        "Expected String data type for column {}",
-                        column_name
+                        "Expected String data type for column {column_name}"
                     ));
                 }
                 let arr_vec = arr
@@ -268,10 +267,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             }
             DataType::LargeUtf8 => {
                 if TypeId::of::<T>() != TypeId::of::<String>() {
-                    return Err(anyhow!(
-                        "Expected Int16 data type for column {}",
-                        column_name
-                    ));
+                    return Err(anyhow!("Expected Int16 data type for column {column_name}"));
                 }
                 let arr_vec = arr
                     .as_any()
@@ -283,9 +279,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                 Ok(arr_vec)
             }
             _ => Err(anyhow!(
-                "Unsupported data type {} for column {}",
-                data_type,
-                column_name
+                "Unsupported data type {data_type} for column {column_name}"
             )),
         }
     }
@@ -297,7 +291,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     {
         let data_type = arr.data_type();
         if !data_type.is_primitive() {
-            return Err(anyhow!("Column {} is not a primitive type", column_name));
+            return Err(anyhow!("Column {column_name} is not a primitive type"));
         }
         use std::any::TypeId;
         match data_type {
@@ -319,10 +313,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             // }
             DataType::Int8 => {
                 if TypeId::of::<T>() != TypeId::of::<i8>() {
-                    return Err(anyhow!(
-                        "Expected Int8 data type for column {}",
-                        column_name
-                    ));
+                    return Err(anyhow!("Expected Int8 data type for column {column_name}"));
                 }
                 let arr_vec = arr
                     .as_any()
@@ -335,10 +326,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             }
             DataType::Int16 => {
                 if TypeId::of::<T>() != TypeId::of::<i16>() {
-                    return Err(anyhow!(
-                        "Expected Int16 data type for column {}",
-                        column_name
-                    ));
+                    return Err(anyhow!("Expected Int16 data type for column {column_name}"));
                 }
                 let arr_vec = arr
                     .as_any()
@@ -351,10 +339,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             }
             DataType::Int32 => {
                 if TypeId::of::<T>() != TypeId::of::<i32>() {
-                    return Err(anyhow!(
-                        "Expected Int32 data type for column {}",
-                        column_name
-                    ));
+                    return Err(anyhow!("Expected Int32 data type for column {column_name}"));
                 }
                 let arr_vec = arr
                     .as_any()
@@ -367,10 +352,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             }
             DataType::Int64 => {
                 if TypeId::of::<T>() != TypeId::of::<i64>() {
-                    return Err(anyhow!(
-                        "Expected Int64 data type for column {}",
-                        column_name
-                    ));
+                    return Err(anyhow!("Expected Int64 data type for column {column_name}"));
                 }
                 let arr_vec = arr
                     .as_any()
@@ -383,10 +365,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             }
             DataType::UInt8 => {
                 if TypeId::of::<T>() != TypeId::of::<u8>() {
-                    return Err(anyhow!(
-                        "Expected UInt8 data type for column {}",
-                        column_name
-                    ));
+                    return Err(anyhow!("Expected UInt8 data type for column {column_name}"));
                 }
                 let arr_vec = arr
                     .as_any()
@@ -400,8 +379,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             DataType::UInt16 => {
                 if TypeId::of::<T>() != TypeId::of::<u16>() {
                     return Err(anyhow!(
-                        "Expected UInt16 data type for column {}",
-                        column_name
+                        "Expected UInt16 data type for column {column_name}"
                     ));
                 }
                 let arr_vec = arr
@@ -416,8 +394,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             DataType::UInt32 => {
                 if TypeId::of::<T>() != TypeId::of::<u32>() {
                     return Err(anyhow!(
-                        "Expected UInt32 data type for column {}",
-                        column_name
+                        "Expected UInt32 data type for column {column_name}"
                     ));
                 }
                 let arr_vec = arr
@@ -432,8 +409,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             DataType::UInt64 => {
                 if TypeId::of::<T>() != TypeId::of::<u64>() {
                     return Err(anyhow!(
-                        "Expected UInt64 data type for column {}",
-                        column_name
+                        "Expected UInt64 data type for column {column_name}"
                     ));
                 }
                 let arr_vec = arr
@@ -448,8 +424,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             DataType::Float32 => {
                 if TypeId::of::<T>() != TypeId::of::<f32>() {
                     return Err(anyhow!(
-                        "Expected Float32 data type for column {}",
-                        column_name
+                        "Expected Float32 data type for column {column_name}"
                     ));
                 }
                 let arr_vec = arr
@@ -464,8 +439,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             DataType::Float64 => {
                 if TypeId::of::<T>() != TypeId::of::<f64>() {
                     return Err(anyhow!(
-                        "Expected Float64 data type for column {}",
-                        column_name
+                        "Expected Float64 data type for column {column_name}"
                     ));
                 }
                 let arr_vec = arr
@@ -478,9 +452,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                 Ok(arr_vec)
             }
             _ => Err(anyhow!(
-                "Unsupported data type {} for column {}",
-                data_type,
-                column_name
+                "Unsupported data type {data_type} for column {column_name}"
             )),
         }
     }
@@ -491,7 +463,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     {
         let data_type = self.get_column_data_type(column_name)?;
         if !data_type.is_nested() {
-            return Err(anyhow!("Column {} is not a nested type", column_name));
+            return Err(anyhow!("Column {column_name} is not a nested type"));
         }
         match data_type {
             DataType::FixedSizeList(_field, _size) => {
@@ -539,9 +511,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                 Ok(arr_vec)
             }
             _ => Err(anyhow!(
-                "Unsupported data type {} for column {}",
-                data_type,
-                column_name
+                "Unsupported data type {data_type} for column {column_name}"
             )),
         }
     }
@@ -552,7 +522,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     {
         let data_type = self.get_column_data_type(column_name)?;
         if !data_type.is_nested() {
-            return Err(anyhow!("Column {} is not a nested type", column_name));
+            return Err(anyhow!("Column {column_name} is not a nested type"));
         }
         match data_type {
             DataType::FixedSizeList(_field, _size) => {
@@ -600,9 +570,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                 Ok(arr_vec)
             }
             _ => Err(anyhow!(
-                "Unsupported data type {} for column {}",
-                data_type,
-                column_name
+                "Unsupported data type {data_type} for column {column_name}"
             )),
         }
     }
@@ -618,7 +586,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                 let vec = Self::get_array_as_vec_nonprimitive::<T>(&array.clone(), column_name)?;
                 result.extend(vec);
             } else {
-                return Err(anyhow!("Column {} not found", column_name));
+                return Err(anyhow!("Column {column_name} not found"));
             }
         }
         Ok(result)
@@ -635,7 +603,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                 let vec = Self::get_array_as_vec_primitive::<T>(&array.clone(), column_name)?;
                 result.extend(vec);
             } else {
-                return Err(anyhow!("Column {} not found", column_name));
+                return Err(anyhow!("Column {column_name} not found"));
             }
         }
         Ok(result)

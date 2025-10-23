@@ -168,10 +168,8 @@ fn aggregator_operator_tensor(
             .var(candle_core::D::Minus1)?,
         _ => {
             return Err(anyhow!(
-                "Unsupported data type {} and aggregator operator {} for column {}",
-                lhs_table.get_column_data_type(agg_column)?.to_string(),
-                agg_operator,
-                agg_column,
+                "Unsupported data type {} and aggregator operator {agg_operator} for column {agg_column}",
+                lhs_table.get_column_data_type(agg_column)?
             ));
         }
     };
@@ -447,7 +445,7 @@ pub fn group_by_and_aggregate(
                     return Err(anyhow!(
                         "Unsupported data type for column {}: {}",
                         group_column,
-                        lhs_table.get_column_data_type(group_column)?.to_string()
+                        lhs_table.get_column_data_type(group_column)?
                     ));
                 }
             },
@@ -496,7 +494,7 @@ pub fn group_by_and_aggregate(
                     return Err(anyhow!(
                         "Unsupported data type for column {}: {}",
                         group_column,
-                        lhs_table.get_column_data_type(group_column)?.to_string()
+                        lhs_table.get_column_data_type(group_column)?
                     ));
                 }
             },
@@ -504,7 +502,7 @@ pub fn group_by_and_aggregate(
                 return Err(anyhow!(
                     "Unsupported data type for column {}: {}",
                     group_column,
-                    lhs_table.get_column_data_type(group_column)?.to_string()
+                    lhs_table.get_column_data_type(group_column)?
                 ));
             }
         };
@@ -586,7 +584,7 @@ pub fn group_by_and_aggregate(
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
-                                lhs_table.get_column_data_type(agg_column)?.to_string(),
+                                lhs_table.get_column_data_type(agg_column)?,
                                 agg_operator,
                                 agg_column,
                             ));
@@ -604,7 +602,7 @@ pub fn group_by_and_aggregate(
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
-                                lhs_table.get_column_data_type(agg_column)?.to_string(),
+                                lhs_table.get_column_data_type(agg_column)?,
                                 agg_operator,
                                 agg_column,
                             ));
@@ -652,7 +650,7 @@ pub fn group_by_and_aggregate(
                         return Err(anyhow!(
                             "Unsupported data type for column {}: {}",
                             agg_column,
-                            lhs_table.get_column_data_type(agg_column)?.to_string()
+                            lhs_table.get_column_data_type(agg_column)?
                         ));
                     }
                 }
@@ -665,7 +663,7 @@ pub fn group_by_and_aggregate(
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} and aggregator operator {} for column {}",
-                                lhs_table.get_column_data_type(agg_column)?.to_string(),
+                                lhs_table.get_column_data_type(agg_column)?,
                                 agg_operator,
                                 agg_column,
                             ));
@@ -713,7 +711,7 @@ pub fn group_by_and_aggregate(
                         return Err(anyhow!(
                             "Unsupported data type for column {}: {}",
                             agg_column,
-                            lhs_table.get_column_data_type(agg_column)?.to_string()
+                            lhs_table.get_column_data_type(agg_column)?
                         ));
                     }
                 }
@@ -722,7 +720,7 @@ pub fn group_by_and_aggregate(
                 return Err(anyhow!(
                     "Unsupported data type for column {}: {}",
                     agg_column,
-                    lhs_table.get_column_data_type(agg_column)?.to_string()
+                    lhs_table.get_column_data_type(agg_column)?
                 ));
             }
         };

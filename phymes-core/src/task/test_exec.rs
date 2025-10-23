@@ -325,7 +325,7 @@ impl SendableRecordBatchExecTrait for MockExec {
             .iter()
             .map(|r| match r {
                 Ok(batch) => Ok(batch.clone()),
-                Err(e) => Err(anyhow!("Execution error: {}", e)),
+                Err(e) => Err(anyhow!("Execution error: {e}")),
             })
             .collect();
 

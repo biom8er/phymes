@@ -144,8 +144,7 @@ pub fn extract_tabular_data(
             .build()?,
         _ => {
             return Err(anyhow!(
-                "Unsupported format {:?} for extract_tabular_data operator.",
-                format
+                "Unsupported format {format:?} for extract_tabular_data operator."
             ));
         }
     };

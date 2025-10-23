@@ -303,8 +303,7 @@ pub fn check_not_null_constraints(
             > 0
         {
             return Err(anyhow!(
-                "Invalid batch column at '{}' has null but schema specifies non-nullable",
-                index
+                "Invalid batch column at '{index}' has null but schema specifies non-nullable"
             ));
         }
     }

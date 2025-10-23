@@ -116,8 +116,7 @@ pub fn normalize_time(
 ) -> Result<RecordBatch> {
     if lhs_values.len() != 2 {
         return Err(anyhow!(
-            "Two lhs_values columns for `start_timestamp` and `end_timestamp` need to be provided. lhs_values {:?} were provided.",
-            lhs_values
+            "Two lhs_values columns for `start_timestamp` and `end_timestamp` need to be provided. lhs_values {lhs_values:?} were provided."
         ));
     }
     // Wrap the lhs into an ArrowTable
