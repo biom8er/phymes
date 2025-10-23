@@ -353,7 +353,7 @@ pub fn select_and_cast(
                     _ => {
                         return Err(anyhow!(
                             "Unsupported data type {} for injecting into a String template for column {column_name}",
-                            lhs_table.get_column_data_type(column_name)?.to_string()
+                            lhs_table.get_column_data_type(column_name)?
                         ));
                     }
                 }

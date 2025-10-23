@@ -165,7 +165,7 @@ pub fn take_columns_by_indices(
                 return Err(anyhow!(
                     "Unsupported data type for column {}: {}",
                     column,
-                    table.get_column_data_type(column)?.to_string()
+                    table.get_column_data_type(column)?
                 ));
             }
         };
@@ -314,7 +314,7 @@ pub fn sort_column_and_indices(
         _ => {
             return Err(anyhow!(
                 "Unsupported data type {} for column {lhs_values}",
-                lhs_table.get_column_data_type(lhs_values)?.to_string()
+                lhs_table.get_column_data_type(lhs_values)?
             ));
         }
     };

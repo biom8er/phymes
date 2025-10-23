@@ -453,7 +453,7 @@ fn chunk_documents(
                 return Err(anyhow!(
                     "Unsupported data type for column {}: {}",
                     column,
-                    lhs_table.get_column_data_type(column)?.to_string()
+                    lhs_table.get_column_data_type(column)?
                 ));
             }
         };

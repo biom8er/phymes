@@ -7,6 +7,7 @@ pub struct Usage {
     pub total_tokens: i32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DeletionStatus {
     pub id: String,
@@ -28,5 +29,6 @@ macro_rules! impl_builder_methods {
     };
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EmptyRequestBody {}

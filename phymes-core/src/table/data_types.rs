@@ -124,15 +124,15 @@ pub fn from_str_to_data_type(data_type: &str) -> Result<DataType> {
         _ => {
             return Err(anyhow!(
                 "Unrecognized data type {data_type} available options are {}, {}, {}, {}, {}, {}, {}, {}, {}, and FixedSizeList- or List- with primitive types.",
-                DataType::UInt8.to_string(),
-                DataType::UInt16.to_string(),
-                DataType::UInt32.to_string(),
-                DataType::Int64.to_string(),
-                DataType::Float32.to_string(),
-                DataType::Float64.to_string(),
-                DataType::Utf8.to_string(),
-                DataType::Null.to_string(),
-                DataType::Boolean.to_string()
+                DataType::UInt8,
+                DataType::UInt16,
+                DataType::UInt32,
+                DataType::Int64,
+                DataType::Float32,
+                DataType::Float64,
+                DataType::Utf8,
+                DataType::Null,
+                DataType::Boolean
             ));
         }
     };

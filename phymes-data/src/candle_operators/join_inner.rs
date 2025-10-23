@@ -351,7 +351,7 @@ pub fn join_inner(
                 return Err(anyhow!(
                     "Unsupported data type for column {}: {}",
                     lhs_fk,
-                    lhs_table.get_column_data_type(lhs_fk)?.to_string()
+                    lhs_table.get_column_data_type(lhs_fk)?
                 ));
             }
         };

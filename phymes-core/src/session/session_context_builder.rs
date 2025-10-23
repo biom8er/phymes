@@ -233,9 +233,7 @@ impl SessionContextBuilder {
             let mut r = processor_names.iter().collect::<Vec<_>>();
             r.sort();
             return Err(anyhow!(
-                "Mismatch between provided processors {:?} and plan processor names {:?}.",
-                l,
-                r
+                "Mismatch between provided processors {l:?} and plan processor names {r:?}."
             ));
         }
 
@@ -259,9 +257,7 @@ impl SessionContextBuilder {
             let mut r = runtime_env_names.iter().collect::<Vec<_>>();
             r.sort();
             return Err(anyhow!(
-                "Mismatch between provided runtime environments {:?} and plan runtime environment names {:?}.",
-                l,
-                r
+                "Mismatch between provided runtime environments {l:?} and plan runtime environment names {r:?}."
             ));
         }
 
@@ -294,9 +290,7 @@ impl SessionContextBuilder {
             let mut r = state_names.iter().collect::<Vec<_>>();
             r.sort();
             return Err(anyhow!(
-                "Mismatch between provided state {:?} and plan subjects and subscription names {:?}.",
-                l,
-                r
+                "Mismatch between provided state {l:?} and plan subjects and subscription names {r:?}."
             ));
         }
 

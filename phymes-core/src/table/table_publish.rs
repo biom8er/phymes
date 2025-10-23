@@ -275,7 +275,7 @@ fn get_first_row(batch: &RecordBatch) -> Result<Vec<String>> {
             _ => {
                 return Err(anyhow!(
                     "Unsupported data type {} for array.",
-                    column.data_type().to_string()
+                    column.data_type()
                 ));
             }
         };

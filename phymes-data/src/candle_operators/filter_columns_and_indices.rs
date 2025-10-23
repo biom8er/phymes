@@ -163,7 +163,7 @@ where
         _ => {
             return Err(anyhow!(
                 "Unsupported data type {} and comparator {} for column {column_name}",
-                lhs_table.get_column_data_type(column_name)?.to_string(),
+                lhs_table.get_column_data_type(column_name)?,
                 cmp_operators.get(index).unwrap()
             ));
         }
@@ -294,7 +294,7 @@ pub fn filter_columns_and_indices(
                     _ => {
                         return Err(anyhow!(
                             "Unsupported data type {} and comparator {} for column {column_name}",
-                            lhs_table.get_column_data_type(column_name)?.to_string(),
+                            lhs_table.get_column_data_type(column_name)?,
                             cmp_operators.get(index).unwrap()
                         ));
                     }
@@ -321,7 +321,7 @@ pub fn filter_columns_and_indices(
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
-                                lhs_table.get_column_data_type(column_name)?.to_string(),
+                                lhs_table.get_column_data_type(column_name)?,
                                 cmp_operators.get(index).unwrap()
                             ));
                         }
@@ -347,7 +347,7 @@ pub fn filter_columns_and_indices(
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
-                                lhs_table.get_column_data_type(column_name)?.to_string(),
+                                lhs_table.get_column_data_type(column_name)?,
                                 cmp_operators.get(index).unwrap()
                             ));
                         }
@@ -373,7 +373,7 @@ pub fn filter_columns_and_indices(
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
-                                lhs_table.get_column_data_type(column_name)?.to_string(),
+                                lhs_table.get_column_data_type(column_name)?,
                                 cmp_operators.get(index).unwrap()
                             ));
                         }
@@ -399,7 +399,7 @@ pub fn filter_columns_and_indices(
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
-                                lhs_table.get_column_data_type(column_name)?.to_string(),
+                                lhs_table.get_column_data_type(column_name)?,
                                 cmp_operators.get(index).unwrap()
                             ));
                         }
@@ -425,7 +425,7 @@ pub fn filter_columns_and_indices(
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} and comparator {} for column {column_name}",
-                                lhs_table.get_column_data_type(column_name)?.to_string(),
+                                lhs_table.get_column_data_type(column_name)?,
                                 cmp_operators.get(index).unwrap()
                             ));
                         }
@@ -446,7 +446,7 @@ pub fn filter_columns_and_indices(
                 //     let predicate_arr = match cmp_operator.get(index).unwrap() {
                 //         DataComparatorOperator::InListUtf8 => in_list_utf8(&cmp_arr, &values_arr)?,
                 //         _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}",
-                //             lhs_table.get_column_data_type(column_name)?.to_string(),
+                //             lhs_table.get_column_data_type(column_name)?,
                 //             cmp_operator.get(index).unwrap().get_name())),
                 //     };
                 //     let predicate_vec = predicate_arr.into_iter().map(|s| s.unwrap_or_default() as u8).collect::<Vec<_>>();
@@ -455,14 +455,14 @@ pub fn filter_columns_and_indices(
                 _ => {
                     return Err(anyhow!(
                         "Unsupported data type {} for column {column_name}",
-                        lhs_table.get_column_data_type(column_name)?.to_string()
+                        lhs_table.get_column_data_type(column_name)?
                     ));
                 }
             },
             _ => {
                 return Err(anyhow!(
                     "Unsupported data type {} for column {column_name}",
-                    lhs_table.get_column_data_type(column_name)?.to_string()
+                    lhs_table.get_column_data_type(column_name)?
                 ));
             }
         };

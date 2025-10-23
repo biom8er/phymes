@@ -19,7 +19,7 @@ jobs:
     name: Audit
     runs-on: self-hosted #ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install cargo-audit
         run: cargo install cargo-audit
       - name: Run audit check
