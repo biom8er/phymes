@@ -12,6 +12,8 @@ use phymes_diagnostics::{HashMap, TraceableTrait, Tracer};
 
 /// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
 /// metadata for subject, publisher, and update
+///
+/// [SendableRecordBatch]: crate::table::SendableRecordBatchStream
 pub trait MessageTrait: MappableTrait + BuildableTrait + Send {
     type T;
     fn get_subject(&self) -> &str;

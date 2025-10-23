@@ -114,7 +114,7 @@ impl DiagnosticSet {
         self.diagnostics.iter()
     }
 
-    /// Filter by the [DiagnosticType]
+    /// Filter by the [DiagnosticsType]
     pub fn filter_by_diagnostic_type(&self, diagnostic_type: DiagnosticsType) -> Self {
         let diagnostics = self
             .diagnostics

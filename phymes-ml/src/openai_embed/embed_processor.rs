@@ -1,4 +1,7 @@
-use crate::{CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch, openai_asset::OpenAIRequestState};
+use crate::{
+    CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch,
+    openai_asset::OpenAIRequestState,
+};
 
 use reqwest::{Client, header::CONTENT_TYPE};
 
@@ -10,7 +13,9 @@ use phymes_core::{
     SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilder,
     TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
 };
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+};
 
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
@@ -314,7 +319,9 @@ impl Stream for OpenAIEmbedStream {
                             } else {
                                 None
                             };
-                        let _timer = baseline_metrics.as_ref().map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
+                        let _timer = baseline_metrics
+                            .as_ref()
+                            .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                         // Parse the response
                         let result = serde_json::from_str::<EmbeddingResponse>(&text).unwrap();
@@ -425,7 +432,9 @@ impl Stream for OpenAIEmbedStream {
                             } else {
                                 None
                             };
-                        let _timer = baseline_metrics.as_ref().map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
+                        let _timer = baseline_metrics
+                            .as_ref()
+                            .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                         // Parse the response
                         let result = serde_json::from_str::<EmbeddingResponse>(&text).unwrap();
@@ -499,8 +508,7 @@ mod tests {
         let config = CandleEmbedConfig {
             input_type: "passage".to_string(),
             api_url: Some("http://0.0.0.0:8001/v1".to_string()),
-            openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2,
-            ),
+            openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
             ..Default::default()
         };
 

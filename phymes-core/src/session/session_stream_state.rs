@@ -7,14 +7,18 @@ use std::fs::File;
 use std::sync::Arc;
 use tracing::{Level, event, instrument};
 
-use super::common_traits::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait};
-use crate::session::session_context::SessionContext;
+use super::{
+    common_traits::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait},
+    session_context::SessionContext,
+};
 use crate::table::{
     Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait, TableUpdateTrait,
 };
 use crate::task::MessageTrait;
 
-/// State tracked during the course of running a [`SessionStream`]
+/// State tracked during the course of running a [SessionStream]
+///
+/// [SessionStream]: super::session_stream::SessionStream
 #[derive(Default, Debug, Clone)]
 pub struct SessionStreamState {
     /// The session context

@@ -106,7 +106,7 @@ pub async fn collect_partitions_runs(
     Ok(batches)
 }
 
-/// Run the [`ArrowTask`] and return a vec with one stream per output
+/// Run the [`Task`] and return a vec with one stream per output
 /// partition
 ///
 /// # Aborting Execution
@@ -140,7 +140,7 @@ pub async fn collect_stream_helper(stream: SendableRecordBatchStream) -> Result<
     stream.try_collect::<Vec<_>>().await
 }
 
-/// Run the [`ArrowTask`] and return a single stream of `RecordBatch`es.
+/// Run the [`Task`] and return a single stream of `RecordBatch`es.
 ///
 /// # Aborting Execution
 ///

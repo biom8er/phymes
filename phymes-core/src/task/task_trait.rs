@@ -12,10 +12,6 @@ use super::{
     publish_subscribe::PubSubTrait,
 };
 
-// Required for documentation
-#[allow(unused_imports)]
-use super::test_exec::{collect_partitions_runs, collect_task_runs};
-
 use crate::{
     session::{
         BuildableTrait, BuilderTrait, MappableTrait, RunnableTrait, RuntimeEnv,
@@ -58,6 +54,9 @@ use crate::{
 /// where the same task is run over different ArrowTables in parallel. The results can then
 ///    be collected is a single stream per table using [`collect_partitions_runs`] or
 ///    as a single stream using [`collect_task_runs`]
+///
+/// [`collect_partitions_runs`]: super::test_exec::collect_partitions_runs
+/// [`collect_task_runs`]: super::test_exec::collect_task_runs
 ///
 /// Parallel execution could be integrated into any uses case to improve execution speed
 pub trait TaskTrait:

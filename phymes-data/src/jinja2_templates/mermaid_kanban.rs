@@ -4,7 +4,7 @@
 ///
 /// # Notes
 /// * The kanban table MUST be sorted by column_name!
-/// * <config> section is not yet supported
+/// * `config` section is not yet supported
 /// * The `priority` metadata attribute is not included currently
 pub static MERMAID_KANBAN_TEMPLATE: &str = r#"
         kanban

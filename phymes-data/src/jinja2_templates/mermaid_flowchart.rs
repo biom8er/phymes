@@ -3,7 +3,7 @@
 /// see <https://mermaid.js.org/syntax/flowchart.html>
 ///
 /// # Limitations
-/// * A section for defining link styles <linkStyle> and node styles <classDef> is not yet implemented
+/// * A section for defining link styles `linkStyle` and node styles `classDef` is not yet implemented
 /// * Link IDs is not yet supported
 /// * Nested subgraphs is not yet supported
 pub static MERMAID_FLOWCHART_TEMPLATE: &str = r#"

@@ -180,17 +180,19 @@ impl Display for DataDistanceOperator {
 ///
 /// # Notes
 ///
-/// Casting uses the [arrow_cast] crate to convert between [DatayType]s
+/// Casting uses the [arrow_cast] crate to convert between [DataType]s
 ///
-/// 1. Check if conversion is possible https://arrow.apache.org/rust/arrow_cast/cast/fn.can_cast_types.html
-/// 2. Convert between types https://arrow.apache.org/rust/arrow_cast/cast/fn.cast_with_options.html
-/// 3. Encode/Decode Base64 https://arrow.apache.org/rust/arrow_cast/base64/index.html with BASE64_URL_SAFE_NO_PAD engine
+/// [DataType]: arrow::datatypes::DataType
+///
+/// 1. Check if conversion is possible <https://arrow.apache.org/rust/arrow_cast/cast/fn.can_cast_types.html>
+/// 2. Convert between types <https://arrow.apache.org/rust/arrow_cast/cast/fn.cast_with_options.html>
+/// 3. Encode/Decode Base64 <https://arrow.apache.org/rust/arrow_cast/base64/index.html> with BASE64_URL_SAFE_NO_PAD engine
 ///
 /// Casting allows for applying a [String] template for formatting
 ///
 /// Casting allows for converting between DateTime strings and numeric Timestamps
 ///
-/// [arrow_cast]: https://arrow.apache.org/rust/arrow_cast/index.html
+/// [arrow_cast]: <https://arrow.apache.org/rust/arrow_cast/index.html>
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataCastOperator {
     // #[value(name = "Base64Encode")]
@@ -301,6 +303,8 @@ pub struct DataConfig {
 
     /// A serialized JSON [Value] representing the input for the template beyond the table_expression
     ///   where the table_expression will be inserted into to complete the input for the template
+    ///
+    /// [Value]: serde_json::Value
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_input: Option<String>,
@@ -356,6 +360,8 @@ pub struct DataConfig {
     pub cast_operators: Option<Vec<DataCastOperator>>,
 
     /// Vec of [DataType]s cast to [String]s specifying the data type to cast each lhs_values to
+    ///
+    /// [DataType]: arrow::datatypes::DataType
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cast_datatypes: Option<Vec<String>>,

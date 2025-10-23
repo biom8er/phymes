@@ -22,6 +22,8 @@ use crate::task::{
 };
 
 /// A single step of a [`SessionStream`]
+///
+/// [`SessionStream`]: crate::session::session_stream::SessionStream
 pub struct SessionStreamStep {}
 
 impl SessionStreamStep {

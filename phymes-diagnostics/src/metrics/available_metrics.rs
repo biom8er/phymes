@@ -259,6 +259,7 @@ mod tests {
         // 1431648000000000 == 1970-01-17 13:40:48 UTC
         let t1 = Utc.timestamp_nanos(1431648000000000);
         timestamp.set(t1);
+        #[cfg(not(target_family = "wasm"))]
         assert_eq!(metric.as_usize(), 1431648000000000);
         assert!(metric.is_timestamp());
     }

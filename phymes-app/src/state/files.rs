@@ -36,7 +36,7 @@ pub fn extension_to_subject(extension: &str) -> Result<AvailableInterfaceSubject
     Ok(subject)
 }
 
-/// Based on https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types
+/// Based on <https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types>
 fn extension_to_mime_type(extension: &str) -> Result<&str> {
     let mime_type = match extension.to_lowercase().as_str() {
         "txt" => "text/plain",
@@ -66,7 +66,7 @@ fn extension_to_mime_type(extension: &str) -> Result<&str> {
     Ok(mime_type)
 }
 
-/// Based on https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data
+/// Based on <https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data>
 ///
 /// Follows the syntax `data:[<media-type>][;base64],<data>`
 ///
@@ -76,7 +76,7 @@ fn extension_to_mime_type(extension: &str) -> Result<&str> {
 ///   the difference is that data URLs embed resources in themselves and have severe size limitations,
 ///   whereas blob URLs require a backing Blob or MediaSource and can represent larger resources.
 ///
-/// See https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/blob
+/// See <https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/blob>
 pub fn extension_and_file_to_data_href(extension: &str, bytes: &[u8]) -> Result<String> {
     let mime_type = extension_to_mime_type(extension)?;
     let href = match extension {
@@ -93,7 +93,7 @@ pub fn extension_and_file_to_data_href(extension: &str, bytes: &[u8]) -> Result<
     Ok(href)
 }
 
-/// Based on https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/blob
+/// Based on <https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/blob>
 ///
 /// Follows the syntax `blob:<origin>/<uuid>>`
 #[allow(dead_code)]

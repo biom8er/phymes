@@ -56,6 +56,8 @@ pub enum DataFormat {
     #[value(name = "Ipc")]
     Ipc,
     /// The raw [RecordBatch]
+    ///
+    /// [RecordBatch]: arrow::record_batch::RecordBatch
     #[default]
     #[value(name = "None")]
     None,

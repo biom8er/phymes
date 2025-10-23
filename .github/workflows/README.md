@@ -39,6 +39,7 @@ cargo run --package phymes-agents --features wsl,gpu,candle --release --example 
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example doc_rag_session
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example tool_agent_session
 cargo check --all-targets
+cargo check -p phymes-diagnostics --all-targets --no-default-features --features wsl
 cargo check -p phymes-core --all-targets --no-default-features --features wsl
 cargo check -p phymes-data --all-targets --no-default-features --features wsl
 cargo check -p phymes-ml --all-targets --no-default-features --features wsl
@@ -54,6 +55,9 @@ cargo check -p phymes-app --all-targets --no-default-features --features mobile
 cargo check -p phymes-app --all-targets --no-default-features --features desktop
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all -- --check
+cargo check -p phymes-diagnostics --features wasip2 --no-default-features --target wasm32-unknown-unknown
+cargo test -p phymes-diagnostics --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
+for file in target/wasm32-wasip2/release/deps/phymes_diagnostics-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
 cargo check -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
 cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_core-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
@@ -82,6 +86,7 @@ for file in target/wasm32-wasip2/release/deps/phymes_server-*.wasm; do [ -f "$fi
 cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release
 mdbook test phymes-book
 mdbook build phymes-book
+cargo doc --document-private-items --no-deps -p phymes-diagnostics
 cargo doc --document-private-items --no-deps -p phymes-core
 cargo doc --document-private-items --no-deps -p phymes-ml
 cargo doc --document-private-items --no-deps -p phymes-data

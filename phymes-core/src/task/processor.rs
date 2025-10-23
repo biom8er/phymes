@@ -85,7 +85,7 @@ pub trait ProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
     /// [`Stream`]: futures::stream::Stream
     /// [`StreamExt`]: futures::stream::StreamExt
     /// [`TryStreamExt`]: futures::stream::TryStreamExt
-    /// [`RecordBatchStreamAdapter`]: crate::table::stream_adapter::RecordBatchStreamAdapter
+    /// [`RecordBatchStreamAdapter`]: crate::table::RecordBatchStreamAdapter
     ///
     /// # Error handling
     ///
@@ -112,8 +112,8 @@ pub trait ProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
     ///
     /// [`spawn`]: tokio::task::spawn
     /// [`JoinSet`]: tokio::task::JoinSet
-    /// [`SessionStreamStep`]: crate::session::session_context::SessionStreamStep
-    /// [`RecordBatchReceiverStreamBuilder`]: crate::table::stream_adapter::RecordBatchReceiverStreamBuilder
+    /// [`SessionStreamStep`]: crate::session::SessionStreamStep
+    /// [`RecordBatchReceiverStreamBuilder`]: crate::table::RecordBatchReceiverStreamBuilder
     ///
     /// # Implementation Examples
     ///
@@ -319,7 +319,7 @@ impl ProcessorTrait for ProcessorEcho {
     }
 }
 
-/// A lightweight builder for structures implementing the [ArrowProcessorTrait]
+/// A lightweight builder for structures implementing the [ProcessorTrait]
 ///
 /// # Notes
 /// * A full `ArrowProcessorBuilderTrait` will be provided in the future

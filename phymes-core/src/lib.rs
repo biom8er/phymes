@@ -4,8 +4,9 @@ mod table;
 mod task;
 pub use schemas::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BlobSubject,
-    ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, FinishReason, ChatTraitExt, DiagnosticsVisualizations, Function,
-    FunctionParameters, JSONSchemaDefine, JSONSchemaType, EmbeddingRequest, EmbeddingResponse, EncodingFormat,
+    ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt,
+    DiagnosticsVisualizations, EmbeddingRequest, EmbeddingResponse, EncodingFormat, FinishReason,
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     JoinUserInboxSessionContextsMermaidDiagrams, QueriesBuilderTraitExt, SessionMermaidSubject,
     Tool, ToolCall, ToolChoiceType, ToolType, UserSubject, create_blob_batch, create_blob_fields,
     create_chat_fields, create_chat_record_batch, create_documents_batch, create_error_batch,

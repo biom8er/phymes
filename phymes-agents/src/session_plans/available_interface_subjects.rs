@@ -7,9 +7,9 @@ use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Tabl
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
-/// Check that one or more of the [AvailableinterfaceSubjects], one or more of the [AvailableinterfaceSubjects],
-/// and optionally one or more of the [AvailableinterfaceSubjects] and [AvailableinterfaceSubjects]
-/// are provided in the SessionContextBuilder
+/// Check that one or more of the [AvailableInterfaceSubjects] are provided in the [SessionContextBuilder]
+///
+/// [SessionContextBuilder]: phymes_core::SessionContextBuilder
 pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     let mut has_messaging_publish = false;
     let mut has_message_subscribe = false;

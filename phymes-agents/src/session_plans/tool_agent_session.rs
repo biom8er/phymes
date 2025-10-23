@@ -13,9 +13,11 @@ use phymes_data::{
     DataConfig, DataSummaryConfig, DataSummaryProcessor, MERMAID_HTML_POST, MERMAID_HTML_PRE,
     MERMAID_XYCHART_TABLE_EXPRESSION, MERMAID_XYCHART_TEMPLATE,
 };
-use phymes_ml::{AvailableCandleAssets, CandleChatConfig, MessageAggregatorProcessor, MessageParserProcessor};
 #[cfg(feature = "candle")]
 use phymes_ml::CandleChatProcessor;
+use phymes_ml::{
+    AvailableCandleAssets, CandleChatConfig, MessageAggregatorProcessor, MessageParserProcessor,
+};
 #[cfg(feature = "openai_api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor};
 

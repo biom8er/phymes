@@ -327,7 +327,9 @@ impl Stream for OpenAIChatStream {
                         } else {
                             None
                         };
-                    let _timer = baseline_metrics.as_ref().map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
+                    let _timer = baseline_metrics
+                        .as_ref()
+                        .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Parse the response
                     let result = serde_json::from_str::<ChatCompletionResponse>(&text).unwrap();
@@ -401,7 +403,7 @@ mod tests {
     #[allow(unused_imports)]
     use phymes_core::{ChatBuilderTraitExt, TableBuilder};
     #[allow(unused_imports)]
-    use phymes_diagnostics::{HashMap, SpanBuilder, DiagnosticBuilder, Diagnostics};
+    use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
     #[cfg(not(feature = "candle"))]
     #[tokio::test]

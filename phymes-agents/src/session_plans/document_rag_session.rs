@@ -9,11 +9,13 @@ use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator,
     DataConfig, DataSummaryConfig, DataSummaryProcessor,
 };
-use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig, MessageAggregatorProcessor};
-#[cfg(feature = "candle")]
-use phymes_ml::{CandleChatProcessor, CandleEmbedProcessor};
+use phymes_ml::{
+    AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig, MessageAggregatorProcessor,
+};
 #[cfg(feature = "openai_api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
+#[cfg(feature = "candle")]
+use phymes_ml::{CandleChatProcessor, CandleEmbedProcessor};
 
 use arrow::datatypes::{DataType, SchemaRef};
 

@@ -69,15 +69,17 @@ pub trait SessionContextBuilderTabularTrait {
     ///
     /// # Notes
     ///
-    /// * Minimally, the meta tables describing the SessionContext schema must be included
+    /// * Minimally, the meta tables describing the [SessionContext] schema must be included
     /// * Optionally, the subject tables will be populated with data if the state tables are included
     /// * Mermaid_js scripts are ignored
     ///
     /// # Arguments
     ///
-    /// * `tables` - List of [ArrowTable]s describing the [SessionContext] schema with
+    /// * `tables` - List of [Table]s describing the [SessionContext] schema with
     ///   optional subject tables with the actual data
     /// * `state` - Optionally the subject data. If none the subject tables will be initialized.
+    ///
+    /// [SessionContext]: phymes_core::SessionContext
     fn from_arrow_tables(tables: &[&Table], state: Option<Vec<Table>>) -> Result<Self>
     where
         Self: Sized;

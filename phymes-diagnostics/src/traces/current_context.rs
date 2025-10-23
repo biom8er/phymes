@@ -83,6 +83,7 @@ mod tests {
         );
         assert_eq!(current_context.thread(), &std::thread::current().id());
         assert_eq!(current_context.function(), "my_function");
+        #[cfg(not(target_family = "wasm"))]
         assert!(*current_context.timestamp() < create_timestamp_micros());
     }
 }

@@ -43,7 +43,10 @@ pub use session::{
 
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
 mod chat_completion;
-pub use chat_completion::{ChatCompletionRequest, Tool, ToolCall, ToolChoiceType, ToolType, ChatCompletionResponse, FinishReason};
+pub use chat_completion::{
+    ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolCall, ToolChoiceType,
+    ToolType,
+};
 
 mod common;
 

@@ -8,9 +8,7 @@ pub trait TraceableTrait {
     fn to_trace(&self) -> Tracer;
 }
 
-/// A tracer often a [SendableRecordBatchStreamMessage]
-///
-/// [SendableRecordBatchStreamMessage]: phymes_core::tasks::messages::SendableRecordBatchStreamMessage
+/// A tracer often a `SendableRecordBatchStreamMessage`
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct Tracer {
     /// The name of the message

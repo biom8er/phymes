@@ -23,7 +23,7 @@ use crate::{
     candle_operators::DataOperatorTrait,
 };
 
-/// Select and cast the [RecordBatch]es based on the [DataComparatorOperator] and [DataType] with optional column renaming and template injection
+/// Select and cast the [RecordBatch]es based on the [DataCastOperator] and [DataType] with optional column renaming and template injection
 #[derive(Debug)]
 pub struct SelectAndCast {
     lhs_values: Vec<String>,
