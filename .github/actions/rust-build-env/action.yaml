@@ -35,6 +35,7 @@ runs:
         echo "Installing ${{ inputs.rust-version }}"
         rustup toolchain install ${{ inputs.rust-version }} --target ${{ inputs.target }}
         rustup default ${{ inputs.rust-version }}
+        curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
     - name: Install clippy and fmt
       shell: bash
       run: |
