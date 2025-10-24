@@ -70,6 +70,7 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
     fn with_runtime_envs(self, runtime_envs: Vec<RuntimeEnv>) -> Self;
     fn with_tasks(self, tasks: Vec<TaskPlan>) -> Self;
     fn with_max_iter(self, max_iter: usize) -> Self;
+    fn with_diagnostics(self, diagnostics: bool) -> Self;
 }
 
 #[derive(Default)]
@@ -80,6 +81,7 @@ pub struct SessionContextBuilder {
     pub runtime_envs: Option<Vec<RuntimeEnv>>,
     pub tasks: Option<Vec<TaskPlan>>,
     pub max_iter: Option<usize>,
+    pub diagnostics: Option<bool>,
 }
 
 type SessionContextInput = (
@@ -88,6 +90,7 @@ type SessionContextInput = (
     StateMap,
     HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     usize,
+    bool,
 );
 
 impl SessionContextBuilder {
@@ -333,7 +336,7 @@ impl SessionContextBuilder {
 
         let name = self.name.unwrap();
         let max_iter = self.max_iter.unwrap_or(25);
-        Ok((name, task_map, state_map, runtime_env_map, max_iter))
+        Ok((name, task_map, state_map, runtime_env_map, max_iter, self.diagnostics.unwrap_or_default()))
     }
 }
 
@@ -347,6 +350,7 @@ impl BuilderTrait for SessionContextBuilder {
             runtime_envs: None,
             tasks: None,
             max_iter: None,
+            diagnostics: None,
         }
     }
 
@@ -357,7 +361,7 @@ impl BuilderTrait for SessionContextBuilder {
 
     fn build(self) -> Result<Self::T> {
         // build the tasks, state, metrics, and runtime objects
-        let (name, tasks, state, runtime_envs, max_iter) = self.build_inner()?;
+        let (name, tasks, state, runtime_envs, max_iter, diagnostics) = self.build_inner()?;
 
         // ready to build the session
         Ok(Self::T {
@@ -366,6 +370,7 @@ impl BuilderTrait for SessionContextBuilder {
             state,
             runtime_envs,
             max_iter,
+            diagnostics,
         })
     }
 }
@@ -389,6 +394,10 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
     }
     fn with_max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = Some(max_iter);
+        self
+    }
+    fn with_diagnostics(mut self, diagnostics: bool) -> Self {
+        self.diagnostics = Some(diagnostics);
         self
     }
 }
@@ -605,6 +614,7 @@ pub mod test_session_context_builder {
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
+            .with_diagnostics(true)
             .build()
     }
 
@@ -625,6 +635,7 @@ pub mod test_session_context_builder {
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
+            .with_diagnostics(true)
             .build()
     }
 
@@ -643,6 +654,7 @@ pub mod test_session_context_builder {
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
+            .with_diagnostics(true)
             .build()
     }
 }

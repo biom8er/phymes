@@ -16,6 +16,7 @@ type SessionContextInput = (
     StateMap,
     HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     usize,
+    bool,
     Vec<Table>,
 );
 
@@ -29,7 +30,7 @@ pub trait SessionContextBuilderAgentsTrait {
         Self: Sized,
     {
         // build the tasks, state, and runtime objects
-        let (name, tasks, mut state, runtime_envs, max_iter, tables) =
+        let (name, tasks, mut state, runtime_envs, max_iter, diagnostics, tables) =
             self.build_inner_with_tables()?;
 
         // update the state with the schema tables
@@ -44,6 +45,7 @@ pub trait SessionContextBuilderAgentsTrait {
             state,
             runtime_envs,
             max_iter,
+            diagnostics
         ))
     }
 }
@@ -51,8 +53,8 @@ pub trait SessionContextBuilderAgentsTrait {
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
         let (tables, _state) = self.to_arrow_tables(false, true, true)?;
-        let (name, tasks, state, runtime_envs, max_iter) = self.build_inner()?;
-        Ok((name, tasks, state, runtime_envs, max_iter, tables))
+        let (name, tasks, state, runtime_envs, max_iter, diagnostics) = self.build_inner()?;
+        Ok((name, tasks, state, runtime_envs, max_iter, diagnostics, tables))
     }
 }
 

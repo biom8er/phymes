@@ -145,26 +145,32 @@ impl SessionStreamStep {
             .build()?;
 
         // Create the diagnostics for the session step
-        let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-        diagnostics_vec.push(diagnostics);
+        let collect_diagnostics = state.read().get_session_context().get_diagnostics();
+        let trace = if collect_diagnostics {
+            let diagnostics = Diagnostics::new();
+            let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+            diagnostics_vec.push(diagnostics);            
 
-        // Trace the session step
-        let trace = diagnostic_builder.clone().messages(
-            line!(),
-            file!(),
-            state.read().get_session_context().get_name(),
-        );
-        trace.enter(&messages.values().collect::<Vec<_>>());
-        let event = diagnostic_builder.clone().info(
-            line!(),
-            file!(),
-            state.read().get_session_context().get_name(),
-        );
-        event.insert(
-            "superstep",
-            &serde_json::Value::Number(state.read().get_iter().into()),
-        );
+            // Trace the session step
+            let trace = diagnostic_builder.clone().messages(
+                line!(),
+                file!(),
+                state.read().get_session_context().get_name(),
+            );
+            trace.enter(&messages.values().collect::<Vec<_>>());
+            let event = diagnostic_builder.clone().info(
+                line!(),
+                file!(),
+                state.read().get_session_context().get_name(),
+            );
+            event.insert(
+                "superstep",
+                &serde_json::Value::Number(state.read().get_iter().into()),
+            );
+            Some(trace)
+        } else {
+            None
+        };
 
         // Update the state and handle any errors (without locking the state)
         let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -194,13 +200,18 @@ impl SessionStreamStep {
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Create the diagnostics for the task
-            let diagnostics = Diagnostics::new();
-            let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-            diagnostics_vec.push(diagnostics);
+            let diagnostic_builder = if collect_diagnostics {
+                let diagnostics = Diagnostics::new();
+                let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+                diagnostics_vec.push(diagnostics);
+                Some(diagnostic_builder)
+            } else {
+                None
+            };
 
             // Run the task and collect the stream responses
             let messages = task.get_subscriptions_from_state(updates, states);
-            match task.run(messages, Some(&diagnostic_builder)) {
+            match task.run(messages, diagnostic_builder.as_ref()) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
                         if task_name == state.read().get_session_context().get_name() {
@@ -263,7 +274,9 @@ impl SessionStreamStep {
 
             // Join each of the response futures
             let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
-            trace.exit(&session_batches.values().collect::<Vec<_>>());
+            if let Some(trace) = trace {
+                trace.exit(&session_batches.values().collect::<Vec<_>>());
+            }
 
             // Collect metrics, logs, and traces and update their corresponding subjects
             let (_metrics_updated, _traces_updated, _events_updated) = state
