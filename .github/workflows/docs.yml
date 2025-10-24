@@ -42,21 +42,27 @@ jobs:
       - name: Test Book
         run: |
           mdbook test phymes-book
-      - name: Build Book
-        run: |
-          mdbook build phymes-book
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          name: mdbook
-          path: target/book
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: mdbook
+      # DM: Commented due to the following error...
+      # ```
+      # Unable to parse the input
+      # WARN Error writing the RenderContext to the backend, Broken pipe (os error 32)
+      # ERROR The "mermaid" preprocessor exited unsuccessfully with exit status: 1 status
+      # ```
+      # - name: Build Book
+      #   run: |
+      #     mdbook build phymes-book
+      # - name: Setup Pages
+      #   uses: actions/configure-pages@v4
+      # - name: Upload artifact
+      #   uses: actions/upload-pages-artifact@v4
+      #   with:
+      #     name: mdbook
+      #     path: target/book
+      # - name: Deploy to GitHub Pages
+      #   id: deployment
+      #   uses: actions/deploy-pages@v4
+      #   with:
+      #     artifact_name: mdbook
 
   docs:
     name: Upload cargo docs
