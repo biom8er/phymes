@@ -35,7 +35,7 @@ pub use table::{
     RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream,
     RecordBatchStreamAdapter, SendableRecordBatchStream, SubscribeTrait, Table, TableBuilder,
     TableBuilderTrait, TablePublish, TableScript, TableSubscribe, TableSubscribeTrait, TableTrait,
-    TableUpdateTrait, from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe,
+    TableUpdateTrait, from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe, parse_str_to_data_type,
     test_table,
 };
 pub use task::{

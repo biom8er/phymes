@@ -8,7 +8,7 @@ mod table_subscribe;
 mod table_trait;
 
 pub use data_format::{CsvFormat, DataFormat, JsonFormat};
-pub use data_types::{from_data_type_to_str, from_str_to_data_type};
+pub use data_types::{from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type};
 pub use stream::{RecordBatchStream, SendableRecordBatchStream};
 pub use stream_adapter::{
     EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder,

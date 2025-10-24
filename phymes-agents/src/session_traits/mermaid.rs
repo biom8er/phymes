@@ -8,11 +8,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, RuntimeEnv,
-    RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table,
-    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskPlanBuilder,
-    from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe,
-    test_processor::ProcessorMock,
+    from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe, parse_str_to_data_type, test_processor::ProcessorMock, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskPlanBuilder
 };
 use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -22,6 +18,7 @@ use phymes_ml::{
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from mermaid.js
 pub trait SessionContextBuilderMermaidTrait {
@@ -54,13 +51,14 @@ pub trait SessionContextBuilderMermaidTrait {
     /// # Arguments
     /// * `erdiagram`: the ER diagram String
     /// * `agent_subjects`: whether to check for the presence of [AvailableInterfaceSubjects] with [check_agent_subjects]
-    /// * `add_state`: whether to add the example state as a new subject table
+    /// * `with_values`: whether to add the example values or leave the [RecordBatch]es empty
     /// 
     /// [AvailableInterfaceSubjects]: crate::session_plans::AvailableInterfaceSubjects
     fn with_state_from_mermaid_erdiagram(
         self,
         erdiagram: &str,
         agent_subjects: bool,
+        with_values: bool,
     ) -> Result<Self>
     where
         Self: Sized;
@@ -1037,6 +1035,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         self,
         erdiagram: &str,
         agent_subjects: bool,
+        with_values: bool
     ) -> Result<Self> {
         // Subjects to be collected
         let mut subjects = Vec::new();
@@ -1070,6 +1069,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
                 // Initialize the schema fields
                 let mut fields = Vec::new();
+                let mut data = Map::new();
 
                 iter += 1;
                 while iter < erdiagram_lines.len() {
@@ -1077,19 +1077,25 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     if erdiagram_lines.get(iter).unwrap().contains("}") {
                         // Build and add the table to the subjects list
                         let schema = Arc::new(Schema::new(fields));
-                        let batch = RecordBatch::new_empty(schema);
-                        let table = Table::get_builder()
-                            .with_record_batches(vec![batch])?
-                            .with_name(subject_name)
-                            .build()?;
+                        let table = if with_values {
+                            let data_json = serde_json::to_vec(&data)?;
+                            Table::get_builder()
+                                .with_schema(schema)
+                                .with_json(&data_json, 1)?
+                                .with_name(subject_name)
+                                .build()?
+                        } else {
+                            Table::get_builder()
+                                .with_record_batches(vec![RecordBatch::new_empty(schema)])?
+                                .with_name(subject_name)
+                                .build()?
+                        };
                         subjects.push(table);
                         break;
 
                     // Extract the field and data type
                     } else {
                         let line = erdiagram_lines.get(iter).unwrap().trim();
-                        // dbg!(erdiagram_lines.get(iter).unwrap());
-                        // dbg!(line);
                         let split_line = line.split_whitespace().collect::<Vec<_>>();
 
                         // Match the DataType
@@ -1098,12 +1104,27 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             Ok(data_type) => data_type,
                             Err(_e) => {
                                 return Err(anyhow!(
-                                    "Parsing Error on line {iter}: {}. Unrecognized data type {} in subject {subject_name} for field {field_name}. Supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, FixedSizeList, and List, ",
+                                    "Parsing Error on line {iter}: {}. Unrecognized data type {} in subject {subject_name} for field {field_name}. Supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, FixedSizeList, and List.",
                                     erdiagram_lines.get(iter).unwrap(),
                                     split_line.first().unwrap()
                                 ));
                             }
                         };
+
+                        // Extract the value
+                        if with_values && split_line.len() > 2 {
+                            let value = if split_line.len() == 3 {
+                                split_line.get(2).unwrap()
+                            } else if split_line.len() == 4 {
+                                split_line.get(3).unwrap()
+                            } else {
+                                return Err(anyhow!(
+                                    "Parsing Error on line {iter}: {}. Cannot find example values in subject {subject_name} for field {field_name}.",
+                                    erdiagram_lines.get(iter).unwrap(),
+                                ));
+                            };
+                            data.insert(field_name.to_owned(), parse_str_to_data_type(value, &data_type)?);
+                        }
                         let field = Field::new(field_name, data_type, false);
                         fields.push(field);
                     }
@@ -1196,11 +1217,9 @@ impl BuilderTrait for SessionContextBuilderMermaid {
         };
         let builder = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_name(&name)
-            .with_state_from_mermaid_erdiagram(&erdiagram, true)?;
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?;
 
-        // Use defaults for metrics and max iters
-        let max_iter = self.max_iter.unwrap_or(25);
-        let builder = builder.with_max_iter(max_iter);
+        // Use defaults for diagnostics and max iters
         builder.build()
     }
 }
@@ -1251,7 +1270,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, false)?;
+            .with_state_from_mermaid_erdiagram(&erdiagram, false, false)?;
 
         // Test that the names match
         let mut test = builder_test
@@ -1318,7 +1337,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, false)?;
+            .with_state_from_mermaid_erdiagram(&erdiagram, false, true)?;
 
         // Test that the names match
         let mut test = builder_test
@@ -1369,6 +1388,9 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(test, expected);
 
+        // Test that the config data is present
+        todo!();
+
         // Test that we can build the session
         let _ = builder_test.with_name("session_1").build()?;
 
@@ -1386,7 +1408,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true)?;
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
         let mut test = builder_test
@@ -1454,7 +1476,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true)?;
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
         let mut test = builder_test
@@ -1523,7 +1545,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true)?;
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
         let mut test = builder_test

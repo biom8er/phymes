@@ -1,20 +1,21 @@
 use std::{fmt::Display, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use arrow::array::RecordBatch;
 use clap::ValueEnum;
 use phymes_core::{
-    MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, SubscribeTrait, TablePublish,
-    TableSubscribe, test_processor::ProcessorMock,
+    test_processor::ProcessorMock, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, SubscribeTrait, Table, TablePublish, TableSubscribe
 };
 use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor};
 use phymes_ml::{
-    CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
+    CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
-/// The available session plans
+/// The available [ProcessorTrait]s
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableProcessors {
     #[value(name = "ProcessorMock")]
@@ -92,6 +93,25 @@ impl AvailableProcessors {
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>()
+    }
+
+    /// Get the processor's corresponding config
+    pub fn get_config(&self) -> AvailableProcessorConfigs {
+        match self {
+            Self::ProcessorMock => AvailableProcessorConfigs::None,
+            Self::ProcessorEcho => AvailableProcessorConfigs::None,
+            Self::CandleDataProcessor => AvailableProcessorConfigs::DataConfig,
+            Self::DataSummaryProcessor => AvailableProcessorConfigs::DataSummaryConfig,
+            Self::AttachmentAggregatorProcessor => AvailableProcessorConfigs::DataConfig,
+            Self::CandleChatProcessor => AvailableProcessorConfigs::CandleChatConfig,
+            Self::MessageAggregatorProcessor => AvailableProcessorConfigs::DataConfig,
+            Self::MessageParserProcessor => AvailableProcessorConfigs::CandleChatConfig,
+            Self::CandleEmbedProcessor => AvailableProcessorConfigs::CandleEmbedConfig,
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIChatProcessor => AvailableProcessorConfigs::CandleChatConfig,
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIEmbedProcessor => AvailableProcessorConfigs::CandleEmbedConfig,
+        }
     }
 
     pub fn build_arc_with_pub_sub(
@@ -172,5 +192,51 @@ impl AvailableProcessors {
     pub fn build_with_builder(self, builder: ProcessorBuilder) -> Result<Arc<dyn ProcessorTrait>> {
         let (name, publications, subscriptions, subscribe) = builder.take()?;
         Ok(self.build_arc_with_pub_sub(&name, &publications, &subscriptions, subscribe))
+    }
+}
+
+
+
+/// The available [ProcessorTrait] configs
+#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
+pub enum AvailableProcessorConfigs {
+    #[value(name = "None")]
+    #[default]
+    None,
+    #[value(name = "CandleEmbedConfig")]
+    CandleEmbedConfig,
+    #[value(name = "CandleChatConfig")]
+    CandleChatConfig,
+    #[value(name = "DataSummaryConfig")]
+    DataSummaryConfig,
+    #[value(name = "DataConfig")]
+    DataConfig,
+}
+
+impl Display for AvailableProcessorConfigs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::CandleEmbedConfig => write!(f, "CandleEmbedConfig"),
+            Self::CandleChatConfig => write!(f, "CandleChatConfig"),
+            Self::DataSummaryConfig => write!(f, "DataSummaryConfig"),
+            Self::DataConfig => write!(f, "DataConfig"),
+        }
+    }
+}
+
+impl AvailableProcessorConfigs {
+    /// convert JSON to a [Table]
+    /// 
+    /// let config = DataConfig { ..Default::default()};
+    /// let config_json = serde_json::to_vec(&config)?;
+    pub fn to_default_json(&self) -> Result<Vec<u8>> {        
+        match self {
+            Self::None => Ok(Vec::new()),
+            Self::CandleEmbedConfig => Ok(Vec::new()),
+            Self::CandleChatConfig => Ok(Vec::new()),
+            Self::DataSummaryConfig => Ok(Vec::new()),
+            Self::DataConfig => Ok(Vec::new()),
+        }
     }
 }
