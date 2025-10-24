@@ -71,8 +71,13 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
     fn with_tasks(self, tasks: Vec<TaskPlan>) -> Self;
     fn with_max_iter(self, max_iter: usize) -> Self;
     fn with_diagnostics(self, diagnostics: bool) -> Self;
+    /// Check that the [TaskPlan] and `name are given
+    fn check_tasks(&self) -> Result<()>;
+    /// Check that all [ProcessorTrait]s defined in the [TaskPlan] are accounted for
     fn check_processors(&self) -> Result<()>;
+    /// Check that all [RuntimeEnv]s defined in the [TaskPlan] are accounted for
     fn check_runtime_envs(&self) -> Result<()>;
+    /// Check that all subject [Table]s defined in the state and subscribed to by the [ProcessorTrait]s are accounted for
     fn check_state(&self) -> Result<()>;
 }
 
@@ -206,25 +211,6 @@ impl SessionContextBuilder {
 
     /// Build the [SessionContext] members
     pub fn build_inner(mut self) -> Result<SessionContextInput> {
-        if self.name.is_none() {
-            return Err(anyhow!(
-                "Please give the session a name before attempting to build the session."
-            ));
-        }
-
-        if self.tasks.is_none() {
-            return Err(anyhow!(
-                "Please add a plan before attempting to build the session."
-            ));
-        }
-
-        // Check that all processors are accounted for
-        self.check_processors()?;
-
-        // Check that the runtime_env names are accounted for...
-        self.check_runtime_envs()?;
-
-        // ...then build
         let runtime_env_map = self
             .runtime_envs
             .take()
@@ -233,10 +219,6 @@ impl SessionContextBuilder {
             .map(|r| (r.get_name().to_string(), Arc::new(Mutex::new(r))))
             .collect::<HashMap<String, Arc<Mutex<RuntimeEnv>>>>();
 
-        // Check that the state names are accounted for...
-        self.check_state()?;
-        
-        // ...then build
         let state_map = self
             .state
             .take()
@@ -245,7 +227,6 @@ impl SessionContextBuilder {
             .map(|r| (r.get_name().to_string(), Arc::new(RwLock::new(r))))
             .collect::<HashMap<String, Arc<RwLock<Table>>>>();
 
-        // Build the tasks
         let task_map = self
             .tasks
             .as_ref()
@@ -299,6 +280,12 @@ impl BuilderTrait for SessionContextBuilder {
     }
 
     fn build(self) -> Result<Self::T> {
+        // Check that we can build
+        self.check_tasks()?;
+        self.check_processors()?;
+        self.check_runtime_envs()?;
+        self.check_state()?;
+
         // build the tasks, state, metrics, and runtime objects
         let (name, tasks, state, runtime_envs, max_iter, diagnostics) = self.build_inner()?;
 
@@ -338,6 +325,20 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
     fn with_diagnostics(mut self, diagnostics: bool) -> Self {
         self.diagnostics = Some(diagnostics);
         self
+    }
+    fn check_tasks(&self) -> Result<()> {
+        if self.name.is_none() {
+            return Err(anyhow!(
+                "Please give the session a name before attempting to build the session."
+            ));
+        }
+
+        if self.tasks.is_none() {
+            return Err(anyhow!(
+                "Please add a plan before attempting to build the session."
+            ));
+        }
+        Ok(())        
     }
     fn check_processors(&self) -> Result<()> {
         if self.processors.is_none() {
@@ -750,6 +751,7 @@ mod tests {
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_iter(), 10);
+        assert!(!session.get_diagnostics());
         Ok(())
     }
 

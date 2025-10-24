@@ -59,7 +59,7 @@ impl SessionContext {
     }
 
     /// Get a task
-    pub(crate) fn get_tasks(&self) -> &TaskMap {
+    pub fn get_tasks(&self) -> &TaskMap {
         &self.tasks
     }
 
@@ -267,12 +267,12 @@ impl SessionContext {
     }
 
     /// Get the max iterations
-    pub(crate) fn get_max_iter(&self) -> usize {
+    pub fn get_max_iter(&self) -> usize {
         self.max_iter
     }
 
     /// Get the diagnostics
-    pub(crate) fn get_diagnostics(&self) -> bool {
+    pub fn get_diagnostics(&self) -> bool {
         self.diagnostics
     }
 
