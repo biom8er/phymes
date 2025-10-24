@@ -191,6 +191,111 @@ pub trait CustomAgentsBuilderTrait {
     }
 }
 
+pub mod test_session_context_builder_agents {
+
+    use phymes_core::{test_processor::ProcessorMock, test_session_context_builder::make_test_session_builder_tasks, test_task::{make_runtime_env, make_state_tables}, AllTableNamesSubscribe, BuildableTrait, BuilderTrait, SubscribeTrait, TableBuilderTrait, TablePublish, TableSubscribe};
+    use phymes_data::{AvailableCandleOperators, DataConfig};
+
+    use super::*;
+
+    pub fn make_test_session_builder_agents() -> Result<SessionContextBuilder> {
+        let processor_plans = vec![
+            ProcessorMock::new_arc_with_pub_sub(
+                "processor_1",
+                &[TablePublish::Extend {
+                    table_name: "state_1".to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: "state_1".to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: "processor_1".to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            ProcessorMock::new_arc_with_pub_sub(
+                "processor_2",
+                &[TablePublish::Extend {
+                    table_name: "state_2".to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: "state_2".to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: "processor_2".to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            ProcessorMock::new_arc_with_pub_sub(
+                "processor_3",
+                &[TablePublish::Extend {
+                    table_name: "state_3".to_string(),
+                }],
+                &[
+                    TableSubscribe::OnUpdateFullTable {
+                        table_name: "state_3".to_string(),
+                    },
+                    TableSubscribe::AlwaysFullTable {
+                        table_name: "processor_3".to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+            ProcessorMock::new_arc_with_pub_sub(
+                "session_1",
+                &[
+                    TablePublish::Extend {
+                        table_name: "state_3".to_string(),
+                    },
+                ],
+                &[
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: "state_1".to_string(),
+                    },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: "state_2".to_string(),
+                    },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: "session_1".to_string(),
+                    },
+                ],
+                AllTableNamesSubscribe::new_box(),
+            ),
+        ];
+        let mut state = make_state_tables("state_1", "processor_1")?;
+        state.extend(make_state_tables("state_2", "processor_2")?);
+        state.extend(make_state_tables("state_3", "processor_3")?);
+
+        let join_config = DataConfig {
+            lhs_name: "state_1".to_string(),
+            rhs_name: Some("state_2".to_string()),
+            operator: AvailableCandleOperators::JoinInner,
+            ..Default::default()
+        };
+        let join_config_json = serde_json::to_vec(&join_config).unwrap();
+        let join_config_state = Table::get_builder()
+            .with_name("session_1")
+            .with_json(&join_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();        
+        state.push(join_config_state);
+        
+        let builder = SessionContextBuilder::new()
+            .with_tasks(make_test_session_builder_tasks())
+            .with_processors(processor_plans)
+            .with_name("session_1")
+            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_state(state)
+            .with_diagnostics(true);
+        Ok(builder)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -327,100 +432,7 @@ mod tests {
 
     #[test]
     fn test_build_with_tables_success() -> Result<()> {
-        let processor_plans = vec![
-            ProcessorMock::new_arc_with_pub_sub(
-                "processor_1",
-                &[TablePublish::Extend {
-                    table_name: "state_1".to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: "processor_1".to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-            ProcessorMock::new_arc_with_pub_sub(
-                "processor_2",
-                &[TablePublish::Extend {
-                    table_name: "state_2".to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateFullTable {
-                        table_name: "state_2".to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: "processor_2".to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-            ProcessorMock::new_arc_with_pub_sub(
-                "processor_3",
-                &[TablePublish::Extend {
-                    table_name: "state_3".to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateFullTable {
-                        table_name: "state_3".to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: "processor_3".to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-            ProcessorMock::new_arc_with_pub_sub(
-                "session_1",
-                &[
-                    TablePublish::Extend {
-                        table_name: "state_3".to_string(),
-                    },
-                ],
-                &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: "state_1".to_string(),
-                    },
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: "state_2".to_string(),
-                    },
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: "session_1".to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-        ];
-        let mut state = make_state_tables("state_1", "processor_1")?;
-        state.extend(make_state_tables("state_2", "processor_2")?);
-        state.extend(make_state_tables("state_3", "processor_3")?);
-
-        let join_config = DataConfig {
-            lhs_name: "state_1".to_string(),
-            rhs_name: Some("state_2".to_string()),
-            operator: AvailableCandleOperators::JoinInner,
-            ..Default::default()
-        };
-        let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
-            .with_name("session_1")
-            .with_json(&join_config_json, 1)
-            .unwrap()
-            .build()
-            .unwrap();        
-        state.push(join_config_state);
-        
-        let session = SessionContextBuilder::new()
-            .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans)
-            .with_name("session_1")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(state)
-            .with_diagnostics(true)
-            .build_with_tables()?;
+        let session = test_session_context_builder_agents::make_test_session_builder_agents()?.build_with_tables()?;
         assert_eq!(session.get_states().len(), 13);
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");

@@ -5,10 +5,10 @@ use super::{
     stream_adapter::RecordBatchStreamAdapter,
 };
 
-use arrow::ipc::{
+use arrow::{compute::cast, ipc::{
     reader::{FileReader, StreamReader},
     writer::{FileWriter, StreamWriter},
-};
+}};
 use arrow::json::reader::infer_json_schema;
 use arrow::json::{ArrayWriter, LineDelimitedWriter, ReaderBuilder};
 use arrow::{
@@ -226,7 +226,43 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                     .map(|s| s.unwrap_or_default())
                     .collect::<Vec<_>>()
             })
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>()   
+    }
+
+    /// Get a column as a vector of strings
+    fn get_column_as_vec_string(&self, column_name: &str) -> Result<Option<Vec<String>>> {
+        match self.get_column_data_type(column_name)? {
+            DataType::Utf8 => {
+                let vec_str = self.get_record_batches()
+                    .iter()
+                    .flat_map(|batch| {
+                        batch
+                            .column_by_name(column_name)
+                            .unwrap()
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| s.unwrap_or_default().to_string())
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                Ok(Some(vec_str))
+            },
+            DataType::UInt8 | DataType::UInt16 | DataType::UInt32 | DataType::UInt64
+            | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64
+            | DataType::Float32 | DataType::Float64 => {
+                let arr = cast(&self.get_column_as_array(column_name), &DataType::Utf8)?;
+                let vec_str = arr.as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap_or_default().to_string())
+                    .collect::<Vec<_>>();
+                Ok(Some(vec_str))
+            },
+            _ => Ok(None)
+        }        
     }
 
     /// Get the type of the column

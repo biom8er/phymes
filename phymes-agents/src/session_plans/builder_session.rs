@@ -29,8 +29,8 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Tab
             &session_context_name,
             &session_context_name,
         )?;
-        flowchart_diagram.push(builder.to_mermaid_flowchart()?);
-        er_diagram.push(builder.to_mermaid_erdiagram()?);
+        flowchart_diagram.push(builder.to_mermaid_flowchart(false)?);
+        er_diagram.push(builder.to_mermaid_erdiagram(false, true)?);
         session_context_names.push(session_context_name);
         timestamp.push(create_timestamp_micros());
     }
