@@ -81,7 +81,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
 
         let mut subjects_vec = Vec::new();
-        let mut sorted_subject_names = self.get_subject_names().into_iter().collect::<Vec<_>>();
+        let mut sorted_subject_names = self.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
         sorted_subject_names.sort();
         for subject_name in sorted_subject_names {
             subjects_vec.push(format!(
@@ -1228,12 +1228,12 @@ mod tests {
 
         // Test that the names match
         let mut test = builder_test
-            .get_processor_names()
+            .get_processor_names_from_tasks()
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
         let mut expected = builder
-            .get_processor_names()
+            .get_processor_names_from_tasks()
             .into_iter()
             .collect::<Vec<_>>();
         expected.sort();
@@ -1250,11 +1250,11 @@ mod tests {
         expected.sort();
         assert_eq!(test, expected);
         let mut test = builder_test
-            .get_subject_names()
+            .get_subject_names_from_processors()
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names().into_iter().collect::<Vec<_>>();
+        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -1296,12 +1296,12 @@ mod tests {
 
         // Test that the names match
         let mut test = builder_test
-            .get_processor_names()
+            .get_processor_names_from_tasks()
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
         let mut expected = builder
-            .get_processor_names()
+            .get_processor_names_from_tasks()
             .into_iter()
             .collect::<Vec<_>>();
         expected.sort();
@@ -1318,11 +1318,11 @@ mod tests {
         expected.sort();
         assert_eq!(test, expected);
         let mut test = builder_test
-            .get_subject_names()
+            .get_subject_names_from_processors()
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names().into_iter().collect::<Vec<_>>();
+        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -1364,12 +1364,12 @@ mod tests {
 
         // Test that the names match
         let mut test = builder_test
-            .get_processor_names()
+            .get_processor_names_from_tasks()
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
         let mut expected = builder
-            .get_processor_names()
+            .get_processor_names_from_tasks()
             .into_iter()
             .collect::<Vec<_>>();
         expected.sort();
@@ -1386,11 +1386,11 @@ mod tests {
         expected.sort();
         assert_eq!(test, expected);
         let mut test = builder_test
-            .get_subject_names()
+            .get_subject_names_from_processors()
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names().into_iter().collect::<Vec<_>>();
+        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -1433,12 +1433,12 @@ mod tests {
 
         // Test that the names match
         let mut test = builder_test
-            .get_processor_names()
+            .get_processor_names_from_tasks()
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
         let mut expected = builder
-            .get_processor_names()
+            .get_processor_names_from_tasks()
             .into_iter()
             .collect::<Vec<_>>();
         expected.sort();
@@ -1455,11 +1455,11 @@ mod tests {
         expected.sort();
         assert_eq!(test, expected);
         let mut test = builder_test
-            .get_subject_names()
+            .get_subject_names_from_processors()
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names().into_iter().collect::<Vec<_>>();
+        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
