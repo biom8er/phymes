@@ -50,7 +50,7 @@ jobs:
       # - name: Run examples for core
       #   run: cargo run --package phymes-core --release --example addrows
       - name: Install dioxus
-        run: cargo install dioxus-cli
+        run: cargo binstall dioxus-cli
       - name: Build phymes-app
         run: |
           dx build -p phymes-app

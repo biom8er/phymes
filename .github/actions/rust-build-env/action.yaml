@@ -44,7 +44,7 @@ runs:
       shell: bash
       run: |
         cargo install --git https://github.com/rust-lang/mdBook.git mdbook
-        cargo install mdbook-mermaid
+        cargo binstall mdbook-mermaid
     - if: ${{ steps.cache-cargo.outputs.cache-hit != 'true' }}
       name: Generate lockfile
       shell: bash
