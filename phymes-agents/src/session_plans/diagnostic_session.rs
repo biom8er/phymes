@@ -1311,8 +1311,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionStream,
-        SessionStreamState, TableTrait,
+        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState, TableTrait
     };
     use phymes_diagnostics::HashMap;
 
@@ -1330,6 +1329,7 @@ mod tests {
         let session_ctx = diagnostic_session
             .build()
             .with_name(diagnostic_session.session_context_name)
+            // .with_diagnostics(true) // Debugging
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 

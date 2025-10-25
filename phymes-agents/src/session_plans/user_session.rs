@@ -440,8 +440,7 @@ pub(crate) mod user_session_inner {
     use anyhow::Result;
     use parking_lot::RwLock;
     use phymes_core::{
-        BlobBuilderTraitExt, BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait,
-        SessionStream, SessionStreamState, TableTrait, create_user_inbox_batch,
+        create_user_inbox_batch, BlobBuilderTraitExt, BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, SessionContextBuilderTrait, SessionStream, SessionStreamState, TableTrait
     };
 
     use crate::{
@@ -456,6 +455,7 @@ pub(crate) mod user_session_inner {
         let session_ctx = user_agent_session
             .build()
             .with_name(user_agent_session.session_context_name)
+            .with_diagnostics(true)
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 

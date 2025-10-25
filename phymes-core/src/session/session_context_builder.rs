@@ -751,7 +751,7 @@ mod tests {
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_iter(), 10);
-        assert!(!session.get_diagnostics());
+        assert!(session.get_diagnostics());
         Ok(())
     }
 

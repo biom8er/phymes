@@ -738,9 +738,9 @@ mod tests {
                 .with_publisher("s1")
                 .with_subject("d1")
                 .with_update(&TablePublish::Extend {
-                    table_name: "test_table".to_string(),
+                    table_name: "d1".to_string(),
                 })
-                .with_message(make_test_table("test_table", 1, 8, 2)?.to_record_batch_stream())
+                .with_message(make_test_table("d1", 1, 8, 2)?.to_record_batch_stream())
                 .build()?,
         );
         let inbox = test_task.make_outbox(message);

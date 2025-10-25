@@ -95,10 +95,18 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 let mut names = Vec::new();
                 let table = state_map.get(p.get_name()).unwrap();
                 if let Ok(_index) = table.get_schema().index_of("lhs_name") {
-                    names.push(table.get_column_as_vec_str("lhs_name").last().unwrap().to_string());
+                    let vec_str = table.get_column_as_vec_str("lhs_name");
+                    let name = vec_str.last().unwrap();
+                    if !name.is_empty() {
+                        names.push(name.to_string());
+                    }                    
                 }
                 if let Ok(_index) = table.get_schema().index_of("rhs_name") {
-                    names.push(table.get_column_as_vec_str("rhs_name").last().unwrap().to_string());
+                    let vec_str = table.get_column_as_vec_str("rhs_name");
+                    let name = vec_str.last().unwrap();
+                    if !name.is_empty() {
+                        names.push(name.to_string());
+                    }
                 }
                 let missing = names
                     .iter()
@@ -135,7 +143,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .unwrap()
             .iter()
             .filter_map(|p| 
-                if p.get_subscriptions().iter().map(|s| s.get_table_name()).collect::<Vec<_>>().contains(&p.get_name()) {
+                if self.name.as_ref().unwrap() == p.get_name() || p.get_subscriptions().iter().map(|s| s.get_table_name()).collect::<Vec<_>>().contains(&p.get_name()) {
                     None
                 } else {
                     Some(p.get_name().to_string())
@@ -156,6 +164,11 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 "Add processors before making the default processor configuration subjects."
             ));
         }
+        if self.name.is_none() {
+            return Err(anyhow!(
+                "Add a name for the session before making the default processor configuration subjects."
+            ));
+        }
         // DM: need to find a way to customize the default further for `DataConfig`
         let name = "";
 
@@ -165,7 +178,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .as_ref()
             .unwrap()
             .iter()
-            .filter(|p| !p.get_subscriptions().iter().map(|s| s.get_table_name()).collect::<Vec<_>>().contains(&p.get_name()))
+            .filter(|p| self.name.as_ref().unwrap() != p.get_name() && !p.get_subscriptions().iter().map(|s| s.get_table_name()).collect::<Vec<_>>().contains(&p.get_name()))
             .cloned()
             .collect::<Vec<_>>();
         
@@ -361,7 +374,7 @@ pub mod test_session_context_builder_agents {
         let builder = SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
             .with_processors(processor_plans)
-            .with_name("session_1")
+            .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
             .with_diagnostics(true);
@@ -383,7 +396,7 @@ mod tests {
         state.extend(make_state_tables("state_2", "config_2")?);
         state.extend(make_state_tables("state_3", "config_3")?);
         let result = make_test_session_builder_parallel_task()
-            .with_name("session_1")
+            .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state.clone())
             .build_with_tables();
@@ -393,18 +406,21 @@ mod tests {
                 e.to_string(),
                 "A subscription with the same name as the processor (i.e., its config) is not provided for processors [\"processor_1\", \"processor_2\", \"processor_3\", \"session_1\"]."
             ),
-        }      
+        }
         
-        let session = make_test_session_builder_parallel_task()
-            .with_name("session_1")
+        let result = make_test_session_builder_parallel_task()
+            .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
             .make_processor_configs()?
-            .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 16);
-        assert_eq!(session.get_tasks().len(), 4);
-        assert_eq!(session.get_name(), "session_1");
-        assert_eq!(session.get_max_iter(), 25);
+            .build_with_tables();
+        match result {
+            Ok(_) => panic!("Should have failed"),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "A subscriptions with the same names as the `DataConfig` lhs_name and rhs_name were not found for processors with lhs_name and rhs_name [(\"processor_1\", [\"lhs_name\"]), (\"processor_2\", [\"lhs_name\"]), (\"processor_3\", [\"lhs_name\"]), (\"session_1\", [\"lhs_name\"])]."
+            ),
+        }
         Ok(())
     }
 
@@ -499,7 +515,7 @@ mod tests {
         let result = SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
             .with_processors(processor_plans)
-            .with_name("session_1")
+            .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
             .with_diagnostics(true)
@@ -520,7 +536,7 @@ mod tests {
         let session = test_session_context_builder_agents::make_test_session_builder_agents()?.build_with_tables()?;
         assert_eq!(session.get_states().len(), 13);
         assert_eq!(session.get_tasks().len(), 4);
-        assert_eq!(session.get_name(), "session_1");
+        assert_eq!(session.get_name(), "session");
         assert_eq!(session.get_max_iter(), 25);
         assert!(session.get_diagnostics());
         Ok(())

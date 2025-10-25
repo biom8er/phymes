@@ -680,7 +680,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(name.clone().as_str())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject("test_table")
                 .with_update(&TablePublish::Extend {
                     table_name: "test_table".to_string(),
                 })
