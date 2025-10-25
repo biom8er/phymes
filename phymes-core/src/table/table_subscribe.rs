@@ -200,11 +200,12 @@ pub trait SubscribeTrait: MappableTrait + Debug + Send + Sync {
     ) -> bool;
     fn new_box() -> Box<dyn SubscribeTrait>
     where
-        Self: Sized;
+        Self: Sized;    
+    fn clone_boxed(& self) -> Box<dyn SubscribeTrait >;
 }
 
 /// Always subscribe (dummy subscription check for testing)
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AlwaysSubscribe;
 
 impl SubscribeTrait for AlwaysSubscribe {
@@ -222,6 +223,9 @@ impl SubscribeTrait for AlwaysSubscribe {
     {
         Box::new(Self)
     }
+    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+        Box::new(self.clone())
+    }
 }
 
 impl MappableTrait for AlwaysSubscribe {
@@ -234,7 +238,7 @@ impl MappableTrait for AlwaysSubscribe {
 }
 
 /// Subscribe when any matching table name has been updated
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AnyTableNameSubscribe;
 
 impl SubscribeTrait for AnyTableNameSubscribe {
@@ -258,6 +262,9 @@ impl SubscribeTrait for AnyTableNameSubscribe {
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
     }
+    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+        Box::new(self.clone())
+    }
 }
 
 impl MappableTrait for AnyTableNameSubscribe {
@@ -270,7 +277,7 @@ impl MappableTrait for AnyTableNameSubscribe {
 }
 
 /// Subscribe when all matching table names has been updated
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AllTableNamesSubscribe;
 
 impl SubscribeTrait for AllTableNamesSubscribe {
@@ -292,6 +299,9 @@ impl SubscribeTrait for AllTableNamesSubscribe {
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
     }
+    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+        Box::new(self.clone())
+    }
 }
 
 impl MappableTrait for AllTableNamesSubscribe {
@@ -304,7 +314,7 @@ impl MappableTrait for AllTableNamesSubscribe {
 }
 
 /// Subscribe when any matching table schema has been updated
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AnyTableSchemaSubscribe;
 
 impl SubscribeTrait for AnyTableSchemaSubscribe {
@@ -343,6 +353,9 @@ impl SubscribeTrait for AnyTableSchemaSubscribe {
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
     }
+    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+        Box::new(self.clone())
+    }
 }
 
 impl MappableTrait for AnyTableSchemaSubscribe {
@@ -355,7 +368,7 @@ impl MappableTrait for AnyTableSchemaSubscribe {
 }
 
 /// Subscribe when all matching table schemas has been updated
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AllTableSchemasSubscribe;
 
 impl SubscribeTrait for AllTableSchemasSubscribe {
@@ -392,6 +405,9 @@ impl SubscribeTrait for AllTableSchemasSubscribe {
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
     }
+    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+        Box::new(self.clone())
+    }
 }
 
 impl MappableTrait for AllTableSchemasSubscribe {
@@ -404,7 +420,7 @@ impl MappableTrait for AllTableSchemasSubscribe {
 }
 
 /// Custom subscription to pull in all of the relevant content for the chat
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct ChatContentSubscribe {
     user_message_table_name: String,
     tool_message_table_name: String,
@@ -440,6 +456,9 @@ impl SubscribeTrait for ChatContentSubscribe {
             user_message_table_name: "UserMessages".to_string(),
             tool_message_table_name: "ToolMessages".to_string(),
         })
+    }
+    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+        Box::new(self.clone())
     }
 }
 

@@ -6,7 +6,7 @@ pub use candle_data::{
     AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
     DataAggregatorOperator, DataCastOperator, DataComparatorOperator, DataComparatorPredicate,
     DataConfig, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor,
-    collect_messages_by_schema,
+    collect_messages_by_schema, DataConfigTrait
 };
 pub use candle_operators::{
     ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDFText,

@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
+use clap::ValueEnum;
 use parking_lot::{Mutex, RwLock};
 use phymes_core::{
-    MappableTrait, ProcessorTrait, RuntimeEnv, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, StateMap, Table, TableTrait, TaskMap, TaskPlan
+    BuildableTrait, BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, StateMap, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskMap, TaskPlan
 };
 use phymes_diagnostics::HashMap;
 
-use crate::session_traits::tabular::SessionContextBuilderTabularTrait;
+use crate::{session_traits::tabular::SessionContextBuilderTabularTrait, AvailableProcessors};
 
 type SessionContextInput = (
     String,
@@ -33,6 +34,9 @@ pub trait SessionContextBuilderAgentsTrait {
 
     /// Check that all [ProcessorTrait]s subscribe to a subject of the same name
     fn check_processor_config_subjects(&self) -> Result<()>;
+
+    /// Add processor subjects with smart defaults
+    fn make_processor_configs(self) -> Result<Self> where Self: Sized;
 }
 
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
@@ -140,7 +144,6 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 }
             )
             .collect::<Vec<_>>();
-        dbg!(&processor_names);
         if !processor_names.is_empty() {
             return Err(anyhow!(
                 "A subscription with the same name as the processor (i.e., its config) is not provided for processors {processor_names:?}."
@@ -148,6 +151,78 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         }
 
         Ok(())
+    }
+    fn make_processor_configs(mut self) -> Result<Self> {
+        if self.processors.is_none() {
+            return Err(anyhow!(
+                "Add processors before making the default processor configuration subjects."
+            ));
+        }
+        // DM: need to find a way to customize the default further for `DataConfig`
+        let name = "";
+
+        // Find the processors for that are missing a config
+        let processors_to_update = self
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter(|p| !p.get_subscriptions().iter().map(|s| s.get_table_name()).collect::<Vec<_>>().contains(&p.get_name()))
+            .cloned()
+            .collect::<Vec<_>>();
+        
+        // Add the default configuration to the subjects if it does not exist
+        let subjects = processors_to_update.iter()
+            .filter_map(|p| if self.state.as_ref().unwrap().iter().map(|t| t.get_name()).collect::<Vec<_>>().contains(&p.get_name()) {
+                None
+            } else {
+                let new_processor = AvailableProcessors::from_str(p.get_type(), false).unwrap();
+
+                // Make the default config
+                let config = new_processor.to_example_config_json(name).unwrap();
+                let table = Table::get_builder()
+                    .with_name(p.get_name())
+                    .with_json(&config, 1).unwrap()
+                    .build().unwrap();
+                Some(table)
+            })
+            .collect::<Vec<_>>();
+
+        // Remake the state
+        if !subjects.is_empty() {
+            let mut state = self.state.take().unwrap();
+            state.extend(subjects);
+            self.state.replace(state);
+        }
+
+        // Remake the processors (consuming the update)
+        let mut processors_to_update = processors_to_update.into_iter().map(|p| (p.get_name().to_string(), p)).collect::<HashMap<_, _>>();
+        let mut processors = Vec::new();
+        for processor in self.processors.as_ref().unwrap().iter() {
+            if let Some(to_update) = processors_to_update.remove(processor.get_name()) {
+
+                // Rebuild the updated processor
+                let mut subscriptions = to_update.get_subscriptions().into_iter().map(|e| e.to_owned()).collect::<Vec<TableSubscribe>>();
+                subscriptions.push(TableSubscribe::AlwaysFullTable { table_name: to_update.get_name().to_string() });
+                let new_processor = AvailableProcessors::from_str(to_update.get_type(), false).unwrap();      
+                let new_processor = new_processor.build_arc_with_pub_sub(
+                    to_update.get_name(),
+                    &to_update.get_publications().into_iter().map(|e| e.to_owned()).collect::<Vec<TablePublish>>(),
+                    &subscriptions,
+                    to_update.get_subscribe().clone_boxed()
+                );
+                processors.push(new_processor)
+            } else {
+
+                // Move over the other processors an preserve order
+                processors.push(processor.clone())
+            }
+        }
+
+        // Remake the processors
+        self.processors.replace(processors);
+
+        Ok(self)
     }
 }
 
@@ -312,7 +387,7 @@ mod tests {
         let result = make_test_session_builder_parallel_task()
             .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(state)
+            .with_state(state.clone())
             .build_with_tables();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -320,7 +395,18 @@ mod tests {
                 e.to_string(),
                 "A subscription with the same name as the processor (i.e., its config) is not provided for processors [\"processor_1\", \"processor_2\", \"processor_3\", \"session_1\"]."
             ),
-        }
+        }      
+        
+        let session = make_test_session_builder_parallel_task()
+            .with_name("session_1")
+            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_state(state)
+            .make_processor_configs()?
+            .build_with_tables()?;
+        assert_eq!(session.get_states().len(), 16);
+        assert_eq!(session.get_tasks().len(), 4);
+        assert_eq!(session.get_name(), "session_1");
+        assert_eq!(session.get_max_iter(), 25);
         Ok(())
     }
 
@@ -427,6 +513,7 @@ mod tests {
                 "A subscriptions with the same names as the `DataConfig` lhs_name and rhs_name were not found for processors with lhs_name and rhs_name [(\"session_1\", [\"missing_state\"])]."
             ),
         }
+
         Ok(())
     }
 

@@ -5,9 +5,9 @@ use clap::ValueEnum;
 use phymes_core::{
     test_processor::ProcessorMock, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, SubscribeTrait, TablePublish, TableSubscribe
 };
-use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor};
+use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataConfig, DataConfigTrait, DataSummaryConfig, DataSummaryProcessor};
 use phymes_ml::{
-    CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
+    CandleChatConfig, CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
@@ -94,21 +94,21 @@ impl AvailableProcessors {
     }
 
     /// Get the processor's corresponding config
-    pub fn get_config(&self) -> AvailableProcessorConfigs {
+    pub fn to_example_config_json(&self, name: &str) -> Result<Vec<u8>, serde_json::Error> {
         match self {
-            Self::ProcessorMock => AvailableProcessorConfigs::None,
-            Self::ProcessorEcho => AvailableProcessorConfigs::None,
-            Self::CandleDataProcessor => AvailableProcessorConfigs::DataConfig,
-            Self::DataSummaryProcessor => AvailableProcessorConfigs::DataSummaryConfig,
-            Self::AttachmentAggregatorProcessor => AvailableProcessorConfigs::DataConfig,
-            Self::CandleChatProcessor => AvailableProcessorConfigs::CandleChatConfig,
-            Self::MessageAggregatorProcessor => AvailableProcessorConfigs::DataConfig,
-            Self::MessageParserProcessor => AvailableProcessorConfigs::CandleChatConfig,
-            Self::CandleEmbedProcessor => AvailableProcessorConfigs::CandleEmbedConfig,
+            Self::ProcessorMock => DataConfig::to_example_json(name), // Just for testing purposes...
+            Self::ProcessorEcho => Ok(Vec::new()),
+            Self::CandleDataProcessor => DataConfig::to_example_json(name),
+            Self::DataSummaryProcessor => DataSummaryConfig::to_example_json("Function"),
+            Self::AttachmentAggregatorProcessor => DataConfig::to_example_json("Aggregator"),
+            Self::CandleChatProcessor => CandleChatConfig::to_example_json("CandleAsset"),
+            Self::MessageAggregatorProcessor => DataConfig::to_example_json("Aggregator"),
+            Self::MessageParserProcessor => CandleChatConfig::to_example_json(name),
+            Self::CandleEmbedProcessor => CandleEmbedConfig::to_example_json("CandleAsset"),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIChatProcessor => AvailableProcessorConfigs::CandleChatConfig,
+            Self::OpenAIChatProcessor => CandleChatConfig::to_example_json("OpenAIAsset"),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIEmbedProcessor => AvailableProcessorConfigs::CandleEmbedConfig,
+            Self::OpenAIEmbedProcessor => CandleEmbedConfig::to_example_json("OpenAIAsset"),
         }
     }
 
@@ -190,51 +190,5 @@ impl AvailableProcessors {
     pub fn build_with_builder(self, builder: ProcessorBuilder) -> Result<Arc<dyn ProcessorTrait>> {
         let (name, publications, subscriptions, subscribe) = builder.take()?;
         Ok(self.build_arc_with_pub_sub(&name, &publications, &subscriptions, subscribe))
-    }
-}
-
-
-
-/// The available [ProcessorTrait] configs
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
-pub enum AvailableProcessorConfigs {
-    #[value(name = "None")]
-    #[default]
-    None,
-    #[value(name = "CandleEmbedConfig")]
-    CandleEmbedConfig,
-    #[value(name = "CandleChatConfig")]
-    CandleChatConfig,
-    #[value(name = "DataSummaryConfig")]
-    DataSummaryConfig,
-    #[value(name = "DataConfig")]
-    DataConfig,
-}
-
-impl Display for AvailableProcessorConfigs {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::None => write!(f, "None"),
-            Self::CandleEmbedConfig => write!(f, "CandleEmbedConfig"),
-            Self::CandleChatConfig => write!(f, "CandleChatConfig"),
-            Self::DataSummaryConfig => write!(f, "DataSummaryConfig"),
-            Self::DataConfig => write!(f, "DataConfig"),
-        }
-    }
-}
-
-impl AvailableProcessorConfigs {
-    /// convert JSON to a [Table]
-    /// 
-    /// let config = DataConfig { ..Default::default()};
-    /// let config_json = serde_json::to_vec(&config)?;
-    pub fn to_default_json(&self) -> Result<Vec<u8>> {        
-        match self {
-            Self::None => Ok(Vec::new()),
-            Self::CandleEmbedConfig => Ok(Vec::new()),
-            Self::CandleChatConfig => Ok(Vec::new()),
-            Self::DataSummaryConfig => Ok(Vec::new()),
-            Self::DataConfig => Ok(Vec::new()),
-        }
     }
 }

@@ -1227,9 +1227,11 @@ impl BuilderTrait for SessionContextBuilderMermaid {
 
 #[cfg(test)]
 mod tests {
+    use phymes_core::{test_session_context_builder::make_test_session_builder_parallel_task, test_task::{make_runtime_env, make_state_tables}};
+
     use crate::{
         session_plans::{ChatAgentSession, DocumentRAGSession, ToolAgentSession},
-        session_traits::{agents::test_session_context_builder_agents, CustomAgentsBuilderTrait},
+        session_traits::{agents::test_session_context_builder_agents, CustomAgentsBuilderTrait}, SessionContextBuilderAgentsTrait,
     };
 
     use super::*;
@@ -1432,12 +1434,123 @@ mod tests {
         }
 
         // Test that the first row was captured
-        let _ = builder_test
+        for table in builder_test
             .state
             .as_ref()
             .unwrap()
+            .iter() {
+            assert_eq!(table.count_rows(), 1)
+        }
+
+        // Test that we can build the session
+        let _ = builder_test.with_name("session_1").build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_parallel_task_no_config_with_data() -> Result<()> {
+        // Make the builder without matching processor configs
+        let mut state = make_state_tables("state_1", "config_1")?;
+        state.extend(make_state_tables("state_2", "config_2")?);
+        state.extend(make_state_tables("state_3", "config_3")?);
+        let builder = make_test_session_builder_parallel_task()
+            .with_name("session_1")
+            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_state(state)
+            .make_processor_configs()?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(true, false)?;
+        dbg!(&flowchart);
+        dbg!(&erdiagram);
+
+        // Remake the builder
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
+            .with_state_from_mermaid_erdiagram(&erdiagram, false, true)?;
+
+        // Test that the names match
+        let mut test = builder_test
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
             .iter()
-            .map(|p| assert_eq!(p.count_rows(), 1));
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that the schemas match
+        {
+            let test = builder_test
+                .state
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.get_schema()))
+                .collect::<HashMap<_,_>>();
+            let expected = builder
+                .state
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.get_schema()))
+                .collect::<HashMap<_,_>>();
+            for key in expected.keys() {
+                assert!(expected.get(key).eq(&test.get(key)));
+            }
+        }
+
+        // Test that the first row was captured
+        for table in builder_test
+            .state
+            .as_ref()
+            .unwrap()
+            .iter() {
+            assert_eq!(table.count_rows(), 1)
+        }
+
+        // Test that the processor configs were added to the subscriptions were added in
+        let builder_test = builder_test.make_processor_configs()?;
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
 
         // Test that we can build the session
         let _ = builder_test.with_name("session_1").build()?;
