@@ -1227,8 +1227,6 @@ impl BuilderTrait for SessionContextBuilderMermaid {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{test_session_context_builder::make_test_session_builder_parallel_task, test_task::{make_runtime_env, make_state_tables}};
-
     use crate::{
         session_plans::{ChatAgentSession, DocumentRAGSession, ToolAgentSession},
         session_traits::{agents::test_session_context_builder_agents, CustomAgentsBuilderTrait}, SessionContextBuilderAgentsTrait,
@@ -1450,15 +1448,7 @@ mod tests {
 
     #[test]
     fn test_from_mermaid_parallel_task_no_config_with_data() -> Result<()> {
-        // Make the builder without matching processor configs
-        let mut state = make_state_tables("state_1", "config_1")?;
-        state.extend(make_state_tables("state_2", "config_2")?);
-        state.extend(make_state_tables("state_3", "config_3")?);
-        let builder = make_test_session_builder_parallel_task()
-            .with_name("session_1")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(state)
-            .make_processor_configs()?;
+        let builder = test_session_context_builder_agents::make_test_session_builder_agents()?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(false)?;
