@@ -1,19 +1,17 @@
 use std::{fmt::Display, sync::Arc};
 
-use anyhow::{anyhow, Result};
-use arrow::array::RecordBatch;
+use anyhow::Result;
 use clap::ValueEnum;
 use phymes_core::{
-    test_processor::ProcessorMock, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, SubscribeTrait, Table, TablePublish, TableSubscribe
+    test_processor::ProcessorMock, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, SubscribeTrait, TablePublish, TableSubscribe
 };
 use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor};
 use phymes_ml::{
-    CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
+    CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 
 /// The available [ProcessorTrait]s
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]

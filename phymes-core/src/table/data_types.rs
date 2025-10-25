@@ -1,7 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use arrow::{compute::kernels::cast_utils::Parser, datatypes::{BooleanType, DataType, Field, Float32Type, Float64Type, Int64Type, UInt16Type, UInt32Type, UInt8Type, Utf8Type}};
+use arrow::{compute::kernels::cast_utils::Parser, datatypes::{DataType, Field, Float32Type, Float64Type, Int64Type, UInt16Type, UInt32Type, UInt8Type}};
 use serde_json::Value;
 
 /// Helper function to convert an arrow [DataType] to a [String]
@@ -141,6 +141,10 @@ pub fn from_str_to_data_type(data_type: &str) -> Result<DataType> {
 }
 
 /// Helper function to parse a [String] into a [Value] based on the [DataType]
+/// 
+/// # Notes
+/// * Nested types (i.e., `List` and `FixedSizeList`) must be serialized using [serde_json]
+///   for the parsing and deserialization to work as expected!
 pub fn parse_str_to_data_type(data: &str, data_type: &DataType) -> Result<Value> {
     let parsed = match data_type {
         DataType::UInt8 => Value::from(UInt8Type::parse(data).unwrap()),
@@ -152,9 +156,10 @@ pub fn parse_str_to_data_type(data: &str, data_type: &DataType) -> Result<Value>
         DataType::Utf8 => Value::String(data.to_string()),
         DataType::Null => Value::Null,
         DataType::Boolean => Value::Bool(FromStr::from_str(data)?),
+        DataType::List(_) | DataType::FixedSizeList(_, _) => serde_json::from_str::<Value>(data)?,
         _ => {
             return Err(anyhow!(
-                "Unsupported data type {data_type} for String parsing. Supported data types are {}, {}, {}, {}, {}, {}, {}, {}, and {}.",
+                "Unsupported data type {data_type} for String parsing. Supported data types are {}, {}, {}, {}, {}, {}, {}, {}, {}, and FixedSizeList- or List- with primitive types.",
                 DataType::UInt8,
                 DataType::UInt16,
                 DataType::UInt32,

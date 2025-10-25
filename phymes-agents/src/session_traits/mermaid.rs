@@ -1042,7 +1042,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut subject_names = HashSet::new();
 
         // Parse the mermaid.js flowchart string
-        let erdiagram_lines = erdiagram.split("\n").collect::<Vec<_>>();
+        let erdiagram = erdiagram.replace("\\n\\t\\t", "\n"); // since \\n is not recognized as a new line...
+        let erdiagram_lines = erdiagram.lines().collect::<Vec<_>>();
         let mut iter = 0;
         if !erdiagram_lines.first().unwrap().contains("erDiagram") {
             return Err(anyhow!(
@@ -1077,11 +1078,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     if erdiagram_lines.get(iter).unwrap().contains("}") {
                         // Build and add the table to the subjects list
                         let schema = Arc::new(Schema::new(fields));
-                        let table = if with_values {
-                            let data_json = serde_json::to_vec(&data)?;
+                        let table = if with_values && !data.is_empty() {
                             Table::get_builder()
                                 .with_schema(schema)
-                                .with_json(&data_json, 1)?
+                                .with_json_values(&[serde_json::Value::Object(data)])?
                                 .with_name(subject_name)
                                 .build()?
                         } else {
@@ -1123,7 +1123,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                     erdiagram_lines.get(iter).unwrap(),
                                 ));
                             };
-                            data.insert(field_name.to_owned(), parse_str_to_data_type(value, &data_type)?);
+                            let value = value.trim_start_matches('\"').trim_end_matches('\"');
+                            let _ = data.insert(field_name.to_owned(), parse_str_to_data_type(value, &data_type)?);
                         }
                         let field = Field::new(field_name, data_type, false);
                         fields.push(field);
@@ -1253,9 +1254,9 @@ mod tests {
         let mermaid_js = builder.to_mermaid_erdiagram(false, false)?;
         assert_eq!(mermaid_js, "erDiagram\n\tprocessor_1{\n\t\tUtf8 a\n\t\tUInt32 b\n\t\tUInt16 c\n\t}\n\tprocessor_2{\n\t\tUtf8 a\n\t\tUInt32 b\n\t\tUInt16 c\n\t}\n\tprocessor_3{\n\t\tUtf8 a\n\t\tUInt32 b\n\t\tUInt16 c\n\t}\n\tsession_1{\n\t\tBoolean cpu\n\t\tUtf8 lhs_fk\n\t\tUtf8 lhs_name\n\t\tUtf8 lhs_pk\n\t\tList-Utf8 lhs_values\n\t\tUtf8 operator\n\t\tUtf8 rhs_name\n\t\tUtf8 stream\n\t}\n\tstate_1{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_2{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_3{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}".to_string());
         let mermaid_js = builder.to_mermaid_erdiagram(true, false)?;
-        assert_eq!(mermaid_js, "erDiagram\n\tprocessor_1{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_2{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_3{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tsession_1{\n\t\tBoolean cpu\\n\\t\\tUtf8 lhs_fk \"lhs_fk\"\\n\\t\\tUtf8 lhs_name \"state_1\"\\n\\t\\tUtf8 lhs_pk \"lhs_pk\"\n\t\tList-Utf8 lhs_values\\n\\t\\tUtf8 operator \"JoinInner\"\\n\\t\\tUtf8 rhs_name \"state_2\"\\n\\t\\tUtf8 stream \"AccumulateLHSAccumulateRHS\"\n\t}\n\tstate_1{\\n\\t\\tUInt32 id \"3\"\\n\\t\\tUtf8 collection \"collection3\"\\n\\t\\tUtf8 title \"title3\"\\n\\t\\tUtf8 text \"text3\"\\n\\t\\tUtf8 metadata \"metadata3\"\\n\\t\\tFloat32 score \"3.0\"\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_2{\\n\\t\\tUInt32 id \"3\"\\n\\t\\tUtf8 collection \"collection3\"\\n\\t\\tUtf8 title \"title3\"\\n\\t\\tUtf8 text \"text3\"\\n\\t\\tUtf8 metadata \"metadata3\"\\n\\t\\tFloat32 score \"3.0\"\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_3{\\n\\t\\tUInt32 id \"3\"\\n\\t\\tUtf8 collection \"collection3\"\\n\\t\\tUtf8 title \"title3\"\\n\\t\\tUtf8 text \"text3\"\\n\\t\\tUtf8 metadata \"metadata3\"\\n\\t\\tFloat32 score \"3.0\"\n\t\tFixedSizeList-Float32-8 embedding\n\t}".to_string());
+        assert_eq!(mermaid_js, "erDiagram\n\tprocessor_1{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_2{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_3{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tsession_1{\\n\\t\\tBoolean cpu \"false\"\\n\\t\\tUtf8 lhs_fk \"lhs_fk\"\\n\\t\\tUtf8 lhs_name \"state_1\"\\n\\t\\tUtf8 lhs_pk \"lhs_pk\"\\n\\t\\tList-Utf8 lhs_values \"[\"lhs_values\"]\"\\n\\t\\tUtf8 operator \"JoinInner\"\\n\\t\\tUtf8 rhs_name \"state_2\"\\n\\t\\tUtf8 stream \"AccumulateLHSAccumulateRHS\"\n\t}\n\tstate_1{\\n\\t\\tUInt32 id \"3\"\\n\\t\\tUtf8 collection \"collection3\"\\n\\t\\tUtf8 title \"title3\"\\n\\t\\tUtf8 text \"text3\"\\n\\t\\tUtf8 metadata \"metadata3\"\\n\\t\\tFloat32 score \"3.0\"\\n\\t\\tFixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n\t}\n\tstate_2{\\n\\t\\tUInt32 id \"3\"\\n\\t\\tUtf8 collection \"collection3\"\\n\\t\\tUtf8 title \"title3\"\\n\\t\\tUtf8 text \"text3\"\\n\\t\\tUtf8 metadata \"metadata3\"\\n\\t\\tFloat32 score \"3.0\"\\n\\t\\tFixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n\t}\n\tstate_3{\\n\\t\\tUInt32 id \"3\"\\n\\t\\tUtf8 collection \"collection3\"\\n\\t\\tUtf8 title \"title3\"\\n\\t\\tUtf8 text \"text3\"\\n\\t\\tUtf8 metadata \"metadata3\"\\n\\t\\tFloat32 score \"3.0\"\\n\\t\\tFixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n\t}".to_string());
         let mermaid_js = builder.to_mermaid_erdiagram(false, true)?;
-        assert_eq!(mermaid_js, "erDiagram\n\tprocessor_1{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_2{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_3{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tsession_1{\n\t\tBoolean cpu\\n\\t\\tUtf8 lhs_fk \"lhs_fk\"\\n\\t\\tUtf8 lhs_name \"state_1\"\\n\\t\\tUtf8 lhs_pk \"lhs_pk\"\n\t\tList-Utf8 lhs_values\\n\\t\\tUtf8 operator \"JoinInner\"\\n\\t\\tUtf8 rhs_name \"state_2\"\\n\\t\\tUtf8 stream \"AccumulateLHSAccumulateRHS\"\n\t}\n\tstate_1{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_2{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_3{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}".to_string());
+        assert_eq!(mermaid_js, "erDiagram\n\tprocessor_1{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_2{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_3{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tsession_1{\\n\\t\\tBoolean cpu \"false\"\\n\\t\\tUtf8 lhs_fk \"lhs_fk\"\\n\\t\\tUtf8 lhs_name \"state_1\"\\n\\t\\tUtf8 lhs_pk \"lhs_pk\"\\n\\t\\tList-Utf8 lhs_values \"[\"lhs_values\"]\"\\n\\t\\tUtf8 operator \"JoinInner\"\\n\\t\\tUtf8 rhs_name \"state_2\"\\n\\t\\tUtf8 stream \"AccumulateLHSAccumulateRHS\"\n\t}\n\tstate_1{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_2{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_3{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}".to_string());
 
         Ok(())
     }
@@ -1321,6 +1322,27 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(test, expected);
 
+        // Test that the schemas match
+        {
+            let test = builder_test
+                .state
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.get_schema()))
+                .collect::<HashMap<_,_>>();
+            let expected = builder
+                .state
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.get_schema()))
+                .collect::<HashMap<_,_>>();
+            for key in expected.keys() {
+                assert!(expected.get(key).eq(&test.get(key)));
+            }
+        }
+
         // Test that we can build the session
         let _ = builder_test.with_name("session_1").build()?;
 
@@ -1328,12 +1350,12 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_parallel_task_no_config_with_data() -> Result<()> {
+    fn test_from_mermaid_parallel_task_with_config_with_data() -> Result<()> {
         let builder = test_session_context_builder_agents::make_test_session_builder_agents()?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
+        let flowchart = builder.to_mermaid_flowchart(true)?;
+        let erdiagram = builder.to_mermaid_erdiagram(true, false)?;
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
@@ -1388,8 +1410,34 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(test, expected);
 
-        // Test that the config data is present
-        todo!();
+        // Test that the schemas match
+        {
+            let test = builder_test
+                .state
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.get_schema()))
+                .collect::<HashMap<_,_>>();
+            let expected = builder
+                .state
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.get_schema()))
+                .collect::<HashMap<_,_>>();
+            for key in expected.keys() {
+                assert!(expected.get(key).eq(&test.get(key)));
+            }
+        }
+
+        // Test that the first row was captured
+        let _ = builder_test
+            .state
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| assert_eq!(p.count_rows(), 1));
 
         // Test that we can build the session
         let _ = builder_test.with_name("session_1").build()?;
@@ -1541,7 +1589,6 @@ mod tests {
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(true)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
-        dbg!(&erdiagram);
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
