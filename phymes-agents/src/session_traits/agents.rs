@@ -41,8 +41,6 @@ pub trait SessionContextBuilderAgentsTrait {
 
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     fn build_with_tables(self) -> Result<SessionContext> {
-        // Add in default configurations for processors
-
         // Check that we can build
         self.check_tasks()?;
         self.check_processors()?;

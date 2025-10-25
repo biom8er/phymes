@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use phymes_agents::{AvailableSessionPlans, SessionContextBuilderMermaidTrait};
+use phymes_agents::{AvailableSessionPlans, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait};
 use phymes_core::{
     create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
     MessageBuilderTrait, SessionContextBuilder, SessionInterfaceMessage,
@@ -248,7 +248,7 @@ pub fn builds_dropdown_view(
                                 return;
                             },
                         };
-                        builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true) {
+                        builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true, true) {
                             Ok(builder) => builder,
                             Err(err) => {
                                 build_errors.write().push_str(format!("{err:?}").as_str());
@@ -259,7 +259,7 @@ pub fn builds_dropdown_view(
                             build_errors.write().push_str(format!("Session name '{}' already exists. Please choose a different name.", active_session_name()).as_str());
                             return;
                         }
-                        let _session = match builder.with_name(&active_session_name()).build() {
+                        let _session = match builder.with_name(&active_session_name()).make_processor_configs().unwrap().build() {
                             Ok(session) => session,
                             Err(err) => {
                                 build_errors.write().push_str(format!("{err:?}").as_str());

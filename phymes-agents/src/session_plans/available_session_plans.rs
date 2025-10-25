@@ -97,7 +97,10 @@ impl AvailableSessionPlans {
     pub fn get_session_stream_state(&self, session_name: &str) -> Arc<RwLock<SessionStreamState>> {
         // Initialize the session
         let builder = self.get_session_context_builder(session_name);
-        let session_ctx = builder.with_name(session_name).with_diagnostics(true).build_with_tables().unwrap();
+        let session_ctx = builder.with_name(session_name)
+            .with_diagnostics(true)
+            .build_with_tables()
+            .unwrap();
         Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
     }
 

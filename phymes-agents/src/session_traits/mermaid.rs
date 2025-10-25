@@ -1055,7 +1055,16 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             // Check the chart type
             if erdiagram_lines.get(iter).unwrap().contains("erDiagram") {
 
-                // Subject section
+            // Ignore relationship connectors
+            } else if erdiagram_lines.get(iter).unwrap().contains("|o")
+            || erdiagram_lines.get(iter).unwrap().contains("o|")
+            || erdiagram_lines.get(iter).unwrap().contains("||")
+            || erdiagram_lines.get(iter).unwrap().contains("}o")
+            || erdiagram_lines.get(iter).unwrap().contains("o{")
+            || erdiagram_lines.get(iter).unwrap().contains("}|")
+            || erdiagram_lines.get(iter).unwrap().contains("|{") {
+
+            // Subject section
             } else if erdiagram_lines.get(iter).unwrap().contains("{") {
                 // Extract the subject name
                 let subject_name = erdiagram_lines
