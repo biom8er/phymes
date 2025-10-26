@@ -2,7 +2,7 @@ use std::{sync::Arc, vec};
 
 use phymes_core::{
     AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
-    BuilderTrait, DataFormat, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait,
+    BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait,
     SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
 };
 use phymes_data::{
@@ -189,11 +189,6 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     self.join_chunks_processor_name.to_string(),
                     self.top_k_processor_name.to_string(),
                 ],
-            },
-            TaskPlan {
-                task_name: self.session_context_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.session_context_name.to_string()],
             },
         ];
 
@@ -466,27 +461,6 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         table_name: self.state_scores_chunks_join_table_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-            ProcessorEcho::new_arc_with_pub_sub(
-                self.session_context_name,
-                &[
-                    TablePublish::Extend {
-                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                    },
-                    TablePublish::Extend {
-                        table_name: self.state_documents_table_name.to_string(),
-                    },
-                    TablePublish::Extend {
-                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
-                    },
-                    TablePublish::Extend {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                    },
-                ],
-                &[TableSubscribe::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                }],
                 AllTableNamesSubscribe::new_box(),
             ),
         ];
@@ -911,6 +885,7 @@ mod tests {
         let session_ctx = doc_rag_session
             .build()
             .with_name(doc_rag_session.session_context_name)
+            .add_session_interface(None)?
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
@@ -974,15 +949,18 @@ mod tests {
 
             // Update the chat history with the response
             let bytes = response
-                .last_mut()
-                .unwrap()
-                .remove(&format!(
+                .iter_mut()
+                .filter_map(|map| if let Some(v) = map.remove(&format!(
                     "from_{}_on_{}",
                     doc_rag_session.session_context_name,
                     AvailableInterfaceSubjects::AssistantMessages
-                ))
-                .unwrap()
-                .get_message_own();
+                )) {
+                    Some(v.get_message_own())
+                } else {
+                    None
+                })
+                .flatten()
+                .collect::<Vec<_>>();
             let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?

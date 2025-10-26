@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use phymes_core::{
     AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
-    BuildableTrait, BuilderTrait, ChatContentSubscribe, DataFormat, ProcessorEcho, ProcessorTrait,
+    BuildableTrait, BuilderTrait, ChatContentSubscribe, DataFormat, ProcessorTrait,
     RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder, TableBuilderTrait,
     TablePublish, TableSubscribe, TaskPlan, create_schema_from_fields, create_tools_record_batch,
 };
@@ -206,11 +206,6 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     self.hitl_processor_name.to_string(),
                     self.hitl_summary_processor_name.to_string(),
                 ],
-            },
-            TaskPlan {
-                task_name: self.session_context_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.session_context_name.to_string()],
             },
         ])
     }
@@ -459,32 +454,6 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     },
                     TableSubscribe::AlwaysLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-            ProcessorEcho::new_arc_with_pub_sub(
-                self.session_context_name,
-                &[
-                    TablePublish::Extend {
-                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                    },
-                    TablePublish::Replace {
-                        table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
-                    },
-                    TablePublish::Extend {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                    },
-                    TablePublish::Extend {
-                        table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
-                    },
-                ],
-                &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                    },
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
                     },
                 ],
                 AllTableNamesSubscribe::new_box(),
@@ -810,6 +779,7 @@ mod tests {
         let session_ctx = tool_agent_session
             .build()
             .with_name(tool_agent_session.session_context_name)
+            .add_session_interface(None)?
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
@@ -858,15 +828,18 @@ mod tests {
 
             // Update the chat history with the response
             let bytes = response
-                .last_mut()
-                .unwrap()
-                .remove(&format!(
+                .iter_mut()
+                .filter_map(|map| if let Some(v) = map.remove(&format!(
                     "from_{}_on_{}",
                     tool_agent_session.session_context_name,
                     AvailableInterfaceSubjects::AssistantMessages
-                ))
-                .unwrap()
-                .get_message_own();
+                )) {
+                    Some(v.get_message_own())
+                } else {
+                    None
+                })
+                .flatten()
+                .collect::<Vec<_>>();
             let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
@@ -878,15 +851,18 @@ mod tests {
             }
 
             let bytes = response
-                .last_mut()
-                .unwrap()
-                .remove(&format!(
+                .iter_mut()
+                .filter_map(|map| if let Some(v) = map.remove(&format!(
                     "from_{}_on_{}",
                     tool_agent_session.session_context_name,
                     AvailableInterfaceSubjects::AssistantCsv
-                ))
-                .unwrap()
-                .get_message_own();
+                )) {
+                    Some(v.get_message_own())
+                } else {
+                    None
+                })
+                .flatten()
+                .collect::<Vec<_>>();
             let attachment_data = TableBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?

@@ -99,6 +99,8 @@ impl AvailableSessionPlans {
         let builder = self.get_session_context_builder(session_name);
         let session_ctx = builder.with_name(session_name)
             .with_diagnostics(true)
+            .add_session_interface(None)
+            .unwrap()
             .build_with_tables()
             .unwrap();
         Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))

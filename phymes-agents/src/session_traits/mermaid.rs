@@ -25,15 +25,16 @@ pub trait SessionContextBuilderMermaidTrait {
     /// Make a mermaid.js flowchart of the session
     /// 
     /// # Arguments
-    /// * `with_configs` - whether to add the processor config subjects to the diagram
-    fn to_mermaid_flowchart(&self, with_configs: bool) -> Result<String>;
+    /// * `with_processor_configs` - whether to add the processor config subjects to the diagram
+    /// * `with_session_interface` - whether to add the session interface tasks, processors, and runtime environments to the diagram
+    fn to_mermaid_flowchart(&self, with_processor_configs: bool, with_session_interface: bool) -> Result<String>;
 
     /// Make a mermaid.js erDiagram of the session
     /// 
     /// # Arguments
-    /// * `example_data` - whether to add last row of data as an example to the diagram
-    /// * `config_data` - whether to add ONLY config data
-    fn to_mermaid_erdiagram(&self, example_data: bool, config_data: bool) -> Result<String>;
+    /// * `with_example_data` - whether to add last row of data as an example to the diagram
+    /// * `with_processor_config_data` - whether to add ONLY processor related config data
+    fn to_mermaid_erdiagram(&self, with_example_data: bool, with_processor_config_data: bool) -> Result<String>;
 
     /// Create a session builder from a mermaid flowchart
     /// 
@@ -65,7 +66,7 @@ pub trait SessionContextBuilderMermaidTrait {
 }
 
 impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
-    fn to_mermaid_flowchart(&self, with_configs: bool) -> Result<String> {
+    fn to_mermaid_flowchart(&self, with_configs: bool, with_session_interface: bool) -> Result<String> {
         // Check if there are members
         if self.tasks.is_none() {
             return Err(anyhow!(
@@ -87,30 +88,30 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 "Add state subjects before making the Mermaid Flowchart."
             ));
         }
-
-        // Entities with expanded shape/label attributes that will be appended to flowchart
-        let mut processors_vec = Vec::new();
-        for processor in self.processors.as_ref().unwrap().iter() {
-            processors_vec.push(format!(
-                "\t{}-processor@{{shape: rect, label: {}}}",
-                processor.get_name(),
-                processor.get_type()
+        if self.name.is_none() {
+            return Err(anyhow!(
+                "Add a session name before making the Mermaid Flowchart."
             ));
         }
+        let session_name = self.name.as_ref().unwrap().to_string();
+        let runtime_env_name = format!("{session_name}-runtime_env");
+
+        // Entities with expanded shape/label attributes that will be appended to flowchart
+        let processors_vec = self.processors.as_ref().unwrap()
+            .iter()
+            .filter_map(|p| if session_name != p.get_name() || with_session_interface {
+                Some(format!("\t{}-processor@{{shape: rect, label: {}}}", p.get_name(), p.get_type()))
+            } else {
+                None
+            }).collect::<Vec<_>>();
 
         // Optionally, filter out subject names that match the processor name (i.e., configs)
         let processor_names = self.get_processor_names_from_tasks();
         let mut subjects_vec = Vec::new();
-        let mut sorted_subject_names = if with_configs {
-            self.get_subject_names_from_processors()
+        let mut sorted_subject_names = self.get_subject_names_from_processors()
                 .into_iter()
-                .collect::<Vec<_>>()
-        } else {
-            self.get_subject_names_from_processors()
-                .into_iter()
-                .filter(|p| !processor_names.contains(p))
-                .collect::<Vec<_>>()
-        };
+                .filter(|p| !processor_names.contains(p) || with_configs)
+                .collect::<Vec<_>>();
         sorted_subject_names.sort();
         for subject_name in sorted_subject_names {
             subjects_vec.push(format!(
@@ -119,8 +120,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
 
         let mut runtime_envs_vec = Vec::new();
-        let mut sorted_runtime_env_names =
-            self.get_runtime_env_names().into_iter().collect::<Vec<_>>();
+        let mut sorted_runtime_env_names = self.get_runtime_env_names()
+            .into_iter()
+            .filter(|p| &runtime_env_name != p || with_session_interface)
+            .collect::<Vec<_>>();
         sorted_runtime_env_names.sort();
         for runtime_env_name in sorted_runtime_env_names {
             runtime_envs_vec.push(format!(
@@ -133,7 +136,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut subscriptions_vec = Vec::new();
         let mut publications_vec = Vec::new();
         let mut runtime_envs_to_tasks_vec = Vec::new();
-        for task in self.tasks.as_ref().unwrap().iter() {
+        for task in self.tasks.as_ref().unwrap()
+            .iter()
+            .filter(|p| session_name != p.task_name || with_session_interface)
+        {
             tasks_vec.push(format!("\tsubgraph {}", task.task_name));
             runtime_envs_to_tasks_vec.push(format!(
                 "\t{}-rt-->{}",
@@ -539,6 +545,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         }
 
                         // Update
+                        dbg!(&task_name);
+                        dbg!(&processor_1);
+                        dbg!(&task_plan_builders);
                         task_plan_builders
                             .get_mut(&task_name)
                             .unwrap()
@@ -1247,9 +1256,12 @@ mod tests {
         let builder = test_session_context_builder_agents::make_test_session_builder_agents()?;
 
         // Test to flowchart
-        let mermaid_js = builder.to_mermaid_flowchart(true)?;
+        let mermaid_js = builder.to_mermaid_flowchart(true, true)?;
         assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tprocessor_1-subject--FullTable-->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tprocessor_2-subject--FullTable-->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tprocessor_3-subject--FullTable-->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: ProcessorMock}\n\tsession_1-processor@{shape: rect, label: ProcessorMock}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tprocessor_1-subject@{shape: doc, label: processor_1}\n\tprocessor_2-subject@{shape: doc, label: processor_2}\n\tprocessor_3-subject@{shape: doc, label: processor_3}\n\tsession_1-subject@{shape: doc, label: session_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: All}".to_string());
-        let mermaid_js = builder.to_mermaid_flowchart(false)?;
+        let mermaid_js = builder.to_mermaid_flowchart(false, true)?;
+        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: ProcessorMock}\n\tsession_1-processor@{shape: rect, label: ProcessorMock}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: All}".to_string());        
+        // There should be no difference
+        let mermaid_js = builder.to_mermaid_flowchart(false, false)?;
         assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: ProcessorMock}\n\tsession_1-processor@{shape: rect, label: ProcessorMock}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: All}".to_string());        
         
         Ok(())
@@ -1271,11 +1283,11 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_parallel_task_with_config_no_data() -> Result<()> {
+    fn test_from_mermaid_parallel_task_with_config_and_session_no_data() -> Result<()> {
         let builder = test_session_context_builder_agents::make_test_session_builder_agents()?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true)?;
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -1359,11 +1371,11 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_parallel_task_with_config_with_data() -> Result<()> {
+    fn test_from_mermaid_parallel_task_with_config_and_session_with_data() -> Result<()> {
         let builder = test_session_context_builder_agents::make_test_session_builder_agents()?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true)?;
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(true, false)?;
 
         // Remake the builder
@@ -1456,11 +1468,11 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_parallel_task_no_config_with_data() -> Result<()> {
+    fn test_from_mermaid_parallel_task_no_config_with_session_and_data() -> Result<()> {
         let builder = test_session_context_builder_agents::make_test_session_builder_agents()?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false)?;
+        let flowchart = builder.to_mermaid_flowchart(false, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(true, false)?;
         dbg!(&flowchart);
         dbg!(&erdiagram);
@@ -1558,12 +1570,15 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_chat_agent_session() -> Result<()> {
+    fn test_from_mermaid_chat_agent_session_with_configs_and_session() -> Result<()> {
         // initialize the session
-        let builder = ChatAgentSession::new_with_session_name("session_1").build();
+        let builder = ChatAgentSession::new_with_session_name("session_1")
+            .build()
+            .with_name("session_1")
+            .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true)?;
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -1626,12 +1641,15 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_doc_rag_session() -> Result<()> {
+    fn test_from_mermaid_doc_rag_session_with_configs_and_session() -> Result<()> {
         // initialize the session
-        let builder = DocumentRAGSession::new_with_session_name("session_1").build();
+        let builder = DocumentRAGSession::new_with_session_name("session_1")
+            .build()
+            .with_name("session_1")
+            .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true)?;
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -1694,12 +1712,15 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_tool_agent_session() -> Result<()> {
+    fn test_from_mermaid_tool_agent_session_with_configs_and_session() -> Result<()> {
         // initialize the session
-        let builder = ToolAgentSession::new_with_session_name("session_1").build();
+        let builder = ToolAgentSession::new_with_session_name("session_1")
+            .build()
+            .with_name("session_1")
+            .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true)?;
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -1757,6 +1778,228 @@ mod tests {
 
         // Test that we can build the session
         let _ = builder_test.with_name("session_1").build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_chat_agent_session_without_configs_and_session() -> Result<()> {
+        // initialize the session
+        let builder = ChatAgentSession::new_with_session_name("session_1")
+            .build()
+            .with_name("session_1")
+            .add_session_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
+
+        // Remake the builder
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?
+            .with_name("session_1")
+            .add_processor_configs()?
+            .add_session_interface(None)?;
+
+        // Test that the names match
+        let mut test = builder_test
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the session
+        let _ = builder_test.build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_doc_rag_session_without_configs_and_session() -> Result<()> {
+        // initialize the session
+        let builder = DocumentRAGSession::new_with_session_name("session_1")
+            .build()
+            .with_name("session_1")
+            .add_session_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
+
+        // Remake the builder
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?
+            .with_name("session_1")
+            .add_processor_configs()?
+            .add_session_interface(None)?;
+
+        // Test that the names match
+        let mut test = builder_test
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the session
+        let _ = builder_test.build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_tool_agent_session_without_configs_and_session() -> Result<()> {
+        // initialize the session
+        let builder = ToolAgentSession::new_with_session_name("session_1")
+            .build()
+            .with_name("session_1")
+            .add_session_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
+
+        // Remake the builder
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?
+            .with_name("session_1")
+            .add_processor_configs()?
+            .add_session_interface(None)?;
+
+        // Test that the names match
+        let mut test = builder_test
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the session
+        let _ = builder_test.build()?;
 
         Ok(())
     }

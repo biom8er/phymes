@@ -41,7 +41,10 @@ pub trait SessionContextBuilderAgentsTrait {
 
     /// Add tasks, processors, and runtime environments for a session interface that
     /// subscribes to all [AvailableInterfaceSubjects]
-    fn add_session_interface(self) -> Result<Self> where Self: Sized;
+    /// 
+    /// # Arguments
+    /// `subscriptions` - Optional list of subscriptions to listen on in addition to [AvailableInterfaceSubjects]
+    fn add_session_interface(self, subscriptions: Option<&[&str]>) -> Result<Self> where Self: Sized;
 }
 
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
@@ -240,7 +243,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         Ok(self)
     }
-    fn add_session_interface(mut self) -> Result<Self> where Self: Sized {
+    fn add_session_interface(mut self, subscriptions: Option<&[&str]>) -> Result<Self> where Self: Sized {
         if self.name.is_none() {
             return Err(anyhow!(
                 "Add a name for the session before making the session interface."
@@ -264,8 +267,13 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         self.tasks.replace(tasks);
 
         // Add the processors
-        let mut publications = Vec::new();
-        let mut subscriptions = Vec::new();
+        // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the session!
+        let mut publications = subscriptions
+            .map(|s| s.into_iter().map(|s| TablePublish::Extend { table_name: s.to_string() }).collect::<Vec<_>>())
+            .unwrap_or_default();
+        let mut subscriptions = subscriptions
+            .map(|s| s.into_iter().map(|s| TableSubscribe::OnUpdateLastRecordBatch { table_name: s.to_string() }).collect::<Vec<_>>())
+            .unwrap_or_default();
         if let Some(state) = self.state.as_ref() {
             for table in state.iter() {
                 if let Ok(subject) = AvailableInterfaceSubjects::from_str(table.get_name(), false) {
@@ -448,7 +456,7 @@ pub mod test_session_context_builder_agents {
 #[cfg(test)]
 mod tests {
 
-    use phymes_core::{test_processor::ProcessorMock, test_session_context_builder::{make_test_session_builder_parallel_task, make_test_session_builder_tasks}, test_task::{make_runtime_env, make_state_tables}, AllTableNamesSubscribe, BuildableTrait, BuilderTrait, SubscribeTrait, TableBuilderTrait, TablePublish, TableSubscribe, TaskTrait};
+    use phymes_core::{test_processor::ProcessorMock, test_session_context_builder::{make_test_session_builder_parallel_task, make_test_session_builder_tasks}, test_task::{make_runtime_env, make_state_tables}, AllTableNamesSubscribe, BuildableTrait, BuilderTrait, PubSubTrait, SubscribeTrait, TableBuilderTrait, TablePublish, TableSubscribe, TaskTrait};
     use phymes_data::{AvailableCandleOperators, DataConfig};
 
     use super::*;
@@ -468,7 +476,7 @@ mod tests {
     #[test]
     fn test_build_with_tables_add_session_interface() -> Result<()> {
         let session = test_session_context_builder_agents::make_test_session_builder_agents()?
-            .add_session_interface()?
+            .add_session_interface(Some(&["state_1"]))?
             .build_with_tables()?;
         assert_eq!(session.get_states().len(), 13);
         assert_eq!(session.get_tasks().len(), 5);
@@ -477,6 +485,10 @@ mod tests {
         assert_eq!(test, ["session"]);
         let test = session.get_tasks().get("session").unwrap().get_runtime_env().lock();
         assert_eq!(test.get_name(), "session-runtime_env");
+        let test = session.get_tasks().get("session").unwrap().get_subscriptions().iter().map(|p| p.get_table_name()).collect::<Vec<_>>();
+        assert_eq!(test, ["state_1"]);
+        let test = session.get_tasks().get("session").unwrap().get_publications().iter().map(|p| p.get_table_name()).collect::<Vec<_>>();
+        assert_eq!(test, ["state_1"]);
         assert_eq!(session.get_name(), "session");
         assert_eq!(session.get_max_iter(), 25);
         assert!(session.get_diagnostics());

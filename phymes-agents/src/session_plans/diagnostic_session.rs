@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
-    BuilderTrait, DataFormat, DiagnosticsVisualizations, ProcessorEcho, ProcessorTrait, RuntimeEnv,
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait,
+    BuilderTrait, DataFormat, DiagnosticsVisualizations, ProcessorTrait, RuntimeEnv,
     RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish,
     TableSubscribe, TaskPlan,
 };
@@ -301,11 +301,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self.aggregate_visualizations_task_name.to_string(),
                 runtime_env_name: self.metrics_runtime_env_name.to_string(),
                 processor_names: vec![self.aggregate_visualizations_processor_name.to_string()],
-            },
-            TaskPlan {
-                task_name: self.session_context_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.session_context_name.to_string()],
             },
         ];
 
@@ -647,16 +642,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ProcessorEcho::new_arc_with_pub_sub(
-                self.session_context_name,
-                &[TablePublish::Replace {
-                    table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
-                }],
-                &[TableSubscribe::OnUpdateFullTable {
-                    table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
-                }],
-                AnyTableNameSubscribe::new_box(),
-            ),
         ];
 
         Some(processors)
@@ -664,7 +649,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
-            RuntimeEnv::new().with_name("rt_default"),
             RuntimeEnv::new().with_name(self.metrics_runtime_env_name),
             RuntimeEnv::new().with_name(self.metrics_processors_traces_runtime_env_name),
             RuntimeEnv::new().with_name(self.metrics_elapsed_compute_runtime_env_name),
@@ -1330,7 +1314,9 @@ mod tests {
             .build()
             .with_name(diagnostic_session.session_context_name)
             // .with_diagnostics(true) // Debugging
+            .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments.to_string().as_str()]))?
             .build_with_tables()?;
+        dbg!(&session_ctx.get_tasks());
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Make diagnostic data and session tasks data
@@ -1433,15 +1419,18 @@ mod tests {
         // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
 
         let bytes = response
-            .last_mut()
-            .unwrap()
-            .remove(&format!(
+            .iter_mut()
+            .filter_map(|map| if let Some(v) = map.remove(&format!(
                 "from_{}_on_{}",
                 diagnostic_session.session_context_name,
                 AvailableInterfaceSubjects::AggregatedAttachments
-            ))
-            .unwrap()
-            .get_message_own();
+            )) {
+                Some(v.get_message_own())
+            } else {
+                None
+            })
+            .flatten()
+            .collect::<Vec<_>>();
         let attachment_data = TableBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?

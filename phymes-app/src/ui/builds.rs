@@ -259,7 +259,11 @@ pub fn builds_dropdown_view(
                             build_errors.write().push_str(format!("Session name '{}' already exists. Please choose a different name.", active_session_name()).as_str());
                             return;
                         }
-                        let _session = match builder.with_name(&active_session_name()).add_processor_configs().unwrap().build() {
+                        let _session = match builder.with_name(&active_session_name())
+                            .add_processor_configs().unwrap()
+                            .add_session_interface(None).unwrap()
+                            .build()
+                        {
                             Ok(session) => session,
                             Err(err) => {
                                 build_errors.write().push_str(format!("{err:?}").as_str());

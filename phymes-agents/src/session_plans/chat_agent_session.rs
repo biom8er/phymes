@@ -301,9 +301,8 @@ mod tests {
         let session_ctx = chat_agent_session
             .build()
             .with_name(chat_agent_session.session_context_name)
-            .add_session_interface()?
+            .add_session_interface(None)?
             .build_with_tables()?;
-        dbg!(&session_ctx.get_tasks());
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Skip actually running the session as it takes too long on the CPU
@@ -334,19 +333,21 @@ mod tests {
                 SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
-            dbg!(&response);
 
             // Update the chat history with the response
             let bytes = response
-                .last_mut()
-                .unwrap()
-                .remove(&format!(
+                .iter_mut()
+                .filter_map(|map| if let Some(v) = map.remove(&format!(
                     "from_{}_on_{}",
                     chat_agent_session.session_context_name,
                     AvailableInterfaceSubjects::AssistantMessages
-                ))
-                .unwrap()
-                .get_message_own();
+                )) {
+                    Some(v.get_message_own())
+                } else {
+                    None
+                })
+                .flatten()
+                .collect::<Vec<_>>();
             let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
@@ -399,15 +400,18 @@ mod tests {
 
             // Update the chat history with the response
             let bytes = response
-                .last_mut()
-                .unwrap()
-                .remove(&format!(
+                .iter_mut()
+                .filter_map(|map| if let Some(v) = map.remove(&format!(
                     "from_{}_on_{}",
                     chat_agent_session.session_context_name,
                     AvailableInterfaceSubjects::AssistantMessages
-                ))
-                .unwrap()
-                .get_message_own();
+                )) {
+                    Some(v.get_message_own())
+                } else {
+                    None
+                })
+                .flatten()
+                .collect::<Vec<_>>();
             let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
