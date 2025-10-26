@@ -584,6 +584,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             // candle_asset: Some(
             //     WhichCandleAsset::QwenV2_1p5bEmbed,
             // ),
+            encoding_format: "float".to_string(),
+            modality: "text".to_string(),
+            input_type: "query".to_string(),
             ..Default::default()
         };
 

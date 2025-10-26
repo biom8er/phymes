@@ -231,6 +231,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 "Add processors before making the Mermaid Flowchart."
             ));
         }
+        // let mut mermaid_vec = Vec::new();
         let mut mermaid_js = "erDiagram".to_string();
         let processor_names = self.get_processor_names_from_tasks();
 
@@ -238,6 +239,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut sorted_map = self.state.as_ref().unwrap().iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         for subject in sorted_map {
+            // let mut row = Map::new();
             mermaid_js.push_str(format!("\n\t{}{{", subject.get_name()).as_str());
             for field in subject.get_schema().fields().iter() {
                 let data_type = from_data_type_to_str(field.data_type());
