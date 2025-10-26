@@ -629,9 +629,6 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Message aggregator config
         let aggregator_config = DataConfig {
-            lhs_name: "".to_string(),
-            lhs_pk: "".to_string(),
-            lhs_fk: "".to_string(),
             lhs_values: vec!["timestamp".to_string()],
             asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
@@ -660,8 +657,6 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         // Select and cast config
         let message_to_query_config = DataConfig {
             lhs_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-            lhs_pk: "".to_string(),
-            lhs_fk: "".to_string(),
             lhs_values: vec!["timestamp".to_string(),"content".to_string()],
             as_columns: Some(vec!["query_id".to_string(), "text".to_string()]),
             cast_operators: Some(vec![DataCastOperator::Cast, DataCastOperator::None]),

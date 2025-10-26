@@ -8,12 +8,12 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe, parse_str_to_data_type, test_processor::ProcessorMock, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskPlanBuilder
+    from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe, parse_str_to_data_type, test_processor::ProcessorMock, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublish, TableScript, TableSubscribe, TableTrait, TaskPlanBuilder
 };
-use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor};
+use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::{
-    CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
+    extract_tool_calls_str, CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
@@ -231,40 +231,57 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 "Add processors before making the Mermaid Flowchart."
             ));
         }
-        // let mut mermaid_vec = Vec::new();
-        let mut mermaid_js = "erDiagram".to_string();
+        let mut entities_vec = Vec::new();
+        // let mut relations_vec = Vec::new(); // DM: todo when relations are explicitly added between subjects based on FK/PK
         let processor_names = self.get_processor_names_from_tasks();
 
         // Extract the subjects
         let mut sorted_map = self.state.as_ref().unwrap().iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         for subject in sorted_map {
-            // let mut row = Map::new();
-            mermaid_js.push_str(format!("\n\t{}{{", subject.get_name()).as_str());
             for field in subject.get_schema().fields().iter() {
+                let mut row = Map::new();
+                row.insert("entity_alias".to_string(), subject.get_name().into());
+                row.insert("entity_name".to_string(), subject.get_name().split_whitespace().collect::<Vec<_>>().join("").into());
                 let data_type = from_data_type_to_str(field.data_type());
-                if config_data && processor_names.contains(subject.get_name()){
+                row.insert("attribute_type".to_string(), data_type.into());
+                row.insert("attribute_name".to_string(), field.name().as_str().into());
+                let value = if config_data && processor_names.contains(subject.get_name()){
                     if let Some(mut example_data) = subject.get_column_as_vec_string(field.name())? {
-                        mermaid_js.push_str(format!(r#"\n\t\t{data_type} {} "{}""#, field.name(), example_data.pop().unwrap_or_default()).as_str());
+                        example_data.pop().unwrap_or_default()
                     } else {
-                        mermaid_js.push_str(format!("\n\t\t{data_type} {}", field.name()).as_str());
+                        String::new()
                     }                    
                 } else if example_data {
                     if let Some(mut example_data) = subject.get_column_as_vec_string(field.name())? {
-                        mermaid_js.push_str(format!(r#"\n\t\t{data_type} {} "{}""#, field.name(), example_data.pop().unwrap_or_default()).as_str());
+                        example_data.pop().unwrap_or_default()
                     } else {
-                        mermaid_js.push_str(format!("\n\t\t{data_type} {}", field.name()).as_str());
+                        String::new()
                     }
                 } else {
-                    mermaid_js.push_str(format!("\n\t\t{data_type} {}", field.name()).as_str());
-                }
-                
+                    String::new()
+                };
+                let value = value.replace("\"", "'");
+                row.insert("attribute_comment".to_string(), value.into());
+                row.insert("attribute_key".to_string(), String::new().into());
+                entities_vec.push(row);              
             }
-            mermaid_js.push_str("\n\t}");
         }
 
         // Create the final mermaid.js flowchart script
-        Ok(mermaid_js)
+        let inputs = serde_json::json!({
+            "rows": entities_vec 
+        });
+        let entities_string = TableScript::new_from_template(MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE.to_string())
+            .apply_template(&inputs)?;
+        let inputs = serde_json::json!({
+            "direction": "TB",
+            "rows": [{"content": entities_string}]
+        });
+        let script_string = TableScript::new_from_template(MERMAID_ER_DIAGRAM_TEMPLATE.to_string())
+            .apply_template(&inputs)?;
+        
+        Ok(script_string.trim().to_owned())
     }
 
     fn from_mermaid_flowchart(flowchart: &str, agent_subjects: bool) -> Result<Self> {
@@ -1069,6 +1086,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             // Check the chart type
             if erdiagram_lines.get(iter).unwrap().contains("erDiagram") {
 
+            // Ignore blank lines
+            } else if erdiagram_lines.get(iter).unwrap().trim().is_empty() {
+
             // Ignore relationship connectors
             } else if erdiagram_lines.get(iter).unwrap().contains("|o")
             || erdiagram_lines.get(iter).unwrap().contains("o|")
@@ -1081,14 +1101,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             // Subject section
             } else if erdiagram_lines.get(iter).unwrap().contains("{") {
                 // Extract the subject name
-                let subject_name = erdiagram_lines
-                    .get(iter)
-                    .unwrap()
-                    .split("{")
-                    .collect::<Vec<_>>()
-                    .first()
-                    .unwrap()
-                    .trim();
+                let subject_name = extract_tool_calls_str(erdiagram_lines.get(iter).unwrap(), Some("[\""), Some("\"]"));
                 subject_names.insert(subject_name.to_string());
 
                 // Initialize the schema fields
@@ -1146,8 +1159,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                     erdiagram_lines.get(iter).unwrap(),
                                 ));
                             };
-                            let value = value.trim_start_matches('\"').trim_end_matches('\"');
-                            let _ = data.insert(field_name.to_owned(), parse_str_to_data_type(value, &data_type)?);
+                            let value = value.trim_start_matches('\"').trim_end_matches('\"').replace("'", "\"");
+                            let _ = data.insert(field_name.to_owned(), parse_str_to_data_type(&value, &data_type)?);
                         }
                         let field = Field::new(field_name, data_type, false);
                         fields.push(field);
@@ -1157,7 +1170,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 }
             } else {
                 return Err(anyhow!(
-                    "Parsing Error on line {iter}: {}. Unrecognized line ",
+                    "Parsing Error on line {iter}: {}. Unrecognized line.",
                     erdiagram_lines.get(iter).unwrap()
                 ));
             }
@@ -1278,11 +1291,11 @@ mod tests {
 
         // Make the ER Diagram
         let mermaid_js = builder.to_mermaid_erdiagram(false, false)?;
-        assert_eq!(mermaid_js, "erDiagram\n\tprocessor_1{\n\t\tUtf8 a\n\t\tUInt32 b\n\t\tUInt16 c\n\t}\n\tprocessor_2{\n\t\tUtf8 a\n\t\tUInt32 b\n\t\tUInt16 c\n\t}\n\tprocessor_3{\n\t\tUtf8 a\n\t\tUInt32 b\n\t\tUInt16 c\n\t}\n\tsession_1{\n\t\tBoolean cpu\n\t\tUtf8 lhs_fk\n\t\tUtf8 lhs_name\n\t\tUtf8 lhs_pk\n\t\tList-Utf8 lhs_values\n\t\tUtf8 operator\n\t\tUtf8 rhs_name\n\t\tUtf8 stream\n\t}\n\tstate_1{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_2{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_3{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}".to_string());
+        assert_eq!(mermaid_js, "erDiagram\n    \n    processor_1[\"processor_1\"] {\n        Utf8 a\n        UInt32 b\n        UInt16 c\n    }\n    processor_2[\"processor_2\"] {\n        Utf8 a\n        UInt32 b\n        UInt16 c\n    }\n    processor_3[\"processor_3\"] {\n        Utf8 a\n        UInt32 b\n        UInt16 c\n    }\n    session_1[\"session_1\"] {\n        Boolean cpu\n        Utf8 lhs_fk\n        Utf8 lhs_name\n        Utf8 lhs_pk\n        List-Utf8 lhs_values\n        Utf8 operator\n        Utf8 rhs_name\n        Utf8 stream\n    }\n    state_1[\"state_1\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_2[\"state_2\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_3[\"state_3\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }".to_string());
         let mermaid_js = builder.to_mermaid_erdiagram(true, false)?;
-        assert_eq!(mermaid_js, "erDiagram\n\tprocessor_1{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_2{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_3{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tsession_1{\\n\\t\\tBoolean cpu \"false\"\\n\\t\\tUtf8 lhs_fk \"lhs_fk\"\\n\\t\\tUtf8 lhs_name \"state_1\"\\n\\t\\tUtf8 lhs_pk \"lhs_pk\"\\n\\t\\tList-Utf8 lhs_values \"[\"lhs_values\"]\"\\n\\t\\tUtf8 operator \"JoinInner\"\\n\\t\\tUtf8 rhs_name \"state_2\"\\n\\t\\tUtf8 stream \"AccumulateLHSAccumulateRHS\"\n\t}\n\tstate_1{\\n\\t\\tUInt32 id \"3\"\\n\\t\\tUtf8 collection \"collection3\"\\n\\t\\tUtf8 title \"title3\"\\n\\t\\tUtf8 text \"text3\"\\n\\t\\tUtf8 metadata \"metadata3\"\\n\\t\\tFloat32 score \"3.0\"\\n\\t\\tFixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n\t}\n\tstate_2{\\n\\t\\tUInt32 id \"3\"\\n\\t\\tUtf8 collection \"collection3\"\\n\\t\\tUtf8 title \"title3\"\\n\\t\\tUtf8 text \"text3\"\\n\\t\\tUtf8 metadata \"metadata3\"\\n\\t\\tFloat32 score \"3.0\"\\n\\t\\tFixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n\t}\n\tstate_3{\\n\\t\\tUInt32 id \"3\"\\n\\t\\tUtf8 collection \"collection3\"\\n\\t\\tUtf8 title \"title3\"\\n\\t\\tUtf8 text \"text3\"\\n\\t\\tUtf8 metadata \"metadata3\"\\n\\t\\tFloat32 score \"3.0\"\\n\\t\\tFixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n\t}".to_string());
+        assert_eq!(mermaid_js, "erDiagram\n    \n    processor_1[\"processor_1\"] {\n        Utf8 a \"a\"\n        UInt32 b \"1\"\n        UInt16 c \"1\"\n    }\n    processor_2[\"processor_2\"] {\n        Utf8 a \"a\"\n        UInt32 b \"1\"\n        UInt16 c \"1\"\n    }\n    processor_3[\"processor_3\"] {\n        Utf8 a \"a\"\n        UInt32 b \"1\"\n        UInt16 c \"1\"\n    }\n    session_1[\"session_1\"] {\n        Boolean cpu \"false\"\n        Utf8 lhs_fk \"lhs_fk\"\n        Utf8 lhs_name \"state_1\"\n        Utf8 lhs_pk \"lhs_pk\"\n        List-Utf8 lhs_values \"['lhs_values']\"\n        Utf8 operator \"JoinInner\"\n        Utf8 rhs_name \"state_2\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    state_1[\"state_1\"] {\n        UInt32 id \"3\"\n        Utf8 collection \"collection3\"\n        Utf8 title \"title3\"\n        Utf8 text \"text3\"\n        Utf8 metadata \"metadata3\"\n        Float32 score \"3.0\"\n        FixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n    }\n    state_2[\"state_2\"] {\n        UInt32 id \"3\"\n        Utf8 collection \"collection3\"\n        Utf8 title \"title3\"\n        Utf8 text \"text3\"\n        Utf8 metadata \"metadata3\"\n        Float32 score \"3.0\"\n        FixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n    }\n    state_3[\"state_3\"] {\n        UInt32 id \"3\"\n        Utf8 collection \"collection3\"\n        Utf8 title \"title3\"\n        Utf8 text \"text3\"\n        Utf8 metadata \"metadata3\"\n        Float32 score \"3.0\"\n        FixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n    }".to_string());
         let mermaid_js = builder.to_mermaid_erdiagram(false, true)?;
-        assert_eq!(mermaid_js, "erDiagram\n\tprocessor_1{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_2{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tprocessor_3{\\n\\t\\tUtf8 a \"a\"\\n\\t\\tUInt32 b \"1\"\\n\\t\\tUInt16 c \"1\"\n\t}\n\tsession_1{\\n\\t\\tBoolean cpu \"false\"\\n\\t\\tUtf8 lhs_fk \"lhs_fk\"\\n\\t\\tUtf8 lhs_name \"state_1\"\\n\\t\\tUtf8 lhs_pk \"lhs_pk\"\\n\\t\\tList-Utf8 lhs_values \"[\"lhs_values\"]\"\\n\\t\\tUtf8 operator \"JoinInner\"\\n\\t\\tUtf8 rhs_name \"state_2\"\\n\\t\\tUtf8 stream \"AccumulateLHSAccumulateRHS\"\n\t}\n\tstate_1{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_2{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}\n\tstate_3{\n\t\tUInt32 id\n\t\tUtf8 collection\n\t\tUtf8 title\n\t\tUtf8 text\n\t\tUtf8 metadata\n\t\tFloat32 score\n\t\tFixedSizeList-Float32-8 embedding\n\t}".to_string());
+        assert_eq!(mermaid_js, "erDiagram\n    \n    processor_1[\"processor_1\"] {\n        Utf8 a \"a\"\n        UInt32 b \"1\"\n        UInt16 c \"1\"\n    }\n    processor_2[\"processor_2\"] {\n        Utf8 a \"a\"\n        UInt32 b \"1\"\n        UInt16 c \"1\"\n    }\n    processor_3[\"processor_3\"] {\n        Utf8 a \"a\"\n        UInt32 b \"1\"\n        UInt16 c \"1\"\n    }\n    session_1[\"session_1\"] {\n        Boolean cpu \"false\"\n        Utf8 lhs_fk \"lhs_fk\"\n        Utf8 lhs_name \"state_1\"\n        Utf8 lhs_pk \"lhs_pk\"\n        List-Utf8 lhs_values \"['lhs_values']\"\n        Utf8 operator \"JoinInner\"\n        Utf8 rhs_name \"state_2\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    state_1[\"state_1\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_2[\"state_2\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_3[\"state_3\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }".to_string());
 
         Ok(())
     }

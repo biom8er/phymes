@@ -544,9 +544,6 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Message aggregator config
         let aggregator_config = DataConfig {
-            lhs_name: "".to_string(),
-            lhs_pk: "".to_string(),
-            lhs_fk: "".to_string(),
             lhs_values: vec!["timestamp".to_string()],
             asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,

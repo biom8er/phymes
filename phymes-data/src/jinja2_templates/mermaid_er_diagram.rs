@@ -2,27 +2,27 @@
 ///
 /// see <https://mermaid.js.org/syntax/erDiagram.html>
 pub static MERMAID_ER_DIAGRAM_TEMPLATE: &str = r#"
-        erDiagram
+erDiagram
 {%- for row in rows %}
-            {{ row.content }}
+    {{ row.content }}
 {%- endfor %}"#;
 
 /// Mermaid.js erDiagram entities section jinja2 template
 pub static MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE: &str = r#"{%- for row in rows %}
     {%- if loop.changed(row.entity_name) %}
         {%- if not loop.first %}
-            }
+    }
         {%- endif %}
-            {{ row.entity_name }}["{{ row.entity_alias }}"] {
+    {{ row.entity_name }}["{{ row.entity_alias }}"] {
     {%- endif %}
-                {{ row.attribute_type }} {{ row.attribute_name }}{%- if row.attribute_key %} {{ row.attribute_key }}{%- endif %}{%- if row.attribute_comment %} "{{ row.attribute_comment }}"{%- endif %}
+        {{ row.attribute_type }} {{ row.attribute_name }}{%- if row.attribute_key %} {{ row.attribute_key }}{%- endif %}{%- if row.attribute_comment %} "{{ row.attribute_comment }}"{%- endif %}
 {%- endfor %}
-            }"#;
+    }"#;
 
 /// Mermaid.js erDiagram relations section jinja2 template
 pub static MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE: &str = r#"
 {%- for row in rows %}
-            {{ row.subject_name }} {{ row.relation_type }} {{ row.object_name }}: "{{ row.relation_content }}"
+    {{ row.subject_name }} {{ row.relation_type }} {{ row.object_name }}: "{{ row.relation_content }}"
 {%- endfor %}"#;
 
 /// The `table_expression` variable name in `DataConfig`
@@ -118,7 +118,7 @@ mod tests {
 
         assert_eq!(
             entities_string,
-            "\n            c[\"collections\"] {\n                float Measurement\n                enum DataAnalysis PK \"e.g., 1, 2, 3\"\n            }\n            e[\"entity\"] {\n                int Group1 FK\n                string Group2 \"Detailed group description\"\n                string Group3 UK\n            }"
+            ""
         );
 
         // Create the dummy data for the relations
@@ -168,7 +168,7 @@ mod tests {
 
         assert_eq!(
             relations_string,
-            "\n            c ||--o{ e: \"needed for\""
+            "\n    c ||--o{ e: \"needed for\""
         );
 
         // Combine the entities and relations
@@ -209,7 +209,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n    <pre class=\"mermaid\">\n        erDiagram\n            \n            c[\"collections\"] {\n                float Measurement\n                enum DataAnalysis PK \"e.g., 1, 2, 3\"\n            }\n            e[\"entity\"] {\n                int Group1 FK\n                string Group2 \"Detailed group description\"\n                string Group3 UK\n            }\n            \n            c ||--o{ e: \"needed for\"\n    </pre>\n    <script type=\"module\">\n        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n        mermaid.initialize({theme: \"dark\", startOnLoad: true });\n    </script>\n  </body>\n</html>"
+            ""
         );
         Ok(())
     }

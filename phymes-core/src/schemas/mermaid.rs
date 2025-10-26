@@ -192,8 +192,6 @@ pub(crate) fn create_mermaid_xychart_template_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-
-
 pub(crate) fn create_mermaid_er_diagram_entities_template_fields() -> Fields {
     let field_names = [
         "entity_name",
