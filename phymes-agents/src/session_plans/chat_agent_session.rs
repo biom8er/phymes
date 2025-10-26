@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, ProcessorEcho,
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuilderTrait,
     ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder,
     TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
 };
@@ -77,11 +77,6 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                 task_name: self.chat_task_name.to_string(),
                 runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.chat_processor_name.to_string()],
-            },
-            TaskPlan {
-                task_name: self.session_context_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.session_context_name.to_string()],
             },
         ];
 
@@ -166,21 +161,6 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                 AllTableNamesSubscribe::new_box(),
             ));
         }
-        processors.push(ProcessorEcho::new_arc_with_pub_sub(
-            self.session_context_name,
-            &[
-                TablePublish::Extend {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TablePublish::Extend {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-            ],
-            &[TableSubscribe::OnUpdateLastRecordBatch {
-                table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-            }],
-            AllTableNamesSubscribe::new_box(),
-        ));
 
         Some(processors)
     }
@@ -189,7 +169,6 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         Some(vec![
             RuntimeEnv::new().with_name(self.chat_runtime_env_name),
             RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
-            RuntimeEnv::new().with_name("rt_default"),
         ])
     }
 
@@ -322,7 +301,9 @@ mod tests {
         let session_ctx = chat_agent_session
             .build()
             .with_name(chat_agent_session.session_context_name)
+            .add_session_interface()?
             .build_with_tables()?;
+        dbg!(&session_ctx.get_tasks());
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Skip actually running the session as it takes too long on the CPU
@@ -353,6 +334,7 @@ mod tests {
                 SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
+            dbg!(&response);
 
             // Update the chat history with the response
             let bytes = response

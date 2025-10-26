@@ -4,11 +4,11 @@ use anyhow::{anyhow, Result};
 use clap::ValueEnum;
 use parking_lot::{Mutex, RwLock};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, StateMap, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskMap, TaskPlan
+    AnyTableNameSubscribe, BuildableTrait, BuilderTrait, MappableTrait, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, StateMap, SubscribeTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskMap, TaskPlan
 };
 use phymes_diagnostics::HashMap;
 
-use crate::{session_traits::tabular::SessionContextBuilderTabularTrait, AvailableProcessors};
+use crate::{session_traits::tabular::SessionContextBuilderTabularTrait, AvailableInterfaceSubjects, AvailableProcessors};
 
 type SessionContextInput = (
     String,
@@ -35,8 +35,13 @@ pub trait SessionContextBuilderAgentsTrait {
     /// Check that all [ProcessorTrait]s subscribe to a subject of the same name
     fn check_processor_config_subjects(&self) -> Result<()>;
 
-    /// Add processor subjects with smart defaults
-    fn make_processor_configs(self) -> Result<Self> where Self: Sized;
+    /// Add a proessor config subject to the subscription of all processors (if it is not present already)
+    /// and add a processor config table to the state with defaults (if it is not present already)
+    fn add_processor_configs(self) -> Result<Self> where Self: Sized;
+
+    /// Add tasks, processors, and runtime environments for a session interface that
+    /// subscribes to all [AvailableInterfaceSubjects]
+    fn add_session_interface(self) -> Result<Self> where Self: Sized;
 }
 
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
@@ -158,7 +163,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         Ok(())
     }
-    fn make_processor_configs(mut self) -> Result<Self> {
+    fn add_processor_configs(mut self) -> Result<Self> {
         if self.processors.is_none() {
             return Err(anyhow!(
                 "Add processors before making the default processor configuration subjects."
@@ -232,6 +237,64 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         // Remake the processors
         self.processors.replace(processors);
+
+        Ok(self)
+    }
+    fn add_session_interface(mut self) -> Result<Self> where Self: Sized {
+        if self.name.is_none() {
+            return Err(anyhow!(
+                "Add a name for the session before making the session interface."
+            ));
+        }
+        if self.state.is_none() {
+            return Err(anyhow!(
+                "Add state for the session before making the session interface."
+            ));
+        }
+
+        // Add the session task
+        let session_name = self.name.as_ref().unwrap().to_string();
+        let runtime_env_name = format!("{session_name}-runtime_env");
+        let mut tasks = self.tasks.take().unwrap_or_default();
+        tasks.push(TaskPlan {
+            task_name: session_name.to_string(),
+            runtime_env_name: runtime_env_name.to_owned(),
+            processor_names: vec![session_name.to_string()],
+        });
+        self.tasks.replace(tasks);
+
+        // Add the processors
+        let mut publications = Vec::new();
+        let mut subscriptions = Vec::new();
+        if let Some(state) = self.state.as_ref() {
+            for table in state.iter() {
+                if let Ok(subject) = AvailableInterfaceSubjects::from_str(table.get_name(), false) {
+                    // DM: Leave the option for AvailableInterfaceSubjects to be both subscriptions and publications
+                    // DM: Use publications/subscription policies that retain the information across sessions
+                    if subject.is_session_publication() {
+                        publications.push(TablePublish::Extend { table_name: subject.to_string() });
+                    }
+                    if subject. is_session_subscription(){
+                        subscriptions.push(TableSubscribe::OnUpdateLastRecordBatch { table_name: subject.to_string() });
+                        // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the session!
+                        publications.push(TablePublish::Extend { table_name: subject.to_string() });
+                    }                    
+                }
+            }
+        }
+        let mut processors = self.processors.take().unwrap_or_default();
+        processors.push(ProcessorEcho::new_arc_with_pub_sub(
+            session_name.as_str(),
+            &publications,
+            &subscriptions,
+            AnyTableNameSubscribe::new_box(),
+        ));
+        self.processors.replace(processors);
+
+        // Add the runtime environment
+        let mut runtime_envs = self.runtime_envs.take().unwrap_or_default();
+        runtime_envs.push(RuntimeEnv::new().with_name(runtime_env_name.as_str()));
+        self.runtime_envs.replace(runtime_envs);
 
         Ok(self)
     }
@@ -385,10 +448,40 @@ pub mod test_session_context_builder_agents {
 #[cfg(test)]
 mod tests {
 
-    use phymes_core::{test_processor::ProcessorMock, test_session_context_builder::{make_test_session_builder_parallel_task, make_test_session_builder_tasks}, test_task::{make_runtime_env, make_state_tables}, AllTableNamesSubscribe, BuildableTrait, BuilderTrait, SubscribeTrait, TableBuilderTrait, TablePublish, TableSubscribe};
+    use phymes_core::{test_processor::ProcessorMock, test_session_context_builder::{make_test_session_builder_parallel_task, make_test_session_builder_tasks}, test_task::{make_runtime_env, make_state_tables}, AllTableNamesSubscribe, BuildableTrait, BuilderTrait, SubscribeTrait, TableBuilderTrait, TablePublish, TableSubscribe, TaskTrait};
     use phymes_data::{AvailableCandleOperators, DataConfig};
 
     use super::*;
+
+    #[test]
+    fn test_build_with_tables_success() -> Result<()> {
+        let session = test_session_context_builder_agents::make_test_session_builder_agents()?
+            .build_with_tables()?;
+        assert_eq!(session.get_states().len(), 13);
+        assert_eq!(session.get_tasks().len(), 4);
+        assert_eq!(session.get_name(), "session");
+        assert_eq!(session.get_max_iter(), 25);
+        assert!(session.get_diagnostics());
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_with_tables_add_session_interface() -> Result<()> {
+        let session = test_session_context_builder_agents::make_test_session_builder_agents()?
+            .add_session_interface()?
+            .build_with_tables()?;
+        assert_eq!(session.get_states().len(), 13);
+        assert_eq!(session.get_tasks().len(), 5);
+        assert_eq!(session.get_tasks().get("session").unwrap().get_name(), "session");
+        let test = session.get_tasks().get("session").unwrap().get_processors().iter().map(|p|p.get_name()).collect::<Vec<_>>();
+        assert_eq!(test, ["session"]);
+        let test = session.get_tasks().get("session").unwrap().get_runtime_env().lock();
+        assert_eq!(test.get_name(), "session-runtime_env");
+        assert_eq!(session.get_name(), "session");
+        assert_eq!(session.get_max_iter(), 25);
+        assert!(session.get_diagnostics());
+        Ok(())
+    }
 
     #[test]
     fn test_build_with_tables_missing_processor_configs_subjects() -> Result<()> {
@@ -408,11 +501,12 @@ mod tests {
             ),
         }
         
+        // The default for the config subjects will also fail because of a mismatch in the data config tables
         let result = make_test_session_builder_parallel_task()
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
-            .make_processor_configs()?
+            .add_processor_configs()?
             .build_with_tables();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -528,17 +622,6 @@ mod tests {
             ),
         }
 
-        Ok(())
-    }
-
-    #[test]
-    fn test_build_with_tables_success() -> Result<()> {
-        let session = test_session_context_builder_agents::make_test_session_builder_agents()?.build_with_tables()?;
-        assert_eq!(session.get_states().len(), 13);
-        assert_eq!(session.get_tasks().len(), 4);
-        assert_eq!(session.get_name(), "session");
-        assert_eq!(session.get_max_iter(), 25);
-        assert!(session.get_diagnostics());
         Ok(())
     }
 }

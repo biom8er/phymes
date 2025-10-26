@@ -210,3 +210,94 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
         }
     }
 }
+
+impl AvailableInterfaceSubjects {
+    /// Is the subject subscribed to by the session?
+    pub fn is_session_subscription(&self) -> bool {
+        match self {
+            Self::UserMessages
+            | Self::UserQueries
+            | Self::UserPdf
+            | Self::UserAudio
+            | Self::UserVideo
+            | Self::UserImage
+            | Self::UserScript
+            | Self::UserCsv
+            | Self::UserJson 
+            | Self::AggregatedAttachments
+            | Self::AggregatedMessages => false,
+            Self::AssistantMessages
+            | Self::AssistantScript
+            | Self::ToolMessages
+            | Self::AssistantImage
+            | Self::AssistantCsv
+            | Self::AssistantJson => true,
+        }
+    }
+    /// Is the subject published to by the session?
+    pub fn is_session_publication(&self) -> bool {
+        match self {
+            Self::UserMessages
+            | Self::UserQueries
+            | Self::UserPdf
+            | Self::UserAudio
+            | Self::UserVideo
+            | Self::UserImage
+            | Self::UserScript
+            | Self::UserCsv
+            | Self::UserJson => true,
+            Self::AssistantMessages
+            | Self::AssistantScript
+            | Self::ToolMessages
+            | Self::AssistantImage
+            | Self::AssistantCsv
+            | Self::AssistantJson 
+            | Self::AggregatedAttachments
+            | Self::AggregatedMessages => false,
+        }
+    }
+    /// Is the subject subscribed to by the frontend UI?
+    pub fn is_frontend_subscription(&self) -> bool {
+        match self {
+            Self::UserMessages
+            | Self::UserQueries
+            | Self::UserPdf
+            | Self::UserAudio
+            | Self::UserVideo
+            | Self::UserImage
+            | Self::UserScript
+            | Self::UserCsv
+            | Self::UserJson
+            | Self::AssistantMessages
+            | Self::AssistantScript
+            | Self::ToolMessages
+            | Self::AssistantImage
+            | Self::AssistantCsv
+            | Self::AssistantJson => false,
+            Self::AggregatedAttachments
+            | Self::AggregatedMessages => true,
+        }
+    }
+    /// Is the subject published to by the frontend UI?
+    pub fn is_frontend_publication(&self) -> bool {
+        match self {
+            Self::UserMessages
+            | Self::UserQueries
+            | Self::UserPdf
+            | Self::UserAudio
+            | Self::UserVideo
+            | Self::UserImage
+            | Self::UserScript
+            | Self::UserCsv
+            | Self::UserJson => true,
+            Self::AggregatedAttachments
+            | Self::AggregatedMessages
+            | Self::AssistantMessages
+            | Self::AssistantScript
+            | Self::ToolMessages
+            | Self::AssistantImage
+            | Self::AssistantCsv
+            | Self::AssistantJson => false,
+        }
+    }
+}

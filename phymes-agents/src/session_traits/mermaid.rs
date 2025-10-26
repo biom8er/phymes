@@ -1541,7 +1541,7 @@ mod tests {
         }
 
         // Test that the processor configs were added to the subscriptions were added in
-        let builder_test = builder_test.with_name("session").make_processor_configs()?;
+        let builder_test = builder_test.with_name("session").add_processor_configs()?;
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
