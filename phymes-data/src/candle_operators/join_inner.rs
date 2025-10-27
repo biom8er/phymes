@@ -38,8 +38,8 @@ impl MappableTrait for JoinInner {
 
 impl DataOperatorTrait for JoinInner {
     fn new(config: &DataConfig) -> Self {
-        let lhs_pk = config.lhs_pk.to_owned();
-        let lhs_fk = config.lhs_fk.to_owned();
+        let lhs_pk = config.lhs_pk.as_ref().cloned().unwrap_or_default();
+        let lhs_fk = config.lhs_fk.as_ref().cloned().unwrap_or_default();
         let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
         let rhs_fk = config.rhs_fk.to_owned().unwrap_or_default();
         JoinInner {

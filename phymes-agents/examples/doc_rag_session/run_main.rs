@@ -86,15 +86,20 @@ pub async fn run_main() -> Result<()> {
 
     // Update the chat history with the response
     let bytes = response
-        .last_mut()
-        .unwrap()
-        .remove(&format!(
-            "from_{}_on_{}",
-            doc_rag_session.session_context_name,
-            AvailableInterfaceSubjects::AssistantMessages
-        ))
-        .unwrap()
-        .get_message_own();
+        .iter_mut()
+        .filter_map(|map| {
+            if let Some(v) = map.remove(&format!(
+                "from_{}_on_{}",
+                doc_rag_session.session_context_name,
+                AvailableInterfaceSubjects::AssistantMessages
+            )) {
+                Some(v.get_message_own())
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .collect::<Vec<_>>();
     let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
         .with_name("")
         .build()?

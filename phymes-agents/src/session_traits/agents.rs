@@ -569,7 +569,7 @@ pub mod test_session_context_builder_agents {
         state.extend(make_state_tables("state_3", "processor_3")?);
 
         let join_config = DataConfig {
-            lhs_name: "state_1".to_string(),
+            lhs_name: Some("state_1".to_string()),
             rhs_name: Some("state_2".to_string()),
             operator: AvailableCandleOperators::JoinInner,
             ..Default::default()
@@ -692,19 +692,17 @@ mod tests {
         }
 
         // The default for the config subjects will also fail because of a mismatch in the data config tables
-        let result = make_test_session_builder_parallel_task()
+        let session = make_test_session_builder_parallel_task()
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
             .add_processor_subjects()?
-            .build_with_tables();
-        match result {
-            Ok(_) => panic!("Should have failed"),
-            Err(e) => assert_eq!(
-                e.to_string(),
-                "A subscriptions with the same names as the `DataConfig` lhs_name and rhs_name were not found for processors with lhs_name and rhs_name [(\"processor_1\", [\"lhs_name\"]), (\"processor_2\", [\"lhs_name\"]), (\"processor_3\", [\"lhs_name\"]), (\"session_1\", [\"lhs_name\"])]."
-            ),
-        }
+            .build_with_tables()?;
+        assert_eq!(session.get_states().len(), 16);
+        assert_eq!(session.get_tasks().len(), 4);
+        assert_eq!(session.get_name(), "session");
+        assert_eq!(session.get_max_iter(), 25);
+        assert!(!session.get_diagnostics());
         Ok(())
     }
 
@@ -780,7 +778,7 @@ mod tests {
         state.extend(make_state_tables("state_3", "processor_3")?);
 
         let join_config = DataConfig {
-            lhs_name: "state_1".to_string(),
+            lhs_name: Some("state_1".to_string()),
             rhs_name: Some("missing_state".to_string()),
             operator: AvailableCandleOperators::JoinInner,
             ..Default::default()

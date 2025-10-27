@@ -544,8 +544,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Message aggregator config
         let aggregator_config = DataConfig {
-            lhs_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-            lhs_values: vec!["timestamp".to_string()],
+            lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
@@ -572,8 +571,8 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Extract tabular data config
         let extract_tabular_data_config = DataConfig {
-            lhs_name: AvailableInterfaceSubjects::UserCsv.to_string(),
-            lhs_values: vec!["bytes".to_string()],
+            lhs_name: Some(AvailableInterfaceSubjects::UserCsv.to_string()),
+            lhs_values: Some(vec!["bytes".to_string()]),
             format: Some(DataFormat::CsvDefault),
             operator: AvailableCandleOperators::ExtractTabularData,
             ..Default::default()
@@ -589,8 +588,8 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Select and cast config
         let vis_renamecols_config = DataConfig {
-            lhs_name: self.tool_summary_task_name.to_string(),
-            lhs_values: vec!["lhs_pk".to_string(), "score".to_string()],
+            lhs_name: Some(self.tool_summary_task_name.to_string()),
+            lhs_values: Some(vec!["lhs_pk".to_string(), "score".to_string()]),
             as_columns: Some(vec!["x".to_string(), "y".to_string()]),
             cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None]),
             cast_datatypes: Some(vec![
@@ -611,7 +610,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Visualize tabular data config
         let vis_xychart_config = DataConfig {
-            lhs_name: AvailableSubjects::MermaidXYChart.to_string(),
+            lhs_name: Some(AvailableSubjects::MermaidXYChart.to_string()),
             doc_template: Some(
                 [
                     MERMAID_HTML_PRE,

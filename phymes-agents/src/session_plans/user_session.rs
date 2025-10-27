@@ -318,8 +318,8 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_state_tables(&self) -> Option<Vec<Table>> {
         // Extract tabular data config
         let extract_tabular_data_config = DataConfig {
-            lhs_name: AvailableInterfaceSubjects::UserJson.to_string(),
-            lhs_values: vec!["bytes".to_string()],
+            lhs_name: Some(AvailableInterfaceSubjects::UserJson.to_string()),
+            lhs_values: Some(vec!["bytes".to_string()]),
             format: Some(DataFormat::JsonDefault),
             operator: AvailableCandleOperators::ExtractTabularData,
             ..Default::default()
@@ -349,9 +349,9 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         // Configs for filter
         let filter_user_info_data_config = DataConfig {
             operator: AvailableCandleOperators::JoinInner,
-            lhs_name: AvailableSubjects::UserInbox.to_string(),
-            lhs_pk: "email".to_string(),
-            lhs_fk: "email".to_string(),
+            lhs_name: Some(AvailableSubjects::UserInbox.to_string()),
+            lhs_pk: Some("email".to_string()),
+            lhs_fk: Some("email".to_string()),
             rhs_name: Some(AvailableSubjects::User.to_string()),
             rhs_pk: Some("email".to_string()),
             rhs_fk: Some("email".to_string()),
@@ -369,9 +369,9 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         // Configs for filter
         let filter_user_session_context_data_config = DataConfig {
             operator: AvailableCandleOperators::JoinInner,
-            lhs_name: AvailableSubjects::UserInbox.to_string(),
-            lhs_pk: "email".to_string(),
-            lhs_fk: "email".to_string(),
+            lhs_name: Some(AvailableSubjects::UserInbox.to_string()),
+            lhs_pk: Some("email".to_string()),
+            lhs_fk: Some("email".to_string()),
             rhs_name: Some(AvailableSubjects::UserSessionContexts.to_string()),
             rhs_pk: Some("email".to_string()),
             rhs_fk: Some("email".to_string()),
@@ -389,9 +389,9 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         // Configs for join
         let join_user_session_context_data_config = DataConfig {
             operator: AvailableCandleOperators::JoinInner,
-            lhs_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
-            lhs_pk: "email".to_string(),
-            lhs_fk: "session_context_name".to_string(),
+            lhs_name: Some(AvailableSubjects::JoinUserInboxSessionContexts.to_string()),
+            lhs_pk: Some("email".to_string()),
+            lhs_fk: Some("session_context_name".to_string()),
             rhs_name: Some(AvailableSubjects::BuilderMermaid.to_string()),
             rhs_pk: Some("session_context_name".to_string()),
             rhs_fk: Some("session_context_name".to_string()),

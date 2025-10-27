@@ -660,13 +660,13 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
     fn make_state_tables(&self) -> Option<Vec<Table>> {
         // Metrics pivot
         let metrics_pivot_config = DataConfig {
-            lhs_name: AvailableSubjects::AnalyticsMetrics.to_string(),
-            lhs_values: vec![
+            lhs_name: Some(AvailableSubjects::AnalyticsMetrics.to_string()),
+            lhs_values: Some(vec![
                 "span_name".to_string(),
                 "span_id".to_string(),
                 "parent_name".to_string(),
                 "parent_id".to_string(),
-            ],
+            ]),
             agg_columns: Some(vec!["metric_value".to_string()]),
             agg_operators: Some(vec![DataAggregatorOperator::Sum]),
             pvt_columns: Some(vec!["metric_name".to_string()]),
@@ -683,11 +683,11 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics normalize time
         let metrics_normalize_time_config = DataConfig {
-            lhs_name: AvailableSubjects::MetricPivot.to_string(),
-            lhs_values: vec![
+            lhs_name: Some(AvailableSubjects::MetricPivot.to_string()),
+            lhs_values: Some(vec![
                 "start_timestamp-metric_value-Sum".to_string(),
                 "end_timestamp-metric_value-Sum".to_string(),
-            ],
+            ]),
             operator: AvailableCandleOperators::NormalizeTime,
             ..Default::default()
         };
@@ -702,13 +702,13 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics processor traces select and cast
         let metrics_processors_traces_select_and_cast_to_gantt_config = DataConfig {
-            lhs_name: AvailableSubjects::MetricPivotNormTime.to_string(),
-            lhs_values: vec![
+            lhs_name: Some(AvailableSubjects::MetricPivotNormTime.to_string()),
+            lhs_values: Some(vec![
                 "span_name".to_string(),
                 "span_name".to_string(),
                 "start_timestamp-metric_value-Sum-normalized".to_string(),
                 "end_timestamp-metric_value-Sum-normalized".to_string(),
-            ],
+            ]),
             as_columns: Some(vec![
                 "section".to_string(),
                 "task".to_string(),
@@ -750,13 +750,13 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics processor traces select and cast
         let metrics_elapsed_compute_select_and_cast_to_gantt_config = DataConfig {
-            lhs_name: AvailableSubjects::MetricPivotNormTime.to_string(),
-            lhs_values: vec![
+            lhs_name: Some(AvailableSubjects::MetricPivotNormTime.to_string()),
+            lhs_values: Some(vec![
                 "span_name".to_string(),
                 "span_name".to_string(),
                 "span_name".to_string(),
                 "elapsed_compute-metric_value-Sum".to_string(),
-            ],
+            ]),
             as_columns: Some(vec![
                 "section".to_string(),
                 "task".to_string(),
@@ -798,13 +798,13 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics output rows select and cast
         let metrics_output_rows_select_and_cast_to_gantt_config = DataConfig {
-            lhs_name: AvailableSubjects::MetricPivotNormTime.to_string(),
-            lhs_values: vec![
+            lhs_name: Some(AvailableSubjects::MetricPivotNormTime.to_string()),
+            lhs_values: Some(vec![
                 "span_name".to_string(),
                 "span_name".to_string(),
                 "span_name".to_string(),
                 "output_rows-metric_value-Sum".to_string(),
-            ],
+            ]),
             as_columns: Some(vec![
                 "section".to_string(),
                 "task".to_string(),
@@ -846,9 +846,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics processor traces apply gantt
         let metrics_processors_traces_apply_gantt_config = DataConfig {
-            lhs_name: self
+            lhs_name: Some(self
                 .metrics_processors_traces_select_and_cast_to_gantt_task_name
-                .to_string(),
+                .to_string()),
             // doc_template: Some([MERMAID_HTML_PRE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_template: Some(MERMAID_GANTT_TEMPLATE.to_string()),
             doc_name: Some(DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string()),
@@ -876,9 +876,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics elapsed compute apply gantt
         let metrics_elapsed_compute_apply_gantt_config = DataConfig {
-            lhs_name: self
+            lhs_name: Some(self
                 .metrics_elapsed_compute_select_and_cast_to_gantt_task_name
-                .to_string(),
+                .to_string()),
             // doc_template: Some([MERMAID_HTML_PRE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_template: Some(MERMAID_GANTT_TEMPLATE.to_string()),
             doc_name: Some(DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string()),
@@ -906,9 +906,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics output rows apply gantt
         let metrics_output_rows_apply_gantt_config = DataConfig {
-            lhs_name: self
+            lhs_name: Some(self
                 .metrics_output_rows_select_and_cast_to_gantt_task_name
-                .to_string(),
+                .to_string()),
             // doc_template: Some([MERMAID_HTML_PRE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_template: Some(MERMAID_GANTT_TEMPLATE.to_string()),
             doc_name: Some(DiagnosticsVisualizations::MetricOutputRowsGantt.to_string()),
@@ -936,7 +936,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces to sequence diagram messages
         let traces_to_sequence_diagram_messages_config = DataConfig {
-            lhs_name: AvailableSubjects::AnalyticsTraces.to_string(),
+            lhs_name: Some(AvailableSubjects::AnalyticsTraces.to_string()),
             rhs_name: Some(AvailableSubjects::AnalyticsTasks.to_string()),
             operator: AvailableCandleOperators::FromTracesToMessages,
             ..Default::default()
@@ -952,9 +952,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces apply sequence diagram messages
         let apply_sequence_diagram_messages_config = DataConfig {
-            lhs_name: self
+            lhs_name: Some(self
                 .traces_to_sequence_diagram_messages_task_name
-                .to_string(),
+                .to_string()),
             doc_template: Some(MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE.to_string()),
             doc_name: Some(self.apply_sequence_diagram_messages_task_name.to_string()),
             table_expression: Some(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION.to_string()),
@@ -974,7 +974,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces to sequence diagram participants
         let session_tasks_to_sequence_diagram_participants_config = DataConfig {
-            lhs_name: AvailableSubjects::AnalyticsTasks.to_string(),
+            lhs_name: Some(AvailableSubjects::AnalyticsTasks.to_string()),
             rhs_name: Some(
                 self.traces_to_sequence_diagram_messages_task_name
                     .to_string(),
@@ -996,9 +996,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces apply sequence diagram participants
         let apply_sequence_diagram_participants_config = DataConfig {
-            lhs_name: self
+            lhs_name: Some(self
                 .session_tasks_to_sequence_diagram_participants_task_name
-                .to_string(),
+                .to_string()),
             doc_template: Some(MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE.to_string()),
             doc_name: Some(
                 self.apply_sequence_diagram_participants_task_name
@@ -1021,9 +1021,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces apply sequence diagram
         let apply_sequence_diagram_config = DataConfig {
-            lhs_name: self
+            lhs_name: Some(self
                 .traces_aggregate_sequence_diagram_content_task_name
-                .to_string(),
+                .to_string()),
             // doc_template: Some([MERMAID_HTML_PRE, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_template: Some(MERMAID_SEQUENCE_DIAGRAM_TEMPLATE.to_string()),
             doc_name: Some(DiagnosticsVisualizations::TraceSequenceDiagram.to_string()),
@@ -1045,8 +1045,8 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Events select and cast kanban
         let events_select_and_cast_to_kanban_config = DataConfig {
-            lhs_name: AvailableSubjects::AnalyticsEvents.to_string(),
-            lhs_values: vec![
+            lhs_name: Some(AvailableSubjects::AnalyticsEvents.to_string()),
+            lhs_values: Some(vec![
                 "event_level".to_string(),
                 "event_level".to_string(),
                 "span_name".to_string(),
@@ -1054,7 +1054,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "function".to_string(),
                 "id".to_string(),
                 "id".to_string(),
-            ],
+            ]),
             as_columns: Some(vec![
                 "column_name".to_string(),
                 "column_label".to_string(),
@@ -1105,7 +1105,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Events apply kanban
         let apply_kanban_config = DataConfig {
-            lhs_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
+            lhs_name: Some(self.events_select_and_cast_to_kanban_task_name.to_string()),
             // doc_template: Some([MERMAID_HTML_PRE, MERMAID_KANBAN_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_template: Some(MERMAID_KANBAN_TEMPLATE.to_string()),
             doc_name: Some(DiagnosticsVisualizations::EventKanban.to_string()),
@@ -1126,10 +1126,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // traces and Outbox aggregate
         let aggregator_config = DataConfig {
-            lhs_name: "".to_string(),
-            lhs_pk: "".to_string(),
-            lhs_fk: "".to_string(),
-            lhs_values: vec!["timestamp".to_string()],
+            lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
@@ -1318,7 +1315,6 @@ mod tests {
                 .to_string()
                 .as_str()]))?
             .build_with_tables()?;
-        dbg!(&session_ctx.get_tasks());
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         // Make diagnostic data and session tasks data

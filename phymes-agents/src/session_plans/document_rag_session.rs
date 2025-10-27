@@ -629,7 +629,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Message aggregator config
         let aggregator_config = DataConfig {
-            lhs_values: vec!["timestamp".to_string()],
+            lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
@@ -656,8 +656,8 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Select and cast config
         let message_to_query_config = DataConfig {
-            lhs_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-            lhs_values: vec!["timestamp".to_string(),"content".to_string()],
+            lhs_name: Some(AvailableInterfaceSubjects::UserMessages.to_string()),
+            lhs_values: Some(vec!["timestamp".to_string(),"content".to_string()]),
             as_columns: Some(vec!["query_id".to_string(), "text".to_string()]),
             cast_operators: Some(vec![DataCastOperator::Cast, DataCastOperator::None]),
             cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
@@ -675,9 +675,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Extract pdf config
         let extract_pdf_config = DataConfig {
-            lhs_name: AvailableInterfaceSubjects::UserPdf.to_string(),
-            lhs_pk: "filename".to_string(),
-            lhs_values: vec!["bytes".to_string()],
+            lhs_name: Some(AvailableInterfaceSubjects::UserPdf.to_string()),
+            lhs_pk: Some("filename".to_string()),
+            lhs_values: Some(vec!["bytes".to_string()]),
             operator: AvailableCandleOperators::ExtractPDFText,
             ..Default::default()
         };
@@ -691,10 +691,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Chunk documents config
         let chunk_document_config = DataConfig {
-            lhs_name: self.document_chunk_task_name.to_string(),
-            lhs_pk: "document_id".to_string(),
-            lhs_fk: "document_id".to_string(),
-            lhs_values: vec!["text".to_string()],
+            lhs_name: Some(self.document_chunk_task_name.to_string()),
+            lhs_pk: Some("document_id".to_string()),
+            lhs_fk: Some("document_id".to_string()),
+            lhs_values: Some(vec!["text".to_string()]),
             operator: AvailableCandleOperators::ChunkDocuments,
             ..Default::default()
         };
@@ -708,10 +708,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Relative similarity config
         let rel_sim_config = DataConfig {
-            lhs_name: self.state_q_embed_table_name.to_string(),
-            lhs_pk: "query_id".to_string(),
-            lhs_fk: "query_id".to_string(),
-            lhs_values: vec!["embedding".to_string()],
+            lhs_name: Some(self.state_q_embed_table_name.to_string()),
+            lhs_pk: Some("query_id".to_string()),
+            lhs_fk: Some("query_id".to_string()),
+            lhs_values: Some(vec!["embedding".to_string()]),
             rhs_name: Some(self.state_doc_embed_table_name.to_string()),
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
@@ -729,10 +729,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Sort scores config
         let sort_scores_config = DataConfig {
-            lhs_name: self.state_scores_table_name.to_string(),
-            lhs_pk: "chunk_id".to_string(),
-            lhs_fk: "chunk_id".to_string(),
-            lhs_values: vec!["score".to_string()],
+            lhs_name: Some(self.state_scores_table_name.to_string()),
+            lhs_pk: Some("chunk_id".to_string()),
+            lhs_fk: Some("chunk_id".to_string()),
+            lhs_values: Some(vec!["score".to_string()]),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
         };
@@ -746,10 +746,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Join chunks scores config
         let join_chunks_config = DataConfig {
-            lhs_name: self.state_scores_table_name.to_string(),
-            lhs_pk: "chunk_id".to_string(),
-            lhs_fk: "chunk_id".to_string(),
-            lhs_values: vec!["score".to_string()],
+            lhs_name: Some(self.state_scores_table_name.to_string()),
+            lhs_pk: Some("chunk_id".to_string()),
+            lhs_fk: Some("chunk_id".to_string()),
+            lhs_values: Some(vec!["score".to_string()]),
             rhs_name: Some(self.state_documents_table_name.to_string()),
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),

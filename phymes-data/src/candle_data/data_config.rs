@@ -243,38 +243,42 @@ pub struct DataConfig {
     pub cpu: bool,
 
     /// The left hand side table name
-    #[arg(long, default_value = "lhs_name")]
-    pub lhs_name: String,
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lhs_name: Option<String>,
 
     /// The right hand side table name
-    #[arg(long, default_value = "rhs_name")]
+    #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rhs_name: Option<String>,
 
     /// The left hand side primary key column identifier
-    #[arg(long, default_value = "lhs_pk")]
-    pub lhs_pk: String,
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lhs_pk: Option<String>,
 
     /// The right hand side primary key column identifier
-    #[arg(long, default_value = "rhs_pk")]
+    #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rhs_pk: Option<String>,
 
     /// The left hand side primary key column identifier
-    #[arg(long, default_value = "lhs_fk")]
-    pub lhs_fk: String,
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lhs_fk: Option<String>,
 
     /// The right hand side primary key column identifier
-    #[arg(long, default_value = "rhs_fk")]
+    #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rhs_fk: Option<String>,
 
     /// The left hand side values column identifier
-    #[arg(long, default_value = "lhs_values")]
-    pub lhs_values: Vec<String>,
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lhs_values: Option<Vec<String>>,
 
     /// The right hand side values column identifier
-    #[arg(long, default_value = "rhs_values")]
+    #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rhs_values: Option<Vec<String>>,
 
@@ -415,13 +419,13 @@ impl Default for DataConfig {
     fn default() -> Self {
         Self {
             cpu: false,
-            lhs_name: "lhs_name".to_string(),
+            lhs_name: None,
             rhs_name: None,
-            lhs_pk: "lhs_pk".to_string(),
+            lhs_pk: None,
             rhs_pk: None,
-            lhs_fk: "lhs_fk".to_string(),
+            lhs_fk: None,
             rhs_fk: None,
-            lhs_values: vec!["lhs_values".to_string()],
+            lhs_values: None,
             rhs_values: None,
             lhs_args: None,
             rhs_args: None,
@@ -457,7 +461,7 @@ impl DataConfigTrait for DataConfig {
         match name {
             s if s == AvailableCandleOperators::ApplyTemplate.to_string() => Self {
                 cpu: false,
-                lhs_name: "lhs_name".to_string(),
+                lhs_name: Some("lhs_name".to_string()),
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 operator: AvailableCandleOperators::ApplyTemplate,
                 doc_template: Some("doc_template".to_string()),
@@ -469,7 +473,7 @@ impl DataConfigTrait for DataConfig {
             },
             // DM: Add examples for the rest of the operators
             s if s == "Aggregator" => Self {
-                lhs_values: vec!["timestamp".to_string()],
+                lhs_values: Some(vec!["timestamp".to_string()]),
                 asc: Some(true),
                 operator: AvailableCandleOperators::SortColumnAndIndices,
                 ..Default::default()

@@ -235,7 +235,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
 
         // Message aggregator config
         let aggregator_config = DataConfig {
-            lhs_values: vec!["timestamp".to_string()],
+            lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()

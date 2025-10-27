@@ -34,8 +34,8 @@ impl DataOperatorTrait for ExtractPDFText {
     where
         Self: Sized,
     {
-        let lhs_pk = config.lhs_pk.to_owned();
-        let lhs_values = config.lhs_values.first().unwrap().to_string();
+        let lhs_pk = config.lhs_pk.as_ref().cloned().unwrap_or_default();
+        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default().first().cloned().unwrap_or_default();
         ExtractPDFText { lhs_pk, lhs_values }
     }
     fn forward(

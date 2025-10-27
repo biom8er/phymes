@@ -39,7 +39,7 @@ impl MappableTrait for Pivot {
 
 impl DataOperatorTrait for Pivot {
     fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.to_owned();
+        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
         let agg_columns = config.agg_columns.clone().unwrap_or_default();
         let agg_operators = config.agg_operators.clone().unwrap_or_default();
         let default_values = config.default_values.clone().unwrap_or_default();

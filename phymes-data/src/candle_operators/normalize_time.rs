@@ -38,7 +38,7 @@ impl DataOperatorTrait for NormalizeTime {
         normalize_time(&lhs_values, lhs_args, device)
     }
     fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.to_owned();
+        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
         NormalizeTime { lhs_values }
     }
     fn get_description() -> String {

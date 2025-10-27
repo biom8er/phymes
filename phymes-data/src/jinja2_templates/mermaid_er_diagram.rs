@@ -105,7 +105,7 @@ mod tests {
             TableScript::new_from_template(MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE.to_string())
                 .apply_template(&sequence_diagram_template_inputs)?;
 
-        assert_eq!(entities_string, "");
+        assert_eq!(entities_string, "\n    c[\"collections\"] {\n        float Measurement\n        enum DataAnalysis PK \"e.g., 1, 2, 3\"\n    }\n    e[\"entity\"] {\n        int Group1 FK\n        string Group2 \"Detailed group description\"\n        string Group3 UK\n    }");
 
         // Create the dummy data for the relations
         let subject_vec = ["c"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
@@ -182,7 +182,7 @@ mod tests {
         let script_string = TableScript::new_from_template(template)
             .apply_template(&sequence_diagram_template_inputs)?;
 
-        assert_eq!(script_string, "");
+        assert_eq!(script_string, "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n    <pre class=\"mermaid\">\nerDiagram\n    \n    c[\"collections\"] {\n        float Measurement\n        enum DataAnalysis PK \"e.g., 1, 2, 3\"\n    }\n    e[\"entity\"] {\n        int Group1 FK\n        string Group2 \"Detailed group description\"\n        string Group3 UK\n    }\n    \n    c ||--o{ e: \"needed for\"\n    </pre>\n    <script type=\"module\">\n        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n        mermaid.initialize({theme: \"dark\", startOnLoad: true });\n    </script>\n  </body>\n</html>");
         Ok(())
     }
 }

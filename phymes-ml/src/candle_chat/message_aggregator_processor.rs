@@ -185,10 +185,7 @@ mod tests {
 
         // Make the config
         let config = DataConfig {
-            lhs_name: "".to_string(),
-            lhs_pk: "".to_string(),
-            lhs_fk: "".to_string(),
-            lhs_values: vec!["timestamp".to_string()],
+            lhs_values: Some(vec!["timestamp".to_string()]),
             op_kwargs: Some("{\"asc\": true}".to_string()),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
