@@ -1073,14 +1073,17 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut subject_names = HashSet::new();
 
         // Parse the mermaid.js flowchart string
-        let erdiagram = erdiagram.replace("\\n\\t\\t", "\n"); // since \\n is not recognized as a new line...
         let erdiagram_lines = erdiagram.lines().collect::<Vec<_>>();
         let mut iter = 0;
-        if !erdiagram_lines.first().unwrap().contains("erDiagram") {
-            return Err(anyhow!(
-                "Parsing Error on line {iter}: {}. Unrecognized mermaid.js erDiagram type",
-                erdiagram_lines.get(iter).unwrap()
-            ));
+        if let Some(er_diagram) = erdiagram_lines.first() {
+            if !er_diagram.contains("erDiagram") {
+                return Err(anyhow!(
+                    "Parsing Error on line {iter}: {}. Unrecognized mermaid.js erDiagram type.",
+                    erdiagram_lines.get(iter).unwrap()
+                ));
+            }            
+        } else {
+            return Err(anyhow!("Parsing Error on line {iter}. No mermaid.js erDiagram provided."));
         }
         while iter < erdiagram_lines.len() {
             // Check the chart type
@@ -1110,11 +1113,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
                 iter += 1;
                 while iter < erdiagram_lines.len() {
-                    // Check for end of subject section
-                    if erdiagram_lines.get(iter).unwrap().contains("}") {
+                    // Check for end of subject section (and exclude jinja2 templating brackets)
+                    if erdiagram_lines.get(iter).unwrap() == &"    }" {
                         // Build and add the table to the subjects list
                         let schema = Arc::new(Schema::new(fields));
                         let table = if with_values && !data.is_empty() {
+                            dbg!(&subject_name);
+                            dbg!(&data);
                             Table::get_builder()
                                 .with_schema(schema)
                                 .with_json_values(&[serde_json::Value::Object(data)])?
@@ -1132,10 +1137,18 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     // Extract the field and data type
                     } else {
                         let line = erdiagram_lines.get(iter).unwrap().trim();
+                        dbg!(line);
                         let split_line = line.split_whitespace().collect::<Vec<_>>();
 
                         // Match the DataType
-                        let field_name = split_line.get(1).unwrap().to_string();
+                        let field_name = if let Some(field_name) = split_line.get(1) {
+                            field_name.to_string()
+                        } else {
+                            return Err(anyhow!(
+                                "Parsing Error on line {iter}: {}. Unrecognized field name in subject {subject_name}",
+                                erdiagram_lines.get(iter).unwrap(),
+                            ));
+                        };
                         let data_type = match from_str_to_data_type(split_line.first().unwrap()) {
                             Ok(data_type) => data_type,
                             Err(_e) => {
@@ -1149,18 +1162,36 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
                         // Extract the value
                         if with_values && split_line.len() > 2 {
-                            let value = if split_line.len() == 3 {
-                                split_line.get(2).unwrap()
-                            } else if split_line.len() == 4 {
-                                split_line.get(3).unwrap()
-                            } else {
-                                return Err(anyhow!(
-                                    "Parsing Error on line {iter}: {}. Cannot find example values in subject {subject_name} for field {field_name}.",
-                                    erdiagram_lines.get(iter).unwrap(),
-                                ));
-                            };
-                            let value = value.trim_start_matches('\"').trim_end_matches('\"').replace("'", "\"");
-                            let _ = data.insert(field_name.to_owned(), parse_str_to_data_type(&value, &data_type)?);
+                            // DM: we assume that all inner double quotes have been replaced by single quotes
+                            if let Some(start) = line.find("\"") {
+
+                                // Same line
+                                let line = &line[start + 1..];
+                                if let Some(end) = line.find("\"") {
+                                    let value = &line[..end].replace("'", "\"");
+                                    dbg!(&value);
+                                    let _ = data.insert(field_name.to_owned(), parse_str_to_data_type(value, &data_type)?);
+
+                                // Multi-line
+                                } else {
+                                    let start_line = iter;
+                                    iter += 1;
+                                    while iter < erdiagram_lines.len() {
+                                        if let Some(_end) = erdiagram_lines.get(iter).unwrap().find("\"") {
+                                            let value = erdiagram_lines[start_line..iter]
+                                                .join("\n");
+                                            let value = extract_tool_calls_str(&value, Some("\""), Some("\""))
+                                                .replace("'", "\"");
+                                            dbg!(&value);
+                                            let _ = data.insert(field_name.to_owned(), parse_str_to_data_type(&value, &data_type)?);
+                                            break;
+                                        } else {
+                                            dbg!(&erdiagram_lines.get(iter).unwrap());
+                                            iter += 1;
+                                        }                                    
+                                    }
+                                }
+                            }                            
                         }
                         let field = Field::new(field_name, data_type, false);
                         fields.push(field);
@@ -2013,6 +2044,226 @@ mod tests {
             .map(|p| p.get_name())
             .collect::<Vec<_>>();
         assert_eq!(test, expected);
+
+        // Test that we can build the session
+        let _ = builder_test.build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_doc_rag_session_with_data() -> Result<()> {
+        // initialize the session
+        let builder = DocumentRAGSession::new_with_session_name("session_1")
+            .build()
+            .with_name("session_1")
+            .add_session_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
+
+        // Remake the builder
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?
+            .with_name("session_1")
+            .add_processor_configs()?
+            .add_session_interface(None)?;
+
+        // Test that the names match
+        let mut test = builder_test
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that the schemas match
+        {
+            let test = builder_test
+                .state
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.get_schema()))
+                .collect::<HashMap<_,_>>();
+            let expected = builder
+                .state
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.get_schema()))
+                .collect::<HashMap<_,_>>();
+            for key in expected.keys() {
+                assert!(expected.get(key).eq(&test.get(key)));
+            }
+        }
+
+        // Test that the first row was captured
+        for table in builder_test
+            .state
+            .as_ref()
+            .unwrap()
+            .iter() 
+        {
+            if builder_test.get_processor_names_from_tasks().contains(table.get_name())
+            && !builder_test.tasks.as_ref().unwrap().iter().map(|t| t.task_name.as_str()).collect::<Vec<_>>().contains(&table.get_name()) {
+                assert_eq!(table.count_rows(), 1)
+            } else {
+                assert_eq!(table.count_rows(), 0)
+            }            
+        }
+
+        // Test that we can build the session
+        let _ = builder_test.build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_tool_agent_session_with_data() -> Result<()> {
+        // initialize the session
+        let builder = ToolAgentSession::new_with_session_name("session_1")
+            .build()
+            .with_name("session_1")
+            .add_session_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
+
+        // Remake the builder
+        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?
+            .with_name("session_1")
+            .add_processor_configs()?
+            .add_session_interface(None)?;
+
+        // Test that the names match
+        let mut test = builder_test
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_processor_names_from_tasks()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_runtime_env_names()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that the schemas match
+        {
+            let test = builder_test
+                .state
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.get_schema()))
+                .collect::<HashMap<_,_>>();
+            let expected = builder
+                .state
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.get_schema()))
+                .collect::<HashMap<_,_>>();
+            for key in expected.keys() {
+                assert!(expected.get(key).eq(&test.get(key)));
+            }
+        }
+
+        // Test that the first row was captured
+        for table in builder_test
+            .state
+            .as_ref()
+            .unwrap()
+            .iter() 
+        {
+            if builder_test.get_processor_names_from_tasks().contains(table.get_name())
+            && !builder_test.tasks.as_ref().unwrap().iter().map(|t| t.task_name.as_str()).collect::<Vec<_>>().contains(&table.get_name()) {
+                assert_eq!(table.count_rows(), 1)
+            } else {
+                assert_eq!(table.count_rows(), 0)
+            }            
+        }
 
         // Test that we can build the session
         let _ = builder_test.build()?;

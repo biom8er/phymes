@@ -4,20 +4,25 @@ pub fn extract_tool_calls_str<'a>(
     start: Option<&'a str>,
     end: Option<&'a str>,
 ) -> &'a str {
+    // Find the start
     let start = start.unwrap_or("<tool_call>\n");
-    let end = end.unwrap_or("\n</tool_call>");
     let start_bytes = content.find(start);
-    let end_bytes = content.find(end);
-
-    // check if a match was found
-    if start_bytes.is_some() || end_bytes.is_some() {
-        let start_bytes = start_bytes.unwrap_or(0);
-        let end_bytes = end_bytes.unwrap_or(content.len());
-        &content[start_bytes + start.len()..end_bytes]
+    let content = if let Some(start_bytes) = start_bytes {
+        &content[start_bytes + start.len()..]
     } else {
-        &content[0..content.len()]
+        &content[..]
+    };
+
+    // Find the end
+    let end = end.unwrap_or("\n</tool_call>");
+    let end_bytes = content.find(end);
+    if let Some(end_bytes) = end_bytes {
+        &content[..end_bytes]
+    } else {
+        &content[..]
     }
 }
+
 /// Format the expected tool calls as valid Vec<serde_json::Value>
 pub fn format_tool_calls_str(content: &str) -> String {
     if content.starts_with("{") && content.ends_with("}") {

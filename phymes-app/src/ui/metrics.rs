@@ -222,7 +222,7 @@ pub fn metrics_interface_view() -> Element {
         }
     });
 
-    let diagram_code: Memo<String> = use_memo(move || {
+    let diagram_code: Memo<(String, Option<String>)> = use_memo(move || {
         let mut visualizations = get_metric_visualizations_by_metric_name(
             active_metric.read().as_str(),
             &metric_names
@@ -236,7 +236,8 @@ pub fn metrics_interface_view() -> Element {
                 .map(|s| s.as_str())
                 .collect::<Vec<_>>(),
         );
-        visualizations.pop().unwrap_or("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tWaiting to retrieve session plan metrics...".to_string())
+        let visualization = visualizations.pop().unwrap_or("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tWaiting to retrieve session plan metrics...".to_string());
+        (visualization, None)
     });
 
     rsx! {
@@ -264,7 +265,7 @@ pub fn metrics_interface_view() -> Element {
             div {
                 class: "messaging_list",
                 metrics_dropdown {active_metric, metric_names}
-                mermaid_view {diagram_code, check_build: use_signal(|| false), is_flowchart_shown: use_signal(|| false)}
+                mermaid_view {diagram_code}
             }
         }
     }
