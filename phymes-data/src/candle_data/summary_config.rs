@@ -31,7 +31,7 @@ pub struct DataSummaryConfig {
 impl DataConfigTrait for DataSummaryConfig {
     fn to_example(name: &str) -> Self {
         match name {
-            s if s == "Function" => Self {
+            "Function" => Self {
                 num_rows: Some(10),
                 num_batches: Some(1),
                 format: DataFormat::None,

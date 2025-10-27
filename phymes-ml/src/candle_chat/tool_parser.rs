@@ -10,7 +10,7 @@ pub fn extract_tool_calls_str<'a>(
     let content = if let Some(start_bytes) = start_bytes {
         &content[start_bytes + start.len()..]
     } else {
-        &content[..]
+        content
     };
 
     // Find the end
@@ -19,7 +19,7 @@ pub fn extract_tool_calls_str<'a>(
     if let Some(end_bytes) = end_bytes {
         &content[..end_bytes]
     } else {
-        &content[..]
+        content
     }
 }
 

@@ -472,7 +472,7 @@ impl DataConfigTrait for DataConfig {
                 ..Default::default()
             },
             // DM: Add examples for the rest of the operators
-            s if s == "Aggregator" => Self {
+            "Aggregator" => Self {
                 lhs_values: Some(vec!["timestamp".to_string()]),
                 asc: Some(true),
                 operator: AvailableCandleOperators::SortColumnAndIndices,

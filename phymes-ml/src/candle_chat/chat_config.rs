@@ -102,7 +102,7 @@ pub struct CandleChatConfig {
 impl DataConfigTrait for CandleChatConfig {
     fn to_example(name: &str) -> Self {
         match name {
-            s if s == "CandleAsset" => Self {
+            "CandleAsset" => Self {
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -127,7 +127,7 @@ impl DataConfigTrait for CandleChatConfig {
                 candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
                 ..Default::default()
             },
-            s if s == "OpenAIAsset" => Self {
+            "OpenAIAsset" => Self {
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,

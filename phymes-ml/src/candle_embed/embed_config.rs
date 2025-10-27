@@ -91,7 +91,7 @@ pub struct CandleEmbedConfig {
 impl DataConfigTrait for CandleEmbedConfig {
     fn to_example(name: &str) -> Self {
         match name {
-            s if s == "CandleEmbedConfig" => Self {
+            "CandleEmbedConfig" => Self {
                 weights_config_file: Some(format!(
                     "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
@@ -111,7 +111,7 @@ impl DataConfigTrait for CandleEmbedConfig {
                 candle_asset: Some(AvailableCandleAssets::QuantizedBertEmbed),
                 ..Default::default()
             },
-            s if s == "OpenAIAsset" => Self {
+            "OpenAIAsset" => Self {
                 openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
                 api_url: Some("http://0.0.0.0:8001/v1".to_string()),
                 input_type: "query".to_string(),
