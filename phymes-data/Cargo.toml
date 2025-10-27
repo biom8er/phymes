@@ -25,7 +25,7 @@ candle = [] # force use of candle models when openai_api is available
 [dependencies]
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
-arrow = { version = "56.2.0", default-features = false }
+arrow = { version = "57.0.0", default-features = false }
 candle-core = { version = "0.9.1" }
 tokio = { version = "1.47.0", default-features = false, optional = true}
 futures = { version = "0.3.31", default-features = false }
