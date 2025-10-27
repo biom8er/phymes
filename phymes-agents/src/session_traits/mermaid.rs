@@ -302,15 +302,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 let data_type = from_data_type_to_str(field.data_type());
                 row.insert("attribute_type".to_string(), data_type.into());
                 row.insert("attribute_name".to_string(), field.name().as_str().into());
-                let value = if config_data && processor_names.contains(subject.get_name()) {
-                    if let Some(mut example_data) =
-                        subject.get_column_as_vec_string(field.name())?
-                    {
-                        example_data.pop().unwrap_or_default()
-                    } else {
-                        String::new()
-                    }
-                } else if example_data {
+                let value = if config_data && processor_names.contains(subject.get_name()) || example_data {
                     if let Some(mut example_data) =
                         subject.get_column_as_vec_string(field.name())?
                     {

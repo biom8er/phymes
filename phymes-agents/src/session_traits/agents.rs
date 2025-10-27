@@ -389,7 +389,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the session!
         let mut publications = subscriptions
             .map(|s| {
-                s.into_iter()
+                s.iter()
                     .map(|s| TablePublish::Extend {
                         table_name: s.to_string(),
                     })
@@ -398,7 +398,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .unwrap_or_default();
         let mut subscriptions = subscriptions
             .map(|s| {
-                s.into_iter()
+                s.iter()
                     .map(|s| TableSubscribe::OnUpdateLastRecordBatch {
                         table_name: s.to_string(),
                     })
@@ -498,6 +498,7 @@ pub mod test_session_context_builder_agents {
 
     use super::*;
 
+    #[allow(dead_code)]
     pub fn make_test_session_builder_agents() -> Result<SessionContextBuilder> {
         let processor_plans = vec![
             ProcessorMock::new_arc_with_pub_sub(
