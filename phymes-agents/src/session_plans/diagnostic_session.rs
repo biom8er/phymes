@@ -846,9 +846,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics processor traces apply gantt
         let metrics_processors_traces_apply_gantt_config = DataConfig {
-            lhs_name: Some(self
-                .metrics_processors_traces_select_and_cast_to_gantt_task_name
-                .to_string()),
+            lhs_name: Some(
+                self.metrics_processors_traces_select_and_cast_to_gantt_task_name
+                    .to_string(),
+            ),
             // doc_template: Some([MERMAID_HTML_PRE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_template: Some(MERMAID_GANTT_TEMPLATE.to_string()),
             doc_name: Some(DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string()),
@@ -876,9 +877,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics elapsed compute apply gantt
         let metrics_elapsed_compute_apply_gantt_config = DataConfig {
-            lhs_name: Some(self
-                .metrics_elapsed_compute_select_and_cast_to_gantt_task_name
-                .to_string()),
+            lhs_name: Some(
+                self.metrics_elapsed_compute_select_and_cast_to_gantt_task_name
+                    .to_string(),
+            ),
             // doc_template: Some([MERMAID_HTML_PRE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_template: Some(MERMAID_GANTT_TEMPLATE.to_string()),
             doc_name: Some(DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string()),
@@ -906,9 +908,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Metrics output rows apply gantt
         let metrics_output_rows_apply_gantt_config = DataConfig {
-            lhs_name: Some(self
-                .metrics_output_rows_select_and_cast_to_gantt_task_name
-                .to_string()),
+            lhs_name: Some(
+                self.metrics_output_rows_select_and_cast_to_gantt_task_name
+                    .to_string(),
+            ),
             // doc_template: Some([MERMAID_HTML_PRE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_template: Some(MERMAID_GANTT_TEMPLATE.to_string()),
             doc_name: Some(DiagnosticsVisualizations::MetricOutputRowsGantt.to_string()),
@@ -952,9 +955,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces apply sequence diagram messages
         let apply_sequence_diagram_messages_config = DataConfig {
-            lhs_name: Some(self
-                .traces_to_sequence_diagram_messages_task_name
-                .to_string()),
+            lhs_name: Some(
+                self.traces_to_sequence_diagram_messages_task_name
+                    .to_string(),
+            ),
             doc_template: Some(MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE.to_string()),
             doc_name: Some(self.apply_sequence_diagram_messages_task_name.to_string()),
             table_expression: Some(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION.to_string()),
@@ -996,9 +1000,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces apply sequence diagram participants
         let apply_sequence_diagram_participants_config = DataConfig {
-            lhs_name: Some(self
-                .session_tasks_to_sequence_diagram_participants_task_name
-                .to_string()),
+            lhs_name: Some(
+                self.session_tasks_to_sequence_diagram_participants_task_name
+                    .to_string(),
+            ),
             doc_template: Some(MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE.to_string()),
             doc_name: Some(
                 self.apply_sequence_diagram_participants_task_name
@@ -1021,9 +1026,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces apply sequence diagram
         let apply_sequence_diagram_config = DataConfig {
-            lhs_name: Some(self
-                .traces_aggregate_sequence_diagram_content_task_name
-                .to_string()),
+            lhs_name: Some(
+                self.traces_aggregate_sequence_diagram_content_task_name
+                    .to_string(),
+            ),
             // doc_template: Some([MERMAID_HTML_PRE, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_HTML_POST].join("")),
             doc_template: Some(MERMAID_SEQUENCE_DIAGRAM_TEMPLATE.to_string()),
             doc_name: Some(DiagnosticsVisualizations::TraceSequenceDiagram.to_string()),

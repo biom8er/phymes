@@ -33,7 +33,14 @@ impl MappableTrait for ChunkDocuments {
 impl DataOperatorTrait for ChunkDocuments {
     fn new(config: &DataConfig) -> Self {
         let lhs_pk = config.lhs_pk.as_ref().cloned().unwrap_or_default();
-        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default().first().cloned().unwrap_or_default();
+        let lhs_values = config
+            .lhs_values
+            .as_ref()
+            .cloned()
+            .unwrap_or_default()
+            .first()
+            .cloned()
+            .unwrap_or_default();
         let chunk_size = config.chunk_size.unwrap_or(512);
         let chunk_overlap = config.chunk_overlap.unwrap_or(64);
 
