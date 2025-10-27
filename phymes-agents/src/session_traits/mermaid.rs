@@ -1594,7 +1594,7 @@ mod tests {
         }
 
         // Test that the processor configs were added to the subscriptions were added in
-        let builder_test = builder_test.with_name("session").add_processor_configs()?;
+        let builder_test = builder_test.with_name("session").add_processor_subjects()?;
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -1839,7 +1839,7 @@ mod tests {
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
-            .add_processor_configs()?
+            .add_processor_subjects()?
             .add_session_interface(None)?;
 
         // Test that the names match
@@ -1913,7 +1913,7 @@ mod tests {
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
-            .add_processor_configs()?
+            .add_processor_subjects()?
             .add_session_interface(None)?;
 
         // Test that the names match
@@ -1987,7 +1987,7 @@ mod tests {
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
-            .add_processor_configs()?
+            .add_processor_subjects()?
             .add_session_interface(None)?;
 
         // Test that the names match
@@ -2061,7 +2061,7 @@ mod tests {
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?
             .with_name("session_1")
-            .add_processor_configs()?
+            .add_processor_subjects()?
             .add_session_interface(None)?;
 
         // Test that the names match
@@ -2171,7 +2171,7 @@ mod tests {
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?
             .with_name("session_1")
-            .add_processor_configs()?
+            .add_processor_subjects()?
             .add_session_interface(None)?;
 
         // Test that the names match

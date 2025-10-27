@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
+use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
 use parking_lot::{Mutex, RwLock};
 use phymes_core::{
-    AnyTableNameSubscribe, BuildableTrait, BuilderTrait, MappableTrait, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, StateMap, SubscribeTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskMap, TaskPlan
+    AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, StateMap, SubscribeTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskMap, TaskPlan
 };
 use phymes_diagnostics::HashMap;
 
@@ -35,9 +36,13 @@ pub trait SessionContextBuilderAgentsTrait {
     /// Check that all [ProcessorTrait]s subscribe to a subject of the same name
     fn check_processor_config_subjects(&self) -> Result<()>;
 
-    /// Add a proessor config subject to the subscription of all processors (if it is not present already)
-    /// and add a processor config table to the state with defaults (if it is not present already)
-    fn add_processor_configs(self) -> Result<Self> where Self: Sized;
+    /// Add processor subjects to the state with defaults
+    /// 
+    /// # Notes
+    /// 1. Add a proessor config subject to the subscription of all processors (if it is not present already)
+    /// 2. Add a processor config table to the state with defaults (if it is not present already)
+    /// 3. Add a subject table to the state with schema (it is not already present and the schema is known based on the subject name) 
+    fn add_processor_subjects(self) -> Result<Self> where Self: Sized;
 
     /// Add tasks, processors, and runtime environments for a session interface that
     /// subscribes to all [AvailableInterfaceSubjects]
@@ -166,7 +171,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         Ok(())
     }
-    fn add_processor_configs(mut self) -> Result<Self> {
+    fn add_processor_subjects(mut self) -> Result<Self> {
         if self.processors.is_none() {
             return Err(anyhow!(
                 "Add processors before making the default processor configuration subjects."
@@ -180,7 +185,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         // DM: need to find a way to customize the default further for `DataConfig`
         let name = "";
 
-        // Find the processors for that are missing a config
+        // Find the processors that are missing a config
         let processors_to_update = self
             .processors
             .as_ref()
@@ -202,6 +207,37 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 let table = Table::get_builder()
                     .with_name(p.get_name())
                     .with_json(&config, 1).unwrap()
+                    .build().unwrap();
+                Some(table)
+            })
+            .collect::<Vec<_>>();
+
+        // Remake the state
+        if !subjects.is_empty() {
+            let mut state = self.state.take().unwrap_or_default();
+            state.extend(subjects);
+            self.state.replace(state);
+        }
+
+        // Add empty tables for all subjects missing in the state with a schema if found
+        let subjects = self.get_subject_names_from_processors().iter()
+            .filter_map(|s| if self.state.is_some() && self.state.as_ref().unwrap().iter().map(|t| t.get_name()).collect::<Vec<_>>().contains(&s.as_str()) {
+                None
+            } else {
+                let schema = if let Ok(new_subject) = AvailableInterfaceSubjects::from_str(s, false) {
+                    new_subject.to_schema()
+                } else if let Ok(new_subject) = AvailableSubjects::from_str(s, false) {
+                    new_subject.to_schema()
+                } else {
+                    Arc::new(Schema::empty())
+                };
+
+                // Make the default config
+                let table = Table::get_builder()
+                    .with_schema(schema.clone())
+                    .with_record_batches(vec![RecordBatch::new_empty(schema)])
+                    .unwrap()
+                    .with_name(s)
                     .build().unwrap();
                 Some(table)
             })
@@ -518,7 +554,7 @@ mod tests {
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
-            .add_processor_configs()?
+            .add_processor_subjects()?
             .build_with_tables();
         match result {
             Ok(_) => panic!("Should have failed"),

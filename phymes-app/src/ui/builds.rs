@@ -260,9 +260,9 @@ pub fn builds_dropdown_view(
                             return;
                         }
                         let _session = match builder.with_name(&active_session_name())
-                            .add_processor_configs().unwrap()
+                            .add_processor_subjects().unwrap()
                             .add_session_interface(None).unwrap()
-                            .build()
+                            .build_with_tables()
                         {
                             Ok(session) => session,
                             Err(err) => {
@@ -505,7 +505,7 @@ pub fn builds_interface_footer(
                         onclick: move |_| async move {
                             // Generate defaults if possible
                             match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
-                                Ok(builder) => match builder.with_name(&active_session_name()).add_processor_configs() {
+                                Ok(builder) => match builder.with_name(&active_session_name()).add_processor_subjects() {
                                     Ok(builder) => match builder.to_mermaid_erdiagram(false, true) {
                                         Ok(diagram) => {
                                             active_er_diagram.set(diagram);

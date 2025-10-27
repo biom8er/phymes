@@ -319,6 +319,8 @@ impl ServerState {
                     )?
                     .with_name(&session_name)
                     .with_state_from_mermaid_erdiagram(&user_session_context.er_diagram, false, true)?
+                    .add_processor_subjects()?
+                    .add_session_interface(None)?
                     .build_with_tables()?;
                     let session_stream_state =
                         Arc::new(RwLock::new(SessionStreamState::new(session_context)));
