@@ -288,9 +288,13 @@ impl SessionStreamState {
 mod tests {
     use super::*;
     use crate::{
+        IPCMessage,
         session::session_context_builder::test_session_context_builder::{
             make_test_session_context_parallel_task, make_test_session_context_sequential_task,
-        }, table::TablePublish, task::test_task::make_test_input_message, test_table::make_test_table, IPCMessage
+        },
+        table::TablePublish,
+        task::test_task::make_test_input_message,
+        test_table::make_test_table,
     };
     use parking_lot::RwLock;
     #[cfg(not(target_family = "wasm"))]
@@ -450,9 +454,15 @@ mod tests {
         assert!(updates.is_err());
 
         // Case 4: Error due to mismatching table names
-        let message = IPCMessage::new("task_1", "state_1", "session_1", 
-            Some(make_test_table("state_1", 4, 8, 3)?.to_ipc_stream()?), 
-            Some(TablePublish::Extend { table_name: "NotFound".to_string() }));
+        let message = IPCMessage::new(
+            "task_1",
+            "state_1",
+            "session_1",
+            Some(make_test_table("state_1", 4, 8, 3)?.to_ipc_stream()?),
+            Some(TablePublish::Extend {
+                table_name: "NotFound".to_string(),
+            }),
+        );
         let mut input = HashMap::<String, IPCMessage>::new();
         input.insert(message.get_name().to_string(), message);
         let updates = session_stream_step.update_state_from_messages(input);
@@ -463,7 +473,7 @@ mod tests {
 
     #[cfg(not(target_family = "wasm"))]
     #[test]
-    fn test_session_read_write_superstep_update() -> Result<()> {        
+    fn test_session_read_write_superstep_update() -> Result<()> {
         // initialize the session stream state
         let session_context = make_test_session_context_parallel_task("session_1", 4)?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));

@@ -3,11 +3,16 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::Result;
 use clap::ValueEnum;
 use phymes_core::{
-    test_processor::ProcessorMock, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, SubscribeTrait, TablePublish, TableSubscribe
+    MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, SubscribeTrait, TablePublish,
+    TableSubscribe, test_processor::ProcessorMock,
 };
-use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataConfig, DataConfigTrait, DataSummaryConfig, DataSummaryProcessor};
+use phymes_data::{
+    AttachmentAggregatorProcessor, CandleDataProcessor, DataConfig, DataConfigTrait,
+    DataSummaryConfig, DataSummaryProcessor,
+};
 use phymes_ml::{
-    CandleChatConfig, CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
+    CandleChatConfig, CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor,
+    MessageAggregatorProcessor, MessageParserProcessor,
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};

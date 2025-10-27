@@ -219,13 +219,17 @@ impl Display for DataCastOperator {
 /// Traits for all configs
 pub trait DataConfigTrait {
     /// Create an example
-    /// 
+    ///
     /// # Arguments
     /// `name`: String specifying the name of the example which for [DataConfig] would be the name of the [AvailableCandleOperators]
     fn to_example(name: &str) -> Self;
 
     /// Create an example and serialize to JSON
-    fn to_example_json(name: &str) -> Result<Vec<u8>, serde_json::Error> where Self: Sized, Self: Serialize {
+    fn to_example_json(name: &str) -> Result<Vec<u8>, serde_json::Error>
+    where
+        Self: Sized,
+        Self: Serialize,
+    {
         serde_json::to_vec(&Self::to_example(name))
     }
 }
@@ -470,7 +474,7 @@ impl DataConfigTrait for DataConfig {
                 operator: AvailableCandleOperators::SortColumnAndIndices,
                 ..Default::default()
             },
-            _ => Self::default()
+            _ => Self::default(),
         }
     }
 }

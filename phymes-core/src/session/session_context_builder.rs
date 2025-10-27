@@ -103,7 +103,10 @@ type SessionContextInput = (
 
 impl SessionContextBuilder {
     // Get a list of subscriptions and publications for a specific task
-    pub fn get_sub_pub_for_task(&self, task_name: &str) -> (Vec<&TableSubscribe>, Vec<&TablePublish>) {
+    pub fn get_sub_pub_for_task(
+        &self,
+        task_name: &str,
+    ) -> (Vec<&TableSubscribe>, Vec<&TablePublish>) {
         // Get the processor name
         let processors = self
             .tasks
@@ -256,7 +259,14 @@ impl SessionContextBuilder {
 
         let name = self.name.unwrap();
         let max_iter = self.max_iter.unwrap_or(25);
-        Ok((name, task_map, state_map, runtime_env_map, max_iter, self.diagnostics.unwrap_or_default()))
+        Ok((
+            name,
+            task_map,
+            state_map,
+            runtime_env_map,
+            max_iter,
+            self.diagnostics.unwrap_or_default(),
+        ))
     }
 }
 
@@ -338,7 +348,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
                 "Please add a plan before attempting to build the session."
             ));
         }
-        Ok(())        
+        Ok(())
     }
     fn check_processors(&self) -> Result<()> {
         if self.processors.is_none() {
@@ -418,7 +428,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
                 "Mismatch between provided state {l:?} and plan subjects and subscription names {r:?}."
             ));
         }
-        
+
         Ok(())
     }
 }

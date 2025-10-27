@@ -108,9 +108,7 @@ impl DataConfigTrait for CandleEmbedConfig {
                     "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
-                candle_asset: Some(
-                    AvailableCandleAssets::QuantizedBertEmbed,
-                ),
+                candle_asset: Some(AvailableCandleAssets::QuantizedBertEmbed),
                 ..Default::default()
             },
             s if s == "OpenAIAsset" => Self {
@@ -122,7 +120,7 @@ impl DataConfigTrait for CandleEmbedConfig {
                 modality: "text".to_string(),
                 ..Default::default()
             },
-            _ => Self::default()
+            _ => Self::default(),
         }
     }
 }

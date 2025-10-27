@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait,
-    BuilderTrait, DataFormat, DiagnosticsVisualizations, ProcessorTrait, RuntimeEnv,
-    RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish,
-    TableSubscribe, TaskPlan,
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, DataFormat,
+    DiagnosticsVisualizations, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table,
+    TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor,
@@ -1295,7 +1294,8 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState, TableTrait
+        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionStream,
+        SessionStreamState, TableTrait,
     };
     use phymes_diagnostics::HashMap;
 
@@ -1314,7 +1314,9 @@ mod tests {
             .build()
             .with_name(diagnostic_session.session_context_name)
             // .with_diagnostics(true) // Debugging
-            .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments.to_string().as_str()]))?
+            .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments
+                .to_string()
+                .as_str()]))?
             .build_with_tables()?;
         dbg!(&session_ctx.get_tasks());
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
@@ -1420,14 +1422,16 @@ mod tests {
 
         let bytes = response
             .iter_mut()
-            .filter_map(|map| if let Some(v) = map.remove(&format!(
-                "from_{}_on_{}",
-                diagnostic_session.session_context_name,
-                AvailableInterfaceSubjects::AggregatedAttachments
-            )) {
-                Some(v.get_message_own())
-            } else {
-                None
+            .filter_map(|map| {
+                if let Some(v) = map.remove(&format!(
+                    "from_{}_on_{}",
+                    diagnostic_session.session_context_name,
+                    AvailableInterfaceSubjects::AggregatedAttachments
+                )) {
+                    Some(v.get_message_own())
+                } else {
+                    None
+                }
             })
             .flatten()
             .collect::<Vec<_>>();

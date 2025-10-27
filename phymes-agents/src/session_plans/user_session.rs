@@ -440,7 +440,9 @@ pub(crate) mod user_session_inner {
     use anyhow::Result;
     use parking_lot::RwLock;
     use phymes_core::{
-        create_user_inbox_batch, BlobBuilderTraitExt, BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, SessionContextBuilderTrait, SessionStream, SessionStreamState, TableTrait
+        BlobBuilderTraitExt, BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait,
+        SessionContextBuilderTrait, SessionStream, SessionStreamState, TableTrait,
+        create_user_inbox_batch,
     };
 
     use crate::{

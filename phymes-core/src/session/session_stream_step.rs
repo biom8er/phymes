@@ -149,7 +149,7 @@ impl SessionStreamStep {
         let trace = if collect_diagnostics {
             let diagnostics = Diagnostics::new();
             let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-            diagnostics_vec.push(diagnostics);            
+            diagnostics_vec.push(diagnostics);
 
             // Trace the session step
             let trace = diagnostic_builder.clone().messages(

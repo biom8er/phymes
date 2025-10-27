@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use phymes_core::{
     AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
-    BuildableTrait, BuilderTrait, ChatContentSubscribe, DataFormat, ProcessorTrait,
-    RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder, TableBuilderTrait,
-    TablePublish, TableSubscribe, TaskPlan, create_schema_from_fields, create_tools_record_batch,
+    BuildableTrait, BuilderTrait, ChatContentSubscribe, DataFormat, ProcessorTrait, RuntimeEnv,
+    RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish,
+    TableSubscribe, TaskPlan, create_schema_from_fields, create_tools_record_batch,
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator,
@@ -544,6 +544,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Message aggregator config
         let aggregator_config = DataConfig {
+            lhs_name: AvailableInterfaceSubjects::UserMessages.to_string(),
             lhs_values: vec!["timestamp".to_string()],
             asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
@@ -826,14 +827,16 @@ mod tests {
             // Update the chat history with the response
             let bytes = response
                 .iter_mut()
-                .filter_map(|map| if let Some(v) = map.remove(&format!(
-                    "from_{}_on_{}",
-                    tool_agent_session.session_context_name,
-                    AvailableInterfaceSubjects::AssistantMessages
-                )) {
-                    Some(v.get_message_own())
-                } else {
-                    None
+                .filter_map(|map| {
+                    if let Some(v) = map.remove(&format!(
+                        "from_{}_on_{}",
+                        tool_agent_session.session_context_name,
+                        AvailableInterfaceSubjects::AssistantMessages
+                    )) {
+                        Some(v.get_message_own())
+                    } else {
+                        None
+                    }
                 })
                 .flatten()
                 .collect::<Vec<_>>();
@@ -849,14 +852,16 @@ mod tests {
 
             let bytes = response
                 .iter_mut()
-                .filter_map(|map| if let Some(v) = map.remove(&format!(
-                    "from_{}_on_{}",
-                    tool_agent_session.session_context_name,
-                    AvailableInterfaceSubjects::AssistantCsv
-                )) {
-                    Some(v.get_message_own())
-                } else {
-                    None
+                .filter_map(|map| {
+                    if let Some(v) = map.remove(&format!(
+                        "from_{}_on_{}",
+                        tool_agent_session.session_context_name,
+                        AvailableInterfaceSubjects::AssistantCsv
+                    )) {
+                        Some(v.get_message_own())
+                    } else {
+                        None
+                    }
                 })
                 .flatten()
                 .collect::<Vec<_>>();

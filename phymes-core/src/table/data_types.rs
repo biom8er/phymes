@@ -1,7 +1,12 @@
 use std::{str::FromStr, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use arrow::{compute::kernels::cast_utils::Parser, datatypes::{DataType, Field, Float32Type, Float64Type, Int64Type, UInt16Type, UInt32Type, UInt8Type}};
+use arrow::{
+    compute::kernels::cast_utils::Parser,
+    datatypes::{
+        DataType, Field, Float32Type, Float64Type, Int64Type, UInt8Type, UInt16Type, UInt32Type,
+    },
+};
 use serde_json::Value;
 
 /// Helper function to convert an arrow [DataType] to a [String]
@@ -141,7 +146,7 @@ pub fn from_str_to_data_type(data_type: &str) -> Result<DataType> {
 }
 
 /// Helper function to parse a [String] into a [Value] based on the [DataType]
-/// 
+///
 /// # Notes
 /// * Nested types (i.e., `List` and `FixedSizeList`) must be serialized using [serde_json]
 ///   for the parsing and deserialization to work as expected!

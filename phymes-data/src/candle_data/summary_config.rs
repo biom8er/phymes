@@ -37,7 +37,7 @@ impl DataConfigTrait for DataSummaryConfig {
                 format: DataFormat::None,
                 ..Default::default()
             },
-            _ => Self::default()
+            _ => Self::default(),
         }
     }
 }

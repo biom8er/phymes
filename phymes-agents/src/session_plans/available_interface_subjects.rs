@@ -223,7 +223,7 @@ impl AvailableInterfaceSubjects {
             | Self::UserImage
             | Self::UserScript
             | Self::UserCsv
-            | Self::UserJson 
+            | Self::UserJson
             | Self::AggregatedAttachments
             | Self::AggregatedMessages => false,
             Self::AssistantMessages
@@ -251,7 +251,7 @@ impl AvailableInterfaceSubjects {
             | Self::ToolMessages
             | Self::AssistantImage
             | Self::AssistantCsv
-            | Self::AssistantJson 
+            | Self::AssistantJson
             | Self::AggregatedAttachments
             | Self::AggregatedMessages => false,
         }
@@ -274,8 +274,7 @@ impl AvailableInterfaceSubjects {
             | Self::AssistantImage
             | Self::AssistantCsv
             | Self::AssistantJson => false,
-            Self::AggregatedAttachments
-            | Self::AggregatedMessages => true,
+            Self::AggregatedAttachments | Self::AggregatedMessages => true,
         }
     }
     /// Is the subject published to by the frontend UI?

@@ -334,14 +334,16 @@ mod tests {
             // Update the chat history with the response
             let bytes = response
                 .iter_mut()
-                .filter_map(|map| if let Some(v) = map.remove(&format!(
-                    "from_{}_on_{}",
-                    chat_agent_session.session_context_name,
-                    AvailableInterfaceSubjects::AssistantMessages
-                )) {
-                    Some(v.get_message_own())
-                } else {
-                    None
+                .filter_map(|map| {
+                    if let Some(v) = map.remove(&format!(
+                        "from_{}_on_{}",
+                        chat_agent_session.session_context_name,
+                        AvailableInterfaceSubjects::AssistantMessages
+                    )) {
+                        Some(v.get_message_own())
+                    } else {
+                        None
+                    }
                 })
                 .flatten()
                 .collect::<Vec<_>>();
@@ -398,14 +400,16 @@ mod tests {
             // Update the chat history with the response
             let bytes = response
                 .iter_mut()
-                .filter_map(|map| if let Some(v) = map.remove(&format!(
-                    "from_{}_on_{}",
-                    chat_agent_session.session_context_name,
-                    AvailableInterfaceSubjects::AssistantMessages
-                )) {
-                    Some(v.get_message_own())
-                } else {
-                    None
+                .filter_map(|map| {
+                    if let Some(v) = map.remove(&format!(
+                        "from_{}_on_{}",
+                        chat_agent_session.session_context_name,
+                        AvailableInterfaceSubjects::AssistantMessages
+                    )) {
+                        Some(v.get_message_own())
+                    } else {
+                        None
+                    }
                 })
                 .flatten()
                 .collect::<Vec<_>>();

@@ -2,8 +2,8 @@ use std::{sync::Arc, vec};
 
 use phymes_core::{
     AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
-    BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait,
-    SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
+    BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table,
+    TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator,
@@ -948,14 +948,16 @@ mod tests {
             // Update the chat history with the response
             let bytes = response
                 .iter_mut()
-                .filter_map(|map| if let Some(v) = map.remove(&format!(
-                    "from_{}_on_{}",
-                    doc_rag_session.session_context_name,
-                    AvailableInterfaceSubjects::AssistantMessages
-                )) {
-                    Some(v.get_message_own())
-                } else {
-                    None
+                .filter_map(|map| {
+                    if let Some(v) = map.remove(&format!(
+                        "from_{}_on_{}",
+                        doc_rag_session.session_context_name,
+                        AvailableInterfaceSubjects::AssistantMessages
+                    )) {
+                        Some(v.get_message_own())
+                    } else {
+                        None
+                    }
                 })
                 .flatten()
                 .collect::<Vec<_>>();

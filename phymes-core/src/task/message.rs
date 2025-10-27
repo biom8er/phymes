@@ -334,9 +334,14 @@ impl MessageBuilderTrait for IPCMessageBuilder {
         self
     }
     fn check_subject(&self) -> Result<()> {
-        if self.update.as_ref().unwrap() != &TablePublish::None && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name() {
-            Err(anyhow!("Mismatch between provided subject {} and table publish table name {}.",
-                self.subject.as_ref().unwrap(), self.update.as_ref().unwrap().get_table_name()))
+        if self.update.as_ref().unwrap() != &TablePublish::None
+            && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name()
+        {
+            Err(anyhow!(
+                "Mismatch between provided subject {} and table publish table name {}.",
+                self.subject.as_ref().unwrap(),
+                self.update.as_ref().unwrap().get_table_name()
+            ))
         } else {
             Ok(())
         }
@@ -435,9 +440,14 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
         self
     }
     fn check_subject(&self) -> Result<()> {
-        if self.update.as_ref().unwrap() != &TablePublish::None && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name() {
-            Err(anyhow!("Mismatch between provided subject {} and table publish table name {}.",
-                self.subject.as_ref().unwrap(), self.update.as_ref().unwrap().get_table_name()))
+        if self.update.as_ref().unwrap() != &TablePublish::None
+            && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name()
+        {
+            Err(anyhow!(
+                "Mismatch between provided subject {} and table publish table name {}.",
+                self.subject.as_ref().unwrap(),
+                self.update.as_ref().unwrap().get_table_name()
+            ))
         } else {
             Ok(())
         }
@@ -460,25 +470,39 @@ mod tests {
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublish::Extend { table_name: "subject".to_string() })
+            .with_update(&TablePublish::Extend {
+                table_name: "subject".to_string(),
+            })
             .with_message(test_table.to_ipc_stream()?)
             .build()?;
         assert_eq!(incoming_message.get_name(), "name");
         assert_eq!(incoming_message.get_subject(), "subject");
         assert_eq!(incoming_message.get_publisher(), "publisher");
-        assert_eq!(*incoming_message.get_update(), TablePublish::Extend { table_name: "subject".to_string() });
+        assert_eq!(
+            *incoming_message.get_update(),
+            TablePublish::Extend {
+                table_name: "subject".to_string()
+            }
+        );
 
         let outgoing_message = SendableRecordBatchStreamMessageBuilder::new()
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublish::Extend { table_name: "subject".to_string() })
+            .with_update(&TablePublish::Extend {
+                table_name: "subject".to_string(),
+            })
             .with_message(test_table.to_record_batch_stream())
             .build()?;
         assert_eq!(outgoing_message.get_name(), "name");
         assert_eq!(outgoing_message.get_subject(), "subject");
         assert_eq!(outgoing_message.get_publisher(), "publisher");
-        assert_eq!(*outgoing_message.get_update(), TablePublish::Extend { table_name: "subject".to_string() });
+        assert_eq!(
+            *outgoing_message.get_update(),
+            TablePublish::Extend {
+                table_name: "subject".to_string()
+            }
+        );
         assert_eq!(
             outgoing_message.get_message().schema(),
             test_table.get_schema()
@@ -526,7 +550,9 @@ mod tests {
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublish::Extend { table_name: "mismatch".to_string() })
+            .with_update(&TablePublish::Extend {
+                table_name: "mismatch".to_string(),
+            })
             .with_message(test_table.to_ipc_stream()?)
             .build();
         match result {
@@ -541,7 +567,9 @@ mod tests {
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublish::Extend { table_name: "mismatch".to_string() })
+            .with_update(&TablePublish::Extend {
+                table_name: "mismatch".to_string(),
+            })
             .with_message(test_table.to_record_batch_stream())
             .build();
         match result {

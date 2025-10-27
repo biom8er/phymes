@@ -200,8 +200,8 @@ pub trait SubscribeTrait: MappableTrait + Debug + Send + Sync {
     ) -> bool;
     fn new_box() -> Box<dyn SubscribeTrait>
     where
-        Self: Sized;    
-    fn clone_boxed(& self) -> Box<dyn SubscribeTrait >;
+        Self: Sized;
+    fn clone_boxed(&self) -> Box<dyn SubscribeTrait>;
 }
 
 /// Always subscribe (dummy subscription check for testing)
@@ -223,7 +223,7 @@ impl SubscribeTrait for AlwaysSubscribe {
     {
         Box::new(Self)
     }
-    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
         Box::new(self.clone())
     }
 }
@@ -262,7 +262,7 @@ impl SubscribeTrait for AnyTableNameSubscribe {
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
         Box::new(self.clone())
     }
 }
@@ -299,7 +299,7 @@ impl SubscribeTrait for AllTableNamesSubscribe {
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
         Box::new(self.clone())
     }
 }
@@ -353,7 +353,7 @@ impl SubscribeTrait for AnyTableSchemaSubscribe {
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
         Box::new(self.clone())
     }
 }
@@ -405,7 +405,7 @@ impl SubscribeTrait for AllTableSchemasSubscribe {
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
         Box::new(self.clone())
     }
 }
@@ -457,7 +457,7 @@ impl SubscribeTrait for ChatContentSubscribe {
             tool_message_table_name: "ToolMessages".to_string(),
         })
     }
-    fn clone_boxed(& self) -> Box<dyn SubscribeTrait > {
+    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
         Box::new(self.clone())
     }
 }

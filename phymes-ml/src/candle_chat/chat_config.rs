@@ -142,7 +142,7 @@ impl DataConfigTrait for CandleChatConfig {
                 api_url: Some("http://0.0.0.0:8000/v1".to_string()),
                 ..Default::default()
             },
-            _ => Self::default()
+            _ => Self::default(),
         }
     }
 }

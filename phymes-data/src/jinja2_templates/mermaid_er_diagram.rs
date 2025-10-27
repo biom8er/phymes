@@ -67,22 +67,12 @@ mod tests {
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let entity_name_vec = [
-            "c",
-            "c",
-            "e",
-            "e",
-            "e",
-            ].into_iter()
+        let entity_name_vec = ["c", "c", "e", "e", "e"]
+            .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let entity_alias_vec = [
-            "collections",
-            "collections",
-            "entity",
-            "entity",
-            "entity",
-            ].into_iter()
+        let entity_alias_vec = ["collections", "collections", "entity", "entity", "entity"]
+            .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
 
@@ -111,27 +101,15 @@ mod tests {
         let sequence_diagram_template_inputs = serde_json::to_value(input_object)?;
 
         // Create and render the template with the inputs
-        let entities_string = TableScript::new_from_template(
-            MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE.to_string(),
-        )
-        .apply_template(&sequence_diagram_template_inputs)?;
+        let entities_string =
+            TableScript::new_from_template(MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE.to_string())
+                .apply_template(&sequence_diagram_template_inputs)?;
 
-        assert_eq!(
-            entities_string,
-            ""
-        );
+        assert_eq!(entities_string, "");
 
         // Create the dummy data for the relations
-        let subject_vec = [
-            "c",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let object_vec = ["e"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
+        let subject_vec = ["c"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let object_vec = ["e"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let relation_type_vec = ["||--o{"]
             .into_iter()
             .map(|s| s.to_string())
@@ -166,10 +144,7 @@ mod tests {
             TableScript::new_from_template(MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE.to_string())
                 .apply_template(&sequence_diagram_template_inputs)?;
 
-        assert_eq!(
-            relations_string,
-            "\n    c ||--o{ e: \"needed for\""
-        );
+        assert_eq!(relations_string, "\n    c ||--o{ e: \"needed for\"");
 
         // Combine the entities and relations
         let content_vec = vec![entities_string, relations_string];
@@ -207,10 +182,7 @@ mod tests {
         let script_string = TableScript::new_from_template(template)
             .apply_template(&sequence_diagram_template_inputs)?;
 
-        assert_eq!(
-            script_string,
-            ""
-        );
+        assert_eq!(script_string, "");
         Ok(())
     }
 }

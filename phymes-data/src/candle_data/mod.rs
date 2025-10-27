@@ -10,7 +10,7 @@ pub use attachment_aggregator_processor::{
 };
 pub use data_config::{
     DataAggregatorOperator, DataCastOperator, DataComparatorOperator, DataComparatorPredicate,
-    DataConfig, DataDistanceOperator, DataStreamManager, DataConfigTrait
+    DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager,
 };
 pub use data_processor::CandleDataProcessor;
 #[allow(unused_imports)]

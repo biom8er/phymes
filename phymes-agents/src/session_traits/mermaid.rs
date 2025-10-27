@@ -8,12 +8,20 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe, parse_str_to_data_type, test_processor::ProcessorMock, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublish, TableScript, TableSubscribe, TableTrait, TaskPlanBuilder
+    BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, RuntimeEnv,
+    RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table,
+    TableBuilderTrait, TablePublish, TableScript, TableSubscribe, TableTrait, TaskPlanBuilder,
+    from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe, parse_str_to_data_type,
+    test_processor::ProcessorMock,
 };
-use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
+use phymes_data::{
+    AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor,
+    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE,
+};
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::{
-    extract_tool_calls_str, CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
+    CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
+    extract_tool_calls_str,
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
@@ -23,41 +31,49 @@ use serde_json::Map;
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from mermaid.js
 pub trait SessionContextBuilderMermaidTrait {
     /// Make a mermaid.js flowchart of the session
-    /// 
+    ///
     /// # Arguments
     /// * `with_processor_configs` - whether to add the processor config subjects to the diagram
     /// * `with_session_interface` - whether to add the session interface tasks, processors, and runtime environments to the diagram
-    /// 
+    ///
     /// # Notes
     /// * Tool processors (i.e., task_name = processor_name) are triggered by updates on their config subject,
     ///   so they are always included even when `with_processor_configs` is false
-    fn to_mermaid_flowchart(&self, with_processor_configs: bool, with_session_interface: bool) -> Result<String>;
+    fn to_mermaid_flowchart(
+        &self,
+        with_processor_configs: bool,
+        with_session_interface: bool,
+    ) -> Result<String>;
 
     /// Make a mermaid.js erDiagram of the session
-    /// 
+    ///
     /// # Arguments
     /// * `with_example_data` - whether to add last row of data as an example to the diagram
     /// * `with_processor_config_data` - whether to add ONLY processor related config data
-    fn to_mermaid_erdiagram(&self, with_example_data: bool, with_processor_config_data: bool) -> Result<String>;
+    fn to_mermaid_erdiagram(
+        &self,
+        with_example_data: bool,
+        with_processor_config_data: bool,
+    ) -> Result<String>;
 
     /// Create a session builder from a mermaid flowchart
-    /// 
+    ///
     /// # Arguments
     /// * `flowchart`: the flowchart diagram String
     /// * `agent_subjects`: whether to check for the presence of [AvailableInterfaceSubjects] with [check_agent_subjects]
-    /// 
+    ///
     /// [AvailableInterfaceSubjects]: crate::session_plans::AvailableInterfaceSubjects
     fn from_mermaid_flowchart(flowchart: &str, agent_subjects: bool) -> Result<Self>
     where
         Self: Sized;
 
     /// Create the state from a mermaid ER Diagram
-    /// 
+    ///
     /// # Arguments
     /// * `erdiagram`: the ER diagram String
     /// * `agent_subjects`: whether to check for the presence of [AvailableInterfaceSubjects] with [check_agent_subjects]
     /// * `with_values`: whether to add the example values or leave the [RecordBatch]es empty
-    /// 
+    ///
     /// [AvailableInterfaceSubjects]: crate::session_plans::AvailableInterfaceSubjects
     fn with_state_from_mermaid_erdiagram(
         self,
@@ -70,7 +86,11 @@ pub trait SessionContextBuilderMermaidTrait {
 }
 
 impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
-    fn to_mermaid_flowchart(&self, with_configs: bool, with_session_interface: bool) -> Result<String> {
+    fn to_mermaid_flowchart(
+        &self,
+        with_configs: bool,
+        with_session_interface: bool,
+    ) -> Result<String> {
         // Check if there are members
         if self.tasks.is_none() {
             return Err(anyhow!(
@@ -101,23 +121,42 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let runtime_env_name = format!("{session_name}-runtime_env");
 
         // Entities with expanded shape/label attributes that will be appended to flowchart
-        let processors_vec = self.processors.as_ref().unwrap()
+        let processors_vec = self
+            .processors
+            .as_ref()
+            .unwrap()
             .iter()
-            .filter_map(|p| if session_name != p.get_name() || with_session_interface {
-                Some(format!("\t{}-processor@{{shape: rect, label: {}}}", p.get_name(), p.get_type()))
-            } else {
-                None
-            }).collect::<Vec<_>>();
+            .filter_map(|p| {
+                if session_name != p.get_name() || with_session_interface {
+                    Some(format!(
+                        "\t{}-processor@{{shape: rect, label: {}}}",
+                        p.get_name(),
+                        p.get_type()
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
 
         // Optionally, filter out subject names that match the processor name (i.e., configs)
         // Exclude tool processor task subjects from the filter
-        let task_names = self.tasks.as_ref().unwrap().iter().map(|t| t.task_name.as_str()).collect::<Vec<_>>();
+        let task_names = self
+            .tasks
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|t| t.task_name.as_str())
+            .collect::<Vec<_>>();
         let processor_names = self.get_processor_names_from_tasks();
         let mut subjects_vec = Vec::new();
-        let mut sorted_subject_names = self.get_subject_names_from_processors()
-                .into_iter()
-                .filter(|p| !processor_names.contains(p) || task_names.contains(&p.as_str()) || with_configs)
-                .collect::<Vec<_>>();
+        let mut sorted_subject_names = self
+            .get_subject_names_from_processors()
+            .into_iter()
+            .filter(|p| {
+                !processor_names.contains(p) || task_names.contains(&p.as_str()) || with_configs
+            })
+            .collect::<Vec<_>>();
         sorted_subject_names.sort();
         for subject_name in sorted_subject_names {
             subjects_vec.push(format!(
@@ -126,7 +165,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
 
         let mut runtime_envs_vec = Vec::new();
-        let mut sorted_runtime_env_names = self.get_runtime_env_names()
+        let mut sorted_runtime_env_names = self
+            .get_runtime_env_names()
             .into_iter()
             .filter(|p| &runtime_env_name != p || with_session_interface)
             .collect::<Vec<_>>();
@@ -142,7 +182,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut subscriptions_vec = Vec::new();
         let mut publications_vec = Vec::new();
         let mut runtime_envs_to_tasks_vec = Vec::new();
-        let tasks = self.tasks.as_ref().unwrap()
+        let tasks = self
+            .tasks
+            .as_ref()
+            .unwrap()
             .iter()
             .filter(|p| session_name != p.task_name || with_session_interface)
             .collect::<Vec<_>>();
@@ -162,9 +205,14 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             "\t{processor_name}-subscribe@{{shape: diamond, label: {}}}",
                             processor.get_subscribe().get_name()
                         ));
-                        let subscriptions = processor.get_subscriptions()
+                        let subscriptions = processor
+                            .get_subscriptions()
                             .into_iter()
-                            .filter(|p| !processor_names.contains(p.get_table_name()) || task_names.contains(&p.get_table_name()) || with_configs)
+                            .filter(|p| {
+                                !processor_names.contains(p.get_table_name())
+                                    || task_names.contains(&p.get_table_name())
+                                    || with_configs
+                            })
                             .collect::<Vec<_>>();
                         for subscription in subscriptions {
                             if subscription.is_update() {
@@ -242,18 +290,30 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             for field in subject.get_schema().fields().iter() {
                 let mut row = Map::new();
                 row.insert("entity_alias".to_string(), subject.get_name().into());
-                row.insert("entity_name".to_string(), subject.get_name().split_whitespace().collect::<Vec<_>>().join("").into());
+                row.insert(
+                    "entity_name".to_string(),
+                    subject
+                        .get_name()
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join("")
+                        .into(),
+                );
                 let data_type = from_data_type_to_str(field.data_type());
                 row.insert("attribute_type".to_string(), data_type.into());
                 row.insert("attribute_name".to_string(), field.name().as_str().into());
-                let value = if config_data && processor_names.contains(subject.get_name()){
-                    if let Some(mut example_data) = subject.get_column_as_vec_string(field.name())? {
+                let value = if config_data && processor_names.contains(subject.get_name()) {
+                    if let Some(mut example_data) =
+                        subject.get_column_as_vec_string(field.name())?
+                    {
                         example_data.pop().unwrap_or_default()
                     } else {
                         String::new()
-                    }                    
+                    }
                 } else if example_data {
-                    if let Some(mut example_data) = subject.get_column_as_vec_string(field.name())? {
+                    if let Some(mut example_data) =
+                        subject.get_column_as_vec_string(field.name())?
+                    {
                         example_data.pop().unwrap_or_default()
                     } else {
                         String::new()
@@ -264,23 +324,24 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 let value = value.replace("\"", "'");
                 row.insert("attribute_comment".to_string(), value.into());
                 row.insert("attribute_key".to_string(), String::new().into());
-                entities_vec.push(row);              
+                entities_vec.push(row);
             }
         }
 
         // Create the final mermaid.js flowchart script
         let inputs = serde_json::json!({
-            "rows": entities_vec 
+            "rows": entities_vec
         });
-        let entities_string = TableScript::new_from_template(MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE.to_string())
-            .apply_template(&inputs)?;
+        let entities_string =
+            TableScript::new_from_template(MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE.to_string())
+                .apply_template(&inputs)?;
         let inputs = serde_json::json!({
             "direction": "TB",
             "rows": [{"content": entities_string}]
         });
         let script_string = TableScript::new_from_template(MERMAID_ER_DIAGRAM_TEMPLATE.to_string())
             .apply_template(&inputs)?;
-        
+
         Ok(script_string.trim().to_owned())
     }
 
@@ -1066,7 +1127,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         self,
         erdiagram: &str,
         agent_subjects: bool,
-        with_values: bool
+        with_values: bool,
     ) -> Result<Self> {
         // Subjects to be collected
         let mut subjects = Vec::new();
@@ -1081,30 +1142,37 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     "Parsing Error on line {iter}: {}. Unrecognized mermaid.js erDiagram type.",
                     erdiagram_lines.get(iter).unwrap()
                 ));
-            }            
+            }
         } else {
-            return Err(anyhow!("Parsing Error on line {iter}. No mermaid.js erDiagram provided."));
+            return Err(anyhow!(
+                "Parsing Error on line {iter}. No mermaid.js erDiagram provided."
+            ));
         }
         while iter < erdiagram_lines.len() {
             // Check the chart type
             if erdiagram_lines.get(iter).unwrap().contains("erDiagram") {
 
-            // Ignore blank lines
+                // Ignore blank lines
             } else if erdiagram_lines.get(iter).unwrap().trim().is_empty() {
 
-            // Ignore relationship connectors
+                // Ignore relationship connectors
             } else if erdiagram_lines.get(iter).unwrap().contains("|o")
-            || erdiagram_lines.get(iter).unwrap().contains("o|")
-            || erdiagram_lines.get(iter).unwrap().contains("||")
-            || erdiagram_lines.get(iter).unwrap().contains("}o")
-            || erdiagram_lines.get(iter).unwrap().contains("o{")
-            || erdiagram_lines.get(iter).unwrap().contains("}|")
-            || erdiagram_lines.get(iter).unwrap().contains("|{") {
+                || erdiagram_lines.get(iter).unwrap().contains("o|")
+                || erdiagram_lines.get(iter).unwrap().contains("||")
+                || erdiagram_lines.get(iter).unwrap().contains("}o")
+                || erdiagram_lines.get(iter).unwrap().contains("o{")
+                || erdiagram_lines.get(iter).unwrap().contains("}|")
+                || erdiagram_lines.get(iter).unwrap().contains("|{")
+            {
 
-            // Subject section
+                // Subject section
             } else if erdiagram_lines.get(iter).unwrap().contains("{") {
                 // Extract the subject name
-                let subject_name = extract_tool_calls_str(erdiagram_lines.get(iter).unwrap(), Some("[\""), Some("\"]"));
+                let subject_name = extract_tool_calls_str(
+                    erdiagram_lines.get(iter).unwrap(),
+                    Some("[\""),
+                    Some("\"]"),
+                );
                 subject_names.insert(subject_name.to_string());
 
                 // Initialize the schema fields
@@ -1161,31 +1229,42 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         if with_values && split_line.len() > 2 {
                             // DM: we assume that all inner double quotes have been replaced by single quotes
                             if let Some(start) = line.find("\"") {
-
                                 // Same line
                                 let line = &line[start + 1..];
                                 if let Some(end) = line.find("\"") {
                                     let value = &line[..end].replace("'", "\"");
-                                    let _ = data.insert(field_name.to_owned(), parse_str_to_data_type(value, &data_type)?);
+                                    let _ = data.insert(
+                                        field_name.to_owned(),
+                                        parse_str_to_data_type(value, &data_type)?,
+                                    );
 
                                 // Multi-line
                                 } else {
                                     let start_line = iter;
                                     iter += 1;
                                     while iter < erdiagram_lines.len() {
-                                        if let Some(_end) = erdiagram_lines.get(iter).unwrap().find("\"") {
-                                            let value = erdiagram_lines[start_line..iter]
-                                                .join("\n");
-                                            let value = extract_tool_calls_str(&value, Some("\""), Some("\""))
-                                                .replace("'", "\"");
-                                            let _ = data.insert(field_name.to_owned(), parse_str_to_data_type(&value, &data_type)?);
+                                        if let Some(_end) =
+                                            erdiagram_lines.get(iter).unwrap().find("\"")
+                                        {
+                                            let value =
+                                                erdiagram_lines[start_line..iter].join("\n");
+                                            let value = extract_tool_calls_str(
+                                                &value,
+                                                Some("\""),
+                                                Some("\""),
+                                            )
+                                            .replace("'", "\"");
+                                            let _ = data.insert(
+                                                field_name.to_owned(),
+                                                parse_str_to_data_type(&value, &data_type)?,
+                                            );
                                             break;
                                         } else {
                                             iter += 1;
-                                        }                                    
+                                        }
                                     }
                                 }
-                            }                            
+                            }
                         }
                         let field = Field::new(field_name, data_type, false);
                         fields.push(field);
@@ -1289,24 +1368,25 @@ impl BuilderTrait for SessionContextBuilderMermaid {
 #[cfg(test)]
 mod tests {
     use crate::{
+        SessionContextBuilderAgentsTrait,
         session_plans::{ChatAgentSession, DocumentRAGSession, ToolAgentSession},
-        session_traits::{agents::test_session_context_builder_agents, CustomAgentsBuilderTrait}, SessionContextBuilderAgentsTrait,
+        session_traits::{CustomAgentsBuilderTrait, agents::test_session_context_builder_agents},
     };
 
     use super::*;
     #[test]
-    fn test_to_mermaid_flowchart() -> Result<()> {        
+    fn test_to_mermaid_flowchart() -> Result<()> {
         let builder = test_session_context_builder_agents::make_test_session_builder_agents()?;
 
         // Test to flowchart
         let mermaid_js = builder.to_mermaid_flowchart(true, true)?;
         assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tprocessor_1-subject--FullTable-->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tprocessor_2-subject--FullTable-->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tprocessor_3-subject--FullTable-->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: ProcessorMock}\n\tsession_1-processor@{shape: rect, label: ProcessorMock}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tprocessor_1-subject@{shape: doc, label: processor_1}\n\tprocessor_2-subject@{shape: doc, label: processor_2}\n\tprocessor_3-subject@{shape: doc, label: processor_3}\n\tsession_1-subject@{shape: doc, label: session_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: All}".to_string());
         let mermaid_js = builder.to_mermaid_flowchart(false, true)?;
-        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: ProcessorMock}\n\tsession_1-processor@{shape: rect, label: ProcessorMock}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tsession_1-subject@{shape: doc, label: session_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: All}".to_string());        
+        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: ProcessorMock}\n\tsession_1-processor@{shape: rect, label: ProcessorMock}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tsession_1-subject@{shape: doc, label: session_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: All}".to_string());
         // There should be no difference
         let mermaid_js = builder.to_mermaid_flowchart(false, false)?;
-        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: ProcessorMock}\n\tsession_1-processor@{shape: rect, label: ProcessorMock}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tsession_1-subject@{shape: doc, label: session_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: All}".to_string());        
-        
+        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.FullTable.->processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish--Extend-->state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.FullTable.->processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish--Extend-->state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_3-subject-.FullTable.->processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish--Extend-->state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tstate_2-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subject-.LastRecordBatch.->session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish--Extend-->state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: ProcessorMock}\n\tsession_1-processor@{shape: rect, label: ProcessorMock}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tsession_1-subject@{shape: doc, label: session_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: All}".to_string());
+
         Ok(())
     }
 
@@ -1365,7 +1445,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -1394,14 +1477,14 @@ mod tests {
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
-                .collect::<HashMap<_,_>>();
+                .collect::<HashMap<_, _>>();
             let expected = builder
                 .state
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
-                .collect::<HashMap<_,_>>();
+                .collect::<HashMap<_, _>>();
             for key in expected.keys() {
                 assert!(expected.get(key).eq(&test.get(key)));
             }
@@ -1453,7 +1536,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -1482,25 +1568,21 @@ mod tests {
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
-                .collect::<HashMap<_,_>>();
+                .collect::<HashMap<_, _>>();
             let expected = builder
                 .state
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
-                .collect::<HashMap<_,_>>();
+                .collect::<HashMap<_, _>>();
             for key in expected.keys() {
                 assert!(expected.get(key).eq(&test.get(key)));
             }
         }
 
         // Test that the first row was captured
-        for table in builder_test
-            .state
-            .as_ref()
-            .unwrap()
-            .iter() {
+        for table in builder_test.state.as_ref().unwrap().iter() {
             assert_eq!(table.count_rows(), 1)
         }
 
@@ -1571,25 +1653,21 @@ mod tests {
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
-                .collect::<HashMap<_,_>>();
+                .collect::<HashMap<_, _>>();
             let expected = builder
                 .state
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
-                .collect::<HashMap<_,_>>();
+                .collect::<HashMap<_, _>>();
             for key in expected.keys() {
                 assert!(expected.get(key).eq(&test.get(key)));
             }
         }
 
         // Test that the first row was captured
-        for table in builder_test
-            .state
-            .as_ref()
-            .unwrap()
-            .iter() {
+        for table in builder_test.state.as_ref().unwrap().iter() {
             assert_eq!(table.count_rows(), 1)
         }
 
@@ -1600,7 +1678,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -1654,7 +1735,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -1725,7 +1809,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -1796,7 +1883,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -1870,7 +1960,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -1944,7 +2037,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -2018,7 +2114,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -2092,7 +2191,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -2121,32 +2223,37 @@ mod tests {
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
-                .collect::<HashMap<_,_>>();
+                .collect::<HashMap<_, _>>();
             let expected = builder
                 .state
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
-                .collect::<HashMap<_,_>>();
+                .collect::<HashMap<_, _>>();
             for key in expected.keys() {
                 assert!(expected.get(key).eq(&test.get(key)));
             }
         }
 
         // Test that the first row was captured
-        for table in builder_test
-            .state
-            .as_ref()
-            .unwrap()
-            .iter() 
-        {
-            if builder_test.get_processor_names_from_tasks().contains(table.get_name())
-            && !builder_test.tasks.as_ref().unwrap().iter().map(|t| t.task_name.as_str()).collect::<Vec<_>>().contains(&table.get_name()) {
+        for table in builder_test.state.as_ref().unwrap().iter() {
+            if builder_test
+                .get_processor_names_from_tasks()
+                .contains(table.get_name())
+                && !builder_test
+                    .tasks
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|t| t.task_name.as_str())
+                    .collect::<Vec<_>>()
+                    .contains(&table.get_name())
+            {
                 assert_eq!(table.count_rows(), 1)
             } else {
                 assert_eq!(table.count_rows(), 0)
-            }            
+            }
         }
 
         // Test that we can build the session
@@ -2202,7 +2309,10 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         test.sort();
-        let mut expected = builder.get_subject_names_from_processors().into_iter().collect::<Vec<_>>();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(test, expected);
 
@@ -2231,32 +2341,37 @@ mod tests {
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
-                .collect::<HashMap<_,_>>();
+                .collect::<HashMap<_, _>>();
             let expected = builder
                 .state
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
-                .collect::<HashMap<_,_>>();
+                .collect::<HashMap<_, _>>();
             for key in expected.keys() {
                 assert!(expected.get(key).eq(&test.get(key)));
             }
         }
 
         // Test that the first row was captured
-        for table in builder_test
-            .state
-            .as_ref()
-            .unwrap()
-            .iter() 
-        {
-            if builder_test.get_processor_names_from_tasks().contains(table.get_name())
-            && !builder_test.tasks.as_ref().unwrap().iter().map(|t| t.task_name.as_str()).collect::<Vec<_>>().contains(&table.get_name()) {
+        for table in builder_test.state.as_ref().unwrap().iter() {
+            if builder_test
+                .get_processor_names_from_tasks()
+                .contains(table.get_name())
+                && !builder_test
+                    .tasks
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|t| t.task_name.as_str())
+                    .collect::<Vec<_>>()
+                    .contains(&table.get_name())
+            {
                 assert_eq!(table.count_rows(), 1)
             } else {
                 assert_eq!(table.count_rows(), 0)
-            }            
+            }
         }
 
         // Test that we can build the session

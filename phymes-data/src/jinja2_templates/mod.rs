@@ -1,11 +1,16 @@
+mod mermaid_er_diagram;
 mod mermaid_flowchart;
 mod mermaid_gantt;
 mod mermaid_html;
 mod mermaid_kanban;
 mod mermaid_sequence_diagram;
 mod mermaid_xychart;
-mod mermaid_er_diagram;
 
+pub use mermaid_er_diagram::{
+    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,
+    MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TABLE_EXPRESSION,
+    MERMAID_ER_DIAGRAM_TEMPLATE,
+};
 pub use mermaid_flowchart::{
     MERMAID_FLOWCHART_INPUT, MERMAID_FLOWCHART_LINKS_TEMPLATE, MERMAID_FLOWCHART_NODES_TEMPLATE,
     MERMAID_FLOWCHART_TABLE_EXPRESSION, MERMAID_FLOWCHART_TEMPLATE,
@@ -22,4 +27,3 @@ pub use mermaid_sequence_diagram::{
 pub use mermaid_xychart::{
     MERMAID_XYCHART_INPUT, MERMAID_XYCHART_TABLE_EXPRESSION, MERMAID_XYCHART_TEMPLATE,
 };
-pub use mermaid_er_diagram::{MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TABLE_EXPRESSION, MERMAID_ER_DIAGRAM_INPUT};

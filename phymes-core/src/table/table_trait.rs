@@ -5,12 +5,16 @@ use super::{
     stream_adapter::RecordBatchStreamAdapter,
 };
 
-use arrow::{array::StringBuilder, compute::cast, ipc::{
-    reader::{FileReader, StreamReader},
-    writer::{FileWriter, StreamWriter},
-}};
 use arrow::json::reader::infer_json_schema;
 use arrow::json::{ArrayWriter, LineDelimitedWriter, ReaderBuilder};
+use arrow::{
+    array::StringBuilder,
+    compute::cast,
+    ipc::{
+        reader::{FileReader, StreamReader},
+        writer::{FileWriter, StreamWriter},
+    },
+};
 use arrow::{
     array::{
         Array,
@@ -222,14 +226,15 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                     .map(|s| s.unwrap_or_default())
                     .collect::<Vec<_>>()
             })
-            .collect::<Vec<_>>()   
+            .collect::<Vec<_>>()
     }
 
     /// Get a column as a vector of strings
     fn get_column_as_vec_string(&self, column_name: &str) -> Result<Option<Vec<String>>> {
         match self.get_column_data_type(column_name)? {
             DataType::Utf8 => {
-                let vec_str = self.get_record_batches()
+                let vec_str = self
+                    .get_record_batches()
                     .iter()
                     .flat_map(|batch| {
                         batch
@@ -244,20 +249,30 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                     })
                     .collect::<Vec<_>>();
                 Ok(Some(vec_str))
-            },
-            DataType::UInt8 | DataType::UInt16 | DataType::UInt32 | DataType::UInt64
-            | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64
-            | DataType::Float32 | DataType::Float64 | DataType::Boolean | DataType::Null => {
+            }
+            DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64
+            | DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64
+            | DataType::Float32
+            | DataType::Float64
+            | DataType::Boolean
+            | DataType::Null => {
                 // Cast the column to a String
                 let arr = cast(&self.get_column_as_array(column_name), &DataType::Utf8)?;
-                let vec_str = arr.as_any()
+                let vec_str = arr
+                    .as_any()
                     .downcast_ref::<StringArray>()
                     .unwrap()
                     .iter()
                     .map(|s| s.unwrap_or_default().to_string())
                     .collect::<Vec<_>>();
                 Ok(Some(vec_str))
-            },
+            }
             DataType::List(_) | DataType::FixedSizeList(_, _) => {
                 // Convert the column to JSON
                 let arr = self.get_column_as_array(column_name);
@@ -267,14 +282,16 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                 writer.write(&batch)?;
                 writer.finish()?;
                 let json_data = writer.into_inner();
-                let json_rows: Vec<Map<String, Value>> = serde_json::from_reader(json_data.as_slice())?;
-                let vec_str = json_rows.into_iter()
+                let json_rows: Vec<Map<String, Value>> =
+                    serde_json::from_reader(json_data.as_slice())?;
+                let vec_str = json_rows
+                    .into_iter()
                     .map(|m| serde_json::to_string(m.get(column_name).unwrap()).unwrap())
                     .collect::<Vec<_>>();
                 Ok(Some(vec_str))
             }
-            _ => Ok(None)
-        }        
+            _ => Ok(None),
+        }
     }
 
     /// Get the type of the column
@@ -961,8 +978,14 @@ impl TableBuilderTrait for TableBuilder {
                 let mut fields = Vec::new();
                 for field in schema.fields() {
                     let data_type = match field.data_type() {
-                        DataType::FixedSizeList(f, s) => DataType::FixedSizeList(Arc::new(Field::new_list_field(f.data_type().clone(), false)), *s),
-                        DataType::List(f) => DataType::List(Arc::new(Field::new_list_field(f.data_type().clone(), false))),
+                        DataType::FixedSizeList(f, s) => DataType::FixedSizeList(
+                            Arc::new(Field::new_list_field(f.data_type().clone(), false)),
+                            *s,
+                        ),
+                        DataType::List(f) => DataType::List(Arc::new(Field::new_list_field(
+                            f.data_type().clone(),
+                            false,
+                        ))),
                         _ => field.data_type().clone(),
                     };
                     fields.push(Field::new(field.name(), data_type, false));
@@ -1011,8 +1034,14 @@ impl TableBuilderTrait for TableBuilder {
                 let mut fields = Vec::new();
                 for field in schema.fields() {
                     let data_type = match field.data_type() {
-                        DataType::FixedSizeList(f, s) => DataType::FixedSizeList(Arc::new(Field::new_list_field(f.data_type().clone(), false)), *s),
-                        DataType::List(f) => DataType::List(Arc::new(Field::new_list_field(f.data_type().clone(), false))),
+                        DataType::FixedSizeList(f, s) => DataType::FixedSizeList(
+                            Arc::new(Field::new_list_field(f.data_type().clone(), false)),
+                            *s,
+                        ),
+                        DataType::List(f) => DataType::List(Arc::new(Field::new_list_field(
+                            f.data_type().clone(),
+                            false,
+                        ))),
                         _ => field.data_type().clone(),
                     };
                     fields.push(Field::new(field.name(), data_type, false));

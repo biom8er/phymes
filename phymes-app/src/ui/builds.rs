@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
-use phymes_agents::{AvailableSessionPlans, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait};
+use phymes_agents::{
+    AvailableSessionPlans, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+};
 use phymes_core::{
     create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
     MessageBuilderTrait, SessionContextBuilder, SessionInterfaceMessage,
@@ -12,8 +14,8 @@ use crate::state::{
     filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name,
     get_non_duplicated_sorted_subjects,
     svg_icons::{
-        b8_save_icon_svg, fa_trash_icon_svg, ms_column_arrow_right_icon_svg, ms_code_icon_svg, ms_deploy_icon_svg,
-        ms_edit_icon_svg, ms_sync_icon_svg,
+        b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
+        ms_deploy_icon_svg, ms_edit_icon_svg, ms_sync_icon_svg,
     },
     sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES,
 };

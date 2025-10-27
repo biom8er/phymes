@@ -9,7 +9,16 @@ use crate::{
         },
         error::create_error_fields,
         mermaid::{
-            create_mermaid_content_template_fields, create_mermaid_er_diagram_entities_template_fields, create_mermaid_er_diagram_relations_template_fields, create_mermaid_flowchart_links_template_fields, create_mermaid_flowchart_nodes_template_fields, create_mermaid_gantt_template_fields, create_mermaid_kanban_template_fields, create_mermaid_sequence_diagram_messages_template_fields, create_mermaid_sequence_diagram_participants_template_fields, create_mermaid_visualization_fields, create_mermaid_xychart_template_fields, create_session_mermaid_fields
+            create_mermaid_content_template_fields,
+            create_mermaid_er_diagram_entities_template_fields,
+            create_mermaid_er_diagram_relations_template_fields,
+            create_mermaid_flowchart_links_template_fields,
+            create_mermaid_flowchart_nodes_template_fields, create_mermaid_gantt_template_fields,
+            create_mermaid_kanban_template_fields,
+            create_mermaid_sequence_diagram_messages_template_fields,
+            create_mermaid_sequence_diagram_participants_template_fields,
+            create_mermaid_visualization_fields, create_mermaid_xychart_template_fields,
+            create_session_mermaid_fields,
         },
         queries::create_queries_fields,
         session::{
@@ -313,8 +322,12 @@ impl Display for AvailableSubjects {
             AvailableSubjects::AnalyticsTraces => write!(f, "AnalyticsTraces"),
             AvailableSubjects::AnalyticsEvents => write!(f, "AnalyticsEvents"),
             AvailableSubjects::AnalyticsTasks => write!(f, "AnalyticsTasks"),
-            AvailableSubjects::MermaidERDiagramEntitiesTemplate => write!(f, "MermaidERDiagramEntitiesTemplate"),
-            AvailableSubjects::MermaidERDiagramRelationsTemplate => write!(f, "MermaidERDiagramRelationsTemplate"),
+            AvailableSubjects::MermaidERDiagramEntitiesTemplate => {
+                write!(f, "MermaidERDiagramEntitiesTemplate")
+            }
+            AvailableSubjects::MermaidERDiagramRelationsTemplate => {
+                write!(f, "MermaidERDiagramRelationsTemplate")
+            }
         }
     }
 }
@@ -438,8 +451,12 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::AnalyticsTasks => {
                 create_schema_from_fields(&create_session_tasks_fields)
             }
-            AvailableSubjects::MermaidERDiagramEntitiesTemplate => create_schema_from_fields(&create_mermaid_er_diagram_entities_template_fields),
-            AvailableSubjects::MermaidERDiagramRelationsTemplate => create_schema_from_fields(&create_mermaid_er_diagram_relations_template_fields),
+            AvailableSubjects::MermaidERDiagramEntitiesTemplate => {
+                create_schema_from_fields(&create_mermaid_er_diagram_entities_template_fields)
+            }
+            AvailableSubjects::MermaidERDiagramRelationsTemplate => {
+                create_schema_from_fields(&create_mermaid_er_diagram_relations_template_fields)
+            }
         }
     }
 }
