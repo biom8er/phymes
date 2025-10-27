@@ -335,15 +335,11 @@ mod tests {
             let bytes = response
                 .iter_mut()
                 .filter_map(|map| {
-                    if let Some(v) = map.remove(&format!(
+                    map.remove(&format!(
                         "from_{}_on_{}",
                         chat_agent_session.session_context_name,
                         AvailableInterfaceSubjects::AssistantMessages
-                    )) {
-                        Some(v.get_message_own())
-                    } else {
-                        None
-                    }
+                    )).map(|v| v.get_message_own())
                 })
                 .flatten()
                 .collect::<Vec<_>>();
@@ -401,15 +397,11 @@ mod tests {
             let bytes = response
                 .iter_mut()
                 .filter_map(|map| {
-                    if let Some(v) = map.remove(&format!(
+                    map.remove(&format!(
                         "from_{}_on_{}",
                         chat_agent_session.session_context_name,
                         AvailableInterfaceSubjects::AssistantMessages
-                    )) {
-                        Some(v.get_message_own())
-                    } else {
-                        None
-                    }
+                    )).map(|v| v.get_message_own())
                 })
                 .flatten()
                 .collect::<Vec<_>>();
