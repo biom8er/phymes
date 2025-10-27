@@ -953,7 +953,8 @@ mod tests {
                         "from_{}_on_{}",
                         doc_rag_session.session_context_name,
                         AvailableInterfaceSubjects::AssistantMessages
-                    )).map(|v| v.get_message_own())
+                    ))
+                    .map(|v| v.get_message_own())
                 })
                 .flatten()
                 .collect::<Vec<_>>();

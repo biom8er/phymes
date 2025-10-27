@@ -31,6 +31,7 @@ pub async fn run_main() -> Result<()> {
     let session_ctx = doc_rag_session
         .build()
         .with_name(doc_rag_session.session_context_name)
+        .add_session_interface(None)?
         .build_with_tables()?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
@@ -92,7 +93,8 @@ pub async fn run_main() -> Result<()> {
                 "from_{}_on_{}",
                 doc_rag_session.session_context_name,
                 AvailableInterfaceSubjects::AssistantMessages
-            )).map(|v| v.get_message_own())
+            ))
+            .map(|v| v.get_message_own())
         })
         .flatten()
         .collect::<Vec<_>>();

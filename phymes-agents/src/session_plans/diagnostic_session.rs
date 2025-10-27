@@ -1429,7 +1429,8 @@ mod tests {
                     "from_{}_on_{}",
                     diagnostic_session.session_context_name,
                     AvailableInterfaceSubjects::AggregatedAttachments
-                )).map(|v| v.get_message_own())
+                ))
+                .map(|v| v.get_message_own())
             })
             .flatten()
             .collect::<Vec<_>>();
