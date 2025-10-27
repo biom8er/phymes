@@ -465,9 +465,6 @@ impl DataConfigTrait for DataConfig {
             },
             // DM: Add examples for the rest of the operators
             s if s == "Aggregator" => Self {
-                lhs_name: "".to_string(),
-                lhs_pk: "".to_string(),
-                lhs_fk: "".to_string(),
                 lhs_values: vec!["timestamp".to_string()],
                 asc: Some(true),
                 operator: AvailableCandleOperators::SortColumnAndIndices,

@@ -1118,8 +1118,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         // Build and add the table to the subjects list
                         let schema = Arc::new(Schema::new(fields));
                         let table = if with_values && !data.is_empty() {
-                            dbg!(&subject_name);
-                            dbg!(&data);
                             Table::get_builder()
                                 .with_schema(schema)
                                 .with_json_values(&[serde_json::Value::Object(data)])?
@@ -1137,7 +1135,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     // Extract the field and data type
                     } else {
                         let line = erdiagram_lines.get(iter).unwrap().trim();
-                        dbg!(line);
                         let split_line = line.split_whitespace().collect::<Vec<_>>();
 
                         // Match the DataType
@@ -1169,7 +1166,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                 let line = &line[start + 1..];
                                 if let Some(end) = line.find("\"") {
                                     let value = &line[..end].replace("'", "\"");
-                                    dbg!(&value);
                                     let _ = data.insert(field_name.to_owned(), parse_str_to_data_type(value, &data_type)?);
 
                                 // Multi-line
@@ -1182,11 +1178,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                                 .join("\n");
                                             let value = extract_tool_calls_str(&value, Some("\""), Some("\""))
                                                 .replace("'", "\"");
-                                            dbg!(&value);
                                             let _ = data.insert(field_name.to_owned(), parse_str_to_data_type(&value, &data_type)?);
                                             break;
                                         } else {
-                                            dbg!(&erdiagram_lines.get(iter).unwrap());
                                             iter += 1;
                                         }                                    
                                     }

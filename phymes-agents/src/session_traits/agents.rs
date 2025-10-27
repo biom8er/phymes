@@ -192,7 +192,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         
         // Add the default configuration to the subjects if it does not exist
         let subjects = processors_to_update.iter()
-            .filter_map(|p| if self.state.as_ref().unwrap().iter().map(|t| t.get_name()).collect::<Vec<_>>().contains(&p.get_name()) {
+            .filter_map(|p| if self.state.is_some() && self.state.as_ref().unwrap().iter().map(|t| t.get_name()).collect::<Vec<_>>().contains(&p.get_name()) {
                 None
             } else {
                 let new_processor = AvailableProcessors::from_str(p.get_type(), false).unwrap();
@@ -209,7 +209,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         // Remake the state
         if !subjects.is_empty() {
-            let mut state = self.state.take().unwrap();
+            let mut state = self.state.take().unwrap_or_default();
             state.extend(subjects);
             self.state.replace(state);
         }
