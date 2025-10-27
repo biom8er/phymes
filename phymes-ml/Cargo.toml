@@ -28,7 +28,7 @@ candle = [] # force use of candle models when openai_api is available
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
 phymes-data = { path = "../phymes-data", default-features = false, optional = true }
-arrow = { version = "56.2.0", default-features = false, features = ["csv", "json", "ipc"] }
+arrow = { version = "57.0.0", default-features = false, features = ["csv", "json", "ipc"] }
 candle-core = { version = "0.9.1" }
 candle-nn = { version = "0.9.1" }
 candle-transformers = { version = "0.9.1" }

@@ -27,7 +27,7 @@ candle = [] # for compatibility with agents
 
 [dependencies]
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
-arrow = { version = "56.2.0", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
+arrow = { version = "57.0.0", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
 pin-project-lite = "0.2.16"
 async-trait = "0.1.88"
 anyhow = { version = "1", default-features = false }
