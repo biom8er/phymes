@@ -19,23 +19,6 @@ use crate::table::{
 };
 use crate::task::PubSubTrait;
 
-// /// Reserved table names for the [SessionContext]
-// #[derive(Debug)]
-// pub enum AvailableSubjects {
-//     MetricPivot,
-//     Tasks,
-//     Processors,
-//     Subjects,
-//     RuntimeEnvironments,
-//     MermaidJS,
-//     SubjectsNumRows,
-//     MetricMermaidGantt,
-//     Errors,
-//     Traces,
-//     Events,
-//     Metrics,
-// }
-
 /// The `SessionContext` creates an execution graph based on a
 /// `SessionPlan` and manages the running of individual tasks
 /// and the messages passed between tasks.
@@ -52,6 +35,8 @@ pub struct SessionContext {
     pub(crate) runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     /// The maximum number of iterations before stopping
     pub(crate) max_iter: usize,
+    /// Whether to gather diagnostic information or not
+    pub(crate) diagnostics: bool,
 }
 
 impl SessionContext {
@@ -61,6 +46,7 @@ impl SessionContext {
         state: StateMap,
         runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
         max_iter: usize,
+        diagnostics: bool,
     ) -> SessionContext {
         Self {
             name,
@@ -68,11 +54,12 @@ impl SessionContext {
             state,
             runtime_envs,
             max_iter,
+            diagnostics,
         }
     }
 
     /// Get a task
-    pub(crate) fn get_tasks(&self) -> &TaskMap {
+    pub fn get_tasks(&self) -> &TaskMap {
         &self.tasks
     }
 
@@ -280,8 +267,13 @@ impl SessionContext {
     }
 
     /// Get the max iterations
-    pub(crate) fn get_max_iter(&self) -> usize {
+    pub fn get_max_iter(&self) -> usize {
         self.max_iter
+    }
+
+    /// Get the diagnostics
+    pub fn get_diagnostics(&self) -> bool {
+        self.diagnostics
     }
 
     /// Update the row counts for the subjects

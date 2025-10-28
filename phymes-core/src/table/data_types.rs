@@ -1,7 +1,13 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use arrow::datatypes::{DataType, Field};
+use arrow::{
+    compute::kernels::cast_utils::Parser,
+    datatypes::{
+        DataType, Field, Float32Type, Float64Type, Int64Type, UInt8Type, UInt16Type, UInt32Type,
+    },
+};
+use serde_json::Value;
 
 /// Helper function to convert an arrow [DataType] to a [String]
 pub fn from_data_type_to_str(data_type: &DataType) -> String {
@@ -137,4 +143,39 @@ pub fn from_str_to_data_type(data_type: &str) -> Result<DataType> {
         }
     };
     Ok(data_type)
+}
+
+/// Helper function to parse a [String] into a [Value] based on the [DataType]
+///
+/// # Notes
+/// * Nested types (i.e., `List` and `FixedSizeList`) must be serialized using [serde_json]
+///   for the parsing and deserialization to work as expected!
+pub fn parse_str_to_data_type(data: &str, data_type: &DataType) -> Result<Value> {
+    let parsed = match data_type {
+        DataType::UInt8 => Value::from(UInt8Type::parse(data).unwrap()),
+        DataType::UInt16 => Value::from(UInt16Type::parse(data).unwrap()),
+        DataType::UInt32 => Value::from(UInt32Type::parse(data).unwrap()),
+        DataType::Int64 => Value::from(Int64Type::parse(data).unwrap()),
+        DataType::Float32 => Value::from(Float32Type::parse(data).unwrap()),
+        DataType::Float64 => Value::from(Float64Type::parse(data).unwrap()),
+        DataType::Utf8 => Value::String(data.to_string()),
+        DataType::Null => Value::Null,
+        DataType::Boolean => Value::Bool(FromStr::from_str(data)?),
+        DataType::List(_) | DataType::FixedSizeList(_, _) => serde_json::from_str::<Value>(data)?,
+        _ => {
+            return Err(anyhow!(
+                "Unsupported data type {data_type} for String parsing. Supported data types are {}, {}, {}, {}, {}, {}, {}, {}, {}, and FixedSizeList- or List- with primitive types.",
+                DataType::UInt8,
+                DataType::UInt16,
+                DataType::UInt32,
+                DataType::Int64,
+                DataType::Float32,
+                DataType::Float64,
+                DataType::Utf8,
+                DataType::Null,
+                DataType::Boolean
+            ));
+        }
+    };
+    Ok(parsed)
 }

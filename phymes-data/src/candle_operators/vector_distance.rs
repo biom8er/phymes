@@ -35,8 +35,15 @@ impl MappableTrait for VectorDistance {
 
 impl DataOperatorTrait for VectorDistance {
     fn new(config: &DataConfig) -> Self {
-        let lhs_pk = config.lhs_pk.to_owned();
-        let lhs_values = config.lhs_values.first().unwrap().to_string();
+        let lhs_pk = config.lhs_pk.as_ref().cloned().unwrap_or_default();
+        let lhs_values = config
+            .lhs_values
+            .as_ref()
+            .cloned()
+            .unwrap_or_default()
+            .first()
+            .cloned()
+            .unwrap_or_default();
         let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
         let rhs_values = config
             .rhs_values

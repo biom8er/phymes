@@ -29,6 +29,7 @@ pub async fn run_main() -> Result<()> {
     let session_ctx = chat_agent_session
         .build()
         .with_name(chat_agent_session.session_context_name)
+        .add_session_interface(None)?
         .build_with_tables()?;
     let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
@@ -53,15 +54,17 @@ pub async fn run_main() -> Result<()> {
 
     // Update the chat history with the response
     let bytes = response
-        .last_mut()
-        .unwrap()
-        .remove(&format!(
-            "from_{}_on_{}",
-            chat_agent_session.session_context_name,
-            AvailableInterfaceSubjects::AssistantMessages
-        ))
-        .unwrap()
-        .get_message_own();
+        .iter_mut()
+        .filter_map(|map| {
+            map.remove(&format!(
+                "from_{}_on_{}",
+                chat_agent_session.session_context_name,
+                AvailableInterfaceSubjects::AssistantMessages
+            ))
+            .map(|v| v.get_message_own())
+        })
+        .flatten()
+        .collect::<Vec<_>>();
     let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
         .with_name("")
         .build()?
@@ -94,15 +97,17 @@ pub async fn run_main() -> Result<()> {
 
     // Update the chat history with the response
     let bytes = response
-        .last_mut()
-        .unwrap()
-        .remove(&format!(
-            "from_{}_on_{}",
-            chat_agent_session.session_context_name,
-            AvailableInterfaceSubjects::AssistantMessages
-        ))
-        .unwrap()
-        .get_message_own();
+        .iter_mut()
+        .filter_map(|map| {
+            map.remove(&format!(
+                "from_{}_on_{}",
+                chat_agent_session.session_context_name,
+                AvailableInterfaceSubjects::AssistantMessages
+            ))
+            .map(|v| v.get_message_own())
+        })
+        .flatten()
+        .collect::<Vec<_>>();
     let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
         .with_name("")
         .build()?

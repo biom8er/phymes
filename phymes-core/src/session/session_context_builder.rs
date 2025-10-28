@@ -70,6 +70,15 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
     fn with_runtime_envs(self, runtime_envs: Vec<RuntimeEnv>) -> Self;
     fn with_tasks(self, tasks: Vec<TaskPlan>) -> Self;
     fn with_max_iter(self, max_iter: usize) -> Self;
+    fn with_diagnostics(self, diagnostics: bool) -> Self;
+    /// Check that the [TaskPlan] and `name are given
+    fn check_tasks(&self) -> Result<()>;
+    /// Check that all [ProcessorTrait]s defined in the [TaskPlan] are accounted for
+    fn check_processors(&self) -> Result<()>;
+    /// Check that all [RuntimeEnv]s defined in the [TaskPlan] are accounted for
+    fn check_runtime_envs(&self) -> Result<()>;
+    /// Check that all subject [Table]s defined in the state and subscribed to by the [ProcessorTrait]s are accounted for
+    fn check_state(&self) -> Result<()>;
 }
 
 #[derive(Default)]
@@ -80,6 +89,7 @@ pub struct SessionContextBuilder {
     pub runtime_envs: Option<Vec<RuntimeEnv>>,
     pub tasks: Option<Vec<TaskPlan>>,
     pub max_iter: Option<usize>,
+    pub diagnostics: Option<bool>,
 }
 
 type SessionContextInput = (
@@ -88,11 +98,15 @@ type SessionContextInput = (
     StateMap,
     HashMap<String, Arc<Mutex<RuntimeEnv>>>,
     usize,
+    bool,
 );
 
 impl SessionContextBuilder {
     // Get a list of subscriptions and publications for a specific task
-    pub fn get_task_sub_pub(&self, task_name: &str) -> (Vec<&TableSubscribe>, Vec<&TablePublish>) {
+    pub fn get_sub_pub_for_task(
+        &self,
+        task_name: &str,
+    ) -> (Vec<&TableSubscribe>, Vec<&TablePublish>) {
         // Get the processor name
         let processors = self
             .tasks
@@ -135,7 +149,7 @@ impl SessionContextBuilder {
     }
 
     /// Get all of the processors
-    pub fn get_processor_names(&self) -> HashSet<String> {
+    pub fn get_processor_names_from_tasks(&self) -> HashSet<String> {
         self.tasks
             .as_ref()
             .unwrap()
@@ -150,7 +164,7 @@ impl SessionContextBuilder {
     }
 
     /// Get all of the subjects
-    pub fn get_subject_names(&self) -> HashSet<String> {
+    pub fn get_subject_names_from_processors(&self) -> HashSet<String> {
         self.processors
             .as_ref()
             .unwrap()
@@ -200,68 +214,6 @@ impl SessionContextBuilder {
 
     /// Build the [SessionContext] members
     pub fn build_inner(mut self) -> Result<SessionContextInput> {
-        if self.name.is_none() {
-            return Err(anyhow!(
-                "Please give the session a name before attempting to build the session."
-            ));
-        }
-
-        if self.tasks.is_none() {
-            return Err(anyhow!(
-                "Please add a plan before attempting to build the session."
-            ));
-        }
-
-        if self.processors.is_none() {
-            return Err(anyhow!(
-                "Please add a processor before attempting to build the session."
-            ));
-        }
-
-        // Check that all processors are accounted for
-        let processor_names = self
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name().to_owned())
-            .collect::<HashSet<_>>();
-        let processor_names_task_plan = self.get_processor_names();
-        if processor_names_task_plan != processor_names {
-            let mut l = processor_names_task_plan.iter().collect::<Vec<_>>();
-            l.sort();
-            let mut r = processor_names.iter().collect::<Vec<_>>();
-            r.sort();
-            return Err(anyhow!(
-                "Mismatch between provided processors {l:?} and plan processor names {r:?}."
-            ));
-        }
-
-        // Check that the runtime_env names are accounted for...
-        if self.runtime_envs.is_none() {
-            return Err(anyhow!(
-                "Please add runtime environments before attempting to build the session."
-            ));
-        }
-        let runtime_env_names = self
-            .runtime_envs
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|r| r.get_name().to_string())
-            .collect::<HashSet<_>>();
-        let runtime_env_names_task_plan = self.get_runtime_env_names();
-        if runtime_env_names_task_plan != runtime_env_names {
-            let mut l = runtime_env_names_task_plan.iter().collect::<Vec<_>>();
-            l.sort();
-            let mut r = runtime_env_names.iter().collect::<Vec<_>>();
-            r.sort();
-            return Err(anyhow!(
-                "Mismatch between provided runtime environments {l:?} and plan runtime environment names {r:?}."
-            ));
-        }
-
-        // ...then build
         let runtime_env_map = self
             .runtime_envs
             .take()
@@ -270,31 +222,6 @@ impl SessionContextBuilder {
             .map(|r| (r.get_name().to_string(), Arc::new(Mutex::new(r))))
             .collect::<HashMap<String, Arc<Mutex<RuntimeEnv>>>>();
 
-        // Check that the state names are accounted for...
-        if self.state.is_none() {
-            return Err(anyhow!(
-                "Please add state before attempting to build the session."
-            ));
-        }
-        let state_names = self
-            .state
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|s| s.get_name().to_string())
-            .collect::<HashSet<_>>();
-        let state_names_task_plan = self.get_subject_names();
-        if state_names_task_plan != state_names {
-            let mut l = state_names_task_plan.iter().collect::<Vec<_>>();
-            l.sort();
-            let mut r = state_names.iter().collect::<Vec<_>>();
-            r.sort();
-            return Err(anyhow!(
-                "Mismatch between provided state {l:?} and plan subjects and subscription names {r:?}."
-            ));
-        }
-
-        // ...then build
         let state_map = self
             .state
             .take()
@@ -303,7 +230,6 @@ impl SessionContextBuilder {
             .map(|r| (r.get_name().to_string(), Arc::new(RwLock::new(r))))
             .collect::<HashMap<String, Arc<RwLock<Table>>>>();
 
-        // Build the tasks
         let task_map = self
             .tasks
             .as_ref()
@@ -333,7 +259,14 @@ impl SessionContextBuilder {
 
         let name = self.name.unwrap();
         let max_iter = self.max_iter.unwrap_or(25);
-        Ok((name, task_map, state_map, runtime_env_map, max_iter))
+        Ok((
+            name,
+            task_map,
+            state_map,
+            runtime_env_map,
+            max_iter,
+            self.diagnostics.unwrap_or_default(),
+        ))
     }
 }
 
@@ -347,6 +280,7 @@ impl BuilderTrait for SessionContextBuilder {
             runtime_envs: None,
             tasks: None,
             max_iter: None,
+            diagnostics: None,
         }
     }
 
@@ -356,8 +290,14 @@ impl BuilderTrait for SessionContextBuilder {
     }
 
     fn build(self) -> Result<Self::T> {
+        // Check that we can build
+        self.check_tasks()?;
+        self.check_processors()?;
+        self.check_runtime_envs()?;
+        self.check_state()?;
+
         // build the tasks, state, metrics, and runtime objects
-        let (name, tasks, state, runtime_envs, max_iter) = self.build_inner()?;
+        let (name, tasks, state, runtime_envs, max_iter, diagnostics) = self.build_inner()?;
 
         // ready to build the session
         Ok(Self::T {
@@ -366,6 +306,7 @@ impl BuilderTrait for SessionContextBuilder {
             state,
             runtime_envs,
             max_iter,
+            diagnostics,
         })
     }
 }
@@ -390,6 +331,105 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
     fn with_max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = Some(max_iter);
         self
+    }
+    fn with_diagnostics(mut self, diagnostics: bool) -> Self {
+        self.diagnostics = Some(diagnostics);
+        self
+    }
+    fn check_tasks(&self) -> Result<()> {
+        if self.name.is_none() {
+            return Err(anyhow!(
+                "Please give the session a name before attempting to build the session."
+            ));
+        }
+
+        if self.tasks.is_none() {
+            return Err(anyhow!(
+                "Please add a plan before attempting to build the session."
+            ));
+        }
+        Ok(())
+    }
+    fn check_processors(&self) -> Result<()> {
+        if self.processors.is_none() {
+            return Err(anyhow!(
+                "Please add a processor before attempting to build the session."
+            ));
+        }
+
+        let processor_names = self
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name().to_owned())
+            .collect::<HashSet<_>>();
+        let processor_names_task_plan = self.get_processor_names_from_tasks();
+        if processor_names_task_plan != processor_names {
+            let mut l = processor_names_task_plan.iter().collect::<Vec<_>>();
+            l.sort();
+            let mut r = processor_names.iter().collect::<Vec<_>>();
+            r.sort();
+            return Err(anyhow!(
+                "Mismatch between provided processors {l:?} and plan processor names {r:?}."
+            ));
+        }
+
+        Ok(())
+    }
+    fn check_runtime_envs(&self) -> Result<()> {
+        if self.runtime_envs.is_none() {
+            return Err(anyhow!(
+                "Please add runtime environments before attempting to build the session."
+            ));
+        }
+
+        let runtime_env_names = self
+            .runtime_envs
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|r| r.get_name().to_string())
+            .collect::<HashSet<_>>();
+        let runtime_env_names_task_plan = self.get_runtime_env_names();
+        if runtime_env_names_task_plan != runtime_env_names {
+            let mut l = runtime_env_names_task_plan.iter().collect::<Vec<_>>();
+            l.sort();
+            let mut r = runtime_env_names.iter().collect::<Vec<_>>();
+            r.sort();
+            return Err(anyhow!(
+                "Mismatch between provided runtime environments {l:?} and plan runtime environment names {r:?}."
+            ));
+        }
+
+        Ok(())
+    }
+    fn check_state(&self) -> Result<()> {
+        if self.state.is_none() {
+            return Err(anyhow!(
+                "Please add state before attempting to build the session."
+            ));
+        }
+
+        let state_names = self
+            .state
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|s| s.get_name().to_string())
+            .collect::<HashSet<_>>();
+        let state_names_task_plan = self.get_subject_names_from_processors();
+        if state_names_task_plan != state_names {
+            let mut l = state_names_task_plan.iter().collect::<Vec<_>>();
+            l.sort();
+            let mut r = state_names.iter().collect::<Vec<_>>();
+            r.sort();
+            return Err(anyhow!(
+                "Mismatch between provided state {l:?} and plan subjects and subscription names {r:?}."
+            ));
+        }
+
+        Ok(())
     }
 }
 
@@ -605,6 +645,7 @@ pub mod test_session_context_builder {
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
+            .with_diagnostics(true)
             .build()
     }
 
@@ -625,6 +666,7 @@ pub mod test_session_context_builder {
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
+            .with_diagnostics(true)
             .build()
     }
 
@@ -643,6 +685,7 @@ pub mod test_session_context_builder {
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
+            .with_diagnostics(true)
             .build()
     }
 }
@@ -662,7 +705,7 @@ mod tests {
     #[test]
     fn test_get_task_sub_pub_with_input() {
         let plan = test_session_context_builder::make_test_session_builder_parallel_task();
-        let (subscriptions, publications) = plan.get_task_sub_pub("task_1");
+        let (subscriptions, publications) = plan.get_sub_pub_for_task("task_1");
         assert!(subscriptions.contains(&&TableSubscribe::AlwaysFullTable {
             table_name: "config_1".to_string()
         }));
@@ -677,7 +720,7 @@ mod tests {
     #[test]
     fn test_get_processor_names() {
         let plan = test_session_context_builder::make_test_session_builder_parallel_task();
-        let names = plan.get_processor_names();
+        let names = plan.get_processor_names_from_tasks();
         assert!(names.contains("processor_1"));
         assert!(names.contains("processor_2"));
         assert!(names.contains("processor_3"));
@@ -687,7 +730,7 @@ mod tests {
     #[test]
     fn test_get_subject_names() {
         let plan = test_session_context_builder::make_test_session_builder_parallel_task();
-        let names = plan.get_subject_names();
+        let names = plan.get_subject_names_from_processors();
         assert!(names.contains("state_1"));
         assert!(names.contains("state_2"));
         assert!(names.contains("state_3"));
@@ -718,6 +761,7 @@ mod tests {
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_iter(), 10);
+        assert!(session.get_diagnostics());
         Ok(())
     }
 

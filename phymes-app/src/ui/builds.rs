@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
-use phymes_agents::{AvailableSessionPlans, SessionContextBuilderMermaidTrait};
+use phymes_agents::{
+    AvailableSessionPlans, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+};
 use phymes_core::{
     create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
     MessageBuilderTrait, SessionContextBuilder, SessionInterfaceMessage,
@@ -12,8 +14,8 @@ use crate::state::{
     filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name,
     get_non_duplicated_sorted_subjects,
     svg_icons::{
-        b8_save_icon_svg, fa_trash_icon_svg, ms_column_arrow_right_icon_svg, ms_deploy_icon_svg,
-        ms_edit_icon_svg, ms_sync_icon_svg,
+        b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
+        ms_deploy_icon_svg, ms_edit_icon_svg, ms_sync_icon_svg,
     },
     sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES,
 };
@@ -248,7 +250,7 @@ pub fn builds_dropdown_view(
                                 return;
                             },
                         };
-                        builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true) {
+                        builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true, true) {
                             Ok(builder) => builder,
                             Err(err) => {
                                 build_errors.write().push_str(format!("{err:?}").as_str());
@@ -259,7 +261,11 @@ pub fn builds_dropdown_view(
                             build_errors.write().push_str(format!("Session name '{}' already exists. Please choose a different name.", active_session_name()).as_str());
                             return;
                         }
-                        let _session = match builder.with_name(&active_session_name()).build() {
+                        let _session = match builder.with_name(&active_session_name())
+                            .add_processor_subjects().unwrap()
+                            .add_session_interface(None).unwrap()
+                            .build_with_tables()
+                        {
                             Ok(session) => session,
                             Err(err) => {
                                 build_errors.write().push_str(format!("{err:?}").as_str());
@@ -495,6 +501,30 @@ pub fn builds_interface_footer(
                         // Show the save button only when modified
                         if !is_saved() && !diagram_code().is_empty() {
                             svg { dangerous_inner_html: b8_save_icon_svg() }
+                        }
+                    }
+                    button {
+                        onclick: move |_| async move {
+                            // Generate defaults if possible
+                            match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
+                                Ok(builder) => match builder.with_name(&active_session_name()).add_processor_subjects() {
+                                    Ok(builder) => match builder.to_mermaid_erdiagram(false, true) {
+                                        Ok(diagram) => {
+                                            active_er_diagram.set(diagram);
+
+                                            // Change to saved
+                                            is_saved.set(false);
+                                        },
+                                        Err(err) => tracing::error!("{err:?}"),
+                                    },
+                                    Err(err) => tracing::error!("{err:?}"),
+                                },
+                                Err(err) => tracing::error!("{err:?}"),
+                            }
+                        },
+                        // Show the save button only when modified
+                        if !is_flowchart_shown() && diagram_code().is_empty() {
+                            svg { dangerous_inner_html: ms_code_icon_svg() }
                         }
                     }
                 }

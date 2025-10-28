@@ -1,4 +1,5 @@
 use clap::Parser;
+use phymes_data::DataConfigTrait;
 use serde::{Deserialize, Serialize};
 
 use crate::candle_assets::AvailableCandleAssets;
@@ -96,4 +97,52 @@ pub struct CandleChatConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub openai_asset: Option<AvailableOpenAIAssets>,
+}
+
+impl DataConfigTrait for CandleChatConfig {
+    fn to_example(name: &str) -> Self {
+        match name {
+            "CandleAsset" => Self {
+                max_tokens: 1000,
+                temperature: 0.8,
+                seed: 299792458,
+                repeat_penalty: 1.1,
+                repeat_last_n: 64,
+                weights_config_file: Some(format!(
+                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )),
+                weights_file: Some(format!(
+                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )),
+                tokenizer_file: Some(format!(
+                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )),
+                tokenizer_config_file: Some(format!(
+                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )),
+                candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
+                ..Default::default()
+            },
+            "OpenAIAsset" => Self {
+                max_tokens: 1000,
+                temperature: 0.8,
+                seed: 299792458,
+                repeat_penalty: 1.1,
+                repeat_last_n: 64,
+                candle_asset: None,
+                openai_asset: Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B),
+                weights_config_file: None,
+                weights_file: None,
+                tokenizer_file: None,
+                tokenizer_config_file: None,
+                api_url: Some("http://0.0.0.0:8000/v1".to_string()),
+                ..Default::default()
+            },
+            _ => Self::default(),
+        }
+    }
 }

@@ -30,7 +30,14 @@ impl DataOperatorTrait for ExtractTabularData {
     where
         Self: Sized,
     {
-        let lhs_values = config.lhs_values.first().unwrap().to_string();
+        let lhs_values = config
+            .lhs_values
+            .as_ref()
+            .cloned()
+            .unwrap_or_default()
+            .first()
+            .cloned()
+            .unwrap_or_default();
         let format = config.format.unwrap_or_default();
         ExtractTabularData { lhs_values, format }
     }

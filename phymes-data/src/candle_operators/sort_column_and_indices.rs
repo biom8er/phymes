@@ -33,7 +33,14 @@ impl MappableTrait for SortColumnAndIndices {
 
 impl DataOperatorTrait for SortColumnAndIndices {
     fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.first().unwrap().to_string();
+        let lhs_values = config
+            .lhs_values
+            .as_ref()
+            .cloned()
+            .unwrap_or_default()
+            .first()
+            .cloned()
+            .unwrap_or_default();
         let asc = config.asc.unwrap_or(true);
 
         SortColumnAndIndices { lhs_values, asc }

@@ -9,7 +9,10 @@ use crate::{
         },
         error::create_error_fields,
         mermaid::{
-            create_mermaid_content_template_fields, create_mermaid_flowchart_links_template_fields,
+            create_mermaid_content_template_fields,
+            create_mermaid_er_diagram_entities_template_fields,
+            create_mermaid_er_diagram_relations_template_fields,
+            create_mermaid_flowchart_links_template_fields,
             create_mermaid_flowchart_nodes_template_fields, create_mermaid_gantt_template_fields,
             create_mermaid_kanban_template_fields,
             create_mermaid_sequence_diagram_messages_template_fields,
@@ -254,6 +257,10 @@ pub enum AvailableSubjects {
     AnalyticsEvents,
     #[value(name = "AnalyticsTasks")]
     AnalyticsTasks,
+    #[value(name = "MermaidERDiagramEntitiesTemplate")]
+    MermaidERDiagramEntitiesTemplate,
+    #[value(name = "MermaidERDiagramRelationsTemplate")]
+    MermaidERDiagramRelationsTemplate,
 }
 
 impl Display for AvailableSubjects {
@@ -315,6 +322,12 @@ impl Display for AvailableSubjects {
             AvailableSubjects::AnalyticsTraces => write!(f, "AnalyticsTraces"),
             AvailableSubjects::AnalyticsEvents => write!(f, "AnalyticsEvents"),
             AvailableSubjects::AnalyticsTasks => write!(f, "AnalyticsTasks"),
+            AvailableSubjects::MermaidERDiagramEntitiesTemplate => {
+                write!(f, "MermaidERDiagramEntitiesTemplate")
+            }
+            AvailableSubjects::MermaidERDiagramRelationsTemplate => {
+                write!(f, "MermaidERDiagramRelationsTemplate")
+            }
         }
     }
 }
@@ -437,6 +450,12 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::AnalyticsEvents => create_schema_from_fields(&create_events_fields),
             AvailableSubjects::AnalyticsTasks => {
                 create_schema_from_fields(&create_session_tasks_fields)
+            }
+            AvailableSubjects::MermaidERDiagramEntitiesTemplate => {
+                create_schema_from_fields(&create_mermaid_er_diagram_entities_template_fields)
+            }
+            AvailableSubjects::MermaidERDiagramRelationsTemplate => {
+                create_schema_from_fields(&create_mermaid_er_diagram_relations_template_fields)
             }
         }
     }

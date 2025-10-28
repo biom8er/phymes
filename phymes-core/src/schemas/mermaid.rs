@@ -191,3 +191,33 @@ pub(crate) fn create_mermaid_xychart_template_fields() -> Fields {
     ];
     Fields::from(fields_vec)
 }
+
+pub(crate) fn create_mermaid_er_diagram_entities_template_fields() -> Fields {
+    let field_names = [
+        "entity_name",
+        "entity_alias",
+        "attribute_name",
+        "attribute_type",
+        "attribute_key",
+        "attribute_comment",
+    ];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub(crate) fn create_mermaid_er_diagram_relations_template_fields() -> Fields {
+    let field_names = [
+        "subject_name",
+        "object_name",
+        "relation_type",
+        "relation_content",
+    ];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}

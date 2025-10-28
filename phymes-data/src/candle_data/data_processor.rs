@@ -304,8 +304,15 @@ impl Stream for CandleDataStream {
         }
 
         // Collect the LHS queries
-        if self.lhs_inbox.is_empty() {
-            let lhs_name = self.config.as_ref().unwrap().lhs_name.clone();
+        if self.lhs_inbox.is_empty() && self.config.as_ref().unwrap().lhs_name.is_some() {
+            let lhs_name = self
+                .config
+                .as_ref()
+                .unwrap()
+                .lhs_name
+                .as_ref()
+                .unwrap()
+                .clone();
             let lhs = match self.messages.get_mut(lhs_name.as_str()) {
                 Some(lhs) => {
                     // Poll the input streams and collect/transform the batches
@@ -560,11 +567,11 @@ mod tests {
 
         // Make the config
         let config = DataConfig {
-            lhs_name: "lhs_name".to_string(),
+            lhs_name: Some("lhs_name".to_string()),
             rhs_name: Some("rhs_name".to_string()),
-            lhs_pk: "lhs_pk".to_string(),
-            lhs_fk: "lhs_fk".to_string(),
-            lhs_values: vec!["embedding".to_string()],
+            lhs_pk: Some("lhs_pk".to_string()),
+            lhs_fk: Some("lhs_fk".to_string()),
+            lhs_values: Some(vec!["embedding".to_string()]),
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),
@@ -660,6 +667,7 @@ mod tests {
         // Make the config
         let config_args = DataConfig {
             operator: AvailableCandleOperators::HumanInTheLoop,
+            lhs_name: Some("".to_string()),
             lhs_args: Some("{\"role\": \"assistant\", \"content\": \"RESPONSE\"}".to_string()),
             rhs_args: None,
             ..Default::default()
@@ -898,11 +906,11 @@ mod tests {
 
         // Make the config
         let config = DataConfig {
-            lhs_name: "lhs_name".to_string(),
+            lhs_name: Some("lhs_name".to_string()),
             rhs_name: Some("rhs_name".to_string()),
-            lhs_pk: "lhs_pk".to_string(),
-            lhs_fk: "lhs_fk".to_string(),
-            lhs_values: vec!["embedding".to_string()],
+            lhs_pk: Some("lhs_pk".to_string()),
+            lhs_fk: Some("lhs_fk".to_string()),
+            lhs_values: Some(vec!["embedding".to_string()]),
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),

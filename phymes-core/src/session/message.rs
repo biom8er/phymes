@@ -162,6 +162,7 @@ impl BuilderTrait for SessionInterfaceMessageBuilder {
     where
         Self: Sized,
     {
+        self.check_subject()?;
         Ok(Self::T {
             name: self.name.unwrap_or_default(),
             subject: self.subject.unwrap_or_default(),
@@ -222,6 +223,19 @@ impl MessageBuilderTrait for SessionInterfaceMessageBuilder {
     fn with_message(mut self, message: <Self as MessageBuilderTrait>::T) -> Self {
         self.message = Some(message);
         self
+    }
+    fn check_subject(&self) -> Result<()> {
+        if self.update.as_ref().unwrap() != &TablePublish::None
+            && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name()
+        {
+            Err(anyhow!(
+                "Mismatch between provided subject {} and table publish table name {}.",
+                self.subject.as_ref().unwrap(),
+                self.update.as_ref().unwrap().get_table_name()
+            ))
+        } else {
+            Ok(())
+        }
     }
 }
 

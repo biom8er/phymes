@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use phymes_core::{
     AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
-    BuildableTrait, BuilderTrait, ChatContentSubscribe, DataFormat, ProcessorEcho, ProcessorTrait,
-    RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder, TableBuilderTrait,
-    TablePublish, TableSubscribe, TaskPlan, create_schema_from_fields, create_tools_record_batch,
+    BuildableTrait, BuilderTrait, ChatContentSubscribe, DataFormat, ProcessorTrait, RuntimeEnv,
+    RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish,
+    TableSubscribe, TaskPlan, create_schema_from_fields, create_tools_record_batch,
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator,
@@ -206,11 +206,6 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     self.hitl_processor_name.to_string(),
                     self.hitl_summary_processor_name.to_string(),
                 ],
-            },
-            TaskPlan {
-                task_name: self.session_context_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.session_context_name.to_string()],
             },
         ])
     }
@@ -463,32 +458,6 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AllTableNamesSubscribe::new_box(),
             ),
-            ProcessorEcho::new_arc_with_pub_sub(
-                self.session_context_name,
-                &[
-                    TablePublish::Extend {
-                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                    },
-                    TablePublish::Replace {
-                        table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
-                    },
-                    TablePublish::Extend {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                    },
-                    TablePublish::Extend {
-                        table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
-                    },
-                ],
-                &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                    },
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
         ];
         Some(processors)
     }
@@ -575,10 +544,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Message aggregator config
         let aggregator_config = DataConfig {
-            lhs_name: "".to_string(),
-            lhs_pk: "".to_string(),
-            lhs_fk: "".to_string(),
-            lhs_values: vec!["timestamp".to_string()],
+            lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
@@ -605,8 +571,8 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Extract tabular data config
         let extract_tabular_data_config = DataConfig {
-            lhs_name: AvailableInterfaceSubjects::UserCsv.to_string(),
-            lhs_values: vec!["bytes".to_string()],
+            lhs_name: Some(AvailableInterfaceSubjects::UserCsv.to_string()),
+            lhs_values: Some(vec!["bytes".to_string()]),
             format: Some(DataFormat::CsvDefault),
             operator: AvailableCandleOperators::ExtractTabularData,
             ..Default::default()
@@ -622,8 +588,8 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Select and cast config
         let vis_renamecols_config = DataConfig {
-            lhs_name: self.tool_summary_task_name.to_string(),
-            lhs_values: vec!["lhs_pk".to_string(), "score".to_string()],
+            lhs_name: Some(self.tool_summary_task_name.to_string()),
+            lhs_values: Some(vec!["lhs_pk".to_string(), "score".to_string()]),
             as_columns: Some(vec!["x".to_string(), "y".to_string()]),
             cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None]),
             cast_datatypes: Some(vec![
@@ -644,7 +610,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Visualize tabular data config
         let vis_xychart_config = DataConfig {
-            lhs_name: AvailableSubjects::MermaidXYChart.to_string(),
+            lhs_name: Some(AvailableSubjects::MermaidXYChart.to_string()),
             doc_template: Some(
                 [
                     MERMAID_HTML_PRE,
@@ -810,6 +776,7 @@ mod tests {
         let session_ctx = tool_agent_session
             .build()
             .with_name(tool_agent_session.session_context_name)
+            .add_session_interface(None)?
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
@@ -858,15 +825,17 @@ mod tests {
 
             // Update the chat history with the response
             let bytes = response
-                .last_mut()
-                .unwrap()
-                .remove(&format!(
-                    "from_{}_on_{}",
-                    tool_agent_session.session_context_name,
-                    AvailableInterfaceSubjects::AssistantMessages
-                ))
-                .unwrap()
-                .get_message_own();
+                .iter_mut()
+                .filter_map(|map| {
+                    map.remove(&format!(
+                        "from_{}_on_{}",
+                        tool_agent_session.session_context_name,
+                        AvailableInterfaceSubjects::AssistantMessages
+                    ))
+                    .map(|v| v.get_message_own())
+                })
+                .flatten()
+                .collect::<Vec<_>>();
             let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
@@ -878,15 +847,17 @@ mod tests {
             }
 
             let bytes = response
-                .last_mut()
-                .unwrap()
-                .remove(&format!(
-                    "from_{}_on_{}",
-                    tool_agent_session.session_context_name,
-                    AvailableInterfaceSubjects::AssistantCsv
-                ))
-                .unwrap()
-                .get_message_own();
+                .iter_mut()
+                .filter_map(|map| {
+                    map.remove(&format!(
+                        "from_{}_on_{}",
+                        tool_agent_session.session_context_name,
+                        AvailableInterfaceSubjects::AssistantCsv
+                    ))
+                    .map(|v| v.get_message_own())
+                })
+                .flatten()
+                .collect::<Vec<_>>();
             let attachment_data = TableBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?

@@ -70,7 +70,7 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
         )
     }
     fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.to_owned();
+        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
         let cmp_columns = config.cmp_columns.clone().unwrap_or_default();
         let cmp_operators = config.cmp_operators.clone().unwrap_or_default();
         let cmp_predicate = config.cmp_predicate.clone().unwrap_or_default();

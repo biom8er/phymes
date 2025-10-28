@@ -322,8 +322,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
     }
 
     fn get_mermaid_js_as_table(&self) -> Result<Table> {
-        let flowchart_diagram = self.to_mermaid_flowchart()?;
-        let er_diagram = self.to_mermaid_erdiagram()?;
+        let flowchart_diagram = self.to_mermaid_flowchart(false, false)?;
+        let er_diagram = self.to_mermaid_erdiagram(false, true)?;
         let session_context_name = self.name.as_ref().unwrap().to_string();
         let timestamp = create_timestamp_micros();
 

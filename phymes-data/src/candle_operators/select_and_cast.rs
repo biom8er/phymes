@@ -72,7 +72,7 @@ impl DataOperatorTrait for SelectAndCast {
         )
     }
     fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.to_owned();
+        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
         let as_columns = config.as_columns.clone().unwrap_or_default();
         let cast_operators = config.cast_operators.clone().unwrap_or_default();
         let cast_datatypes = config

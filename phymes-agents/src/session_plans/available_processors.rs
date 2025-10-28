@@ -6,15 +6,19 @@ use phymes_core::{
     MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, SubscribeTrait, TablePublish,
     TableSubscribe, test_processor::ProcessorMock,
 };
-use phymes_data::{AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor};
+use phymes_data::{
+    AttachmentAggregatorProcessor, CandleDataProcessor, DataConfig, DataConfigTrait,
+    DataSummaryConfig, DataSummaryProcessor,
+};
 use phymes_ml::{
-    CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
+    CandleChatConfig, CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor,
+    MessageAggregatorProcessor, MessageParserProcessor,
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
 
-/// The available session plans
+/// The available [ProcessorTrait]s
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableProcessors {
     #[value(name = "ProcessorMock")]
@@ -92,6 +96,25 @@ impl AvailableProcessors {
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>()
+    }
+
+    /// Get the processor's corresponding config
+    pub fn to_example_config_json(&self, name: &str) -> Result<Vec<u8>, serde_json::Error> {
+        match self {
+            Self::ProcessorMock => DataConfig::to_example_json(name), // Just for testing purposes...
+            Self::ProcessorEcho => Ok(Vec::new()),
+            Self::CandleDataProcessor => DataConfig::to_example_json(name),
+            Self::DataSummaryProcessor => DataSummaryConfig::to_example_json("Function"),
+            Self::AttachmentAggregatorProcessor => DataConfig::to_example_json("Aggregator"),
+            Self::CandleChatProcessor => CandleChatConfig::to_example_json("CandleAsset"),
+            Self::MessageAggregatorProcessor => DataConfig::to_example_json("Aggregator"),
+            Self::MessageParserProcessor => CandleChatConfig::to_example_json(name),
+            Self::CandleEmbedProcessor => CandleEmbedConfig::to_example_json("CandleAsset"),
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIChatProcessor => CandleChatConfig::to_example_json("OpenAIAsset"),
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIEmbedProcessor => CandleEmbedConfig::to_example_json("OpenAIAsset"),
+        }
     }
 
     pub fn build_arc_with_pub_sub(

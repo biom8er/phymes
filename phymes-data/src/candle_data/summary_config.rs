@@ -2,6 +2,8 @@ use clap::Parser;
 use phymes_core::DataFormat;
 use serde::{Deserialize, Serialize};
 
+use crate::DataConfigTrait;
+
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
 #[command(author, version, about, long_about = None)]
 #[serde(default)]
@@ -24,4 +26,18 @@ pub struct DataSummaryConfig {
     /// The output format
     #[arg(long)]
     pub format: DataFormat,
+}
+
+impl DataConfigTrait for DataSummaryConfig {
+    fn to_example(name: &str) -> Self {
+        match name {
+            "Function" => Self {
+                num_rows: Some(10),
+                num_batches: Some(1),
+                format: DataFormat::None,
+                ..Default::default()
+            },
+            _ => Self::default(),
+        }
+    }
 }

@@ -264,13 +264,31 @@ pub fn apps_interface_view() -> Element {
         }
     });
 
-    // DM: we have to re-render the entire virtual DOM everytime the mermaid svg changes...
-    let diagram_code: Memo<String> = use_memo(move || {
-        if is_flowchart_shown() {
+    let diagram_code: Memo<(String, Option<String>)> = use_memo(move || {
+        // Get the active diagram code
+        let diagram_code = if is_flowchart_shown() {
             active_flowchart_diagram.read().to_string()
         } else {
             active_er_diagram.read().to_string()
-        }
+        };
+
+        // Check for build warnings
+        let builder_error = if is_flowchart_shown() {
+            match SessionContextBuilder::from_mermaid_flowchart(&diagram_code, true) {
+                Ok(_res) => None,
+                Err(err) => Some(err.to_string()),
+            }
+        } else {
+            match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(
+                &diagram_code,
+                true,
+                true,
+            ) {
+                Ok(_res) => None,
+                Err(err) => Some(err.to_string()),
+            }
+        };
+        (diagram_code, builder_error)
     });
 
     rsx! {
@@ -292,7 +310,7 @@ pub fn apps_interface_view() -> Element {
                 } else {
                     apps_dropdown_view { is_flowchart_shown }
                 }
-                mermaid_view { diagram_code, check_build: use_signal(|| true), is_flowchart_shown }
+                mermaid_view { diagram_code }
             }
             if BUILDER() {
                 split_panel_drag_handle {}
@@ -400,11 +418,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
 }
 
 #[component]
-pub fn mermaid_view(
-    diagram_code: Memo<String>,
-    check_build: Signal<bool>,
-    is_flowchart_shown: Signal<bool>,
-) -> Element {
+pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
     let mut diagram_svg = use_signal(String::new);
     let mut error_mjs = use_signal(String::new);
     let id = use_signal(|| "graphDiv".to_string());
@@ -424,7 +438,7 @@ pub fn mermaid_view(
             )
             .as_str(),
         );
-        eval.send(diagram_code()).unwrap();
+        eval.send(diagram_code().0).unwrap();
         let mermaid_js_object = match eval.await {
             Ok(res) => {
                 let res: MermaidJsObject = serde_json::from_value(res).unwrap();
@@ -442,28 +456,6 @@ pub fn mermaid_view(
         // Update the signals
         diagram_svg.set(mermaid_js_object.svg.unwrap_or_default());
         error_mjs.set(mermaid_js_object.error.unwrap_or_default());
-    });
-
-    let error_ctxb = use_memo(move || {
-        // Build the preliminary session context
-        if check_build() {
-            let builder_error = if is_flowchart_shown() {
-                match SessionContextBuilder::from_mermaid_flowchart(&diagram_code(), true) {
-                    Ok(_res) => None,
-                    Err(err) => Some(err.to_string()),
-                }
-            } else {
-                match SessionContextBuilder::default()
-                    .with_state_from_mermaid_erdiagram(&diagram_code(), true)
-                {
-                    Ok(_res) => None,
-                    Err(err) => Some(err.to_string()),
-                }
-            };
-            builder_error.unwrap_or_default()
-        } else {
-            String::new()
-        }
     });
 
     // Add pan and zoom to the svg
@@ -496,7 +488,7 @@ pub fn mermaid_view(
         if !error_mjs().is_empty() {
             p { "{error_mjs}" },
         }
-        if !error_ctxb().is_empty() {
+        if let Some(error_ctxb) = diagram_code().1 {
             p { "{error_ctxb}" },
         }
         if !diagram_svg().is_empty() {

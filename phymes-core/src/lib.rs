@@ -36,7 +36,7 @@ pub use table::{
     RecordBatchStreamAdapter, SendableRecordBatchStream, SubscribeTrait, Table, TableBuilder,
     TableBuilderTrait, TablePublish, TableScript, TableSubscribe, TableSubscribeTrait, TableTrait,
     TableUpdateTrait, from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe,
-    test_table,
+    parse_str_to_data_type, test_table,
 };
 pub use task::{
     IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, ProcessorBuilder,

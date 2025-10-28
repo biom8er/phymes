@@ -5,12 +5,16 @@ use super::{
     stream_adapter::RecordBatchStreamAdapter,
 };
 
-use arrow::ipc::{
-    reader::{FileReader, StreamReader},
-    writer::{FileWriter, StreamWriter},
-};
 use arrow::json::reader::infer_json_schema;
 use arrow::json::{ArrayWriter, LineDelimitedWriter, ReaderBuilder};
+use arrow::{
+    array::StringBuilder,
+    compute::cast,
+    ipc::{
+        reader::{FileReader, StreamReader},
+        writer::{FileWriter, StreamWriter},
+    },
+};
 use arrow::{
     array::{
         Array,
@@ -78,7 +82,6 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     }
 
     /// Write record batches to CSV
-    #[instrument(level = "trace")]
     fn to_csv_file(&self, file: &mut File, delimiter: u8, header: bool) -> Result<()> {
         let builder = WriterBuilder::new()
             .with_header(header)
@@ -95,7 +98,6 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     }
 
     /// Write record batches to CSV
-    #[instrument(level = "trace")]
     fn to_csv(&self, delimiter: u8, header: bool) -> Result<Vec<u8>> {
         let mut bytes = Vec::new();
         let builder = WriterBuilder::new()
@@ -113,7 +115,6 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     }
 
     /// Write record batches to IPC stream
-    #[instrument(level = "trace")]
     fn to_ipc_stream(&self) -> Result<Vec<u8>> {
         let mut bytes = Vec::new();
         let mut writer =
@@ -140,7 +141,6 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     }
 
     /// Write record batches to JSON
-    #[instrument(level = "trace")]
     fn to_json_object(&self) -> Result<Vec<Map<String, Value>>> {
         let buf = Vec::new();
         let mut writer = ArrayWriter::new(buf);
@@ -227,6 +227,71 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>()
+    }
+
+    /// Get a column as a vector of strings
+    fn get_column_as_vec_string(&self, column_name: &str) -> Result<Option<Vec<String>>> {
+        match self.get_column_data_type(column_name)? {
+            DataType::Utf8 => {
+                let vec_str = self
+                    .get_record_batches()
+                    .iter()
+                    .flat_map(|batch| {
+                        batch
+                            .column_by_name(column_name)
+                            .unwrap()
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| s.unwrap_or_default().to_string())
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                Ok(Some(vec_str))
+            }
+            DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64
+            | DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64
+            | DataType::Float32
+            | DataType::Float64
+            | DataType::Boolean
+            | DataType::Null => {
+                // Cast the column to a String
+                let arr = cast(&self.get_column_as_array(column_name), &DataType::Utf8)?;
+                let vec_str = arr
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap_or_default().to_string())
+                    .collect::<Vec<_>>();
+                Ok(Some(vec_str))
+            }
+            DataType::List(_) | DataType::FixedSizeList(_, _) => {
+                // Convert the column to JSON
+                let arr = self.get_column_as_array(column_name);
+                let batch = RecordBatch::try_from_iter(vec![(column_name, arr)])?;
+                let buf = Vec::new();
+                let mut writer = ArrayWriter::new(buf);
+                writer.write(&batch)?;
+                writer.finish()?;
+                let json_data = writer.into_inner();
+                let json_rows: Vec<Map<String, Value>> =
+                    serde_json::from_reader(json_data.as_slice())?;
+                let vec_str = json_rows
+                    .into_iter()
+                    .map(|m| serde_json::to_string(m.get(column_name).unwrap()).unwrap())
+                    .collect::<Vec<_>>();
+                Ok(Some(vec_str))
+            }
+            _ => Ok(None),
+        }
     }
 
     /// Get the type of the column
@@ -845,7 +910,6 @@ impl TableBuilderTrait for TableBuilder {
         }
     }
 
-    #[instrument(level = "trace")]
     fn with_csv_file(
         mut self,
         mut file: &File,
@@ -899,7 +963,6 @@ impl TableBuilderTrait for TableBuilder {
             .with_record_batches(record_batches)
     }
 
-    #[instrument(level = "trace")]
     fn with_json(mut self, bytes: &[u8], batch_size: usize) -> Result<Self> {
         let mut cursor = Cursor::new(bytes);
 
@@ -914,7 +977,18 @@ impl TableBuilderTrait for TableBuilder {
                 // Change nullable = true to false
                 let mut fields = Vec::new();
                 for field in schema.fields() {
-                    fields.push(Field::new(field.name(), field.data_type().clone(), false));
+                    let data_type = match field.data_type() {
+                        DataType::FixedSizeList(f, s) => DataType::FixedSizeList(
+                            Arc::new(Field::new_list_field(f.data_type().clone(), false)),
+                            *s,
+                        ),
+                        DataType::List(f) => DataType::List(Arc::new(Field::new_list_field(
+                            f.data_type().clone(),
+                            false,
+                        ))),
+                        _ => field.data_type().clone(),
+                    };
+                    fields.push(Field::new(field.name(), data_type, false));
                 }
 
                 // Make the Schema
@@ -959,7 +1033,18 @@ impl TableBuilderTrait for TableBuilder {
                 // Change nullable = true to false
                 let mut fields = Vec::new();
                 for field in schema.fields() {
-                    fields.push(Field::new(field.name(), field.data_type().clone(), false));
+                    let data_type = match field.data_type() {
+                        DataType::FixedSizeList(f, s) => DataType::FixedSizeList(
+                            Arc::new(Field::new_list_field(f.data_type().clone(), false)),
+                            *s,
+                        ),
+                        DataType::List(f) => DataType::List(Arc::new(Field::new_list_field(
+                            f.data_type().clone(),
+                            false,
+                        ))),
+                        _ => field.data_type().clone(),
+                    };
+                    fields.push(Field::new(field.name(), data_type, false));
                 }
 
                 // Make the Schema
@@ -1213,6 +1298,25 @@ impl TableBuilderTrait for TableBuilder {
                                     }
                                 }
                                 list_builder.values().append_slice(&values);
+                                list_builder.append(true);
+                            }
+                        }
+                        let array_ref: ArrayRef = Arc::new(list_builder.finish());
+                        batch_vec.push((field.name(), array_ref));
+                    }
+                    DataType::Utf8 => {
+                        let value_builder = StringBuilder::new();
+                        let mut list_builder = ListBuilder::new(value_builder)
+                            .with_field(Field::new_list_field(DataType::Utf8, false));
+                        for value in json_values {
+                            if let Value::Object(map) = value
+                                && let Some(Value::Array(val)) = map.get(field.name())
+                            {
+                                for v in val {
+                                    if let Value::String(str) = v {
+                                        list_builder.values().append_value(str);
+                                    }
+                                }
                                 list_builder.append(true);
                             }
                         }

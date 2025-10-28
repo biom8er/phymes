@@ -43,9 +43,9 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     let ops_configs_vec = [
         DataConfig {
             operator: AvailableCandleOperators::VectorDistance,
-            lhs_pk: "id".to_string(),
-            lhs_fk: "title".to_string(),
-            lhs_values: vec!["embedding".to_string()],
+            lhs_pk: Some("id".to_string()),
+            lhs_fk: Some("title".to_string()),
+            lhs_values: Some(vec!["embedding".to_string()]),
             rhs_pk: Some("id".to_string()),
             rhs_fk: Some("title".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),
@@ -53,9 +53,9 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         },
         DataConfig {
             operator: AvailableCandleOperators::SortColumnAndIndices,
-            lhs_pk: "id".to_string(),
-            lhs_fk: "title".to_string(),
-            lhs_values: vec!["score".to_string()],
+            lhs_pk: Some("id".to_string()),
+            lhs_fk: Some("title".to_string()),
+            lhs_values: Some(vec!["score".to_string()]),
             rhs_pk: Some("id".to_string()),
             rhs_fk: Some("title".to_string()),
             rhs_values: Some(vec!["score".to_string()]),
@@ -64,8 +64,8 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         },
         // DataConfig {
         //     which: WhichCandleOperator::ChunkDocuments,
-        //     lhs_pk: "id".to_string(),
-        //     lhs_fk: "title".to_string(),
+        //     lhs_pk: Some("id".to_string()),
+        //     lhs_fk: Some("title".to_string()),
         //     lhs_values: vec!["text".to_string()],
         //     rhs_pk: Some("id".to_string()),
         //     rhs_fk: Some("title".to_string()),
@@ -76,17 +76,16 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         // },
         DataConfig {
             operator: AvailableCandleOperators::JoinInner,
-            lhs_pk: "title".to_string(),
-            lhs_fk: "id".to_string(),
+            lhs_pk: Some("title".to_string()),
+            lhs_values: Some(vec!["score".to_string()]),
             rhs_pk: Some("title".to_string()),
             rhs_fk: Some("id".to_string()),
             ..Default::default()
         },
         DataConfig {
             operator: AvailableCandleOperators::GroupByAndAggregate,
-            lhs_pk: "id".to_string(),
-            lhs_fk: "id".to_string(),
-            lhs_values: vec!["title".to_string(), "collection".to_string()],
+            lhs_pk: Some("id".to_string()),
+            lhs_values: Some(vec!["title".to_string(), "collection".to_string()]),
             agg_columns: Some(vec![
                 "id".to_string(),
                 "text".to_string(),
@@ -101,8 +100,8 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         },
         DataConfig {
             operator: AvailableCandleOperators::FilterColumnsAndIndices,
-            lhs_pk: "id".to_string(),
-            lhs_values: vec!["title".to_string(), "id".to_string()],
+            lhs_pk: Some("id".to_string()),
+            lhs_values: Some(vec!["title".to_string(), "id".to_string()]),
             cmp_columns: Some(vec!["title".to_string(), "id".to_string()]),
             cmp_operators: Some(vec![
                 DataComparatorOperator::Like,
@@ -148,7 +147,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                 // Update the config
                 let mut config = config.clone();
                 config.stream = stream.to_owned();
-                config.lhs_name = lhs_name.to_owned();
+                config.lhs_name = Some(lhs_name.to_owned());
                 config.rhs_name = Some(rhs_name.to_owned());
 
                 // Create a unique identifier for the benchmark

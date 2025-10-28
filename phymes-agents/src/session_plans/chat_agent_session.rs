@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, ProcessorEcho,
+    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuilderTrait,
     ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder,
     TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
 };
@@ -77,11 +77,6 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                 task_name: self.chat_task_name.to_string(),
                 runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.chat_processor_name.to_string()],
-            },
-            TaskPlan {
-                task_name: self.session_context_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.session_context_name.to_string()],
             },
         ];
 
@@ -166,21 +161,6 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                 AllTableNamesSubscribe::new_box(),
             ));
         }
-        processors.push(ProcessorEcho::new_arc_with_pub_sub(
-            self.session_context_name,
-            &[
-                TablePublish::Extend {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TablePublish::Extend {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-            ],
-            &[TableSubscribe::OnUpdateLastRecordBatch {
-                table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-            }],
-            AllTableNamesSubscribe::new_box(),
-        ));
 
         Some(processors)
     }
@@ -189,7 +169,6 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         Some(vec![
             RuntimeEnv::new().with_name(self.chat_runtime_env_name),
             RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
-            RuntimeEnv::new().with_name("rt_default"),
         ])
     }
 
@@ -256,10 +235,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
 
         // Message aggregator config
         let aggregator_config = DataConfig {
-            lhs_name: "".to_string(),
-            lhs_pk: "".to_string(),
-            lhs_fk: "".to_string(),
-            lhs_values: vec!["timestamp".to_string()],
+            lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
             operator: AvailableCandleOperators::SortColumnAndIndices,
             ..Default::default()
@@ -322,6 +298,7 @@ mod tests {
         let session_ctx = chat_agent_session
             .build()
             .with_name(chat_agent_session.session_context_name)
+            .add_session_interface(None)?
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
@@ -356,15 +333,17 @@ mod tests {
 
             // Update the chat history with the response
             let bytes = response
-                .last_mut()
-                .unwrap()
-                .remove(&format!(
-                    "from_{}_on_{}",
-                    chat_agent_session.session_context_name,
-                    AvailableInterfaceSubjects::AssistantMessages
-                ))
-                .unwrap()
-                .get_message_own();
+                .iter_mut()
+                .filter_map(|map| {
+                    map.remove(&format!(
+                        "from_{}_on_{}",
+                        chat_agent_session.session_context_name,
+                        AvailableInterfaceSubjects::AssistantMessages
+                    ))
+                    .map(|v| v.get_message_own())
+                })
+                .flatten()
+                .collect::<Vec<_>>();
             let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
@@ -417,15 +396,17 @@ mod tests {
 
             // Update the chat history with the response
             let bytes = response
-                .last_mut()
-                .unwrap()
-                .remove(&format!(
-                    "from_{}_on_{}",
-                    chat_agent_session.session_context_name,
-                    AvailableInterfaceSubjects::AssistantMessages
-                ))
-                .unwrap()
-                .get_message_own();
+                .iter_mut()
+                .filter_map(|map| {
+                    map.remove(&format!(
+                        "from_{}_on_{}",
+                        chat_agent_session.session_context_name,
+                        AvailableInterfaceSubjects::AssistantMessages
+                    ))
+                    .map(|v| v.get_message_own())
+                })
+                .flatten()
+                .collect::<Vec<_>>();
             let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
