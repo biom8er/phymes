@@ -8,12 +8,7 @@ use phymes_agents::{
     SessionContextBuilderMermaidTrait, create_message_map,
 };
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait,
-    IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, JsonFormat,
-    MappableTrait, MessageBuilderTrait, MessageTrait, SessionContextBuilder, SessionStream,
-    SessionStreamState, Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait,
-    UserSubject, create_session_mermaid_batch, create_user_inbox_batch,
-    create_user_session_contexts_batch,
+    create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch, AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, JsonFormat, MappableTrait, MessageBuilderTrait, MessageTrait, SessionContextBuilder, SessionContextBuilderTrait, SessionStream, SessionStreamState, Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait, UserSubject
 };
 use phymes_diagnostics::HashMap;
 
@@ -325,6 +320,7 @@ impl ServerState {
                     )?
                     .add_processor_subjects()?
                     .add_session_interface(None)?
+                    .with_diagnostics(true)
                     .build_with_tables()?;
                     let session_stream_state =
                         Arc::new(RwLock::new(SessionStreamState::new(session_context)));

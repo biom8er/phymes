@@ -49,7 +49,10 @@ pub trait SessionContextBuilderTabularTrait {
     ) -> Result<(Vec<Table>, Option<Vec<Table>>)>;
 
     /// Get the subjects in tabular form
-    fn get_subjects_as_table(&self) -> Result<Table>;
+    /// 
+    /// # Arguments
+    /// * `additional_tables` - Additional tables to include in addition to what is in the state
+    fn get_subjects_as_table(&self, additional_tables: &[Table]) -> Result<Table>;
 
     /// Get the tasks in tabular form
     fn get_tasks_as_table(&self) -> Result<Table>;
@@ -109,7 +112,6 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         include_errors: bool,
         include_diagnostics: bool,
     ) -> Result<(Vec<Table>, Option<Vec<Table>>)> {
-        // Add the tables first so that they are also added to the subjects table
         let mut tables = Vec::new();
         if include_mermaid {
             tables.push(self.get_mermaid_js_as_table()?);
@@ -123,7 +125,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             tables.push(AvailableSubjects::SessionEvents.to_table(None, None)?);
         }
         tables.extend([
-            self.get_subjects_as_table()?,
+            self.get_subjects_as_table(&tables)?,
             self.get_tasks_as_table()?,
             self.get_processors_as_table()?,
             self.get_runtime_envs_as_table()?,
@@ -181,7 +183,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
     }
 
-    fn get_subjects_as_table(&self) -> Result<Table> {
+    fn get_subjects_as_table(&self, additional_tables: &[Table]) -> Result<Table> {
         // Check that the state exists
         if self.state.is_none() {
             return Err(anyhow!(
@@ -194,7 +196,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let mut type_names = Vec::new();
 
         // Sort the hashmap
-        let mut sorted_state = self.state.as_ref().unwrap().iter().collect::<Vec<_>>();
+        let mut sorted_state = self.state.as_ref().unwrap().iter().chain(additional_tables).collect::<Vec<_>>();
         sorted_state.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         for subject in sorted_state.iter() {
             let fields = subject.get_schema().fields().clone();
@@ -622,7 +624,7 @@ mod tests {
         let (tables_test, _state_test) =
             SessionContextBuilder::from_arrow_tables(&tables.iter().collect::<Vec<_>>(), state)?
                 .with_name("")
-                .to_arrow_tables(false, true, true, true)?;
+                .to_arrow_tables(false, false, false, false)?;
 
         // Check the tables
         assert_eq!(
