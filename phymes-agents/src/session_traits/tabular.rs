@@ -34,6 +34,8 @@ pub trait SessionContextBuilderTabularTrait {
     ///
     /// * `include_subjects` - whether to include the subject data or not
     /// * `include_mermaid` - whether to include the mermaid flowchart and erDiagrams or not
+    /// * `include_errors` - whether to include the errors table or not
+    /// * `include_diagnostics` - whether to include the diagnostics tables or not
     ///
     /// # Returns
     ///
@@ -43,6 +45,7 @@ pub trait SessionContextBuilderTabularTrait {
         include_subjects: bool,
         include_mermaid: bool,
         include_errors: bool,
+        include_diagnostics: bool,
     ) -> Result<(Vec<Table>, Option<Vec<Table>>)>;
 
     /// Get the subjects in tabular form
@@ -104,19 +107,27 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         include_subjects: bool,
         include_mermaid: bool,
         include_errors: bool,
+        include_diagnostics: bool,
     ) -> Result<(Vec<Table>, Option<Vec<Table>>)> {
-        let mut tables = vec![
-            self.get_subjects_as_table()?,
-            self.get_tasks_as_table()?,
-            self.get_processors_as_table()?,
-            self.get_runtime_envs_as_table()?,
-        ];
+        // Add the tables first so that they are also added to the subjects table
+        let mut tables = Vec::new();
         if include_mermaid {
             tables.push(self.get_mermaid_js_as_table()?);
         }
         if include_errors {
             tables.push(AvailableSubjects::SessionErrors.to_table(None, None)?);
         }
+        if include_diagnostics {
+            tables.push(AvailableSubjects::SessionMetrics.to_table(None, None)?);
+            tables.push(AvailableSubjects::SessionTraces.to_table(None, None)?);
+            tables.push(AvailableSubjects::SessionEvents.to_table(None, None)?);
+        }
+        tables.extend([
+            self.get_subjects_as_table()?,
+            self.get_tasks_as_table()?,
+            self.get_processors_as_table()?,
+            self.get_runtime_envs_as_table()?,
+        ]);
         let state = if include_subjects {
             self.state.clone()
         } else {
@@ -567,39 +578,51 @@ mod tests {
             .with_state(state);
 
         // Test to tables
-        let (tables, state) = builder.to_arrow_tables(false, true, true)?;
+        let (tables, state) = builder.to_arrow_tables(false, true, true, true)?;
 
         // Check the tables
         assert_eq!(
             tables.first().unwrap().get_name(),
-            AvailableSubjects::SessionSubjects.to_string().as_str()
-        );
-        assert_eq!(
-            tables.get(1).unwrap().get_name(),
-            AvailableSubjects::SessionTasks.to_string().as_str()
-        );
-        assert_eq!(
-            tables.get(2).unwrap().get_name(),
-            AvailableSubjects::SessionProcessors.to_string().as_str()
-        );
-        assert_eq!(
-            tables.get(3).unwrap().get_name(),
-            AvailableSubjects::SessionRuntimeEnvs.to_string().as_str()
-        );
-        assert_eq!(
-            tables.get(4).unwrap().get_name(),
             AvailableSubjects::SessionMermaid.to_string().as_str()
         );
         assert_eq!(
-            tables.get(5).unwrap().get_name(),
+            tables.get(1).unwrap().get_name(),
             AvailableSubjects::SessionErrors.to_string().as_str()
+        );
+        assert_eq!(
+            tables.get(2).unwrap().get_name(),
+            AvailableSubjects::SessionMetrics.to_string().as_str()
+        );
+        assert_eq!(
+            tables.get(3).unwrap().get_name(),
+            AvailableSubjects::SessionTraces.to_string().as_str()
+        );
+        assert_eq!(
+            tables.get(4).unwrap().get_name(),
+            AvailableSubjects::SessionEvents.to_string().as_str()
+        );
+        assert_eq!(
+            tables.get(5).unwrap().get_name(),
+            AvailableSubjects::SessionSubjects.to_string().as_str()
+        );
+        assert_eq!(
+            tables.get(6).unwrap().get_name(),
+            AvailableSubjects::SessionTasks.to_string().as_str()
+        );
+        assert_eq!(
+            tables.get(7).unwrap().get_name(),
+            AvailableSubjects::SessionProcessors.to_string().as_str()
+        );
+        assert_eq!(
+            tables.get(8).unwrap().get_name(),
+            AvailableSubjects::SessionRuntimeEnvs.to_string().as_str()
         );
 
         // Test from tables
         let (tables_test, _state_test) =
             SessionContextBuilder::from_arrow_tables(&tables.iter().collect::<Vec<_>>(), state)?
                 .with_name("")
-                .to_arrow_tables(false, true, true)?;
+                .to_arrow_tables(false, true, true, true)?;
 
         // Check the tables
         assert_eq!(
@@ -610,25 +633,245 @@ mod tests {
             tables_test
                 .first()
                 .unwrap()
-                .get_column_as_vec_str("subject_name"),
+                .get_column_as_vec_str("session_context_name"),
             tables
                 .first()
+                .unwrap()
+                .get_column_as_vec_str("session_context_name")
+        );
+        assert_eq!(
+            tables_test
+                .first()
+                .unwrap()
+                .get_column_as_vec_str("flowchart_diagram"),
+            tables
+                .first()
+                .unwrap()
+                .get_column_as_vec_str("flowchart_diagram")
+        );
+        assert_eq!(
+            tables_test
+                .first()
+                .unwrap()
+                .get_column_as_vec_str("er_diagram"),
+            tables.first().unwrap().get_column_as_vec_str("er_diagram")
+        );
+        assert_eq!(
+            tables_test.get(1).unwrap().get_name(),
+            tables.get(1).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test.get(1).unwrap().get_column_as_vec_str("error"),
+            tables.get(1).unwrap().get_column_as_vec_str("error")
+        );
+
+        assert_eq!(
+            tables_test.get(2).unwrap().get_name(),
+            tables.get(2).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_str("metric_name"),
+            tables.get(2).unwrap().get_column_as_vec_str("metric_name")
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_primitive::<i64>("metric_value")?,
+            tables.get(2).unwrap().get_column_as_vec_primitive::<i64>("metric_value")?
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_str("labels"),
+            tables.get(2).unwrap().get_column_as_vec_str("labels")
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_primitive::<i64>("id")?,
+            tables.get(2).unwrap().get_column_as_vec_primitive::<i64>("id")?
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_str("span_name"),
+            tables.get(2).unwrap().get_column_as_vec_str("span_name")
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_str("parent_name"),
+            tables.get(2).unwrap().get_column_as_vec_str("parent_name")
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_primitive::<i64>("span_id")?,
+            tables.get(2).unwrap().get_column_as_vec_primitive::<i64>("span_id")?
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_primitive::<i64>("parent_id")?,
+            tables.get(2).unwrap().get_column_as_vec_primitive::<i64>("parent_id")?
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_str("file"),
+            tables.get(2).unwrap().get_column_as_vec_str("file")
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_str("thread"),
+            tables.get(2).unwrap().get_column_as_vec_str("thread")
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_str("function"),
+            tables.get(2).unwrap().get_column_as_vec_str("function")
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_primitive::<u32>("line")?,
+            tables.get(2).unwrap().get_column_as_vec_primitive::<u32>("line")?
+        );
+        assert_eq!(
+            tables_test.get(2).unwrap().get_column_as_vec_primitive::<i64>("timestamp")?,
+            tables.get(2).unwrap().get_column_as_vec_primitive::<i64>("timestamp")?
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_name(),
+            tables.get(3).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_str("tracer_type"),
+            tables.get(3).unwrap().get_column_as_vec_str("tracer_type")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_str("tracer_event"),
+            tables.get(3).unwrap().get_column_as_vec_str("tracer_event")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_str("message_name"),
+            tables.get(3).unwrap().get_column_as_vec_str("message_name")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_str("subject_name"),
+            tables.get(3).unwrap().get_column_as_vec_str("subject_name")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_str("labels"),
+            tables.get(3).unwrap().get_column_as_vec_str("labels")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_primitive::<i64>("id")?,
+            tables.get(3).unwrap().get_column_as_vec_primitive::<i64>("id")?
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_str("span_name"),
+            tables.get(3).unwrap().get_column_as_vec_str("span_name")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_str("parent_name"),
+            tables.get(3).unwrap().get_column_as_vec_str("parent_name")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_primitive::<i64>("span_id")?,
+            tables.get(3).unwrap().get_column_as_vec_primitive::<i64>("span_id")?
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_primitive::<i64>("parent_id")?,
+            tables.get(3).unwrap().get_column_as_vec_primitive::<i64>("parent_id")?
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_str("file"),
+            tables.get(3).unwrap().get_column_as_vec_str("file")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_str("thread"),
+            tables.get(3).unwrap().get_column_as_vec_str("thread")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_str("function"),
+            tables.get(3).unwrap().get_column_as_vec_str("function")
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_primitive::<u32>("line")?,
+            tables.get(3).unwrap().get_column_as_vec_primitive::<u32>("line")?
+        );
+        assert_eq!(
+            tables_test.get(3).unwrap().get_column_as_vec_primitive::<i64>("timestamp")?,
+            tables.get(3).unwrap().get_column_as_vec_primitive::<i64>("timestamp")?
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_name(),
+            tables.get(4).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_str("event_level"),
+            tables.get(4).unwrap().get_column_as_vec_str("event_level")
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_str("record_name"),
+            tables.get(4).unwrap().get_column_as_vec_str("record_name")
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_str("record_value"),
+            tables.get(4).unwrap().get_column_as_vec_str("record_value")
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_str("labels"),
+            tables.get(4).unwrap().get_column_as_vec_str("labels")
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_primitive::<i64>("id")?,
+            tables.get(4).unwrap().get_column_as_vec_primitive::<i64>("id")?
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_str("span_name"),
+            tables.get(4).unwrap().get_column_as_vec_str("span_name")
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_str("parent_name"),
+            tables.get(4).unwrap().get_column_as_vec_str("parent_name")
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_primitive::<i64>("span_id")?,
+            tables.get(4).unwrap().get_column_as_vec_primitive::<i64>("span_id")?
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_primitive::<i64>("parent_id")?,
+            tables.get(4).unwrap().get_column_as_vec_primitive::<i64>("parent_id")?
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_str("file"),
+            tables.get(4).unwrap().get_column_as_vec_str("file")
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_str("thread"),
+            tables.get(4).unwrap().get_column_as_vec_str("thread")
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_str("function"),
+            tables.get(4).unwrap().get_column_as_vec_str("function")
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_primitive::<u32>("line")?,
+            tables.get(4).unwrap().get_column_as_vec_primitive::<u32>("line")?
+        );
+        assert_eq!(
+            tables_test.get(4).unwrap().get_column_as_vec_primitive::<i64>("timestamp")?,
+            tables.get(4).unwrap().get_column_as_vec_primitive::<i64>("timestamp")?
+        );
+        assert_eq!(
+            tables_test.get(5).unwrap().get_name(),
+            tables.get(5).unwrap().get_name()
+        );
+        assert_eq!(
+            tables_test
+                .get(5)
+                .unwrap()
+                .get_column_as_vec_str("subject_name"),
+            tables
+                .get(5)
                 .unwrap()
                 .get_column_as_vec_str("subject_name")
         );
         assert_eq!(
             tables_test
-                .first()
+                .get(5)
                 .unwrap()
                 .get_column_as_vec_str("column_name"),
-            tables.first().unwrap().get_column_as_vec_str("column_name")
+            tables.get(5).unwrap().get_column_as_vec_str("column_name")
         );
         assert_eq!(
             tables_test
-                .first()
+                .get(5)
                 .unwrap()
                 .get_column_as_vec_str("type_name"),
-            tables.first().unwrap().get_column_as_vec_str("type_name")
+            tables.get(5).unwrap().get_column_as_vec_str("type_name")
         );
         assert_eq!(
             tables_test.get(1).unwrap().get_name(),
@@ -636,167 +879,128 @@ mod tests {
         );
         assert_eq!(
             tables_test
-                .get(1)
+                .get(6)
                 .unwrap()
                 .get_column_as_vec_str("task_name"),
-            tables.get(1).unwrap().get_column_as_vec_str("task_name")
+            tables.get(6).unwrap().get_column_as_vec_str("task_name")
         );
         assert_eq!(
             tables_test
-                .get(1)
+                .get(6)
                 .unwrap()
                 .get_column_as_vec_str("processor_name"),
             tables
-                .get(1)
+                .get(6)
                 .unwrap()
                 .get_column_as_vec_str("processor_name")
         );
         assert_eq!(
             tables_test
-                .get(1)
+                .get(6)
                 .unwrap()
                 .get_column_as_vec_str("runtime_env_name"),
             tables
-                .get(1)
+                .get(6)
                 .unwrap()
                 .get_column_as_vec_str("runtime_env_name")
         );
         assert_eq!(
-            tables_test.get(2).unwrap().get_name(),
-            tables.get(2).unwrap().get_name()
+            tables_test.get(7).unwrap().get_name(),
+            tables.get(7).unwrap().get_name()
         );
         assert_eq!(
             tables_test
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_str("processor_name"),
             tables
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_str("processor_name")
         );
         assert_eq!(
             tables_test
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_str("processor_type"),
             tables
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_str("processor_type")
         );
         assert_eq!(
             tables_test
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_str("publication_subscription_name"),
             tables
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_str("publication_subscription_name")
         );
         assert_eq!(
             tables_test
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_str("publication_subscription_table_names"),
             tables
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_str("publication_subscription_table_names")
         );
         assert_eq!(
             tables_test
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_primitive::<u8>("is_subscription")?,
             tables
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_primitive::<u8>("is_subscription")?
         );
         assert_eq!(
             tables_test
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_str("subscribe_type"),
             tables
-                .get(2)
+                .get(7)
                 .unwrap()
                 .get_column_as_vec_str("subscribe_type")
         );
         assert_eq!(
-            tables_test.get(3).unwrap().get_name(),
-            tables.get(3).unwrap().get_name()
+            tables_test.get(8).unwrap().get_name(),
+            tables.get(8).unwrap().get_name()
         );
         assert_eq!(
             tables_test
-                .get(3)
+                .get(8)
                 .unwrap()
                 .get_column_as_vec_str("runtime_env_name"),
             tables
-                .get(3)
+                .get(8)
                 .unwrap()
                 .get_column_as_vec_str("runtime_env_name")
         );
         assert_eq!(
             tables_test
-                .get(3)
+                .get(8)
                 .unwrap()
                 .get_column_as_vec_primitive::<u32>("memory_limit")?,
             tables
-                .get(3)
+                .get(8)
                 .unwrap()
                 .get_column_as_vec_primitive::<u32>("memory_limit")?
         );
         assert_eq!(
             tables_test
-                .get(3)
+                .get(8)
                 .unwrap()
                 .get_column_as_vec_primitive::<u32>("time_limit")?,
             tables
-                .get(3)
+                .get(8)
                 .unwrap()
                 .get_column_as_vec_primitive::<u32>("time_limit")?
-        );
-        assert_eq!(
-            tables_test.get(4).unwrap().get_name(),
-            tables.get(4).unwrap().get_name()
-        );
-        assert_eq!(
-            tables_test
-                .get(4)
-                .unwrap()
-                .get_column_as_vec_str("session_context_name"),
-            tables
-                .get(4)
-                .unwrap()
-                .get_column_as_vec_str("session_context_name")
-        );
-        assert_eq!(
-            tables_test
-                .get(4)
-                .unwrap()
-                .get_column_as_vec_str("flowchart_diagram"),
-            tables
-                .get(4)
-                .unwrap()
-                .get_column_as_vec_str("flowchart_diagram")
-        );
-        assert_eq!(
-            tables_test
-                .get(4)
-                .unwrap()
-                .get_column_as_vec_str("er_diagram"),
-            tables.get(4).unwrap().get_column_as_vec_str("er_diagram")
-        );
-        assert_eq!(
-            tables_test.get(5).unwrap().get_name(),
-            tables.get(5).unwrap().get_name()
-        );
-        assert_eq!(
-            tables_test.get(5).unwrap().get_column_as_vec_str("error"),
-            tables.get(5).unwrap().get_column_as_vec_str("error")
         );
 
         Ok(())

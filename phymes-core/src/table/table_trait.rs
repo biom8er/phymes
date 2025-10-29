@@ -956,7 +956,10 @@ impl TableBuilderTrait for TableBuilder {
         }
         let schema = match record_batches.first() {
             Some(batch) => batch.schema(),
-            None => return Err(anyhow!("Failed to read the IPC stream.")),
+            None => {
+                dbg!(bytes);
+                return Err(anyhow!("Failed to read the IPC stream."))
+            },
         };
         Self::new()
             .with_schema(schema.clone())

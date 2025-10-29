@@ -467,6 +467,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         while iter < flowchart_lines.len() {
             // Check the chart type
             if flowchart_lines.get(iter).unwrap().contains("flowchart") {
+                
+            // Ignore blank lines and comments
+            } else if flowchart_lines.get(iter).unwrap().trim().is_empty() 
+            || flowchart_lines.get(iter).unwrap().trim().starts_with("%%") {
 
                 // Task section
             } else if flowchart_lines.get(iter).unwrap().contains("subgraph") {

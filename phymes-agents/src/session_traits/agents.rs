@@ -92,7 +92,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         ))
     }
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
-        let (tables, _state) = self.to_arrow_tables(false, true, true)?;
+        let (tables, _state) = self.to_arrow_tables(false, true, true, true)?;
         let (name, tasks, state, runtime_envs, max_iter, diagnostics) = self.build_inner()?;
         Ok((
             name,
@@ -615,7 +615,7 @@ mod tests {
     fn test_build_with_tables_success() -> Result<()> {
         let session = test_session_context_builder_agents::make_test_session_builder_agents()?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 13);
+        assert_eq!(session.get_states().len(), 16);
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session");
         assert_eq!(session.get_max_iter(), 25);
@@ -628,7 +628,7 @@ mod tests {
         let session = test_session_context_builder_agents::make_test_session_builder_agents()?
             .add_session_interface(Some(&["state_1"]))?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 13);
+        assert_eq!(session.get_states().len(), 16);
         assert_eq!(session.get_tasks().len(), 5);
         assert_eq!(
             session.get_tasks().get("session").unwrap().get_name(),
@@ -699,7 +699,7 @@ mod tests {
             .with_state(state)
             .add_processor_subjects()?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 16);
+        assert_eq!(session.get_states().len(), 19);
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session");
         assert_eq!(session.get_max_iter(), 25);
