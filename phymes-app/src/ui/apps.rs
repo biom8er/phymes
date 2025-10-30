@@ -460,7 +460,7 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
 
     // Add pan and zoom to the svg
     use_effect(move || {
-        let _ = diagram_svg(); // needed to triger the effect
+        let _ = diagram_svg(); // needed to trigger the effect
         document::eval(
             format!(
                 r#"
@@ -491,6 +491,9 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
         if let Some(error_ctxb) = diagram_code().1 {
             p { "{error_ctxb}" },
         }
+        // if !diagram_svg().is_empty() {
+        //     p { "{diagram_svg}" }
+        // }
         if !diagram_svg().is_empty() {
             mermaid_div { diagram_svg }
         }

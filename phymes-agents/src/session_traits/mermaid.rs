@@ -455,10 +455,17 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             }
         };
 
+        let is_first_line = |line: &str| -> bool {
+            match line.trim().split_whitespace().next() {
+                Some(line) => line == "flowchart",
+                None => false,
+            }
+        };
+
         // Parse the mermaid.js flowchart string
         let flowchart_lines = flowchart.split("\n").collect::<Vec<_>>();
         let mut iter = 0;
-        if !flowchart_lines.first().unwrap().contains("flowchart") {
+        if !is_first_line(flowchart_lines.first().unwrap()) {
             return Err(anyhow!(
                 "Parsing Error on line {iter}: {}. Unrecognized mermaid.js flowchart type",
                 flowchart_lines.get(iter).unwrap()
@@ -466,7 +473,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
         while iter < flowchart_lines.len() {
             // Check the chart type
-            if flowchart_lines.get(iter).unwrap().contains("flowchart") {
+            if is_first_line(flowchart_lines.get(iter).unwrap()) {
                 
             // Ignore blank lines and comments
             } else if flowchart_lines.get(iter).unwrap().trim().is_empty() 
@@ -1044,11 +1051,20 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
         // Build the task plans in order
         let mut task_plans = Vec::new();
+        let tasks_names_set = task_names_vec.clone().into_iter().collect::<HashSet<_>>();
         if task_names_vec.len() != task_names.len()
-            || task_names_vec.clone().into_iter().collect::<HashSet<_>>() != task_names
+            || tasks_names_set != task_names
         {
+            let mut task_names_set_sorted = tasks_names_set
+                .into_iter()
+                .collect::<Vec<_>>();
+            task_names_set_sorted.sort();
+            let mut task_names_sorted = task_names
+                .into_iter()
+                .collect::<Vec<_>>();
+            task_names_sorted.sort();
             return Err(anyhow!(
-                "There is an inconsistency in the task labels {task_names_vec:?} and task mentions {task_names:?}"
+                "There is an inconsistency in the task labels {task_names_set_sorted:?} and task mentions {task_names_sorted:?}"
             ));
         }
         for name in task_names_vec {
@@ -1058,15 +1074,20 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
         // Build the runtime environments in order
         let mut runtime_envs = Vec::new();
+        let mut runtime_env_names_set = runtime_env_names_vec.clone().into_iter().collect::<HashSet<_>>();
         if runtime_env_names_vec.len() != runtime_envs_names.len()
-            || runtime_env_names_vec
-                .clone()
-                .into_iter()
-                .collect::<HashSet<_>>()
-                != runtime_envs_names
+            || runtime_env_names_set != runtime_envs_names
         {
+            let mut runtime_env_names_set_sorted = runtime_env_names_set
+                .into_iter()
+                .collect::<Vec<_>>();
+            runtime_env_names_set_sorted.sort();
+            let mut runtime_envs_names_sorted = runtime_envs_names
+                .into_iter()
+                .collect::<Vec<_>>();
+            runtime_envs_names_sorted.sort();
             return Err(anyhow!(
-                "There is an inconsistency in the runtime environment labels {runtime_env_names_vec:?} and runtime environment mentions {runtime_envs_names:?}"
+                "There is an inconsistency in the runtime environment labels {runtime_env_names_set_sorted:?} and runtime environment mentions {runtime_envs_names_sorted:?}"
             ));
         }
         for name in runtime_env_names_vec {
@@ -1164,7 +1185,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             {
 
                 // Subject section
-            } else if erdiagram_lines.get(iter).unwrap().contains("{") {
+            } else if erdiagram_lines.get(iter).unwrap().contains("{")
+            && erdiagram_lines.get(iter).unwrap().contains("[\"")
+            && erdiagram_lines.get(iter).unwrap().contains("\"]") {
                 // Extract the subject name
                 let subject_name = extract_tool_calls_str(
                     erdiagram_lines.get(iter).unwrap(),
