@@ -18,7 +18,7 @@ use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait
 };
 use std::{
     pin::Pin,
@@ -281,6 +281,13 @@ impl Stream for CandleDataStream {
                     serde_json::from_value(config_values.get("arguments").unwrap().clone())?;
                 self.config.replace(config);
             } else {
+                if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                    let event = diagnostic_builder
+                        .clone()
+                        .to_child("CandleDataStream")?
+                        .debug(line!(), file!(), "poll_next");
+                    event.insert("config", &serde_json::Value::String(format!("{:?}", &batches)));
+                };
                 let config_table = TableBuilder::new()
                     .with_name("config")
                     .with_record_batches(batches)?
@@ -291,6 +298,13 @@ impl Stream for CandleDataStream {
                 self.config.replace(config);
             }
         }
+        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            let event = diagnostic_builder
+                .clone()
+                .to_child("CandleDataStream")?
+                .debug(line!(), file!(), "poll_next");
+            event.insert("config", &serde_json::Value::String(format!("{:?}", &self.config)));
+        };
 
         // Build the data operator
         if self.data_operator.is_none() {
@@ -344,6 +358,13 @@ impl Stream for CandleDataStream {
             };
             self.lhs_inbox = lhs;
         };
+        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            let event = diagnostic_builder
+                .clone()
+                .to_child("CandleDataStream")?
+                .debug(line!(), file!(), "poll_next");
+            event.insert("lhs_inbox", &serde_json::Value::String(format!("{:?}", &self.lhs_inbox)));
+        };
 
         // Collect the RHS document chunks
         if self.rhs_inbox.is_empty() && self.config.as_ref().unwrap().rhs_name.is_some() {
@@ -393,6 +414,13 @@ impl Stream for CandleDataStream {
             };
             self.rhs_inbox = rhs;
         }
+        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            let event = diagnostic_builder
+                .clone()
+                .to_child("CandleDataStream")?
+                .debug(line!(), file!(), "poll_next");
+            event.insert("rhs_inbox", &serde_json::Value::String(format!("{:?}", &self.rhs_inbox)));
+        };
 
         // Compute the data operator
         self.init_tensor_service()?;

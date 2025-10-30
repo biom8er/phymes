@@ -1055,16 +1055,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         if task_names_vec.len() != task_names.len()
             || tasks_names_set != task_names
         {
-            let mut task_names_set_sorted = tasks_names_set
-                .into_iter()
-                .collect::<Vec<_>>();
-            task_names_set_sorted.sort();
+            task_names_vec.sort();
             let mut task_names_sorted = task_names
                 .into_iter()
                 .collect::<Vec<_>>();
             task_names_sorted.sort();
             return Err(anyhow!(
-                "There is an inconsistency in the task labels {task_names_set_sorted:?} and task mentions {task_names_sorted:?}"
+                "There is an inconsistency in the task labels {task_names_vec:?} and task mentions {task_names_sorted:?}"
             ));
         }
         for name in task_names_vec {
@@ -1074,20 +1071,16 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
         // Build the runtime environments in order
         let mut runtime_envs = Vec::new();
-        let mut runtime_env_names_set = runtime_env_names_vec.clone().into_iter().collect::<HashSet<_>>();
+        let runtime_env_names_set = runtime_env_names_vec.clone().into_iter().collect::<HashSet<_>>();
         if runtime_env_names_vec.len() != runtime_envs_names.len()
             || runtime_env_names_set != runtime_envs_names
         {
-            let mut runtime_env_names_set_sorted = runtime_env_names_set
-                .into_iter()
-                .collect::<Vec<_>>();
-            runtime_env_names_set_sorted.sort();
             let mut runtime_envs_names_sorted = runtime_envs_names
                 .into_iter()
                 .collect::<Vec<_>>();
             runtime_envs_names_sorted.sort();
             return Err(anyhow!(
-                "There is an inconsistency in the runtime environment labels {runtime_env_names_set_sorted:?} and runtime environment mentions {runtime_envs_names_sorted:?}"
+                "There is an inconsistency in the runtime environment labels {runtime_env_names_vec:?} and runtime environment mentions {runtime_envs_names_sorted:?}"
             ));
         }
         for name in runtime_env_names_vec {
@@ -1097,15 +1090,17 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
         // Build the processors in order
         let mut processors = Vec::new();
+        let processor_names_set = processor_names_vec.clone().into_iter().collect::<HashSet<_>>();
         if processor_names_vec.len() != processor_names.len()
-            || processor_names_vec
-                .clone()
-                .into_iter()
-                .collect::<HashSet<_>>()
-                != processor_names
+            || processor_names_set != processor_names
         {
+            processor_names_vec.sort();
+            let mut processor_names_sorted = processor_names
+                .into_iter()
+                .collect::<Vec<_>>();
+            processor_names_sorted.sort();
             return Err(anyhow!(
-                "There is an inconsistency in the processor labels {processor_names_vec:?} and processor mentions {processor_names:?}"
+                "There is an inconsistency in the processor labels {processor_names_vec:?} and processor mentions {processor_names_sorted:?}"
             ));
         }
         for name in processor_names_vec {
@@ -1120,15 +1115,17 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
 
         // Check the subjects
+        let subject_names_set = subject_names_vec.clone().into_iter().collect::<HashSet<_>>();
         if subject_names_vec.len() != subject_names.len()
-            || subject_names_vec
-                .clone()
-                .into_iter()
-                .collect::<HashSet<_>>()
-                != subject_names
+            || subject_names_set != subject_names
         {
+            subject_names_vec.sort();
+            let mut subject_names_sorted = subject_names
+                .into_iter()
+                .collect::<Vec<_>>();
+            subject_names_sorted.sort();
             return Err(anyhow!(
-                "There is an inconsistency in the subject labels {subject_names_vec:?} and subject mentions {subject_names:?}"
+                "There is an inconsistency in the subject labels {subject_names_vec:?} and subject mentions {subject_names_sorted:?}"
             ));
         }
         if agent_subjects {
@@ -1203,7 +1200,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 iter += 1;
                 while iter < erdiagram_lines.len() {
                     // Check for end of subject section (and exclude jinja2 templating brackets)
-                    if erdiagram_lines.get(iter).unwrap() == &"    }" {
+                    if erdiagram_lines.get(iter).unwrap().trim_end() == "    }" {
                         // Build and add the table to the subjects list
                         let schema = Arc::new(Schema::new(fields));
                         let table = if with_values && !data.is_empty() {
@@ -1304,15 +1301,21 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
 
         // Check the subjects
-        let subjects_vec = subjects
+        let mut subjects_vec = subjects
             .iter()
             .map(|t| t.get_name().to_string())
             .collect::<Vec<_>>();
+        let subjects_set = subjects_vec.clone().into_iter().collect::<HashSet<_>>();
         if subjects_vec.len() != subject_names.len()
-            || subjects_vec.clone().into_iter().collect::<HashSet<_>>() != subject_names
+            || subjects_set != subject_names
         {
+            subjects_vec.sort();
+            let mut subject_names_sorted = subject_names
+                .into_iter()
+                .collect::<Vec<_>>();
+            subject_names_sorted.sort();
             return Err(anyhow!(
-                "There is an inconsistency in the subject tables {subjects_vec:?} and subject mentions {subject_names:?}"
+                "There is an inconsistency in the subject tables {subjects_vec:?} and subject mentions {subject_names_sorted:?}"
             ));
         }
         if agent_subjects {
