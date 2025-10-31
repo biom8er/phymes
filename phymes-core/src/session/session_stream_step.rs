@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
@@ -13,7 +13,7 @@ use tracing::{Level, event, instrument};
 use super::common_traits::{
     BuilderTrait, IPCMessageMap, MappableTrait, RunnableTrait, SendableRecordBatchStreamMessageMap,
 };
-use crate::schemas::{create_error_message_map, create_error_message_map_stream};
+use crate::schemas::{create_error_message_map, create_error_message_map_stream, create_error_table};
 use crate::session::session_stream_state::SessionStreamState;
 use crate::table::{TableBuilder, TableBuilderTrait, TableTrait};
 use crate::task::{
@@ -60,23 +60,34 @@ impl SessionStreamStep {
         while let Some(response) = join_set.join_next().await {
             match response {
                 Ok((resp_name, resp)) => {
-                    // Complete the input message with the processed stream
-                    let table = TableBuilder::new()
-                        .with_name(resp_name.as_str())
-                        .with_record_batches(resp?)?
-                        .build()?;
-                    let message = response_builder
-                        .remove(resp_name.as_str())
-                        .unwrap()
-                        .with_message(table.to_ipc_stream()?)
-                        .build()?;
-                    let message_map = message.to_map()?;
+                    // Check the response
+                    let message_map = match resp {
+                        Ok(batches) => match TableBuilder::new()
+                            .with_name(resp_name.as_str())
+                            .with_record_batches(batches) {
+                            Ok(builder) =>  {
+                                let table = builder.build()?;
+                                
+                                // Complete the input message with the processed stream
+                                let message = response_builder
+                                    .remove(resp_name.as_str())
+                                    .unwrap()
+                                    .with_message(table.to_ipc_stream()?)
+                                    .build()?;
+                                message.to_map()?
+                            }
+                            Err(err) => create_error_message_map(&err, "SessionStreamStep")?,
+                        },
+                        Err(err) => create_error_message_map(&err, "SessionStreamStep")?,
+                    };
+
+                    // Add the message to the joined responses                    
                     response_batches.extend(message_map);
                 }
                 Err(err) => {
                     // Intercept the error and forward to the error subject
                     event!(Level::ERROR, "{err}");
-                    let message_map = create_error_message_map(&err.into(), "SessionStreamStep")?;
+                    let message_map = create_error_message_map(&anyhow!("{err:?}"), "SessionStreamStep")?;
                     response_batches.extend(message_map);
                 }
             }

@@ -11,7 +11,7 @@ use phymes_core::{
     ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
     SubscribeTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
-    create_blob_batch, create_chat_record_batch,
+    create_blob_batch, create_chat_record_batch, remove_message_by_subject,
 };
 
 use anyhow::{Result, anyhow};
@@ -22,8 +22,7 @@ use arrow::{
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
-    create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait, create_timestamp_micros
 };
 use tracing::{Level, event, instrument};
 
@@ -118,7 +117,7 @@ impl ProcessorTrait for DataSummaryProcessor {
         };
 
         // Extract out the config
-        let config = match message.remove(self.get_name()) {
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
@@ -128,7 +127,7 @@ impl ProcessorTrait for DataSummaryProcessor {
         let mut table_names = Vec::new();
         for subs in self.subscriptions.iter() {
             if subs.get_table_name() != self.get_name() {
-                match message.remove(subs.get_table_name()) {
+                match remove_message_by_subject(subs.get_table_name(), &mut message) {
                     Some(m) => {
                         subscriptions.push(m);
                         table_names.push(subs.get_table_name())
@@ -161,11 +160,11 @@ impl ProcessorTrait for DataSummaryProcessor {
         )?);
         let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
             .with_message(out)
             .with_update(self.publications.first().unwrap())
+            .make_name()?
             .build()?;
         let _ = outbox.insert(out_m.get_name().to_string(), out_m);
 
@@ -403,9 +402,12 @@ impl Stream for DataSummaryStream {
             };
 
             // Concatenate into a single record batch
-            let schema = batches_col.first().unwrap().schema();
+            let schema = match batches_col.first() {
+                Some(cols) => cols.schema(),
+                None => return Poll::Ready(Some(Err(anyhow!("No batches were found to summarize!")))),
+            };
             let mut batch_json = Table::get_builder()
-                .with_name("")
+                .with_name("DataSummaryStream")
                 .with_record_batches(batches_col)?
                 .build()?
                 .concat_record_batches()?
@@ -442,6 +444,17 @@ impl Stream for DataSummaryStream {
                 &table,
                 &self.config.as_ref().unwrap().format,
             )?;
+            if batch.num_rows() == 0 {
+                if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                    let event = diagnostic_builder
+                        .clone()
+                        .to_child("DataSummaryStream")?
+                        .warn(line!(), file!(), "poll_next");
+                    event.insert("empty_batch", &serde_json::Value::String(
+                        format!("The result of the data summary stream with config {:?} was an empty RecordBatch.",
+                            self.config.as_ref().unwrap())));
+                };
+            }
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -505,26 +518,22 @@ mod tests {
 
         // Make the input messages
         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = messages.insert(
-            "lhs_name".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("lhs_name")
-                .with_publisher("")
-                .with_subject("lhs_name")
-                .with_update(&TablePublish::None)
-                .with_message(lhs_table.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = messages.insert(
-            "summary_processor".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("summary_processor")
-                .with_publisher("")
-                .with_subject("summary_processor")
-                .with_update(&TablePublish::None)
-                .with_message(config_table.to_record_batch_stream())
-                .build()?,
-        );
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("lhs_name")
+            .with_publisher("")
+            .with_subject("lhs_name")
+            .with_update(&TablePublish::None)
+            .with_message(lhs_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("summary_processor")
+            .with_publisher("")
+            .with_subject("summary_processor")
+            .with_update(&TablePublish::None)
+            .with_message(config_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
 
         let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
@@ -554,7 +563,7 @@ mod tests {
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("messages").unwrap().get_message_own(),
+            stream.remove("from_summary_processor_on_messages").unwrap().get_message_own(),
         )
         .await?
         .with_name("")
@@ -603,26 +612,22 @@ mod tests {
 
         // Make the input messages
         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = messages.insert(
-            "lhs_name".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("lhs_name")
-                .with_publisher("")
-                .with_subject("lhs_name")
-                .with_update(&TablePublish::None)
-                .with_message(lhs_table.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = messages.insert(
-            "summary_processor".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("summary_processor")
-                .with_publisher("")
-                .with_subject("summary_processor")
-                .with_update(&TablePublish::None)
-                .with_message(config_table.to_record_batch_stream())
-                .build()?,
-        );
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("lhs_name")
+            .with_publisher("")
+            .with_subject("lhs_name")
+            .with_update(&TablePublish::None)
+            .with_message(lhs_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("summary_processor")
+            .with_publisher("")
+            .with_subject("summary_processor")
+            .with_update(&TablePublish::None)
+            .with_message(config_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
 
         let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
@@ -652,7 +657,7 @@ mod tests {
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("messages").unwrap().get_message_own(),
+            stream.remove("from_summary_processor_on_messages").unwrap().get_message_own(),
         )
         .await?
         .with_name("")

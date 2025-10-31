@@ -159,6 +159,12 @@ pub fn take_columns_by_indices(
                     Arc::new(StringArray::from(table.get_column_as_vec_str(column)));
                 arrow::compute::take(&array_ref, asort_arr, None)?
             }
+            DataType::Boolean => {
+                // DM: it maybe possible to move Boolean to the GPU in the future
+                let array_ref: ArrayRef =
+                    Arc::new(StringArray::from(table.get_column_as_vec_str(column)));
+                arrow::compute::take(&array_ref, asort_arr, None)?
+            }
             DataType::FixedSizeList(_f, _s) => {
                 let array_ref: ArrayRef = table.get_column_as_array(column);
                 arrow::compute::take(&array_ref, asort_arr, None)?
@@ -202,8 +208,8 @@ pub fn sort_column_and_indices(
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("sort_column_and_indices")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?;
 
     // Extract out the column to sort by

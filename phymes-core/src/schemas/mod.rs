@@ -26,7 +26,7 @@ pub use user::{
 };
 
 mod error;
-pub use error::{create_error_batch, create_error_message_map, create_error_message_map_stream};
+pub use error::{create_error_batch, create_error_message_map, create_error_message_map_stream, create_error_table};
 
 mod diagnostics;
 pub use diagnostics::{

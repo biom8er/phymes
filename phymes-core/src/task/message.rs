@@ -454,6 +454,23 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
     }
 }
 
+/// Remove a message from a [HashMap] of [MessageTrait]s indexed by `message_name` by the message's `subject_name`
+pub fn remove_message_by_subject<T>(subject: &str, messages: &mut HashMap<String, T>) -> Option<T> where T: MessageTrait {
+    let subjects = messages.iter()
+        .filter_map(|(k, v)| if subject == v.get_subject() {
+            Some(k)
+        } else {
+            None
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    if let Some(s) = subjects.first() {
+        messages.remove(s)
+    } else {
+        None
+    }    
+}
+
 #[cfg(test)]
 mod tests {
     use crate::table::test_table::{self, make_test_table, make_test_table_chat};
@@ -649,6 +666,53 @@ mod tests {
             *test_table.get_column_as_vec_str("values").first().unwrap(),
             json_str_2
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove_message_by_subject() -> Result<()> {
+        // Test data
+        let test_table = test_table::make_test_table("test_table", 4, 8, 3)?;
+
+        // Test messages
+        let mut messages = HashMap::<String, IPCMessage>::new();
+        let message = IPCMessageBuilder::new()
+            .with_subject("subject_1")
+            .with_publisher("publisher")
+            .with_update(&TablePublish::Extend {
+                table_name: "subject_1".to_string(),
+            })
+            .with_message(test_table.to_ipc_stream()?)
+            .make_random_name()?
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+        let message = IPCMessageBuilder::new()
+            .with_subject("subject_2")
+            .with_publisher("publisher")
+            .with_update(&TablePublish::None)
+            .with_message(test_table.to_ipc_stream()?)
+            .make_random_name()?
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+        let message = IPCMessageBuilder::new()
+            .with_subject("subject_1")
+            .with_publisher("publisher")
+            .with_update(&TablePublish::None)
+            .with_message(test_table.to_ipc_stream()?)
+            .make_random_name()?
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+
+        // Test that we can get both subjects with the same name
+        let m = remove_message_by_subject("subject_1", &mut messages).unwrap();
+        assert_eq!(m.get_publisher(), "publisher");
+        assert_eq!(m.get_subject(), "subject_1");
+        let m = remove_message_by_subject("subject_1", &mut messages).unwrap();
+        assert_eq!(m.get_publisher(), "publisher");
+        assert_eq!(m.get_subject(), "subject_1");
+        let m = remove_message_by_subject("subject_1", &mut messages);
+        assert!(m.is_none());
 
         Ok(())
     }

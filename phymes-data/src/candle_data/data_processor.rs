@@ -5,7 +5,7 @@ use phymes_core::{
     MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, TableBuilder, TableBuilderTrait,
-    TablePublish, TableSubscribe, TableTrait, device,
+    TablePublish, TableSubscribe, TableTrait, device, remove_message_by_subject,
 };
 
 use arrow::{
@@ -113,7 +113,8 @@ impl ProcessorTrait for CandleDataProcessor {
         };
 
         // Extract out the config
-        let config = match message.remove(self.get_name()) {
+        // let config = match message.remove(self.get_name()) {
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
@@ -122,7 +123,7 @@ impl ProcessorTrait for CandleDataProcessor {
         let mut subscriptions = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         for subs in self.subscriptions.iter() {
             if subs.get_table_name() != self.get_name() {
-                match message.remove(subs.get_table_name()) {
+                match remove_message_by_subject(subs.get_table_name(), &mut message) {
                     // DM: need to migrate this to `make_random_name` to avoid hash collisions
                     Some(m) => {
                         subscriptions.insert(m.get_subject().to_string(), m);
@@ -147,11 +148,11 @@ impl ProcessorTrait for CandleDataProcessor {
             stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
             .with_message(out)
             .with_update(self.publications.first().unwrap())
+            .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
 
@@ -281,13 +282,6 @@ impl Stream for CandleDataStream {
                     serde_json::from_value(config_values.get("arguments").unwrap().clone())?;
                 self.config.replace(config);
             } else {
-                if let Some(diagnostic_builder) = &self.diagnostic_builder {
-                    let event = diagnostic_builder
-                        .clone()
-                        .to_child("CandleDataStream")?
-                        .debug(line!(), file!(), "poll_next");
-                    event.insert("config", &serde_json::Value::String(format!("{:?}", &batches)));
-                };
                 let config_table = TableBuilder::new()
                     .with_name("config")
                     .with_record_batches(batches)?
@@ -435,6 +429,18 @@ impl Stream for CandleDataStream {
                 .unwrap()
                 .get_device(),
         )?;
+        if batch.num_rows() == 0 {
+            if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                let event = diagnostic_builder
+                    .clone()
+                    .to_child("CandleDataStream")?
+                    .warn(line!(), file!(), "poll_next");
+                event.insert("empty_batch", &serde_json::Value::String(
+                    format!("The result of the data operator {} with config {:?} was an empty RecordBatch.", 
+                        self.data_operator.as_ref().unwrap().get_name(), 
+                        self.config.as_ref().unwrap())));
+            };
+        }
 
         // // DM: need to update this with the other config options for streaming
         // self.rhs_inbox.clear();
@@ -895,16 +901,14 @@ mod tests {
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
-        let _ = messages.insert(
-            "lhs_name".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("lhs_name")
-                .with_publisher("")
-                .with_subject("lhs_name")
-                .with_update(&TablePublish::None)
-                .with_message(lhs_table.to_record_batch_stream())
-                .build()?,
-        );
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("lhs_name")
+            .with_publisher("")
+            .with_subject("lhs_name")
+            .with_update(&TablePublish::None)
+            .with_message(lhs_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
         let rhs_ids_vec = vec!["1", "2", "3", "4"];
         let rhs_embeddings_vec: Vec<Vec<f32>> = vec![
             vec![1., 1., 1., 1.],
@@ -921,16 +925,14 @@ mod tests {
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch])?
             .build()?;
-        let _ = messages.insert(
-            "rhs_name".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("rhs_name")
-                .with_publisher("")
-                .with_subject("rhs_name")
-                .with_update(&TablePublish::None)
-                .with_message(rhs_table.to_record_batch_stream())
-                .build()?,
-        );
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("rhs_name")
+            .with_publisher("")
+            .with_subject("rhs_name")
+            .with_update(&TablePublish::None)
+            .with_message(rhs_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
 
         // Make the config
         let config = DataConfig {
@@ -950,16 +952,14 @@ mod tests {
             .with_name("candle_ops_processor")
             .with_json(&config_json, 1)?
             .build()?;
-        let _ = messages.insert(
-            "candle_ops_processor".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("candle_ops_processor")
-                .with_publisher("")
-                .with_subject("")
-                .with_update(&TablePublish::None)
-                .with_message(config_table.to_record_batch_stream())
-                .build()?,
-        );
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_publisher("")
+            .with_subject("candle_ops_processor")
+            .with_update(&TablePublish::None)
+            .with_message(config_table.to_record_batch_stream())
+            .make_random_name()?
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
 
         let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
@@ -996,7 +996,7 @@ mod tests {
         let mut ops_stream =
             ops_processor.process(messages, Some(&diagnostic_builder), runtime_env)?;
         let result = ops_stream
-            .remove("results")
+            .remove("from_candle_ops_processor_on_results")
             .unwrap()
             .get_message_own()
             .try_collect::<Vec<_>>()

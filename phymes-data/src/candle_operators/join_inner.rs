@@ -221,12 +221,12 @@ pub fn join_inner(
 
     // Wrap the lhs and rhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("join_inner_lhs")
         .with_record_batches(vec![lhs_sorted])?
-        .with_name("")
         .build()?;
     let rhs_table = Table::get_builder()
+        .with_name("join_inner_rhs")
         .with_record_batches(vec![rhs_sorted])?
-        .with_name("")
         .build()?;
 
     // Join by the FKs

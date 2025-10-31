@@ -7,7 +7,7 @@ mod task_trait;
 mod test_exec;
 
 pub use message::{
-    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait,
+    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, remove_message_by_subject,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
 };
 pub use processor::{ProcessorBuilder, ProcessorEcho, ProcessorTrait, test_processor};

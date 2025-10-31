@@ -14,7 +14,7 @@ use phymes_core::{
     MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilderTrait,
-    TablePublish, TableSubscribe, TableTrait, Tool, ToolChoiceType, create_chat_record_batch,
+    TablePublish, TableSubscribe, TableTrait, Tool, ToolChoiceType, create_chat_record_batch, remove_message_by_subject
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -105,17 +105,28 @@ impl ProcessorTrait for OpenAIChatProcessor {
             None
         };
 
-        // Extract out the messages, documents, tools, and config
-        let messages = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
+        // Extract out the messages, tools, and config
+        let messages = match remove_message_by_subject(self.subscriptions.first().unwrap().get_table_name(), &mut message) {
             Some(i) => i.get_message_own(),
-            None => return Err(anyhow!("Messages not provided for {}.", self.get_name())),
+            None => {
+                return Err(anyhow!(
+                    "Messages not provided for {}. Available messages are {:?}",
+                    self.get_name(),
+                    message.keys()
+                ));
+            }
         };
-        let tools = message
-            .remove(self.subscriptions.get(1).unwrap().get_table_name())
+        let tools = remove_message_by_subject(self.subscriptions.get(1).unwrap().get_table_name(), &mut message)
             .map(|i| i.get_message_own());
-        let config = match message.remove(self.get_name()) {
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
-            None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
+            None => {
+                return Err(anyhow!(
+                    "Config not provided for {}. Available messages are {:?}",
+                    self.get_name(),
+                    message.keys()
+                ));
+            }
         };
 
         // Run the chat stream
@@ -128,11 +139,11 @@ impl ProcessorTrait for OpenAIChatProcessor {
             stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
             .with_message(out)
             .with_update(self.publications.first().unwrap())
+            .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
 

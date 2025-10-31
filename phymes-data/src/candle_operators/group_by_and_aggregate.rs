@@ -356,8 +356,8 @@ pub fn group_by_and_aggregate(
 
     // Wrap the lhs and rhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("group_by_and_aggregate")
         .with_record_batches(vec![lhs_sorted])?
-        .with_name("")
         .build()?;
 
     // Partition the group by columns

@@ -12,7 +12,7 @@ use phymes_core::{
     PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
     SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe,
-    TableTrait, TokenWrapper, Tool, create_chat_record_batch, device,
+    TableTrait, TokenWrapper, Tool, create_chat_record_batch, device, remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -115,8 +115,8 @@ impl ProcessorTrait for CandleChatProcessor {
             None
         };
 
-        // Extract out the messages, documents, tools, and config
-        let messages = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
+        // Extract out the messages, tools, and config
+        let messages = match remove_message_by_subject(self.subscriptions.first().unwrap().get_table_name(), &mut message) {
             Some(i) => i.get_message_own(),
             None => {
                 return Err(anyhow!(
@@ -126,10 +126,9 @@ impl ProcessorTrait for CandleChatProcessor {
                 ));
             }
         };
-        let tools = message
-            .remove(self.subscriptions.get(1).unwrap().get_table_name())
+        let tools = remove_message_by_subject(self.subscriptions.get(1).unwrap().get_table_name(), &mut message)
             .map(|i| i.get_message_own());
-        let config = match message.remove(self.get_name()) {
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => {
                 return Err(anyhow!(
@@ -150,11 +149,11 @@ impl ProcessorTrait for CandleChatProcessor {
             stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
             .with_message(out)
             .with_update(self.publications.first().unwrap())
+            .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
 
@@ -1020,7 +1019,7 @@ mod tests {
             // Update the chat history with the response
             let (message_builder, _stream) = message_builder
                 .append_chat_response_sendable_record_batch_stream(
-                    &mut stream.remove(messages).unwrap().get_message_own(),
+                    &mut stream.remove(format!("from_{name}_on_{messages}").as_str()).unwrap().get_message_own(),
                     1000,
                 )
                 .await?;

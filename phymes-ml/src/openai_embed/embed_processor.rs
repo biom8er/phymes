@@ -8,7 +8,7 @@ use reqwest::{Client, header::CONTENT_TYPE};
 use phymes_core::{
     AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
     BuilderTrait, EmbeddingRequest, EmbeddingResponse, EncodingFormat, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, remove_message_by_subject,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilder,
     TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
@@ -109,11 +109,11 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
         };
 
         // Extract out the documents and config
-        let documents = match message.remove(self.subscriptions.first().unwrap().get_table_name()) {
+        let documents = match remove_message_by_subject(self.subscriptions.first().unwrap().get_table_name(), &mut message) {
             Some(i) => i.get_message_own(),
             None => return Err(anyhow!("Documents not provided for {}.", self.get_name())),
         };
-        let config = match message.remove(self.get_name()) {
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
@@ -127,11 +127,11 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
             stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
             .with_message(out)
             .with_update(self.publications.first().unwrap())
+            .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
 

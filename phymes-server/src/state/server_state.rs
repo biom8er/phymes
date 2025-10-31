@@ -63,8 +63,8 @@ impl UserState {
         // Prepare the input message
         let batch = create_user_inbox_batch(vec![email.to_string()])?;
         let bytes = Table::get_builder()
-            .with_record_batches(vec![batch])?
             .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
+            .with_record_batches(vec![batch])?
             .build()?
             .to_json()?;
         let blob = AvailableInterfaceSubjects::UserJson
@@ -107,9 +107,9 @@ impl UserState {
                         .unwrap();
                     let json_format = JsonFormat::default();
                     let table = Table::get_builder()
+                        .with_name("attachment_data")
                         .with_json(bytes.first().unwrap(), json_format.batch_size)
                         .unwrap()
-                        .with_name("")
                         .build()
                         .unwrap();
                     Some(table)

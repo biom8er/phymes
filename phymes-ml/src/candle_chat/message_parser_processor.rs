@@ -10,7 +10,7 @@ use phymes_core::{
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilderTrait,
     TablePublish, TableSubscribe, TableTrait, ToolCall, create_chat_record_batch,
-    create_values_record_batch,
+    create_values_record_batch, remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -125,11 +125,11 @@ impl ProcessorTrait for MessageParserProcessor {
 
         // Extract out the messages and config
         let messages =
-            match message.remove(self.get_subscriptions().first().unwrap().get_table_name()) {
+            match remove_message_by_subject(self.get_subscriptions().first().unwrap().get_table_name(), &mut message) {
                 Some(i) => i.get_message_own(),
                 None => return Err(anyhow!("Messages not provided for {}.", self.get_name())),
             };
-        let config = match message.remove(self.get_name()) {
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
@@ -147,11 +147,11 @@ impl ProcessorTrait for MessageParserProcessor {
         //  can correct before moving on.
         // DM: this is not rigorously tested yet...
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.get_publications().first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.get_publications().first().unwrap().get_table_name())
             .with_message(out)
             .with_update(self.get_publications().first().unwrap())
+            .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
 
@@ -251,7 +251,7 @@ impl Stream for MessageParserStream {
 
             // Concatenate into a single record batch
             let message = Table::get_builder()
-                .with_name("")
+                .with_name("MessageParserStream")
                 .with_record_batches(batches)?
                 .build()?
                 .concat_record_batches()?;
@@ -499,7 +499,7 @@ mod tests {
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("messages").unwrap().get_message_own(),
+            stream.remove("from_message_processor_on_messages").unwrap().get_message_own(),
         )
         .await?
         .with_name("")
@@ -603,7 +603,7 @@ mod tests {
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("messages").unwrap().get_message_own(),
+            stream.remove("from_message_processor_on_messages").unwrap().get_message_own(),
         )
         .await?
         .with_name("")
@@ -707,7 +707,7 @@ mod tests {
 
         // DM: this will result in an error because the schema is dynamically updated
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("messages").unwrap().get_message_own(),
+            stream.remove("from_message_processor_on_messages").unwrap().get_message_own(),
         )
         .await?
         .with_name("")

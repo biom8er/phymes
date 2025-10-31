@@ -1,9 +1,7 @@
 use phymes_diagnostics::HashMap;
 
 use crate::{
-    session::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap},
-    table::{TablePublish, TableSubscribe, TableSubscribeTrait},
-    task::{MessageBuilderTrait, SendableRecordBatchStreamMessage},
+    MappableTrait, session::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap}, table::{TablePublish, TableSubscribe, TableSubscribeTrait}, task::{MessageBuilderTrait, SendableRecordBatchStreamMessage}
 };
 
 /// For task or processor objects that publish and
@@ -66,9 +64,7 @@ pub trait PubSubTrait {
                         .unwrap()
                         .build()
                         .unwrap();
-                    // DM: need to migrate map key to `make_random_name` to prevent hash collisions
-                    //  when the same table is subscribed to by multiple processors in the chain...
-                    let _ = map.insert(subscription.get_table_name().to_string(), out);
+                    let _ = map.insert(out.get_name().to_string(), out);
                 }
             }
         }

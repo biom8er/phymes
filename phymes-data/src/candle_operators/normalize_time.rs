@@ -121,8 +121,8 @@ pub fn normalize_time(
     }
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("normalize_time")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?;
 
     // Determine the minimum start time

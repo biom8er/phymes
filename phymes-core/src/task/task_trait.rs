@@ -514,6 +514,7 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::remove_message_by_subject;
     use crate::table::{
         TableBuilder, TableBuilderTrait, TablePublish, TableTrait, test_table::make_test_table,
     };
@@ -659,19 +660,17 @@ mod tests {
             "test_table",
             "test_config",
         )?;
-        let messages = test_task.get_subscriptions_from_state(
+        let mut messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?,
         );
         assert_eq!(messages.len(), 2);
-        assert!(messages.get("test_table").is_some());
         assert_eq!(
-            messages.get("test_table").unwrap().get_subject(),
+            remove_message_by_subject("test_table", &mut messages).unwrap().get_subject(),
             "test_table"
         );
-        assert!(messages.get("test_config").is_some());
         assert_eq!(
-            messages.get("test_config").unwrap().get_subject(),
+           remove_message_by_subject("test_config", &mut messages).unwrap().get_subject(),
             "test_config"
         );
 
@@ -683,14 +682,13 @@ mod tests {
             "test_table_2",
             "test_config",
         )?;
-        let messages = test_task.get_subscriptions_from_state(
+        let mut messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[false]),
             &test_task::make_state("test_table", "test_config")?,
         );
         assert_eq!(messages.len(), 1);
-        assert!(messages.get("test_config").is_some());
         assert_eq!(
-            messages.get("test_config").unwrap().get_subject(),
+            remove_message_by_subject("test_config", &mut messages).unwrap().get_subject(),
             "test_config"
         );
 
@@ -702,19 +700,17 @@ mod tests {
             "test_table_2",
             "test_config",
         )?;
-        let messages = test_task.get_subscriptions_from_state(
+        let mut messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?,
         );
         assert_eq!(messages.len(), 2);
-        assert!(messages.get("test_table").is_some());
         assert_eq!(
-            messages.get("test_table").unwrap().get_subject(),
+            remove_message_by_subject("test_table", &mut messages).unwrap().get_subject(),
             "test_table"
         );
-        assert!(messages.get("test_config").is_some());
         assert_eq!(
-            messages.get("test_config").unwrap().get_subject(),
+            remove_message_by_subject("test_config", &mut messages).unwrap().get_subject(),
             "test_config"
         );
         Ok(())
@@ -730,37 +726,33 @@ mod tests {
         )?;
 
         // Case 1: Message has subject that the task does not publish on
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            "test_message".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("test_message")
-                .with_publisher("s1")
-                .with_subject("d1")
-                .with_update(&TablePublish::Extend {
-                    table_name: "d1".to_string(),
-                })
-                .with_message(make_test_table("d1", 1, 8, 2)?.to_record_batch_stream())
-                .build()?,
-        );
-        let inbox = test_task.make_outbox(message);
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("test_message")
+            .with_publisher("s1")
+            .with_subject("d1")
+            .with_update(&TablePublish::Extend {
+                table_name: "d1".to_string(),
+            })
+            .with_message(make_test_table("d1", 1, 8, 2)?.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+        let inbox = test_task.make_outbox(messages);
         assert_eq!(inbox.len(), 0);
 
         // Case 2: Message has subject that the task does not publish on
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            "test_message".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("test_message")
-                .with_publisher("s1")
-                .with_subject("test_table")
-                .with_update(&TablePublish::Extend {
-                    table_name: "test_table".to_string(),
-                })
-                .with_message(make_test_table("test_table", 1, 8, 2)?.to_record_batch_stream())
-                .build()?,
-        );
-        let inbox = test_task.make_outbox(message);
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("test_message")
+            .with_publisher("s1")
+            .with_subject("test_table")
+            .with_update(&TablePublish::Extend {
+                table_name: "test_table".to_string(),
+            })
+            .with_message(make_test_table("test_table", 1, 8, 2)?.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+        let inbox = test_task.make_outbox(messages);
         assert_eq!(inbox.len(), 1);
         assert_eq!(
             inbox

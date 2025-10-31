@@ -40,7 +40,7 @@ pub use table::{
 };
 pub use task::{
     IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, ProcessorBuilder,
-    ProcessorEcho, ProcessorTrait, PubSubTrait, SendableRecordBatchStreamMessage,
+    ProcessorEcho, ProcessorTrait, PubSubTrait, remove_message_by_subject, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, Task, TaskBuilder, TaskBuilderTrait, TaskTrait,
     test_processor, test_task,
 };

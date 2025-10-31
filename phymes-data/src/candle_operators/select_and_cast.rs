@@ -216,8 +216,8 @@ pub fn select_and_cast(
 
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("select_and_cast")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?;
 
     // Apply the cast and optional column renaming and template injection based on the lhs_values

@@ -66,8 +66,8 @@ impl DataOperatorTrait for HumanInTheLoop {
 
 fn create_hitl_record_batch(lhs_args: &[RecordBatch]) -> Result<RecordBatch> {
     let content = Table::get_builder()
+        .with_name("create_hitl_record_batch")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?
         .get_column_as_vec_str("content")
         .first()

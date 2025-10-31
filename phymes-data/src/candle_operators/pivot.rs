@@ -281,7 +281,7 @@ fn pivot_missing_values(
 
     // Build the pivot table
     let table = Table::get_builder()
-        .with_name("")
+        .with_name("pivot_missing_values")
         .with_schema(Arc::new(Schema::new(pvt_fields)))
         .with_json_values(&rows_vec)?
         .build()?;
@@ -377,8 +377,8 @@ pub fn pivot(
     // DM: Workaround for out of memory error on the GPU when analyzing session metrics...
     // let pvt_values_group = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, &Device::Cpu)?;
     let pvt_values_table = Table::get_builder()
+        .with_name("pivot")
         .with_record_batches(vec![pvt_values_group])?
-        .with_name("")
         .build()?;
 
     // Make the values column names
@@ -410,12 +410,12 @@ pub fn pivot(
 
     // Wrap the all grouped batches into tables
     let pvt_columns_table = Table::get_builder()
+        .with_name("pvt_columns_table")
         .with_record_batches(vec![pvt_columns_group])?
-        .with_name("")
         .build()?;
     let pvt_rows_table = Table::get_builder()
+        .with_name("pvt_rows_table")
         .with_record_batches(vec![pvt_rows_group])?
-        .with_name("")
         .build()?;
 
     // Check that there are no missing values

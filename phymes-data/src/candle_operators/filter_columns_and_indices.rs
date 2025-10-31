@@ -223,8 +223,8 @@ pub fn filter_columns_and_indices(
 
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("filter_columns_and_indices")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?;
 
     // Apply the filter to each column based on type and comparator

@@ -155,8 +155,8 @@ pub fn apply_template(
 ) -> Result<RecordBatch> {
     // Convert the RecordBatches into a json objct
     let lhs_json_object = Table::get_builder()
+        .with_name("apply_template")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?
         .to_json_object()?;
 

@@ -35,7 +35,7 @@ pub fn create_error_batch(error: Vec<String>) -> Result<RecordBatch> {
     Ok(batch)
 }
 
-fn create_error_table(err: &Error) -> Result<Table> {
+pub fn create_error_table(err: &Error) -> Result<Table> {
     // DM: must use :? and not .to_string() with Anyhow::Error to see full backtrace if available
     let error_str = format! {"{err:?}"};
     let batch = create_error_batch(vec![error_str])?;

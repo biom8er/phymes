@@ -873,7 +873,7 @@ impl TableBuilderTrait for TableBuilder {
             if let Some(batch) = batches.first() {
                 self.schema = Some(batch.schema());
             } else {
-                return Err(anyhow!("Missing schema and batches!"));
+                return Err(anyhow!("Missing schema and batches for table {}!", self.name.unwrap_or_default()));
             }
         };
 
@@ -881,7 +881,7 @@ impl TableBuilderTrait for TableBuilder {
         let schema = self.schema.clone().unwrap();
         for batch in batches.iter() {
             if !schema.eq(&batch.schema()) {
-                return Err(anyhow!("Mismatch between schema and batches!"));
+                return Err(anyhow!("Mismatch between schema and batches for table {}!", self.name.unwrap_or_default()));
             }
         }
         self.record_batches = Some(batches);

@@ -319,12 +319,12 @@ fn vector_distance(
 ) -> Result<RecordBatch> {
     // Wrap the lhs and rhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("vector_distance_lhs")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?;
     let rhs_table = Table::get_builder()
+        .with_name("vector_distance_rhs")
         .with_record_batches(rhs_args.to_vec())?
-        .with_name("")
         .build()?;
 
     // Compute the relative similarity score
