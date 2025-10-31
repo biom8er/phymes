@@ -13,7 +13,7 @@ use tracing::{Level, event, instrument};
 use super::common_traits::{
     BuilderTrait, IPCMessageMap, MappableTrait, RunnableTrait, SendableRecordBatchStreamMessageMap,
 };
-use crate::schemas::{create_error_message_map, create_error_message_map_stream, create_error_table};
+use crate::schemas::{create_error_message_map, create_error_message_map_stream};
 use crate::session::session_stream_state::SessionStreamState;
 use crate::table::{TableBuilder, TableBuilderTrait, TableTrait};
 use crate::task::{

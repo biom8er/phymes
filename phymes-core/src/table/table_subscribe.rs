@@ -138,6 +138,12 @@ impl TableSubscribeTrait for Table {
         subscribe: &TableSubscribe,
         updated: bool,
     ) -> Option<SendableRecordBatchStream> {
+        // Skip tables for which there are no rows
+        if self.count_rows() == 0 {
+            return None;
+        }
+
+        // Match on the subscribe policy
         match subscribe {
             TableSubscribe::AlwaysFullTable { table_name: _ } => {
                 Some(self.to_record_batch_stream())
