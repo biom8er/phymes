@@ -300,6 +300,9 @@ impl Stream for CandleDataStream {
                 .to_child("CandleDataStream")?
                 .debug(line!(), file!(), "poll_next");
             event.insert("config", &serde_json::Value::String(format!("{:?}", &self.config)));
+            if let Some(doc_template) = &self.config.as_ref().unwrap().doc_template {
+                event.insert("doc_template", &serde_json::Value::String(doc_template.to_string()));
+            }
         };
 
         // Build the data operator

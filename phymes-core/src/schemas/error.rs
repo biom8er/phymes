@@ -76,7 +76,7 @@ pub fn create_error_message_map(
             table_name: AvailableSubjects::SessionErrors.to_string(),
         })
         .with_message(table.to_ipc_stream()?)
-        .make_name()?
+        .make_random_name()?
         .build()?;
     let mut message_map = HashMap::<String, IPCMessage>::new();
     let _ = message_map.insert(message.get_name().to_string(), message);
