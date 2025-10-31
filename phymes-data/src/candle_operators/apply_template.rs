@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
@@ -49,25 +49,25 @@ impl DataOperatorTrait for ApplyTemplate {
             device,
         )
     }
-    fn new(config: &DataConfig) -> Self {
-        let doc_template = config.doc_template.clone().unwrap_or_default();
-        let doc_name = config.doc_name.clone().unwrap_or_default();
-        let table_expression = config.table_expression.clone().unwrap_or_default();
+    fn new(config: &DataConfig) -> Result<Self> {
+        let doc_template = config.doc_template.clone().ok_or(anyhow!("Missing `doc_template` for `{}`.", Self::get_static_name()))?;
+        let doc_name = config.doc_name.clone().ok_or(anyhow!("Missing `doc_name` for `{}`.", Self::get_static_name()))?;
+        let table_expression = config.table_expression.clone().ok_or(anyhow!("Missing `table_expression` for `{}`.", Self::get_static_name()))?;
         let doc_input = if let Some(doc_input) = config.doc_input.as_ref() {
-            serde_json::from_str::<Value>(doc_input).unwrap_or_default()
+            serde_json::from_str::<Value>(doc_input)?
         } else {
-            Value::default()
+            return Err(anyhow!("Missing `doc_input` for `{}`.", Self::get_static_name()))
         };
-        let format = config.format.unwrap_or_default();
+        let format = config.format.ok_or(anyhow!("Missing `format` for `{}`.", Self::get_static_name()))?;
 
         // Make the object
-        ApplyTemplate {
+        Ok(ApplyTemplate {
             doc_template,
             doc_name,
             table_expression,
             doc_input,
             format,
-        }
+        })
     }
     fn get_description() -> String {
         "Inject a table into a string template.".to_string()

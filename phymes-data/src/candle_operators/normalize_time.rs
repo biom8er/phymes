@@ -37,9 +37,9 @@ impl DataOperatorTrait for NormalizeTime {
             .collect::<Vec<_>>();
         normalize_time(&lhs_values, lhs_args, device)
     }
-    fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
-        NormalizeTime { lhs_values }
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
+        Ok(NormalizeTime { lhs_values })
     }
     fn get_description() -> String {
         "Compute the normalized start and end times and duration between start and end times."

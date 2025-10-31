@@ -37,17 +37,17 @@ impl MappableTrait for JoinInner {
 }
 
 impl DataOperatorTrait for JoinInner {
-    fn new(config: &DataConfig) -> Self {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().unwrap_or_default();
-        let lhs_fk = config.lhs_fk.as_ref().cloned().unwrap_or_default();
-        let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
-        let rhs_fk = config.rhs_fk.to_owned().unwrap_or_default();
-        JoinInner {
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
+        let lhs_fk = config.lhs_fk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_fk` for `{}`.", Self::get_static_name()))?;
+        let rhs_pk = config.rhs_pk.clone().ok_or(anyhow!("Missing `rhs_pk` for `{}`.", Self::get_static_name()))?;
+        let rhs_fk = config.rhs_fk.to_owned().ok_or(anyhow!("Missing `rhs_fk` for `{}`.", Self::get_static_name()))?;
+        Ok(JoinInner {
             _lhs_pk: lhs_pk,
             lhs_fk,
             _rhs_pk: rhs_pk,
             rhs_fk,
-        }
+        })
     }
     fn forward(
         &self,
@@ -59,7 +59,7 @@ impl DataOperatorTrait for JoinInner {
             &self.lhs_fk,
             lhs_args,
             &self.rhs_fk,
-            rhs_args.unwrap(),
+            rhs_args.ok_or(anyhow!("Missing `rhs_args` for `{}`.", Self::get_static_name()))?,
             device,
         )
     }

@@ -31,25 +31,25 @@ impl MappableTrait for ChunkDocuments {
 }
 
 impl DataOperatorTrait for ChunkDocuments {
-    fn new(config: &DataConfig) -> Self {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().unwrap_or_default();
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
         let lhs_values = config
             .lhs_values
             .as_ref()
             .cloned()
-            .unwrap_or_default()
+            .ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?
             .first()
             .cloned()
-            .unwrap_or_default();
+            .ok_or(anyhow!("`lhs_values` is empty for `{}`.", Self::get_static_name()))?;
         let chunk_size = config.chunk_size.unwrap_or(512);
         let chunk_overlap = config.chunk_overlap.unwrap_or(64);
 
-        ChunkDocuments {
+        Ok(ChunkDocuments {
             lhs_pk,
             lhs_values,
             chunk_size,
             chunk_overlap,
-        }
+        })
     }
     fn forward(
         &self,

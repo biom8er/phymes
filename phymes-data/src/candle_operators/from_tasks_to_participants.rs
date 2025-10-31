@@ -31,8 +31,8 @@ impl DataOperatorTrait for FromTasksToParticipants {
     ) -> Result<RecordBatch> {
         from_tasks_to_participants(lhs_args, rhs_args.unwrap(), device)
     }
-    fn new(_config: &DataConfig) -> Self {
-        FromTasksToParticipants {}
+    fn new(_config: &DataConfig) -> Result<Self> {
+        Ok(FromTasksToParticipants {})
     }
     fn get_description() -> String {
         "".to_string()

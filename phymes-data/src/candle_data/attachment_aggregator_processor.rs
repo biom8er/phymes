@@ -155,9 +155,9 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher(self.get_name())
-            .with_subject(self.get_publications().first().unwrap().get_table_name())
+            .with_subject(self.get_publications().first().ok_or(anyhow!("Missing publications for processor {}", self.get_name()))?.get_table_name())
             .with_message(out)
-            .with_update(self.get_publications().first().unwrap())
+            .with_update(self.get_publications().first().ok_or(anyhow!("Missing publications for processor {}", self.get_name()))?)
             .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
@@ -280,7 +280,7 @@ impl Stream for AggregatorStream {
                     .as_ref()
                     .unwrap()
                     .operator
-                    .build(self.config.as_ref().unwrap());
+                    .build(self.config.as_ref().unwrap())?;
                 self.data_operator.replace(operator);
             }
 
@@ -300,8 +300,7 @@ impl Stream for AggregatorStream {
                 &batches,
                 None,
                 self.runtime_env
-                    .try_lock()
-                    .unwrap()
+                    .lock()
                     .tensor_service
                     .as_ref()
                     .unwrap()

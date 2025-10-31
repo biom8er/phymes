@@ -42,8 +42,7 @@ pub trait PubSubTrait {
             if let Some(table) = state.get(subscription.get_table_name()) {
                 // OnUpdate... tables are not subscribed to if they have not been updated
                 if let Some(message) = table
-                    .try_read()
-                    .unwrap()
+                    .read()
                     .subscribe_table(subscription, *updated)
                 {
                     let publications = self.get_publications();

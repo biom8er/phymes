@@ -41,8 +41,8 @@ impl DataOperatorTrait for FromTracesToMessages {
     ) -> Result<RecordBatch> {
         from_traces_to_messages(lhs_args, rhs_args.unwrap(), device)
     }
-    fn new(_config: &DataConfig) -> Self {
-        FromTracesToMessages {}
+    fn new(_config: &DataConfig) -> Result<Self> {
+        Ok(FromTracesToMessages {})
     }
     fn get_description() -> String {
         "".to_string()

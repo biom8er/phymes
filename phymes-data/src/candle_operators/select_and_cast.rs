@@ -71,26 +71,26 @@ impl DataOperatorTrait for SelectAndCast {
             device,
         )
     }
-    fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
-        let as_columns = config.as_columns.clone().unwrap_or_default();
-        let cast_operators = config.cast_operators.clone().unwrap_or_default();
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
+        let as_columns = config.as_columns.clone().ok_or(anyhow!("Missing `as_columns` for `{}`.", Self::get_static_name()))?;
+        let cast_operators = config.cast_operators.clone().ok_or(anyhow!("Missing `cast_operators` for `{}`.", Self::get_static_name()))?;
         let cast_datatypes = config
             .cast_datatypes
             .clone()
-            .unwrap_or_default()
+            .ok_or(anyhow!("Missing `cast_datatypes` for `{}`.", Self::get_static_name()))?
             .iter()
             .map(|s| from_str_to_data_type(s).unwrap())
             .collect::<Vec<_>>();
-        let cast_templates = config.cast_templates.clone().unwrap_or_default();
+        let cast_templates = config.cast_templates.clone().ok_or(anyhow!("Missing `cast_templates` for `{}`.", Self::get_static_name()))?;
 
-        SelectAndCast {
+        Ok(SelectAndCast {
             lhs_values,
             as_columns,
             cast_operators,
             cast_datatypes,
             cast_templates,
-        }
+        })
     }
     fn get_description() -> String {
         "Cast specified columns using a specified cast operator and cast data type with optional column renaming and template injection."

@@ -23,8 +23,8 @@ impl MappableTrait for HumanInTheLoop {
 }
 
 impl DataOperatorTrait for HumanInTheLoop {
-    fn new(_config: &DataConfig) -> Self {
-        HumanInTheLoop {}
+    fn new(_config: &DataConfig) -> Result<Self> {
+        Ok(HumanInTheLoop {})
     }
     fn get_description() -> String {
         "The response to the user.".to_string()

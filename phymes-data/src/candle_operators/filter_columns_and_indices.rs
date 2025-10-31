@@ -69,18 +69,18 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
             device,
         )
     }
-    fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
-        let cmp_columns = config.cmp_columns.clone().unwrap_or_default();
-        let cmp_operators = config.cmp_operators.clone().unwrap_or_default();
-        let cmp_predicate = config.cmp_predicate.clone().unwrap_or_default();
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `doc_template` for `{}`.", Self::get_static_name()))?;
+        let cmp_columns = config.cmp_columns.clone().ok_or(anyhow!("Missing `cmp_columns` for `{}`.", Self::get_static_name()))?;
+        let cmp_operators = config.cmp_operators.clone().ok_or(anyhow!("Missing `cmp_operators` for `{}`.", Self::get_static_name()))?;
+        let cmp_predicate = config.cmp_predicate.clone().ok_or(anyhow!("Missing `cmp_predicate` for `{}`.", Self::get_static_name()))?;
 
-        FilterColumnsAndIndices {
+        Ok(FilterColumnsAndIndices {
             lhs_values,
             cmp_columns,
             cmp_operators,
             cmp_predicate,
-        }
+        })
     }
     fn get_description() -> String {
         "Filter by specified columns using a specified comparator operator over specified columns."

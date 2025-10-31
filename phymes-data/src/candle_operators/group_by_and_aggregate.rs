@@ -65,16 +65,16 @@ impl DataOperatorTrait for GroupByAndAggregate {
         )?;
         Ok(batches)
     }
-    fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
-        let agg_columns = config.agg_columns.clone().unwrap_or_default();
-        let agg_operators = config.agg_operators.clone().unwrap_or_default();
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
+        let agg_columns = config.agg_columns.clone().ok_or(anyhow!("Missing `agg_columns` for `{}`.", Self::get_static_name()))?;
+        let agg_operators = config.agg_operators.clone().ok_or(anyhow!("Missing `agg_operators` for `{}`.", Self::get_static_name()))?;
 
-        GroupByAndAggregate {
+        Ok(GroupByAndAggregate {
             lhs_values,
             agg_columns,
             agg_operators,
-        }
+        })
     }
     fn get_description() -> String {
         "Group by user specified columns and aggregate user specified aggregation columns using the user specified aggregation operators.".to_string()

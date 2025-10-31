@@ -3,7 +3,7 @@ use arrow::{
     datatypes::{Field, Schema},
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use candle_core::{Device, Tensor};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
@@ -38,20 +38,20 @@ impl MappableTrait for Pivot {
 }
 
 impl DataOperatorTrait for Pivot {
-    fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
-        let agg_columns = config.agg_columns.clone().unwrap_or_default();
-        let agg_operators = config.agg_operators.clone().unwrap_or_default();
-        let default_values = config.default_values.clone().unwrap_or_default();
-        let pvt_columns = config.pvt_columns.clone().unwrap_or_default();
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
+        let agg_columns = config.agg_columns.clone().ok_or(anyhow!("Missing `agg_columns` for `{}`.", Self::get_static_name()))?;
+        let agg_operators = config.agg_operators.clone().ok_or(anyhow!("Missing `agg_operators` for `{}`.", Self::get_static_name()))?;
+        let default_values = config.default_values.clone().ok_or(anyhow!("Missing `default_values` for `{}`.", Self::get_static_name()))?;
+        let pvt_columns = config.pvt_columns.clone().ok_or(anyhow!("Missing `pvt_columns` for `{}`.", Self::get_static_name()))?;
 
-        Pivot {
+        Ok(Pivot {
             lhs_values,
             agg_columns,
             agg_operators,
             default_values,
             pvt_columns,
-        }
+        })
     }
     fn forward(
         &self,

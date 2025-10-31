@@ -14,7 +14,7 @@ pub trait DataOperatorTrait: MappableTrait + Send + Sync + Debug {
     /// # Arguments
     /// * `config` - [DataConfig] struct describing the input parameters
     ///   including an optional `ops_kwargs` JSON string with keyword arguments
-    fn new(config: &DataConfig) -> Self
+    fn new(config: &DataConfig) -> Result<Self>
     where
         Self: Sized;
 

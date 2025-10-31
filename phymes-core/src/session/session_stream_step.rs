@@ -87,7 +87,7 @@ impl SessionStreamStep {
                 Err(err) => {
                     // Intercept the error and forward to the error subject
                     event!(Level::ERROR, "{err}");
-                    let message_map = create_error_message_map(&anyhow!("{err:?}"), "SessionStreamStep")?;
+                    let message_map = create_error_message_map(&anyhow!("{err}"), "SessionStreamStep")?;
                     response_batches.extend(message_map);
                 }
             }

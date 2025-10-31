@@ -124,7 +124,7 @@ impl ProcessorTrait for CandleDataProcessor {
         for subs in self.subscriptions.iter() {
             if subs.get_table_name() != self.get_name() {
                 match remove_message_by_subject(subs.get_table_name(), &mut message) {
-                    // DM: need to migrate this to `make_random_name` to avoid hash collisions
+                    // change from a random key to the subject name as the key to align with the [DataConfig]
                     Some(m) => {
                         subscriptions.insert(m.get_subject().to_string(), m);
                     }
@@ -149,9 +149,9 @@ impl ProcessorTrait for CandleDataProcessor {
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher(self.get_name())
-            .with_subject(self.publications.first().unwrap().get_table_name())
+            .with_subject(self.publications.first().ok_or(anyhow!("Missing publications for processor {}", self.get_name()))?.get_table_name())
             .with_message(out)
-            .with_update(self.publications.first().unwrap())
+            .with_update(self.publications.first().ok_or(anyhow!("Missing publications for processor {}", self.get_name()))?)
             .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
@@ -263,7 +263,7 @@ impl Stream for CandleDataStream {
                 batches.push(batch);
             }
             let values = Fields::from_iter(vec![Field::new("values", DataType::Utf8, false)]);
-            if batches.first().unwrap().schema().fields().contains(&values) {
+            if batches.first().ok_or(anyhow!("Config stream for CandleDataStream is empty"))?.schema().fields().contains(&values) {
                 let config_json = batches
                     .first()
                     .unwrap()
@@ -287,7 +287,9 @@ impl Stream for CandleDataStream {
                     .with_record_batches(batches)?
                     .build()?;
                 let config: DataConfig = serde_json::from_value(serde_json::Value::Object(
-                    config_table.to_json_object()?.first().unwrap().to_owned(),
+                    config_table.to_json_object()?.first()
+                    .ok_or(anyhow!("Config table for CandleDataStream is empty"))?
+                    .to_owned(),
                 ))?;
                 self.config.replace(config);
             }
@@ -305,9 +307,9 @@ impl Stream for CandleDataStream {
             let operator = self
                 .config
                 .as_ref()
-                .unwrap()
+                .ok_or(anyhow!("Config CandleDataStream is empty"))?
                 .operator
-                .build(self.config.as_ref().unwrap());
+                .build(self.config.as_ref().unwrap())?;
             self.data_operator.replace(operator);
         }
 
@@ -319,7 +321,7 @@ impl Stream for CandleDataStream {
                 .unwrap()
                 .lhs_name
                 .as_ref()
-                .unwrap()
+                .ok_or(anyhow!("lhs_name was not provided for config {:?}", self.config))?
                 .clone();
             let lhs = match self.messages.get_mut(lhs_name.as_str()) {
                 Some(lhs) => {
@@ -368,7 +370,7 @@ impl Stream for CandleDataStream {
                 .unwrap()
                 .rhs_name
                 .as_ref()
-                .unwrap()
+                .ok_or(anyhow!("rhs_name was not provided for config {:?}", self.config))?
                 .clone();
             let rhs = match self.messages.get_mut(rhs_name.as_str()) {
                 Some(rhs) => {
@@ -422,8 +424,7 @@ impl Stream for CandleDataStream {
             &self.lhs_inbox,
             Some(&self.rhs_inbox),
             self.runtime_env
-                .try_lock()
-                .unwrap()
+                .lock()
                 .tensor_service
                 .as_ref()
                 .unwrap()
@@ -441,6 +442,13 @@ impl Stream for CandleDataStream {
                         self.config.as_ref().unwrap())));
             };
         }
+        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            let event = diagnostic_builder
+                .clone()
+                .to_child("CandleDataStream")?
+                .debug(line!(), file!(), "poll_next");
+            event.insert("result", &serde_json::Value::String(format!("{batch:?}")));
+        };
 
         // // DM: need to update this with the other config options for streaming
         // self.rhs_inbox.clear();

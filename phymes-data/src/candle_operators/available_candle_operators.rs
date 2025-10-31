@@ -1,8 +1,7 @@
 use std::{fmt::Display, sync::Arc};
 
+use anyhow::Result;
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
-
-/// General dependencies
 use clap::ValueEnum;
 use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilderTrait};
 use serde::{Deserialize, Serialize};
@@ -121,24 +120,23 @@ impl AvailableCandleOperators {
     }
 
     /// Build the actual operator
-    #[allow(clippy::too_many_arguments)]
-    pub fn build(&self, config: &DataConfig) -> Box<dyn DataOperatorTrait> {
+    pub fn build(&self, config: &DataConfig) -> Result<Box<dyn DataOperatorTrait>> {
         match self {
-            Self::VectorDistance => Box::new(VectorDistance::new(config)),
-            Self::SortColumnAndIndices => Box::new(SortColumnAndIndices::new(config)),
-            Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(config)),
-            Self::ChunkDocuments => Box::new(ChunkDocuments::new(config)),
-            Self::JoinInner => Box::new(JoinInner::new(config)),
-            Self::ExtractPDFText => Box::new(ExtractPDFText::new(config)),
-            Self::GroupByAndAggregate => Box::new(GroupByAndAggregate::new(config)),
-            Self::FilterColumnsAndIndices => Box::new(FilterColumnsAndIndices::new(config)),
-            Self::ExtractTabularData => Box::new(ExtractTabularData::new(config)),
-            Self::SelectAndCast => Box::new(SelectAndCast::new(config)),
-            Self::ApplyTemplate => Box::new(ApplyTemplate::new(config)),
-            Self::Pivot => Box::new(Pivot::new(config)),
-            Self::NormalizeTime => Box::new(NormalizeTime::new(config)),
-            Self::FromTasksToParticipants => Box::new(FromTasksToParticipants::new(config)),
-            Self::FromTracesToMessages => Box::new(FromTracesToMessages::new(config)),
+            Self::VectorDistance => Ok(Box::new(VectorDistance::new(config)?)),
+            Self::SortColumnAndIndices => Ok(Box::new(SortColumnAndIndices::new(config)?)),
+            Self::HumanInTheLoop => Ok(Box::new(HumanInTheLoop::new(config)?)),
+            Self::ChunkDocuments => Ok(Box::new(ChunkDocuments::new(config)?)),
+            Self::JoinInner => Ok(Box::new(JoinInner::new(config)?)),
+            Self::ExtractPDFText => Ok(Box::new(ExtractPDFText::new(config)?)),
+            Self::GroupByAndAggregate => Ok(Box::new(GroupByAndAggregate::new(config)?)),
+            Self::FilterColumnsAndIndices => Ok(Box::new(FilterColumnsAndIndices::new(config)?)),
+            Self::ExtractTabularData => Ok(Box::new(ExtractTabularData::new(config)?)),
+            Self::SelectAndCast => Ok(Box::new(SelectAndCast::new(config)?)),
+            Self::ApplyTemplate => Ok(Box::new(ApplyTemplate::new(config)?)),
+            Self::Pivot => Ok(Box::new(Pivot::new(config)?)),
+            Self::NormalizeTime => Ok(Box::new(NormalizeTime::new(config)?)),
+            Self::FromTasksToParticipants => Ok(Box::new(FromTasksToParticipants::new(config)?)),
+            Self::FromTracesToMessages => Ok(Box::new(FromTracesToMessages::new(config)?)),
         }
     }
 }

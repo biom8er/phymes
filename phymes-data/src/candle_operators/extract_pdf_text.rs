@@ -30,20 +30,20 @@ impl MappableTrait for ExtractPDFText {
 }
 
 impl DataOperatorTrait for ExtractPDFText {
-    fn new(config: &DataConfig) -> Self
+    fn new(config: &DataConfig) -> Result<Self>
     where
         Self: Sized,
     {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().unwrap_or_default();
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
         let lhs_values = config
             .lhs_values
             .as_ref()
             .cloned()
-            .unwrap_or_default()
+            .ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?
             .first()
             .cloned()
-            .unwrap_or_default();
-        ExtractPDFText { lhs_pk, lhs_values }
+            .ok_or(anyhow!("`lhs_values` is empty for `{}`.", Self::get_static_name()))?;
+        Ok(ExtractPDFText { lhs_pk, lhs_values })
     }
     fn forward(
         &self,

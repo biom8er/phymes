@@ -34,17 +34,17 @@ impl MappableTrait for VectorDistance {
 }
 
 impl DataOperatorTrait for VectorDistance {
-    fn new(config: &DataConfig) -> Self {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().unwrap_or_default();
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
         let lhs_values = config
             .lhs_values
             .as_ref()
             .cloned()
-            .unwrap_or_default()
+            .ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?
             .first()
             .cloned()
-            .unwrap_or_default();
-        let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
+            .ok_or(anyhow!("`lhs_values` is empty for `{}`.", Self::get_static_name()))?;
+        let rhs_pk = config.rhs_pk.clone().ok_or(anyhow!("Missing `rhs_pk` for `{}`.", Self::get_static_name()))?;
         let rhs_values = config
             .rhs_values
             .clone()
@@ -52,14 +52,14 @@ impl DataOperatorTrait for VectorDistance {
             .first()
             .unwrap()
             .to_string();
-        let dist_operator = config.dist_operator.clone().unwrap_or_default();
-        VectorDistance {
+        let dist_operator = config.dist_operator.clone().ok_or(anyhow!("Missing `dist_operator` for `{}`.", Self::get_static_name()))?;
+        Ok(VectorDistance {
             lhs_pk,
             lhs_values,
             rhs_pk,
             rhs_values,
             dist_operator,
-        }
+        })
     }
     fn get_description() -> String {
         "Compute the relative similarity score between two different lists of embedding vectors"

@@ -32,18 +32,18 @@ impl MappableTrait for SortColumnAndIndices {
 }
 
 impl DataOperatorTrait for SortColumnAndIndices {
-    fn new(config: &DataConfig) -> Self {
+    fn new(config: &DataConfig) -> Result<Self> {
         let lhs_values = config
             .lhs_values
             .as_ref()
             .cloned()
-            .unwrap_or_default()
+            .ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?
             .first()
             .cloned()
-            .unwrap_or_default();
+            .ok_or(anyhow!("`lhs_values` is empty for `{}`.", Self::get_static_name()))?;
         let asc = config.asc.unwrap_or(true);
 
-        SortColumnAndIndices { lhs_values, asc }
+        Ok(SortColumnAndIndices { lhs_values, asc })
     }
     fn forward(
         &self,
