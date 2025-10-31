@@ -335,7 +335,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         // Attachment config
         let attachment_config = DataSummaryConfig {
-            format: DataFormat::JsonDefault,
+            summary_format: DataFormat::JsonDefault,
             ..Default::default()
         };
         let attachment_config_json = serde_json::to_vec(&attachment_config).unwrap();

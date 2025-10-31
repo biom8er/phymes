@@ -153,7 +153,7 @@ pub fn apply_template(
     format: &DataFormat,
     _device: &Device,
 ) -> Result<RecordBatch> {
-    // Convert the RecordBatches into a json objct
+    // Convert the RecordBatches into a json object
     let lhs_json_object = Table::get_builder()
         .with_name("apply_template")
         .with_record_batches(lhs_args.to_vec())?

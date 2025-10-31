@@ -1,5 +1,8 @@
+use anyhow::{anyhow, Result};
 use clap::{Parser, ValueEnum};
+use phymes_core::{MappableTrait, Table, TableTrait};
 use phymes_data::DataConfigTrait;
+use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::candle_assets::AvailableCandleAssets;
@@ -121,6 +124,26 @@ impl DataConfigTrait for CandleEmbedConfig {
                 ..Default::default()
             },
             _ => Self::default(),
+        }
+    }
+    fn from_table(table: &Table) -> Result<Self>
+        where
+            Self: Sized {
+        // Check for the required fields
+        let column_names = table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+        if !((column_names.contains("candle_asset") || column_names.contains("openai_asset"))
+            && column_names.contains("encoding_format") && column_names.contains("input_type")
+            && column_names.contains("modality")) {
+            return Err(anyhow!("Table {} is missing required Field for `candle_asset`, `openai_asset`, `encoding_format`, `input_type`, or `modality` in CandleEmbedConfig.", table.get_name()));
+        }
+
+        // Try to build the config
+        match table.to_struct::<CandleEmbedConfig>() {
+            Ok(config_vec) => match config_vec.first() {
+                Some(config) => Ok(config.to_owned()),
+                None => Err(anyhow!("No config data found for CandleEmbedConfig with subject {}", table.get_name())),
+            },
+            Err(err) => Err(anyhow!("CandleEmbedConfig could not be built for subject {}. {err}", table.get_name())),
         }
     }
 }

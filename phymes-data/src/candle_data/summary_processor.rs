@@ -442,7 +442,7 @@ impl Stream for DataSummaryStream {
             // Convert to the desired format
             let batch = table_and_data_format_to_record_batch(
                 &table,
-                &self.config.as_ref().unwrap().format,
+                &self.config.as_ref().unwrap().summary_format,
             )?;
             if batch.num_rows() == 0 {
                 if let Some(diagnostic_builder) = &self.diagnostic_builder {
@@ -508,7 +508,7 @@ mod tests {
             num_rows: Some(2),
             num_batches: Some(1),
             col_names: Some(vec!["embedding".to_string(), "lhs_pk".to_string()]),
-            format: DataFormat::None,
+            summary_format: DataFormat::None,
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()
@@ -600,7 +600,7 @@ mod tests {
             num_rows: Some(2),
             num_batches: Some(1),
             col_names: Some(vec!["lhs_pk".to_string()]),
-            format: DataFormat::Csv(CsvFormat {
+            summary_format: DataFormat::Csv(CsvFormat {
                 ..Default::default()
             }),
         };

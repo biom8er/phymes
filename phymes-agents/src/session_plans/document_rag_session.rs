@@ -6,8 +6,7 @@ use phymes_core::{
     TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator,
-    DataConfig, DataSummaryConfig, DataSummaryProcessor,
+    AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator, DataConfig, DataDistanceOperator, DataSummaryConfig, DataSummaryProcessor
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig, MessageAggregatorProcessor,
@@ -716,6 +715,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),
+            dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
             operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()
         };
@@ -770,7 +770,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             col_names: Some(vec!["text".to_string()]),
             num_rows: Some(3),
             num_batches: Some(1),
-            format: DataFormat::None,
+            summary_format: DataFormat::None,
         };
         let top_k_config_json = serde_json::to_vec(&top_k_config).unwrap();
         let top_k_state = TableBuilder::new()

@@ -669,6 +669,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ]),
             agg_columns: Some(vec!["metric_value".to_string()]),
             agg_operators: Some(vec![DataAggregatorOperator::Sum]),
+            default_values: Some(vec!["0".to_string()]),
             pvt_columns: Some(vec!["metric_name".to_string()]),
             operator: AvailableCandleOperators::Pivot,
             ..Default::default()

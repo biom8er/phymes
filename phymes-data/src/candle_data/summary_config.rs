@@ -1,5 +1,7 @@
+use anyhow::{anyhow, Result};
 use clap::Parser;
-use phymes_core::DataFormat;
+use phymes_core::{DataFormat, MappableTrait, Table, TableTrait};
+use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::DataConfigTrait;
@@ -25,7 +27,7 @@ pub struct DataSummaryConfig {
 
     /// The output format
     #[arg(long)]
-    pub format: DataFormat,
+    pub summary_format: DataFormat,
 }
 
 impl DataConfigTrait for DataSummaryConfig {
@@ -34,10 +36,28 @@ impl DataConfigTrait for DataSummaryConfig {
             "Function" => Self {
                 num_rows: Some(10),
                 num_batches: Some(1),
-                format: DataFormat::None,
+                summary_format: DataFormat::None,
                 ..Default::default()
             },
             _ => Self::default(),
+        }
+    }
+    fn from_table(table: &Table) -> Result<Self>
+        where
+            Self: Sized {
+        // Check for the required fields
+        let column_names = table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+        if !column_names.contains("summary_format") {
+            return Err(anyhow!("Table {} is missing required Field for `summary_format` in DataSummaryConfig.", table.get_name()));
+        }
+
+        // Try to build the config
+        match table.to_struct::<DataSummaryConfig>() {
+            Ok(config_vec) => match config_vec.first() {
+                Some(config) => Ok(config.to_owned()),
+                None => Err(anyhow!("No config data found for DataSummaryConfig with subject {}", table.get_name())),
+            },
+            Err(err) => Err(anyhow!("DataSummaryConfig could not be built for subject {}. {err}", table.get_name())),
         }
     }
 }

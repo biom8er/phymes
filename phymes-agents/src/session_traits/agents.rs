@@ -8,9 +8,11 @@ use phymes_core::{
     AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
     MappableTrait, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext,
     SessionContextBuilder, SessionContextBuilderTrait, StateMap, SubscribeTrait, Table,
-    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskMap, TaskPlan,
+    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskMap, TaskPlan, device,
 };
-use phymes_diagnostics::HashMap;
+use phymes_data::{DataConfig, DataConfigTrait, DataSummaryConfig};
+use phymes_diagnostics::{HashMap, HashSet};
+use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
 
 use crate::{
     AvailableInterfaceSubjects, AvailableProcessors,
@@ -36,8 +38,19 @@ pub trait SessionContextBuilderAgentsTrait {
     where
         Self: Sized;
 
-    /// Check for consistency between the `lhs_name` and `rhs_name` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
+    /// Check the [DataConfig] entries with their linked [ProcessorTrait] subscriptions
+    /// 
+    /// # Notes
+    /// 1. Check for consistency between the `lhs_name` and `rhs_name` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
+    /// 2. Check for consistency between the `lhs_pk`, `rhs_pk`, `lhs_fk`, `rhs_fk`, `lhs_values`, and `rhs_values` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
     fn check_data_config_subjects(&self) -> Result<()>;
+
+    /// Check that all processor configs can be built
+    /// 
+    /// # Notes
+    /// 1. Check that [DataOperatorTrait]s of [CandleDataProcessor]s can be build with the specified [DataConfig]s
+    /// 2. Check that all other configs can be generated from the provided table
+    fn check_processor_config_builds(&self) -> Result<()>;
 
     /// Check that all [ProcessorTrait]s subscribe to a subject of the same name
     fn check_processor_config_subjects(&self) -> Result<()>;
@@ -71,6 +84,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         self.check_state()?;
         self.check_processor_config_subjects()?;
         self.check_data_config_subjects()?;
+        self.check_processor_config_builds()?;
 
         // build the tasks, state, and runtime objects
         let (name, tasks, mut state, runtime_envs, max_iter, diagnostics, tables) =
@@ -113,7 +127,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .map(|t| (t.get_name().to_string(), t))
             .collect::<HashMap<_, _>>();
 
-        // Find the config subject for each process and check if the subscriptions are in the lhs_name/rhs_name
+        // Find the config subject for each process and 
+        // 1. check if the subscriptions are in the lhs_name/rhs_name
+        // 2. check if the lhs/rhs_pk/fk/values are in the fields of the lhs/rhs_name tables
         let processor_names = self
             .processors
             .as_ref()
@@ -127,23 +143,26 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .contains(&p.get_name())
             })
             .filter_map(|p| {
-                let mut names = Vec::new();
                 let table = state_map.get(p.get_name()).unwrap();
-                if let Ok(_index) = table.get_schema().index_of("lhs_name") {
+                let column_names = table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+
+                // Check the LHS and RHS table names
+                let mut names = Vec::new();
+                if column_names.contains("lhs_name") {
                     let vec_str = table.get_column_as_vec_str("lhs_name");
                     let name = vec_str.last().unwrap();
                     if !name.is_empty() {
                         names.push(name.to_string());
                     }
                 }
-                if let Ok(_index) = table.get_schema().index_of("rhs_name") {
+                if column_names.contains("rhs_name") {
                     let vec_str = table.get_column_as_vec_str("rhs_name");
                     let name = vec_str.last().unwrap();
                     if !name.is_empty() {
                         names.push(name.to_string());
                     }
                 }
-                let missing = names
+                let missing_names = names
                     .iter()
                     .filter_map(|n| {
                         if p.get_subscriptions()
@@ -158,6 +177,42 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         }
                     })
                     .collect::<Vec<_>>();
+
+                // Check the LHS and RHS PKs
+                let mut pks = Vec::new();
+                if column_names.contains("lhs_pk") {
+                    let vec_str = table.get_column_as_vec_str("lhs_pk");
+                    let name = vec_str.last().unwrap();
+                    if !name.is_empty() {
+                        pks.push(name.to_string());
+                    }
+                }
+                if column_names.contains("rhs_name") {
+                    let vec_str = table.get_column_as_vec_str("rhs_name");
+                    let name = vec_str.last().unwrap();
+                    if !name.is_empty() {
+                        pks.push(name.to_string());
+                    }
+                }
+                let missing_pks = pks
+                    .iter()
+                    .filter_map(|n| {
+                        if p.get_subscriptions()
+                            .iter()
+                            .map(|s| s.get_table_name())
+                            .collect::<Vec<_>>()
+                            .contains(&n.as_str())
+                        {
+                            None
+                        } else {
+                            Some(n.to_string())
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                let mut fks = Vec::new();
+                let mut values = Vec::new();
+
                 if missing.is_empty() {
                     None
                 } else {
@@ -173,6 +228,91 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         }
 
         Ok(())
+    }
+    fn check_processor_config_builds(&self) -> Result<()> {
+        let state_map = self
+            .state
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|t| (t.get_name().to_string(), t))
+            .collect::<HashMap<_, _>>();
+
+        let tasks = self.tasks
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|t| t.task_name.to_string())
+            .collect::<HashSet<_>>();
+
+        // Find the config tables whereby a config table is defined as
+        //  a subject with the same name as a processor
+        //  AND the processor name is not a task name
+        let config_tables = self
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter_map(|p| if p.get_subscriptions()
+                .iter()
+                .map(|s| s.get_table_name())
+                .collect::<Vec<_>>()
+                .contains(&p.get_name())
+            && !tasks.contains(p.get_name()) {
+                state_map.get(p.get_name())
+            } else {
+                None
+            })
+            .collect::<Vec<_>>();
+
+        // Try to build each config
+        let mut data_config_vec = Vec::new();
+        for table in config_tables {
+            if let Ok(_config) = CandleChatConfig::from_table(table) {
+                // No further checks currently
+            } else if let Ok(_config) = CandleEmbedConfig::from_table(table) {
+                // No further checks currently
+            } else if let Ok(_config) = DataSummaryConfig::from_table(table) {
+                // No further checks currently         
+            } else if let Ok(config) = DataConfig::from_table(table) {
+                data_config_vec.push((config, table.get_name().to_string()));                
+            } else {
+                return Err(anyhow!("Config could not be built for subject {}", table.get_name()));
+            }
+        }
+
+        // Try to build each DataOperator
+        for (config, name) in data_config_vec {
+            let data_operator = match config.operator.build(&config) {
+                Ok(data_operator) => data_operator,
+                Err(err) => return Err(anyhow!("Failed to build `{}` with DataConfig from subject `{name}`. {err}", config.operator))
+            };
+
+            // Try to run each operator
+            if let Some(lhs_name) = config.lhs_name {
+                if let Some(lhs_table) = state_map.get(&lhs_name) {
+                    if lhs_table.count_rows() > 0 {
+                        if let Some(rhs_name) = config.rhs_name {
+                            let device = device(false)?;
+                            if let Some(rhs_table) = state_map.get(&rhs_name) {
+                                if rhs_table.count_rows() > 0 {
+                                    if let Err(err) = data_operator.forward(lhs_table.get_record_batches(), Some(rhs_table.get_record_batches()), &device) {
+                                        return Err(anyhow!("Failed to run `{}` with DataConfig from subject `{name}` and lhs_args {:?} and rhs_args {:?}. {err}", config.operator, lhs_table.get_record_batches(), rhs_table.get_record_batches()));
+                                    }
+                                }                                
+                            } else {
+                                if let Err(err) = data_operator.forward(lhs_table.get_record_batches(), None, &device) {
+                                    return Err(anyhow!("Failed to run `{}` with DataConfig from subject `{name}` and lhs_args {:?}. {err}", config.operator, lhs_table.get_record_batches()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+        
     }
     fn check_processor_config_subjects(&self) -> Result<()> {
         let processor_names = self
@@ -487,12 +627,10 @@ pub trait CustomAgentsBuilderTrait {
 
 pub mod test_session_context_builder_agents {
 
+    use std::vec;
+
     use phymes_core::{
-        AllTableNamesSubscribe, BuildableTrait, BuilderTrait, SubscribeTrait, TableBuilderTrait,
-        TablePublish, TableSubscribe,
-        test_processor::ProcessorMock,
-        test_session_context_builder::make_test_session_builder_tasks,
-        test_task::{make_runtime_env, make_state_tables},
+        AllTableNamesSubscribe, BuildableTrait, BuilderTrait, SubscribeTrait, TableBuilderTrait, TablePublish, TableSubscribe, test_processor::ProcessorMock, test_session_context_builder::make_test_session_builder_tasks, test_table::make_test_table, test_task::make_runtime_env
     };
     use phymes_data::{AvailableCandleOperators, DataConfig};
 
@@ -565,13 +703,38 @@ pub mod test_session_context_builder_agents {
                 AllTableNamesSubscribe::new_box(),
             ),
         ];
-        let mut state = make_state_tables("state_1", "processor_1")?;
-        state.extend(make_state_tables("state_2", "processor_2")?);
-        state.extend(make_state_tables("state_3", "processor_3")?);
+
+        let mut state = vec![
+            make_test_table("state_1", 4, 8, 3)?,
+            Table::get_builder()
+                .with_name("processor_1")
+                .with_json(&DataConfig::to_example_json("")?, 1)
+                .unwrap()
+                .build()
+                .unwrap(),
+            make_test_table("state_2", 4, 8, 3)?,
+            Table::get_builder()
+                .with_name("processor_2")
+                .with_json(&DataConfig::to_example_json("")?, 1)
+                .unwrap()
+                .build()
+                .unwrap(),
+            make_test_table("state_3", 4, 8, 3)?,
+            Table::get_builder()
+                .with_name("processor_3")
+                .with_json(&DataConfig::to_example_json("")?, 1)
+                .unwrap()
+                .build()
+                .unwrap(),
+        ];
 
         let join_config = DataConfig {
             lhs_name: Some("state_1".to_string()),
             rhs_name: Some("state_2".to_string()),
+            lhs_fk: Some("id".to_string()),
+            rhs_fk: Some("id".to_string()),
+            lhs_pk: Some("id".to_string()),
+            rhs_pk: Some("id".to_string()),
             operator: AvailableCandleOperators::JoinInner,
             ..Default::default()
         };

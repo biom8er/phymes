@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableCandleOperators {
     #[value(name = "VectorDistance")]
     #[serde(alias = "vector-distance")]
@@ -24,6 +24,7 @@ pub enum AvailableCandleOperators {
     #[value(name = "SortColumnAndIndices")]
     #[serde(alias = "sort-column-and-indices")]
     SortColumnAndIndices,
+    #[default]
     #[value(name = "HumanInTheLoop")]
     #[serde(alias = "human-in-the-loop")]
     HumanInTheLoop,
@@ -63,12 +64,6 @@ pub enum AvailableCandleOperators {
     #[value(name = "FromTracesToMessages")]
     #[serde(alias = "FromTracesToMessages")]
     FromTracesToMessages,
-}
-
-impl Default for AvailableCandleOperators {
-    fn default() -> Self {
-        Self::VectorDistance
-    }
 }
 
 impl Display for AvailableCandleOperators {
