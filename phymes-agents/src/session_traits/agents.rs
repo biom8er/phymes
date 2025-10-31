@@ -127,10 +127,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .map(|t| (t.get_name().to_string(), t))
             .collect::<HashMap<_, _>>();
 
-        // Find the config subject for each process and 
-        // 1. check if the subscriptions are in the lhs_name/rhs_name
-        // 2. check if the lhs/rhs_pk/fk/values are in the fields of the lhs/rhs_name tables
-        let processor_names = self
+        // Find the config subject for each process
+        let processors = self
             .processors
             .as_ref()
             .unwrap()
@@ -142,89 +140,112 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .collect::<Vec<_>>()
                     .contains(&p.get_name())
             })
-            .filter_map(|p| {
-                let table = state_map.get(p.get_name()).unwrap();
-                let column_names = table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
-
-                // Check the LHS and RHS table names
-                let mut names = Vec::new();
-                if column_names.contains("lhs_name") {
-                    let vec_str = table.get_column_as_vec_str("lhs_name");
-                    let name = vec_str.last().unwrap();
-                    if !name.is_empty() {
-                        names.push(name.to_string());
-                    }
-                }
-                if column_names.contains("rhs_name") {
-                    let vec_str = table.get_column_as_vec_str("rhs_name");
-                    let name = vec_str.last().unwrap();
-                    if !name.is_empty() {
-                        names.push(name.to_string());
-                    }
-                }
-                let missing_names = names
-                    .iter()
-                    .filter_map(|n| {
-                        if p.get_subscriptions()
-                            .iter()
-                            .map(|s| s.get_table_name())
-                            .collect::<Vec<_>>()
-                            .contains(&n.as_str())
-                        {
-                            None
-                        } else {
-                            Some(n.to_string())
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                // Check the LHS and RHS PKs
-                let mut pks = Vec::new();
-                if column_names.contains("lhs_pk") {
-                    let vec_str = table.get_column_as_vec_str("lhs_pk");
-                    let name = vec_str.last().unwrap();
-                    if !name.is_empty() {
-                        pks.push(name.to_string());
-                    }
-                }
-                if column_names.contains("rhs_name") {
-                    let vec_str = table.get_column_as_vec_str("rhs_name");
-                    let name = vec_str.last().unwrap();
-                    if !name.is_empty() {
-                        pks.push(name.to_string());
-                    }
-                }
-                let missing_pks = pks
-                    .iter()
-                    .filter_map(|n| {
-                        if p.get_subscriptions()
-                            .iter()
-                            .map(|s| s.get_table_name())
-                            .collect::<Vec<_>>()
-                            .contains(&n.as_str())
-                        {
-                            None
-                        } else {
-                            Some(n.to_string())
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                let mut fks = Vec::new();
-                let mut values = Vec::new();
-
-                if missing.is_empty() {
-                    None
-                } else {
-                    Some((p.get_name(), missing))
-                }
-            })
             .collect::<Vec<_>>();
 
-        if !processor_names.is_empty() {
-            return Err(anyhow!(
-                "A subscriptions with the same names as the `DataConfig` lhs_name and rhs_name were not found for processors with lhs_name and rhs_name {processor_names:?}."
-            ));
+        // Iterate through the LHS and RHS entries
+        for processor in processors {
+            let table = state_map.get(processor.get_name()).unwrap();
+            let column_names = table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+
+            // Check the LHS entries
+            if column_names.contains("lhs_name") {
+                let vec_str = table.get_column_as_vec_str("lhs_name");
+                let name = vec_str.last().unwrap();
+
+                let subscriptions = processor.get_subscriptions()
+                    .iter()
+                    .filter_map(|s| if &s.get_table_name() == name {
+                        Some(name.to_string())
+                    } else {
+                        None
+                    })
+                    .collect::<Vec<_>>();
+                if subscriptions.is_empty() {
+                    return Err(anyhow!("A subscriptions with the same name as the `DataConfig` lhs_name was not found for processor {} with lhs_name {name}.", processor.get_name()));
+                }
+                let subscription_table = state_map.get(subscriptions.first().unwrap()).unwrap();
+                let subscription_col_names = subscription_table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+
+                if column_names.contains("lhs_pk") {
+                    let vec_str = table.get_column_as_vec_str("lhs_pk");
+                    let pk = vec_str.last().unwrap();
+                    if !subscription_col_names.contains(*pk) {
+                        return Err(anyhow!("Subscription {} does not have a column for `DataConfig` lhs_pk {pk} for processor {} with lhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                    }
+                }
+                if column_names.contains("lhs_fk") {
+                    let vec_str = table.get_column_as_vec_str("lhs_fk");
+                    let fk = vec_str.last().unwrap();
+                    if !subscription_col_names.contains(*fk) {
+                        return Err(anyhow!("Subscription {} does not have a column for `DataConfig` lhs_fk {fk} for processor {} with lhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                    }
+                }
+                if column_names.contains("lhs_values") {
+                    let vec_str = table.get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?;
+                    let values = vec_str.last().unwrap();
+                    let mut missing = values.iter()
+                        .filter_map(|v| if subscription_col_names.contains(v) {
+                            None
+                        } else {
+                            Some(v)
+                        })
+                        .collect::<Vec<_>>();
+                    missing.sort();
+                    if !missing.is_empty() {
+                        return Err(anyhow!("Subscription {} does not have columns for `DataConfig` lhs_values {missing:?} for processor {} with lhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                    }
+                }
+            }
+
+            // Check the RHS entries
+            if column_names.contains("rhs_name") {
+                let vec_str = table.get_column_as_vec_str("rhs_name");
+                let name = vec_str.last().unwrap();
+
+                let subscriptions = processor.get_subscriptions()
+                    .iter()
+                    .filter_map(|s| if &s.get_table_name() == name {
+                        Some(name.to_string())
+                    } else {
+                        None
+                    })
+                    .collect::<Vec<_>>();
+                if subscriptions.is_empty() {
+                    return Err(anyhow!("A subscriptions with the same name as the `DataConfig` rhs_name was not found for processor {} with rhs_name {name}.", processor.get_name()));
+                }
+                let subscription_table = state_map.get(subscriptions.first().unwrap()).unwrap();
+                let subscription_col_names = subscription_table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+
+                if column_names.contains("rhs_pk") {
+                    let vec_str = table.get_column_as_vec_str("rhs_pk");
+                    let pk = vec_str.last().unwrap();
+                    if !subscription_col_names.contains(*pk) {
+                        return Err(anyhow!("Subscription {} does not have a column for `DataConfig` rhs_pk {pk} for processor {} with rhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                    }
+                }
+                if column_names.contains("rhs_fk") {
+                    let vec_str = table.get_column_as_vec_str("rhs_fk");
+                    let fk = vec_str.last().unwrap();
+                    if !subscription_col_names.contains(*fk) {
+                        return Err(anyhow!("Subscription {} does not have a column for `DataConfig` rhs_fk {fk} for processor {} with rhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                    }
+                }
+                if column_names.contains("rhs_values") {
+                    let vec_str = table.get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?;
+                    let values = vec_str.last().unwrap();
+                    let mut missing = values.iter()
+                        .filter_map(|v| if subscription_col_names.contains(v) {
+                            None
+                        } else {
+                            Some(v)
+                        })
+                        .collect::<Vec<_>>();
+                    missing.sort();
+                    if !missing.is_empty() {
+                        return Err(anyhow!("Subscription {} does not have columns for `DataConfig` rhs_values {missing:?} for processor {} with rhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -968,7 +989,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "A subscriptions with the same names as the `DataConfig` lhs_name and rhs_name were not found for processors with lhs_name and rhs_name [(\"session_1\", [\"missing_state\"])]."
+                "A subscriptions with the same name as the `DataConfig` rhs_name was not found for processor session_1 with rhs_name missing_state."
             ),
         }
 
