@@ -12,14 +12,13 @@ use serde_json::{Value, json};
 use tracing::instrument;
 
 use crate::{
-    candle_data::{DataConfig, table_and_data_format_to_record_batch},
-    candle_operators::DataOperatorTrait,
+    AvailableJinja2Templates, candle_data::{DataConfig, table_and_data_format_to_record_batch}, candle_operators::DataOperatorTrait
 };
 
 /// Inject a table into a string template
 #[derive(Debug)]
 pub struct ApplyTemplate {
-    doc_template: String,
+    doc_template: AvailableJinja2Templates,
     doc_name: String,
     table_expression: String,
     doc_input: Value,
@@ -146,7 +145,7 @@ impl DataOperatorTrait for ApplyTemplate {
 ))]
 pub fn apply_template(
     lhs_args: &[RecordBatch],
-    doc_template: &str,
+    doc_template: &AvailableJinja2Templates,
     doc_name: &str,
     table_expression: &str,
     doc_input: &Value,
@@ -171,7 +170,7 @@ pub fn apply_template(
 
     // Apply the template
     let document =
-        TableScript::new_from_template(doc_template.to_string()).apply_template(&input)?;
+        TableScript::new_from_template(doc_template.to_template()).apply_template(&input)?;
 
     // Wrap into a table
     let batch = create_values_record_batch(
@@ -207,13 +206,14 @@ mod tests {
             "eos_token": "[EOS]",
             "add_generation_prompt": true,
         });
+        let jinja2_template = AvailableJinja2Templates::Custom(template.to_string());
 
         // Make the device
         let device = device(false)?;
 
         let result = apply_template(
             test_table.get_record_batches(),
-            template,
+            &jinja2_template,
             "viz",
             table_expression,
             &input_template,

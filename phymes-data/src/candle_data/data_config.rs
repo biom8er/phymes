@@ -6,7 +6,7 @@ use phymes_core::{DataFormat, MappableTrait, Table, TableTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::candle_operators::AvailableCandleOperators;
+use crate::{AvailableJinja2Templates, candle_operators::AvailableCandleOperators};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataStreamManager {
@@ -318,7 +318,7 @@ pub struct DataConfig {
     /// Minijinja [String] template
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub doc_template: Option<String>,
+    pub doc_template: Option<AvailableJinja2Templates>,
 
     /// The name of the resulting document after applying the minijinja template
     #[arg(long)]
@@ -471,7 +471,7 @@ impl DataConfigTrait for DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 operator: AvailableCandleOperators::ApplyTemplate,
-                doc_template: Some("doc_template".to_string()),
+                doc_template: Some(AvailableJinja2Templates::MermaidGanttTemplate),
                 doc_name: Some("doc_name".to_string()),
                 table_expression: Some("rows".to_string()),
                 doc_input: Some("{}".to_string()),

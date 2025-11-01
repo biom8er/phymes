@@ -9,9 +9,7 @@ use phymes_core::{
     TableSubscribe, TaskPlan, create_schema_from_fields, create_tools_record_batch,
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator,
-    DataConfig, DataSummaryConfig, DataSummaryProcessor, MERMAID_HTML_POST, MERMAID_HTML_PRE,
-    MERMAID_XYCHART_TABLE_EXPRESSION, MERMAID_XYCHART_TEMPLATE,
+    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, DataCastOperator, DataConfig, DataSummaryConfig, DataSummaryProcessor, MERMAID_XYCHART_TABLE_EXPRESSION,
 };
 #[cfg(feature = "candle")]
 use phymes_ml::CandleChatProcessor;
@@ -611,14 +609,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         // Visualize tabular data config
         let vis_xychart_config = DataConfig {
             lhs_name: Some(AvailableSubjects::MermaidXYChart.to_string()),
-            doc_template: Some(
-                [
-                    MERMAID_HTML_PRE,
-                    MERMAID_XYCHART_TEMPLATE,
-                    MERMAID_HTML_POST,
-                ]
-                .join(""),
-            ),
+            doc_template: Some(AvailableJinja2Templates::MermaidXYChartTemplate),
             doc_name: Some(self.state_scores_table_name.to_string()),
             table_expression: Some(MERMAID_XYCHART_TABLE_EXPRESSION.to_string()),
             doc_input: Some(

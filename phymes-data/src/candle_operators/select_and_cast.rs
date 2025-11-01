@@ -83,6 +83,33 @@ impl DataOperatorTrait for SelectAndCast {
             .map(|s| from_str_to_data_type(s).unwrap())
             .collect::<Vec<_>>();
         let cast_templates = config.cast_templates.clone().ok_or(anyhow!("Missing `cast_templates` for `{}`.", Self::get_static_name()))?;
+        
+        // Ensure that the array lengths match
+        if lhs_values.len() != as_columns.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the as_columns length {}",
+                lhs_values.len(),
+                as_columns.len()
+            ));
+        } else if lhs_values.len() != cast_operators.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the cast_operators length {}",
+                lhs_values.len(),
+                cast_operators.len()
+            ));
+        } else if lhs_values.len() != cast_datatypes.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the cast_datatypes length {}",
+                lhs_values.len(),
+                cast_datatypes.len()
+            ));
+        } else if lhs_values.len() != cast_templates.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the with_templates length {}",
+                lhs_values.len(),
+                cast_templates.len()
+            ));
+        }
 
         Ok(SelectAndCast {
             lhs_values,
@@ -187,33 +214,6 @@ pub fn select_and_cast(
     cast_templates: &[&str],
     _device: &Device,
 ) -> Result<RecordBatch> {
-    // Ensure that the array lengths for values, columns, and operators match
-    if lhs_values.len() != as_columns.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the as_columns length {}",
-            lhs_values.len(),
-            as_columns.len()
-        ));
-    } else if lhs_values.len() != cast_operators.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the cast_operators length {}",
-            lhs_values.len(),
-            cast_operators.len()
-        ));
-    } else if lhs_values.len() != cast_datatypes.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the cast_datatypes length {}",
-            lhs_values.len(),
-            cast_datatypes.len()
-        ));
-    } else if lhs_values.len() != cast_templates.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the with_templates length {}",
-            lhs_values.len(),
-            cast_templates.len()
-        ));
-    }
-
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
         .with_name("select_and_cast")

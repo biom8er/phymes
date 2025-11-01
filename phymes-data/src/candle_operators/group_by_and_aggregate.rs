@@ -70,6 +70,15 @@ impl DataOperatorTrait for GroupByAndAggregate {
         let agg_columns = config.agg_columns.clone().ok_or(anyhow!("Missing `agg_columns` for `{}`.", Self::get_static_name()))?;
         let agg_operators = config.agg_operators.clone().ok_or(anyhow!("Missing `agg_operators` for `{}`.", Self::get_static_name()))?;
 
+        // Ensure that the array lengths for columns and operators match
+        if agg_columns.len() != agg_operators.len() {
+            return Err(anyhow!(
+                "agg_columns length {} is not equal to the agg_operators length {}",
+                agg_columns.len(),
+                agg_operators.len()
+            ));
+        }
+
         Ok(GroupByAndAggregate {
             lhs_values,
             agg_columns,
@@ -335,15 +344,6 @@ pub fn group_by_and_aggregate(
     agg_operators: &[DataAggregatorOperator],
     device: &Device,
 ) -> Result<RecordBatch> {
-    // Ensure that the array lengths for columns and operators match
-    if agg_columns.len() != agg_operators.len() {
-        return Err(anyhow!(
-            "agg_columns length {} is not equal to the agg_operators length {}",
-            agg_columns.len(),
-            agg_operators.len()
-        ));
-    }
-
     // Presort the lhs group by columns
     let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
     for (iter, column_name) in lhs_values.iter().enumerate() {

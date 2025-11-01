@@ -74,6 +74,21 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
         let cmp_columns = config.cmp_columns.clone().ok_or(anyhow!("Missing `cmp_columns` for `{}`.", Self::get_static_name()))?;
         let cmp_operators = config.cmp_operators.clone().ok_or(anyhow!("Missing `cmp_operators` for `{}`.", Self::get_static_name()))?;
         let cmp_predicate = config.cmp_predicate.clone().ok_or(anyhow!("Missing `cmp_predicate` for `{}`.", Self::get_static_name()))?;
+        
+        // Ensure that the array lengths for values, columns, and operators match
+        if lhs_values.len() != cmp_columns.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the cmp_columns length {}",
+                lhs_values.len(),
+                cmp_columns.len()
+            ));
+        } else if lhs_values.len() != cmp_operators.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the cmp_operators length {}",
+                lhs_values.len(),
+                cmp_operators.len()
+            ));
+        }
 
         Ok(FilterColumnsAndIndices {
             lhs_values,
@@ -206,21 +221,6 @@ pub fn filter_columns_and_indices(
     cmp_predicate: &DataComparatorPredicate,
     device: &Device,
 ) -> Result<RecordBatch> {
-    // Ensure that the array lengths for values, columns, and operators match
-    if lhs_values.len() != cmp_columns.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the cmp_columns length {}",
-            lhs_values.len(),
-            cmp_columns.len()
-        ));
-    } else if lhs_values.len() != cmp_operators.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the cmp_operators length {}",
-            lhs_values.len(),
-            cmp_operators.len()
-        ));
-    }
-
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
         .with_name("filter_columns_and_indices")

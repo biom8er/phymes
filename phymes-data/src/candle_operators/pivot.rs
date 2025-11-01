@@ -374,8 +374,6 @@ pub fn pivot(
         .collect::<Vec<&str>>();
     let pvt_values_group =
         group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
-    // DM: Workaround for out of memory error on the GPU when analyzing session metrics...
-    // let pvt_values_group = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, &Device::Cpu)?;
     let pvt_values_table = Table::get_builder()
         .with_name("pivot")
         .with_record_batches(vec![pvt_values_group])?
