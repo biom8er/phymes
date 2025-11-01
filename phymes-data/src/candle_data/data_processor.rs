@@ -423,7 +423,7 @@ impl Stream for CandleDataStream {
 
         // Compute the data operator
         self.init_tensor_service()?;
-        let batch = self.data_operator.as_ref().unwrap().forward(
+        let batch = match self.data_operator.as_ref().unwrap().forward(
             &self.lhs_inbox,
             Some(&self.rhs_inbox),
             self.runtime_env
@@ -432,7 +432,22 @@ impl Stream for CandleDataStream {
                 .as_ref()
                 .unwrap()
                 .get_device(),
-        )?;
+        ) {
+            Ok(batch) => batch,
+            Err(err) => {                
+                if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                    let event = diagnostic_builder
+                        .clone()
+                        .to_child("CandleDataStream")?
+                        .warn(line!(), file!(), "poll_next");
+                    event.insert("data_operator", &serde_json::Value::String(
+                        format!("Data operator {} with config {:?} resulted in an error: {err:?}", 
+                            self.data_operator.as_ref().unwrap().get_name(), 
+                            self.config.as_ref().unwrap())));
+                };
+                return Poll::Ready(Some(Err(err)));
+            }
+        };
         if batch.num_rows() == 0 {
             if let Some(diagnostic_builder) = &self.diagnostic_builder {
                 let event = diagnostic_builder
