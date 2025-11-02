@@ -505,7 +505,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         .map(|e| e.to_owned())
                         .collect::<Vec<TablePublication>>(),
                     &subscriptions,
-                    to_update.get_subscribe().clone_boxed(),
+                    to_update.get_subscribe_policy().clone_boxed(),
                 );
                 processors.push(new_processor)
             } else {

@@ -9,6 +9,7 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 
 use super::data_operator::DataOperatorTrait;
 use crate::{candle_data::{DataConfig, DataDistanceOperator}, candle_operators::ToolTrait};
@@ -18,7 +19,7 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct VectorDistance {
     lhs_pk: String,
     lhs_values: String,

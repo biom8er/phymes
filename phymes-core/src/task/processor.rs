@@ -10,35 +10,12 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Level, event};
 
-/// For inner task objects that perform the actual processing
-/// and designed to allow for chaining multiple processors
-/// into streaming computational tree
+/// Trait that performs the actual processing
+/// 
+/// # Notes
+/// - designed to allow for chaining multiple processors into streaming computational trees
 pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync + Debug {
     /// New processor
-    ///
-    /// # Notes
-    ///
-    /// The builder pattern is bypassed in favor
-    /// of a simple initializer with options for members
-    /// who are not always required depending upon the users implementation
-    ///
-    /// # Examples
-    /// ## 1. Chaining processing steps
-    ///
-    /// Initialize with `input` that is called with the `message`
-    /// Process with `metrics` to record each processor
-    /// Process with `message` and define a processor that operates
-    /// over individual `RecordBatch`es as they are polled
-    ///
-    /// ## 2. Streaming response
-    ///
-    /// Process with `message` and define a processor that returns
-    /// a stream of `RecordBatches` via a receiver wrapped into a future
-    /// Process with `metrics` to record the processor
-    ///
-    /// ## 3. Remote RPC call
-    /// Process with `message` and make an RPC call
-    /// that returns a stream or batch of `RecordBatch`es
     fn new_arc_with_pub_sub(
         name: &str,
         publications: &[TablePublication],
@@ -54,13 +31,12 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
         Self: Sized;
 
     /// Get the subscription policy
-    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait;
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait;
 
     /// Alias for `get_static_name`
     fn get_type(&self) -> &str;
 
-    /// Begin execution of `task`, returning a [`Stream`] of
-    /// [`RecordBatch`]es.
+    /// Begin execution of `Process`, returning a [`Stream`] of [`RecordBatch`]es.
     ///
     /// [`RecordBatch`]: arrow::record_batch::RecordBatch
     ///
@@ -69,7 +45,7 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
     /// The `process` method itself is not `async` but it returns an `async`
     /// [`futures::stream::Stream`]. This `Stream` should incrementally compute
     /// the output, `RecordBatch` by `RecordBatch` (in a streaming fashion).
-    /// Most `ArrowTask`s should not do any work before the first
+    /// Most `Processor`s should not do any work before the first
     /// `RecordBatch` is requested from the stream.
     ///
     /// [`RecordBatchStreamAdapter`] can be used to convert an `async`
@@ -86,12 +62,10 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
     ///
     /// # Error handling
     ///
-    /// Any error that occurs during execution is sent as an `Err` in the output
-    /// stream.
+    /// Any error that occurs during execution is sent as an `Err` in the output stream.
     ///
-    /// `ArrowTask` implementations in DataFusion cancel additional work
-    /// immediately once an error occurs. The rationale is that if the overall
-    /// query will return an error, any additional work such as continued
+    /// `Task` implementations cancel additional work immediately once an error occurs. 
+    /// The rationale is that if the overall query will return an error, any additional work such as continued
     /// polling of inputs will be wasted as it will be thrown away.
     ///
     /// # Cancellation / Aborting Execution
@@ -225,8 +199,6 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
 }
 
 /// Processor that returns the input
-/// with optional conversion to another format
-/// e.g., Bytes for web app streaming
 #[derive(Debug)]
 pub struct ProcessorEcho {
     name: String,
@@ -279,7 +251,7 @@ impl ProcessorTrait for ProcessorEcho {
         })
     }
 
-    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
         self.subscribe_policy.as_ref()
     }
 
@@ -319,7 +291,7 @@ impl ProcessorTrait for ProcessorEcho {
 /// A lightweight builder for structures implementing the [ProcessorTrait]
 ///
 /// # Notes
-/// * A full `ArrowProcessorBuilderTrait` will be provided in the future
+/// * A full `ProcessorBuilderTrait` will be provided in the future
 ///   once the API stabilizes
 #[derive(Default)]
 pub struct ProcessorBuilder {
@@ -439,7 +411,7 @@ pub mod test_processor {
             })
         }
 
-        fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+        fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
             self.subscribe_policy.as_ref()
         }
 
@@ -629,7 +601,7 @@ pub mod test_processor {
             })
         }
 
-        fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+        fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
             self.subscribe_policy.as_ref()
         }
 

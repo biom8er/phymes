@@ -145,7 +145,7 @@ pub trait TensorProcessorTrait: Send + Sync + Debug {
 /// Tokens representations in different dimensions
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TokenWrapper {
-    ///ComputableInput Text generation input
+    /// Text generation input
     D1(Vec<u32>),
     /// Embedding generation input
     D2(Vec<Vec<u32>>),

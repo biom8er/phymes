@@ -7,6 +7,7 @@ use std::{
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, ToolCall, create_chat_record_batch, create_values_record_batch, remove_message_by_subject
 };
+use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
     create_timestamp_micros,
@@ -89,7 +90,7 @@ impl ProcessorTrait for MessageParserProcessor {
         })
     }
 
-    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
         self.subscribe_policy.as_ref()
     }
 
@@ -193,9 +194,7 @@ impl MessageParserStream {
 
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config: CandleChatConfig = serde_json::from_value(serde_json::Value::Object(
-                config_table.to_json_object()?.first().unwrap().to_owned(),
-            ))?;
+            let config = CandleChatConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         Ok(())

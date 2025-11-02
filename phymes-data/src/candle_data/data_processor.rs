@@ -1,5 +1,5 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
-use crate::candle_operators::DataOperatorTrait;
+use crate::{DataConfigTrait, candle_operators::DataOperatorTrait};
 use phymes_core::{
     AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, device, remove_message_by_subject
 };
@@ -79,7 +79,7 @@ impl ProcessorTrait for CandleDataProcessor {
         })
     }
 
-    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
         self.subscribe_policy.as_ref()
     }
 
@@ -282,11 +282,7 @@ impl Stream for CandleDataStream {
                     .with_name("config")
                     .with_record_batches(batches)?
                     .build()?;
-                let config: DataConfig = serde_json::from_value(serde_json::Value::Object(
-                    config_table.to_json_object()?.first()
-                    .ok_or(anyhow!("Config table for CandleDataStream is empty"))?
-                    .to_owned(),
-                ))?;
+                let config = DataConfig::from_table(&config_table)?;
                 self.config.replace(config);
             }
         }
@@ -966,7 +962,7 @@ mod tests {
             lhs_values: Some(vec!["embedding".to_string()]),
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
-            rhs_values: Some(vec!["embedding".to_string()]),
+            // rhs_values: Some(vec!["embedding".to_string()]),
             dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
             operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()

@@ -70,7 +70,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
         })
     }
 
-    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
         self.subscribe_policy.as_ref()
     }
 

@@ -197,9 +197,7 @@ impl OpenAIChatStream {
     /// Initialize the config for text generation inference
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config: CandleChatConfig = serde_json::from_value(serde_json::Value::Object(
-                config_table.to_json_object()?.first().unwrap().to_owned(),
-            ))?;
+            let config = CandleChatConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         Ok(())

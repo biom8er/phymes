@@ -195,7 +195,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         // Subscriptions
                         subscriptions_vec.push(format!(
                             "\t{processor_name}-subscribe@{{shape: diamond, label: {}}}",
-                            processor.get_subscribe().get_name()
+                            processor.get_subscribe_policy().get_name()
                         ));
                         let subscriptions = processor
                             .get_subscriptions()

@@ -263,7 +263,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 is_sub.push(1);
                 processor_names.push(processor.get_name().to_string());
                 processor_types.push(processor.get_type().to_string());
-                subscribe_types.push(processor.get_subscribe().get_name().to_string());
+                subscribe_types.push(processor.get_subscribe_policy().get_name().to_string());
             }
             for p in processor.get_publications() {
                 pub_sub_name.push(p.get_name().to_string());
@@ -271,7 +271,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 is_sub.push(0);
                 processor_names.push(processor.get_name().to_string());
                 processor_types.push(processor.get_type().to_string());
-                subscribe_types.push(processor.get_subscribe().get_name().to_string());
+                subscribe_types.push(processor.get_subscribe_policy().get_name().to_string());
             }
         }
 

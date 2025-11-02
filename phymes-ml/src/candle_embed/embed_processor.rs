@@ -1,4 +1,5 @@
 use candle_core::{DType, Tensor};
+use phymes_data::DataConfigTrait;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
 use phymes_core::{
@@ -77,7 +78,7 @@ impl ProcessorTrait for CandleEmbedProcessor {
         })
     }
 
-    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
         self.subscribe_policy.as_ref()
     }
 
@@ -218,9 +219,7 @@ impl CandleEmbedStream {
 
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config: CandleEmbedConfig = serde_json::from_value(serde_json::Value::Object(
-                config_table.to_json_object()?.first().unwrap().to_owned(),
-            ))?;
+            let config = CandleEmbedConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         Ok(())

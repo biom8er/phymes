@@ -21,6 +21,8 @@ use phymes_diagnostics::{
 };
 use tracing::{Level, event, instrument};
 
+use crate::DataConfigTrait;
+
 use super::summary_config::DataSummaryConfig;
 
 /// Processor that takes the results of an OpsProcessor
@@ -82,7 +84,7 @@ impl ProcessorTrait for DataSummaryProcessor {
         })
     }
 
-    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
         self.subscribe_policy.as_ref()
     }
 
@@ -210,9 +212,7 @@ impl DataSummaryStream {
 
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config: DataSummaryConfig = serde_json::from_value(serde_json::Value::Object(
-                config_table.to_json_object()?.first().unwrap().to_owned(),
-            ))?;
+            let config = DataSummaryConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         Ok(())

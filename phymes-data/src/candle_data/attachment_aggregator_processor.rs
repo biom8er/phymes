@@ -9,8 +9,7 @@ use phymes_core::{
 };
 
 use crate::{
-    candle_data::{data_config::DataConfig, tensor_service::CandleTensorService},
-    candle_operators::DataOperatorTrait,
+    DataConfigTrait, candle_data::{data_config::DataConfig, tensor_service::CandleTensorService}, candle_operators::DataOperatorTrait
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -102,7 +101,7 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         })
     }
 
-    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
         self.subscribe_policy.as_ref()
     }
 
@@ -206,9 +205,7 @@ impl AggregatorStream {
     #[instrument(skip(self))]
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config: DataConfig = serde_json::from_value(serde_json::Value::Object(
-                config_table.to_json_object()?.first().unwrap().to_owned(),
-            ))?;
+            let config = DataConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         Ok(())

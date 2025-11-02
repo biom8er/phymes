@@ -2,6 +2,7 @@ use crate::candle_assets::TokenOutputStream;
 
 use candle_core::DType;
 use candle_transformers::generation::{LogitsProcessor, Sampling};
+use phymes_data::DataConfigTrait;
 use tokenizers::Tokenizer;
 
 #[cfg(feature = "openai_api")]
@@ -81,7 +82,7 @@ impl ProcessorTrait for CandleChatProcessor {
         })
     }
 
-    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
         self.subscribe_policy.as_ref()
     }
 
@@ -221,9 +222,7 @@ impl CandleChatStream {
     #[instrument(skip(self))]
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config: CandleChatConfig = serde_json::from_value(serde_json::Value::Object(
-                config_table.to_json_object()?.first().unwrap().to_owned(),
-            ))?;
+            let config = CandleChatConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         Ok(())
