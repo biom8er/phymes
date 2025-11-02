@@ -223,6 +223,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     TableSubscribe::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
                     },
+                    TableSubscribe::OnUpdateLastRecordBatch {
+                        table_name: AvailableSubjects::SessionErrors.to_string(),
+                    },
                     TableSubscribe::AlwaysFullTable {
                         table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
@@ -235,6 +238,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         .to_string()
                         .as_str(),
                     AvailableInterfaceSubjects::ToolMessages
+                        .to_string()
+                        .as_str(),
+                    AvailableSubjects::SessionErrors
                         .to_string()
                         .as_str(),
                 ),
@@ -263,7 +269,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscribe::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                     },
                     TableSubscribe::OnUpdateLastRecordBatch {
@@ -609,7 +615,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         // Visualize tabular data config
         let vis_xychart_config = DataConfig {
             lhs_name: Some(AvailableSubjects::MermaidXYChart.to_string()),
-            doc_template: Some(AvailableJinja2Templates::MermaidXYChartTemplate),
+            doc_template: Some(AvailableJinja2Templates::MermaidXYChartHTML),
             doc_name: Some(self.state_scores_table_name.to_string()),
             table_expression: Some(MERMAID_XYCHART_TABLE_EXPRESSION.to_string()),
             doc_input: Some(
@@ -739,6 +745,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AvailableInterfaceSubjects::AssistantScript
                 .to_table(None, None)
                 .unwrap(),
+            AvailableSubjects::SessionErrors.to_table(None, None).unwrap()
         ])
     }
 }

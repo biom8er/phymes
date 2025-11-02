@@ -430,16 +430,19 @@ impl MappableTrait for AllTableSchemasSubscribe {
 pub struct ChatContentSubscribe {
     user_message_table_name: String,
     tool_message_table_name: String,
+    error_message_table_name: String,
 }
 
 impl ChatContentSubscribe {
     pub fn new_box_with_table_names(
         user_message_table_name: &str,
         tool_message_table_name: &str,
+        error_message_table_name: &str,
     ) -> Box<dyn SubscribeTrait> {
         Box::new(Self {
             user_message_table_name: user_message_table_name.to_string(),
             tool_message_table_name: tool_message_table_name.to_string(),
+            error_message_table_name: error_message_table_name.to_string(),
         })
     }
 }
@@ -453,7 +456,8 @@ impl SubscribeTrait for ChatContentSubscribe {
     ) -> bool {
         let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
         let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
-        *tool || *user
+        let error = updates.get(&self.error_message_table_name).unwrap_or(&false);
+        *tool || *user || *error
     }
     fn new_box() -> Box<dyn SubscribeTrait> {
         Box::new(Self {
@@ -461,6 +465,7 @@ impl SubscribeTrait for ChatContentSubscribe {
             // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
             user_message_table_name: "UserMessages".to_string(),
             tool_message_table_name: "ToolMessages".to_string(),
+            error_message_table_name: "SessionErrors".to_string(),
         })
     }
     fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {

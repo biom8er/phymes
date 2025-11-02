@@ -8,9 +8,20 @@ use crate::{
     }
 };
 
-pub fn create_error_table(err: &Error) -> Result<Table> {
-    // DM: must use :? and not .to_string() with Anyhow::Error to see full backtrace if available
-    let error_str = format! {"{err:?}"};
+/// Create the error table
+/// 
+/// # Arguments
+/// `err` - [anyhow::Error]
+/// `with_display` - whether to show the full backtrace or not
+/// 
+/// # Notes
+/// - use :? and not .to_string() with Anyhow::Error to see full backtrace if available
+pub fn create_error_table(err: &Error, with_display: bool) -> Result<Table> {
+    let error_str = if with_display {
+        format! {"{err:?}"}
+    } else {
+        format! {"{err}"}
+    };
     let batch = create_chat_record_batch(
         vec!["tool".to_string()],
         vec![error_str],
@@ -25,8 +36,9 @@ pub fn create_error_table(err: &Error) -> Result<Table> {
 pub fn create_error_message_map_stream(
     err: &Error,
     publisher: &str,
+    with_display: bool
 ) -> Result<HashMap<String, SendableRecordBatchStreamMessage>> {
-    let table = create_error_table(err)?;
+    let table = create_error_table(err, with_display)?;
     let message = SendableRecordBatchStreamMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
@@ -44,8 +56,9 @@ pub fn create_error_message_map_stream(
 pub fn create_error_message_map(
     err: &Error,
     publisher: &str,
+    with_display: bool
 ) -> Result<HashMap<String, IPCMessage>> {
-    let table = create_error_table(err)?;
+    let table = create_error_table(err, with_display)?;
     let message = IPCMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)

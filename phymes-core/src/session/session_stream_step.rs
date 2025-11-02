@@ -76,9 +76,9 @@ impl SessionStreamStep {
                                     .build()?;
                                 message.to_map()?
                             }
-                            Err(err) => create_error_message_map(&err, "SessionStreamStep")?,
+                            Err(err) => create_error_message_map(&err, "SessionStreamStep", true)?,
                         },
-                        Err(err) => create_error_message_map(&err, "SessionStreamStep")?,
+                        Err(err) => create_error_message_map(&err, "SessionStreamStep", true)?,
                     };
 
                     // Add the message to the joined responses                    
@@ -87,7 +87,7 @@ impl SessionStreamStep {
                 Err(err) => {
                     // Intercept the error and forward to the error subject
                     event!(Level::ERROR, "{err}");
-                    let message_map = create_error_message_map(&anyhow!("{err}"), "SessionStreamStep")?;
+                    let message_map = create_error_message_map(&anyhow!("{err}"), "SessionStreamStep", true)?;
                     response_batches.extend(message_map);
                 }
             }
@@ -188,7 +188,7 @@ impl SessionStreamStep {
         let update = match state.write().update_state_from_messages(messages) {
             Ok(update) => update,
             Err(err) => {
-                let message_map = create_error_message_map_stream(&err, span.span().0)?;
+                let message_map = create_error_message_map_stream(&err, span.span().0, true)?;
                 response_streams.extend(message_map);
                 HashMap::<String, Vec<String>>::new()
             }
@@ -235,7 +235,7 @@ impl SessionStreamStep {
                 Err(err) => {
                     // Intercept the error and wrap into a `SendableRecordBatch` for consumption
                     event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name);
-                    let message_map = create_error_message_map_stream(&err, task_name)?;
+                    let message_map = create_error_message_map_stream(&err, task_name, true)?;
                     response_streams.extend(message_map);
                 }
             }
@@ -262,7 +262,7 @@ impl SessionStreamStep {
             let response_batches =
                 match SessionStreamStep::join_message_streams(response_streams).await {
                     Ok(response_batches) => response_batches,
-                    Err(err) => create_error_message_map(&err, span.span().0)?,
+                    Err(err) => create_error_message_map(&err, span.span().0, true)?,
                 };
 
             // Update the state and handle any errors (without locking the state)
@@ -270,7 +270,7 @@ impl SessionStreamStep {
             let mut update = match state.write().update_state_from_messages(response_batches) {
                 Ok(update) => update,
                 Err(err) => {
-                    let message_map = create_error_message_map(&err, span.span().0)?;
+                    let message_map = create_error_message_map(&err, span.span().0, true)?;
                     error_messages.extend(message_map);
                     HashMap::<String, Vec<String>>::new()
                 }
