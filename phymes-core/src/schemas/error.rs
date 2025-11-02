@@ -1,44 +1,21 @@
-use std::sync::Arc;
-
 use anyhow::{Error, Result};
-use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray},
-    datatypes::{DataType, Field, Fields},
-};
-use phymes_diagnostics::HashMap;
-use serde::{Deserialize, Serialize};
+use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
 use crate::{
-    schemas::available_subjects::AvailableSubjects,
-    session::{BuilderTrait, MappableTrait},
-    table::{Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait},
-    task::{
+    create_chat_record_batch, schemas::available_subjects::AvailableSubjects, session::{BuilderTrait, MappableTrait}, table::{Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait}, task::{
         IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage,
         SendableRecordBatchStreamMessageBuilder,
-    },
+    }
 };
-
-pub(crate) fn create_error_fields() -> Fields {
-    let error = Field::new("error", DataType::Utf8, false);
-    Fields::from(vec![error])
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct ErrorSubject {
-    pub error: String,
-}
-
-pub fn create_error_batch(error: Vec<String>) -> Result<RecordBatch> {
-    let error: ArrayRef = Arc::new(StringArray::from(error));
-    let batch = RecordBatch::try_from_iter(vec![("error", error)])?;
-    Ok(batch)
-}
 
 pub fn create_error_table(err: &Error) -> Result<Table> {
     // DM: must use :? and not .to_string() with Anyhow::Error to see full backtrace if available
     let error_str = format! {"{err:?}"};
-    let batch = create_error_batch(vec![error_str])?;
+    let batch = create_chat_record_batch(
+        vec!["tool".to_string()],
+        vec![error_str],
+        vec![create_timestamp_micros()],
+    )?;
     TableBuilder::new()
         .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
         .with_record_batches(vec![batch])?

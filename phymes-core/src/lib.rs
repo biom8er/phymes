@@ -9,7 +9,7 @@ pub use schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     JoinUserInboxSessionContextsMermaidDiagrams, QueriesBuilderTraitExt, SessionMermaidSubject,
     Tool, ToolCall, ToolChoiceType, ToolType, UserSubject, create_blob_batch, create_blob_fields,
-    create_chat_fields, create_chat_record_batch, create_documents_batch, create_error_batch,
+    create_chat_fields, create_chat_record_batch, create_documents_batch,
     create_error_message_map, create_error_message_map_stream,
     create_mermaid_sequence_diagram_participants_template_batch,
     create_metrics_mermaid_gantt_batch, create_queries_batch, create_schema_from_fields,
