@@ -72,6 +72,16 @@ pub(crate) fn create_mermaid_content_template_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+pub fn create_mermaid_content_template_batch(
+    content: Vec<String>,
+) -> Result<RecordBatch> {
+    let content: ArrayRef = Arc::new(StringArray::from(content));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("content", content),
+    ])?;
+    Ok(batch)
+}
+
 pub(crate) fn create_mermaid_gantt_template_fields() -> Fields {
     let field_names = ["section", "task", "start", "end"];
     let fields_vec = field_names

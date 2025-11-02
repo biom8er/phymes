@@ -4,9 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
-    JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool,
-    ToolType, create_values_record_batch,
+    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType, create_mermaid_content_template_batch, create_values_record_batch
 };
 use serde_json::{Value, json};
 use tracing::instrument;
@@ -173,19 +171,17 @@ pub fn apply_template(
         TableScript::new_from_template(doc_template.to_template()).apply_template(&input)?;
 
     // Wrap into a table
-    let batch = create_values_record_batch(
-        vec![String::new()],
-        vec![String::new()],
-        vec![String::new()],
-        vec![document],
-    )?;
+    let batch = match format {
+        DataFormat::None => create_mermaid_content_template_batch(vec![document])?,
+        _ => create_values_record_batch(vec![String::new()], vec![String::new()], vec![String::new()], vec![document])?
+    };
     let table = Table::get_builder()
         .with_name(doc_name)
         .with_record_batches(vec![batch])?
         .build()?;
 
     // Convert to the desired format
-    table_and_data_format_to_record_batch(&table, format)
+    table_and_data_format_to_record_batch(&table, format, Some("content"))
 }
 
 #[cfg(test)]

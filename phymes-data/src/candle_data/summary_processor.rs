@@ -224,15 +224,30 @@ impl DataSummaryStream {
     }
 }
 
-/// Helper function to convert a table into the desired output format
+/// Helper function to convert a [Table] into the desired output [DataFormat]
+/// 
+/// # Arguments
+/// `table` - the [Table] containing the data
+/// `format` - the desired output [DataFormat]
+/// `content` - Optional string to include JUST the contents of column data `content`
+///   which is needed for some tool calling and visualization generation methods
 pub fn table_and_data_format_to_record_batch(
     table: &Table,
     format: &DataFormat,
+    content: Option<&str>,
 ) -> Result<RecordBatch> {
     match format {
         DataFormat::None => {
+            // Extract out the content
+            let content = if let Some(content) = content {
+                match table.get_column_as_vec_string(content)? {
+                    Some(column) => column.join(""),
+                    None => String::new(),
+                }
+            } else {
+                serde_json::to_string(&table.to_json_object()?)?
+            };
             // Wrap into a record batch
-            let content = serde_json::to_string(&table.to_json_object()?)?;
             create_chat_record_batch(
                 vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
                 vec![content],
@@ -443,6 +458,7 @@ impl Stream for DataSummaryStream {
             let batch = table_and_data_format_to_record_batch(
                 &table,
                 &self.config.as_ref().unwrap().summary_format,
+                None
             )?;
             if batch.num_rows() == 0 {
                 if let Some(diagnostic_builder) = &self.diagnostic_builder {
