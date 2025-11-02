@@ -6,7 +6,7 @@ use crate::{
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
     BuilderTrait, EmbeddingRequest, EmbeddingResponse, EncodingFormat, MappableTrait,
     MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, remove_message_by_subject,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
@@ -34,7 +34,7 @@ pub struct OpenAIEmbedProcessor {
     name: String,
     publications: Vec<TablePublish>,
     subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    subscribe_policy: Box<dyn SubscribeTrait>,
 }
 
 impl MappableTrait for OpenAIEmbedProcessor {
@@ -52,7 +52,7 @@ impl PubSubTrait for OpenAIEmbedProcessor {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
@@ -62,13 +62,13 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
         name: &str,
         publications: &[TablePublish],
         subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
+        subscribe_policy: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
+            subscribe_policy,
         })
     }
     fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
@@ -76,12 +76,12 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
             name: name.to_string(),
             publications: vec![TablePublish::None],
             subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
+            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
         })
     }
 
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe_policy(&self) -> &dyn SubscribeTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {

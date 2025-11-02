@@ -1,11 +1,7 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
 use crate::candle_operators::DataOperatorTrait;
 use phymes_core::{
-    AllTableNamesSubscribe, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait,
-    MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, TableBuilder, TableBuilderTrait,
-    TablePublish, TableSubscribe, TableTrait, device, remove_message_by_subject,
+    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, device, remove_message_by_subject
 };
 
 use arrow::{
@@ -34,9 +30,9 @@ use tracing::{Level, event, instrument};
 #[derive(Debug)]
 pub struct CandleDataProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for CandleDataProcessor {
@@ -46,15 +42,15 @@ impl MappableTrait for CandleDataProcessor {
 }
 
 impl PubSubTrait for CandleDataProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
@@ -62,29 +58,29 @@ impl PubSubTrait for CandleDataProcessor {
 impl ProcessorTrait for CandleDataProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
+            subscribe_policy,
         })
     }
 
     fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![TablePublish::None],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
+            publications: vec![TablePublication::None],
+            subscriptions: vec![TableSubscription::None],
+            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
         })
     }
 
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
@@ -562,7 +558,7 @@ mod tests {
     use crate::{DataDistanceOperator, candle_operators::AvailableCandleOperators};
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
-    use phymes_core::{Table, TablePublish};
+    use phymes_core::{Table, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
@@ -610,7 +606,7 @@ mod tests {
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -620,7 +616,7 @@ mod tests {
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -824,7 +820,7 @@ mod tests {
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -834,7 +830,7 @@ mod tests {
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -932,7 +928,7 @@ mod tests {
             .with_name("lhs_name")
             .with_publisher("")
             .with_subject("lhs_name")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_message(lhs_table.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
@@ -956,7 +952,7 @@ mod tests {
             .with_name("rhs_name")
             .with_publisher("")
             .with_subject("rhs_name")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_message(rhs_table.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
@@ -983,7 +979,7 @@ mod tests {
         let message = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher("")
             .with_subject("candle_ops_processor")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_message(config_table.to_record_batch_stream())
             .make_random_name()?
             .build()?;
@@ -1008,18 +1004,18 @@ mod tests {
         // Make the stream and run
         let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
             "candle_ops_processor",
-            &[TablePublish::Replace {
+            &[TablePublication::Replace {
                 table_name: "results".to_string(),
             }],
             &[
-                TableSubscribe::AlwaysFullTable {
+                TableSubscription::AlwaysFullTable {
                     table_name: "lhs_name".to_string(),
                 },
-                TableSubscribe::AlwaysFullTable {
+                TableSubscription::AlwaysFullTable {
                     table_name: "rhs_name".to_string(),
                 },
             ],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut ops_stream =
             ops_processor.process(messages, Some(&diagnostic_builder), runtime_env)?;

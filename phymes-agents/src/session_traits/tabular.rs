@@ -7,12 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    ProcessorBuilder, RuntimeEnv, RuntimeEnvTrait, SessionContextBuilder,
-    SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
-    TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch,
-    create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch,
-    from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, RuntimeEnv, RuntimeEnvTrait, SessionContextBuilder, SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch, from_data_type_to_str, from_str_to_data_type
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
@@ -483,15 +478,15 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             for (name, t, s_t, sub, sub_tab, is_sub) in combined.iter() {
                 if name == &processor_name {
                     if **is_sub == 1 {
-                        let subscription = TableSubscribe::from_str(sub, sub_tab)?;
+                        let subscription = TableSubscription::from_str(sub, sub_tab)?;
                         builder.subscriptions.as_mut().unwrap().push(subscription);
                     } else {
-                        let publication = TablePublish::from_str(sub, sub_tab)?;
+                        let publication = TablePublication::from_str(sub, sub_tab)?;
                         builder.publications.as_mut().unwrap().push(publication);
                     }
-                    let subscribe = from_str_to_subscribe(s_t)?;
+                    let subscribe = AvailableTableSubscribePolicies::from_str_fuzzy(s_t)?.build();
                     builder.processor_type.replace(t.to_string());
-                    builder.subscribe.replace(subscribe);
+                    builder.subscribe_policy.replace(subscribe);
                 }
             }
             let available_processor = AvailableProcessors::from_str(

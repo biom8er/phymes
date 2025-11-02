@@ -5,12 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilderTrait,
-    TablePublish, TableSubscribe, TableTrait, ToolCall, create_chat_record_batch,
-    create_values_record_batch, remove_message_by_subject,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, ToolCall, create_chat_record_batch, create_values_record_batch, remove_message_by_subject
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -46,9 +41,9 @@ use super::tool_parser::extract_tool_calls_str;
 #[derive(Debug)]
 pub struct MessageParserProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for MessageParserProcessor {
@@ -58,14 +53,14 @@ impl MappableTrait for MessageParserProcessor {
 }
 
 impl PubSubTrait for MessageParserProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
@@ -73,29 +68,29 @@ impl PubSubTrait for MessageParserProcessor {
 impl ProcessorTrait for MessageParserProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
+            subscribe_policy,
         })
     }
 
     fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![TablePublish::None],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
+            publications: vec![TablePublication::None],
+            subscriptions: vec![TableSubscription::None],
+            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
         })
     }
 
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
@@ -413,7 +408,7 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{TableBuilder, TablePublish};
+    use phymes_core::{TableBuilder, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
@@ -439,7 +434,7 @@ mod tests {
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("messages")
@@ -455,7 +450,7 @@ mod tests {
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("message_processor")
@@ -486,14 +481,14 @@ mod tests {
         // Create the processor and run
         let processor = MessageParserProcessor::new_arc_with_pub_sub(
             "message_processor",
-            &[TablePublish::ExtendChunks {
+            &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             }],
-            &[TableSubscribe::AlwaysFullTable {
+            &[TableSubscription::AlwaysFullTable {
                 table_name: "messages".to_string(),
             }],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
@@ -543,7 +538,7 @@ mod tests {
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("messages")
@@ -559,7 +554,7 @@ mod tests {
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("message_processor")
@@ -590,14 +585,14 @@ mod tests {
         // Create the processor and run
         let processor = MessageParserProcessor::new_arc_with_pub_sub(
             "message_processor",
-            &[TablePublish::ExtendChunks {
+            &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             }],
-            &[TableSubscribe::AlwaysFullTable {
+            &[TableSubscription::AlwaysFullTable {
                 table_name: "messages".to_string(),
             }],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
@@ -647,7 +642,7 @@ mod tests {
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("messages")
@@ -663,7 +658,7 @@ mod tests {
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("message_processor")
@@ -694,14 +689,14 @@ mod tests {
         // Create the processor and run
         let processor = MessageParserProcessor::new_arc_with_pub_sub(
             "message_processor",
-            &[TablePublish::ExtendChunks {
+            &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             }],
-            &[TableSubscribe::AlwaysFullTable {
+            &[TableSubscription::AlwaysFullTable {
                 table_name: "messages".to_string(),
             }],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 

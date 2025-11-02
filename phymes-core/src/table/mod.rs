@@ -1,11 +1,13 @@
+mod available_table_subscribe_policies;
 mod data_format;
 mod data_types;
 mod stream;
 mod stream_adapter;
-mod table_publish;
+mod table_publication;
 mod table_script;
-mod table_subscribe;
+mod table_subscription;
 mod table_trait;
+mod table_subscribe_policy;
 
 pub use data_format::{CsvFormat, DataFormat, JsonFormat};
 pub use data_types::{from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type};
@@ -14,11 +16,11 @@ pub use stream_adapter::{
     EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder,
     RecordBatchStreamAdapter,
 };
-pub use table_publish::{TablePublish, TableUpdateTrait};
+pub use table_publication::{TablePublication, TablePublicationTrait};
 pub use table_script::TableScript;
-pub use table_subscribe::{
-    AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe,
-    AnyTableSchemaSubscribe, ChatContentSubscribe, SubscribeTrait, TableSubscribe,
-    TableSubscribeTrait, from_str_to_subscribe,
-};
+pub use table_subscription::{TableSubscription, TableSubscriptionTrait};
 pub use table_trait::{Table, TableBuilder, TableBuilderTrait, TableTrait, test_table};
+pub(crate) use table_subscribe_policy::{AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe,
+    AnyTableSchemaSubscribe, ChatContentSubscribe};
+pub use table_subscribe_policy::TableSubscribePolicyTrait;
+pub use available_table_subscribe_policies::AvailableTableSubscribePolicies;

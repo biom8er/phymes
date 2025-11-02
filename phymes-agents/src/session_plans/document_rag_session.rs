@@ -1,9 +1,7 @@
 use std::{sync::Arc, vec};
 
 use phymes_core::{
-    AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
-    BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table,
-    TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataCastOperator, DataConfig, DataDistanceOperator, DataSummaryConfig, DataSummaryProcessor
@@ -199,268 +197,268 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let processors = vec![
             MessageAggregatorProcessor::new_arc_with_pub_sub(
                 self.message_aggregator_processor_1_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self.chat_task_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self.state_top_k_docs_table_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
-                    TableSubscribe::AlwaysLastRecordBatch {
+                    TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.message_aggregator_processor_1_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             MessageAggregatorProcessor::new_arc_with_pub_sub(
                 self.message_aggregator_processor_2_name,
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
-                    TableSubscribe::AlwaysLastRecordBatch {
+                    TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.message_aggregator_processor_2_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             AttachmentAggregatorProcessor::new_arc_with_pub_sub(
                 self.attachment_aggregator_processor_name,
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
                     },
-                    TableSubscribe::AlwaysLastRecordBatch {
+                    TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.attachment_aggregator_processor_name.to_string(),
                     },
                 ],
-                AnyTableNameSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.message_to_query_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscribe::AlwaysLastRecordBatch {
+                    TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.message_to_query_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "openai_api")]
             OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
-                &[TablePublish::ExtendChunks {
+                &[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
-                    TableSubscribe::None,
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::None,
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "candle")]
             CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
-                &[TablePublish::ExtendChunks {
+                &[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
-                    TableSubscribe::None,
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::None,
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.extract_pdf_processor_name,
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: self.document_chunk_task_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.extract_pdf_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.document_chunk_processor_name,
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: self.state_documents_table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.document_chunk_task_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.document_chunk_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "openai_api")]
             OpenAIEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_documents_processor_name,
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: self.state_documents_table_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.embed_documents_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "openai_api")]
             OpenAIEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_query_processor_name,
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: self.state_q_embed_table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.embed_query_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "candle")]
             CandleEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_documents_processor_name,
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: self.state_documents_table_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.embed_documents_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "candle")]
             CandleEmbedProcessor::new_arc_with_pub_sub(
                 self.embed_query_processor_name,
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: self.state_q_embed_table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.embed_query_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.relative_similarity_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.state_doc_embed_table_name.to_string(),
                     },
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: self.state_q_embed_table_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.relative_similarity_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.sort_scores_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.sort_scores_processor_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.state_scores_table_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.join_chunks_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self.state_scores_chunks_join_table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.state_documents_table_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.state_scores_table_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.join_chunks_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             DataSummaryProcessor::new_arc_with_pub_sub(
                 self.top_k_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self.state_top_k_docs_table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.top_k_processor_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.state_scores_chunks_join_table_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
         ];
 
@@ -906,7 +904,7 @@ mod tests {
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: chat.get_name().to_string(),
             })
             .with_publisher(doc_rag_session.session_context_name)
@@ -919,7 +917,7 @@ mod tests {
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: blob.get_name().to_string(),
             })
             .with_publisher(doc_rag_session.session_context_name)

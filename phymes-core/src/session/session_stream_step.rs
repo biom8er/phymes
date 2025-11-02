@@ -307,6 +307,7 @@ impl SessionStreamStep {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::AvailableTableSubscribePolicies;
     use crate::schemas::{AvailableSubjects, AvailableSubjectsTrait};
     use crate::session::session_context_builder::test_session_context_builder::{
         make_test_session_context_parallel_task, make_test_session_context_sequential_task,
@@ -314,7 +315,7 @@ mod tests {
     use crate::session::session_context_builder::{
         SessionContextBuilder, SessionContextBuilderTrait, TaskPlan,
     };
-    use crate::table::{AllTableNamesSubscribe, SubscribeTrait, TablePublish, TableSubscribe};
+    use crate::table::{TablePublication, TableSubscription};
     use crate::task::{
         ProcessorTrait,
         test_processor::{ProcessorError, ProcessorMock},
@@ -332,7 +333,7 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublish::None,
+                &TablePublication::None,
                 true,
             )?,
         )
@@ -440,7 +441,7 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublish::Extend {
+                &TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 },
                 true,
@@ -580,7 +581,7 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublish::Replace {
+                &TablePublication::Replace {
                     table_name: "state_1".to_string(),
                 },
                 true,
@@ -718,7 +719,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_1".to_string(),
             },
             true,
@@ -728,7 +729,7 @@ mod tests {
             "session_1",
             "state_2",
             "state_2",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_2".to_string(),
             },
             true,
@@ -738,7 +739,7 @@ mod tests {
             "session_1",
             "state_3",
             "state_3",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_3".to_string(),
             },
             true,
@@ -933,7 +934,7 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "state_1".to_string()
             }
         );
@@ -974,7 +975,7 @@ mod tests {
                 .get("from_session_1_on_state_2")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "state_2".to_string()
             }
         );
@@ -1015,7 +1016,7 @@ mod tests {
                 .get("from_session_1_on_state_3")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "state_3".to_string()
             }
         );
@@ -1189,7 +1190,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_1".to_string(),
             },
             true,
@@ -1352,7 +1353,7 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "state_1".to_string()
             }
         );
@@ -1465,7 +1466,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_1".to_string(),
             },
             false,
@@ -1496,28 +1497,28 @@ mod tests {
         let processors = vec![
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorError::new_arc_with_pub_sub(
                 "error_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
-                &[TableSubscribe::OnUpdateFullTable {
+                &[TableSubscription::OnUpdateFullTable {
                     table_name: "state_1".to_string(),
                 }],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
         ];
         let state = make_state_tables("state_1", "config_1")?;
@@ -1536,7 +1537,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_1".to_string(),
             },
             true,

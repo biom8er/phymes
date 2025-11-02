@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuilderTrait,
-    ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
 use phymes_ml::{
@@ -89,76 +87,76 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
 
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_1_name,
-            &[TablePublish::Replace {
+            &[TablePublication::Replace {
                 table_name: self.chat_task_name.to_string(),
             }],
             &[
-                TableSubscribe::OnUpdateFullTable {
+                TableSubscription::OnUpdateFullTable {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                TableSubscribe::AlwaysFullTable {
+                TableSubscription::AlwaysFullTable {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                TableSubscribe::AlwaysLastRecordBatch {
+                TableSubscription::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_1_name.to_string(),
                 },
             ],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         ));
         processors.push(MessageAggregatorProcessor::new_arc_with_pub_sub(
             self.message_aggregator_processor_2_name,
-            &[TablePublish::Extend {
+            &[TablePublication::Extend {
                 table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
             }],
             &[
-                TableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscription::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                 },
-                TableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscription::OnUpdateLastRecordBatch {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                TableSubscribe::AlwaysLastRecordBatch {
+                TableSubscription::AlwaysLastRecordBatch {
                     table_name: self.message_aggregator_processor_2_name.to_string(),
                 },
             ],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         ));
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
             processors.push(OpenAIChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
-                &[TablePublish::ExtendChunks {
+                &[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
-                    TableSubscribe::None,
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::None,
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ));
         } else {
             processors.push(CandleChatProcessor::new_arc_with_pub_sub(
                 self.chat_processor_name,
-                &[TablePublish::ExtendChunks {
+                &[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
-                    TableSubscribe::None,
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::None,
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ));
         }
 
@@ -319,7 +317,7 @@ mod tests {
             let message = IPCMessage::get_builder()
                 .with_message(chat.to_ipc_stream()?)
                 .with_subject(chat.get_name())
-                .with_update(&TablePublish::Extend {
+                .with_update(&TablePublication::Extend {
                     table_name: chat.get_name().to_string(),
                 })
                 .with_publisher(chat_agent_session.session_context_name)
@@ -382,7 +380,7 @@ mod tests {
             let message = IPCMessage::get_builder()
                 .with_message(chat.to_ipc_stream()?)
                 .with_subject(chat.get_name())
-                .with_update(&TablePublish::Extend {
+                .with_update(&TablePublication::Extend {
                     table_name: chat.get_name().to_string(),
                 })
                 .with_publisher(chat_agent_session.session_context_name)

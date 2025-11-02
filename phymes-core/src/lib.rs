@@ -30,12 +30,11 @@ pub use session::{
     TokenizerConfig, device, test_session_context_builder,
 };
 pub use table::{
-    AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe,
-    AnyTableSchemaSubscribe, ChatContentSubscribe, CsvFormat, DataFormat, JsonFormat,
+    AvailableTableSubscribePolicies, CsvFormat, DataFormat, JsonFormat,
     RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream,
-    RecordBatchStreamAdapter, SendableRecordBatchStream, SubscribeTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublish, TableScript, TableSubscribe, TableSubscribeTrait, TableTrait,
-    TableUpdateTrait, from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe,
+    RecordBatchStreamAdapter, SendableRecordBatchStream, TableSubscribePolicyTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublication, TableScript, TableSubscription, TableSubscriptionTrait, TableTrait,
+    TablePublicationTrait, from_data_type_to_str, from_str_to_data_type,
     parse_str_to_data_type, test_table,
 };
 pub use task::{

@@ -8,7 +8,7 @@ use phymes_agents::{
     SessionContextBuilderMermaidTrait, create_message_map,
 };
 use phymes_core::{
-    create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch, AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, JsonFormat, MappableTrait, MessageBuilderTrait, MessageTrait, SessionContextBuilder, SessionContextBuilderTrait, SessionStream, SessionStreamState, Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait, UserSubject
+    create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch, AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, JsonFormat, MappableTrait, MessageBuilderTrait, MessageTrait, SessionContextBuilder, SessionContextBuilderTrait, SessionStream, SessionStreamState, Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, UserSubject
 };
 use phymes_diagnostics::HashMap;
 
@@ -74,7 +74,7 @@ impl UserState {
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublish::Replace {
+            .with_update(&TablePublication::Replace {
                 table_name: blob.get_name().to_string(),
             })
             .with_publisher(session_context_name.as_str())
@@ -176,7 +176,7 @@ impl UserState {
             .with_subject(AvailableSubjects::UserSessionContexts.to_string().as_str())
             .with_publisher(&create_session_name(email, session_plan.as_str()))
             .with_message(user_session_contexts_bytes)
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: AvailableSubjects::UserSessionContexts.to_string(),
             })
             .make_name()?
@@ -185,7 +185,7 @@ impl UserState {
             .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
             .with_publisher(&create_session_name(email, session_plan.as_str()))
             .with_message(mermaid_bytes)
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: AvailableSubjects::BuilderMermaid.to_string(),
             })
             .make_name()?

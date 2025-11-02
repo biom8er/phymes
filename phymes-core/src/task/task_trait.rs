@@ -17,7 +17,7 @@ use crate::{
         BuildableTrait, BuilderTrait, MappableTrait, RunnableTrait, RuntimeEnv,
         SendableRecordBatchStreamMessageMap, StateMap,
     },
-    table::{TablePublish, TableSubscribe},
+    table::{TablePublication, TableSubscription},
 };
 
 /// Trait to implement the actual task which could involve one or
@@ -193,17 +193,17 @@ impl TaskTrait for Task {
 }
 
 impl PubSubTrait for Task {
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.get_processors()
             .iter()
             .flat_map(|p| p.get_subscriptions())
-            .collect::<Vec<&TableSubscribe>>()
+            .collect::<Vec<&TableSubscription>>()
     }
-    fn get_publications(&self) -> Vec<&TablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.get_processors()
             .iter()
             .flat_map(|p| p.get_publications())
-            .collect::<Vec<&TablePublish>>()
+            .collect::<Vec<&TablePublication>>()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
         for processor in self.get_processors() {
@@ -315,15 +315,11 @@ pub fn check_not_null_constraints(
 pub mod test_task {
     use super::*;
     use crate::{
-        session::{
+        AvailableTableSubscribePolicies, session::{
             BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, RuntimeEnv, RuntimeEnvTrait,
-        },
-        table::{
-            AllTableNamesSubscribe, SubscribeTrait, Table, TableBuilder, TableBuilderTrait,
-            TablePublish, TableTrait,
-            test_table::{make_test_table, make_test_table_chat},
-        },
-        task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, test_processor::ProcessorMock},
+        }, table::{
+            Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, test_table::{make_test_table, make_test_table_chat}
+        }, task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, test_processor::ProcessorMock}
     };
 
     use arrow::array::{ArrayRef, StringArray, UInt16Array, UInt32Array};
@@ -398,18 +394,18 @@ pub mod test_task {
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
                 processor_name.as_str(),
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: table_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: config_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             )])
             .build()
     }
@@ -427,21 +423,21 @@ pub mod test_task {
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
                 processor_name.as_str(),
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: table_name_1.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: table_name_1.to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: table_name_2.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: config_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             )])
             .build()
     }
@@ -461,18 +457,18 @@ pub mod test_task {
             .with_processor(vec![
                 ProcessorMock::new_arc_with_pub_sub(
                     processor_name_1.as_str(),
-                    &[TablePublish::Extend {
+                    &[TablePublication::Extend {
                         table_name: table_name.to_string(),
                     }],
                     &[
-                        TableSubscribe::OnUpdateFullTable {
+                        TableSubscription::OnUpdateFullTable {
                             table_name: table_name.to_string(),
                         },
-                        TableSubscribe::AlwaysFullTable {
+                        TableSubscription::AlwaysFullTable {
                             table_name: config_name.to_string(),
                         },
                     ],
-                    AllTableNamesSubscribe::new_box(),
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
                 ),
                 ProcessorMock::new_arc(processor_name_2.as_str()),
                 ProcessorMock::new_arc(processor_name_3.as_str()),
@@ -485,7 +481,7 @@ pub mod test_task {
         publisher: &str,
         subject: &str,
         table_name: &str,
-        update: &TablePublish,
+        update: &TablePublication,
         test_table: bool,
     ) -> Result<IPCMessageMap> {
         // mock table as input
@@ -516,7 +512,7 @@ mod tests {
     use super::*;
     use crate::remove_message_by_subject;
     use crate::table::{
-        TableBuilder, TableBuilderTrait, TablePublish, TableTrait, test_table::make_test_table,
+        TableBuilder, TableBuilderTrait, TablePublication, TableTrait, test_table::make_test_table,
     };
     use crate::task::message::MessageTrait;
     use arrow::array::{Array, DictionaryArray, Int32Array, NullArray, RunArray};
@@ -731,7 +727,7 @@ mod tests {
             .with_name("test_message")
             .with_publisher("s1")
             .with_subject("d1")
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: "d1".to_string(),
             })
             .with_message(make_test_table("d1", 1, 8, 2)?.to_record_batch_stream())
@@ -746,7 +742,7 @@ mod tests {
             .with_name("test_message")
             .with_publisher("s1")
             .with_subject("test_table")
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: "test_table".to_string(),
             })
             .with_message(make_test_table("test_table", 1, 8, 2)?.to_record_batch_stream())
@@ -780,7 +776,7 @@ mod tests {
                 .get("from_test_task_on_test_table")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "test_table".to_string()
             }
         );

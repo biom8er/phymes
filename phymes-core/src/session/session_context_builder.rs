@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     session::common_traits::{StateMap, TaskMap},
-    table::{Table, TablePublish, TableSubscribe},
+    table::{Table, TablePublication, TableSubscription},
     task::{ProcessorTrait, Task, TaskBuilderTrait},
 };
 
@@ -106,7 +106,7 @@ impl SessionContextBuilder {
     pub fn get_sub_pub_for_task(
         &self,
         task_name: &str,
-    ) -> (Vec<&TableSubscribe>, Vec<&TablePublish>) {
+    ) -> (Vec<&TableSubscription>, Vec<&TablePublication>) {
         // Get the processor name
         let processors = self
             .tasks
@@ -133,12 +133,12 @@ impl SessionContextBuilder {
             .filter(|p| processors.contains(&p.get_name()))
             .for_each(|p| {
                 p.get_subscriptions().iter().for_each(|s| {
-                    if **s != TableSubscribe::None {
+                    if **s != TableSubscription::None {
                         subscriptons_set.insert(s.to_owned());
                     }
                 });
                 p.get_publications().iter().for_each(|s| {
-                    if **s != TablePublish::None {
+                    if **s != TablePublication::None {
                         publications_set.insert(s.to_owned());
                     }
                 });
@@ -436,12 +436,11 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use crate::{
-        table::{AllTableNamesSubscribe, SubscribeTrait},
-        task::{
+        AvailableTableSubscribePolicies, task::{
             ProcessorEcho,
             test_processor::ProcessorMock,
             test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
-        },
+        }
     };
 
     use super::*;
@@ -476,74 +475,74 @@ pub mod test_session_context_builder {
         let processor_plans = vec![
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_2",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_2".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_2".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "config_2".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_3",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_3".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "config_3".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "session_1",
                 &[
-                    TablePublish::Extend {
+                    TablePublication::Extend {
                         table_name: "state_1".to_string(),
                     },
-                    TablePublish::Extend {
+                    TablePublication::Extend {
                         table_name: "state_2".to_string(),
                     },
-                    TablePublish::Extend {
+                    TablePublication::Extend {
                         table_name: "state_3".to_string(),
                     },
                 ],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_2".to_string(),
                     },
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_3".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
         ];
 
@@ -558,58 +557,58 @@ pub mod test_session_context_builder {
         let processor_plans = vec![
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_2",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_3",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "session_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
-                &[TableSubscribe::OnUpdateLastRecordBatch {
+                &[TableSubscription::OnUpdateLastRecordBatch {
                     table_name: "state_1".to_string(),
                 }],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
         ];
 
@@ -694,7 +693,7 @@ pub mod test_session_context_builder {
 mod tests {
     use super::*;
     use crate::{
-        table::TableSubscribe,
+        table::TableSubscription,
         task::{
             ProcessorTrait,
             test_processor::ProcessorMock,
@@ -706,13 +705,13 @@ mod tests {
     fn test_get_task_sub_pub_with_input() {
         let plan = test_session_context_builder::make_test_session_builder_parallel_task();
         let (subscriptions, publications) = plan.get_sub_pub_for_task("task_1");
-        assert!(subscriptions.contains(&&TableSubscribe::AlwaysFullTable {
+        assert!(subscriptions.contains(&&TableSubscription::AlwaysFullTable {
             table_name: "config_1".to_string()
         }));
-        assert!(subscriptions.contains(&&TableSubscribe::OnUpdateFullTable {
+        assert!(subscriptions.contains(&&TableSubscription::OnUpdateFullTable {
             table_name: "state_1".to_string()
         }));
-        assert!(publications.contains(&&TablePublish::Extend {
+        assert!(publications.contains(&&TablePublication::Extend {
             table_name: "state_1".to_string()
         }));
     }

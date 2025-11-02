@@ -15,7 +15,7 @@ use crate::schemas::{
     get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, pivot_metrics_table,
 };
 use crate::table::{
-    Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait, TableUpdateTrait,
+    Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TablePublicationTrait,
 };
 use crate::task::PubSubTrait;
 
@@ -94,9 +94,9 @@ impl SessionContext {
                     .unwrap()
                     .try_write()
                     .unwrap()
-                    .update_table(
+                    .publish_to_table(
                         metrics_table.get_record_batches_own(),
-                        TablePublish::Extend {
+                        TablePublication::Extend {
                             table_name: AvailableSubjects::SessionMetrics
                                 .to_string()
                                 .as_str()
@@ -127,9 +127,9 @@ impl SessionContext {
                     .unwrap()
                     .try_write()
                     .unwrap()
-                    .update_table(
+                    .publish_to_table(
                         traces_table.get_record_batches_own(),
-                        TablePublish::Extend {
+                        TablePublication::Extend {
                             table_name: AvailableSubjects::SessionTraces
                                 .to_string()
                                 .as_str()
@@ -160,9 +160,9 @@ impl SessionContext {
                     .unwrap()
                     .try_write()
                     .unwrap()
-                    .update_table(
+                    .publish_to_table(
                         events_table.get_record_batches_own(),
-                        TablePublish::Extend {
+                        TablePublication::Extend {
                             table_name: AvailableSubjects::SessionEvents
                                 .to_string()
                                 .as_str()
@@ -212,9 +212,9 @@ impl SessionContext {
                         .unwrap()
                         .try_write()
                         .unwrap()
-                        .update_table(
+                        .publish_to_table(
                             pivot_table.clone().get_record_batches_own(),
-                            TablePublish::Replace {
+                            TablePublication::Replace {
                                 table_name: AvailableSubjects::MetricPivot
                                     .to_string()
                                     .as_str()
@@ -244,9 +244,9 @@ impl SessionContext {
                         .get_mut(AvailableSubjects::MetricMermaidGantt.to_string().as_str())
                         .unwrap()
                         .write()
-                        .update_table(
+                        .publish_to_table(
                             mermaid_gantt_table.get_record_batches_own(),
-                            TablePublish::Replace {
+                            TablePublication::Replace {
                                 table_name: AvailableSubjects::MetricMermaidGantt.to_string(),
                             },
                         )?;
@@ -320,9 +320,9 @@ impl SessionContext {
                 )
                 .unwrap()
                 .write()
-                .update_table(
+                .publish_to_table(
                     subject_num_rows_table.get_record_batches_own(),
-                    TablePublish::Replace {
+                    TablePublication::Replace {
                         table_name: AvailableSubjects::SessionSubjectsNumRows.to_string(),
                     },
                 )
@@ -398,12 +398,12 @@ impl SessionContext {
             match TableBuilder::new_from_ipc_file(&file) {
                 Ok(table_builder) => {
                     let table = table_builder.with_name(name).build()?;
-                    let update = TablePublish::Replace {
+                    let update = TablePublication::Replace {
                         table_name: name.to_string(),
                     };
                     subject
                         .write()
-                        .update_table(table.get_record_batches_own(), update)?;
+                        .publish_to_table(table.get_record_batches_own(), update)?;
                 }
                 Err(e) => event!(Level::ERROR, "Error reading state: {e:?}"),
             };

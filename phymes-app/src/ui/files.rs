@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use phymes_core::{
     create_blob_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, Table, TableBuilderTrait,
-    TablePublish, TableTrait,
+    TablePublication, TableTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
@@ -48,7 +48,7 @@ pub fn attach_files_input(
 ) -> Element {
     let enable_directory_upload = use_signal(|| false);
 
-    let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublish| async move {
+    let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublication| async move {
         let files = file_engine.files();
         for file_name in &files {
             // Determine the file type
@@ -94,13 +94,13 @@ pub fn attach_files_input(
 
                             // Update the publish method
                             let publish = match publish {
-                                TablePublish::Extend { .. } => TablePublish::Extend {
+                                TablePublication::Extend { .. } => TablePublication::Extend {
                                     table_name: subject_name.clone(),
                                 },
-                                TablePublish::Replace { .. } => TablePublish::Replace {
+                                TablePublication::Replace { .. } => TablePublication::Replace {
                                     table_name: subject_name.clone(),
                                 },
-                                _ => TablePublish::None,
+                                _ => TablePublication::None,
                             };
 
                             // Create the message to upload
@@ -137,7 +137,7 @@ pub fn attach_files_input(
         if let Some(file_engine) = evt.files() {
             read_files(
                 file_engine,
-                TablePublish::Extend {
+                TablePublication::Extend {
                     table_name: "".to_string(),
                 },
             )
@@ -149,7 +149,7 @@ pub fn attach_files_input(
         if let Some(file_engine) = evt.files() {
             read_files(
                 file_engine,
-                TablePublish::Replace {
+                TablePublication::Replace {
                     table_name: "".to_string(),
                 },
             )
@@ -353,7 +353,7 @@ pub fn download_files_button(
                     .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                     .with_format(&data_format())
                     .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                    .with_update(&TablePublish::None)
+                    .with_update(&TablePublication::None)
                     .with_stream(false)
                     .with_subject(&active_subject_name.read())
                     .make_name()

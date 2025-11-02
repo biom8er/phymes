@@ -7,12 +7,7 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "openai_api")]
 use crate::openai_chat::OpenAIChatProcessor;
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-    BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
-    SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe,
-    TableTrait, TokenWrapper, Tool, create_chat_record_batch, device, remove_message_by_subject,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, TokenWrapper, Tool, create_chat_record_batch, device, remove_message_by_subject
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -37,9 +32,9 @@ use super::chat_config::CandleChatConfig;
 #[derive(Debug)]
 pub struct CandleChatProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for CandleChatProcessor {
@@ -49,15 +44,15 @@ impl MappableTrait for CandleChatProcessor {
 }
 
 impl PubSubTrait for CandleChatProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
@@ -65,29 +60,29 @@ impl PubSubTrait for CandleChatProcessor {
 impl ProcessorTrait for CandleChatProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
+            subscribe_policy,
         })
     }
 
     fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![TablePublish::None],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
+            publications: vec![TablePublication::None],
+            subscriptions: vec![TableSubscription::None],
+            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
         })
     }
 
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
@@ -729,7 +724,7 @@ pub mod bench_chat_processor {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -739,7 +734,7 @@ pub mod bench_chat_processor {
                 .with_name(candle_chat_config_table.get_name())
                 .with_publisher("")
                 .with_subject(candle_chat_config_table.get_name())
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(candle_chat_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -748,38 +743,38 @@ pub mod bench_chat_processor {
         #[allow(unused_variables)]
         let chat_processor = CandleChatProcessor::new_arc_with_pub_sub(
             name,
-            &[TablePublish::ExtendChunks {
+            &[TablePublication::ExtendChunks {
                 table_name: messages.to_string(),
                 col_name: "content".to_string(),
             }],
             &[
-                TableSubscribe::OnUpdateFullTable {
+                TableSubscription::OnUpdateFullTable {
                     table_name: messages.to_string(),
                 },
-                TableSubscribe::None,
-                TableSubscribe::AlwaysFullTable {
+                TableSubscription::None,
+                TableSubscription::AlwaysFullTable {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         #[cfg(all(not(feature = "candle"), feature = "openai_api"))]
         let chat_processor = OpenAIChatProcessor::new_arc_with_pub_sub(
             name,
-            &[TablePublish::ExtendChunks {
+            &[TablePublication::ExtendChunks {
                 table_name: messages.to_string(),
                 col_name: "content".to_string(),
             }],
             &[
-                TableSubscribe::OnUpdateFullTable {
+                TableSubscription::OnUpdateFullTable {
                     table_name: messages.to_string(),
                 },
-                TableSubscribe::None,
-                TableSubscribe::AlwaysFullTable {
+                TableSubscription::None,
+                TableSubscription::AlwaysFullTable {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream = chat_processor.process(
             message,
@@ -971,7 +966,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -981,7 +976,7 @@ mod tests {
                 .with_name(candle_chat_config_table.get_name())
                 .with_publisher("")
                 .with_subject(candle_chat_config_table.get_name())
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(candle_chat_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -989,20 +984,20 @@ mod tests {
         // Build the chat task
         let chat_processor = CandleChatProcessor::new_arc_with_pub_sub(
             name,
-            &[TablePublish::ExtendChunks {
+            &[TablePublication::ExtendChunks {
                 table_name: messages.to_string(),
                 col_name: "content".to_string(),
             }],
             &[
-                TableSubscribe::OnUpdateFullTable {
+                TableSubscription::OnUpdateFullTable {
                     table_name: messages.to_string(),
                 },
-                TableSubscribe::None,
-                TableSubscribe::AlwaysFullTable {
+                TableSubscription::None,
+                TableSubscription::AlwaysFullTable {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream = chat_processor.process(
             message,

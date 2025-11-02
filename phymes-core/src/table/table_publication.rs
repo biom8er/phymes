@@ -15,7 +15,7 @@ use crate::session::MappableTrait;
 use super::table_trait::{Table, TableTrait};
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
-pub enum TablePublish {
+pub enum TablePublication {
     /// Push a new vector of record batches onto the table
     Extend { table_name: String },
     /// Push a new vector of record batches onto the table
@@ -35,7 +35,7 @@ pub enum TablePublish {
     Custom(String),
 }
 
-impl TablePublish {
+impl TablePublication {
     pub fn get_short_name(&self) -> &str {
         match self {
             Self::Extend { table_name: _tn } => "Extend",
@@ -78,21 +78,21 @@ impl TablePublish {
         }
     }
 
-    pub fn from_str(name: &str, subject: &str) -> Result<TablePublish> {
+    pub fn from_str(name: &str, subject: &str) -> Result<TablePublication> {
         let publication = if name.contains("Extend") {
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: subject.to_string(),
             }
         } else if name.contains("Replace") {
-            TablePublish::Replace {
+            TablePublication::Replace {
                 table_name: subject.to_string(),
             }
         } else if name.contains("ReplaceLast") {
-            TablePublish::ReplaceLast {
+            TablePublication::ReplaceLast {
                 table_name: subject.to_string(),
             }
         } else if name.contains("None") {
-            TablePublish::None {}
+            TablePublication::None {}
         } else {
             return Err(anyhow!(
                 "Variant for ArrowTablePublish {name} with subject {subject} was not recognized."
@@ -102,25 +102,25 @@ impl TablePublish {
     }
 }
 
-impl MappableTrait for TablePublish {
+impl MappableTrait for TablePublication {
     fn get_name(&self) -> &str {
         self.get_short_name()
     }
 }
 
 /// Update an arrow table with record batches coming from a new table
-pub trait TableUpdateTrait: TableTrait {
+pub trait TablePublicationTrait: TableTrait {
     fn get_record_batches_mut(&mut self) -> &mut Vec<RecordBatch>;
-    fn update_table(&mut self, new: Vec<RecordBatch>, update: TablePublish) -> Result<()>;
+    fn publish_to_table(&mut self, new: Vec<RecordBatch>, update: TablePublication) -> Result<()>;
 }
 
-impl TableUpdateTrait for Table {
+impl TablePublicationTrait for Table {
     fn get_record_batches_mut(&mut self) -> &mut Vec<RecordBatch> {
         &mut self.record_batches
     }
-    fn update_table(&mut self, new: Vec<RecordBatch>, update: TablePublish) -> Result<()> {
+    fn publish_to_table(&mut self, new: Vec<RecordBatch>, update: TablePublication) -> Result<()> {
         match update {
-            TablePublish::Extend { table_name: tn } => {
+            TablePublication::Extend { table_name: tn } => {
                 if self.get_name() != tn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
@@ -142,7 +142,7 @@ impl TableUpdateTrait for Table {
                 }
                 Ok(())
             }
-            TablePublish::ExtendChunks {
+            TablePublication::ExtendChunks {
                 table_name: tn,
                 col_name: cn,
             } => {
@@ -176,7 +176,7 @@ impl TableUpdateTrait for Table {
                 self.get_record_batches_mut().push(new_first_row);
                 Ok(())
             }
-            TablePublish::Replace { table_name: tn } => {
+            TablePublication::Replace { table_name: tn } => {
                 if self.get_name() != tn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
@@ -198,7 +198,7 @@ impl TableUpdateTrait for Table {
                 self.get_record_batches_mut().extend(new);
                 Ok(())
             }
-            TablePublish::ReplaceLast { table_name: tn } => {
+            TablePublication::ReplaceLast { table_name: tn } => {
                 if self.get_name() != tn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
@@ -218,8 +218,8 @@ impl TableUpdateTrait for Table {
                 self.get_record_batches_mut().last().replace(last);
                 Ok(())
             }
-            TablePublish::None => Ok(()),
-            TablePublish::Custom(_) => Ok(()),
+            TablePublication::None => Ok(()),
+            TablePublication::Custom(_) => Ok(()),
         }
     }
 }
@@ -431,9 +431,9 @@ mod tests {
     fn test_update_table_wrong_table_name() -> Result<()> {
         let mut old = make_test_table("test_table", 4, 0, 3)?;
         let new = make_test_table("test_table", 1, 0, 1)?;
-        match old.update_table(
+        match old.publish_to_table(
             new.clone().get_record_batches_own(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "missing".to_string(),
             },
         ) {
@@ -443,9 +443,9 @@ mod tests {
                 "Mismatch between table name test_table and update table target missing."
             ),
         }
-        match old.update_table(
+        match old.publish_to_table(
             new.clone().get_record_batches_own(),
-            TablePublish::Replace {
+            TablePublication::Replace {
                 table_name: "missing".to_string(),
             },
         ) {
@@ -455,9 +455,9 @@ mod tests {
                 "Mismatch between table name test_table and update table target missing."
             ),
         }
-        match old.update_table(
+        match old.publish_to_table(
             new.clone().get_record_batches_own(),
-            TablePublish::ReplaceLast {
+            TablePublication::ReplaceLast {
                 table_name: "missing".to_string(),
             },
         ) {
@@ -467,9 +467,9 @@ mod tests {
                 "Mismatch between table name test_table and update table target missing."
             ),
         }
-        match old.update_table(
+        match old.publish_to_table(
             new.clone().get_record_batches_own(),
-            TablePublish::ExtendChunks {
+            TablePublication::ExtendChunks {
                 table_name: "missing".to_string(),
                 col_name: "missing".to_string(),
             },
@@ -487,9 +487,9 @@ mod tests {
     fn test_extend_update() -> Result<()> {
         let mut old = make_test_table("test_table", 4, 0, 3)?;
         let new = make_test_table("test_table", 1, 0, 1)?;
-        old.update_table(
+        old.publish_to_table(
             new.get_record_batches_own(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "test_table".to_string(),
             },
         )?;
@@ -501,9 +501,9 @@ mod tests {
     fn test_replace_update() -> Result<()> {
         let mut old = make_test_table("test_table", 4, 0, 3)?;
         let new = make_test_table("test_table", 1, 0, 1)?;
-        old.update_table(
+        old.publish_to_table(
             new.get_record_batches_own(),
-            TablePublish::Replace {
+            TablePublication::Replace {
                 table_name: "test_table".to_string(),
             },
         )?;
@@ -515,7 +515,7 @@ mod tests {
     fn test_none_update() -> Result<()> {
         let mut old = make_test_table("test_table", 4, 0, 3)?;
         let new = make_test_table("test_table", 1, 0, 1)?;
-        old.update_table(new.get_record_batches_own(), TablePublish::None)?;
+        old.publish_to_table(new.get_record_batches_own(), TablePublication::None)?;
         assert_eq!(old.count_rows(), 12);
         Ok(())
     }
@@ -538,9 +538,9 @@ mod tests {
             Arc::new(StringArray::from(vec!["2".to_string(), "3".to_string()]));
         let new_1 = RecordBatch::try_from_iter(vec![("role", role_1), ("content", content_1)])?;
         let new_2 = RecordBatch::try_from_iter(vec![("role", role_2), ("content", content_2)])?;
-        old.update_table(
+        old.publish_to_table(
             vec![new_1, new_2],
-            TablePublish::ExtendChunks {
+            TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             },

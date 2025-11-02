@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, DataFormat,
-    DiagnosticsVisualizations, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SubscribeTrait, Table,
-    TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, DiagnosticsVisualizations, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataConfig, MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION,
@@ -307,335 +305,335 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         let processors = vec![
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.metrics_pivot_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: AvailableSubjects::MetricPivot.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::AnalyticsMetrics.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.metrics_pivot_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.metrics_normalize_time_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::MetricPivot.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.metrics_normalize_time_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.metrics_processors_traces_select_and_cast_to_gantt_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self
                         .metrics_processors_traces_select_and_cast_to_gantt_task_name
                         .to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .metrics_processors_traces_select_and_cast_to_gantt_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.metrics_elapsed_compute_select_and_cast_to_gantt_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self
                         .metrics_elapsed_compute_select_and_cast_to_gantt_task_name
                         .to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .metrics_elapsed_compute_select_and_cast_to_gantt_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.metrics_output_rows_select_and_cast_to_gantt_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self
                         .metrics_output_rows_select_and_cast_to_gantt_task_name
                         .to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .metrics_output_rows_select_and_cast_to_gantt_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.metrics_processors_traces_apply_gantt_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self
                             .metrics_processors_traces_select_and_cast_to_gantt_task_name
                             .to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .metrics_processors_traces_apply_gantt_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.metrics_elapsed_compute_apply_gantt_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self
                             .metrics_elapsed_compute_select_and_cast_to_gantt_task_name
                             .to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .metrics_elapsed_compute_apply_gantt_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.metrics_output_rows_apply_gantt_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self
                             .metrics_output_rows_select_and_cast_to_gantt_task_name
                             .to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .metrics_output_rows_apply_gantt_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.traces_to_sequence_diagram_messages_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self
                         .traces_to_sequence_diagram_messages_task_name
                         .to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::AnalyticsTraces.to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::AnalyticsTasks.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .traces_to_sequence_diagram_messages_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.apply_sequence_diagram_messages_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self
                             .traces_to_sequence_diagram_messages_task_name
                             .to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .apply_sequence_diagram_messages_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.session_tasks_to_sequence_diagram_participants_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self
                         .session_tasks_to_sequence_diagram_participants_task_name
                         .to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::AnalyticsTasks.to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self
                             .traces_to_sequence_diagram_messages_task_name
                             .to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .session_tasks_to_sequence_diagram_participants_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.apply_sequence_diagram_participants_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self
                         .apply_sequence_diagram_participants_task_name
                         .to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self
                             .session_tasks_to_sequence_diagram_participants_task_name
                             .to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .apply_sequence_diagram_participants_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             MessageAggregatorProcessor::new_arc_with_pub_sub(
                 self.traces_aggregate_sequence_diagram_content_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self
                         .traces_aggregate_sequence_diagram_content_task_name
                         .to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self
                             .apply_sequence_diagram_participants_task_name
                             .to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .traces_aggregate_sequence_diagram_content_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.apply_sequence_diagram_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self
                             .traces_aggregate_sequence_diagram_content_task_name
                             .to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.apply_sequence_diagram_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.events_select_and_cast_to_kanban_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::AnalyticsEvents.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .events_select_and_cast_to_kanban_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             CandleDataProcessor::new_arc_with_pub_sub(
                 self.apply_kanban_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::EventKanban.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.apply_kanban_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             AttachmentAggregatorProcessor::new_arc_with_pub_sub(
                 self.aggregate_visualizations_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: DiagnosticsVisualizations::MetricProcessorTracesGantt
                             .to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: DiagnosticsVisualizations::MetricElapsedComputeGantt
                             .to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: DiagnosticsVisualizations::EventKanban.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self.aggregate_visualizations_processor_name.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
         ];
 
@@ -1326,7 +1324,7 @@ mod tests {
             let metrics_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::AnalyticsMetrics.to_string().as_str())
-                .with_update(&TablePublish::Replace {
+                .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::AnalyticsMetrics.to_string(),
                 })
                 .with_publisher(diagnostic_session.session_context_name)
@@ -1341,7 +1339,7 @@ mod tests {
             let traces_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::AnalyticsTraces.to_string().as_str())
-                .with_update(&TablePublish::Replace {
+                .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::AnalyticsTraces.to_string(),
                 })
                 .with_publisher(diagnostic_session.session_context_name)
@@ -1356,7 +1354,7 @@ mod tests {
             let events_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::AnalyticsEvents.to_string().as_str())
-                .with_update(&TablePublish::Replace {
+                .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::AnalyticsEvents.to_string(),
                 })
                 .with_publisher(diagnostic_session.session_context_name)
@@ -1371,7 +1369,7 @@ mod tests {
             let tasks_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::AnalyticsTasks.to_string().as_str())
-                .with_update(&TablePublish::Replace {
+                .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::AnalyticsTasks.to_string(),
                 })
                 .with_publisher(diagnostic_session.session_context_name)

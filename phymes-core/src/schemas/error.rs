@@ -2,7 +2,7 @@ use anyhow::{Error, Result};
 use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
 use crate::{
-    create_chat_record_batch, schemas::available_subjects::AvailableSubjects, session::{BuilderTrait, MappableTrait}, table::{Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait}, task::{
+    create_chat_record_batch, schemas::available_subjects::AvailableSubjects, session::{BuilderTrait, MappableTrait}, table::{Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait}, task::{
         IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage,
         SendableRecordBatchStreamMessageBuilder,
     }
@@ -42,7 +42,7 @@ pub fn create_error_message_map_stream(
     let message = SendableRecordBatchStreamMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
-        .with_update(&TablePublish::Extend {
+        .with_update(&TablePublication::Extend {
             table_name: AvailableSubjects::SessionErrors.to_string(),
         })
         .with_message(table.to_record_batch_stream())
@@ -62,7 +62,7 @@ pub fn create_error_message_map(
     let message = IPCMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
-        .with_update(&TablePublish::Extend {
+        .with_update(&TablePublication::Extend {
             table_name: AvailableSubjects::SessionErrors.to_string(),
         })
         .with_message(table.to_ipc_stream()?)

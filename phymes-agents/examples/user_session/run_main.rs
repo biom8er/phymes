@@ -17,7 +17,7 @@ use phymes_agents::{
 use phymes_core::{
     AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage,
     MappableTrait, MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState, Table,
-    TableBuilder, TableBuilderTrait, TablePublish, TableTrait, create_user_inbox_batch,
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait, create_user_inbox_batch,
 };
 
 pub async fn run_main() -> Result<()> {
@@ -45,7 +45,7 @@ pub async fn run_main() -> Result<()> {
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
         .with_subject(blob.get_name())
-        .with_update(&TablePublish::Replace {
+        .with_update(&TablePublication::Replace {
             table_name: blob.get_name().to_string(),
         })
         .with_publisher(user_agent_session.session_context_name)

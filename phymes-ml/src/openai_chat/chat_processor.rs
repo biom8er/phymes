@@ -9,7 +9,7 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
     BuilderTrait, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt, FinishReason,
     MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
@@ -30,7 +30,7 @@ pub struct OpenAIChatProcessor {
     name: String,
     publications: Vec<TablePublish>,
     subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    subscribe_policy: Box<dyn SubscribeTrait>,
 }
 
 impl MappableTrait for OpenAIChatProcessor {
@@ -48,7 +48,7 @@ impl PubSubTrait for OpenAIChatProcessor {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
@@ -58,13 +58,13 @@ impl ProcessorTrait for OpenAIChatProcessor {
         name: &str,
         publications: &[TablePublish],
         subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
+        subscribe_policy: Box<dyn SubscribeTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
+            subscribe_policy,
         })
     }
 
@@ -73,12 +73,12 @@ impl ProcessorTrait for OpenAIChatProcessor {
             name: name.to_string(),
             publications: vec![TablePublish::None],
             subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
+            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
         })
     }
 
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe_policy(&self) -> &dyn SubscribeTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
@@ -496,7 +496,7 @@ mod tests {
                     table_name: candle_chat_config_table.get_name().to_string(),
                 },
             ],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream = chat_processor.process(
             message,

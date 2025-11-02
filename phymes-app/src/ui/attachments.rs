@@ -10,7 +10,7 @@ use reqwest::{self, header::CONTENT_TYPE};
 
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublish,
+    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublication,
 };
 use phymes_server::create_session_name;
 
@@ -63,7 +63,7 @@ pub fn attachments_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_stream(false)
     });
 

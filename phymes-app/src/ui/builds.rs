@@ -5,7 +5,7 @@ use phymes_agents::{
 use phymes_core::{
     create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
     MessageBuilderTrait, SessionContextBuilder, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilderTrait, Table, TableBuilderTrait, TablePublish, TableTrait,
+    SessionInterfaceMessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
@@ -176,7 +176,7 @@ pub fn builds_dropdown_view(
                             .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
                             .with_format(&DataFormat::Ipc)
                             .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
-                            .with_update(&TablePublish::Replace { table_name: AvailableSubjects::BuilderMermaid.to_string() })
+                            .with_update(&TablePublication::Replace { table_name: AvailableSubjects::BuilderMermaid.to_string() })
                             .with_stream(false)
                             .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
                             .with_message(message)
@@ -288,7 +288,7 @@ pub fn builds_dropdown_view(
                             .with_session_name(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
                             .with_format(&DataFormat::Ipc)
                             .with_publisher(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
-                            .with_update(&TablePublish::None)
+                            .with_update(&TablePublication::None)
                             .with_stream(false)
                             .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
                             .with_message(message)
@@ -444,7 +444,7 @@ pub fn builds_interface_footer(
                                 .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
-                                .with_update(&TablePublish::Extend { table_name: AvailableSubjects::BuilderMermaid.to_string() })
+                                .with_update(&TablePublication::Extend { table_name: AvailableSubjects::BuilderMermaid.to_string() })
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_message(message)

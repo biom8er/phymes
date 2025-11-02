@@ -3,8 +3,8 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::Result;
 use clap::ValueEnum;
 use phymes_core::{
-    MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, SubscribeTrait, TablePublish,
-    TableSubscribe, test_processor::ProcessorMock,
+    MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, TableSubscribePolicyTrait, TablePublication,
+    TableSubscription, test_processor::ProcessorMock,
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, CandleDataProcessor, DataConfig, DataConfigTrait,
@@ -120,74 +120,74 @@ impl AvailableProcessors {
     pub fn build_arc_with_pub_sub(
         self,
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         match self {
             Self::ProcessorMock => {
-                ProcessorMock::new_arc_with_pub_sub(name, publications, subscriptions, subscribe)
+                ProcessorMock::new_arc_with_pub_sub(name, publications, subscriptions, subscribe_policy)
             }
             Self::ProcessorEcho => {
-                ProcessorEcho::new_arc_with_pub_sub(name, publications, subscriptions, subscribe)
+                ProcessorEcho::new_arc_with_pub_sub(name, publications, subscriptions, subscribe_policy)
             }
             Self::CandleDataProcessor => CandleDataProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
-                subscribe,
+                subscribe_policy,
             ),
             Self::DataSummaryProcessor => DataSummaryProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
-                subscribe,
+                subscribe_policy,
             ),
             Self::AttachmentAggregatorProcessor => {
                 AttachmentAggregatorProcessor::new_arc_with_pub_sub(
                     name,
                     publications,
                     subscriptions,
-                    subscribe,
+                    subscribe_policy,
                 )
             }
             Self::CandleChatProcessor => CandleChatProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
-                subscribe,
+                subscribe_policy,
             ),
             Self::MessageAggregatorProcessor => MessageAggregatorProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
-                subscribe,
+                subscribe_policy,
             ),
             Self::MessageParserProcessor => MessageParserProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
-                subscribe,
+                subscribe_policy,
             ),
             Self::CandleEmbedProcessor => CandleEmbedProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
-                subscribe,
+                subscribe_policy,
             ),
             #[cfg(feature = "openai_api")]
             Self::OpenAIChatProcessor => OpenAIChatProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
-                subscribe,
+                subscribe_policy,
             ),
             #[cfg(feature = "openai_api")]
             Self::OpenAIEmbedProcessor => OpenAIEmbedProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
-                subscribe,
+                subscribe_policy,
             ),
         }
     }

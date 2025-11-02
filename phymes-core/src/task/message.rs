@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::session::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait};
 use crate::table::{
-    SendableRecordBatchStream, TableBuilder, TableBuilderTrait, TablePublish, TableTrait,
+    SendableRecordBatchStream, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 
 use anyhow::{Result, anyhow};
@@ -18,7 +18,7 @@ pub trait MessageTrait: MappableTrait + BuildableTrait + Send {
     type T;
     fn get_subject(&self) -> &str;
     fn get_publisher(&self) -> &str;
-    fn get_update(&self) -> &TablePublish;
+    fn get_update(&self) -> &TablePublication;
     fn get_message(&self) -> &<Self as MessageTrait>::T;
     fn get_message_own(self) -> <Self as MessageTrait>::T;
     fn get_message_mut(&mut self) -> &mut <Self as MessageTrait>::T;
@@ -35,7 +35,7 @@ pub struct IPCMessage {
     /// The actual message as an IPC stream
     message: Vec<u8>,
     /// How to update the state
-    update: TablePublish,
+    update: TablePublication,
 }
 
 impl IPCMessage {
@@ -44,7 +44,7 @@ impl IPCMessage {
         subject: &str,
         publisher: &str,
         message: Option<Vec<u8>>,
-        update: Option<TablePublish>,
+        update: Option<TablePublication>,
     ) -> Self {
         Self {
             name: name.to_string(),
@@ -110,7 +110,7 @@ impl IPCMessage {
                     // .with_name(name)
                     .with_publisher(data.get(1).unwrap().get(row).unwrap())
                     .with_subject(data.get(2).unwrap().get(row).unwrap())
-                    .with_update(&TablePublish::Extend {
+                    .with_update(&TablePublication::Extend {
                         table_name: data.get(2).unwrap().get(row).unwrap().to_string(),
                     })
                     .with_message(bytes)
@@ -156,7 +156,7 @@ impl MessageTrait for IPCMessage {
     fn get_publisher(&self) -> &str {
         &self.publisher
     }
-    fn get_update(&self) -> &TablePublish {
+    fn get_update(&self) -> &TablePublication {
         &self.update
     }
     fn get_message(&self) -> &<Self as MessageTrait>::T {
@@ -180,7 +180,7 @@ pub struct SendableRecordBatchStreamMessage {
     /// The actual message
     message: SendableRecordBatchStream,
     /// How to update the state
-    update: TablePublish,
+    update: TablePublication,
 }
 
 impl MappableTrait for SendableRecordBatchStreamMessage {
@@ -213,7 +213,7 @@ impl MessageTrait for SendableRecordBatchStreamMessage {
     fn get_publisher(&self) -> &str {
         &self.publisher
     }
-    fn get_update(&self) -> &TablePublish {
+    fn get_update(&self) -> &TablePublication {
         &self.update
     }
     fn get_message(&self) -> &<Self as MessageTrait>::T {
@@ -237,7 +237,7 @@ pub trait MessageBuilderTrait: BuilderTrait + Send {
     fn make_random_name(self) -> Result<Self>
     where
         Self: Sized;
-    fn with_update(self, update: &TablePublish) -> Self;
+    fn with_update(self, update: &TablePublication) -> Self;
     fn with_message(self, message: <Self as MessageBuilderTrait>::T) -> Self;
     fn check_subject(&self) -> Result<()>;
 }
@@ -253,7 +253,7 @@ pub struct IPCMessageBuilder {
     /// The actually message
     pub message: Option<Vec<u8>>,
     /// How to update the state
-    pub update: Option<TablePublish>,
+    pub update: Option<TablePublication>,
 }
 
 impl BuilderTrait for IPCMessageBuilder {
@@ -299,7 +299,7 @@ impl MessageBuilderTrait for IPCMessageBuilder {
         self.publisher = Some(name.to_string());
         self
     }
-    fn with_update(mut self, update: &TablePublish) -> Self {
+    fn with_update(mut self, update: &TablePublication) -> Self {
         self.update = Some(update.to_owned());
         self
     }
@@ -334,7 +334,7 @@ impl MessageBuilderTrait for IPCMessageBuilder {
         self
     }
     fn check_subject(&self) -> Result<()> {
-        if self.update.as_ref().unwrap() != &TablePublish::None
+        if self.update.as_ref().unwrap() != &TablePublication::None
             && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name()
         {
             Err(anyhow!(
@@ -359,7 +359,7 @@ pub struct SendableRecordBatchStreamMessageBuilder {
     /// The actually message
     pub message: Option<SendableRecordBatchStream>,
     /// How to update the state
-    pub update: Option<TablePublish>,
+    pub update: Option<TablePublication>,
 }
 
 impl BuilderTrait for SendableRecordBatchStreamMessageBuilder {
@@ -405,7 +405,7 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
         self.publisher = Some(name.to_string());
         self
     }
-    fn with_update(mut self, update: &TablePublish) -> Self {
+    fn with_update(mut self, update: &TablePublication) -> Self {
         self.update = Some(update.to_owned());
         self
     }
@@ -440,7 +440,7 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
         self
     }
     fn check_subject(&self) -> Result<()> {
-        if self.update.as_ref().unwrap() != &TablePublish::None
+        if self.update.as_ref().unwrap() != &TablePublication::None
             && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name()
         {
             Err(anyhow!(
@@ -487,7 +487,7 @@ mod tests {
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: "subject".to_string(),
             })
             .with_message(test_table.to_ipc_stream()?)
@@ -497,7 +497,7 @@ mod tests {
         assert_eq!(incoming_message.get_publisher(), "publisher");
         assert_eq!(
             *incoming_message.get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "subject".to_string()
             }
         );
@@ -506,7 +506,7 @@ mod tests {
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: "subject".to_string(),
             })
             .with_message(test_table.to_record_batch_stream())
@@ -516,7 +516,7 @@ mod tests {
         assert_eq!(outgoing_message.get_publisher(), "publisher");
         assert_eq!(
             *outgoing_message.get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "subject".to_string()
             }
         );
@@ -529,26 +529,26 @@ mod tests {
         let incoming_message = IPCMessageBuilder::new()
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .make_name()?
             .with_message(test_table.to_ipc_stream()?)
             .build()?;
         assert_eq!(incoming_message.get_name(), "from_publisher_on_subject");
         assert_eq!(incoming_message.get_subject(), "subject");
         assert_eq!(incoming_message.get_publisher(), "publisher");
-        assert_eq!(*incoming_message.get_update(), TablePublish::None);
+        assert_eq!(*incoming_message.get_update(), TablePublication::None);
 
         let outgoing_message = SendableRecordBatchStreamMessageBuilder::new()
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .make_name()?
             .with_message(test_table.to_record_batch_stream())
             .build()?;
         assert_eq!(outgoing_message.get_name(), "from_publisher_on_subject");
         assert_eq!(outgoing_message.get_subject(), "subject");
         assert_eq!(outgoing_message.get_publisher(), "publisher");
-        assert_eq!(*outgoing_message.get_update(), TablePublish::None);
+        assert_eq!(*outgoing_message.get_update(), TablePublication::None);
         assert_eq!(
             outgoing_message.get_message().schema(),
             test_table.get_schema()
@@ -567,7 +567,7 @@ mod tests {
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: "mismatch".to_string(),
             })
             .with_message(test_table.to_ipc_stream()?)
@@ -584,7 +584,7 @@ mod tests {
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: "mismatch".to_string(),
             })
             .with_message(test_table.to_record_batch_stream())
@@ -627,7 +627,7 @@ mod tests {
             .with_name("")
             .with_publisher("")
             .with_subject("")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_message(table.to_ipc_stream()?)
             .build()?;
         let message_map = message.to_map()?;
@@ -637,7 +637,7 @@ mod tests {
         assert_eq!(message_map.get("data").unwrap().get_subject(), "d1");
         assert_eq!(
             *message_map.get("data").unwrap().get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "d1".to_string()
             }
         );
@@ -654,7 +654,7 @@ mod tests {
         assert_eq!(message_map.get("chat").unwrap().get_subject(), "d2");
         assert_eq!(
             *message_map.get("chat").unwrap().get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "d2".to_string()
             }
         );
@@ -680,7 +680,7 @@ mod tests {
         let message = IPCMessageBuilder::new()
             .with_subject("subject_1")
             .with_publisher("publisher")
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: "subject_1".to_string(),
             })
             .with_message(test_table.to_ipc_stream()?)
@@ -690,7 +690,7 @@ mod tests {
         let message = IPCMessageBuilder::new()
             .with_subject("subject_2")
             .with_publisher("publisher")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_message(test_table.to_ipc_stream()?)
             .make_random_name()?
             .build()?;
@@ -698,7 +698,7 @@ mod tests {
         let message = IPCMessageBuilder::new()
             .with_subject("subject_1")
             .with_publisher("publisher")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_message(test_table.to_ipc_stream()?)
             .make_random_name()?
             .build()?;

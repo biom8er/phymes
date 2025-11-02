@@ -8,11 +8,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, RuntimeEnv,
-    RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table,
-    TableBuilderTrait, TablePublish, TableScript, TableSubscribe, TableTrait, TaskPlanBuilder,
-    from_data_type_to_str, from_str_to_data_type, from_str_to_subscribe, parse_str_to_data_type,
-    test_processor::ProcessorMock,
+    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublication, TableScript, TableSubscription, TableTrait, TaskPlanBuilder, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_processor::ProcessorMock
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor,
@@ -361,27 +357,27 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                      iter: usize,
                                      subject: &str,
                                      task: &str|
-         -> Result<TableSubscribe> {
+         -> Result<TableSubscription> {
             if line.contains("-.") & line.contains(".->") & line.contains("FullTable") {
-                Ok(TableSubscribe::OnUpdateFullTable {
+                Ok(TableSubscription::OnUpdateFullTable {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("--") & line.contains("-->") & line.contains("FullTable") {
-                Ok(TableSubscribe::AlwaysFullTable {
+                Ok(TableSubscription::AlwaysFullTable {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("-.") & line.contains(".->") & line.contains("LastRecordBatch")
             {
-                Ok(TableSubscribe::OnUpdateLastRecordBatch {
+                Ok(TableSubscription::OnUpdateLastRecordBatch {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("--") & line.contains("-->") & line.contains("LastRecordBatch")
             {
-                Ok(TableSubscribe::AlwaysLastRecordBatch {
+                Ok(TableSubscription::AlwaysLastRecordBatch {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("None") {
-                Ok(TableSubscribe::None {})
+                Ok(TableSubscription::None {})
             } else {
                 Err(anyhow!(
                     "Parsing Error on line {iter}: {line}. Variant for ArrowTableSubscribe with subject {subject} for task {task} was not recognized."
@@ -392,26 +388,26 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                     iter: usize,
                                     subject: &str,
                                     task: &str|
-         -> Result<TablePublish> {
+         -> Result<TablePublication> {
             if line.contains("--") & line.contains("-->") & line.contains("ExtendChunks") {
-                Ok(TablePublish::ExtendChunks {
+                Ok(TablePublication::ExtendChunks {
                     table_name: subject.to_string(),
                     col_name: "content".to_string(),
                 })
             } else if line.contains("--") & line.contains("-->") & line.contains("Extend") {
-                Ok(TablePublish::Extend {
+                Ok(TablePublication::Extend {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("--") & line.contains("-->") & line.contains("ReplaceLast") {
-                Ok(TablePublish::ReplaceLast {
+                Ok(TablePublication::ReplaceLast {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("--") & line.contains("-->") & line.contains("Replace") {
-                Ok(TablePublish::Replace {
+                Ok(TablePublication::Replace {
                     table_name: subject.to_string(),
                 })
             } else if line.contains("None") {
-                Ok(TablePublish::None {})
+                Ok(TablePublication::None {})
             } else {
                 Err(anyhow!(
                     "Parsing Error on line {iter}: {line}. Variant for ArrowTablePublish with subject {subject} for task {task} was not recognized."
@@ -960,8 +956,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     .split("-subscribe@{shape: diamond, label:")
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
-                let subscribe = match from_str_to_subscribe(split_line.last().unwrap()) {
-                    Ok(subscribe) => subscribe,
+                let subscribe = match AvailableTableSubscribePolicies::from_str_fuzzy(split_line.last().unwrap()) {
+                    Ok(subscribe) => subscribe.build(),
                     Err(_e) => {
                         return Err(anyhow!(
                             "Parsing Error on line {iter}: {}. Subscribe policy for processor {processor_name} was not recognized.",
@@ -979,13 +975,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 if processor_builders
                     .get(&processor_name)
                     .unwrap()
-                    .subscribe
+                    .subscribe_policy
                     .as_ref()
                     .is_some()
                     && processor_builders
                         .get(&processor_name)
                         .unwrap()
-                        .subscribe
+                        .subscribe_policy
                         .as_ref()
                         .unwrap()
                         .get_name()
@@ -998,7 +994,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         processor_builders
                             .get(&processor_name)
                             .unwrap()
-                            .subscribe
+                            .subscribe_policy
                             .as_ref()
                             .unwrap()
                             .get_name(),
@@ -1007,14 +1003,14 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 } else if processor_builders
                     .get(&processor_name)
                     .unwrap()
-                    .subscribe
+                    .subscribe_policy
                     .as_ref()
                     .is_none()
                 {
                     processor_builders
                         .get_mut(&processor_name)
                         .unwrap()
-                        .subscribe
+                        .subscribe_policy
                         .replace(subscribe);
                 }
                 processor_names.insert(processor_name);

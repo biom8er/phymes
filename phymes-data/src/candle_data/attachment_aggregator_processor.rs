@@ -5,11 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, create_blob_fields, device, remove_message_by_subject,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, create_blob_fields, device, remove_message_by_subject
 };
 
 use crate::{
@@ -56,9 +52,9 @@ pub fn collect_messages_by_schema(
 #[derive(Debug)]
 pub struct AttachmentAggregatorProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for AttachmentAggregatorProcessor {
@@ -68,14 +64,14 @@ impl MappableTrait for AttachmentAggregatorProcessor {
 }
 
 impl PubSubTrait for AttachmentAggregatorProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
@@ -83,31 +79,31 @@ impl PubSubTrait for AttachmentAggregatorProcessor {
 impl ProcessorTrait for AttachmentAggregatorProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
+            subscribe_policy,
         })
     }
 
     fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![TablePublish::Extend {
+            publications: vec![TablePublication::Extend {
                 table_name: "messages".to_string(),
             }],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
+            subscriptions: vec![TableSubscription::None],
+            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
         })
     }
 
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {

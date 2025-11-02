@@ -6,12 +6,7 @@ use std::{
 
 use bytes::Bytes;
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-    BuilderTrait, CsvFormat, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
-    ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
-    SubscribeTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
-    create_blob_batch, create_chat_record_batch, remove_message_by_subject,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, CsvFormat, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, create_blob_batch, create_chat_record_batch, remove_message_by_subject
 };
 
 use anyhow::{Result, anyhow};
@@ -38,9 +33,9 @@ use super::summary_config::DataSummaryConfig;
 #[derive(Debug)]
 pub struct DataSummaryProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for DataSummaryProcessor {
@@ -50,15 +45,15 @@ impl MappableTrait for DataSummaryProcessor {
 }
 
 impl PubSubTrait for DataSummaryProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
@@ -66,29 +61,29 @@ impl PubSubTrait for DataSummaryProcessor {
 impl ProcessorTrait for DataSummaryProcessor {
     fn new_arc_with_pub_sub(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
+            subscribe_policy,
         })
     }
 
     fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
-            publications: vec![TablePublish::None],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
+            publications: vec![TablePublication::None],
+            subscriptions: vec![TableSubscription::None],
+            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
         })
     }
 
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
@@ -496,7 +491,7 @@ impl RecordBatchStream for DataSummaryStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{MessageTrait, TableBuilder, TablePublish};
+    use phymes_core::{MessageTrait, TableBuilder, TablePublication};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
 
     use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
@@ -538,7 +533,7 @@ mod tests {
             .with_name("lhs_name")
             .with_publisher("")
             .with_subject("lhs_name")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_message(lhs_table.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
@@ -546,7 +541,7 @@ mod tests {
             .with_name("summary_processor")
             .with_publisher("")
             .with_subject("summary_processor")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_message(config_table.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
@@ -566,13 +561,13 @@ mod tests {
         // Create the processor and run
         let processor = DataSummaryProcessor::new_arc_with_pub_sub(
             "summary_processor",
-            &[TablePublish::Extend {
+            &[TablePublication::Extend {
                 table_name: "messages".to_string(),
             }],
-            &[TableSubscribe::AlwaysFullTable {
+            &[TableSubscription::AlwaysFullTable {
                 table_name: "lhs_name".to_string(),
             }],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream =
             processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
@@ -632,7 +627,7 @@ mod tests {
             .with_name("lhs_name")
             .with_publisher("")
             .with_subject("lhs_name")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_message(lhs_table.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
@@ -640,7 +635,7 @@ mod tests {
             .with_name("summary_processor")
             .with_publisher("")
             .with_subject("summary_processor")
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_message(config_table.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
@@ -660,13 +655,13 @@ mod tests {
         // Create the processor and run
         let processor = DataSummaryProcessor::new_arc_with_pub_sub(
             "summary_processor",
-            &[TablePublish::Extend {
+            &[TablePublication::Extend {
                 table_name: "messages".to_string(),
             }],
-            &[TableSubscribe::AlwaysFullTable {
+            &[TableSubscription::AlwaysFullTable {
                 table_name: "lhs_name".to_string(),
             }],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream =
             processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;

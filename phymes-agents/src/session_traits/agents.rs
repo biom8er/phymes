@@ -5,10 +5,7 @@ use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
 use parking_lot::{Mutex, RwLock};
 use phymes_core::{
-    AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-    MappableTrait, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext,
-    SessionContextBuilder, SessionContextBuilderTrait, StateMap, SubscribeTrait, Table,
-    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskMap, TaskPlan, device,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan, device
 };
 use phymes_data::{DataConfig, DataConfigTrait, DataSummaryConfig};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -496,8 +493,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .get_subscriptions()
                     .into_iter()
                     .map(|e| e.to_owned())
-                    .collect::<Vec<TableSubscribe>>();
-                subscriptions.push(TableSubscribe::AlwaysFullTable {
+                    .collect::<Vec<TableSubscription>>();
+                subscriptions.push(TableSubscription::AlwaysFullTable {
                     table_name: to_update.get_name().to_string(),
                 });
                 let new_processor =
@@ -508,7 +505,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         .get_publications()
                         .into_iter()
                         .map(|e| e.to_owned())
-                        .collect::<Vec<TablePublish>>(),
+                        .collect::<Vec<TablePublication>>(),
                     &subscriptions,
                     to_update.get_subscribe().clone_boxed(),
                 );
@@ -555,7 +552,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let mut publications = subscriptions
             .map(|s| {
                 s.iter()
-                    .map(|s| TablePublish::Extend {
+                    .map(|s| TablePublication::Extend {
                         table_name: s.to_string(),
                     })
                     .collect::<Vec<_>>()
@@ -564,7 +561,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let mut subscriptions = subscriptions
             .map(|s| {
                 s.iter()
-                    .map(|s| TableSubscribe::OnUpdateLastRecordBatch {
+                    .map(|s| TableSubscription::OnUpdateLastRecordBatch {
                         table_name: s.to_string(),
                     })
                     .collect::<Vec<_>>()
@@ -576,16 +573,16 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     // DM: Leave the option for AvailableInterfaceSubjects to be both subscriptions and publications
                     // DM: Use publications/subscription policies that retain the information across sessions
                     if subject.is_session_publication() {
-                        publications.push(TablePublish::Extend {
+                        publications.push(TablePublication::Extend {
                             table_name: subject.to_string(),
                         });
                     }
                     if subject.is_session_subscription() {
-                        subscriptions.push(TableSubscribe::OnUpdateLastRecordBatch {
+                        subscriptions.push(TableSubscription::OnUpdateLastRecordBatch {
                             table_name: subject.to_string(),
                         });
                         // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the session!
-                        publications.push(TablePublish::Extend {
+                        publications.push(TablePublication::Extend {
                             table_name: subject.to_string(),
                         });
                     }
@@ -597,7 +594,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             session_name.as_str(),
             &publications,
             &subscriptions,
-            AnyTableNameSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
         ));
         self.processors.replace(processors);
 
@@ -655,7 +652,7 @@ pub mod test_session_context_builder_agents {
     use std::vec;
 
     use phymes_core::{
-        AllTableNamesSubscribe, BuildableTrait, BuilderTrait, SubscribeTrait, TableBuilderTrait, TablePublish, TableSubscribe, test_processor::ProcessorMock, test_session_context_builder::make_test_session_builder_tasks, test_table::make_test_table, test_task::make_runtime_env
+        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, TableBuilderTrait, TablePublication, TableSubscription, test_processor::ProcessorMock, test_session_context_builder::make_test_session_builder_tasks, test_table::make_test_table, test_task::make_runtime_env
     };
     use phymes_data::{AvailableCandleOperators, DataConfig};
 
@@ -666,66 +663,66 @@ pub mod test_session_context_builder_agents {
         let processor_plans = vec![
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "processor_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_2",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_2".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_2".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "processor_2".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_3",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_3".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "processor_3".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "session_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_2".to_string(),
                     },
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "session_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
         ];
 
@@ -787,8 +784,8 @@ pub mod test_session_context_builder_agents {
 mod tests {
 
     use phymes_core::{
-        AllTableNamesSubscribe, BuildableTrait, BuilderTrait, PubSubTrait, SubscribeTrait,
-        TableBuilderTrait, TablePublish, TableSubscribe, TaskTrait,
+        BuildableTrait, BuilderTrait, PubSubTrait,
+        TableBuilderTrait, TablePublication, TableSubscription, TaskTrait,
         test_processor::ProcessorMock,
         test_session_context_builder::{
             make_test_session_builder_parallel_task, make_test_session_builder_tasks,
@@ -900,66 +897,66 @@ mod tests {
         let processor_plans = vec![
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "processor_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_2",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_2".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_2".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "processor_2".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "processor_3",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_3".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "processor_3".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             ProcessorMock::new_arc_with_pub_sub(
                 "session_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_2".to_string(),
                     },
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "session_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
         ];
         let mut state = make_state_tables("state_1", "processor_1")?;

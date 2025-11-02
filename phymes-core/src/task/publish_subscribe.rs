@@ -1,17 +1,17 @@
 use phymes_diagnostics::HashMap;
 
 use crate::{
-    MappableTrait, session::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap}, table::{TablePublish, TableSubscribe, TableSubscribeTrait}, task::{MessageBuilderTrait, SendableRecordBatchStreamMessage}
+    MappableTrait, session::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap}, table::{TablePublication, TableSubscription, TableSubscriptionTrait}, task::{MessageBuilderTrait, SendableRecordBatchStreamMessage}
 };
 
 /// For task or processor objects that publish and
 /// subscribe to messages
 pub trait PubSubTrait {
     /// Get an immutable list of subscription subject names
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe>;
+    fn get_subscriptions(&self) -> Vec<&TableSubscription>;
 
     /// Get an immutable list of publication subject names
-    fn get_publications(&self) -> Vec<&TablePublish>;
+    fn get_publications(&self) -> Vec<&TablePublication>;
 
     /// Get subscriptions from the state
     ///
@@ -52,7 +52,7 @@ pub trait PubSubTrait {
                         .collect::<Vec<_>>();
                     let update = match update.first() {
                         Some(u) => u,
-                        None => &TablePublish::None,
+                        None => &TablePublication::None,
                     };
                     let out = SendableRecordBatchStreamMessage::get_builder()
                         .with_publisher("State")

@@ -3,7 +3,7 @@ use phymes_agents::AvailableSessionPlans;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    TablePublish,
+    TablePublication,
 };
 use phymes_server::create_session_name;
 use serde_json::{Map, Value};
@@ -70,7 +70,7 @@ pub fn apps_interface_view() -> Element {
             .with_session_name(&session_name)
             .with_format(&DataFormat::Bytes)
             .with_publisher(&session_name)
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_stream(false)
     });
 
