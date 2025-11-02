@@ -1,7 +1,7 @@
 use crate::{
     AvailableTableSubscribePolicies, session::{MappableTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, StateMap}, table::{
         RecordBatchStream, SendableRecordBatchStream, TablePublication, TableSubscribePolicyTrait, TableSubscription
-    }, task::PubSubTrait
+    }, task::PublishAndSubscribeTrait
 };
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
@@ -13,7 +13,7 @@ use tracing::{Level, event};
 /// For inner task objects that perform the actual processing
 /// and designed to allow for chaining multiple processors
 /// into streaming computational tree
-pub trait ProcessorTrait: MappableTrait + PubSubTrait + Send + Sync + Debug {
+pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync + Debug {
     /// New processor
     ///
     /// # Notes
@@ -241,7 +241,7 @@ impl MappableTrait for ProcessorEcho {
     }
 }
 
-impl PubSubTrait for ProcessorEcho {
+impl PublishAndSubscribeTrait for ProcessorEcho {
     fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect::<Vec<_>>()
     }
@@ -401,7 +401,7 @@ pub mod test_processor {
         }
     }
 
-    impl PubSubTrait for ProcessorMock {
+    impl PublishAndSubscribeTrait for ProcessorMock {
         fn get_publications(&self) -> Vec<&TablePublication> {
             self.publications.iter().collect::<Vec<_>>()
         }
@@ -591,7 +591,7 @@ pub mod test_processor {
         }
     }
 
-    impl PubSubTrait for ProcessorError {
+    impl PublishAndSubscribeTrait for ProcessorError {
         fn get_publications(&self) -> Vec<&TablePublication> {
             self.publications.iter().collect::<Vec<_>>()
         }

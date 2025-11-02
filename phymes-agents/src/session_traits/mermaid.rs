@@ -8,17 +8,13 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorEcho, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublication, TableScript, TableSubscription, TableTrait, TaskPlanBuilder, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_processor::ProcessorMock
+    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublication, TableScript, TableSubscription, TableTrait, TaskPlanBuilder, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type,
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, CandleDataProcessor, DataSummaryProcessor,
     MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE,
 };
 use phymes_diagnostics::{HashMap, HashSet};
-use phymes_ml::{
-    CandleChatProcessor, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
-    extract_tool_calls_str,
-};
+use phymes_ml::extract_tool_calls_str;
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
@@ -353,6 +349,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut task_names_vec = Vec::new();
 
         // Closures to create the subscriptions and publications
+        // DM, TODO: migrate to TablePublication
         let subscription_from_str = |line: &str,
                                      iter: usize,
                                      subject: &str,
@@ -384,6 +381,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 ))
             }
         };
+        // DM, TODO: migrate to TablePublication
         let publication_from_str = |line: &str,
                                     iter: usize,
                                     subject: &str,
@@ -411,42 +409,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             } else {
                 Err(anyhow!(
                     "Parsing Error on line {iter}: {line}. Variant for ArrowTablePublish with subject {subject} for task {task} was not recognized."
-                ))
-            }
-        };
-        let processor_from_str = |line: &str, iter: usize, processor: &str| -> Result<String> {
-            if line.contains(ProcessorMock::get_static_name()) {
-                Ok(ProcessorMock::get_static_name().to_string())
-            } else if line.contains(ProcessorEcho::get_static_name()) {
-                Ok(ProcessorEcho::get_static_name().to_string())
-            } else if line.contains(CandleDataProcessor::get_static_name()) {
-                Ok(CandleDataProcessor::get_static_name().to_string())
-            } else if line.contains(DataSummaryProcessor::get_static_name()) {
-                Ok(DataSummaryProcessor::get_static_name().to_string())
-            } else if line.contains(AttachmentAggregatorProcessor::get_static_name()) {
-                Ok(AttachmentAggregatorProcessor::get_static_name().to_string())
-            } else if line.contains(CandleChatProcessor::get_static_name()) {
-                Ok(CandleChatProcessor::get_static_name().to_string())
-            } else if line.contains(MessageAggregatorProcessor::get_static_name()) {
-                Ok(MessageAggregatorProcessor::get_static_name().to_string())
-            } else if line.contains(MessageParserProcessor::get_static_name()) {
-                Ok(MessageParserProcessor::get_static_name().to_string())
-            } else if line.contains(CandleEmbedProcessor::get_static_name()) {
-                Ok(CandleEmbedProcessor::get_static_name().to_string())
-            } else {
-                #[cfg(feature = "openai_api")]
-                if line.contains(OpenAIChatProcessor::get_static_name()) {
-                    Ok(OpenAIChatProcessor::get_static_name().to_string())
-                } else if line.contains(OpenAIEmbedProcessor::get_static_name()) {
-                    Ok(OpenAIEmbedProcessor::get_static_name().to_string())
-                } else {
-                    Err(anyhow!(
-                        "Parsing Error on line {iter}: {line}. Processor type for processor {processor} was not recognized."
-                    ))
-                }
-                #[cfg(not(feature = "openai_api"))]
-                Err(anyhow!(
-                    "Parsing Error on line {iter}: {line}. Processor type for processor {processor} was not recognized."
                 ))
             }
         };
@@ -903,8 +865,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     .split("-processor@{shape: rect,")
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
-                let processor_type =
-                    processor_from_str(split_line.last().unwrap(), iter, &processor_name)?;
+                let processor_type = match AvailableProcessors::from_str_fuzzy(split_line.last().unwrap()) {
+                    Ok(p) => p.to_string(),
+                    Err(err) => return Err(anyhow!(
+                        "Parsing Error on line {iter}: {}. Processor type for processor {processor_name} was not recognized. {err}",
+                        flowchart_lines.get(iter).unwrap()
+                    ))
+                };
 
                 // Update
                 if !processor_builders.contains_key(&processor_name) {

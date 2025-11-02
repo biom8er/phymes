@@ -17,7 +17,7 @@ use crate::schemas::{create_error_message_map, create_error_message_map_stream};
 use crate::session::session_stream_state::SessionStreamState;
 use crate::table::{TableBuilder, TableBuilderTrait, TableTrait};
 use crate::task::{
-    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, PubSubTrait,
+    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, PublishAndSubscribeTrait,
     SendableRecordBatchStreamMessage,
 };
 

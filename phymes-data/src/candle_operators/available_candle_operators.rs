@@ -7,13 +7,12 @@ use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilder
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    candle_data::DataConfig,
-    candle_operators::{
+    ToolTrait, candle_data::DataConfig, candle_operators::{
         ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData,
         FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages,
         GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, SelectAndCast,
         SortColumnAndIndices, VectorDistance,
-    },
+    }
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -92,28 +91,48 @@ impl Display for AvailableCandleOperators {
     }
 }
 
-impl AvailableCandleOperators {
-    /// Wrapper to return the JSON schema SortColumnAndIndices
-    pub fn get_json_tool_schema(&self) -> String {
+impl ToolTrait for AvailableCandleOperators {
+    fn to_json_tool_schema(&self) -> String {
         match self {
-            Self::VectorDistance => VectorDistance::get_json_tool_schema(),
-            Self::SortColumnAndIndices => SortColumnAndIndices::get_json_tool_schema(),
-            Self::HumanInTheLoop => HumanInTheLoop::get_json_tool_schema(),
-            Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
-            Self::JoinInner => JoinInner::get_json_tool_schema(),
-            Self::ExtractPDFText => ExtractPDFText::get_json_tool_schema(),
-            Self::GroupByAndAggregate => GroupByAndAggregate::get_json_tool_schema(),
-            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_json_tool_schema(),
-            Self::ExtractTabularData => ExtractTabularData::get_json_tool_schema(),
-            Self::SelectAndCast => SelectAndCast::get_json_tool_schema(),
-            Self::ApplyTemplate => ApplyTemplate::get_json_tool_schema(),
-            Self::Pivot => Pivot::get_json_tool_schema(),
-            Self::NormalizeTime => NormalizeTime::get_json_tool_schema(),
-            Self::FromTasksToParticipants => FromTasksToParticipants::get_json_tool_schema(),
-            Self::FromTracesToMessages => FromTracesToMessages::get_json_tool_schema(),
+            Self::VectorDistance => VectorDistance::default().to_json_tool_schema(),
+            Self::SortColumnAndIndices => SortColumnAndIndices::default().to_json_tool_schema(),
+            Self::HumanInTheLoop => HumanInTheLoop::default().to_json_tool_schema(),
+            Self::ChunkDocuments => ChunkDocuments::default().to_json_tool_schema(),
+            Self::JoinInner => JoinInner::default().to_json_tool_schema(),
+            Self::ExtractPDFText => ExtractPDFText::default().to_json_tool_schema(),
+            Self::GroupByAndAggregate => GroupByAndAggregate::default().to_json_tool_schema(),
+            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::default().to_json_tool_schema(),
+            Self::ExtractTabularData => ExtractTabularData::default().to_json_tool_schema(),
+            Self::SelectAndCast => SelectAndCast::default().to_json_tool_schema(),
+            Self::ApplyTemplate => ApplyTemplate::default().to_json_tool_schema(),
+            Self::Pivot => Pivot::default().to_json_tool_schema(),
+            Self::NormalizeTime => NormalizeTime::default().to_json_tool_schema(),
+            Self::FromTasksToParticipants => String::new(),
+            Self::FromTracesToMessages => String::new(),
         }
     }
+    fn get_description(&self) -> String {
+        match self {
+            Self::VectorDistance => VectorDistance::default().get_description(),
+            Self::SortColumnAndIndices => SortColumnAndIndices::default().get_description(),
+            Self::HumanInTheLoop => HumanInTheLoop::default().get_description(),
+            Self::ChunkDocuments => ChunkDocuments::default().get_description(),
+            Self::JoinInner => JoinInner::default().get_description(),
+            Self::ExtractPDFText => ExtractPDFText::default().get_description(),
+            Self::GroupByAndAggregate => GroupByAndAggregate::default().get_description(),
+            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::default().get_description(),
+            Self::ExtractTabularData => ExtractTabularData::default().get_description(),
+            Self::SelectAndCast => SelectAndCast::default().get_description(),
+            Self::ApplyTemplate => ApplyTemplate::default().get_description(),
+            Self::Pivot => Pivot::default().get_description(),
+            Self::NormalizeTime => NormalizeTime::default().get_description(),
+            Self::FromTasksToParticipants => String::new(),
+            Self::FromTracesToMessages => String::new(),
+        }
+    }
+}
 
+impl AvailableCandleOperators {
     /// Build the actual operator
     pub fn build(&self, config: &DataConfig) -> Result<Box<dyn DataOperatorTrait>> {
         match self {
@@ -142,7 +161,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
     for destination in destinations.iter() {
         if let Ok(ops) = AvailableCandleOperators::from_str(destination, false) {
             tool_id_vec.push(ops.to_string());
-            tool_vec.push(ops.get_json_tool_schema());
+            tool_vec.push(ops.to_json_tool_schema());
         }
     }
     if tool_id_vec.is_empty() {

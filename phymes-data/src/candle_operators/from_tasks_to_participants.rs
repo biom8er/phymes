@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    BuildableTrait, BuilderTrait,
+    MappableTrait, Table, TableBuilderTrait, TableTrait,
     create_mermaid_sequence_diagram_participants_template_batch,
 };
 use phymes_diagnostics::HashSet;
@@ -13,7 +11,7 @@ use phymes_diagnostics::HashSet;
 use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Compute the normalized start and end times in a [RecordBatch]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FromTasksToParticipants {}
 
 impl MappableTrait for FromTasksToParticipants {
@@ -33,58 +31,6 @@ impl DataOperatorTrait for FromTasksToParticipants {
     }
     fn new(_config: &DataConfig) -> Result<Self> {
         Ok(FromTasksToParticipants {})
-    }
-    fn get_description() -> String {
-        "".to_string()
-    }
-    fn get_json_tool_schema() -> String {
-        let mut properties = HashMap::new();
-        properties.insert(
-            "lhs_name".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_values".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::Array),
-                description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "op_kwargs".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some(
-                    "DataCastOperator and DataType with optional column renaming and template injection in the form of a JSON object".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        let function = Function {
-            name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
-            parameters: FunctionParameters {
-                schema_type: JSONSchemaType::Object,
-                properties: Some(properties),
-                required: Some(vec![
-                    "lhs_name".to_string(),
-                    "lhs_values".to_string(),
-                    "op_kwargs".to_string(),
-                ]),
-            },
-        };
-        let tool = Tool {
-            r#type: ToolType::Function,
-            function,
-        };
-        serde_json::to_string(&tool).unwrap()
     }
 }
 

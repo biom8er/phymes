@@ -1,7 +1,7 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
 use crate::candle_operators::DataOperatorTrait;
 use phymes_core::{
-    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, device, remove_message_by_subject
+    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, device, remove_message_by_subject
 };
 
 use arrow::{
@@ -41,7 +41,7 @@ impl MappableTrait for CandleDataProcessor {
     }
 }
 
-impl PubSubTrait for CandleDataProcessor {
+impl PublishAndSubscribeTrait for CandleDataProcessor {
     fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }

@@ -9,7 +9,7 @@ use tracing::{Level, event};
 use super::{
     ProcessorTrait,
     message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-    publish_subscribe::PubSubTrait,
+    publish_subscribe::PublishAndSubscribeTrait,
 };
 
 use crate::{
@@ -60,7 +60,7 @@ use crate::{
 ///
 /// Parallel execution could be integrated into any uses case to improve execution speed
 pub trait TaskTrait:
-    MappableTrait + BuildableTrait + RunnableTrait + PubSubTrait + Sync + Send
+    MappableTrait + BuildableTrait + RunnableTrait + PublishAndSubscribeTrait + Sync + Send
 {
     /// Make the outbox
     ///
@@ -192,7 +192,7 @@ impl TaskTrait for Task {
     }
 }
 
-impl PubSubTrait for Task {
+impl PublishAndSubscribeTrait for Task {
     fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.get_processors()
             .iter()

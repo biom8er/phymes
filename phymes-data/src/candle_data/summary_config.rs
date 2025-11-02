@@ -31,16 +31,8 @@ pub struct DataSummaryConfig {
 }
 
 impl DataConfigTrait for DataSummaryConfig {
-    fn to_example(name: &str) -> Self {
-        match name {
-            "Function" => Self {
-                num_rows: Some(10),
-                num_batches: Some(1),
-                summary_format: DataFormat::None,
-                ..Default::default()
-            },
-            _ => Self::default(),
-        }
+    fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&Self::default())
     }
     fn from_table(table: &Table) -> Result<Self>
         where

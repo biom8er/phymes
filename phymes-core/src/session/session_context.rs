@@ -17,7 +17,7 @@ use crate::schemas::{
 use crate::table::{
     Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TablePublicationTrait,
 };
-use crate::task::PubSubTrait;
+use crate::task::PublishAndSubscribeTrait;
 
 /// The `SessionContext` creates an execution graph based on a
 /// `SessionPlan` and manages the running of individual tasks

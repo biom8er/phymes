@@ -92,39 +92,8 @@ pub struct CandleEmbedConfig {
 }
 
 impl DataConfigTrait for CandleEmbedConfig {
-    fn to_example(name: &str) -> Self {
-        match name {
-            "CandleEmbedConfig" => Self {
-                weights_config_file: Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
-                    std::env::var("HOME").unwrap_or("".to_string())
-                )),
-                weights_file: Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
-                    std::env::var("HOME").unwrap_or("".to_string())
-                )),
-                tokenizer_file: Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json",
-                    std::env::var("HOME").unwrap_or("".to_string())
-                )),
-                tokenizer_config_file: Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
-                    std::env::var("HOME").unwrap_or("".to_string())
-                )),
-                candle_asset: Some(AvailableCandleAssets::QuantizedBertEmbed),
-                ..Default::default()
-            },
-            "OpenAIAsset" => Self {
-                openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
-                api_url: Some("http://0.0.0.0:8001/v1".to_string()),
-                input_type: "query".to_string(),
-                candle_asset: None,
-                encoding_format: "float".to_string(),
-                modality: "text".to_string(),
-                ..Default::default()
-            },
-            _ => Self::default(),
-        }
+    fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&Self::default())
     }
     fn from_table(table: &Table) -> Result<Self>
         where

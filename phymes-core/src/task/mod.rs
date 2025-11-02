@@ -11,7 +11,7 @@ pub use message::{
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
 };
 pub use processor::{ProcessorBuilder, ProcessorEcho, ProcessorTrait, test_processor};
-pub use publish_subscribe::PubSubTrait;
+pub use publish_subscribe::PublishAndSubscribeTrait;
 pub use task_trait::{Task, TaskBuilder, TaskBuilderTrait, TaskTrait, test_task};
 
 #[allow(unused_imports)]

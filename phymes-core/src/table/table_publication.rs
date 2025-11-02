@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -99,6 +99,19 @@ impl TablePublication {
             ));
         };
         Ok(publication)
+    }
+}
+
+impl Display for TablePublication {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {        
+        match self {
+            Self::Extend { table_name: _ } => write!(f, "Extend"),
+            Self::Replace { table_name: _ } => write!(f, "Replace"),
+            Self::ReplaceLast { table_name: _ } => write!(f, "ReplaceLast"),
+            Self::None => write!(f, "None"),
+            Self::ExtendChunks { table_name: _, col_name: _ } => write!(f, "ExtendChunks"),
+            Self::Custom (_s) => write!(f, "Custom"),
+        }
     }
 }
 

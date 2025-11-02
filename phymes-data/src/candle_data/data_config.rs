@@ -220,20 +220,13 @@ impl Display for DataCastOperator {
 
 /// Traits for all configs
 pub trait DataConfigTrait {
-    /// Create an example
-    ///
-    /// # Arguments
-    /// `name`: String specifying the name of the example which for [DataConfig] would be the name of the [AvailableCandleOperators]
-    fn to_example(name: &str) -> Self;
-
     /// Create an example and serialize to JSON
-    fn to_example_json(name: &str) -> Result<Vec<u8>, serde_json::Error>
+    /// 
+    /// # Notes
+    /// - example implementation: serde_json::to_vec(&DataConfig)
+    fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error>
     where
-        Self: Sized,
-        Self: Serialize,
-    {
-        serde_json::to_vec(&Self::to_example(name))
-    }
+        Self: Serialize;
 
     /// Build the config from a [Table]
     fn from_table(table: &Table) -> Result<Self>
@@ -464,29 +457,8 @@ impl Default for DataConfig {
 }
 
 impl DataConfigTrait for DataConfig {
-    fn to_example(name: &str) -> Self {
-        match name {
-            s if s == AvailableCandleOperators::ApplyTemplate.to_string() => Self {
-                cpu: false,
-                lhs_name: Some("lhs_name".to_string()),
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
-                operator: AvailableCandleOperators::ApplyTemplate,
-                doc_template: Some(AvailableJinja2Templates::MermaidGanttTemplate),
-                doc_name: Some("doc_name".to_string()),
-                table_expression: Some("rows".to_string()),
-                doc_input: Some("{}".to_string()),
-                format: Some(DataFormat::Txt),
-                ..Default::default()
-            },
-            // DM: Add examples for the rest of the operators
-            "Aggregator" => Self {
-                lhs_values: Some(vec!["timestamp".to_string()]),
-                asc: Some(true),
-                operator: AvailableCandleOperators::SortColumnAndIndices,
-                ..Default::default()
-            },
-            _ => Self::default(),
-        }
+    fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&Self::default())
     }
     fn from_table(table: &Table) -> Result<Self>
         where

@@ -6,7 +6,7 @@ use crate::{
 
 /// For task or processor objects that publish and
 /// subscribe to messages
-pub trait PubSubTrait {
+pub trait PublishAndSubscribeTrait {
     /// Get an immutable list of subscription subject names
     fn get_subscriptions(&self) -> Vec<&TableSubscription>;
 

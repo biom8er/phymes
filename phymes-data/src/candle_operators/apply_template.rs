@@ -10,11 +10,11 @@ use serde_json::{Value, json};
 use tracing::instrument;
 
 use crate::{
-    AvailableJinja2Templates, candle_data::{DataConfig, table_and_data_format_to_record_batch}, candle_operators::DataOperatorTrait
+    AvailableJinja2Templates, ToolTrait, candle_data::{DataConfig, table_and_data_format_to_record_batch}, candle_operators::DataOperatorTrait
 };
 
 /// Inject a table into a string template
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ApplyTemplate {
     doc_template: AvailableJinja2Templates,
     doc_name: String,
@@ -26,6 +26,48 @@ pub struct ApplyTemplate {
 impl MappableTrait for ApplyTemplate {
     fn get_name(&self) -> &str {
         Self::get_static_name()
+    }
+}
+
+impl ToolTrait for ApplyTemplate {
+    fn get_description(&self) -> String {
+        "Inject a table into a string template.".to_string()
+    }
+    fn to_json_tool_schema(&self) -> String {
+        let mut properties = HashMap::new();
+        properties.insert(
+            "lhs_name".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The name of the left hand side table".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "op_kwargs".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "template, table_expression, and input_template in the form of a JSON object"
+                        .to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        let function = Function {
+            name: Self::get_static_name().to_string(),
+            description: Some(self.get_description()),
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
+                properties: Some(properties),
+                required: Some(vec!["lhs_name".to_string(), "op_kwargs".to_string()]),
+            },
+        };
+        let tool = Tool {
+            r#type: ToolType::Function,
+            function,
+        };
+        serde_json::to_string(&tool).unwrap()
     }
 }
 
@@ -65,45 +107,6 @@ impl DataOperatorTrait for ApplyTemplate {
             doc_input,
             format,
         })
-    }
-    fn get_description() -> String {
-        "Inject a table into a string template.".to_string()
-    }
-    fn get_json_tool_schema() -> String {
-        let mut properties = HashMap::new();
-        properties.insert(
-            "lhs_name".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "op_kwargs".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some(
-                    "template, table_expression, and input_template in the form of a JSON object"
-                        .to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        let function = Function {
-            name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
-            parameters: FunctionParameters {
-                schema_type: JSONSchemaType::Object,
-                properties: Some(properties),
-                required: Some(vec!["lhs_name".to_string(), "op_kwargs".to_string()]),
-            },
-        };
-        let tool = Tool {
-            r#type: ToolType::Function,
-            function,
-        };
-        serde_json::to_string(&tool).unwrap()
     }
 }
 

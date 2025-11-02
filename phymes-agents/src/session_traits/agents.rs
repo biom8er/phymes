@@ -375,8 +375,6 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 "Add a name for the session before making the default processor configuration subjects."
             ));
         }
-        // DM: need to find a way to customize the default further for `DataConfig`
-        let name = "";
 
         // Find the processors that are missing a config
         let processors_to_update = self
@@ -415,7 +413,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     let new_processor = AvailableProcessors::from_str(p.get_type(), false).unwrap();
 
                     // Make the default config
-                    let config = new_processor.to_example_config_json(name).unwrap();
+                    let config = new_processor.to_example_json().unwrap();
                     let table = Table::get_builder()
                         .with_name(p.get_name())
                         .with_json(&config, 1)
@@ -730,21 +728,21 @@ pub mod test_session_context_builder_agents {
             make_test_table("state_1", 4, 8, 3)?,
             Table::get_builder()
                 .with_name("processor_1")
-                .with_json(&DataConfig::to_example_json("")?, 1)
+                .with_json(&AvailableProcessors::Data.to_example_json()?, 1)
                 .unwrap()
                 .build()
                 .unwrap(),
             make_test_table("state_2", 4, 8, 3)?,
             Table::get_builder()
                 .with_name("processor_2")
-                .with_json(&DataConfig::to_example_json("")?, 1)
+                .with_json(&AvailableProcessors::Data.to_example_json()?, 1)
                 .unwrap()
                 .build()
                 .unwrap(),
             make_test_table("state_3", 4, 8, 3)?,
             Table::get_builder()
                 .with_name("processor_3")
-                .with_json(&DataConfig::to_example_json("")?, 1)
+                .with_json(&AvailableProcessors::Data.to_example_json()?, 1)
                 .unwrap()
                 .build()
                 .unwrap(),
@@ -784,7 +782,7 @@ pub mod test_session_context_builder_agents {
 mod tests {
 
     use phymes_core::{
-        BuildableTrait, BuilderTrait, PubSubTrait,
+        BuildableTrait, BuilderTrait, PublishAndSubscribeTrait,
         TableBuilderTrait, TablePublication, TableSubscription, TaskTrait,
         test_processor::ProcessorMock,
         test_session_context_builder::{

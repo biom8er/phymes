@@ -14,15 +14,14 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
-    candle_data::DataConfig,
-    candle_operators::{
+    ToolTrait, candle_data::DataConfig, candle_operators::{
         data_operator::DataOperatorTrait,
         sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
-    },
+    }
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct JoinInner {
     _lhs_pk: String,
     lhs_fk: String,
@@ -36,37 +35,11 @@ impl MappableTrait for JoinInner {
     }
 }
 
-impl DataOperatorTrait for JoinInner {
-    fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
-        let lhs_fk = config.lhs_fk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_fk` for `{}`.", Self::get_static_name()))?;
-        let rhs_pk = config.rhs_pk.clone().ok_or(anyhow!("Missing `rhs_pk` for `{}`.", Self::get_static_name()))?;
-        let rhs_fk = config.rhs_fk.to_owned().ok_or(anyhow!("Missing `rhs_fk` for `{}`.", Self::get_static_name()))?;
-        Ok(JoinInner {
-            _lhs_pk: lhs_pk,
-            lhs_fk,
-            _rhs_pk: rhs_pk,
-            rhs_fk,
-        })
-    }
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        join_inner(
-            &self.lhs_fk,
-            lhs_args,
-            &self.rhs_fk,
-            rhs_args.ok_or(anyhow!("Missing `rhs_args` for `{}`.", Self::get_static_name()))?,
-            device,
-        )
-    }
-    fn get_description() -> String {
+impl ToolTrait for JoinInner {
+    fn get_description(&self) -> String {
         "Join two tables on their foreign keys".to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -126,7 +99,7 @@ impl DataOperatorTrait for JoinInner {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -143,6 +116,35 @@ impl DataOperatorTrait for JoinInner {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for JoinInner {
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
+        let lhs_fk = config.lhs_fk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_fk` for `{}`.", Self::get_static_name()))?;
+        let rhs_pk = config.rhs_pk.clone().ok_or(anyhow!("Missing `rhs_pk` for `{}`.", Self::get_static_name()))?;
+        let rhs_fk = config.rhs_fk.to_owned().ok_or(anyhow!("Missing `rhs_fk` for `{}`.", Self::get_static_name()))?;
+        Ok(JoinInner {
+            _lhs_pk: lhs_pk,
+            lhs_fk,
+            _rhs_pk: rhs_pk,
+            rhs_fk,
+        })
+    }
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        join_inner(
+            &self.lhs_fk,
+            lhs_args,
+            &self.rhs_fk,
+            rhs_args.ok_or(anyhow!("Missing `rhs_args` for `{}`.", Self::get_static_name()))?,
+            device,
+        )
     }
 }
 

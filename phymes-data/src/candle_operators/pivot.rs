@@ -13,16 +13,15 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
-    candle_data::{DataAggregatorOperator, DataConfig},
-    candle_operators::{
+    ToolTrait, candle_data::{DataAggregatorOperator, DataConfig}, candle_operators::{
         data_operator::DataOperatorTrait,
         group_by_and_aggregate::{create_agg_column_name, group_by_and_aggregate},
         sort_column_and_indices::take_columns_by_indices,
-    },
+    }
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Pivot {
     lhs_values: Vec<String>,
     agg_columns: Vec<String>,
@@ -37,62 +36,11 @@ impl MappableTrait for Pivot {
     }
 }
 
-impl DataOperatorTrait for Pivot {
-    fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
-        let agg_columns = config.agg_columns.clone().ok_or(anyhow!("Missing `agg_columns` for `{}`.", Self::get_static_name()))?;
-        let agg_operators = config.agg_operators.clone().ok_or(anyhow!("Missing `agg_operators` for `{}`.", Self::get_static_name()))?;
-        let default_values = config.default_values.clone().ok_or(anyhow!("Missing `default_values` for `{}`.", Self::get_static_name()))?;
-        let pvt_columns = config.pvt_columns.clone().ok_or(anyhow!("Missing `pvt_columns` for `{}`.", Self::get_static_name()))?;
-
-        Ok(Pivot {
-            lhs_values,
-            agg_columns,
-            agg_operators,
-            default_values,
-            pvt_columns,
-        })
-    }
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        let lhs_values = self
-            .lhs_values
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        let agg_columns = self
-            .agg_columns
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        let default_values = self
-            .default_values
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        let pvt_columns = self
-            .pvt_columns
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        pivot(
-            &lhs_values,
-            lhs_args,
-            &agg_columns,
-            &self.agg_operators,
-            &default_values,
-            &pvt_columns,
-            device,
-        )
-    }
-    fn get_description() -> String {
+impl ToolTrait for Pivot {
+    fn get_description(&self) -> String {
         "Pivot on selected columns".to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -152,7 +100,7 @@ impl DataOperatorTrait for Pivot {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -169,6 +117,60 @@ impl DataOperatorTrait for Pivot {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for Pivot {
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
+        let agg_columns = config.agg_columns.clone().ok_or(anyhow!("Missing `agg_columns` for `{}`.", Self::get_static_name()))?;
+        let agg_operators = config.agg_operators.clone().ok_or(anyhow!("Missing `agg_operators` for `{}`.", Self::get_static_name()))?;
+        let default_values = config.default_values.clone().ok_or(anyhow!("Missing `default_values` for `{}`.", Self::get_static_name()))?;
+        let pvt_columns = config.pvt_columns.clone().ok_or(anyhow!("Missing `pvt_columns` for `{}`.", Self::get_static_name()))?;
+
+        Ok(Pivot {
+            lhs_values,
+            agg_columns,
+            agg_operators,
+            default_values,
+            pvt_columns,
+        })
+    }
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        let lhs_values = self
+            .lhs_values
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let agg_columns = self
+            .agg_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let default_values = self
+            .default_values
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let pvt_columns = self
+            .pvt_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        pivot(
+            &lhs_values,
+            lhs_args,
+            &agg_columns,
+            &self.agg_operators,
+            &default_values,
+            &pvt_columns,
+            device,
+        )
     }
 }
 

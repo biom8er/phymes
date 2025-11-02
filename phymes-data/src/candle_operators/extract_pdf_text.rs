@@ -14,10 +14,10 @@ use phymes_core::{
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::{Level, event, instrument};
 
-use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
+use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExtractPDFText {
     lhs_pk: String,
     lhs_values: String,
@@ -29,35 +29,11 @@ impl MappableTrait for ExtractPDFText {
     }
 }
 
-impl DataOperatorTrait for ExtractPDFText {
-    fn new(config: &DataConfig) -> Result<Self>
-    where
-        Self: Sized,
-    {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
-        let lhs_values = config
-            .lhs_values
-            .as_ref()
-            .cloned()
-            .ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?
-            .first()
-            .cloned()
-            .ok_or(anyhow!("`lhs_values` is empty for `{}`.", Self::get_static_name()))?;
-        Ok(ExtractPDFText { lhs_pk, lhs_values })
-    }
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
-        _device: &Device,
-    ) -> Result<RecordBatch> {
-        let docs = prepare_pdf_documents(&self.lhs_pk, &self.lhs_values, lhs_args);
-        extract_pdf_text(&docs)
-    }
-    fn get_description() -> String {
+impl ToolTrait for ExtractPDFText {
+    fn get_description(&self) -> String {
         "Extract text from PDF documents".to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -89,7 +65,7 @@ impl DataOperatorTrait for ExtractPDFText {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -105,6 +81,33 @@ impl DataOperatorTrait for ExtractPDFText {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for ExtractPDFText {
+    fn new(config: &DataConfig) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
+        let lhs_values = config
+            .lhs_values
+            .as_ref()
+            .cloned()
+            .ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?
+            .first()
+            .cloned()
+            .ok_or(anyhow!("`lhs_values` is empty for `{}`.", Self::get_static_name()))?;
+        Ok(ExtractPDFText { lhs_pk, lhs_values })
+    }
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        _device: &Device,
+    ) -> Result<RecordBatch> {
+        let docs = prepare_pdf_documents(&self.lhs_pk, &self.lhs_values, lhs_args);
+        extract_pdf_text(&docs)
     }
 }
 

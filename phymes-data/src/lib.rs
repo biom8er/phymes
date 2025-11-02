@@ -12,7 +12,7 @@ pub use candle_operators::{
     ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDFText,
     ExtractTabularData, FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages,
     GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, SelectAndCast,
-    SortColumnAndIndices, VectorDistance, convert_destinations_to_tools,
+    SortColumnAndIndices, ToolTrait, VectorDistance, convert_destinations_to_tools,
     filter_columns_and_indices, group_by_and_aggregate, make_pdf_document, sort_column_and_indices,
     test_extract_tabular_data,
 };

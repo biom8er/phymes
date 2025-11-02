@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscribePolicyTrait, TableSubscription, create_chat_fields, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscribePolicyTrait, TableSubscription, create_chat_fields, remove_message_by_subject
 };
 
 use anyhow::{Result, anyhow};
@@ -31,7 +31,7 @@ impl MappableTrait for MessageAggregatorProcessor {
     }
 }
 
-impl PubSubTrait for MessageAggregatorProcessor {
+impl PublishAndSubscribeTrait for MessageAggregatorProcessor {
     fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }

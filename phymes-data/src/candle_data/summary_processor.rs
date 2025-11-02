@@ -6,7 +6,7 @@ use std::{
 
 use bytes::Bytes;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, CsvFormat, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, create_blob_batch, create_chat_record_batch, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, CsvFormat, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, create_blob_batch, create_chat_record_batch, remove_message_by_subject
 };
 
 use anyhow::{Result, anyhow};
@@ -44,7 +44,7 @@ impl MappableTrait for DataSummaryProcessor {
     }
 }
 
-impl PubSubTrait for DataSummaryProcessor {
+impl PublishAndSubscribeTrait for DataSummaryProcessor {
     fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }

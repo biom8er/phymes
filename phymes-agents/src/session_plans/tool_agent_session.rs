@@ -6,7 +6,7 @@ use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields, create_tools_record_batch
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, DataCastOperator, DataConfig, DataSummaryConfig, DataSummaryProcessor, MERMAID_XYCHART_TABLE_EXPRESSION,
+    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, DataCastOperator, DataConfig, DataSummaryConfig, DataSummaryProcessor, MERMAID_XYCHART_TABLE_EXPRESSION, ToolTrait,
 };
 #[cfg(feature = "candle")]
 use phymes_ml::CandleChatProcessor;
@@ -122,8 +122,8 @@ impl<'a> ToolAgentSession<'a> {
             AvailableCandleOperators::HumanInTheLoop.to_string(),
         ];
         let tools = vec![
-            AvailableCandleOperators::SortColumnAndIndices.get_json_tool_schema(),
-            AvailableCandleOperators::HumanInTheLoop.get_json_tool_schema(),
+            AvailableCandleOperators::SortColumnAndIndices.to_json_tool_schema(),
+            AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
         TableBuilder::new()

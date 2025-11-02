@@ -13,10 +13,10 @@ use phymes_core::{
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
+use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ChunkDocuments {
     lhs_pk: String,
     lhs_values: String,
@@ -27,6 +27,61 @@ pub struct ChunkDocuments {
 impl MappableTrait for ChunkDocuments {
     fn get_name(&self) -> &str {
         Self::get_static_name()
+    }
+}
+
+impl ToolTrait for ChunkDocuments {
+    fn get_description(&self) -> String {
+        "Chunk documents by splitting the document text".to_string()
+    }
+    fn to_json_tool_schema(&self) -> String {
+        let mut properties = HashMap::new();
+        properties.insert(
+            "lhs_name".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The name of the left hand side table".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_pk".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "The primary key column identifier for the left hand side table".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "A list of value column identifiers for the left hand side table".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        let function = Function {
+            name: Self::get_static_name().to_string(),
+            description: Some(self.get_description()),
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
+                properties: Some(properties),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "lhs_pk".to_string(),
+                    "lhs_values".to_string(),
+                ]),
+            },
+        };
+        let tool = Tool {
+            r#type: ToolType::Function,
+            function,
+        };
+        serde_json::to_string(&tool).unwrap()
     }
 }
 
@@ -65,58 +120,6 @@ impl DataOperatorTrait for ChunkDocuments {
             self.chunk_overlap,
             device,
         )
-    }
-    fn get_description() -> String {
-        "Chunk documents by splitting the document text".to_string()
-    }
-    fn get_json_tool_schema() -> String {
-        let mut properties = HashMap::new();
-        properties.insert(
-            "lhs_name".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_pk".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_values".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::Array),
-                description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        let function = Function {
-            name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
-            parameters: FunctionParameters {
-                schema_type: JSONSchemaType::Object,
-                properties: Some(properties),
-                required: Some(vec![
-                    "lhs_name".to_string(),
-                    "lhs_pk".to_string(),
-                    "lhs_values".to_string(),
-                ]),
-            },
-        };
-        let tool = Tool {
-            r#type: ToolType::Function,
-            function,
-        };
-        serde_json::to_string(&tool).unwrap()
     }
 }
 

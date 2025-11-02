@@ -9,10 +9,10 @@ use phymes_core::{
 };
 use tracing::instrument;
 
-use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
+use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Compute the normalized start and end times in a [RecordBatch]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NormalizeTime {
     lhs_values: Vec<String>,
 }
@@ -23,29 +23,12 @@ impl MappableTrait for NormalizeTime {
     }
 }
 
-impl DataOperatorTrait for NormalizeTime {
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        let lhs_values = self
-            .lhs_values
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        normalize_time(&lhs_values, lhs_args, device)
-    }
-    fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
-        Ok(NormalizeTime { lhs_values })
-    }
-    fn get_description() -> String {
+impl ToolTrait for NormalizeTime {
+    fn get_description(&self) -> String {
         "Compute the normalized start and end times and duration between start and end times."
             .to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -77,7 +60,7 @@ impl DataOperatorTrait for NormalizeTime {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -93,6 +76,26 @@ impl DataOperatorTrait for NormalizeTime {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for NormalizeTime {
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        let lhs_values = self
+            .lhs_values
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        normalize_time(&lhs_values, lhs_args, device)
+    }
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
+        Ok(NormalizeTime { lhs_values })
     }
 }
 

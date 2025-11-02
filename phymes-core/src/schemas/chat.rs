@@ -318,7 +318,7 @@ mod test_messages {
         }, table::{
             RecordBatchStream, SendableRecordBatchStream, TablePublication, TableSubscribePolicyTrait, TableSubscription
         }, task::{
-            MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
+            MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait,
             SendableRecordBatchStreamMessage,
         }
     };
@@ -348,7 +348,7 @@ mod test_messages {
         }
     }
 
-    impl PubSubTrait for CandleChatMockProcessor {
+    impl PublishAndSubscribeTrait for CandleChatMockProcessor {
         fn get_publications(&self) -> Vec<&TablePublication> {
             self.publications.iter().collect::<Vec<_>>()
         }

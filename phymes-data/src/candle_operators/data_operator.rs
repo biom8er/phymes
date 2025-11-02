@@ -6,6 +6,15 @@ use std::fmt::Debug;
 
 use crate::candle_data::DataConfig;
 
+/// Traits for methods that can be called as tools
+pub trait ToolTrait: Debug + Default {
+    /// The description to use for the operation
+    fn get_description(&self) -> String;
+
+    /// The description to use for the operation
+    fn to_json_tool_schema(&self) -> String;
+}
+
 /// Data operators and other tools that utilize tensor services
 pub trait DataOperatorTrait: MappableTrait + Send + Sync + Debug {
     /// Create a new instance of the data operator
@@ -27,14 +36,4 @@ pub trait DataOperatorTrait: MappableTrait + Send + Sync + Debug {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch>;
-
-    /// The description to use for the operation
-    fn get_description() -> String
-    where
-        Self: Sized;
-
-    /// The description to use for the operation
-    fn get_json_tool_schema() -> String
-    where
-        Self: Sized;
 }
