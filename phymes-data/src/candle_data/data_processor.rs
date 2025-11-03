@@ -956,7 +956,7 @@ mod tests {
             lhs_values: Some(vec!["embedding".to_string()]),
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
-            // rhs_values: Some(vec!["embedding".to_string()]),
+            rhs_values: Some(vec!["embedding".to_string()]),
             dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
             operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()

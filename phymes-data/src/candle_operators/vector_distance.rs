@@ -135,11 +135,12 @@ impl DataOperatorTrait for VectorDistance {
         let rhs_pk = config.rhs_pk.clone().ok_or(anyhow!("Missing `rhs_pk` for `{}`.", Self::get_static_name()))?;
         let rhs_values = config
             .rhs_values
-            .clone()
-            .unwrap()
+            .as_ref()
+            .cloned()
+            .ok_or(anyhow!("Missing `rhs_values` for `{}`.", Self::get_static_name()))?
             .first()
-            .unwrap()
-            .to_string();
+            .cloned()
+            .ok_or(anyhow!("`rhs_values` is empty for `{}`.", Self::get_static_name()))?;
         let dist_operator = config.dist_operator.clone().ok_or(anyhow!("Missing `dist_operator` for `{}`.", Self::get_static_name()))?;
         Ok(VectorDistance {
             lhs_pk,

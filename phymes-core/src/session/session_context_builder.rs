@@ -475,7 +475,7 @@ pub mod test_session_context_builder {
         let processor_plans = vec![
             ProcessorMock::new(
                 "processor_1",
-                "",
+                ProcessorMock::get_static_name(),
                 &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
@@ -491,7 +491,7 @@ pub mod test_session_context_builder {
             ),
             ProcessorMock::new(
                 "processor_2",
-                "",
+                ProcessorMock::get_static_name(),
                 &[TablePublication::Extend {
                     table_name: "state_2".to_string(),
                 }],
@@ -507,7 +507,7 @@ pub mod test_session_context_builder {
             ),
             ProcessorMock::new(
                 "processor_3",
-                "",
+                ProcessorMock::get_static_name(),
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
                 }],
@@ -523,7 +523,7 @@ pub mod test_session_context_builder {
             ),
             ProcessorMock::new(
                 "session_1",
-                "",
+                ProcessorMock::get_static_name(),
                 &[
                     TablePublication::Extend {
                         table_name: "state_1".to_string(),
@@ -561,7 +561,7 @@ pub mod test_session_context_builder {
         let processor_plans = vec![
             ProcessorMock::new(
                 "processor_1",
-                "",
+                ProcessorMock::get_static_name(),
                 &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
@@ -577,7 +577,7 @@ pub mod test_session_context_builder {
             ),
             ProcessorMock::new(
                 "processor_2",
-                "",
+                ProcessorMock::get_static_name(),
                 &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
@@ -593,7 +593,7 @@ pub mod test_session_context_builder {
             ),
             ProcessorMock::new(
                 "processor_3",
-                "",
+                ProcessorMock::get_static_name(),
                 &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
@@ -609,7 +609,7 @@ pub mod test_session_context_builder {
             ),
             ProcessorMock::new(
                 "session_1",
-                "",
+                ProcessorMock::get_static_name(),
                 &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
@@ -628,10 +628,10 @@ pub mod test_session_context_builder {
 
     pub fn make_test_processors() -> Vec<Arc<dyn ProcessorTrait>> {
         vec![
-            Arc::new(ProcessorMock::new("processor_1", "", &[], &[], AvailableTableSubscribePolicies::default().build())),
-            Arc::new(ProcessorMock::new("processor_2", "", &[], &[], AvailableTableSubscribePolicies::default().build())),
-            Arc::new(ProcessorMock::new("processor_3", "", &[], &[], AvailableTableSubscribePolicies::default().build())),
-            Arc::new(ProcessorEcho::new("session_1", "", &[], &[], AvailableTableSubscribePolicies::default().build())),
+            Arc::new(ProcessorMock::new("processor_1", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build())),
+            Arc::new(ProcessorMock::new("processor_2", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build())),
+            Arc::new(ProcessorMock::new("processor_3", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build())),
+            Arc::new(ProcessorEcho::new("session_1", ProcessorEcho::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build())),
         ]
     }
 
@@ -814,8 +814,8 @@ mod tests {
 
         // Missing tasks
         let processors = vec![
-            ProcessorMock::new("processor_1", "", &[], &[], AvailableTableSubscribePolicies::default().build()),
-            ProcessorMock::new("processor_2", "", &[], &[], AvailableTableSubscribePolicies::default().build()),
+            ProcessorMock::new("processor_1", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
+            ProcessorMock::new("processor_2", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
         ];
         let result = SessionContextBuilder::new()
             .with_name("session_1")
@@ -832,10 +832,10 @@ mod tests {
 
         // Task not found in plan
         let processors = vec![
-            ProcessorMock::new("processor_1", "", &[], &[], AvailableTableSubscribePolicies::default().build()),
-            ProcessorMock::new("processor_2", "", &[], &[], AvailableTableSubscribePolicies::default().build()),
-            ProcessorMock::new("processor_3", "", &[], &[], AvailableTableSubscribePolicies::default().build()),
-            ProcessorMock::new("not_found", "", &[], &[], AvailableTableSubscribePolicies::default().build()),
+            ProcessorMock::new("processor_1", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
+            ProcessorMock::new("processor_2", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
+            ProcessorMock::new("processor_3", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
+            ProcessorMock::new("not_found", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
         ];
         let result = SessionContextBuilder::new()
             .with_name("session_1")

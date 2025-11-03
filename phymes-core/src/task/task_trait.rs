@@ -393,7 +393,7 @@ pub mod test_task {
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![ProcessorBuilder::default().with_name(processor_name.as_str())
-                .with_type("")
+                .with_type(ProcessorMock::get_static_name())
                 .with_publications(&[TablePublication::Extend {
                     table_name: table_name.to_string(),
                 }]).with_subscriptions(&[
@@ -420,7 +420,7 @@ pub mod test_task {
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![ProcessorBuilder::default().with_name(processor_name.as_str())
-                .with_type("")
+                .with_type(ProcessorMock::get_static_name())
                 .with_publications(&[TablePublication::Extend {
                     table_name: table_name_1.to_string(),
                 }]).with_subscriptions(&[
@@ -451,7 +451,7 @@ pub mod test_task {
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![ProcessorBuilder::default().with_name(processor_name_1.as_str())
-                .with_type("")
+                .with_type(ProcessorMock::get_static_name())
                 .with_publications(&[TablePublication::Extend {
                     table_name: table_name.to_string(),
                 }]).with_subscriptions(&[
@@ -464,12 +464,12 @@ pub mod test_task {
                 ]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
                 .build_arc::<ProcessorMock>()?,
                 ProcessorBuilder::default().with_name(processor_name_2.as_str())
-                .with_type("")
+                .with_type(ProcessorMock::get_static_name())
                 .with_publications(&[]).with_subscriptions(&[])
                 .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
                 .build_arc::<ProcessorMock>()?,
                 ProcessorBuilder::default().with_name(processor_name_3.as_str())
-                .with_type("")
+                .with_type(ProcessorMock::get_static_name())
                 .with_publications(&[]).with_subscriptions(&[])
                 .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
                 .build_arc::<ProcessorMock>()?])

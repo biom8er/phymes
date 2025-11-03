@@ -404,6 +404,8 @@ mod tests {
     use phymes_core::{AvailableTableSubscribePolicies, TableBuilder, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
+    use crate::AvailableCandleAssets;
+
     use super::*;
 
     #[tokio::test]
@@ -449,6 +451,12 @@ mod tests {
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
+                                max_tokens: 1000,
+                                temperature: 0.8,
+                                seed: 299792458,
+                                repeat_penalty: 1.1,
+                                repeat_last_n: 64,
+                                candle_asset: Some(AvailableCandleAssets::default()),
                                 ..Default::default()
                             })?,
                             1,
@@ -554,6 +562,12 @@ mod tests {
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
+                                max_tokens: 1000,
+                                temperature: 0.8,
+                                seed: 299792458,
+                                repeat_penalty: 1.1,
+                                repeat_last_n: 64,
+                                candle_asset: Some(AvailableCandleAssets::default()),
                                 ..Default::default()
                             })?,
                             1,
@@ -659,6 +673,12 @@ mod tests {
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
+                                max_tokens: 1000,
+                                temperature: 0.8,
+                                seed: 299792458,
+                                repeat_penalty: 1.1,
+                                repeat_last_n: 64,
+                                candle_asset: Some(AvailableCandleAssets::default()),
                                 ..Default::default()
                             })?,
                             1,

@@ -654,7 +654,7 @@ mod tests {
                 .with_message(make_test_table("test_table", 4, 8, 3)?.to_record_batch_stream())
                 .build()?,
         );
-        let processor_1 = test_processor::ProcessorMock::new("processor_1", "", &[], &[], AvailableTableSubscribePolicies::default().build());
+        let processor_1 = test_processor::ProcessorMock::new("processor_1", test_processor::ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build());
         let mut stream = processor_1.process(
             message,
             Some(&diagnostic_builder),
