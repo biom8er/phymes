@@ -20,7 +20,7 @@ candle = [] # for compatibility with agents
 [dependencies]
 arrow = { version = "56.2.0", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
 anyhow = { version = "1", default-features = false }
-clap = { version = "4.2.4", features = ["derive"] }
+clap = { version = "4.5.51", features = ["derive"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.135"

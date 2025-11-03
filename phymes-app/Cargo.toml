@@ -27,7 +27,7 @@ phymes-core = { path = "../phymes-core", default-features = false, optional = tr
 phymes-server = { path = "../phymes-server", default-features = false, optional = true }
 phymes-agents = { path = "../phymes-agents", default-features = false, optional = true }
 phymes-data = { path = "../phymes-data", default-features = false, optional = true }
-clap = {version = "4.5.40", optional = true}
+clap = {version = "4.5.51", optional = true}
 tokio = { version = "1.47.0", default-features = false, optional = true }
 tracing = "0.1.41"
 tracing-subscriber = "0.3.7"
