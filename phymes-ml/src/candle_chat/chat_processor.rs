@@ -59,7 +59,7 @@ impl PublishAndSubscribeTrait for CandleChatProcessor {
 }
 
 impl ProcessorTrait for CandleChatProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
@@ -740,7 +740,7 @@ pub mod bench_chat_processor {
 
         // Build the chat task
         #[allow(unused_variables)]
-        let chat_processor = CandleChatProcessor::new_arc_with_pub_sub(
+        let chat_processor = CandleChatProcessor::new(
             name,
             &[TablePublication::ExtendChunks {
                 table_name: messages.to_string(),
@@ -758,7 +758,7 @@ pub mod bench_chat_processor {
             AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         #[cfg(all(not(feature = "candle"), feature = "openai_api"))]
-        let chat_processor = OpenAIChatProcessor::new_arc_with_pub_sub(
+        let chat_processor = OpenAIChatProcessor::new(
             name,
             &[TablePublication::ExtendChunks {
                 table_name: messages.to_string(),
@@ -981,7 +981,7 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = CandleChatProcessor::new_arc_with_pub_sub(
+        let chat_processor = CandleChatProcessor::new(
             name,
             &[TablePublication::ExtendChunks {
                 table_name: messages.to_string(),

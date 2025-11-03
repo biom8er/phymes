@@ -457,7 +457,7 @@ impl AvailableProcessors {
         }
     }
 
-    pub fn build_arc_with_pub_sub(
+    pub fn build_arc(
         self,
         name: &str,
         publications: &[TablePublication],
@@ -466,10 +466,10 @@ impl AvailableProcessors {
     ) -> Arc<dyn ProcessorTrait> {
         match self {
             Self::ProcessorMock => {
-                ProcessorMock::new_arc_with_pub_sub(name, publications, subscriptions, subscribe_policy)
+                Arc::new(ProcessorMock::new(name, self.to_string().as_str(), publications, subscriptions, subscribe_policy))
             }
             Self::ProcessorEcho => {
-                ProcessorEcho::new_arc_with_pub_sub(name, publications, subscriptions, subscribe_policy)
+                Arc::new(ProcessorEcho::new(name, self.to_string().as_str(), publications, subscriptions, subscribe_policy))
             }
             Self::CandleDataProcessor 
             | Self::ChunkDocuments
@@ -483,69 +483,78 @@ impl AvailableProcessors {
             | Self::Pivot
             | Self::SelectAndCast
             | Self::SortColumnAndIndices
-            | Self::VectorDistance => CandleDataProcessor::new_arc_with_pub_sub(
+            | Self::VectorDistance => Arc::new(CandleDataProcessor::new(
                 name,
+                self.to_string().as_str(), 
                 publications,
                 subscriptions,
                 subscribe_policy,
-            ),
-            Self::DataSummaryProcessor => DataSummaryProcessor::new_arc_with_pub_sub(
+            )),
+            Self::DataSummaryProcessor =>Arc::new(DataSummaryProcessor::new(
                 name,
+                self.to_string().as_str(), 
                 publications,
                 subscriptions,
                 subscribe_policy,
-            ),
+            )),
             Self::AttachmentAggregatorProcessor => {
-                AttachmentAggregatorProcessor::new_arc_with_pub_sub(
+                Arc::new(AttachmentAggregatorProcessor::new(
                     name,
+                    self.to_string().as_str(), 
                     publications,
                     subscriptions,
                     subscribe_policy,
-                )
+                ))
             }
-            Self::CandleChatProcessor => CandleChatProcessor::new_arc_with_pub_sub(
+            Self::CandleChatProcessor => Arc::new(CandleChatProcessor::new(
                 name,
+                self.to_string().as_str(), 
                 publications,
                 subscriptions,
                 subscribe_policy,
-            ),
-            Self::MessageAggregatorProcessor => MessageAggregatorProcessor::new_arc_with_pub_sub(
+            )),
+            Self::MessageAggregatorProcessor => Arc::new(MessageAggregatorProcessor::new(
                 name,
+                self.to_string().as_str(), 
                 publications,
                 subscriptions,
                 subscribe_policy,
-            ),
-            Self::MessageParserProcessor => MessageParserProcessor::new_arc_with_pub_sub(
+            )),
+            Self::MessageParserProcessor => Arc::new(MessageParserProcessor::new(
                 name,
+                self.to_string().as_str(), 
                 publications,
                 subscriptions,
                 subscribe_policy,
-            ),
-            Self::CandleEmbedProcessor => CandleEmbedProcessor::new_arc_with_pub_sub(
+            )),
+            Self::CandleEmbedProcessor => Arc::new(CandleEmbedProcessor::new(
                 name,
+                self.to_string().as_str(), 
                 publications,
                 subscriptions,
                 subscribe_policy,
-            ),
+            )),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIChatProcessor => OpenAIChatProcessorProcessor::new_arc_with_pub_sub(
+            Self::OpenAIChatProcessor => Arc::new(OpenAIChatProcessorProcessor::new(
                 name,
+                self.to_string().as_str(), 
                 publications,
                 subscriptions,
                 subscribe_policy,
-            ),
+            )),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIEmbedProcessor => OpenAIEmbedProcessorProcessor::new_arc_with_pub_sub(
+            Self::OpenAIEmbedProcessor => Arc::new(OpenAIEmbedProcessorProcessor::new(
                 name,
+                self.to_string().as_str(), 
                 publications,
                 subscriptions,
                 subscribe_policy,
-            ),
+            )),
         }
     }
 
     pub fn build_with_builder(self, builder: ProcessorBuilder) -> Result<Arc<dyn ProcessorTrait>> {
         let (name, publications, subscriptions, subscribe_policy) = builder.take()?;
-        Ok(self.build_arc_with_pub_sub(&name, &publications, &subscriptions, subscribe_policy))
+        Ok(self.build_arc(&name, &publications, &subscriptions, subscribe_policy))
     }
 }

@@ -55,7 +55,7 @@ impl PublishAndSubscribeTrait for CandleEmbedProcessor {
 }
 
 impl ProcessorTrait for CandleEmbedProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],

@@ -61,7 +61,7 @@ impl PublishAndSubscribeTrait for DataSummaryProcessor {
 }
 
 impl ProcessorTrait for DataSummaryProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
@@ -559,7 +559,7 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = DataSummaryProcessor::new_arc_with_pub_sub(
+        let processor = DataSummaryProcessor::new(
             "summary_processor",
             &[TablePublication::Extend {
                 table_name: "messages".to_string(),
@@ -653,7 +653,7 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = DataSummaryProcessor::new_arc_with_pub_sub(
+        let processor = DataSummaryProcessor::new(
             "summary_processor",
             &[TablePublication::Extend {
                 table_name: "messages".to_string(),

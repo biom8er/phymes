@@ -497,7 +497,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 });
                 let new_processor =
                     AvailableProcessors::from_str(to_update.get_type(), false).unwrap();
-                let new_processor = new_processor.build_arc_with_pub_sub(
+                let new_processor = new_processor.build_arc(
                     to_update.get_name(),
                     &to_update
                         .get_publications()
@@ -588,7 +588,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             }
         }
         let mut processors = self.processors.take().unwrap_or_default();
-        processors.push(ProcessorEcho::new_arc_with_pub_sub(
+        processors.push(ProcessorEcho::new(
             session_name.as_str(),
             &publications,
             &subscriptions,
@@ -659,7 +659,7 @@ pub mod test_session_context_builder_agents {
     #[allow(dead_code)]
     pub fn make_test_session_builder_agents() -> Result<SessionContextBuilder> {
         let processor_plans = vec![
-            ProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new(
                 "processor_1",
                 &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
@@ -674,7 +674,7 @@ pub mod test_session_context_builder_agents {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new(
                 "processor_2",
                 &[TablePublication::Extend {
                     table_name: "state_2".to_string(),
@@ -689,7 +689,7 @@ pub mod test_session_context_builder_agents {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new(
                 "processor_3",
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
@@ -704,7 +704,7 @@ pub mod test_session_context_builder_agents {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new(
                 "session_1",
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
@@ -893,7 +893,7 @@ mod tests {
     #[test]
     fn test_build_with_tables_missing_data_config_subjects() -> Result<()> {
         let processor_plans = vec![
-            ProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new(
                 "processor_1",
                 &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
@@ -908,7 +908,7 @@ mod tests {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new(
                 "processor_2",
                 &[TablePublication::Extend {
                     table_name: "state_2".to_string(),
@@ -923,7 +923,7 @@ mod tests {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new(
                 "processor_3",
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
@@ -938,7 +938,7 @@ mod tests {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new_arc_with_pub_sub(
+            ProcessorMock::new(
                 "session_1",
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),

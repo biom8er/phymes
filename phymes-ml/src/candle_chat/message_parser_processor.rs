@@ -67,7 +67,7 @@ impl PublishAndSubscribeTrait for MessageParserProcessor {
 }
 
 impl ProcessorTrait for MessageParserProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
@@ -478,7 +478,7 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new_arc_with_pub_sub(
+        let processor = MessageParserProcessor::new(
             "message_processor",
             &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
@@ -582,7 +582,7 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new_arc_with_pub_sub(
+        let processor = MessageParserProcessor::new(
             "message_processor",
             &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
@@ -686,7 +686,7 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new_arc_with_pub_sub(
+        let processor = MessageParserProcessor::new(
             "message_processor",
             &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),

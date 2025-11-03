@@ -177,7 +177,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.filter_and_join_session_contexts_by_email_inbox_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::UserInbox.to_string(),
@@ -194,7 +194,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.filter_session_contexts_by_email_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
@@ -214,7 +214,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.join_session_contexts_with_mermaid_diagrams_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
@@ -234,7 +234,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.filter_user_info_by_email_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.filter_user_info_by_email_table_name.to_string(),
@@ -252,7 +252,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            DataSummaryProcessor::new_arc_with_pub_sub(
+            DataSummaryProcessor::new(
                 self.filter_and_join_session_contexts_by_email_outbox_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
@@ -273,7 +273,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            ProcessorEcho::new_arc_with_pub_sub(
+            ProcessorEcho::new(
                 self.session_context_name,
                 &[
                     TablePublication::Extend {

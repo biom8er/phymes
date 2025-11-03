@@ -307,7 +307,7 @@ impl SessionStreamStep {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::AvailableTableSubscribePolicies;
+    use crate::{AvailableTableSubscribePolicies, ProcessorBuilder};
     use crate::schemas::{AvailableSubjects, AvailableSubjectsTrait};
     use crate::session::session_context_builder::test_session_context_builder::{
         make_test_session_context_parallel_task, make_test_session_context_sequential_task,
@@ -1495,31 +1495,27 @@ mod tests {
             },
         ];
         let processors = vec![
-            ProcessorMock::new_arc_with_pub_sub(
-                "processor_1",
-                &[TablePublication::Extend {
+            ProcessorBuilder::default().with_name("processor_1")
+                .with_type("")
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }],
-                &[
+                }]).with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            ProcessorError::new_arc_with_pub_sub(
-                "error_1",
-                &[TablePublication::Extend {
+                ]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build_arc::<ProcessorMock>()?,
+            ProcessorBuilder::default().with_name("error_1")
+                .with_type("")
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }],
-                &[TableSubscription::OnUpdateFullTable {
+                }]).with_subscriptions(&[TableSubscription::OnUpdateFullTable {
                     table_name: "state_1".to_string(),
-                }],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                }]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build_arc::<ProcessorError>()?,
         ];
         let state = make_state_tables("state_1", "config_1")?;
         let mut session_context = SessionContextBuilder::new()

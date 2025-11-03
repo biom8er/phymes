@@ -54,7 +54,7 @@ impl PubSubTrait for OpenAIChatProcessor {
 }
 
 impl ProcessorTrait for OpenAIChatProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
         publications: &[TablePublish],
         subscriptions: &[TableSubscribe],
@@ -479,7 +479,7 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = OpenAIChatProcessor::new_arc_with_pub_sub(
+        let chat_processor = OpenAIChatProcessor::new(
             name,
             &[TablePublish::ExtendChunks {
                 table_name: messages.to_string(),

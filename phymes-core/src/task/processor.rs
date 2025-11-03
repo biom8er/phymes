@@ -16,19 +16,13 @@ use tracing::{Level, event};
 /// - designed to allow for chaining multiple processors into streaming computational trees
 pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync + Debug {
     /// New processor
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
+        r#type: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Arc<dyn ProcessorTrait>
-    where
-        Self: Sized;
-
-    /// Default new implementation
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait>
-    where
-        Self: Sized;
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>
+    ) -> Self where Self: Sized;
 
     /// Get the subscription policy
     fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait;
@@ -202,6 +196,7 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
 #[derive(Debug)]
 pub struct ProcessorEcho {
     name: String,
+    r#type: String,
     publications: Vec<TablePublication>,
     subscriptions: Vec<TableSubscription>,
     subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
@@ -228,27 +223,20 @@ impl PublishAndSubscribeTrait for ProcessorEcho {
 }
 
 impl ProcessorTrait for ProcessorEcho {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
+        r#type: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             subscribe_policy,
-        })
-    }
-
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublication::None],
-            subscriptions: vec![TableSubscription::None],
-            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
-        })
+        }
     }
 
     fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
@@ -288,18 +276,14 @@ impl ProcessorTrait for ProcessorEcho {
     }
 }
 
-/// A lightweight builder for structures implementing the [ProcessorTrait]
-///
-/// # Notes
-/// * A full `ProcessorBuilderTrait` will be provided in the future
-///   once the API stabilizes
+/// Builder for structures implementing the [ProcessorTrait]
 #[derive(Default)]
 pub struct ProcessorBuilder {
     pub publications: Option<Vec<TablePublication>>,
     pub subscriptions: Option<Vec<TableSubscription>>,
     pub subscribe_policy: Option<Box<dyn TableSubscribePolicyTrait>>,
-    pub processor_name: Option<String>,
-    pub processor_type: Option<String>,
+    pub name: Option<String>,
+    pub r#type: Option<String>,
 }
 
 type ProcessorInput = (
@@ -310,32 +294,66 @@ type ProcessorInput = (
 );
 
 impl ProcessorBuilder {
-    pub fn take(mut self) -> Result<ProcessorInput> {
-        if self.processor_name.as_ref().is_none() {
+    pub fn with_publications(mut self, publications: &[TablePublication]) -> Self {
+        self.publications = Some(publications.to_vec());
+        self
+    }
+    pub fn with_subscriptions(mut self, subscriptions: &[TableSubscription]) -> Self {
+        self.subscriptions = Some(subscriptions.to_vec());
+        self
+    }
+    pub fn with_subscribe_policy(mut self, subscribe_policy: Box<dyn TableSubscribePolicyTrait>) -> Self {
+        self.subscribe_policy = Some(subscribe_policy);
+        self
+    }
+    pub fn with_name(mut self, name: &str,) -> Self {
+        self.name = Some(name.to_string());
+        self
+    }
+    pub fn with_type(mut self, r#type: &str,) -> Self {
+        self.r#type = Some(r#type.to_string());
+        self
+    }
+    pub fn build<T>(mut self) -> Result<T> where T: ProcessorTrait {
+        if self.name.as_ref().is_none() {
             return Err(anyhow!("Missing processor name"));
+        } else if self.r#type.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing type for processor {}",
+                self.name.as_ref().unwrap()
+            ));
         } else if self.publications.as_ref().is_none() {
             return Err(anyhow!(
                 "Missing publications for processor {}",
-                self.processor_name.as_ref().unwrap()
+                self.name.as_ref().unwrap()
             ));
         } else if self.subscriptions.as_ref().is_none() {
             return Err(anyhow!(
                 "Missing subscriptions for processor {}",
-                self.processor_name.as_ref().unwrap()
+                self.name.as_ref().unwrap()
             ));
         } else if self.subscribe_policy.as_ref().is_none() {
             return Err(anyhow!(
                 "Missing subscribe for processor {}",
-                self.processor_name.as_ref().unwrap()
+                self.name.as_ref().unwrap()
             ));
         }
-
-        Ok((
-            self.processor_name.take().unwrap(),
-            self.publications.take().unwrap(),
-            self.subscriptions.take().unwrap(),
+        Ok(T::new(
+            &self.name.take().unwrap(),
+            &self.r#type.take().unwrap(),
+            &self.publications.take().unwrap(),
+            &self.subscriptions.take().unwrap(),
             self.subscribe_policy.take().unwrap(),
         ))
+    }
+    /// convenience method to return an Arc reference instead
+    /// of the object itself
+    pub fn build_arc<T>(self) -> Result<Arc<dyn ProcessorTrait>>
+    where
+        Self: Sized,
+        T: ProcessorTrait + 'static
+    {
+        self.build().map(|p: T| Arc::new(p) as Arc<dyn ProcessorTrait>)
     }
 }
 
@@ -362,6 +380,7 @@ pub mod test_processor {
     #[derive(Debug)]
     pub struct ProcessorMock {
         name: String,
+        r#type: String,
         publications: Vec<TablePublication>,
         subscriptions: Vec<TableSubscription>,
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
@@ -388,27 +407,20 @@ pub mod test_processor {
     }
 
     impl ProcessorTrait for ProcessorMock {
-        fn new_arc_with_pub_sub(
+        fn new(
             name: &str,
+            r#type: &str,
             publications: &[TablePublication],
             subscriptions: &[TableSubscription],
             subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-        ) -> Arc<dyn ProcessorTrait> {
-            Arc::new(Self {
+        ) -> Self {
+            Self {
                 name: name.to_string(),
+                r#type: r#type.to_string(),
                 publications: publications.to_owned(),
                 subscriptions: subscriptions.to_owned(),
                 subscribe_policy,
-            })
-        }
-
-        fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-            Arc::new(Self {
-                name: name.to_string(),
-                publications: vec![TablePublication::None],
-                subscriptions: vec![TableSubscription::None],
-                subscribe_policy: AvailableTableSubscribePolicies::default().build(),
-            })
+            }
         }
 
         fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
@@ -552,6 +564,7 @@ pub mod test_processor {
     #[derive(Debug)]
     pub struct ProcessorError {
         name: String,
+        r#type: String,
         publications: Vec<TablePublication>,
         subscriptions: Vec<TableSubscription>,
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
@@ -578,27 +591,20 @@ pub mod test_processor {
     }
 
     impl ProcessorTrait for ProcessorError {
-        fn new_arc_with_pub_sub(
+        fn new(
             name: &str,
+            r#type: &str,
             publications: &[TablePublication],
             subscriptions: &[TableSubscription],
             subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-        ) -> Arc<dyn ProcessorTrait> {
-            Arc::new(Self {
+        ) -> Self {
+            Self {
                 name: name.to_string(),
+                r#type: r#type.to_string(),
                 publications: publications.to_owned(),
                 subscriptions: subscriptions.to_owned(),
                 subscribe_policy,
-            })
-        }
-
-        fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-            Arc::new(Self {
-                name: name.to_string(),
-                publications: vec![TablePublication::None],
-                subscriptions: vec![TableSubscription::None],
-                subscribe_policy: AvailableTableSubscribePolicies::default().build(),
-            })
+            }
         }
 
         fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
@@ -656,7 +662,7 @@ mod tests {
                 .with_message(make_test_table("test_table", 4, 8, 3)?.to_record_batch_stream())
                 .build()?,
         );
-        let processor_1 = test_processor::ProcessorMock::new_arc("processor_1");
+        let processor_1 = test_processor::ProcessorMock::new("processor_1", "", &[], &[], AvailableTableSubscribePolicies::default().build());
         let mut stream = processor_1.process(
             message,
             Some(&diagnostic_builder),

@@ -58,7 +58,7 @@ impl PubSubTrait for OpenAIEmbedProcessor {
 }
 
 impl ProcessorTrait for OpenAIEmbedProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
         publications: &[TablePublish],
         subscriptions: &[TableSubscribe],

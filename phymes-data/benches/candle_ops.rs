@@ -246,7 +246,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
                         // Make the stream and run
                         let _result = rt.block_on(async {
-                            let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
+                            let ops_processor = CandleDataProcessor::new(
                                 name.as_str(),
                                 &[TablePublication::Replace {
                                     table_name: "results".to_string(),

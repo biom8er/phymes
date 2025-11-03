@@ -195,7 +195,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            MessageAggregatorProcessor::new_arc_with_pub_sub(
+            MessageAggregatorProcessor::new(
                 self.message_aggregator_processor_1_name,
                 &[TablePublication::Replace {
                     table_name: self.chat_task_name.to_string(),
@@ -216,7 +216,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            MessageAggregatorProcessor::new_arc_with_pub_sub(
+            MessageAggregatorProcessor::new(
                 self.message_aggregator_processor_2_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
@@ -234,7 +234,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AttachmentAggregatorProcessor::new_arc_with_pub_sub(
+            AttachmentAggregatorProcessor::new(
                 self.attachment_aggregator_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
@@ -249,7 +249,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.message_to_query_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
@@ -265,7 +265,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "openai_api")]
-            OpenAIChatProcessor::new_arc_with_pub_sub(
+            OpenAIChatProcessor::new(
                 self.chat_processor_name,
                 &[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
@@ -283,7 +283,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "candle")]
-            CandleChatProcessor::new_arc_with_pub_sub(
+            CandleChatProcessor::new(
                 self.chat_processor_name,
                 &[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
@@ -300,7 +300,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.extract_pdf_processor_name,
                 &[TablePublication::Extend {
                     table_name: self.document_chunk_task_name.to_string(),
@@ -315,7 +315,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.document_chunk_processor_name,
                 &[TablePublication::Extend {
                     table_name: self.state_documents_table_name.to_string(),
@@ -331,7 +331,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "openai_api")]
-            OpenAIEmbedProcessor::new_arc_with_pub_sub(
+            OpenAIEmbedProcessor::new(
                 self.embed_documents_processor_name,
                 &[TablePublication::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
@@ -347,7 +347,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "openai_api")]
-            OpenAIEmbedProcessor::new_arc_with_pub_sub(
+            OpenAIEmbedProcessor::new(
                 self.embed_query_processor_name,
                 &[TablePublication::Extend {
                     table_name: self.state_q_embed_table_name.to_string(),
@@ -363,7 +363,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "candle")]
-            CandleEmbedProcessor::new_arc_with_pub_sub(
+            CandleEmbedProcessor::new(
                 self.embed_documents_processor_name,
                 &[TablePublication::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
@@ -379,7 +379,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "candle")]
-            CandleEmbedProcessor::new_arc_with_pub_sub(
+            CandleEmbedProcessor::new(
                 self.embed_query_processor_name,
                 &[TablePublication::Extend {
                     table_name: self.state_q_embed_table_name.to_string(),
@@ -394,7 +394,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.relative_similarity_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
@@ -412,7 +412,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.sort_scores_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
@@ -427,7 +427,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.join_chunks_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_chunks_join_table_name.to_string(),
@@ -445,7 +445,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            DataSummaryProcessor::new_arc_with_pub_sub(
+            DataSummaryProcessor::new(
                 self.top_k_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_top_k_docs_table_name.to_string(),

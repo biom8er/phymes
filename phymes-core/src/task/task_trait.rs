@@ -315,7 +315,7 @@ pub fn check_not_null_constraints(
 pub mod test_task {
     use super::*;
     use crate::{
-        AvailableTableSubscribePolicies, session::{
+        AvailableTableSubscribePolicies, ProcessorBuilder, session::{
             BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, RuntimeEnv, RuntimeEnvTrait,
         }, table::{
             Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, test_table::{make_test_table, make_test_table_chat}
@@ -392,21 +392,19 @@ pub mod test_task {
         Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
-                processor_name.as_str(),
-                &[TablePublication::Extend {
+            .with_processor(vec![ProcessorBuilder::default().with_name(processor_name.as_str())
+                .with_type("")
+                .with_publications(&[TablePublication::Extend {
                     table_name: table_name.to_string(),
-                }],
-                &[
+                }]).with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: table_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: config_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            )])
+                ]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build_arc::<ProcessorMock>()?])
             .build()
     }
 
@@ -421,12 +419,11 @@ pub mod test_task {
         Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
-                processor_name.as_str(),
-                &[TablePublication::Extend {
+            .with_processor(vec![ProcessorBuilder::default().with_name(processor_name.as_str())
+                .with_type("")
+                .with_publications(&[TablePublication::Extend {
                     table_name: table_name_1.to_string(),
-                }],
-                &[
+                }]).with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: table_name_1.to_string(),
                     },
@@ -436,9 +433,8 @@ pub mod test_task {
                     TableSubscription::AlwaysFullTable {
                         table_name: config_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            )])
+                ]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build_arc::<ProcessorMock>()?])
             .build()
     }
 
@@ -454,25 +450,29 @@ pub mod test_task {
         Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![
-                ProcessorMock::new_arc_with_pub_sub(
-                    processor_name_1.as_str(),
-                    &[TablePublication::Extend {
+            .with_processor(vec![ProcessorBuilder::default().with_name(processor_name_1.as_str())
+                .with_type("")
+                .with_publications(&[TablePublication::Extend {
+                    table_name: table_name.to_string(),
+                }]).with_subscriptions(&[
+                    TableSubscription::OnUpdateFullTable {
                         table_name: table_name.to_string(),
-                    }],
-                    &[
-                        TableSubscription::OnUpdateFullTable {
-                            table_name: table_name.to_string(),
-                        },
-                        TableSubscription::AlwaysFullTable {
-                            table_name: config_name.to_string(),
-                        },
-                    ],
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                ),
-                ProcessorMock::new_arc(processor_name_2.as_str()),
-                ProcessorMock::new_arc(processor_name_3.as_str()),
-            ])
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: config_name.to_string(),
+                    },
+                ]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build_arc::<ProcessorMock>()?,
+                ProcessorBuilder::default().with_name(processor_name_2.as_str())
+                .with_type("")
+                .with_publications(&[]).with_subscriptions(&[])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build_arc::<ProcessorMock>()?,
+                ProcessorBuilder::default().with_name(processor_name_3.as_str())
+                .with_type("")
+                .with_publications(&[]).with_subscriptions(&[])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build_arc::<ProcessorMock>()?])
             .build()
     }
 

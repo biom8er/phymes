@@ -87,7 +87,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
-        let processors = vec![ProcessorEcho::new_arc_with_pub_sub(
+        let processors = vec![ProcessorEcho::new(
             self.session_context_name,
             &[TablePublication::Extend {
                 table_name: AvailableSubjects::BuilderMermaid.to_string(),

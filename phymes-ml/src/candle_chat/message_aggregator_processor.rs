@@ -45,7 +45,7 @@ impl PublishAndSubscribeTrait for MessageAggregatorProcessor {
 }
 
 impl ProcessorTrait for MessageAggregatorProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],

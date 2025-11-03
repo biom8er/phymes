@@ -56,7 +56,7 @@ impl PublishAndSubscribeTrait for CandleDataProcessor {
 }
 
 impl ProcessorTrait for CandleDataProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
@@ -998,7 +998,7 @@ mod tests {
         let runtime_env = Arc::new(Mutex::new(runtime_env));
 
         // Make the stream and run
-        let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
+        let ops_processor = CandleDataProcessor::new(
             "candle_ops_processor",
             &[TablePublication::Replace {
                 table_name: "results".to_string(),

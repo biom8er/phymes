@@ -208,7 +208,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            MessageAggregatorProcessor::new_arc_with_pub_sub(
+            MessageAggregatorProcessor::new(
                 self.message_aggregator_processor_1_name,
                 &[TablePublication::Replace {
                     table_name: self.chat_task_name.to_string(),
@@ -232,7 +232,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::ChatContentSubscribe.build(),
             ),
-            MessageAggregatorProcessor::new_arc_with_pub_sub(
+            MessageAggregatorProcessor::new(
                 self.message_aggregator_processor_2_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
@@ -250,7 +250,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            AttachmentAggregatorProcessor::new_arc_with_pub_sub(
+            AttachmentAggregatorProcessor::new(
                 self.attachment_aggregator_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
@@ -271,7 +271,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.tool_vis_renamecols_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::MermaidXYChart.to_string(),
@@ -286,7 +286,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.tool_vis_xychart_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
@@ -302,7 +302,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "openai_api")]
-            OpenAIChatProcessor::new_arc_with_pub_sub(
+            OpenAIChatProcessor::new(
                 self.chat_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.message_parser_task_name.to_string(),
@@ -321,7 +321,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "candle")]
-            CandleChatProcessor::new_arc_with_pub_sub(
+            CandleChatProcessor::new(
                 self.chat_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.message_parser_task_name.to_string(),
@@ -339,7 +339,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            MessageParserProcessor::new_arc_with_pub_sub(
+            MessageParserProcessor::new(
                 self.message_parser_processor_name,
                 &[
                     TablePublication::Extend {
@@ -364,7 +364,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.extract_tabular_data_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
@@ -379,7 +379,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.tool_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.tool_summary_task_name.to_string(),
@@ -394,7 +394,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            CandleDataProcessor::new(
                 self.hitl_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
@@ -404,7 +404,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 }],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            DataSummaryProcessor::new_arc_with_pub_sub(
+            DataSummaryProcessor::new(
                 self.tool_attachment_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
@@ -419,7 +419,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            DataSummaryProcessor::new_arc_with_pub_sub(
+            DataSummaryProcessor::new(
                 self.tool_summary_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
@@ -434,7 +434,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            DataSummaryProcessor::new_arc_with_pub_sub(
+            DataSummaryProcessor::new(
                 self.hitl_summary_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),

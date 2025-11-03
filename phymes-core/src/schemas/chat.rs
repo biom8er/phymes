@@ -337,6 +337,7 @@ mod test_messages {
     #[derive(Debug)]
     pub struct CandleChatMockProcessor {
         name: String,
+        r#type: String,
         publications: Vec<TablePublication>,
         subscriptions: Vec<TableSubscription>,
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
@@ -363,27 +364,20 @@ mod test_messages {
     }
 
     impl ProcessorTrait for CandleChatMockProcessor {
-        fn new_arc_with_pub_sub(
+        fn new(
             name: &str,
+            r#type: &str,
             publications: &[TablePublication],
             subscriptions: &[TableSubscription],
             subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-        ) -> Arc<dyn ProcessorTrait> {
-            Arc::new(Self {
+        ) -> Self {
+            Self {
                 name: name.to_string(),
+                r#type: r#type.to_string(),
                 publications: publications.to_owned(),
                 subscriptions: subscriptions.to_owned(),
                 subscribe_policy,
-            })
-        }
-
-        fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-            Arc::new(Self {
-                name: name.to_string(),
-                publications: vec![TablePublication::None],
-                subscriptions: vec![TableSubscription::None],
-                subscribe_policy: AvailableTableSubscribePolicies::default().build(),
-            })
+            }
         }
 
         fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
@@ -548,14 +542,12 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        session::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait},
-        table::{
+        AvailableTableSubscribePolicies, session::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait}, table::{
             TablePublication,
             test_table::{make_test_table_chat, make_test_table_tool},
-        },
-        task::{
+        }, task::{
             MessageBuilderTrait, MessageTrait, ProcessorTrait, SendableRecordBatchStreamMessage,
-        },
+        }
     };
     use futures::TryStreamExt;
     use parking_lot::Mutex;
@@ -695,8 +687,8 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor: Arc<dyn ProcessorTrait> =
-            test_messages::CandleChatMockProcessor::new_arc("ChatBot");
+        let chat_processor =
+            test_messages::CandleChatMockProcessor::new("ChatBot", "", &[], &[], AvailableTableSubscribePolicies::default().build());
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),
@@ -783,7 +775,7 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = test_messages::CandleChatMockProcessor::new_arc("ChatBot");
+        let chat_processor = test_messages::CandleChatMockProcessor::new("ChatBot", "", &[], &[], AvailableTableSubscribePolicies::default().build());
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),

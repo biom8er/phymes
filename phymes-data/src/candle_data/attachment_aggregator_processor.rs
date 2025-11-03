@@ -76,7 +76,7 @@ impl PublishAndSubscribeTrait for AttachmentAggregatorProcessor {
 }
 
 impl ProcessorTrait for AttachmentAggregatorProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
