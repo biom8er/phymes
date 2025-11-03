@@ -24,16 +24,24 @@ pub enum AvailableTableSubscribePolicies {
 }
 
 impl AvailableTableSubscribePolicies {
-    pub fn build(self) -> Box<impl TableSubscribePolicyTrait> {
+    pub fn check_subscriptions(
+        &self,
+        subscriptions: &[super::TableSubscription],
+        updates: &phymes_diagnostics::HashMap<String, bool>,
+        state: &crate::StateMap,
+    ) -> bool {
         match self {
-            Self::AlwaysSubscribe => AlwaysSubscribe::new_box(),
-            Self::AnyTableNameSubscribe => AnyTableNameSubscribe::new_box(),
-            Self::AllTableNamesSubscribe => AllTableNamesSubscribe::new_box(),
-            Self::AnyTableSchemaSubscribe => AnyTableSchemaSubscribe::new_box(),
-            Self::AllTableSchemasSubscribe => AllTableSchemasSubscribe::new_box(),
-            Self::ChatContentSubscribe => ChatContentSubscribe::new_box(),
+            Self::AlwaysSubscribe => AlwaysSubscribe::new_box().check_subscriptions(subscriptions, updates, state),
+            Self::AnyTableNameSubscribe => AvailableTableSubscribePolicies::new_box().check_subscriptions(subscriptions, updates, state),
+            Self::AllTableNamesSubscribe => AvailableTableSubscribePolicies::new_box().check_subscriptions(subscriptions, updates, state),
+            Self::AnyTableSchemaSubscribe => AnyTableSchemaSubscribe::new_box().check_subscriptions(subscriptions, updates, state),
+            Self::AllTableSchemasSubscribe => AllTableSchemasSubscribe::new_box().check_subscriptions(subscriptions, updates, state),
+            Self::ChatContentSubscribe => ChatContentSubscribe::new_box().check_subscriptions(subscriptions, updates, state),
         }
     }
+}
+
+impl AvailableTableSubscribePolicies {
     /// Convert a [String] to a [TableSubscribePolicyTrait]
     ///   by checking if the [String] contains the [TableSubscribePolicyTrait] name
     pub fn from_str_fuzzy(policy: &str) -> Result<Self> {

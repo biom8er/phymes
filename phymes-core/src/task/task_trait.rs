@@ -412,20 +412,20 @@ pub mod test_task {
                         table_name: config_name.to_string(),
                     },
                 ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe
             )])
             .build()
     }
 
-    pub fn make_test_task_multiple_subscriptions(
+    pub fn make_test_task_multiple_subscriptions<P>(
         name: &str,
         runtime_env_name: &str,
         table_name_1: &str,
         table_name_2: &str,
         config_name: &str,
-    ) -> Result<Task> {
+    ) -> Result<Task<P>> where P: ProcessorTrait {
         let processor_name = format!("{name}_processor");
-        Task::get_builder()
+        Task::<P>::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
@@ -444,21 +444,21 @@ pub mod test_task {
                         table_name: config_name.to_string(),
                     },
                 ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe,
             )])
             .build()
     }
 
-    pub fn make_test_task_chained_processor(
+    pub fn make_test_task_chained_processor<P>(
         name: &str,
         runtime_env_name: &str,
         table_name: &str,
         config_name: &str,
-    ) -> Result<Task> {
+    ) -> Result<Task<P>> where P: ProcessorTrait {
         let processor_name_1 = format!("{name}_processor_1");
         let processor_name_2 = format!("{name}_processor_2");
         let processor_name_3 = format!("{name}_processor_3");
-        Task::get_builder()
+        Task::<P>::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![
@@ -475,7 +475,7 @@ pub mod test_task {
                             table_name: config_name.to_string(),
                         },
                     ],
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe,
                 ),
                 ProcessorMock::new_arc(processor_name_2.as_str()),
                 ProcessorMock::new_arc(processor_name_3.as_str()),

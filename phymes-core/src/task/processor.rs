@@ -14,24 +14,24 @@ use tracing::{Level, event};
 /// 
 /// # Notes
 /// - designed to allow for chaining multiple processors into streaming computational trees
-pub trait ProcessorTrait<TSPTrait>: MappableTrait + PublishAndSubscribeTrait + Send + Sync + Debug {
+pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync + Debug {
     /// New processor
     fn new_arc_with_pub_sub(
         name: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
-        subscribe_policy: Box<TSPTrait>,
-    ) -> Arc<impl ProcessorTrait<TSPTrait>>
+        subscribe_policy: &AvailableTableSubscribePolicies,
+    ) -> Arc<impl ProcessorTrait>
     where
         Self: Sized;
 
     /// Default new implementation
-    fn new_arc(name: &str) -> Arc<impl ProcessorTrait<TSPTrait>>
+    fn new_arc(name: &str) -> Arc<impl ProcessorTrait>
     where
         Self: Sized;
 
     /// Get the subscription policy
-    fn get_subscribe_policy(&self) -> &TSPTrait;
+    fn get_subscribe_policy(&self) -> &AvailableTableSubscribePolicies;
 
     /// Alias for `get_static_name`
     fn get_type(&self) -> &str;
@@ -200,14 +200,14 @@ pub trait ProcessorTrait<TSPTrait>: MappableTrait + PublishAndSubscribeTrait + S
 
 /// Processor that returns the input
 #[derive(Debug)]
-pub struct ProcessorEcho<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+pub struct ProcessorEcho {
     name: String,
     publications: Vec<TablePublication>,
     subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<TSPTrait>,
+    subscribe_policy: AvailableTableSubscribePolicies,
 }
 
-impl<TSPTrait> MappableTrait for ProcessorEcho<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+impl MappableTrait for ProcessorEcho {
     fn get_name(&self) -> &str {
         &self.name
     }
@@ -223,7 +223,7 @@ impl<TSPTrait> MappableTrait for ProcessorEcho<TSPTrait> where TSPTrait: TableSu
 //     }
 // }
 
-impl<TSPTrait> PublishAndSubscribeTrait for ProcessorEcho<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+impl PublishAndSubscribeTrait for ProcessorEcho {
     fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect::<Vec<_>>()
     }
@@ -237,32 +237,32 @@ impl<TSPTrait> PublishAndSubscribeTrait for ProcessorEcho<TSPTrait> where TSPTra
     }
 }
 
-impl<TSPTrait> ProcessorTrait<TSPTrait> for ProcessorEcho<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+impl ProcessorTrait for ProcessorEcho {
     fn new_arc_with_pub_sub(
         name: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
-        subscribe_policy: Box<TSPTrait>,
-    ) -> Arc<impl ProcessorTrait<TSPTrait>> {
+        subscribe_policy: &AvailableTableSubscribePolicies,
+    ) -> Arc<impl ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
+            subscribe_policy: subscribe_policy.to_owned(),
         })
     }
 
-    fn new_arc(name: &str) -> Arc<impl ProcessorTrait<TSPTrait>> {
+    fn new_arc(name: &str) -> Arc<impl ProcessorTrait> {
         Arc::new(Self {
             name: name.to_string(),
             publications: vec![TablePublication::None],
             subscriptions: vec![TableSubscription::None],
-            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
+            subscribe_policy: AvailableTableSubscribePolicies::default(),
         })
     }
 
-    fn get_subscribe_policy(&self) -> &TSPTrait {
-        self.subscribe_policy.as_ref()
+    fn get_subscribe_policy(&self) -> &AvailableTableSubscribePolicies {
+        &self.subscribe_policy
     }
 
     fn get_type(&self) -> &str {
@@ -304,19 +304,19 @@ impl<TSPTrait> ProcessorTrait<TSPTrait> for ProcessorEcho<TSPTrait> where TSPTra
 /// * A full `ProcessorBuilderTrait` will be provided in the future
 ///   once the API stabilizes
 #[derive(Default)]
-pub struct ProcessorBuilder<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+pub struct ProcessorBuilder {
     pub publications: Option<Vec<TablePublication>>,
     pub subscriptions: Option<Vec<TableSubscription>>,
-    pub subscribe_policy: Option<Box<TSPTrait>>,
+    pub subscribe_policy: Option<AvailableTableSubscribePolicies>,
     pub processor_name: Option<String>,
     pub processor_type: Option<String>,
 }
 
-impl<TSPTrait> ProcessorBuilder<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+impl ProcessorBuilder {
     pub fn take(mut self) -> Result<(String,
     Vec<TablePublication>,
     Vec<TableSubscription>,
-    Box<TSPTrait>)> {
+    AvailableTableSubscribePolicies)> {
         if self.processor_name.as_ref().is_none() {
             return Err(anyhow!("Missing processor name"));
         } else if self.publications.as_ref().is_none() {
@@ -366,20 +366,20 @@ pub mod test_processor {
 
     /// Mock processor that adds an additional record batch
     #[derive(Debug)]
-    pub struct ProcessorMock<TSPTrait>where TSPTrait: TableSubscribePolicyTrait {
+    pub struct ProcessorMock {
         name: String,
         publications: Vec<TablePublication>,
         subscriptions: Vec<TableSubscription>,
-        subscribe_policy: Box<TSPTrait>,
+        subscribe_policy: AvailableTableSubscribePolicies,
     }
 
-    impl<TSPTrait> MappableTrait for ProcessorMock<TSPTrait>where TSPTrait: TableSubscribePolicyTrait {
+    impl MappableTrait for ProcessorMock {
         fn get_name(&self) -> &str {
             &self.name
         }
     }
 
-    impl<TSPTrait> PublishAndSubscribeTrait for ProcessorMock<TSPTrait>where TSPTrait: TableSubscribePolicyTrait {
+    impl PublishAndSubscribeTrait for ProcessorMock {
         fn get_publications(&self) -> Vec<&TablePublication> {
             self.publications.iter().collect::<Vec<_>>()
         }
@@ -393,32 +393,32 @@ pub mod test_processor {
         }
     }
 
-    impl<TSPTrait> ProcessorTrait<TSPTrait> for ProcessorMock<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+    impl ProcessorTrait for ProcessorMock {
         fn new_arc_with_pub_sub(
             name: &str,
             publications: &[TablePublication],
             subscriptions: &[TableSubscription],
-            subscribe_policy: Box<TSPTrait>,
-        ) -> Arc<impl ProcessorTrait<TSPTrait>> {
+            subscribe_policy: &AvailableTableSubscribePolicies,
+        ) -> Arc<impl ProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
                 publications: publications.to_owned(),
                 subscriptions: subscriptions.to_owned(),
-                subscribe_policy,
+                subscribe_policy: subscribe_policy.to_owned(),
             })
         }
 
-        fn new_arc(name: &str) -> Arc<impl ProcessorTrait<TSPTrait>> {
+        fn new_arc(name: &str) -> Arc<impl ProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
                 publications: vec![TablePublication::None],
                 subscriptions: vec![TableSubscription::None],
-                subscribe_policy: AvailableTableSubscribePolicies::default().build(),
+                subscribe_policy: AvailableTableSubscribePolicies::default(),
             })
         }
 
-        fn get_subscribe_policy(&self) -> &TSPTrait {
-            self.subscribe_policy.as_ref()
+        fn get_subscribe_policy(&self) -> &AvailableTableSubscribePolicies {
+            &self.subscribe_policy
         }
 
         fn get_type(&self) -> &str {
@@ -556,20 +556,20 @@ pub mod test_processor {
 
     /// Error processor that emits an error
     #[derive(Debug)]
-    pub struct ProcessorError<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+    pub struct ProcessorError {
         name: String,
         publications: Vec<TablePublication>,
         subscriptions: Vec<TableSubscription>,
-        subscribe_policy: Box<TSPTrait>,
+        subscribe_policy: AvailableTableSubscribePolicies,
     }
 
-    impl<TSPTrait> MappableTrait for ProcessorError<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+    impl MappableTrait for ProcessorError {
         fn get_name(&self) -> &str {
             &self.name
         }
     }
 
-    impl<TSPTrait> PublishAndSubscribeTrait for ProcessorError<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+    impl PublishAndSubscribeTrait for ProcessorError {
         fn get_publications(&self) -> Vec<&TablePublication> {
             self.publications.iter().collect::<Vec<_>>()
         }
@@ -583,32 +583,32 @@ pub mod test_processor {
         }
     }
 
-    impl<TSPTrait> ProcessorTrait<TSPTrait> for ProcessorError<TSPTrait> where TSPTrait: TableSubscribePolicyTrait {
+    impl ProcessorTrait for ProcessorError {
         fn new_arc_with_pub_sub(
             name: &str,
             publications: &[TablePublication],
             subscriptions: &[TableSubscription],
-            subscribe_policy: Box<TSPTrait>,
-        ) -> Arc<impl ProcessorTrait<TSPTrait>> {
+            subscribe_policy: &AvailableTableSubscribePolicies,
+        ) -> Arc<impl ProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
                 publications: publications.to_owned(),
                 subscriptions: subscriptions.to_owned(),
-                subscribe_policy,
+                subscribe_policy: subscribe_policy.to_owned(),
             })
         }
 
-        fn new_arc(name: &str) -> Arc<impl ProcessorTrait<TSPTrait>> {
+        fn new_arc(name: &str) -> Arc<impl ProcessorTrait> {
             Arc::new(Self {
                 name: name.to_string(),
                 publications: vec![TablePublication::None],
                 subscriptions: vec![TableSubscription::None],
-                subscribe_policy: AvailableTableSubscribePolicies::default().build(),
+                subscribe_policy: AvailableTableSubscribePolicies::default(),
             })
         }
 
-        fn get_subscribe_policy(&self) -> &TSPTrait {
-            self.subscribe_policy.as_ref()
+        fn get_subscribe_policy(&self) -> &AvailableTableSubscribePolicies {
+            &self.subscribe_policy
         }
 
         fn get_type(&self) -> &str {
