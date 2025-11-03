@@ -59,7 +59,7 @@ use crate::{
 /// [`collect_task_runs`]: super::test_exec::collect_task_runs
 ///
 /// Parallel execution could be integrated into any uses case to improve execution speed
-pub trait TaskTrait:
+pub trait TaskTrait<P>:
     MappableTrait + BuildableTrait + RunnableTrait + PublishAndSubscribeTrait + Sync + Send
 {
     /// Make the outbox
@@ -110,7 +110,7 @@ pub trait TaskTrait:
     }
 
     /// Get an immutable reference to the processors
-    fn get_processors(&self) -> &Vec<Arc<dyn ProcessorTrait>>;
+    fn get_processors(&self) -> &Vec<Arc<P>>;
 
     /// Get an immutable reference to the runtime env
     fn get_runtime_env(&self) -> &Arc<Mutex<RuntimeEnv>>;
@@ -118,23 +118,23 @@ pub trait TaskTrait:
 
 /// The actual task to execute
 #[derive(Default, Debug)]
-pub struct Task {
+pub struct Task<P> where P: ProcessorTrait {
     /// Name of the task
     name: String,
     /// Runtime environment for the task and processors
     runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Entry processor
-    processor: Vec<Arc<dyn ProcessorTrait>>,
+    processor: Vec<Arc<P>>,
 }
 
-impl MappableTrait for Task {
+impl<P> MappableTrait for Task<P> where P: ProcessorTrait {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl BuildableTrait for Task {
-    type T = TaskBuilder;
+impl<P> BuildableTrait for Task<P> where P: ProcessorTrait {
+    type T = TaskBuilder<P>;
     fn get_builder() -> Self::T
     where
         Self: Sized,
@@ -143,7 +143,7 @@ impl BuildableTrait for Task {
     }
 }
 
-impl RunnableTrait for Task {
+impl<P> RunnableTrait for Task<P> where P: ProcessorTrait {
     fn run(
         &self,
         mut messages: SendableRecordBatchStreamMessageMap,
@@ -183,16 +183,18 @@ impl RunnableTrait for Task {
     }
 }
 
-impl TaskTrait for Task {
+impl<P> TaskTrait<P> for Task<P> where P: ProcessorTrait {
+    // DM: not yet stable
+    // type Processor = impl ProcessorTrait;
     fn get_runtime_env(&self) -> &Arc<Mutex<RuntimeEnv>> {
         &self.runtime_env
     }
-    fn get_processors(&self) -> &Vec<Arc<dyn ProcessorTrait>> {
+    fn get_processors(&self) -> &Vec<Arc<P>> {
         &self.processor
     }
 }
 
-impl PublishAndSubscribeTrait for Task {
+impl<P> PublishAndSubscribeTrait for Task<P> where P: ProcessorTrait {
     fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.get_processors()
             .iter()
@@ -215,23 +217,28 @@ impl PublishAndSubscribeTrait for Task {
     }
 }
 
-pub trait TaskBuilderTrait: BuilderTrait {
+pub trait TaskBuilderTrait<P>: BuilderTrait {
     fn with_runtime_env(self, runtime_env: Arc<Mutex<RuntimeEnv>>) -> Self;
-    fn with_processor(self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self;
+    fn with_processor(self, processor: Vec<Arc<P>>) -> Self;
 }
 
-#[derive(Default)]
-pub struct TaskBuilder {
+pub struct TaskBuilder<P> where P: ProcessorTrait {
     /// Task name
     pub name: Option<String>,
     /// Runtime environment for the task
     pub runtime_env: Option<Arc<Mutex<RuntimeEnv>>>,
     /// Function that implements the logic
-    pub processor: Option<Vec<Arc<dyn ProcessorTrait>>>,
+    pub processor: Option<Vec<Arc<P>>>,
 }
 
-impl BuilderTrait for TaskBuilder {
-    type T = Task;
+impl<P> Default for TaskBuilder<P> where P: ProcessorTrait {
+    fn default() -> Self {
+        Self { name: Default::default(), runtime_env: Default::default(), processor: Default::default() }
+    }
+}
+
+impl<P> BuilderTrait for TaskBuilder<P> where P: ProcessorTrait {
+    type T = Task<P>;
     fn new() -> Self {
         Self {
             name: None,
@@ -255,12 +262,12 @@ impl BuilderTrait for TaskBuilder {
     }
 }
 
-impl TaskBuilderTrait for TaskBuilder {
+impl<P> TaskBuilderTrait<P> for TaskBuilder<P> where P: ProcessorTrait {
     fn with_runtime_env(mut self, runtime_env: Arc<Mutex<RuntimeEnv>>) -> Self {
         self.runtime_env = Some(runtime_env);
         self
     }
-    fn with_processor(mut self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self {
+    fn with_processor(mut self, processor: Vec<Arc<P>>) -> Self {
         self.processor = Some(processor);
         self
     }
@@ -382,14 +389,14 @@ pub mod test_task {
         Ok(rt)
     }
 
-    pub fn make_test_task_single_processor(
+    pub fn make_test_task_single_processor<P>(
         name: &str,
         runtime_env_name: &str,
         table_name: &str,
         config_name: &str,
-    ) -> Result<Task> {
+    ) -> Result<Task<P>> where P: ProcessorTrait {
         let processor_name = format!("{name}_processor");
-        Task::get_builder()
+        Task::<P>::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(

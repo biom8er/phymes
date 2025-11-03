@@ -24,7 +24,7 @@ pub enum AvailableTableSubscribePolicies {
 }
 
 impl AvailableTableSubscribePolicies {
-    pub fn build(self) -> Box<dyn TableSubscribePolicyTrait> {
+    pub fn build(self) -> Box<impl TableSubscribePolicyTrait> {
         match self {
             Self::AlwaysSubscribe => AlwaysSubscribe::new_box(),
             Self::AnyTableNameSubscribe => AnyTableNameSubscribe::new_box(),

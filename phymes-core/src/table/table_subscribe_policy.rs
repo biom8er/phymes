@@ -13,10 +13,10 @@ pub trait TableSubscribePolicyTrait: MappableTrait + Debug + Send + Sync {
         updates: &HashMap<String, bool>,
         state: &StateMap,
     ) -> bool;
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait>
+    fn new_box() -> Box<impl TableSubscribePolicyTrait>
     where
         Self: Sized;
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait>;
+    fn clone_boxed(&self) -> Box<impl TableSubscribePolicyTrait>;
 }
 
 /// Always subscribe (dummy subscription check for testing)
@@ -32,13 +32,13 @@ impl TableSubscribePolicyTrait for AlwaysSubscribe {
     ) -> bool {
         true
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait>
+    fn new_box() -> Box<impl TableSubscribePolicyTrait>
     where
         Self: Sized,
     {
         Box::new(Self)
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<impl TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -74,10 +74,10 @@ impl TableSubscribePolicyTrait for AnyTableNameSubscribe {
         }
         is_update_count == 0
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
+    fn new_box() -> Box<impl TableSubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<impl TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -111,10 +111,10 @@ impl TableSubscribePolicyTrait for AllTableNamesSubscribe {
         }
         true
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
+    fn new_box() -> Box<impl TableSubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<impl TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -165,10 +165,10 @@ impl TableSubscribePolicyTrait for AnyTableSchemaSubscribe {
         }
         is_update_count == 0
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
+    fn new_box() -> Box<impl TableSubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<impl TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -217,10 +217,10 @@ impl TableSubscribePolicyTrait for AllTableSchemasSubscribe {
         }
         true
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
+    fn new_box() -> Box<impl TableSubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<impl TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -248,7 +248,7 @@ impl ChatContentSubscribe {
         user_message_table_name: &str,
         tool_message_table_name: &str,
         error_message_table_name: &str,
-    ) -> Box<dyn TableSubscribePolicyTrait> {
+    ) -> Box<impl TableSubscribePolicyTrait> {
         Box::new(Self {
             user_message_table_name: user_message_table_name.to_string(),
             tool_message_table_name: tool_message_table_name.to_string(),
@@ -269,7 +269,7 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
         let error = updates.get(&self.error_message_table_name).unwrap_or(&false);
         *tool || *user || *error
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
+    fn new_box() -> Box<impl TableSubscribePolicyTrait> {
         Box::new(Self {
             // DM: dangerous as the strings needs to stay syncronized with the actual table names
             // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
@@ -278,7 +278,7 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
             error_message_table_name: AvailableSubjects::SessionErrors.to_string(),
         })
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<impl TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
