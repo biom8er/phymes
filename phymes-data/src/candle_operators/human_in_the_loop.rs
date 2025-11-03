@@ -10,10 +10,11 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_chat_record_batch,
 };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Redirect a tool call to the user for intervention
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct HumanInTheLoop;
 
 impl MappableTrait for HumanInTheLoop {

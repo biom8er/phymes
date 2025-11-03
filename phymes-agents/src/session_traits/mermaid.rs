@@ -348,71 +348,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut runtime_env_names_vec = Vec::new();
         let mut task_names_vec = Vec::new();
 
-        // Closures to create the subscriptions and publications
-        // DM, TODO: migrate to TablePublication
-        let subscription_from_str = |line: &str,
-                                     iter: usize,
-                                     subject: &str,
-                                     task: &str|
-         -> Result<TableSubscription> {
-            if line.contains("-.") & line.contains(".->") & line.contains("FullTable") {
-                Ok(TableSubscription::OnUpdateFullTable {
-                    table_name: subject.to_string(),
-                })
-            } else if line.contains("--") & line.contains("-->") & line.contains("FullTable") {
-                Ok(TableSubscription::AlwaysFullTable {
-                    table_name: subject.to_string(),
-                })
-            } else if line.contains("-.") & line.contains(".->") & line.contains("LastRecordBatch")
-            {
-                Ok(TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: subject.to_string(),
-                })
-            } else if line.contains("--") & line.contains("-->") & line.contains("LastRecordBatch")
-            {
-                Ok(TableSubscription::AlwaysLastRecordBatch {
-                    table_name: subject.to_string(),
-                })
-            } else if line.contains("None") {
-                Ok(TableSubscription::None {})
-            } else {
-                Err(anyhow!(
-                    "Parsing Error on line {iter}: {line}. Variant for ArrowTableSubscribe with subject {subject} for task {task} was not recognized."
-                ))
-            }
-        };
-        // DM, TODO: migrate to TablePublication
-        let publication_from_str = |line: &str,
-                                    iter: usize,
-                                    subject: &str,
-                                    task: &str|
-         -> Result<TablePublication> {
-            if line.contains("--") & line.contains("-->") & line.contains("ExtendChunks") {
-                Ok(TablePublication::ExtendChunks {
-                    table_name: subject.to_string(),
-                    col_name: "content".to_string(),
-                })
-            } else if line.contains("--") & line.contains("-->") & line.contains("Extend") {
-                Ok(TablePublication::Extend {
-                    table_name: subject.to_string(),
-                })
-            } else if line.contains("--") & line.contains("-->") & line.contains("ReplaceLast") {
-                Ok(TablePublication::ReplaceLast {
-                    table_name: subject.to_string(),
-                })
-            } else if line.contains("--") & line.contains("-->") & line.contains("Replace") {
-                Ok(TablePublication::Replace {
-                    table_name: subject.to_string(),
-                })
-            } else if line.contains("None") {
-                Ok(TablePublication::None {})
-            } else {
-                Err(anyhow!(
-                    "Parsing Error on line {iter}: {line}. Variant for ArrowTablePublish with subject {subject} for task {task} was not recognized."
-                ))
-            }
-        };
-
         let is_first_line = |line: &str| -> bool {
             match line.trim().split_whitespace().next() {
                 Some(line) => line == "flowchart",
@@ -479,12 +414,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             ));
                         }
                         let subject = split_line.first().unwrap().trim().to_string();
-                        let subscription = subscription_from_str(
-                            split_line.last().unwrap(),
-                            iter,
-                            &subject,
-                            &task_name,
-                        )?;
+                        let subscription = match TableSubscription::from_str_mermaid(split_line.last().unwrap(), &subject) {
+                            Ok(subscription) => subscription,
+                            Err(err) => return Err(anyhow!(
+                                "Parsing Error on line {iter}: {} for task {task}. {err}",
+                                flowchart_lines.get(iter).unwrap()
+                            )),
+                        };
 
                         // Check the processor name
                         let split_line = split_line
@@ -690,12 +626,11 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             .unwrap()
                             .trim()
                             .to_string();
-                        let publication = publication_from_str(
-                            split_line.last().unwrap(),
-                            iter,
-                            &subject,
-                            &task_name,
-                        )?;
+                        let publication = match TablePublication::from_str_mermaid(split_line.last().unwrap(), &subject) {
+                            Ok(publication) => publication,
+                            Err(err) => return Err(anyhow!("Parsing Error on line {iter}: {} for task {task_name}. {err}",
+                                flowchart_lines.get(iter).unwrap())),
+                        };
                         if !processor_builders.contains_key(&processor) {
                             let mut builder = ProcessorBuilder::default();
                             builder.processor_name.replace(processor.to_owned());

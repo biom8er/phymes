@@ -7,12 +7,13 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Compute the normalized start and end times in a [RecordBatch]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct NormalizeTime {
     lhs_values: Vec<String>,
 }

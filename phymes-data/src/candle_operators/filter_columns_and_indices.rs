@@ -17,6 +17,7 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
@@ -28,7 +29,7 @@ use crate::{
 
 /// Filter the [RecordBatch]es against the `cmp_columns` based on the [DataComparatorOperator], merge the predicate arrays
 ///   according to the [DataComparatorPredicate]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FilterColumnsAndIndices {
     lhs_values: Vec<String>,
     cmp_columns: Vec<String>,

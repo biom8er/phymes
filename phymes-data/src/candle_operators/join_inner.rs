@@ -11,6 +11,7 @@ use phymes_core::{
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
 use std::{collections::HashMap, sync::Arc};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
@@ -21,7 +22,7 @@ use crate::{
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct JoinInner {
     _lhs_pk: String,
     lhs_fk: String,

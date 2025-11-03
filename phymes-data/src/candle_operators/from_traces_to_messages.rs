@@ -14,6 +14,7 @@ use phymes_core::{
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
 use phymes_diagnostics::HashSet;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     candle_data::DataConfig,
@@ -23,7 +24,7 @@ use crate::{
 };
 
 /// Compute the normalized start and end times in a [RecordBatch]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FromTracesToMessages {}
 
 impl MappableTrait for FromTracesToMessages {

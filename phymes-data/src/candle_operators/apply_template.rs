@@ -6,6 +6,7 @@ use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType, create_mermaid_content_template_batch, create_values_record_batch
 };
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::instrument;
 
@@ -14,7 +15,7 @@ use crate::{
 };
 
 /// Inject a table into a string template
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ApplyTemplate {
     doc_template: AvailableJinja2Templates,
     doc_name: String,

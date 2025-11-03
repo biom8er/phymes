@@ -28,6 +28,7 @@ pub enum TableSubscription {
 }
 
 impl TableSubscription {
+    /// The `table_name` of the variant
     pub fn get_table_name(&self) -> &str {
         match self {
             Self::OnUpdateFullTable { table_name: tn } => tn,
@@ -40,6 +41,7 @@ impl TableSubscription {
     }
 
     #[allow(dead_code)]
+    /// Full name for the [TableSubscription] that includes the `table_name` and other information
     fn get_full_name(&self) -> String {
         match self {
             Self::OnUpdateFullTable { table_name: tn } => format!("OnUpdateFullTable-{tn}"),
@@ -64,6 +66,7 @@ impl TableSubscription {
         }
     }
 
+    /// Short name for the [TableSubscription] that omits the `table_name` and other information
     pub fn get_short_name(&self) -> &str {
         match self {
             Self::OnUpdateFullTable { table_name: _tn } => "FullTable",
@@ -75,6 +78,7 @@ impl TableSubscription {
         }
     }
 
+    /// New [TableSubscription] from a short name identifying the variant and the `table_name`
     pub fn from_str(name: &str, subject: &str) -> Result<TableSubscription> {
         let subscription = if name.contains("OnUpdateFullTable") {
             TableSubscription::OnUpdateFullTable {
@@ -100,6 +104,36 @@ impl TableSubscription {
             ));
         };
         Ok(subscription)
+    }
+
+    /// New [TableSubscription] from a short name identifying the variant, the subject `table_name`
+    ///   and the mermaid.js flowchart diagram link type
+    pub fn from_str_mermaid(line: &str, subject: &str) -> Result<TableSubscription> {
+        if line.contains("-.") & line.contains(".->") & line.contains("FullTable") {
+            Ok(TableSubscription::OnUpdateFullTable {
+                table_name: subject.to_string(),
+            })
+        } else if line.contains("--") & line.contains("-->") & line.contains("FullTable") {
+            Ok(TableSubscription::AlwaysFullTable {
+                table_name: subject.to_string(),
+            })
+        } else if line.contains("-.") & line.contains(".->") & line.contains("LastRecordBatch")
+        {
+            Ok(TableSubscription::OnUpdateLastRecordBatch {
+                table_name: subject.to_string(),
+            })
+        } else if line.contains("--") & line.contains("-->") & line.contains("LastRecordBatch")
+        {
+            Ok(TableSubscription::AlwaysLastRecordBatch {
+                table_name: subject.to_string(),
+            })
+        } else if line.contains("None") {
+            Ok(TableSubscription::None {})
+        } else {
+            Err(anyhow!(
+                "Variant for TablePublication with subject {subject} was not recognized in string slice {line}."
+            ))
+        }
     }
 }
 
@@ -167,5 +201,40 @@ impl TableSubscriptionTrait for Table {
             TableSubscription::None => None,
             TableSubscription::Custom(_) => None,
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_table_subscription_from_str_mermaid() -> Result<()> {
+        let line = "message_parsing-subject--FullTable-->message_parser-subscribe";
+        let subject = "message_parser";
+        let publication = TableSubscription::AlwaysFullTable { table_name: subject.to_string() };
+        let test = TableSubscription::from_str_mermaid(line, subject)?;
+        assert_eq!(test, publication);
+
+        let line = "message_parsing-subject-.FullTable.->message_parser-subscribe";
+        let subject = "message_parser";
+        let publication = TableSubscription::OnUpdateFullTable { table_name: subject.to_string() };
+        let test = TableSubscription::from_str_mermaid(line, subject)?;
+        assert_eq!(test, publication);
+
+        let line = "message_parsing-subject--LastRecordBatch-->message_parser-subscribe";
+        let subject = "message_parser";
+        let publication = TableSubscription::AlwaysLastRecordBatch { table_name: subject.to_string() };
+        let test = TableSubscription::from_str_mermaid(line, subject)?;
+        assert_eq!(test, publication);
+
+        let line = "message_parsing-subject-.LastRecordBatch.->message_parser-subscribe";
+        let subject = "message_parser";
+        let publication = TableSubscription::OnUpdateLastRecordBatch { table_name: subject.to_string() };
+        let test = TableSubscription::from_str_mermaid(line, subject)?;
+        assert_eq!(test, publication);
+
+        Ok(())
     }
 }

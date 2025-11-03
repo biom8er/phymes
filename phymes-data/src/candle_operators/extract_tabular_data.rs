@@ -8,12 +8,13 @@ use phymes_core::{
     JSONSchemaDefine, JSONSchemaType, JsonFormat, MappableTrait, Table, TableBuilder,
     TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Extract tabular data in either CSV or JSON format from Bytes
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ExtractTabularData {
     lhs_values: String,
     format: DataFormat,

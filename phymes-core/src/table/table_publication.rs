@@ -36,6 +36,7 @@ pub enum TablePublication {
 }
 
 impl TablePublication {
+    /// Short name for the [TablePublication] that omits the `table_name` and other information
     pub fn get_short_name(&self) -> &str {
         match self {
             Self::Extend { table_name: _tn } => "Extend",
@@ -50,6 +51,7 @@ impl TablePublication {
         }
     }
 
+    /// Full name for the [TablePublication] that includes the `table_name` and other information
     pub fn get_full_name(&self) -> String {
         match self {
             Self::Extend { table_name: tn } => format!("extend-{tn}"),
@@ -64,6 +66,7 @@ impl TablePublication {
         }
     }
 
+    /// The `table_name` of the variant
     pub fn get_table_name(&self) -> &str {
         match self {
             Self::Extend { table_name: tn } => tn,
@@ -78,6 +81,7 @@ impl TablePublication {
         }
     }
 
+    /// New [TablePublication] from a short name identifying the variant and the `table_name`
     pub fn from_str(name: &str, subject: &str) -> Result<TablePublication> {
         let publication = if name.contains("Extend") {
             TablePublication::Extend {
@@ -99,6 +103,35 @@ impl TablePublication {
             ));
         };
         Ok(publication)
+    }
+
+    /// New [TablePublication] from a short name identifying the variant, the subject `table_name`
+    ///   and the mermaid.js flowchart diagram link type
+    pub fn from_str_mermaid(line: &str, subject: &str) -> Result<TablePublication> {
+        if line.contains("--") & line.contains("-->") & line.contains("ExtendChunks") {
+            Ok(TablePublication::ExtendChunks {
+                table_name: subject.to_string(),
+                col_name: "content".to_string(),
+            })
+        } else if line.contains("--") & line.contains("-->") & line.contains("Extend") {
+            Ok(TablePublication::Extend {
+                table_name: subject.to_string(),
+            })
+        } else if line.contains("--") & line.contains("-->") & line.contains("ReplaceLast") {
+            Ok(TablePublication::ReplaceLast {
+                table_name: subject.to_string(),
+            })
+        } else if line.contains("--") & line.contains("-->") & line.contains("Replace") {
+            Ok(TablePublication::Replace {
+                table_name: subject.to_string(),
+            })
+        } else if line.contains("None") {
+            Ok(TablePublication::None {})
+        } else {
+            Err(anyhow!(
+                "Variant for TablePublication with subject {subject} was not recognized in string slice {line}."
+            ))
+        }
     }
 }
 
@@ -441,7 +474,7 @@ mod tests {
     }
 
     #[test]
-    fn test_update_table_wrong_table_name() -> Result<()> {
+    fn test_table_publication_table_wrong_table_name() -> Result<()> {
         let mut old = make_test_table("test_table", 4, 0, 3)?;
         let new = make_test_table("test_table", 1, 0, 1)?;
         match old.publish_to_table(
@@ -497,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extend_update() -> Result<()> {
+    fn test_table_publication_extend_update() -> Result<()> {
         let mut old = make_test_table("test_table", 4, 0, 3)?;
         let new = make_test_table("test_table", 1, 0, 1)?;
         old.publish_to_table(
@@ -511,7 +544,7 @@ mod tests {
     }
 
     #[test]
-    fn test_replace_update() -> Result<()> {
+    fn test_table_publication_replace_update() -> Result<()> {
         let mut old = make_test_table("test_table", 4, 0, 3)?;
         let new = make_test_table("test_table", 1, 0, 1)?;
         old.publish_to_table(
@@ -525,7 +558,7 @@ mod tests {
     }
 
     #[test]
-    fn test_none_update() -> Result<()> {
+    fn test_table_publication_none_update() -> Result<()> {
         let mut old = make_test_table("test_table", 4, 0, 3)?;
         let new = make_test_table("test_table", 1, 0, 1)?;
         old.publish_to_table(new.get_record_batches_own(), TablePublication::None)?;
@@ -534,7 +567,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extend_chunks_update() -> Result<()> {
+    fn test_table_publication_extend_chunks_update() -> Result<()> {
         let mut old = make_test_table_chat("messages")?;
         // Example streamed chunks
         let role_1: ArrayRef = Arc::new(StringArray::from(vec![
@@ -573,6 +606,35 @@ mod tests {
                 "0123"
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_table_publication_from_str_mermaid() -> Result<()> {
+        let line = "message_parser-publish--ExtendChunks-->AssistantMessages-subject";
+        let subject = "AssistantMessages";
+        let publication = TablePublication::ExtendChunks { table_name: subject.to_string(), col_name: "content".to_string() };
+        let test = TablePublication::from_str_mermaid(line, subject)?;
+        assert_eq!(test, publication);
+
+        let line = "message_parser-publish--Extend-->AssistantMessages-subject";
+        let subject = "AssistantMessages";
+        let publication = TablePublication::Extend { table_name: subject.to_string() };
+        let test = TablePublication::from_str_mermaid(line, subject)?;
+        assert_eq!(test, publication);
+
+        let line = "message_parser-publish--ReplaceLast-->AssistantMessages-subject";
+        let subject = "AssistantMessages";
+        let publication = TablePublication::ReplaceLast { table_name: subject.to_string() };
+        let test = TablePublication::from_str_mermaid(line, subject)?;
+        assert_eq!(test, publication);
+
+        let line = "message_parser-publish--Replace-->AssistantMessages-subject";
+        let subject = "AssistantMessages";
+        let publication = TablePublication::Replace { table_name: subject.to_string() };
+        let test = TablePublication::from_str_mermaid(line, subject)?;
+        assert_eq!(test, publication);
+
         Ok(())
     }
 }

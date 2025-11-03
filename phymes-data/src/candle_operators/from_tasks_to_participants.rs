@@ -7,11 +7,12 @@ use phymes_core::{
     create_mermaid_sequence_diagram_participants_template_batch,
 };
 use phymes_diagnostics::HashSet;
+use serde::{Deserialize, Serialize};
 
 use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Compute the normalized start and end times in a [RecordBatch]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FromTasksToParticipants {}
 
 impl MappableTrait for FromTasksToParticipants {
