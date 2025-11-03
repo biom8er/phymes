@@ -317,7 +317,6 @@ mod tests {
     };
     use crate::table::{TablePublication, TableSubscription};
     use crate::task::{
-        ProcessorTrait,
         test_processor::{ProcessorError, ProcessorMock},
         test_task::{make_runtime_env, make_state_tables, make_test_input_message},
     };

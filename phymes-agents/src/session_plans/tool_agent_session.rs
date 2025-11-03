@@ -6,19 +6,15 @@ use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields, create_tools_record_batch
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, DataCastOperator, DataConfig, DataSummaryConfig, DataSummaryProcessor, MERMAID_XYCHART_TABLE_EXPRESSION, ToolTrait,
+    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataConfig, DataSummaryConfig, MERMAID_XYCHART_TABLE_EXPRESSION, ToolTrait,
 };
-#[cfg(feature = "candle")]
-use phymes_ml::CandleChatProcessor;
-use phymes_ml::{
-    AvailableCandleAssets, CandleChatConfig, MessageAggregatorProcessor, MessageParserProcessor,
-};
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 #[cfg(feature = "openai_api")]
-use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor};
+use phymes_ml::AvailableOpenAIAssets;
 
 use arrow::datatypes::{DataType, Field, Fields};
 
-use crate::{session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
+use crate::{AvailableProcessors, session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
@@ -208,7 +204,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            MessageAggregatorProcessor::new(
+            AvailableProcessors::MessageAggregatorProcessor.build_arc(
                 self.message_aggregator_processor_1_name,
                 &[TablePublication::Replace {
                     table_name: self.chat_task_name.to_string(),
@@ -232,7 +228,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::ChatContentSubscribe.build(),
             ),
-            MessageAggregatorProcessor::new(
+            AvailableProcessors::MessageAggregatorProcessor.build_arc(
                 self.message_aggregator_processor_2_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
@@ -250,7 +246,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            AttachmentAggregatorProcessor::new(
+            AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
                 self.attachment_aggregator_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
@@ -271,7 +267,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.tool_vis_renamecols_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::MermaidXYChart.to_string(),
@@ -286,7 +282,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.tool_vis_xychart_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
@@ -302,7 +298,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "openai_api")]
-            OpenAIChatProcessor::new(
+            AvailableProcessors::OpenAIChatProcessor.build_arc(
                 self.chat_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.message_parser_task_name.to_string(),
@@ -321,7 +317,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             #[cfg(feature = "candle")]
-            CandleChatProcessor::new(
+            AvailableProcessors::CandleChatProcessor.build_arc(
                 self.chat_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.message_parser_task_name.to_string(),
@@ -339,7 +335,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            MessageParserProcessor::new(
+            AvailableProcessors::MessageParserProcessor.build_arc(
                 self.message_parser_processor_name,
                 &[
                     TablePublication::Extend {
@@ -364,7 +360,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.extract_tabular_data_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
@@ -379,7 +375,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.tool_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.tool_summary_task_name.to_string(),
@@ -394,7 +390,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.hitl_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
@@ -404,7 +400,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 }],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            DataSummaryProcessor::new(
+            AvailableProcessors::DataSummaryProcessor.build_arc(
                 self.tool_attachment_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
@@ -419,7 +415,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            DataSummaryProcessor::new(
+            AvailableProcessors::DataSummaryProcessor.build_arc(
                 self.tool_summary_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
@@ -434,7 +430,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            DataSummaryProcessor::new(
+            AvailableProcessors::DataSummaryProcessor.build_arc(
                 self.hitl_summary_processor_name,
                 &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),

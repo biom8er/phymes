@@ -4,13 +4,11 @@ use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
-use phymes_ml::{
-    AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor,
-};
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 #[cfg(feature = "openai_api")]
-use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor};
+use phymes_ml::AvailableOpenAIAssets;
 
-use crate::{session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
+use crate::{AvailableProcessors, session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
 
 pub struct ChatAgentSession<'a> {
     /// Chat tasks
@@ -85,7 +83,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
 
-        processors.push(MessageAggregatorProcessor::new(
+        processors.push(AvailableProcessors::MessageAggregatorProcessor.build_arc(
             self.message_aggregator_processor_1_name,
             &[TablePublication::Replace {
                 table_name: self.chat_task_name.to_string(),
@@ -103,7 +101,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             ],
             AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         ));
-        processors.push(MessageAggregatorProcessor::new(
+        processors.push(AvailableProcessors::MessageAggregatorProcessor.build_arc(
             self.message_aggregator_processor_2_name,
             &[TablePublication::Extend {
                 table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
@@ -123,7 +121,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         ));
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "openai_api")]
-            processors.push(OpenAIChatProcessor::new(
+            processors.push(AvailableProcessors::OpenAIChatProcessor.build_arc(
                 self.chat_processor_name,
                 &[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
@@ -141,7 +139,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ));
         } else {
-            processors.push(CandleChatProcessor::new(
+            processors.push(AvailableProcessors::CandleChatProcessor.build_arc(
                 self.chat_processor_name,
                 &[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),

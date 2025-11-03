@@ -312,7 +312,7 @@ impl ChatBuilderTraitExt for TableBuilder {
 mod test_messages {
     use super::*;
     use crate::{
-        AvailableTableSubscribePolicies, session::{
+        session::{
             BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
             SendableRecordBatchStreamMessageMap, StateMap,
         }, table::{
@@ -385,7 +385,7 @@ mod test_messages {
         }
 
         fn get_type(&self) -> &str {
-            Self::get_static_name()
+            &self.r#type
         }
 
         fn process(

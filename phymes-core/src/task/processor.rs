@@ -1,5 +1,5 @@
 use crate::{
-    AvailableTableSubscribePolicies, session::{MappableTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, StateMap}, table::{
+    session::{MappableTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, StateMap}, table::{
         RecordBatchStream, SendableRecordBatchStream, TablePublication, TableSubscribePolicyTrait, TableSubscription
     }, task::PublishAndSubscribeTrait
 };
@@ -27,7 +27,8 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
     /// Get the subscription policy
     fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait;
 
-    /// Alias for `get_static_name`
+    /// The type used to identify the processor after dynamic dispatching
+    /// often just an alias for `get_static_name`
     fn get_type(&self) -> &str;
 
     /// Begin execution of `Process`, returning a [`Stream`] of [`RecordBatch`]es.
@@ -244,7 +245,7 @@ impl ProcessorTrait for ProcessorEcho {
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     fn process(
@@ -285,13 +286,6 @@ pub struct ProcessorBuilder {
     pub name: Option<String>,
     pub r#type: Option<String>,
 }
-
-type ProcessorInput = (
-    String,
-    Vec<TablePublication>,
-    Vec<TableSubscription>,
-    Box<dyn TableSubscribePolicyTrait>,
-);
 
 impl ProcessorBuilder {
     pub fn with_publications(mut self, publications: &[TablePublication]) -> Self {
@@ -428,7 +422,7 @@ pub mod test_processor {
         }
 
         fn get_type(&self) -> &str {
-            Self::get_static_name()
+            &self.r#type
         }
 
         fn process(
@@ -612,7 +606,7 @@ pub mod test_processor {
         }
 
         fn get_type(&self) -> &str {
-            Self::get_static_name()
+            &self.r#type
         }
 
         fn process(
@@ -632,11 +626,9 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        session::{BuildableTrait, BuilderTrait, RuntimeEnv},
-        table::{
+        AvailableTableSubscribePolicies, session::{BuildableTrait, BuilderTrait, RuntimeEnv}, table::{
             TableBuilder, TableBuilderTrait, TablePublication, TableTrait, test_table::make_test_table,
-        },
-        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
+        }, task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage}
     };
     use anyhow::Result;
     use parking_lot::lock_api::Mutex;

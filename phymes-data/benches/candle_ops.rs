@@ -248,6 +248,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         let _result = rt.block_on(async {
                             let ops_processor = CandleDataProcessor::new(
                                 name.as_str(),
+                                "",
                                 &[TablePublication::Replace {
                                     table_name: "results".to_string(),
                                 }],

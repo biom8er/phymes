@@ -5,12 +5,11 @@ use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, DiagnosticsVisualizations, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataConfig, MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION,
+    AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator, DataConfig, MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION,
 };
-use phymes_ml::MessageAggregatorProcessor;
 use serde_json::json;
 
-use crate::{session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
+use crate::{AvailableProcessors, session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
 
 /// A session for gathering analytics based on the session metrics
 ///
@@ -303,7 +302,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.metrics_pivot_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::MetricPivot.to_string(),
@@ -318,7 +317,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.metrics_normalize_time_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
@@ -333,7 +332,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.metrics_processors_traces_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -352,7 +351,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.metrics_elapsed_compute_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -371,7 +370,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.metrics_output_rows_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -390,7 +389,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.metrics_processors_traces_apply_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
@@ -409,7 +408,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.metrics_elapsed_compute_apply_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
@@ -428,7 +427,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.metrics_output_rows_apply_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
@@ -447,7 +446,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.traces_to_sequence_diagram_messages_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -469,7 +468,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.apply_sequence_diagram_messages_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
@@ -488,7 +487,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.session_tasks_to_sequence_diagram_participants_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -512,7 +511,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.apply_sequence_diagram_participants_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -533,7 +532,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            MessageAggregatorProcessor::new(
+            AvailableProcessors::MessageAggregatorProcessor.build_arc(
                 self.traces_aggregate_sequence_diagram_content_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -557,7 +556,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.apply_sequence_diagram_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
@@ -574,7 +573,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.events_select_and_cast_to_kanban_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
@@ -591,7 +590,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.apply_kanban_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::EventKanban.to_string(),
@@ -606,7 +605,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AttachmentAggregatorProcessor::new(
+            AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
                 self.aggregate_visualizations_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),

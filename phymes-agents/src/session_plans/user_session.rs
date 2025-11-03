@@ -2,19 +2,15 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
 };
-use phymes_data::{
-    AvailableCandleOperators, CandleDataProcessor, DataConfig, DataSummaryConfig,
-    DataSummaryProcessor,
-};
+use phymes_data::{AvailableCandleOperators, DataConfig, DataSummaryConfig};
 use phymes_diagnostics::create_timestamp_micros;
 
 use crate::{
-    session_plans::{
+    AvailableProcessors, session_plans::{
         AvailableInterfaceSubjects, AvailableSessionPlans, make_example_mermaid_table,
-    },
-    session_traits::CustomAgentsBuilderTrait,
+    }, session_traits::CustomAgentsBuilderTrait
 };
 
 /// A session for all user management tasks
@@ -177,7 +173,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.filter_and_join_session_contexts_by_email_inbox_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::UserInbox.to_string(),
@@ -194,7 +190,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.filter_session_contexts_by_email_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
@@ -214,7 +210,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.join_session_contexts_with_mermaid_diagrams_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
@@ -234,7 +230,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new(
+            AvailableProcessors::CandleDataProcessor.build_arc(
                 self.filter_user_info_by_email_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.filter_user_info_by_email_table_name.to_string(),
@@ -252,7 +248,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            DataSummaryProcessor::new(
+            AvailableProcessors::DataSummaryProcessor.build_arc(
                 self.filter_and_join_session_contexts_by_email_outbox_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
@@ -273,7 +269,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            ProcessorEcho::new(
+            AvailableProcessors::ProcessorEcho.build_arc(
                 self.session_context_name,
                 &[
                     TablePublication::Extend {

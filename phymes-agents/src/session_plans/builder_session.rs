@@ -1,10 +1,9 @@
 use crate::{
-    session_plans::AvailableSessionPlans,
-    session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait},
+    AvailableProcessors, session_plans::AvailableSessionPlans, session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait}
 };
 use anyhow::Result;
 use phymes_core::{
-    AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_session_mermaid_batch
+    AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_session_mermaid_batch
 };
 use phymes_diagnostics::create_timestamp_micros;
 use std::sync::Arc;
@@ -87,7 +86,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
-        let processors = vec![ProcessorEcho::new(
+        let processors = vec![AvailableProcessors::ProcessorEcho.build_arc(
             self.session_context_name,
             &[TablePublication::Extend {
                 table_name: AvailableSubjects::BuilderMermaid.to_string(),

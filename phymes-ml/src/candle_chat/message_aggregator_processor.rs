@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscribePolicyTrait, TableSubscription, create_chat_fields, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscribePolicyTrait, TableSubscription, create_chat_fields, remove_message_by_subject
 };
 
 use anyhow::{Result, anyhow};
@@ -20,6 +20,7 @@ use tracing::{Level, event, instrument};
 #[derive(Debug)]
 pub struct MessageAggregatorProcessor {
     name: String,
+    r#type: String,
     publications: Vec<TablePublication>,
     subscriptions: Vec<TableSubscription>,
     subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
@@ -47,27 +48,18 @@ impl PublishAndSubscribeTrait for MessageAggregatorProcessor {
 impl ProcessorTrait for MessageAggregatorProcessor {
     fn new(
         name: &str,
+        r#type: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             subscribe_policy,
-        })
-    }
-
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublication::Extend {
-                table_name: "messages".to_string(),
-            }],
-            subscriptions: vec![TableSubscription::None],
-            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
-        })
+        }
     }
 
     fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
@@ -75,7 +67,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -137,8 +129,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        TableBuilder, TableBuilderTrait, TableTrait, device,
-        test_table::{make_test_table, make_test_table_chat},
+        AvailableTableSubscribePolicies, TableBuilder, TableBuilderTrait, TableTrait, device, test_table::{make_test_table, make_test_table_chat}
     };
     use phymes_data::{AvailableCandleOperators, CandleTensorService, DataConfig};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
@@ -220,7 +211,14 @@ mod tests {
         let runtime_env = Arc::new(Mutex::new(runtime_env));
 
         // Create the aggregator and run
-        let agg_arc_1 = MessageAggregatorProcessor::new_arc("aggregator_processor");
+        let agg_arc_1 = MessageAggregatorProcessor::new(
+            "aggregator_processor",
+            "",
+            &[TablePublication::Extend {
+                table_name: "messages".to_string(),
+            }], &[TableSubscription::None],
+            AvailableTableSubscribePolicies::default().build(),
+        );
         let mut agg_stream =
             agg_arc_1.process(message_1, Some(&diagnostic_builder), runtime_env)?;
         assert_eq!(agg_stream.len(), 2);

@@ -1,7 +1,7 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
 use crate::{DataConfigTrait, candle_operators::DataOperatorTrait};
 use phymes_core::{
-    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, device, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, device, remove_message_by_subject
 };
 
 use arrow::{
@@ -30,6 +30,7 @@ use tracing::{Level, event, instrument};
 #[derive(Debug)]
 pub struct CandleDataProcessor {
     name: String,
+    r#type: String,
     publications: Vec<TablePublication>,
     subscriptions: Vec<TableSubscription>,
     subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
@@ -58,25 +59,18 @@ impl PublishAndSubscribeTrait for CandleDataProcessor {
 impl ProcessorTrait for CandleDataProcessor {
     fn new(
         name: &str,
+        r#type: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             subscribe_policy,
-        })
-    }
-
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublication::None],
-            subscriptions: vec![TableSubscription::None],
-            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
-        })
+        }
     }
 
     fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
@@ -84,7 +78,7 @@ impl ProcessorTrait for CandleDataProcessor {
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -554,7 +548,7 @@ mod tests {
     use crate::{DataDistanceOperator, candle_operators::AvailableCandleOperators};
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
-    use phymes_core::{Table, TablePublication};
+    use phymes_core::{AvailableTableSubscribePolicies, Table, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
@@ -1000,6 +994,7 @@ mod tests {
         // Make the stream and run
         let ops_processor = CandleDataProcessor::new(
             "candle_ops_processor",
+            "",
             &[TablePublication::Replace {
                 table_name: "results".to_string(),
             }],

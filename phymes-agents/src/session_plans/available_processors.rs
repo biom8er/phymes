@@ -465,12 +465,8 @@ impl AvailableProcessors {
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         match self {
-            Self::ProcessorMock => {
-                Arc::new(ProcessorMock::new(name, self.to_string().as_str(), publications, subscriptions, subscribe_policy))
-            }
-            Self::ProcessorEcho => {
-                Arc::new(ProcessorEcho::new(name, self.to_string().as_str(), publications, subscriptions, subscribe_policy))
-            }
+            Self::ProcessorMock => Arc::new(ProcessorMock::new(name, self.to_string().as_str(), publications, subscriptions, subscribe_policy)),
+            Self::ProcessorEcho => Arc::new(ProcessorEcho::new(name, self.to_string().as_str(), publications, subscriptions, subscribe_policy)),
             Self::CandleDataProcessor 
             | Self::ChunkDocuments
             | Self::ExtractPDFText
@@ -497,15 +493,13 @@ impl AvailableProcessors {
                 subscriptions,
                 subscribe_policy,
             )),
-            Self::AttachmentAggregatorProcessor => {
-                Arc::new(AttachmentAggregatorProcessor::new(
-                    name,
-                    self.to_string().as_str(), 
-                    publications,
-                    subscriptions,
-                    subscribe_policy,
-                ))
-            }
+            Self::AttachmentAggregatorProcessor => Arc::new(AttachmentAggregatorProcessor::new(
+                name,
+                self.to_string().as_str(), 
+                publications,
+                subscriptions,
+                subscribe_policy,
+            )),
             Self::CandleChatProcessor => Arc::new(CandleChatProcessor::new(
                 name,
                 self.to_string().as_str(), 
@@ -554,7 +548,32 @@ impl AvailableProcessors {
     }
 
     pub fn build_with_builder(self, builder: ProcessorBuilder) -> Result<Arc<dyn ProcessorTrait>> {
-        let (name, publications, subscriptions, subscribe_policy) = builder.take()?;
-        Ok(self.build_arc(&name, &publications, &subscriptions, subscribe_policy))
+        match self {
+            Self::ProcessorMock => builder.build_arc::<ProcessorMock>(),
+            Self::ProcessorEcho => builder.build_arc::<ProcessorMock>(),
+            Self::CandleDataProcessor 
+            | Self::ChunkDocuments
+            | Self::ExtractPDFText
+            | Self::ExtractTabularData
+            | Self::FilterColumnsAndIndices
+            | Self::GroupByAndAggregate
+            | Self::HumanInTheLoop
+            | Self::JoinInner
+            | Self::NormalizeTime
+            | Self::Pivot
+            | Self::SelectAndCast
+            | Self::SortColumnAndIndices
+            | Self::VectorDistance => builder.build_arc::<CandleDataProcessor>(),
+            Self::DataSummaryProcessor => builder.build_arc::<DataSummaryProcessor>(),
+            Self::AttachmentAggregatorProcessor => builder.build_arc::<AttachmentAggregatorProcessor>(),
+            Self::CandleChatProcessor => builder.build_arc::<CandleChatProcessor>(),
+            Self::MessageAggregatorProcessor => builder.build_arc::<MessageAggregatorProcessor>(),
+            Self::MessageParserProcessor => builder.build_arc::<MessageParserProcessor>(),
+            Self::CandleEmbedProcessor => builder.build_arc::<CandleEmbedProcessor>(),
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIChatProcessor => builder.build_arc::<OpenAIChatProcessor>(),
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIEmbedProcessor => builder.build_arc::<OpenAIEmbedProcessor>(),
+        }
     }
 }

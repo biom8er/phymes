@@ -5,7 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, ToolCall, create_chat_record_batch, create_values_record_batch, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, ToolCall, create_chat_record_batch, create_values_record_batch, remove_message_by_subject
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -42,6 +42,7 @@ use super::tool_parser::extract_tool_calls_str;
 #[derive(Debug)]
 pub struct MessageParserProcessor {
     name: String,
+    r#type: String,
     publications: Vec<TablePublication>,
     subscriptions: Vec<TableSubscription>,
     subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
@@ -69,25 +70,18 @@ impl PublishAndSubscribeTrait for MessageParserProcessor {
 impl ProcessorTrait for MessageParserProcessor {
     fn new(
         name: &str,
+        r#type: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             subscribe_policy,
-        })
-    }
-
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublication::None],
-            subscriptions: vec![TableSubscription::None],
-            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
-        })
+        }
     }
 
     fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
@@ -95,7 +89,7 @@ impl ProcessorTrait for MessageParserProcessor {
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -407,7 +401,7 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{TableBuilder, TablePublication};
+    use phymes_core::{AvailableTableSubscribePolicies, TableBuilder, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
@@ -480,6 +474,7 @@ mod tests {
         // Create the processor and run
         let processor = MessageParserProcessor::new(
             "message_processor",
+            "",
             &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
@@ -584,6 +579,7 @@ mod tests {
         // Create the processor and run
         let processor = MessageParserProcessor::new(
             "message_processor",
+            "",
             &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
@@ -688,6 +684,7 @@ mod tests {
         // Create the processor and run
         let processor = MessageParserProcessor::new(
             "message_processor",
+            "",
             &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),

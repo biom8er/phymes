@@ -85,7 +85,7 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     fn process(

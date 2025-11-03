@@ -33,6 +33,7 @@ use super::chat_config::CandleChatConfig;
 #[derive(Debug)]
 pub struct CandleChatProcessor {
     name: String,
+    r#type: String,
     publications: Vec<TablePublication>,
     subscriptions: Vec<TableSubscription>,
     subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
@@ -61,25 +62,18 @@ impl PublishAndSubscribeTrait for CandleChatProcessor {
 impl ProcessorTrait for CandleChatProcessor {
     fn new(
         name: &str,
+        r#type: &str,
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             subscribe_policy,
-        })
-    }
-
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublication::None],
-            subscriptions: vec![TableSubscription::None],
-            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
-        })
+        }
     }
 
     fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
@@ -87,7 +81,7 @@ impl ProcessorTrait for CandleChatProcessor {
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -742,6 +736,7 @@ pub mod bench_chat_processor {
         #[allow(unused_variables)]
         let chat_processor = CandleChatProcessor::new(
             name,
+            "",
             &[TablePublication::ExtendChunks {
                 table_name: messages.to_string(),
                 col_name: "content".to_string(),
@@ -983,6 +978,7 @@ mod tests {
         // Build the chat task
         let chat_processor = CandleChatProcessor::new(
             name,
+            "",
             &[TablePublication::ExtendChunks {
                 table_name: messages.to_string(),
                 col_name: "content".to_string(),

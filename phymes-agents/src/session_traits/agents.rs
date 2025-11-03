@@ -5,7 +5,7 @@ use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
 use parking_lot::{Mutex, RwLock};
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan, device
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan, device
 };
 use phymes_data::{DataConfig, DataConfigTrait, DataSummaryConfig};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -588,7 +588,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             }
         }
         let mut processors = self.processors.take().unwrap_or_default();
-        processors.push(ProcessorEcho::new(
+        processors.push(AvailableProcessors::ProcessorEcho.build_arc(
             session_name.as_str(),
             &publications,
             &subscriptions,
@@ -650,7 +650,7 @@ pub mod test_session_context_builder_agents {
     use std::vec;
 
     use phymes_core::{
-        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, TableBuilderTrait, TablePublication, TableSubscription, test_processor::ProcessorMock, test_session_context_builder::make_test_session_builder_tasks, test_table::make_test_table, test_task::make_runtime_env
+        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, TableBuilderTrait, TablePublication, TableSubscription, test_session_context_builder::make_test_session_builder_tasks, test_table::make_test_table, test_task::make_runtime_env
     };
     use phymes_data::{AvailableCandleOperators, DataConfig};
 
@@ -659,7 +659,7 @@ pub mod test_session_context_builder_agents {
     #[allow(dead_code)]
     pub fn make_test_session_builder_agents() -> Result<SessionContextBuilder> {
         let processor_plans = vec![
-            ProcessorMock::new(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "processor_1",
                 &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
@@ -674,7 +674,7 @@ pub mod test_session_context_builder_agents {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "processor_2",
                 &[TablePublication::Extend {
                     table_name: "state_2".to_string(),
@@ -689,7 +689,7 @@ pub mod test_session_context_builder_agents {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "processor_3",
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
@@ -704,7 +704,7 @@ pub mod test_session_context_builder_agents {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "session_1",
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
@@ -784,7 +784,6 @@ mod tests {
     use phymes_core::{
         BuildableTrait, BuilderTrait, PublishAndSubscribeTrait,
         TableBuilderTrait, TablePublication, TableSubscription, TaskTrait,
-        test_processor::ProcessorMock,
         test_session_context_builder::{
             make_test_session_builder_parallel_task, make_test_session_builder_tasks,
         },
@@ -893,7 +892,7 @@ mod tests {
     #[test]
     fn test_build_with_tables_missing_data_config_subjects() -> Result<()> {
         let processor_plans = vec![
-            ProcessorMock::new(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "processor_1",
                 &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
@@ -908,7 +907,7 @@ mod tests {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "processor_2",
                 &[TablePublication::Extend {
                     table_name: "state_2".to_string(),
@@ -923,7 +922,7 @@ mod tests {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "processor_3",
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
@@ -938,7 +937,7 @@ mod tests {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "session_1",
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),

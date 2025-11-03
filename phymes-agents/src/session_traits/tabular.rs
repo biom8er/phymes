@@ -471,10 +471,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // build the processors in order
         let mut processors = Vec::new();
         for processor_name in sort_processors {
-            let mut builder = ProcessorBuilder::default();
-            builder.processor_name.replace(processor_name.to_string());
-            builder.subscriptions.replace(Vec::new());
-            builder.publications.replace(Vec::new());
+            let mut builder = ProcessorBuilder::default()
+                .with_name(processor_name)
+                .with_subscriptions(&[])
+                .with_publications(&[]);
             for (name, t, s_t, sub, sub_tab, is_sub) in combined.iter() {
                 if name == &processor_name {
                     if **is_sub == 1 {
@@ -485,12 +485,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                         builder.publications.as_mut().unwrap().push(publication);
                     }
                     let subscribe = AvailableTableSubscribePolicies::from_str_fuzzy(s_t)?.build();
-                    builder.processor_type.replace(t.to_string());
-                    builder.subscribe_policy.replace(subscribe);
+                    builder = builder.with_type(t).with_subscribe_policy(subscribe);
                 }
             }
             let available_processor = AvailableProcessors::from_str(
-                builder.processor_type.as_ref().unwrap().as_str(),
+                builder.r#type.as_ref().unwrap().as_str(),
                 false,
             )
             .unwrap();
