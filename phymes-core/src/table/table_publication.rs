@@ -108,20 +108,20 @@ impl TablePublication {
     /// New [TablePublication] from a short name identifying the variant, the subject `table_name`
     ///   and the mermaid.js flowchart diagram link type
     pub fn from_str_mermaid(line: &str, subject: &str) -> Result<TablePublication> {
-        if line.contains("--") & line.contains("-->") & line.contains("ExtendChunks") {
+        if line.contains("|") & line.contains("-->") & line.contains("ExtendChunks") {
             Ok(TablePublication::ExtendChunks {
                 table_name: subject.to_string(),
                 col_name: "content".to_string(),
             })
-        } else if line.contains("--") & line.contains("-->") & line.contains("Extend") {
+        } else if line.contains("|") & line.contains("-->") & line.contains("Extend") {
             Ok(TablePublication::Extend {
                 table_name: subject.to_string(),
             })
-        } else if line.contains("--") & line.contains("-->") & line.contains("ReplaceLast") {
+        } else if line.contains("|") & line.contains("-->") & line.contains("ReplaceLast") {
             Ok(TablePublication::ReplaceLast {
                 table_name: subject.to_string(),
             })
-        } else if line.contains("--") & line.contains("-->") & line.contains("Replace") {
+        } else if line.contains("|") & line.contains("-->") & line.contains("Replace") {
             Ok(TablePublication::Replace {
                 table_name: subject.to_string(),
             })
@@ -611,23 +611,23 @@ mod tests {
 
     #[test]
     fn test_table_publication_from_str_mermaid() -> Result<()> {
-        let line = "message_parser-publish--ExtendChunks-->AssistantMessages-subject";
+        let line = "message_parser-publish-->|ExtendChunks|AssistantMessages-subject";
         let subject = "AssistantMessages";
         let publication = TablePublication::ExtendChunks { table_name: subject.to_string(), col_name: "content".to_string() };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
-        let line = "message_parser-publish--Extend-->AssistantMessages-subject";
+        let line = "message_parser-publish-->|Extend|AssistantMessages-subject";
         let publication = TablePublication::Extend { table_name: subject.to_string() };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
-        let line = "message_parser-publish--ReplaceLast-->AssistantMessages-subject";
+        let line = "message_parser-publish-->|ReplaceLast|AssistantMessages-subject";
         let publication = TablePublication::ReplaceLast { table_name: subject.to_string() };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
-        let line = "message_parser-publish--Replace-->AssistantMessages-subject";
+        let line = "message_parser-publish-->|Replace|AssistantMessages-subject";
         let publication = TablePublication::Replace { table_name: subject.to_string() };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
