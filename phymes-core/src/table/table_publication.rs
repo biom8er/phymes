@@ -82,7 +82,7 @@ impl TablePublication {
     }
 
     /// New [TablePublication] from a short name identifying the variant and the `table_name`
-    pub fn from_str(name: &str, subject: &str) -> Result<TablePublication> {
+    pub fn from_str_fuzzy(name: &str, subject: &str) -> Result<TablePublication> {
         let publication = if name.contains("Extend") {
             TablePublication::Extend {
                 table_name: subject.to_string(),
@@ -618,19 +618,16 @@ mod tests {
         assert_eq!(test, publication);
 
         let line = "message_parser-publish--Extend-->AssistantMessages-subject";
-        let subject = "AssistantMessages";
         let publication = TablePublication::Extend { table_name: subject.to_string() };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parser-publish--ReplaceLast-->AssistantMessages-subject";
-        let subject = "AssistantMessages";
         let publication = TablePublication::ReplaceLast { table_name: subject.to_string() };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parser-publish--Replace-->AssistantMessages-subject";
-        let subject = "AssistantMessages";
         let publication = TablePublication::Replace { table_name: subject.to_string() };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);

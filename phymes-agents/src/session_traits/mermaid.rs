@@ -417,7 +417,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         let subscription = match TableSubscription::from_str_mermaid(split_line.last().unwrap(), &subject) {
                             Ok(subscription) => subscription,
                             Err(err) => return Err(anyhow!(
-                                "Parsing Error on line {iter}: {} for task {task}. {err}",
+                                "Parsing Error on line {iter}: {} for task {task_name}. {err}",
                                 flowchart_lines.get(iter).unwrap()
                             )),
                         };

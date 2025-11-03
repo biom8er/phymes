@@ -478,10 +478,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             for (name, t, s_t, sub, sub_tab, is_sub) in combined.iter() {
                 if name == &processor_name {
                     if **is_sub == 1 {
-                        let subscription = TableSubscription::from_str(sub, sub_tab)?;
+                        let subscription = TableSubscription::from_str_fuzzy(sub, sub_tab)?;
                         builder.subscriptions.as_mut().unwrap().push(subscription);
                     } else {
-                        let publication = TablePublication::from_str(sub, sub_tab)?;
+                        let publication = TablePublication::from_str_fuzzy(sub, sub_tab)?;
                         builder.publications.as_mut().unwrap().push(publication);
                     }
                     let subscribe = AvailableTableSubscribePolicies::from_str_fuzzy(s_t)?.build();

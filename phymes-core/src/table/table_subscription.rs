@@ -79,7 +79,7 @@ impl TableSubscription {
     }
 
     /// New [TableSubscription] from a short name identifying the variant and the `table_name`
-    pub fn from_str(name: &str, subject: &str) -> Result<TableSubscription> {
+    pub fn from_str_fuzzy(name: &str, subject: &str) -> Result<TableSubscription> {
         let subscription = if name.contains("OnUpdateFullTable") {
             TableSubscription::OnUpdateFullTable {
                 table_name: subject.to_string(),
@@ -218,19 +218,16 @@ mod tests {
         assert_eq!(test, publication);
 
         let line = "message_parsing-subject-.FullTable.->message_parser-subscribe";
-        let subject = "message_parser";
         let publication = TableSubscription::OnUpdateFullTable { table_name: subject.to_string() };
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parsing-subject--LastRecordBatch-->message_parser-subscribe";
-        let subject = "message_parser";
         let publication = TableSubscription::AlwaysLastRecordBatch { table_name: subject.to_string() };
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parsing-subject-.LastRecordBatch.->message_parser-subscribe";
-        let subject = "message_parser";
         let publication = TableSubscription::OnUpdateLastRecordBatch { table_name: subject.to_string() };
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
