@@ -12,7 +12,7 @@ documentation = "https://docs.rs/phymes-app"
 
 [dependencies]
 anyhow = "1.0.95"
-dioxus = { version = "0.6.3" }
+dioxus = { version = "0.7.0" }
 # DM: the "fullstack" feature MUST be specified here as the default and not activated as a feature
 #      or the server will not be built using `dx`
 #dioxus = { version = "0.6.3", features = ["fullstack"] }
