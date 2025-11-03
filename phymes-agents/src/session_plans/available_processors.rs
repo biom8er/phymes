@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    DataFormat, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, TablePublication, TableSubscribePolicyTrait, TableSubscription, test_processor::ProcessorMock
+    DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, TablePublication, TableSubscribePolicyTrait, TableSubscription, test_processor::ProcessorMock
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, ToolTrait
@@ -13,19 +13,19 @@ use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
 };
 #[cfg(feature = "openai_api")]
-use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
+use phymes_ml::{OpenAIChatProcessorProcessor, OpenAIEmbedProcessorProcessor};
 use serde::{Deserialize, Serialize};
 
 /// The available [ProcessorTrait]s
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableProcessors {
-    #[value(name = "Mock")]
-    Mock,
-    #[value(name = "Echo")]
+    #[value(name = "ProcessorMock")]
+    ProcessorMock,
+    #[value(name = "ProcessorEcho")]
     #[default]
-    Echo,
-    #[value(name = "Data")]
-    Data,
+    ProcessorEcho,
+    #[value(name = "CandleDataProcessor")]
+    CandleDataProcessor,
     #[value(name = "VectorDistance")]
     VectorDistance,
     #[value(name = "SortColumnAndIndices")]
@@ -50,32 +50,29 @@ pub enum AvailableProcessors {
     Pivot,
     #[value(name = "NormalizeTime")]
     NormalizeTime,
-    #[value(name = "Summary")]
-    Summary,
-    #[value(name = "AttachmentAggregator")]
-    AttachmentAggregator,
-    #[value(name = "CandleChat")]
-    CandleChat,
-    #[value(name = "MessageAggregator")]
-    MessageAggregator,
-    #[value(name = "MessageParser")]
-    MessageParser,
-    #[value(name = "CandleEmbed")]
-    CandleEmbed,
+    #[value(name = "DataSummaryProcessor")]
+    DataSummaryProcessor,
+    #[value(name = "AttachmentAggregatorProcessor")]
+    AttachmentAggregatorProcessor,
+    #[value(name = "CandleChatProcessor")]
+    CandleChatProcessor,
+    #[value(name = "MessageAggregatorProcessor")]
+    MessageAggregatorProcessor,
+    #[value(name = "MessageParserProcessor")]
+    MessageParserProcessor,
+    #[value(name = "CandleEmbedProcessor")]
+    CandleEmbedProcessor,
     #[cfg(feature = "openai_api")]
-    #[value(name = "OpenAIChat")]
-    OpenAIChat,
+    #[value(name = "OpenAIChatProcessorProcessor")]
+    OpenAIChatProcessor,
     #[cfg(feature = "openai_api")]
-    #[value(name = "OpenAIEmbed")]
-    OpenAIEmbed,
+    #[value(name = "OpenAIEmbedProcessor")]
+    OpenAIEmbedProcessor,
 }
 
 impl Display for AvailableProcessors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Mock => write!(f, "Mock"),
-            Self::Echo => write!(f, "Echo"),
-            Self::Data => write!(f, "Data"),
             Self::VectorDistance => write!(f, "VectorDistance"),
             Self::SortColumnAndIndices => write!(f, "SortColumnAndIndices"),
             Self::HumanInTheLoop => write!(f, "HumanInTheLoop"),
@@ -88,16 +85,25 @@ impl Display for AvailableProcessors {
             Self::SelectAndCast => write!(f, "SelectAndCast"),
             Self::Pivot => write!(f, "Pivot"),
             Self::NormalizeTime => write!(f, "NormalizeTime"),
-            Self::Summary => write!(f, "Summary"),
-            Self::AttachmentAggregator => write!(f, "AttachmentAggregator"),
-            Self::CandleChat => write!(f, "CandleChat"),
-            Self::MessageAggregator => write!(f, "MessageAggregator"),
-            Self::MessageParser => write!(f, "MessageParser"),
-            Self::CandleEmbed => write!(f, "CandleEmbed"),
+            Self::ProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
+            Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
+            Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
+            Self::DataSummaryProcessor => write!(f, "{}", DataSummaryProcessor::get_static_name()),
+            Self::AttachmentAggregatorProcessor => {
+                write!(f, "{}", AttachmentAggregatorProcessor::get_static_name())
+            }
+            Self::CandleChatProcessor => write!(f, "{}", CandleChatProcessor::get_static_name()),
+            Self::MessageAggregatorProcessor => {
+                write!(f, "{}", MessageAggregatorProcessor::get_static_name())
+            }
+            Self::MessageParserProcessor => {
+                write!(f, "{}", MessageParserProcessor::get_static_name())
+            }
+            Self::CandleEmbedProcessor => write!(f, "{}", CandleEmbedProcessor::get_static_name()),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIChat => write!(f, "OpenAIChat"),
+            Self::OpenAIChatProcessor => write!(f, "{}", OpenAIChatProcessor::get_static_name()),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIEmbed => write!(f, "OpenAIEmbed"),
+            Self::OpenAIEmbedProcessor => write!(f, "{}", OpenAIEmbedProcessor::get_static_name()),
         }
     }
 }
@@ -107,9 +113,9 @@ impl DataConfigTrait for AvailableProcessors {
         where
             Self: Serialize {        
         match self {
-            Self::Mock => serde_json::to_vec(&DataConfig::default()), // Just for testing purposes...
-            Self::Echo => Ok(Vec::new()),
-            Self::Data => serde_json::to_vec(&DataConfig::default()),
+            Self::ProcessorMock => serde_json::to_vec(&DataConfig::default()), // Just for testing purposes...
+            Self::ProcessorEcho => Ok(Vec::new()),
+            Self::CandleDataProcessor => serde_json::to_vec(&DataConfig::default()),
             Self::VectorDistance => serde_json::to_vec(&DataConfig {
                 lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
@@ -218,13 +224,13 @@ impl DataConfigTrait for AvailableProcessors {
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::Summary => serde_json::to_vec(&DataSummaryConfig {
+            Self::DataSummaryProcessor => serde_json::to_vec(&DataSummaryConfig {
                 num_rows: Some(10),
                 num_batches: Some(1),
                 summary_format: DataFormat::None,
                 ..Default::default()
             }),
-            Self::AttachmentAggregator => serde_json::to_vec(&DataConfig {
+            Self::AttachmentAggregatorProcessor => serde_json::to_vec(&DataConfig {
                 lhs_values: Some(vec!["timestamp".to_string()]),
                 asc: Some(true),
                 cpu: false,
@@ -232,7 +238,7 @@ impl DataConfigTrait for AvailableProcessors {
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::CandleChat => serde_json::to_vec(&CandleChatConfig {
+            Self::CandleChatProcessor => serde_json::to_vec(&CandleChatConfig {
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -257,7 +263,7 @@ impl DataConfigTrait for AvailableProcessors {
                 candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
                 ..Default::default()
             }),
-            Self::MessageAggregator => serde_json::to_vec(&DataConfig {
+            Self::MessageAggregatorProcessor => serde_json::to_vec(&DataConfig {
                 lhs_values: Some(vec!["timestamp".to_string()]),
                 asc: Some(true),
                 cpu: false,
@@ -265,7 +271,7 @@ impl DataConfigTrait for AvailableProcessors {
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::MessageParser => serde_json::to_vec(&CandleChatConfig {
+            Self::MessageParserProcessor => serde_json::to_vec(&CandleChatConfig {
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -290,7 +296,7 @@ impl DataConfigTrait for AvailableProcessors {
                 candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
                 ..Default::default()
             }),
-            Self::CandleEmbed => serde_json::to_vec(&CandleEmbedConfig {
+            Self::CandleEmbedProcessor => serde_json::to_vec(&CandleEmbedConfig {
                 weights_config_file: Some(format!(
                     "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
@@ -311,7 +317,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIChat => serde_json::to_vec(&CandleChatConfig {
+            Self::OpenAIChatProcessor => serde_json::to_vec(&CandleChatConfig {
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -327,7 +333,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIEmbed => serde_json::to_vec(&CandleEmbedConfig {
+            Self::OpenAIEmbedProcessor => serde_json::to_vec(&CandleEmbedConfig {
                 openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
                 api_url: Some("http://0.0.0.0:8001/v1".to_string()),
                 input_type: "query".to_string(),
@@ -358,9 +364,9 @@ impl AvailableProcessors {
     /// Get all available processor plans
     pub fn get_all_processor_names() -> Vec<String> {
         let processor_names = [
-            AvailableProcessors::Mock.to_string(),
-            AvailableProcessors::Echo.to_string(),
-            AvailableProcessors::Data.to_string(),
+            AvailableProcessors::ProcessorMock.to_string(),
+            AvailableProcessors::ProcessorEcho.to_string(),
+            AvailableProcessors::CandleDataProcessor.to_string(),
             AvailableProcessors::VectorDistance.to_string(),
             AvailableProcessors::SortColumnAndIndices.to_string(),
             AvailableProcessors::HumanInTheLoop.to_string(),
@@ -373,16 +379,16 @@ impl AvailableProcessors {
             AvailableProcessors::SelectAndCast.to_string(),
             AvailableProcessors::Pivot.to_string(),
             AvailableProcessors::NormalizeTime.to_string(),
-            AvailableProcessors::Summary.to_string(),
-            AvailableProcessors::AttachmentAggregator.to_string(),
-            AvailableProcessors::CandleChat.to_string(),
-            AvailableProcessors::MessageAggregator.to_string(),
-            AvailableProcessors::MessageParser.to_string(),
-            AvailableProcessors::CandleEmbed.to_string(),
+            AvailableProcessors::DataSummaryProcessor.to_string(),
+            AvailableProcessors::AttachmentAggregatorProcessor.to_string(),
+            AvailableProcessors::CandleChatProcessor.to_string(),
+            AvailableProcessors::MessageAggregatorProcessor.to_string(),
+            AvailableProcessors::MessageParserProcessor.to_string(),
+            AvailableProcessors::CandleEmbedProcessor.to_string(),
             #[cfg(feature = "openai_api")]
-            AvailableProcessors::OpenAIChat.to_string(),
+            AvailableProcessors::OpenAIChatProcessor.to_string(),
             #[cfg(feature = "openai_api")]
-            AvailableProcessors::OpenAIEmbed.to_string(),
+            AvailableProcessors::OpenAIEmbedProcessor.to_string(),
         ];
         processor_names
             .iter()
@@ -391,12 +397,12 @@ impl AvailableProcessors {
     }
 
     pub fn from_str_fuzzy(line: &str) -> Result<Self> {
-        if line.contains(&AvailableProcessors::Mock.to_string()) {
-            Ok(AvailableProcessors::Mock)
-        } else if line.contains(&AvailableProcessors::Echo.to_string()) {
-            Ok(AvailableProcessors::Echo)
-        } else if line.contains(&AvailableProcessors::Data.to_string()) {
-            Ok(AvailableProcessors::Data)
+        if line.contains(&AvailableProcessors::ProcessorMock.to_string()) {
+            Ok(AvailableProcessors::ProcessorMock)
+        } else if line.contains(&AvailableProcessors::ProcessorEcho.to_string()) {
+            Ok(AvailableProcessors::ProcessorEcho)
+        } else if line.contains(&AvailableProcessors::CandleDataProcessor.to_string()) {
+            Ok(AvailableProcessors::CandleDataProcessor)
         } else if line.contains(&AvailableProcessors::VectorDistance.to_string()) {
             Ok(AvailableProcessors::VectorDistance)
         } else if line.contains(&AvailableProcessors::SortColumnAndIndices.to_string()) {
@@ -419,26 +425,26 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::SelectAndCast)
         } else if line.contains(&AvailableProcessors::NormalizeTime.to_string()) {
             Ok(AvailableProcessors::NormalizeTime)
-        } else if line.contains(&AvailableProcessors::Data.to_string()) {
-            Ok(AvailableProcessors::Data)
-        } else if line.contains(&AvailableProcessors::Summary.to_string()) {
-            Ok(AvailableProcessors::Summary)
-        } else if line.contains(&AvailableProcessors::AttachmentAggregator.to_string()) {
-            Ok(AvailableProcessors::AttachmentAggregator)
-        } else if line.contains(&AvailableProcessors::CandleChat.to_string()) {
-            Ok(AvailableProcessors::CandleChat)
-        } else if line.contains(&AvailableProcessors::MessageAggregator.to_string()) {
-            Ok(AvailableProcessors::MessageAggregator)
-        } else if line.contains(&AvailableProcessors::MessageParser.to_string()) {
-            Ok(AvailableProcessors::MessageParser)
-        } else if line.contains(&AvailableProcessors::CandleEmbed.to_string()) {
-            Ok(AvailableProcessors::CandleEmbed)
+        } else if line.contains(&AvailableProcessors::CandleDataProcessor.to_string()) {
+            Ok(AvailableProcessors::CandleDataProcessor)
+        } else if line.contains(&AvailableProcessors::DataSummaryProcessor.to_string()) {
+            Ok(AvailableProcessors::DataSummaryProcessor)
+        } else if line.contains(&AvailableProcessors::AttachmentAggregatorProcessor.to_string()) {
+            Ok(AvailableProcessors::AttachmentAggregatorProcessor)
+        } else if line.contains(&AvailableProcessors::CandleChatProcessor.to_string()) {
+            Ok(AvailableProcessors::CandleChatProcessor)
+        } else if line.contains(&AvailableProcessors::MessageAggregatorProcessor.to_string()) {
+            Ok(AvailableProcessors::MessageAggregatorProcessor)
+        } else if line.contains(&AvailableProcessors::MessageParserProcessor.to_string()) {
+            Ok(AvailableProcessors::MessageParserProcessor)
+        } else if line.contains(&AvailableProcessors::CandleEmbedProcessor.to_string()) {
+            Ok(AvailableProcessors::CandleEmbedProcessor)
         } else {
             #[cfg(feature = "openai_api")]
-            if line.contains(&AvailableProcessors::OpenAIChat.to_string()) {
-                Ok(AvailableProcessors::OpenAIChat)
-            } else if line.contains(&AvailableProcessors::OpenAIEmbed) {
-                Ok(AvailableProcessors::OpenAIEmbed)
+            if line.contains(&AvailableProcessors::OpenAIChatProcessor.to_string()) {
+                Ok(AvailableProcessors::OpenAIChatProcessor)
+            } else if line.contains(&AvailableProcessors::OpenAIEmbedProcessor) {
+                Ok(AvailableProcessors::OpenAIEmbedProcessor)
             } else {
                 Err(anyhow!(
                     "Processor not found in {line}. Available processors are {:?}.", AvailableProcessors::get_all_processor_names()
@@ -459,13 +465,13 @@ impl AvailableProcessors {
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         match self {
-            Self::Mock => {
+            Self::ProcessorMock => {
                 ProcessorMock::new_arc_with_pub_sub(name, publications, subscriptions, subscribe_policy)
             }
-            Self::Echo => {
+            Self::ProcessorEcho => {
                 ProcessorEcho::new_arc_with_pub_sub(name, publications, subscriptions, subscribe_policy)
             }
-            Self::Data 
+            Self::CandleDataProcessor 
             | Self::ChunkDocuments
             | Self::ExtractPDFText
             | Self::ExtractTabularData
@@ -483,13 +489,13 @@ impl AvailableProcessors {
                 subscriptions,
                 subscribe_policy,
             ),
-            Self::Summary => DataSummaryProcessor::new_arc_with_pub_sub(
+            Self::DataSummaryProcessor => DataSummaryProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
                 subscribe_policy,
             ),
-            Self::AttachmentAggregator => {
+            Self::AttachmentAggregatorProcessor => {
                 AttachmentAggregatorProcessor::new_arc_with_pub_sub(
                     name,
                     publications,
@@ -497,39 +503,39 @@ impl AvailableProcessors {
                     subscribe_policy,
                 )
             }
-            Self::CandleChat => CandleChatProcessor::new_arc_with_pub_sub(
+            Self::CandleChatProcessor => CandleChatProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
                 subscribe_policy,
             ),
-            Self::MessageAggregator => MessageAggregatorProcessor::new_arc_with_pub_sub(
+            Self::MessageAggregatorProcessor => MessageAggregatorProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
                 subscribe_policy,
             ),
-            Self::MessageParser => MessageParserProcessor::new_arc_with_pub_sub(
+            Self::MessageParserProcessor => MessageParserProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
                 subscribe_policy,
             ),
-            Self::CandleEmbed => CandleEmbedProcessor::new_arc_with_pub_sub(
-                name,
-                publications,
-                subscriptions,
-                subscribe_policy,
-            ),
-            #[cfg(feature = "openai_api")]
-            Self::OpenAIChat => OpenAIChatProcessor::new_arc_with_pub_sub(
+            Self::CandleEmbedProcessor => CandleEmbedProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,
                 subscribe_policy,
             ),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIEmbed => OpenAIEmbedProcessor::new_arc_with_pub_sub(
+            Self::OpenAIChatProcessor => OpenAIChatProcessorProcessor::new_arc_with_pub_sub(
+                name,
+                publications,
+                subscriptions,
+                subscribe_policy,
+            ),
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIEmbedProcessor => OpenAIEmbedProcessorProcessor::new_arc_with_pub_sub(
                 name,
                 publications,
                 subscriptions,

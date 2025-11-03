@@ -728,21 +728,21 @@ pub mod test_session_context_builder_agents {
             make_test_table("state_1", 4, 8, 3)?,
             Table::get_builder()
                 .with_name("processor_1")
-                .with_json(&AvailableProcessors::Data.to_example_json()?, 1)
+                .with_json(&AvailableProcessors::CandleDataProcessor.to_example_json()?, 1)
                 .unwrap()
                 .build()
                 .unwrap(),
             make_test_table("state_2", 4, 8, 3)?,
             Table::get_builder()
                 .with_name("processor_2")
-                .with_json(&AvailableProcessors::Data.to_example_json()?, 1)
+                .with_json(&AvailableProcessors::CandleDataProcessor.to_example_json()?, 1)
                 .unwrap()
                 .build()
                 .unwrap(),
             make_test_table("state_3", 4, 8, 3)?,
             Table::get_builder()
                 .with_name("processor_3")
-                .with_json(&AvailableProcessors::Data.to_example_json()?, 1)
+                .with_json(&AvailableProcessors::CandleDataProcessor.to_example_json()?, 1)
                 .unwrap()
                 .build()
                 .unwrap(),

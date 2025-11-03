@@ -27,8 +27,8 @@ impl AvailableTableSubscribePolicies {
     pub fn build(self) -> Box<dyn TableSubscribePolicyTrait> {
         match self {
             Self::AlwaysSubscribe => AlwaysSubscribe::new_box(),
-            Self::AnyTableNameSubscribe => AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
-            Self::AllTableNamesSubscribe => AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            Self::AnyTableNameSubscribe => AnyTableNameSubscribe::new_box(),
+            Self::AllTableNamesSubscribe => AllTableNamesSubscribe::new_box(),
             Self::AnyTableSchemaSubscribe => AnyTableSchemaSubscribe::new_box(),
             Self::AllTableSchemasSubscribe => AllTableSchemasSubscribe::new_box(),
             Self::ChatContentSubscribe => ChatContentSubscribe::new_box(),
