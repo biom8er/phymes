@@ -330,7 +330,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     if processor.config_type() == "DataConfig" {
                         if config.operator.to_string().as_str() != r#type && r#type != AvailableProcessors::ProcessorMock.to_string().as_str()
                         && r#type != AvailableProcessors::AttachmentAggregatorProcessor.to_string().as_str()
-                        && r#type != AvailableProcessors::MessageAggregatorProcessor.to_string().as_str() {
+                        && r#type != AvailableProcessors::MessageAggregatorProcessor.to_string().as_str()
+                        && r#type != AvailableProcessors::CandleDataProcessor.to_string().as_str() {
                             return Err(anyhow!("Operator {} for `DataConfig` from subject `{}` does not match the expected for processor type `{}`.", 
                                 config.operator.to_string(), table.get_name(), r#type));
                         } else if config.operator.to_string().as_str() != AvailableProcessors::SortColumnAndIndices.to_string().as_str() &&

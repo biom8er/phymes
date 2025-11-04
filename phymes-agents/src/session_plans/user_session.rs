@@ -173,7 +173,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ExtractTabularData.build_arc(
                 self.filter_and_join_session_contexts_by_email_inbox_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::UserInbox.to_string(),
@@ -190,7 +190,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::JoinInner.build_arc(
                 self.filter_session_contexts_by_email_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
@@ -210,7 +210,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::JoinInner.build_arc(
                 self.join_session_contexts_with_mermaid_diagrams_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
@@ -230,7 +230,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::JoinInner.build_arc(
                 self.filter_user_info_by_email_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.filter_user_info_by_email_table_name.to_string(),

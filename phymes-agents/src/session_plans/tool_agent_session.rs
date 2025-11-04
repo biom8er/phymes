@@ -267,7 +267,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::SelectAndCast.build_arc(
                 self.tool_vis_renamecols_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::MermaidXYChart.to_string(),
@@ -282,7 +282,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ApplyTemplate.build_arc(
                 self.tool_vis_xychart_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
@@ -360,7 +360,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ExtractTabularData.build_arc(
                 self.extract_tabular_data_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),

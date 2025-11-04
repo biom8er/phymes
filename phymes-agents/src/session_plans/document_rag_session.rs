@@ -247,7 +247,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::SelectAndCast.build_arc(
                 self.message_to_query_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
@@ -298,7 +298,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ExtractPDFText.build_arc(
                 self.extract_pdf_processor_name,
                 &[TablePublication::Extend {
                     table_name: self.document_chunk_task_name.to_string(),
@@ -313,7 +313,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ChunkDocuments.build_arc(
                 self.document_chunk_processor_name,
                 &[TablePublication::Extend {
                     table_name: self.state_documents_table_name.to_string(),
@@ -392,7 +392,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::VectorDistance.build_arc(
                 self.relative_similarity_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
@@ -410,7 +410,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::SortColumnAndIndices.build_arc(
                 self.sort_scores_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
@@ -425,7 +425,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::JoinInner.build_arc(
                 self.join_chunks_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_chunks_join_table_name.to_string(),

@@ -7,7 +7,7 @@ use phymes_core::{
     DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, TablePublication, TableSubscribePolicyTrait, TableSubscription, test_processor::ProcessorMock
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, ToolTrait
+    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, ToolTrait
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
@@ -26,6 +26,8 @@ pub enum AvailableProcessors {
     ProcessorEcho,
     #[value(name = "CandleDataProcessor")]
     CandleDataProcessor,
+    #[value(name = "ApplyTemplate")]
+    ApplyTemplate,
     #[value(name = "VectorDistance")]
     VectorDistance,
     #[value(name = "SortColumnAndIndices")]
@@ -73,6 +75,7 @@ pub enum AvailableProcessors {
 impl Display for AvailableProcessors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::ApplyTemplate => write!(f, "{}", AvailableCandleOperators::ApplyTemplate),
             Self::VectorDistance => write!(f, "{}", AvailableCandleOperators::VectorDistance),
             Self::SortColumnAndIndices => write!(f, "{}", AvailableCandleOperators::SortColumnAndIndices),
             Self::HumanInTheLoop => write!(f, "{}", AvailableCandleOperators::HumanInTheLoop),
@@ -116,6 +119,18 @@ impl DataConfigTrait for AvailableProcessors {
             Self::ProcessorMock => serde_json::to_vec(&DataConfig::default()), // Just for testing purposes...
             Self::ProcessorEcho => Ok(Vec::new()),
             Self::CandleDataProcessor => serde_json::to_vec(&DataConfig::default()),
+            Self::ApplyTemplate => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
+                doc_template: Some(AvailableJinja2Templates::default()),
+                doc_name: Some("doc_name".to_string()),
+                table_expression: Some("table_expression".to_string()),
+                doc_input: Some("{}".to_string()),
+                format: Some(DataFormat::Html),
+                cpu: false,
+                operator: AvailableCandleOperators::ApplyTemplate,
+                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                ..Default::default()
+            }),
             Self::VectorDistance => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_pk: Some("lhs_pk".to_string()),
@@ -382,6 +397,7 @@ impl AvailableProcessors {
             AvailableProcessors::ProcessorEcho.to_string(),
             AvailableProcessors::CandleDataProcessor.to_string(),
             AvailableProcessors::VectorDistance.to_string(),
+            AvailableProcessors::ApplyTemplate.to_string(),
             AvailableProcessors::SortColumnAndIndices.to_string(),
             AvailableProcessors::HumanInTheLoop.to_string(),
             AvailableProcessors::ChunkDocuments.to_string(),
@@ -418,6 +434,8 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::ProcessorEcho)
         } else if line.contains(&AvailableProcessors::CandleDataProcessor.to_string()) {
             Ok(AvailableProcessors::CandleDataProcessor)
+        } else if line.contains(&AvailableProcessors::ApplyTemplate.to_string()) {
+            Ok(AvailableProcessors::ApplyTemplate)
         } else if line.contains(&AvailableProcessors::VectorDistance.to_string()) {
             Ok(AvailableProcessors::VectorDistance)
         } else if line.contains(&AvailableProcessors::SortColumnAndIndices.to_string()) {
@@ -495,7 +513,8 @@ impl AvailableProcessors {
             | Self::Pivot
             | Self::SelectAndCast
             | Self::SortColumnAndIndices
-            | Self::VectorDistance => Arc::new(CandleDataProcessor::new(
+            | Self::VectorDistance
+            | Self::ApplyTemplate => Arc::new(CandleDataProcessor::new(
                 name,
                 self.to_string().as_str(), 
                 publications,
@@ -580,7 +599,8 @@ impl AvailableProcessors {
             | Self::Pivot
             | Self::SelectAndCast
             | Self::SortColumnAndIndices
-            | Self::VectorDistance => builder.build_arc::<CandleDataProcessor>(),
+            | Self::VectorDistance 
+            | Self::ApplyTemplate => builder.build_arc::<CandleDataProcessor>(),
             Self::DataSummaryProcessor => builder.build_arc::<DataSummaryProcessor>(),
             Self::AttachmentAggregatorProcessor => builder.build_arc::<AttachmentAggregatorProcessor>(),
             Self::CandleChatProcessor => builder.build_arc::<CandleChatProcessor>(),
@@ -612,6 +632,7 @@ impl AvailableProcessors {
             | Self::SelectAndCast
             | Self::SortColumnAndIndices
             | Self::VectorDistance 
+            | Self::ApplyTemplate 
             | Self::AttachmentAggregatorProcessor 
             | Self::MessageAggregatorProcessor => "DataConfig",
             Self::DataSummaryProcessor => "DataSummaryConfig",

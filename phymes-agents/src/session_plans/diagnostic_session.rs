@@ -302,7 +302,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::Pivot.build_arc(
                 self.metrics_pivot_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::MetricPivot.to_string(),
@@ -317,7 +317,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::NormalizeTime.build_arc(
                 self.metrics_normalize_time_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
@@ -332,7 +332,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::SelectAndCast.build_arc(
                 self.metrics_processors_traces_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -351,7 +351,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::SelectAndCast.build_arc(
                 self.metrics_elapsed_compute_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -370,7 +370,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::SelectAndCast.build_arc(
                 self.metrics_output_rows_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -389,7 +389,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ApplyTemplate.build_arc(
                 self.metrics_processors_traces_apply_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
@@ -408,7 +408,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ApplyTemplate.build_arc(
                 self.metrics_elapsed_compute_apply_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
@@ -427,7 +427,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ApplyTemplate.build_arc(
                 self.metrics_output_rows_apply_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
@@ -468,7 +468,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ApplyTemplate.build_arc(
                 self.apply_sequence_diagram_messages_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
@@ -511,7 +511,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ApplyTemplate.build_arc(
                 self.apply_sequence_diagram_participants_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -556,7 +556,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ApplyTemplate.build_arc(
                 self.apply_sequence_diagram_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
@@ -573,7 +573,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::SelectAndCast.build_arc(
                 self.events_select_and_cast_to_kanban_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
@@ -590,7 +590,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
+            AvailableProcessors::ApplyTemplate.build_arc(
                 self.apply_kanban_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::EventKanban.to_string(),
