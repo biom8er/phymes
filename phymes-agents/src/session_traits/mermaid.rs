@@ -8,11 +8,12 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, Table, TableBuilderTrait, TablePublication, TableScript, TableSubscription, TableTrait, TaskPlanBuilder, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type,
+    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder,
+    RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait,
+    Table, TableBuilderTrait, TablePublication, TableScript, TableSubscription, TableTrait,
+    TaskPlanBuilder, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type,
 };
-use phymes_data::{
-    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE,
-};
+use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::extract_tool_calls_str;
 #[cfg(feature = "openai_api")]
@@ -349,7 +350,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut task_names_vec = Vec::new();
 
         let is_first_line = |line: &str| -> bool {
-            match line.trim().split_whitespace().next() {
+            match line.split_whitespace().next() {
                 Some(line) => line == "flowchart",
                 None => false,
             }
@@ -367,10 +368,11 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         while iter < flowchart_lines.len() {
             // Check the chart type
             if is_first_line(flowchart_lines.get(iter).unwrap()) {
-                
-            // Ignore blank lines and comments
-            } else if flowchart_lines.get(iter).unwrap().trim().is_empty() 
-            || flowchart_lines.get(iter).unwrap().trim().starts_with("%%") {
+
+                // Ignore blank lines and comments
+            } else if flowchart_lines.get(iter).unwrap().trim().is_empty()
+                || flowchart_lines.get(iter).unwrap().trim().starts_with("%%")
+            {
 
                 // Task section
             } else if flowchart_lines.get(iter).unwrap().contains("subgraph") {
@@ -415,12 +417,17 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             ));
                         }
                         let subject = split_line.first().unwrap().trim().to_string();
-                        let subscription = match TableSubscription::from_str_mermaid(split_line.last().unwrap(), &subject) {
+                        let subscription = match TableSubscription::from_str_mermaid(
+                            split_line.last().unwrap(),
+                            &subject,
+                        ) {
                             Ok(subscription) => subscription,
-                            Err(err) => return Err(anyhow!(
-                                "Parsing Error on line {iter}: {} for task {task_name}. {err}",
-                                flowchart_lines.get(iter).unwrap()
-                            )),
+                            Err(err) => {
+                                return Err(anyhow!(
+                                    "Parsing Error on line {iter}: {} for task {task_name}. {err}",
+                                    flowchart_lines.get(iter).unwrap()
+                                ));
+                            }
                         };
 
                         // Check the processor name
@@ -507,8 +514,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         }
                         let processor_1 = split_line.first().unwrap().trim().to_string();
                         if !processor_builders.contains_key(&processor_1) {
-                            let builder = ProcessorBuilder::default()
-                                .with_name(&processor_1);
+                            let builder = ProcessorBuilder::default().with_name(&processor_1);
                             processor_builders.insert(processor_1.to_owned(), builder);
                         }
 
@@ -560,8 +566,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         }
                         let processor_1 = split_line.first().unwrap().trim().to_string();
                         if !processor_builders.contains_key(&processor_1) {
-                            let builder = ProcessorBuilder::default()
-                                .with_name(&processor_1);
+                            let builder = ProcessorBuilder::default().with_name(&processor_1);
                             processor_builders.insert(processor_1.to_owned(), builder);
                         }
 
@@ -628,10 +633,17 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             .unwrap()
                             .trim()
                             .to_string();
-                        let publication = match TablePublication::from_str_mermaid(split_line.last().unwrap(), &subject) {
+                        let publication = match TablePublication::from_str_mermaid(
+                            split_line.last().unwrap(),
+                            &subject,
+                        ) {
                             Ok(publication) => publication,
-                            Err(err) => return Err(anyhow!("Parsing Error on line {iter}: {} for task {task_name}. {err}",
-                                flowchart_lines.get(iter).unwrap())),
+                            Err(err) => {
+                                return Err(anyhow!(
+                                    "Parsing Error on line {iter}: {} for task {task_name}. {err}",
+                                    flowchart_lines.get(iter).unwrap()
+                                ));
+                            }
                         };
                         if !processor_builders.contains_key(&processor) {
                             let builder = ProcessorBuilder::default()
@@ -802,12 +814,16 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     .split("-processor@{shape: rect,")
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
-                let processor_type = match AvailableProcessors::from_str_fuzzy(split_line.last().unwrap()) {
+                let processor_type = match AvailableProcessors::from_str_fuzzy(
+                    split_line.last().unwrap(),
+                ) {
                     Ok(p) => p.to_string(),
-                    Err(err) => return Err(anyhow!(
-                        "Parsing Error on line {iter}: {}. Processor type for processor {processor_name} was not recognized. {err}",
-                        flowchart_lines.get(iter).unwrap()
-                    ))
+                    Err(err) => {
+                        return Err(anyhow!(
+                            "Parsing Error on line {iter}: {}. Processor type for processor {processor_name} was not recognized. {err}",
+                            flowchart_lines.get(iter).unwrap()
+                        ));
+                    }
                 };
 
                 // Update
@@ -860,7 +876,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     .split("-subscribe@{shape: diamond, label:")
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
-                let subscribe = match AvailableTableSubscribePolicies::from_str_fuzzy(split_line.last().unwrap()) {
+                let subscribe = match AvailableTableSubscribePolicies::from_str_fuzzy(
+                    split_line.last().unwrap(),
+                ) {
                     Ok(subscribe) => subscribe.build(),
                     Err(_e) => {
                         return Err(anyhow!(
@@ -870,8 +888,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     }
                 };
                 if !processor_builders.contains_key(&processor_name) {
-                    let builder = ProcessorBuilder::default()
-                        .with_name(&processor_name);
+                    let builder = ProcessorBuilder::default().with_name(&processor_name);
                     processor_builders.insert(processor_name.to_owned(), builder);
                 }
 
@@ -933,8 +950,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
                 if !processor_builders.contains_key(&processor_name) {
-                    let builder = ProcessorBuilder::default()
-                        .with_name(&processor_name);
+                    let builder = ProcessorBuilder::default().with_name(&processor_name);
                     processor_builders.insert(processor_name.to_owned(), builder);
                 }
 
@@ -952,13 +968,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         // Build the task plans in order
         let mut task_plans = Vec::new();
         let tasks_names_set = task_names_vec.clone().into_iter().collect::<HashSet<_>>();
-        if task_names_vec.len() != task_names.len()
-            || tasks_names_set != task_names
-        {
+        if task_names_vec.len() != task_names.len() || tasks_names_set != task_names {
             task_names_vec.sort();
-            let mut task_names_sorted = task_names
-                .into_iter()
-                .collect::<Vec<_>>();
+            let mut task_names_sorted = task_names.into_iter().collect::<Vec<_>>();
             task_names_sorted.sort();
             return Err(anyhow!(
                 "There is an inconsistency in the task labels {task_names_vec:?} and task mentions {task_names_sorted:?}"
@@ -971,13 +983,14 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
         // Build the runtime environments in order
         let mut runtime_envs = Vec::new();
-        let runtime_env_names_set = runtime_env_names_vec.clone().into_iter().collect::<HashSet<_>>();
+        let runtime_env_names_set = runtime_env_names_vec
+            .clone()
+            .into_iter()
+            .collect::<HashSet<_>>();
         if runtime_env_names_vec.len() != runtime_envs_names.len()
             || runtime_env_names_set != runtime_envs_names
         {
-            let mut runtime_envs_names_sorted = runtime_envs_names
-                .into_iter()
-                .collect::<Vec<_>>();
+            let mut runtime_envs_names_sorted = runtime_envs_names.into_iter().collect::<Vec<_>>();
             runtime_envs_names_sorted.sort();
             return Err(anyhow!(
                 "There is an inconsistency in the runtime environment labels {runtime_env_names_vec:?} and runtime environment mentions {runtime_envs_names_sorted:?}"
@@ -990,14 +1003,15 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
         // Build the processors in order
         let mut processors = Vec::new();
-        let processor_names_set = processor_names_vec.clone().into_iter().collect::<HashSet<_>>();
+        let processor_names_set = processor_names_vec
+            .clone()
+            .into_iter()
+            .collect::<HashSet<_>>();
         if processor_names_vec.len() != processor_names.len()
             || processor_names_set != processor_names
         {
             processor_names_vec.sort();
-            let mut processor_names_sorted = processor_names
-                .into_iter()
-                .collect::<Vec<_>>();
+            let mut processor_names_sorted = processor_names.into_iter().collect::<Vec<_>>();
             processor_names_sorted.sort();
             return Err(anyhow!(
                 "There is an inconsistency in the processor labels {processor_names_vec:?} and processor mentions {processor_names_sorted:?}"
@@ -1005,24 +1019,21 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
         for name in processor_names_vec {
             let builder = processor_builders.remove(&name).unwrap();
-            let available_processor = AvailableProcessors::from_str(
-                builder.r#type.as_ref().unwrap().as_str(),
-                false,
-            )
-            .unwrap();
+            let available_processor =
+                AvailableProcessors::from_str(builder.r#type.as_ref().unwrap().as_str(), false)
+                    .unwrap();
             let processor = available_processor.build_with_builder(builder)?;
             processors.push(processor);
         }
 
         // Check the subjects
-        let subject_names_set = subject_names_vec.clone().into_iter().collect::<HashSet<_>>();
-        if subject_names_vec.len() != subject_names.len()
-            || subject_names_set != subject_names
-        {
+        let subject_names_set = subject_names_vec
+            .clone()
+            .into_iter()
+            .collect::<HashSet<_>>();
+        if subject_names_vec.len() != subject_names.len() || subject_names_set != subject_names {
             subject_names_vec.sort();
-            let mut subject_names_sorted = subject_names
-                .into_iter()
-                .collect::<Vec<_>>();
+            let mut subject_names_sorted = subject_names.into_iter().collect::<Vec<_>>();
             subject_names_sorted.sort();
             return Err(anyhow!(
                 "There is an inconsistency in the subject labels {subject_names_vec:?} and subject mentions {subject_names_sorted:?}"
@@ -1083,8 +1094,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
                 // Subject section
             } else if erdiagram_lines.get(iter).unwrap().contains("{")
-            && erdiagram_lines.get(iter).unwrap().contains("[\"")
-            && erdiagram_lines.get(iter).unwrap().contains("\"]") {
+                && erdiagram_lines.get(iter).unwrap().contains("[\"")
+                && erdiagram_lines.get(iter).unwrap().contains("\"]")
+            {
                 // Extract the subject name
                 let subject_name = extract_tool_calls_str(
                     erdiagram_lines.get(iter).unwrap(),
@@ -1206,13 +1218,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             .map(|t| t.get_name().to_string())
             .collect::<Vec<_>>();
         let subjects_set = subjects_vec.clone().into_iter().collect::<HashSet<_>>();
-        if subjects_vec.len() != subject_names.len()
-            || subjects_set != subject_names
-        {
+        if subjects_vec.len() != subject_names.len() || subjects_set != subject_names {
             subjects_vec.sort();
-            let mut subject_names_sorted = subject_names
-                .into_iter()
-                .collect::<Vec<_>>();
+            let mut subject_names_sorted = subject_names.into_iter().collect::<Vec<_>>();
             subject_names_sorted.sort();
             return Err(anyhow!(
                 "There is an inconsistency in the subject tables {subjects_vec:?} and subject mentions {subject_names_sorted:?}"

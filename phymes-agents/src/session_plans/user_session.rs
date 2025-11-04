@@ -2,15 +2,20 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
+    DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch,
+    create_user_session_contexts_batch,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataSummaryConfig};
 use phymes_diagnostics::create_timestamp_micros;
 
 use crate::{
-    AvailableProcessors, session_plans::{
+    AvailableProcessors,
+    session_plans::{
         AvailableInterfaceSubjects, AvailableSessionPlans, make_example_mermaid_table,
-    }, session_traits::CustomAgentsBuilderTrait
+    },
+    session_traits::CustomAgentsBuilderTrait,
 };
 
 /// A session for all user management tasks

@@ -2,18 +2,22 @@ use anyhow::{Error, Result};
 use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
 use crate::{
-    create_chat_record_batch, schemas::available_subjects::AvailableSubjects, session::{BuilderTrait, MappableTrait}, table::{Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait}, task::{
+    create_chat_record_batch,
+    schemas::available_subjects::AvailableSubjects,
+    session::{BuilderTrait, MappableTrait},
+    table::{Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait},
+    task::{
         IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage,
         SendableRecordBatchStreamMessageBuilder,
-    }
+    },
 };
 
 /// Create the error table
-/// 
+///
 /// # Arguments
 /// `err` - [anyhow::Error]
 /// `with_display` - whether to show the full backtrace or not
-/// 
+///
 /// # Notes
 /// - use :? and not .to_string() with Anyhow::Error to see full backtrace if available
 pub fn create_error_table(err: &Error, with_display: bool) -> Result<Table> {
@@ -36,7 +40,7 @@ pub fn create_error_table(err: &Error, with_display: bool) -> Result<Table> {
 pub fn create_error_message_map_stream(
     err: &Error,
     publisher: &str,
-    with_display: bool
+    with_display: bool,
 ) -> Result<HashMap<String, SendableRecordBatchStreamMessage>> {
     let table = create_error_table(err, with_display)?;
     let message = SendableRecordBatchStreamMessageBuilder::new()
@@ -56,7 +60,7 @@ pub fn create_error_message_map_stream(
 pub fn create_error_message_map(
     err: &Error,
     publisher: &str,
-    with_display: bool
+    with_display: bool,
 ) -> Result<HashMap<String, IPCMessage>> {
     let table = create_error_table(err, with_display)?;
     let message = IPCMessageBuilder::new()

@@ -3,7 +3,12 @@ use phymes_data::DataConfigTrait;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, TokenWrapper, device, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, TokenWrapper,
+    device, remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -102,7 +107,10 @@ impl ProcessorTrait for CandleEmbedProcessor {
         };
 
         // Extract out the documents and config
-        let documents = match remove_message_by_subject(self.subscriptions.first().unwrap().get_table_name(), &mut message) {
+        let documents = match remove_message_by_subject(
+            self.subscriptions.first().unwrap().get_table_name(),
+            &mut message,
+        ) {
             Some(i) => i.get_message_own(),
             None => return Err(anyhow!("Documents not provided for {}.", self.get_name())),
         };

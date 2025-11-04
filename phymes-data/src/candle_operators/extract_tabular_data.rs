@@ -88,11 +88,20 @@ impl DataOperatorTrait for ExtractTabularData {
             .lhs_values
             .as_ref()
             .cloned()
-            .ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?
+            .ok_or(anyhow!(
+                "Missing `lhs_values` for `{}`.",
+                Self::get_static_name()
+            ))?
             .first()
             .cloned()
-            .ok_or(anyhow!("`lhs_values` is empty for `{}`.", Self::get_static_name()))?;
-        let format = config.format.ok_or(anyhow!("Missing `format` for `{}`.", Self::get_static_name()))?;
+            .ok_or(anyhow!(
+                "`lhs_values` is empty for `{}`.",
+                Self::get_static_name()
+            ))?;
+        let format = config.format.ok_or(anyhow!(
+            "Missing `format` for `{}`.",
+            Self::get_static_name()
+        ))?;
         Ok(ExtractTabularData { lhs_values, format })
     }
     fn forward(

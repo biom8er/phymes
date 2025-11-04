@@ -6,12 +6,12 @@ use crate::{
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-    BuilderTrait, EmbeddingRequest, EmbeddingResponse, EncodingFormat, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, remove_message_by_subject,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, EmbeddingRequest,
+    EmbeddingResponse, EncodingFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
+    ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
+    SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe,
+    TableTrait, remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -109,7 +109,10 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
         };
 
         // Extract out the documents and config
-        let documents = match remove_message_by_subject(self.subscriptions.first().unwrap().get_table_name(), &mut message) {
+        let documents = match remove_message_by_subject(
+            self.subscriptions.first().unwrap().get_table_name(),
+            &mut message,
+        ) {
             Some(i) => i.get_message_own(),
             None => return Err(anyhow!("Documents not provided for {}.", self.get_name())),
         };

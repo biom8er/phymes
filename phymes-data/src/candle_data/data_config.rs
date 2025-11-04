@@ -221,7 +221,7 @@ impl Display for DataCastOperator {
 /// Traits for all configs
 pub trait DataConfigTrait {
     /// Create an example and serialize to JSON
-    /// 
+    ///
     /// # Notes
     /// - example implementation: serde_json::to_vec(&DataConfig)
     fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error>
@@ -461,21 +461,36 @@ impl DataConfigTrait for DataConfig {
         serde_json::to_vec(&Self::default())
     }
     fn from_table(table: &Table) -> Result<Self>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         // Check for the required fields
-        let column_names = table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+        let column_names = table
+            .get_schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect::<HashSet<_>>();
         if !(column_names.contains("operator") && column_names.contains("cpu")) {
-            return Err(anyhow!("Table {} is missing required Field for `operator` or `cpu` in DataConfig.", table.get_name()));
+            return Err(anyhow!(
+                "Table {} is missing required Field for `operator` or `cpu` in DataConfig.",
+                table.get_name()
+            ));
         }
 
         // Try to build the config
         match table.to_struct::<DataConfig>() {
             Ok(config_vec) => match config_vec.first() {
                 Some(config) => Ok(config.to_owned()),
-                None => Err(anyhow!("No config data found for DataConfig with subject {}", table.get_name())),
+                None => Err(anyhow!(
+                    "No config data found for DataConfig with subject {}",
+                    table.get_name()
+                )),
             },
-            Err(err) => Err(anyhow!("DataConfig could not be built for subject {}. {err}", table.get_name())),
+            Err(err) => Err(anyhow!(
+                "DataConfig could not be built for subject {}. {err}",
+                table.get_name()
+            )),
         }
     }
 }

@@ -873,7 +873,10 @@ impl TableBuilderTrait for TableBuilder {
             if let Some(batch) = batches.first() {
                 self.schema = Some(batch.schema());
             } else {
-                return Err(anyhow!("Missing schema and batches for table {}!", self.name.unwrap_or_default()));
+                return Err(anyhow!(
+                    "Missing schema and batches for table {}!",
+                    self.name.unwrap_or_default()
+                ));
             }
         };
 
@@ -881,7 +884,10 @@ impl TableBuilderTrait for TableBuilder {
         let schema = self.schema.clone().unwrap();
         for batch in batches.iter() {
             if !schema.eq(&batch.schema()) {
-                return Err(anyhow!("Mismatch between schema and batches for table {}!", self.name.unwrap_or_default()));
+                return Err(anyhow!(
+                    "Mismatch between schema and batches for table {}!",
+                    self.name.unwrap_or_default()
+                ));
             }
         }
         self.record_batches = Some(batches);
@@ -958,8 +964,8 @@ impl TableBuilderTrait for TableBuilder {
             Some(batch) => batch.schema(),
             None => {
                 dbg!(bytes);
-                return Err(anyhow!("Failed to read the IPC stream."))
-            },
+                return Err(anyhow!("Failed to read the IPC stream."));
+            }
         };
         Self::new()
             .with_schema(schema.clone())

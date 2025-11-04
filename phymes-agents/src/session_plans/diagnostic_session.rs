@@ -2,14 +2,21 @@ use std::sync::Arc;
 
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, DiagnosticsVisualizations, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
+    DataFormat, DiagnosticsVisualizations, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table,
+    TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator, DataConfig, MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_KANBAN_TABLE_EXPRESSION, MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION,
+    AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
+    DataConfig, MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_KANBAN_TABLE_EXPRESSION,
+    MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION,
 };
 use serde_json::json;
 
-use crate::{AvailableProcessors, session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
+use crate::{
+    AvailableProcessors, session_plans::AvailableInterfaceSubjects,
+    session_traits::CustomAgentsBuilderTrait,
+};
 
 /// A session for gathering analytics based on the session metrics
 ///
@@ -992,7 +999,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 self.session_tasks_to_sequence_diagram_participants_task_name
                     .to_string(),
             ),
-            doc_template: Some(AvailableJinja2Templates::MermaidSequenceDiagramParticipantsTemplate),
+            doc_template: Some(
+                AvailableJinja2Templates::MermaidSequenceDiagramParticipantsTemplate,
+            ),
             doc_name: Some(
                 self.apply_sequence_diagram_participants_task_name
                     .to_string(),

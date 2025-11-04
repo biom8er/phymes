@@ -20,9 +20,11 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait, candle_data::{DataAggregatorOperator, DataConfig}, candle_operators::{
+    ToolTrait,
+    candle_data::{DataAggregatorOperator, DataConfig},
+    candle_operators::{
         data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices,
-    }
+    },
 };
 
 /// Group the [RecordBatch] according to the `lhs_values` columns and aggregate using a specified aggregation operator over specified columns
@@ -121,9 +123,18 @@ impl DataOperatorTrait for GroupByAndAggregate {
         Ok(batches)
     }
     fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
-        let agg_columns = config.agg_columns.clone().ok_or(anyhow!("Missing `agg_columns` for `{}`.", Self::get_static_name()))?;
-        let agg_operators = config.agg_operators.clone().ok_or(anyhow!("Missing `agg_operators` for `{}`.", Self::get_static_name()))?;
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_values` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let agg_columns = config.agg_columns.clone().ok_or(anyhow!(
+            "Missing `agg_columns` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let agg_operators = config.agg_operators.clone().ok_or(anyhow!(
+            "Missing `agg_operators` for `{}`.",
+            Self::get_static_name()
+        ))?;
 
         // Ensure that the array lengths for columns and operators match
         if agg_columns.len() != agg_operators.len() {

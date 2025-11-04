@@ -10,15 +10,17 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
-use std::{collections::HashMap, sync::Arc};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait, candle_data::DataConfig, candle_operators::{
+    ToolTrait,
+    candle_data::DataConfig,
+    candle_operators::{
         data_operator::DataOperatorTrait,
         sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
-    }
+    },
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
@@ -122,10 +124,22 @@ impl ToolTrait for JoinInner {
 
 impl DataOperatorTrait for JoinInner {
     fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
-        let lhs_fk = config.lhs_fk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_fk` for `{}`.", Self::get_static_name()))?;
-        let rhs_pk = config.rhs_pk.clone().ok_or(anyhow!("Missing `rhs_pk` for `{}`.", Self::get_static_name()))?;
-        let rhs_fk = config.rhs_fk.to_owned().ok_or(anyhow!("Missing `rhs_fk` for `{}`.", Self::get_static_name()))?;
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_pk` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let lhs_fk = config.lhs_fk.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_fk` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let rhs_pk = config.rhs_pk.clone().ok_or(anyhow!(
+            "Missing `rhs_pk` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let rhs_fk = config.rhs_fk.to_owned().ok_or(anyhow!(
+            "Missing `rhs_fk` for `{}`.",
+            Self::get_static_name()
+        ))?;
         Ok(JoinInner {
             _lhs_pk: lhs_pk,
             lhs_fk,
@@ -143,7 +157,10 @@ impl DataOperatorTrait for JoinInner {
             &self.lhs_fk,
             lhs_args,
             &self.rhs_fk,
-            rhs_args.ok_or(anyhow!("Missing `rhs_args` for `{}`.", Self::get_static_name()))?,
+            rhs_args.ok_or(anyhow!(
+                "Missing `rhs_args` for `{}`.",
+                Self::get_static_name()
+            ))?,
             device,
         )
     }

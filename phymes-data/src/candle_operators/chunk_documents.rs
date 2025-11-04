@@ -88,15 +88,24 @@ impl ToolTrait for ChunkDocuments {
 
 impl DataOperatorTrait for ChunkDocuments {
     fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_pk` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let lhs_values = config
             .lhs_values
             .as_ref()
             .cloned()
-            .ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?
+            .ok_or(anyhow!(
+                "Missing `lhs_values` for `{}`.",
+                Self::get_static_name()
+            ))?
             .first()
             .cloned()
-            .ok_or(anyhow!("`lhs_values` is empty for `{}`.", Self::get_static_name()))?;
+            .ok_or(anyhow!(
+                "`lhs_values` is empty for `{}`.",
+                Self::get_static_name()
+            ))?;
         let chunk_size = config.chunk_size.unwrap_or(512);
         let chunk_overlap = config.chunk_overlap.unwrap_or(64);
 

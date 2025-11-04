@@ -1,16 +1,21 @@
 use std::{fmt::Display, sync::Arc};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, TablePublication, TableSubscribePolicyTrait, TableSubscription, test_processor::ProcessorMock
+    DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, test_processor::ProcessorMock,
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, ToolTrait
+    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
+    CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataComparatorOperator,
+    DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager,
+    DataSummaryConfig, DataSummaryProcessor, ToolTrait,
 };
 use phymes_ml::{
-    AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor
+    AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
+    CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::{OpenAIChatProcessorProcessor, OpenAIEmbedProcessorProcessor};
@@ -77,14 +82,22 @@ impl Display for AvailableProcessors {
         match self {
             Self::ApplyTemplate => write!(f, "{}", AvailableCandleOperators::ApplyTemplate),
             Self::VectorDistance => write!(f, "{}", AvailableCandleOperators::VectorDistance),
-            Self::SortColumnAndIndices => write!(f, "{}", AvailableCandleOperators::SortColumnAndIndices),
+            Self::SortColumnAndIndices => {
+                write!(f, "{}", AvailableCandleOperators::SortColumnAndIndices)
+            }
             Self::HumanInTheLoop => write!(f, "{}", AvailableCandleOperators::HumanInTheLoop),
             Self::ChunkDocuments => write!(f, "{}", AvailableCandleOperators::ChunkDocuments),
             Self::JoinInner => write!(f, "{}", AvailableCandleOperators::JoinInner),
             Self::ExtractPDFText => write!(f, "{}", AvailableCandleOperators::ExtractPDFText),
-            Self::GroupByAndAggregate => write!(f, "{}", AvailableCandleOperators::GroupByAndAggregate),
-            Self::FilterColumnsAndIndices => write!(f, "{}", AvailableCandleOperators::FilterColumnsAndIndices),
-            Self::ExtractTabularData => write!(f, "{}", AvailableCandleOperators::ExtractTabularData),
+            Self::GroupByAndAggregate => {
+                write!(f, "{}", AvailableCandleOperators::GroupByAndAggregate)
+            }
+            Self::FilterColumnsAndIndices => {
+                write!(f, "{}", AvailableCandleOperators::FilterColumnsAndIndices)
+            }
+            Self::ExtractTabularData => {
+                write!(f, "{}", AvailableCandleOperators::ExtractTabularData)
+            }
             Self::SelectAndCast => write!(f, "{}", AvailableCandleOperators::SelectAndCast),
             Self::Pivot => write!(f, "{}", AvailableCandleOperators::Pivot),
             Self::NormalizeTime => write!(f, "{}", AvailableCandleOperators::NormalizeTime),
@@ -113,8 +126,9 @@ impl Display for AvailableProcessors {
 
 impl DataConfigTrait for AvailableProcessors {
     fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error>
-        where
-            Self: Serialize {        
+    where
+        Self: Serialize,
+    {
         match self {
             Self::ProcessorMock => serde_json::to_vec(&DataConfig::default()), // Just for testing purposes...
             Self::ProcessorEcho => Ok(Vec::new()),
@@ -374,8 +388,9 @@ impl DataConfigTrait for AvailableProcessors {
         }
     }
     fn from_table(_table: &Table) -> Result<Self>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         unimplemented!()
     }
 }
@@ -480,12 +495,14 @@ impl AvailableProcessors {
                 Ok(AvailableProcessors::OpenAIEmbedProcessor)
             } else {
                 Err(anyhow!(
-                    "Processor not found in {line}. Available processors are {:?}.", AvailableProcessors::get_all_processor_names()
+                    "Processor not found in {line}. Available processors are {:?}.",
+                    AvailableProcessors::get_all_processor_names()
                 ))
             }
             #[cfg(not(feature = "openai_api"))]
             Err(anyhow!(
-                "Processor not found in {line}. Available processors are {:?}.", AvailableProcessors::all_varient_names()
+                "Processor not found in {line}. Available processors are {:?}.",
+                AvailableProcessors::all_varient_names()
             ))
         }
     }
@@ -499,9 +516,21 @@ impl AvailableProcessors {
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Arc<dyn ProcessorTrait> {
         match self {
-            Self::ProcessorMock => Arc::new(ProcessorMock::new(name, self.to_string().as_str(), publications, subscriptions, subscribe_policy)),
-            Self::ProcessorEcho => Arc::new(ProcessorEcho::new(name, self.to_string().as_str(), publications, subscriptions, subscribe_policy)),
-            Self::CandleDataProcessor 
+            Self::ProcessorMock => Arc::new(ProcessorMock::new(
+                name,
+                self.to_string().as_str(),
+                publications,
+                subscriptions,
+                subscribe_policy,
+            )),
+            Self::ProcessorEcho => Arc::new(ProcessorEcho::new(
+                name,
+                self.to_string().as_str(),
+                publications,
+                subscriptions,
+                subscribe_policy,
+            )),
+            Self::CandleDataProcessor
             | Self::ChunkDocuments
             | Self::ExtractPDFText
             | Self::ExtractTabularData
@@ -516,49 +545,49 @@ impl AvailableProcessors {
             | Self::VectorDistance
             | Self::ApplyTemplate => Arc::new(CandleDataProcessor::new(
                 name,
-                self.to_string().as_str(), 
+                self.to_string().as_str(),
                 publications,
                 subscriptions,
                 subscribe_policy,
             )),
-            Self::DataSummaryProcessor =>Arc::new(DataSummaryProcessor::new(
+            Self::DataSummaryProcessor => Arc::new(DataSummaryProcessor::new(
                 name,
-                self.to_string().as_str(), 
+                self.to_string().as_str(),
                 publications,
                 subscriptions,
                 subscribe_policy,
             )),
             Self::AttachmentAggregatorProcessor => Arc::new(AttachmentAggregatorProcessor::new(
                 name,
-                self.to_string().as_str(), 
+                self.to_string().as_str(),
                 publications,
                 subscriptions,
                 subscribe_policy,
             )),
             Self::CandleChatProcessor => Arc::new(CandleChatProcessor::new(
                 name,
-                self.to_string().as_str(), 
+                self.to_string().as_str(),
                 publications,
                 subscriptions,
                 subscribe_policy,
             )),
             Self::MessageAggregatorProcessor => Arc::new(MessageAggregatorProcessor::new(
                 name,
-                self.to_string().as_str(), 
+                self.to_string().as_str(),
                 publications,
                 subscriptions,
                 subscribe_policy,
             )),
             Self::MessageParserProcessor => Arc::new(MessageParserProcessor::new(
                 name,
-                self.to_string().as_str(), 
+                self.to_string().as_str(),
                 publications,
                 subscriptions,
                 subscribe_policy,
             )),
             Self::CandleEmbedProcessor => Arc::new(CandleEmbedProcessor::new(
                 name,
-                self.to_string().as_str(), 
+                self.to_string().as_str(),
                 publications,
                 subscriptions,
                 subscribe_policy,
@@ -566,7 +595,7 @@ impl AvailableProcessors {
             #[cfg(feature = "openai_api")]
             Self::OpenAIChatProcessor => Arc::new(OpenAIChatProcessorProcessor::new(
                 name,
-                self.to_string().as_str(), 
+                self.to_string().as_str(),
                 publications,
                 subscriptions,
                 subscribe_policy,
@@ -574,7 +603,7 @@ impl AvailableProcessors {
             #[cfg(feature = "openai_api")]
             Self::OpenAIEmbedProcessor => Arc::new(OpenAIEmbedProcessorProcessor::new(
                 name,
-                self.to_string().as_str(), 
+                self.to_string().as_str(),
                 publications,
                 subscriptions,
                 subscribe_policy,
@@ -587,7 +616,7 @@ impl AvailableProcessors {
         match self {
             Self::ProcessorMock => builder.build_arc::<ProcessorMock>(),
             Self::ProcessorEcho => builder.build_arc::<ProcessorMock>(),
-            Self::CandleDataProcessor 
+            Self::CandleDataProcessor
             | Self::ChunkDocuments
             | Self::ExtractPDFText
             | Self::ExtractTabularData
@@ -599,10 +628,12 @@ impl AvailableProcessors {
             | Self::Pivot
             | Self::SelectAndCast
             | Self::SortColumnAndIndices
-            | Self::VectorDistance 
+            | Self::VectorDistance
             | Self::ApplyTemplate => builder.build_arc::<CandleDataProcessor>(),
             Self::DataSummaryProcessor => builder.build_arc::<DataSummaryProcessor>(),
-            Self::AttachmentAggregatorProcessor => builder.build_arc::<AttachmentAggregatorProcessor>(),
+            Self::AttachmentAggregatorProcessor => {
+                builder.build_arc::<AttachmentAggregatorProcessor>()
+            }
             Self::CandleChatProcessor => builder.build_arc::<CandleChatProcessor>(),
             Self::MessageAggregatorProcessor => builder.build_arc::<MessageAggregatorProcessor>(),
             Self::MessageParserProcessor => builder.build_arc::<MessageParserProcessor>(),
@@ -619,7 +650,7 @@ impl AvailableProcessors {
         match self {
             Self::ProcessorEcho => "",
             Self::ProcessorMock
-            | Self::CandleDataProcessor 
+            | Self::CandleDataProcessor
             | Self::ChunkDocuments
             | Self::ExtractPDFText
             | Self::ExtractTabularData
@@ -631,19 +662,17 @@ impl AvailableProcessors {
             | Self::Pivot
             | Self::SelectAndCast
             | Self::SortColumnAndIndices
-            | Self::VectorDistance 
-            | Self::ApplyTemplate 
-            | Self::AttachmentAggregatorProcessor 
+            | Self::VectorDistance
+            | Self::ApplyTemplate
+            | Self::AttachmentAggregatorProcessor
             | Self::MessageAggregatorProcessor => "DataConfig",
             Self::DataSummaryProcessor => "DataSummaryConfig",
-            Self::CandleChatProcessor
-            | Self::MessageParserProcessor => "CandleChatConfig",
+            Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",
             Self::CandleEmbedProcessor => "CandleEmbedConfig",
             #[cfg(feature = "openai_api")]
             Self::OpenAIChatProcessor => "CandleChatConfig",
             #[cfg(feature = "openai_api")]
             Self::OpenAIEmbedProcessor => "CandleEmbedConfig",
         }
-
     }
 }

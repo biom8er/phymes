@@ -436,11 +436,12 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use crate::{
-        AvailableTableSubscribePolicies, task::{
+        AvailableTableSubscribePolicies,
+        task::{
             ProcessorEcho,
             test_processor::ProcessorMock,
             test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
-        }
+        },
     };
 
     use super::*;
@@ -553,7 +554,12 @@ pub mod test_session_context_builder {
         // Build the session
         SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans.into_iter().map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>).collect::<Vec<_>>())
+            .with_processors(
+                processor_plans
+                    .into_iter()
+                    .map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>)
+                    .collect::<Vec<_>>(),
+            )
     }
 
     /// Tasks subscribe and publish to state_1
@@ -623,15 +629,44 @@ pub mod test_session_context_builder {
         // Build the session
         SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans.into_iter().map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>).collect::<Vec<_>>())
+            .with_processors(
+                processor_plans
+                    .into_iter()
+                    .map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>)
+                    .collect::<Vec<_>>(),
+            )
     }
 
     pub fn make_test_processors() -> Vec<Arc<dyn ProcessorTrait>> {
         vec![
-            Arc::new(ProcessorMock::new("processor_1", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build())),
-            Arc::new(ProcessorMock::new("processor_2", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build())),
-            Arc::new(ProcessorMock::new("processor_3", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build())),
-            Arc::new(ProcessorEcho::new("session_1", ProcessorEcho::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build())),
+            Arc::new(ProcessorMock::new(
+                "processor_1",
+                ProcessorMock::get_static_name(),
+                &[],
+                &[],
+                AvailableTableSubscribePolicies::default().build(),
+            )),
+            Arc::new(ProcessorMock::new(
+                "processor_2",
+                ProcessorMock::get_static_name(),
+                &[],
+                &[],
+                AvailableTableSubscribePolicies::default().build(),
+            )),
+            Arc::new(ProcessorMock::new(
+                "processor_3",
+                ProcessorMock::get_static_name(),
+                &[],
+                &[],
+                AvailableTableSubscribePolicies::default().build(),
+            )),
+            Arc::new(ProcessorEcho::new(
+                "session_1",
+                ProcessorEcho::get_static_name(),
+                &[],
+                &[],
+                AvailableTableSubscribePolicies::default().build(),
+            )),
         ]
     }
 
@@ -701,23 +736,29 @@ pub mod test_session_context_builder {
 mod tests {
     use super::*;
     use crate::{
-        AvailableTableSubscribePolicies, table::TableSubscription, task::{
+        AvailableTableSubscribePolicies,
+        table::TableSubscription,
+        task::{
             ProcessorTrait,
             test_processor::ProcessorMock,
             test_task::{make_runtime_env, make_state_tables},
-        }
+        },
     };
 
     #[test]
     fn test_get_task_sub_pub_with_input() {
         let plan = test_session_context_builder::make_test_session_builder_parallel_task();
         let (subscriptions, publications) = plan.get_sub_pub_for_task("task_1");
-        assert!(subscriptions.contains(&&TableSubscription::AlwaysFullTable {
-            table_name: "config_1".to_string()
-        }));
-        assert!(subscriptions.contains(&&TableSubscription::OnUpdateFullTable {
-            table_name: "state_1".to_string()
-        }));
+        assert!(
+            subscriptions.contains(&&TableSubscription::AlwaysFullTable {
+                table_name: "config_1".to_string()
+            })
+        );
+        assert!(
+            subscriptions.contains(&&TableSubscription::OnUpdateFullTable {
+                table_name: "state_1".to_string()
+            })
+        );
         assert!(publications.contains(&&TablePublication::Extend {
             table_name: "state_1".to_string()
         }));
@@ -814,13 +855,30 @@ mod tests {
 
         // Missing tasks
         let processors = vec![
-            ProcessorMock::new("processor_1", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
-            ProcessorMock::new("processor_2", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
+            ProcessorMock::new(
+                "processor_1",
+                ProcessorMock::get_static_name(),
+                &[],
+                &[],
+                AvailableTableSubscribePolicies::default().build(),
+            ),
+            ProcessorMock::new(
+                "processor_2",
+                ProcessorMock::get_static_name(),
+                &[],
+                &[],
+                AvailableTableSubscribePolicies::default().build(),
+            ),
         ];
         let result = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(test_session_context_builder::make_test_session_builder_tasks())
-            .with_processors(processors.into_iter().map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>).collect::<Vec<_>>())
+            .with_processors(
+                processors
+                    .into_iter()
+                    .map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>)
+                    .collect::<Vec<_>>(),
+            )
             .build();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -832,15 +890,44 @@ mod tests {
 
         // Task not found in plan
         let processors = vec![
-            ProcessorMock::new("processor_1", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
-            ProcessorMock::new("processor_2", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
-            ProcessorMock::new("processor_3", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
-            ProcessorMock::new("not_found", ProcessorMock::get_static_name(), &[], &[], AvailableTableSubscribePolicies::default().build()),
+            ProcessorMock::new(
+                "processor_1",
+                ProcessorMock::get_static_name(),
+                &[],
+                &[],
+                AvailableTableSubscribePolicies::default().build(),
+            ),
+            ProcessorMock::new(
+                "processor_2",
+                ProcessorMock::get_static_name(),
+                &[],
+                &[],
+                AvailableTableSubscribePolicies::default().build(),
+            ),
+            ProcessorMock::new(
+                "processor_3",
+                ProcessorMock::get_static_name(),
+                &[],
+                &[],
+                AvailableTableSubscribePolicies::default().build(),
+            ),
+            ProcessorMock::new(
+                "not_found",
+                ProcessorMock::get_static_name(),
+                &[],
+                &[],
+                AvailableTableSubscribePolicies::default().build(),
+            ),
         ];
         let result = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(test_session_context_builder::make_test_session_builder_tasks())
-            .with_processors(processors.into_iter().map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>).collect::<Vec<_>>())
+            .with_processors(
+                processors
+                    .into_iter()
+                    .map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>)
+                    .collect::<Vec<_>>(),
+            )
             .build();
         match result {
             Ok(_) => panic!("Should have failed"),

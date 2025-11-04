@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Parser;
 use phymes_core::{MappableTrait, Table, TableTrait};
 use phymes_data::DataConfigTrait;
@@ -107,24 +107,43 @@ impl DataConfigTrait for CandleChatConfig {
         serde_json::to_vec(&Self::default())
     }
     fn from_table(table: &Table) -> Result<Self>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         // Check for the required fields
-        let column_names = table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+        let column_names = table
+            .get_schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect::<HashSet<_>>();
         if !((column_names.contains("candle_asset") || column_names.contains("openai_asset"))
-            && column_names.contains("max_tokens") && column_names.contains("temperature")
-            && column_names.contains("seed") && column_names.contains("repeat_penalty")
-            && column_names.contains("repeat_last_n") && column_names.contains("frequency_penalty")) {
-            return Err(anyhow!("Table {} is missing required Field for `candle_asset`, `openai_asset`, `max_tokens`, `temperature`, `seed`, `repeat_penalty`, `repeat_last_n`, or `frequency_penalty` in CandleChatConfig.", table.get_name()));
+            && column_names.contains("max_tokens")
+            && column_names.contains("temperature")
+            && column_names.contains("seed")
+            && column_names.contains("repeat_penalty")
+            && column_names.contains("repeat_last_n")
+            && column_names.contains("frequency_penalty"))
+        {
+            return Err(anyhow!(
+                "Table {} is missing required Field for `candle_asset`, `openai_asset`, `max_tokens`, `temperature`, `seed`, `repeat_penalty`, `repeat_last_n`, or `frequency_penalty` in CandleChatConfig.",
+                table.get_name()
+            ));
         }
 
         // Try to build the config
         match table.to_struct::<CandleChatConfig>() {
             Ok(config_vec) => match config_vec.first() {
                 Some(config) => Ok(config.to_owned()),
-                None => Err(anyhow!("No config data found for CandleChatConfig with subject {}", table.get_name())),
+                None => Err(anyhow!(
+                    "No config data found for CandleChatConfig with subject {}",
+                    table.get_name()
+                )),
             },
-            Err(err) => Err(anyhow!("CandleChatConfig could not be built for subject {}. {err}", table.get_name())),
+            Err(err) => Err(anyhow!(
+                "CandleChatConfig could not be built for subject {}. {err}",
+                table.get_name()
+            )),
         }
     }
 }

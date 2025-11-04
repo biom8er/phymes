@@ -1,14 +1,19 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
+    ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait,
+    TablePublication, TableSubscription, TaskPlan,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
-use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 #[cfg(feature = "openai_api")]
 use phymes_ml::AvailableOpenAIAssets;
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
-use crate::{AvailableProcessors, session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
+use crate::{
+    AvailableProcessors, session_plans::AvailableInterfaceSubjects,
+    session_traits::CustomAgentsBuilderTrait,
+};
 
 pub struct ChatAgentSession<'a> {
     /// Chat tasks

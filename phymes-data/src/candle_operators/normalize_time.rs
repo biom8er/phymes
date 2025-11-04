@@ -95,7 +95,10 @@ impl DataOperatorTrait for NormalizeTime {
         normalize_time(&lhs_values, lhs_args, device)
     }
     fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_values` for `{}`.",
+            Self::get_static_name()
+        ))?;
         Ok(NormalizeTime { lhs_values })
     }
 }

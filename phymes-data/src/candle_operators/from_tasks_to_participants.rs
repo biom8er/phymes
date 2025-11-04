@@ -2,8 +2,7 @@ use anyhow::Result;
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait,
-    MappableTrait, Table, TableBuilderTrait, TableTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait,
     create_mermaid_sequence_diagram_participants_template_batch,
 };
 use phymes_diagnostics::HashSet;

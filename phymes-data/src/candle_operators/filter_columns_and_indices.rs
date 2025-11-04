@@ -21,10 +21,12 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait, candle_data::{DataComparatorOperator, DataComparatorPredicate, DataConfig}, candle_operators::{
+    ToolTrait,
+    candle_data::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
+    candle_operators::{
         data_operator::DataOperatorTrait, group_by_and_aggregate::build_aggregator_column_list,
         sort_column_and_indices::take_columns_by_indices,
-    }
+    },
 };
 
 /// Filter the [RecordBatch]es against the `cmp_columns` based on the [DataComparatorOperator], merge the predicate arrays
@@ -126,11 +128,23 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
         )
     }
     fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `doc_template` for `{}`.", Self::get_static_name()))?;
-        let cmp_columns = config.cmp_columns.clone().ok_or(anyhow!("Missing `cmp_columns` for `{}`.", Self::get_static_name()))?;
-        let cmp_operators = config.cmp_operators.clone().ok_or(anyhow!("Missing `cmp_operators` for `{}`.", Self::get_static_name()))?;
-        let cmp_predicate = config.cmp_predicate.clone().ok_or(anyhow!("Missing `cmp_predicate` for `{}`.", Self::get_static_name()))?;
-        
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!(
+            "Missing `doc_template` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let cmp_columns = config.cmp_columns.clone().ok_or(anyhow!(
+            "Missing `cmp_columns` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let cmp_operators = config.cmp_operators.clone().ok_or(anyhow!(
+            "Missing `cmp_operators` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let cmp_predicate = config.cmp_predicate.clone().ok_or(anyhow!(
+            "Missing `cmp_predicate` for `{}`.",
+            Self::get_static_name()
+        ))?;
+
         // Ensure that the array lengths for values, columns, and operators match
         if lhs_values.len() != cmp_columns.len() {
             return Err(anyhow!(

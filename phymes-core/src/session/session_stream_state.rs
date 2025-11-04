@@ -12,7 +12,7 @@ use super::{
     session_context::SessionContext,
 };
 use crate::table::{
-    Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TablePublicationTrait,
+    Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableTrait,
 };
 use crate::task::MessageTrait;
 

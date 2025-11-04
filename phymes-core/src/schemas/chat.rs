@@ -315,12 +315,15 @@ mod test_messages {
         session::{
             BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
             SendableRecordBatchStreamMessageMap, StateMap,
-        }, table::{
-            RecordBatchStream, SendableRecordBatchStream, TablePublication, TableSubscribePolicyTrait, TableSubscription
-        }, task::{
+        },
+        table::{
+            RecordBatchStream, SendableRecordBatchStream, TablePublication,
+            TableSubscribePolicyTrait, TableSubscription,
+        },
+        task::{
             MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait,
             SendableRecordBatchStreamMessage,
-        }
+        },
     };
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
@@ -542,12 +545,15 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        AvailableTableSubscribePolicies, session::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait}, table::{
+        AvailableTableSubscribePolicies,
+        session::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait},
+        table::{
             TablePublication,
             test_table::{make_test_table_chat, make_test_table_tool},
-        }, task::{
+        },
+        task::{
             MessageBuilderTrait, MessageTrait, ProcessorTrait, SendableRecordBatchStreamMessage,
-        }
+        },
     };
     use futures::TryStreamExt;
     use parking_lot::Mutex;
@@ -687,8 +693,13 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor =
-            test_messages::CandleChatMockProcessor::new("ChatBot", "", &[], &[], AvailableTableSubscribePolicies::default().build());
+        let chat_processor = test_messages::CandleChatMockProcessor::new(
+            "ChatBot",
+            "",
+            &[],
+            &[],
+            AvailableTableSubscribePolicies::default().build(),
+        );
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),
@@ -775,7 +786,13 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = test_messages::CandleChatMockProcessor::new("ChatBot", "", &[], &[], AvailableTableSubscribePolicies::default().build());
+        let chat_processor = test_messages::CandleChatMockProcessor::new(
+            "ChatBot",
+            "",
+            &[],
+            &[],
+            AvailableTableSubscribePolicies::default().build(),
+        );
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),

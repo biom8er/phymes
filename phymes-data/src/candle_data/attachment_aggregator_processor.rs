@@ -5,11 +5,18 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, create_blob_fields, device, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, create_blob_fields, device,
+    remove_message_by_subject,
 };
 
 use crate::{
-    DataConfigTrait, candle_data::{data_config::DataConfig, tensor_service::CandleTensorService}, candle_operators::DataOperatorTrait
+    DataConfigTrait,
+    candle_data::{data_config::DataConfig, tensor_service::CandleTensorService},
+    candle_operators::DataOperatorTrait,
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -19,7 +26,8 @@ use arrow::{
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    TraceBuilderTrait,
 };
 use tracing::{Level, event, instrument};
 
@@ -142,9 +150,20 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher(self.get_name())
-            .with_subject(self.get_publications().first().ok_or(anyhow!("Missing publications for processor {}", self.get_name()))?.get_table_name())
+            .with_subject(
+                self.get_publications()
+                    .first()
+                    .ok_or(anyhow!(
+                        "Missing publications for processor {}",
+                        self.get_name()
+                    ))?
+                    .get_table_name(),
+            )
             .with_message(out)
-            .with_update(self.get_publications().first().ok_or(anyhow!("Missing publications for processor {}", self.get_name()))?)
+            .with_update(self.get_publications().first().ok_or(anyhow!(
+                "Missing publications for processor {}",
+                self.get_name()
+            ))?)
             .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
@@ -292,16 +311,17 @@ impl Stream for AggregatorStream {
                     .get_device(),
             )?;
             if batch.num_rows() == 0
-                && let Some(diagnostic_builder) = &self.diagnostic_builder {
-                    let event = diagnostic_builder
-                        .clone()
-                        .to_child("AggregatorStream")?
-                        .warn(line!(), file!(), "poll_next");
-                    event.insert("empty_batch", &serde_json::Value::String(
+                && let Some(diagnostic_builder) = &self.diagnostic_builder
+            {
+                let event = diagnostic_builder
+                    .clone()
+                    .to_child("AggregatorStream")?
+                    .warn(line!(), file!(), "poll_next");
+                event.insert("empty_batch", &serde_json::Value::String(
                         format!("The result of the data operator {} with config {:?} was an empty RecordBatch.", 
-                            self.data_operator.as_ref().unwrap().get_name(), 
+                            self.data_operator.as_ref().unwrap().get_name(),
                             self.config.as_ref().unwrap())));
-                };
+            };
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));

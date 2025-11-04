@@ -8,7 +8,13 @@ use tokenizers::Tokenizer;
 #[cfg(feature = "openai_api")]
 use crate::openai_chat::OpenAIChatProcessor;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, TokenWrapper, Tool, create_chat_record_batch, device, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
+    TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait,
+    TableSubscription, TableTrait, TokenWrapper, Tool, create_chat_record_batch, device,
+    remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -106,7 +112,10 @@ impl ProcessorTrait for CandleChatProcessor {
         };
 
         // Extract out the messages, tools, and config
-        let messages = match remove_message_by_subject(self.subscriptions.first().unwrap().get_table_name(), &mut message) {
+        let messages = match remove_message_by_subject(
+            self.subscriptions.first().unwrap().get_table_name(),
+            &mut message,
+        ) {
             Some(i) => i.get_message_own(),
             None => {
                 return Err(anyhow!(
@@ -116,8 +125,11 @@ impl ProcessorTrait for CandleChatProcessor {
                 ));
             }
         };
-        let tools = remove_message_by_subject(self.subscriptions.get(1).unwrap().get_table_name(), &mut message)
-            .map(|i| i.get_message_own());
+        let tools = remove_message_by_subject(
+            self.subscriptions.get(1).unwrap().get_table_name(),
+            &mut message,
+        )
+        .map(|i| i.get_message_own());
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => {
@@ -1009,7 +1021,10 @@ mod tests {
             // Update the chat history with the response
             let (message_builder, _stream) = message_builder
                 .append_chat_response_sendable_record_batch_stream(
-                    &mut stream.remove(format!("from_{name}_on_{messages}").as_str()).unwrap().get_message_own(),
+                    &mut stream
+                        .remove(format!("from_{name}_on_{messages}").as_str())
+                        .unwrap()
+                        .get_message_own(),
                     1000,
                 )
                 .await?;

@@ -1,9 +1,13 @@
 use crate::{
-    AvailableProcessors, session_plans::AvailableSessionPlans, session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait}
+    AvailableProcessors,
+    session_plans::AvailableSessionPlans,
+    session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait},
 };
 use anyhow::Result;
 use phymes_core::{
-    AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_session_mermaid_batch
+    AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait,
+    ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication,
+    TableSubscription, TaskPlan, create_session_mermaid_batch,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use std::sync::Arc;

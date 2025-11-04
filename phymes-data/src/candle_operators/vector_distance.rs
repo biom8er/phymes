@@ -12,7 +12,10 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 
 use super::data_operator::DataOperatorTrait;
-use crate::{candle_data::{DataConfig, DataDistanceOperator}, candle_operators::ToolTrait};
+use crate::{
+    candle_data::{DataConfig, DataDistanceOperator},
+    candle_operators::ToolTrait,
+};
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use std::{collections::HashMap, sync::Arc};
@@ -123,25 +126,46 @@ impl ToolTrait for VectorDistance {
 
 impl DataOperatorTrait for VectorDistance {
     fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!("Missing `lhs_pk` for `{}`.", Self::get_static_name()))?;
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_pk` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let lhs_values = config
             .lhs_values
             .as_ref()
             .cloned()
-            .ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?
+            .ok_or(anyhow!(
+                "Missing `lhs_values` for `{}`.",
+                Self::get_static_name()
+            ))?
             .first()
             .cloned()
-            .ok_or(anyhow!("`lhs_values` is empty for `{}`.", Self::get_static_name()))?;
-        let rhs_pk = config.rhs_pk.clone().ok_or(anyhow!("Missing `rhs_pk` for `{}`.", Self::get_static_name()))?;
+            .ok_or(anyhow!(
+                "`lhs_values` is empty for `{}`.",
+                Self::get_static_name()
+            ))?;
+        let rhs_pk = config.rhs_pk.clone().ok_or(anyhow!(
+            "Missing `rhs_pk` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let rhs_values = config
             .rhs_values
             .as_ref()
             .cloned()
-            .ok_or(anyhow!("Missing `rhs_values` for `{}`.", Self::get_static_name()))?
+            .ok_or(anyhow!(
+                "Missing `rhs_values` for `{}`.",
+                Self::get_static_name()
+            ))?
             .first()
             .cloned()
-            .ok_or(anyhow!("`rhs_values` is empty for `{}`.", Self::get_static_name()))?;
-        let dist_operator = config.dist_operator.clone().ok_or(anyhow!("Missing `dist_operator` for `{}`.", Self::get_static_name()))?;
+            .ok_or(anyhow!(
+                "`rhs_values` is empty for `{}`.",
+                Self::get_static_name()
+            ))?;
+        let dist_operator = config.dist_operator.clone().ok_or(anyhow!(
+            "Missing `dist_operator` for `{}`.",
+            Self::get_static_name()
+        ))?;
         Ok(VectorDistance {
             lhs_pk,
             lhs_values,

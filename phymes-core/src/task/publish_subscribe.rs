@@ -1,7 +1,10 @@
 use phymes_diagnostics::HashMap;
 
 use crate::{
-    MappableTrait, session::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap}, table::{TablePublication, TableSubscription, TableSubscriptionTrait}, task::{MessageBuilderTrait, SendableRecordBatchStreamMessage}
+    MappableTrait,
+    session::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap},
+    table::{TablePublication, TableSubscription, TableSubscriptionTrait},
+    task::{MessageBuilderTrait, SendableRecordBatchStreamMessage},
 };
 
 /// For task or processor objects that publish and
@@ -41,10 +44,7 @@ pub trait PublishAndSubscribeTrait {
             // default or dummy tables may not be found in the state so we just ignore them
             if let Some(table) = state.get(subscription.get_table_name()) {
                 // OnUpdate... tables are not subscribed to if they have not been updated
-                if let Some(message) = table
-                    .read()
-                    .subscribe_table(subscription, *updated)
-                {
+                if let Some(message) = table.read().subscribe_table(subscription, *updated) {
                     let publications = self.get_publications();
                     let update = publications
                         .iter()

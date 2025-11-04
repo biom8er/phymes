@@ -1,7 +1,10 @@
 use phymes_diagnostics::HashMap;
 use std::fmt::Debug;
 
-use crate::{AvailableSubjects, TableSubscription, session::{MappableTrait, StateMap}};
+use crate::{
+    AvailableSubjects, TableSubscription,
+    session::{MappableTrait, StateMap},
+};
 
 use super::table_trait::{Table, TableTrait};
 
@@ -266,7 +269,9 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
     ) -> bool {
         let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
         let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
-        let error = updates.get(&self.error_message_table_name).unwrap_or(&false);
+        let error = updates
+            .get(&self.error_message_table_name)
+            .unwrap_or(&false);
         *tool || *user || *error
     }
     fn new_box() -> Box<dyn TableSubscribePolicyTrait> {

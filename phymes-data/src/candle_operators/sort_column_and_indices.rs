@@ -93,10 +93,16 @@ impl DataOperatorTrait for SortColumnAndIndices {
             .lhs_values
             .as_ref()
             .cloned()
-            .ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?
+            .ok_or(anyhow!(
+                "Missing `lhs_values` for `{}`.",
+                Self::get_static_name()
+            ))?
             .first()
             .cloned()
-            .ok_or(anyhow!("`lhs_values` is empty for `{}`.", Self::get_static_name()))?;
+            .ok_or(anyhow!(
+                "`lhs_values` is empty for `{}`.",
+                Self::get_static_name()
+            ))?;
         let asc = config.asc.unwrap_or(true);
 
         Ok(SortColumnAndIndices { lhs_values, asc })

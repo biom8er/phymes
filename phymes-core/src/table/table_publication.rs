@@ -136,14 +136,17 @@ impl TablePublication {
 }
 
 impl Display for TablePublication {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {        
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Extend { table_name: _ } => write!(f, "Extend"),
             Self::Replace { table_name: _ } => write!(f, "Replace"),
             Self::ReplaceLast { table_name: _ } => write!(f, "ReplaceLast"),
             Self::None => write!(f, "None"),
-            Self::ExtendChunks { table_name: _, col_name: _ } => write!(f, "ExtendChunks"),
-            Self::Custom (_s) => write!(f, "Custom"),
+            Self::ExtendChunks {
+                table_name: _,
+                col_name: _,
+            } => write!(f, "ExtendChunks"),
+            Self::Custom(_s) => write!(f, "Custom"),
         }
     }
 }
@@ -613,22 +616,31 @@ mod tests {
     fn test_table_publication_from_str_mermaid() -> Result<()> {
         let line = "message_parser-publish-->|ExtendChunks|AssistantMessages-subject";
         let subject = "AssistantMessages";
-        let publication = TablePublication::ExtendChunks { table_name: subject.to_string(), col_name: "content".to_string() };
+        let publication = TablePublication::ExtendChunks {
+            table_name: subject.to_string(),
+            col_name: "content".to_string(),
+        };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parser-publish-->|Extend|AssistantMessages-subject";
-        let publication = TablePublication::Extend { table_name: subject.to_string() };
+        let publication = TablePublication::Extend {
+            table_name: subject.to_string(),
+        };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parser-publish-->|ReplaceLast|AssistantMessages-subject";
-        let publication = TablePublication::ReplaceLast { table_name: subject.to_string() };
+        let publication = TablePublication::ReplaceLast {
+            table_name: subject.to_string(),
+        };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parser-publish-->|Replace|AssistantMessages-subject";
-        let publication = TablePublication::Replace { table_name: subject.to_string() };
+        let publication = TablePublication::Replace {
+            table_name: subject.to_string(),
+        };
         let test = TablePublication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 

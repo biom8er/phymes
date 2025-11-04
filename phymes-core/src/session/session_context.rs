@@ -15,7 +15,7 @@ use crate::schemas::{
     get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, pivot_metrics_table,
 };
 use crate::table::{
-    Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TablePublicationTrait,
+    Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableTrait,
 };
 use crate::task::PublishAndSubscribeTrait;
 

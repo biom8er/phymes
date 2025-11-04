@@ -455,12 +455,18 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
 }
 
 /// Remove a message from a [HashMap] of [MessageTrait]s indexed by `message_name` by the message's `subject_name`
-pub fn remove_message_by_subject<T>(subject: &str, messages: &mut HashMap<String, T>) -> Option<T> where T: MessageTrait {
-    let subjects = messages.iter()
-        .filter_map(|(k, v)| if subject == v.get_subject() {
-            Some(k)
-        } else {
-            None
+pub fn remove_message_by_subject<T>(subject: &str, messages: &mut HashMap<String, T>) -> Option<T>
+where
+    T: MessageTrait,
+{
+    let subjects = messages
+        .iter()
+        .filter_map(|(k, v)| {
+            if subject == v.get_subject() {
+                Some(k)
+            } else {
+                None
+            }
         })
         .cloned()
         .collect::<Vec<_>>();
@@ -468,7 +474,7 @@ pub fn remove_message_by_subject<T>(subject: &str, messages: &mut HashMap<String
         messages.remove(s)
     } else {
         None
-    }    
+    }
 }
 
 #[cfg(test)]

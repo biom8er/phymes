@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscribePolicyTrait, TableSubscription, create_chat_fields, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, create_chat_fields,
+    remove_message_by_subject,
 };
 
 use anyhow::{Result, anyhow};
@@ -129,7 +133,8 @@ impl ProcessorTrait for MessageAggregatorProcessor {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        AvailableTableSubscribePolicies, TableBuilder, TableBuilderTrait, TableTrait, device, test_table::{make_test_table, make_test_table_chat}
+        AvailableTableSubscribePolicies, TableBuilder, TableBuilderTrait, TableTrait, device,
+        test_table::{make_test_table, make_test_table_chat},
     };
     use phymes_data::{AvailableCandleOperators, CandleTensorService, DataConfig};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
@@ -216,18 +221,26 @@ mod tests {
             "",
             &[TablePublication::Extend {
                 table_name: "messages".to_string(),
-            }], &[TableSubscription::None],
+            }],
+            &[TableSubscription::None],
             AvailableTableSubscribePolicies::default().build(),
         );
         let mut agg_stream =
             agg_arc_1.process(message_1, Some(&diagnostic_builder), runtime_env)?;
         assert_eq!(agg_stream.len(), 2);
-        assert!(agg_stream.get("from_aggregator_processor_on_messages").is_some());
+        assert!(
+            agg_stream
+                .get("from_aggregator_processor_on_messages")
+                .is_some()
+        );
         assert!(agg_stream.get("m3").is_some());
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            agg_stream.remove("from_aggregator_processor_on_messages").unwrap().get_message_own(),
+            agg_stream
+                .remove("from_aggregator_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")

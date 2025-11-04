@@ -6,7 +6,12 @@ use std::{
 
 use bytes::Bytes;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, create_blob_batch, create_chat_record_batch, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat, DataFormat,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication,
+    TableSubscribePolicyTrait, TableSubscription, TableTrait, create_blob_batch,
+    create_chat_record_batch, remove_message_by_subject,
 };
 
 use anyhow::{Result, anyhow};
@@ -17,7 +22,8 @@ use arrow::{
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait, create_timestamp_micros
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    TraceBuilderTrait, create_timestamp_micros,
 };
 use tracing::{Level, event, instrument};
 
@@ -214,7 +220,7 @@ impl DataSummaryStream {
 }
 
 /// Helper function to convert a [Table] into the desired output [DataFormat]
-/// 
+///
 /// # Arguments
 /// `table` - the [Table] containing the data
 /// `format` - the desired output [DataFormat]
@@ -408,7 +414,9 @@ impl Stream for DataSummaryStream {
             // Concatenate into a single record batch
             let schema = match batches_col.first() {
                 Some(cols) => cols.schema(),
-                None => return Poll::Ready(Some(Err(anyhow!("No batches were found to summarize!")))),
+                None => {
+                    return Poll::Ready(Some(Err(anyhow!("No batches were found to summarize!"))));
+                }
             };
             let mut batch_json = Table::get_builder()
                 .with_name("DataSummaryStream")
@@ -447,18 +455,19 @@ impl Stream for DataSummaryStream {
             let batch = table_and_data_format_to_record_batch(
                 &table,
                 &self.config.as_ref().unwrap().summary_format,
-                None
+                None,
             )?;
             if batch.num_rows() == 0
-                && let Some(diagnostic_builder) = &self.diagnostic_builder {
-                    let event = diagnostic_builder
-                        .clone()
-                        .to_child("DataSummaryStream")?
-                        .warn(line!(), file!(), "poll_next");
-                    event.insert("empty_batch", &serde_json::Value::String(
+                && let Some(diagnostic_builder) = &self.diagnostic_builder
+            {
+                let event = diagnostic_builder
+                    .clone()
+                    .to_child("DataSummaryStream")?
+                    .warn(line!(), file!(), "poll_next");
+                event.insert("empty_batch", &serde_json::Value::String(
                         format!("The result of the data summary stream with config {:?} was an empty RecordBatch.",
                             self.config.as_ref().unwrap())));
-                };
+            };
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -484,7 +493,9 @@ impl RecordBatchStream for DataSummaryStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{AvailableTableSubscribePolicies, MessageTrait, TableBuilder, TablePublication};
+    use phymes_core::{
+        AvailableTableSubscribePolicies, MessageTrait, TableBuilder, TablePublication,
+    };
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
 
     use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
@@ -568,7 +579,10 @@ mod tests {
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("from_summary_processor_on_messages").unwrap().get_message_own(),
+            stream
+                .remove("from_summary_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")
@@ -663,7 +677,10 @@ mod tests {
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("from_summary_processor_on_messages").unwrap().get_message_own(),
+            stream
+                .remove("from_summary_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")

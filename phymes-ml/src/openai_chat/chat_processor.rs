@@ -9,12 +9,13 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-    BuilderTrait, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt, FinishReason,
-    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatCompletionRequest,
+    ChatCompletionResponse, ChatTraitExt, FinishReason, MappableTrait, MessageBuilderTrait,
+    MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilderTrait,
-    TablePublish, TableSubscribe, TableTrait, Tool, ToolChoiceType, create_chat_record_batch, remove_message_by_subject
+    TablePublish, TableSubscribe, TableTrait, Tool, ToolChoiceType, create_chat_record_batch,
+    remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -106,7 +107,10 @@ impl ProcessorTrait for OpenAIChatProcessor {
         };
 
         // Extract out the messages, tools, and config
-        let messages = match remove_message_by_subject(self.subscriptions.first().unwrap().get_table_name(), &mut message) {
+        let messages = match remove_message_by_subject(
+            self.subscriptions.first().unwrap().get_table_name(),
+            &mut message,
+        ) {
             Some(i) => i.get_message_own(),
             None => {
                 return Err(anyhow!(
@@ -116,8 +120,11 @@ impl ProcessorTrait for OpenAIChatProcessor {
                 ));
             }
         };
-        let tools = remove_message_by_subject(self.subscriptions.get(1).unwrap().get_table_name(), &mut message)
-            .map(|i| i.get_message_own());
+        let tools = remove_message_by_subject(
+            self.subscriptions.get(1).unwrap().get_table_name(),
+            &mut message,
+        )
+        .map(|i| i.get_message_own());
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => {

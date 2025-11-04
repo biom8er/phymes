@@ -9,8 +9,8 @@ pub use blob::{BlobBuilderTraitExt, BlobSubject, create_blob_batch, create_blob_
 
 mod mermaid;
 pub use mermaid::{
-    SessionMermaidSubject, create_mermaid_sequence_diagram_participants_template_batch,
-    create_session_mermaid_batch, create_mermaid_content_template_batch
+    SessionMermaidSubject, create_mermaid_content_template_batch,
+    create_mermaid_sequence_diagram_participants_template_batch, create_session_mermaid_batch,
 };
 
 mod chat;

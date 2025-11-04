@@ -5,7 +5,12 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, ToolCall, create_chat_record_batch, create_values_record_batch, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication,
+    TableSubscribePolicyTrait, TableSubscription, TableTrait, ToolCall, create_chat_record_batch,
+    create_values_record_batch, remove_message_by_subject,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -114,11 +119,13 @@ impl ProcessorTrait for MessageParserProcessor {
         };
 
         // Extract out the messages and config
-        let messages =
-            match remove_message_by_subject(self.get_subscriptions().first().unwrap().get_table_name(), &mut message) {
-                Some(i) => i.get_message_own(),
-                None => return Err(anyhow!("Messages not provided for {}.", self.get_name())),
-            };
+        let messages = match remove_message_by_subject(
+            self.get_subscriptions().first().unwrap().get_table_name(),
+            &mut message,
+        ) {
+            Some(i) => i.get_message_own(),
+            None => return Err(anyhow!("Messages not provided for {}.", self.get_name())),
+        };
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
@@ -496,7 +503,10 @@ mod tests {
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("from_message_processor_on_messages").unwrap().get_message_own(),
+            stream
+                .remove("from_message_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")
@@ -607,7 +617,10 @@ mod tests {
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("from_message_processor_on_messages").unwrap().get_message_own(),
+            stream
+                .remove("from_message_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")
@@ -718,7 +731,10 @@ mod tests {
 
         // DM: this will result in an error because the schema is dynamically updated
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("from_message_processor_on_messages").unwrap().get_message_own(),
+            stream
+                .remove("from_message_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")

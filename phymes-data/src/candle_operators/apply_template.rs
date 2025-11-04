@@ -4,14 +4,18 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType, create_mermaid_content_template_batch, create_values_record_batch
+    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
+    JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool,
+    ToolType, create_mermaid_content_template_batch, create_values_record_batch,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::instrument;
 
 use crate::{
-    AvailableJinja2Templates, ToolTrait, candle_data::{DataConfig, table_and_data_format_to_record_batch}, candle_operators::DataOperatorTrait
+    AvailableJinja2Templates, ToolTrait,
+    candle_data::{DataConfig, table_and_data_format_to_record_batch},
+    candle_operators::DataOperatorTrait,
 };
 
 /// Inject a table into a string template
@@ -90,15 +94,30 @@ impl DataOperatorTrait for ApplyTemplate {
         )
     }
     fn new(config: &DataConfig) -> Result<Self> {
-        let doc_template = config.doc_template.clone().ok_or(anyhow!("Missing `doc_template` for `{}`.", Self::get_static_name()))?;
-        let doc_name = config.doc_name.clone().ok_or(anyhow!("Missing `doc_name` for `{}`.", Self::get_static_name()))?;
-        let table_expression = config.table_expression.clone().ok_or(anyhow!("Missing `table_expression` for `{}`.", Self::get_static_name()))?;
+        let doc_template = config.doc_template.clone().ok_or(anyhow!(
+            "Missing `doc_template` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let doc_name = config.doc_name.clone().ok_or(anyhow!(
+            "Missing `doc_name` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let table_expression = config.table_expression.clone().ok_or(anyhow!(
+            "Missing `table_expression` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let doc_input = if let Some(doc_input) = config.doc_input.as_ref() {
             serde_json::from_str::<Value>(doc_input)?
         } else {
-            return Err(anyhow!("Missing `doc_input` for `{}`.", Self::get_static_name()))
+            return Err(anyhow!(
+                "Missing `doc_input` for `{}`.",
+                Self::get_static_name()
+            ));
         };
-        let format = config.format.ok_or(anyhow!("Missing `format` for `{}`.", Self::get_static_name()))?;
+        let format = config.format.ok_or(anyhow!(
+            "Missing `format` for `{}`.",
+            Self::get_static_name()
+        ))?;
 
         // Make the object
         Ok(ApplyTemplate {
@@ -177,7 +196,12 @@ pub fn apply_template(
     // Wrap into a table
     let batch = match format {
         DataFormat::None => create_mermaid_content_template_batch(vec![document])?,
-        _ => create_values_record_batch(vec![String::new()], vec![String::new()], vec![String::new()], vec![document])?
+        _ => create_values_record_batch(
+            vec![String::new()],
+            vec![String::new()],
+            vec![String::new()],
+            vec![document],
+        )?,
     };
     let table = Table::get_builder()
         .with_name(doc_name)

@@ -1,7 +1,11 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
 use crate::{DataConfigTrait, candle_operators::DataOperatorTrait};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, device, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder,
+    TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait,
+    device, remove_message_by_subject,
 };
 
 use arrow::{
@@ -14,7 +18,8 @@ use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    TraceBuilderTrait,
 };
 use std::{
     pin::Pin,
@@ -139,9 +144,20 @@ impl ProcessorTrait for CandleDataProcessor {
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher(self.get_name())
-            .with_subject(self.publications.first().ok_or(anyhow!("Missing publications for processor {}", self.get_name()))?.get_table_name())
+            .with_subject(
+                self.publications
+                    .first()
+                    .ok_or(anyhow!(
+                        "Missing publications for processor {}",
+                        self.get_name()
+                    ))?
+                    .get_table_name(),
+            )
             .with_message(out)
-            .with_update(self.publications.first().ok_or(anyhow!("Missing publications for processor {}", self.get_name()))?)
+            .with_update(self.publications.first().ok_or(anyhow!(
+                "Missing publications for processor {}",
+                self.get_name()
+            ))?)
             .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
@@ -253,7 +269,13 @@ impl Stream for CandleDataStream {
                 batches.push(batch);
             }
             let values = Fields::from_iter(vec![Field::new("values", DataType::Utf8, false)]);
-            if batches.first().ok_or(anyhow!("Config stream for CandleDataStream is empty"))?.schema().fields().contains(&values) {
+            if batches
+                .first()
+                .ok_or(anyhow!("Config stream for CandleDataStream is empty"))?
+                .schema()
+                .fields()
+                .contains(&values)
+            {
                 let config_json = batches
                     .first()
                     .unwrap()
@@ -285,9 +307,15 @@ impl Stream for CandleDataStream {
                 .clone()
                 .to_child("CandleDataStream")?
                 .debug(line!(), file!(), "poll_next");
-            event.insert("config", &serde_json::Value::String(format!("{:?}", &self.config)));
+            event.insert(
+                "config",
+                &serde_json::Value::String(format!("{:?}", &self.config)),
+            );
             if let Some(doc_template) = &self.config.as_ref().unwrap().doc_template {
-                event.insert("doc_template", &serde_json::Value::String(doc_template.to_string()));
+                event.insert(
+                    "doc_template",
+                    &serde_json::Value::String(doc_template.to_string()),
+                );
             }
         };
 
@@ -310,7 +338,10 @@ impl Stream for CandleDataStream {
                 .unwrap()
                 .lhs_name
                 .as_ref()
-                .ok_or(anyhow!("lhs_name was not provided for config {:?}", self.config))?
+                .ok_or(anyhow!(
+                    "lhs_name was not provided for config {:?}",
+                    self.config
+                ))?
                 .clone();
             let lhs = match self.messages.get_mut(lhs_name.as_str()) {
                 Some(lhs) => {
@@ -348,7 +379,10 @@ impl Stream for CandleDataStream {
                 .clone()
                 .to_child("CandleDataStream")?
                 .debug(line!(), file!(), "poll_next");
-            event.insert("lhs_inbox", &serde_json::Value::String(format!("{:?}", &self.lhs_inbox)));
+            event.insert(
+                "lhs_inbox",
+                &serde_json::Value::String(format!("{:?}", &self.lhs_inbox)),
+            );
         };
 
         // Collect the RHS document chunks
@@ -359,7 +393,10 @@ impl Stream for CandleDataStream {
                 .unwrap()
                 .rhs_name
                 .as_ref()
-                .ok_or(anyhow!("rhs_name was not provided for config {:?}", self.config))?
+                .ok_or(anyhow!(
+                    "rhs_name was not provided for config {:?}",
+                    self.config
+                ))?
                 .clone();
             let rhs = match self.messages.get_mut(rhs_name.as_str()) {
                 Some(rhs) => {
@@ -404,7 +441,10 @@ impl Stream for CandleDataStream {
                 .clone()
                 .to_child("CandleDataStream")?
                 .debug(line!(), file!(), "poll_next");
-            event.insert("rhs_inbox", &serde_json::Value::String(format!("{:?}", &self.rhs_inbox)));
+            event.insert(
+                "rhs_inbox",
+                &serde_json::Value::String(format!("{:?}", &self.rhs_inbox)),
+            );
         };
 
         // Compute the data operator
@@ -420,31 +460,40 @@ impl Stream for CandleDataStream {
                 .get_device(),
         ) {
             Ok(batch) => batch,
-            Err(err) => {                
+            Err(err) => {
                 if let Some(diagnostic_builder) = &self.diagnostic_builder {
                     let event = diagnostic_builder
                         .clone()
                         .to_child("CandleDataStream")?
                         .warn(line!(), file!(), "poll_next");
-                    event.insert("data_operator", &serde_json::Value::String(
-                        format!("Data operator {} with config {:?} resulted in an error: {err:?}", 
-                            self.data_operator.as_ref().unwrap().get_name(), 
-                            self.config.as_ref().unwrap())));
+                    event.insert(
+                        "data_operator",
+                        &serde_json::Value::String(format!(
+                            "Data operator {} with config {:?} resulted in an error: {err:?}",
+                            self.data_operator.as_ref().unwrap().get_name(),
+                            self.config.as_ref().unwrap()
+                        )),
+                    );
                 };
                 return Poll::Ready(Some(Err(err)));
             }
         };
         if batch.num_rows() == 0
-            && let Some(diagnostic_builder) = &self.diagnostic_builder {
-                let event = diagnostic_builder
-                    .clone()
-                    .to_child("CandleDataStream")?
-                    .warn(line!(), file!(), "poll_next");
-                event.insert("empty_batch", &serde_json::Value::String(
-                    format!("The result of the data operator {} with config {:?} was an empty RecordBatch.", 
-                        self.data_operator.as_ref().unwrap().get_name(), 
-                        self.config.as_ref().unwrap())));
-            };
+            && let Some(diagnostic_builder) = &self.diagnostic_builder
+        {
+            let event = diagnostic_builder
+                .clone()
+                .to_child("CandleDataStream")?
+                .warn(line!(), file!(), "poll_next");
+            event.insert(
+                "empty_batch",
+                &serde_json::Value::String(format!(
+                    "The result of the data operator {} with config {:?} was an empty RecordBatch.",
+                    self.data_operator.as_ref().unwrap().get_name(),
+                    self.config.as_ref().unwrap()
+                )),
+            );
+        };
         if let Some(diagnostic_builder) = &self.diagnostic_builder {
             let event = diagnostic_builder
                 .clone()

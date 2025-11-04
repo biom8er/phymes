@@ -9,9 +9,9 @@ pub use schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     JoinUserInboxSessionContextsMermaidDiagrams, QueriesBuilderTraitExt, SessionMermaidSubject,
     Tool, ToolCall, ToolChoiceType, ToolType, UserSubject, create_blob_batch, create_blob_fields,
-    create_chat_fields, create_chat_record_batch, create_documents_batch,
-    create_error_message_map, create_error_message_map_stream,
-    create_mermaid_sequence_diagram_participants_template_batch, create_mermaid_content_template_batch,
+    create_chat_fields, create_chat_record_batch, create_documents_batch, create_error_message_map,
+    create_error_message_map_stream, create_mermaid_content_template_batch,
+    create_mermaid_sequence_diagram_participants_template_batch,
     create_metrics_mermaid_gantt_batch, create_queries_batch, create_schema_from_fields,
     create_session_mermaid_batch, create_session_processors_batch,
     create_session_runtime_envs_batch, create_session_subjects_batch,
@@ -30,16 +30,16 @@ pub use session::{
     TokenizerConfig, device, test_session_context_builder,
 };
 pub use table::{
-    AvailableTableSubscribePolicies, CsvFormat, DataFormat, JsonFormat,
-    RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream,
-    RecordBatchStreamAdapter, SendableRecordBatchStream, TableSubscribePolicyTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableScript, TableSubscription, TableSubscriptionTrait, TableTrait,
-    TablePublicationTrait, from_data_type_to_str, from_str_to_data_type,
+    AvailableTableSubscribePolicies, CsvFormat, DataFormat, JsonFormat, RecordBatchReceiverStream,
+    RecordBatchReceiverStreamBuilder, RecordBatchStream, RecordBatchStreamAdapter,
+    SendableRecordBatchStream, Table, TableBuilder, TableBuilderTrait, TablePublication,
+    TablePublicationTrait, TableScript, TableSubscribePolicyTrait, TableSubscription,
+    TableSubscriptionTrait, TableTrait, from_data_type_to_str, from_str_to_data_type,
     parse_str_to_data_type, test_table,
 };
 pub use task::{
     IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, ProcessorBuilder,
-    ProcessorEcho, ProcessorTrait, PublishAndSubscribeTrait, remove_message_by_subject, SendableRecordBatchStreamMessage,
+    ProcessorEcho, ProcessorTrait, PublishAndSubscribeTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, Task, TaskBuilder, TaskBuilderTrait, TaskTrait,
-    test_processor, test_task,
+    remove_message_by_subject, test_processor, test_task,
 };

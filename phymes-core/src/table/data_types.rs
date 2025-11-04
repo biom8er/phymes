@@ -154,27 +154,27 @@ pub fn parse_str_to_data_type(data: &str, data_type: &DataType) -> Result<Value>
     let parsed = match data_type {
         DataType::UInt8 => match UInt8Type::parse(data) {
             Some(p) => Value::from(p),
-            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}."))
+            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}.")),
         },
         DataType::UInt16 => match UInt16Type::parse(data) {
             Some(p) => Value::from(p),
-            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}."))
+            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}.")),
         },
         DataType::UInt32 => match UInt32Type::parse(data) {
             Some(p) => Value::from(p),
-            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}."))
+            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}.")),
         },
         DataType::Int64 => match Int64Type::parse(data) {
             Some(p) => Value::from(p),
-            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}."))
+            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}.")),
         },
         DataType::Float32 => match Float32Type::parse(data) {
             Some(p) => Value::from(p),
-            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}."))
+            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}.")),
         },
         DataType::Float64 => match Float64Type::parse(data) {
             Some(p) => Value::from(p),
-            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}."))
+            None => return Err(anyhow!("Cannot parse {data} to data type {data_type}.")),
         },
         DataType::Utf8 => Value::String(data.to_string()),
         DataType::Null => Value::Null,
@@ -220,13 +220,11 @@ mod tests {
         assert_eq!(value.as_str().unwrap(), "1");
         let value = parse_str_to_data_type("true", &DataType::Boolean)?;
         assert!(value.as_bool().unwrap());
-        let list_data_type = DataType::List(
-            Arc::new(Field::new_list_field(DataType::Utf8, false))
-        );
+        let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
         let value = parse_str_to_data_type("[\"1\",\"2\",\"3\"]", &list_data_type)?;
-        assert_eq!(value.as_array().unwrap(), &["1","2","3"]);
+        assert_eq!(value.as_array().unwrap(), &["1", "2", "3"]);
         let value = parse_str_to_data_type("[1,2,3]", &list_data_type)?;
-        assert_eq!(value.as_array().unwrap(), &[1,2,3]);
+        assert_eq!(value.as_array().unwrap(), &[1, 2, 3]);
         Ok(())
     }
 }

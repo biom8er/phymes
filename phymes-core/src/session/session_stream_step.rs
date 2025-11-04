@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
@@ -64,10 +64,11 @@ impl SessionStreamStep {
                     let message_map = match resp {
                         Ok(batches) => match TableBuilder::new()
                             .with_name(resp_name.as_str())
-                            .with_record_batches(batches) {
-                            Ok(builder) =>  {
+                            .with_record_batches(batches)
+                        {
+                            Ok(builder) => {
                                 let table = builder.build()?;
-                                
+
                                 // Complete the input message with the processed stream
                                 let message = response_builder
                                     .remove(resp_name.as_str())
@@ -81,13 +82,14 @@ impl SessionStreamStep {
                         Err(err) => create_error_message_map(&err, "SessionStreamStep", true)?,
                     };
 
-                    // Add the message to the joined responses                    
+                    // Add the message to the joined responses
                     response_batches.extend(message_map);
                 }
                 Err(err) => {
                     // Intercept the error and forward to the error subject
                     event!(Level::ERROR, "{err}");
-                    let message_map = create_error_message_map(&anyhow!("{err}"), "SessionStreamStep", true)?;
+                    let message_map =
+                        create_error_message_map(&anyhow!("{err}"), "SessionStreamStep", true)?;
                     response_batches.extend(message_map);
                 }
             }
@@ -307,7 +309,6 @@ impl SessionStreamStep {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{AvailableTableSubscribePolicies, ProcessorBuilder};
     use crate::schemas::{AvailableSubjects, AvailableSubjectsTrait};
     use crate::session::session_context_builder::test_session_context_builder::{
         make_test_session_context_parallel_task, make_test_session_context_sequential_task,
@@ -320,6 +321,7 @@ mod tests {
         test_processor::{ProcessorError, ProcessorMock},
         test_task::{make_runtime_env, make_state_tables, make_test_input_message},
     };
+    use crate::{AvailableTableSubscribePolicies, ProcessorBuilder};
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
@@ -1494,26 +1496,36 @@ mod tests {
             },
         ];
         let processors = vec![
-            ProcessorBuilder::default().with_name("processor_1")
+            ProcessorBuilder::default()
+                .with_name("processor_1")
                 .with_type("")
                 .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }]).with_subscriptions(&[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
-                ]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build_arc::<ProcessorMock>()?,
-            ProcessorBuilder::default().with_name("error_1")
+            ProcessorBuilder::default()
+                .with_name("error_1")
                 .with_type("")
                 .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }]).with_subscriptions(&[TableSubscription::OnUpdateFullTable {
+                }])
+                .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
                     table_name: "state_1".to_string(),
-                }]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                }])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build_arc::<ProcessorError>()?,
         ];
         let state = make_state_tables("state_1", "config_1")?;

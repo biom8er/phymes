@@ -7,12 +7,14 @@ use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilder
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ToolTrait, candle_data::DataConfig, candle_operators::{
+    ToolTrait,
+    candle_data::DataConfig,
+    candle_operators::{
         ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData,
         FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages,
         GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, SelectAndCast,
         SortColumnAndIndices, VectorDistance,
-    }
+    },
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -101,7 +103,9 @@ impl ToolTrait for AvailableCandleOperators {
             Self::JoinInner => JoinInner::default().to_json_tool_schema(),
             Self::ExtractPDFText => ExtractPDFText::default().to_json_tool_schema(),
             Self::GroupByAndAggregate => GroupByAndAggregate::default().to_json_tool_schema(),
-            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::default().to_json_tool_schema(),
+            Self::FilterColumnsAndIndices => {
+                FilterColumnsAndIndices::default().to_json_tool_schema()
+            }
             Self::ExtractTabularData => ExtractTabularData::default().to_json_tool_schema(),
             Self::SelectAndCast => SelectAndCast::default().to_json_tool_schema(),
             Self::ApplyTemplate => ApplyTemplate::default().to_json_tool_schema(),

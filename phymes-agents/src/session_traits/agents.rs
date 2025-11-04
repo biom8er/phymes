@@ -5,7 +5,10 @@ use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
 use parking_lot::{Mutex, RwLock};
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan, device
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext,
+    SessionContextBuilder, SessionContextBuilderTrait, StateMap, Table, TableBuilderTrait,
+    TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan, device,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -36,14 +39,14 @@ pub trait SessionContextBuilderAgentsTrait {
         Self: Sized;
 
     /// Check the [DataConfig] entries with their linked [ProcessorTrait] subscriptions
-    /// 
+    ///
     /// # Notes
     /// 1. Check for consistency between the `lhs_name` and `rhs_name` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
     /// 2. Check for consistency between the `lhs_pk`, `rhs_pk`, `lhs_fk`, `rhs_fk`, `lhs_values`, and `rhs_values` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
     fn check_data_config_subjects(&self) -> Result<()>;
 
     /// Check that all processor configs can be built
-    /// 
+    ///
     /// # Notes
     /// 1. Check that [DataOperatorTrait]s of [CandleDataProcessor]s can be build with the specified [DataConfig]s
     /// 2. Check that all other configs can be generated from the provided table
@@ -143,55 +146,81 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         // Iterate through the LHS and RHS entries
         for processor in processors {
             let table = state_map.get(processor.get_name()).unwrap();
-            let column_names = table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+            let column_names = table
+                .get_schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().to_string())
+                .collect::<HashSet<_>>();
 
             // Check the LHS entries
             if column_names.contains("lhs_name") {
                 let vec_str = table.get_column_as_vec_str("lhs_name");
                 let name = vec_str.last().unwrap();
 
-                let subscriptions = processor.get_subscriptions()
+                let subscriptions = processor
+                    .get_subscriptions()
                     .iter()
-                    .filter_map(|s| if &s.get_table_name() == name {
-                        Some(name.to_string())
-                    } else {
-                        None
+                    .filter_map(|s| {
+                        if &s.get_table_name() == name {
+                            Some(name.to_string())
+                        } else {
+                            None
+                        }
                     })
                     .collect::<Vec<_>>();
                 if subscriptions.is_empty() {
-                    return Err(anyhow!("A subscriptions with the same name as the `DataConfig` lhs_name was not found for processor {} with lhs_name {name}.", processor.get_name()));
+                    return Err(anyhow!(
+                        "A subscriptions with the same name as the `DataConfig` lhs_name was not found for processor {} with lhs_name {name}.",
+                        processor.get_name()
+                    ));
                 }
                 let subscription_table = state_map.get(subscriptions.first().unwrap()).unwrap();
-                let subscription_col_names = subscription_table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+                let subscription_col_names = subscription_table
+                    .get_schema()
+                    .fields()
+                    .iter()
+                    .map(|f| f.name().to_string())
+                    .collect::<HashSet<_>>();
 
                 if !subscription_col_names.is_empty() {
                     if column_names.contains("lhs_pk") {
                         let vec_str = table.get_column_as_vec_str("lhs_pk");
                         let pk = vec_str.last().unwrap();
                         if !subscription_col_names.contains(*pk) {
-                            return Err(anyhow!("Subscription {} does not have a column for `DataConfig` lhs_pk {pk} for processor {} with lhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                            return Err(anyhow!(
+                                "Subscription {} does not have a column for `DataConfig` lhs_pk {pk} for processor {} with lhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
                         }
                     }
                     if column_names.contains("lhs_fk") {
                         let vec_str = table.get_column_as_vec_str("lhs_fk");
                         let fk = vec_str.last().unwrap();
                         if !subscription_col_names.contains(*fk) {
-                            return Err(anyhow!("Subscription {} does not have a column for `DataConfig` lhs_fk {fk} for processor {} with lhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                            return Err(anyhow!(
+                                "Subscription {} does not have a column for `DataConfig` lhs_fk {fk} for processor {} with lhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
                         }
                     }
                     if column_names.contains("lhs_values") {
-                        let vec_str = table.get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?;
+                        let vec_str =
+                            table.get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?;
                         let values = vec_str.last().unwrap();
-                        let mut missing = values.iter()
-                            .filter_map(|v| if subscription_col_names.contains(v) {
-                                None
-                            } else {
-                                Some(v)
-                            })
+                        let mut missing = values
+                            .iter()
+                            .filter(|v| !subscription_col_names.contains(v.as_str()))
                             .collect::<Vec<_>>();
                         missing.sort();
                         if !missing.is_empty() {
-                            return Err(anyhow!("Subscription {} does not have columns for `DataConfig` lhs_values {missing:?} for processor {} with lhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                            return Err(anyhow!(
+                                "Subscription {} does not have columns for `DataConfig` lhs_values {missing:?} for processor {} with lhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
                         }
                     }
                 }
@@ -202,48 +231,69 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 let vec_str = table.get_column_as_vec_str("rhs_name");
                 let name = vec_str.last().unwrap();
 
-                let subscriptions = processor.get_subscriptions()
+                let subscriptions = processor
+                    .get_subscriptions()
                     .iter()
-                    .filter_map(|s| if &s.get_table_name() == name {
-                        Some(name.to_string())
-                    } else {
-                        None
+                    .filter_map(|s| {
+                        if &s.get_table_name() == name {
+                            Some(name.to_string())
+                        } else {
+                            None
+                        }
                     })
                     .collect::<Vec<_>>();
                 if subscriptions.is_empty() {
-                    return Err(anyhow!("A subscriptions with the same name as the `DataConfig` rhs_name was not found for processor {} with rhs_name {name}.", processor.get_name()));
+                    return Err(anyhow!(
+                        "A subscriptions with the same name as the `DataConfig` rhs_name was not found for processor {} with rhs_name {name}.",
+                        processor.get_name()
+                    ));
                 }
                 let subscription_table = state_map.get(subscriptions.first().unwrap()).unwrap();
-                let subscription_col_names = subscription_table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<HashSet<_>>();
+                let subscription_col_names = subscription_table
+                    .get_schema()
+                    .fields()
+                    .iter()
+                    .map(|f| f.name().to_string())
+                    .collect::<HashSet<_>>();
 
                 if !subscription_col_names.is_empty() {
                     if column_names.contains("rhs_pk") {
                         let vec_str = table.get_column_as_vec_str("rhs_pk");
                         let pk = vec_str.last().unwrap();
                         if !subscription_col_names.contains(*pk) {
-                            return Err(anyhow!("Subscription {} does not have a column for `DataConfig` rhs_pk {pk} for processor {} with rhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                            return Err(anyhow!(
+                                "Subscription {} does not have a column for `DataConfig` rhs_pk {pk} for processor {} with rhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
                         }
                     }
                     if column_names.contains("rhs_fk") {
                         let vec_str = table.get_column_as_vec_str("rhs_fk");
                         let fk = vec_str.last().unwrap();
                         if !subscription_col_names.contains(*fk) {
-                            return Err(anyhow!("Subscription {} does not have a column for `DataConfig` rhs_fk {fk} for processor {} with rhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                            return Err(anyhow!(
+                                "Subscription {} does not have a column for `DataConfig` rhs_fk {fk} for processor {} with rhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
                         }
                     }
                     if column_names.contains("rhs_values") {
-                        let vec_str = table.get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?;
+                        let vec_str =
+                            table.get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?;
                         let values = vec_str.last().unwrap();
-                        let mut missing = values.iter()
-                            .filter_map(|v| if subscription_col_names.contains(v) {
-                                None
-                            } else {
-                                Some(v)
-                            })
+                        let mut missing = values
+                            .iter()
+                            .filter(|v| !subscription_col_names.contains(v.as_str()))
                             .collect::<Vec<_>>();
                         missing.sort();
                         if !missing.is_empty() {
-                            return Err(anyhow!("Subscription {} does not have columns for `DataConfig` rhs_values {missing:?} for processor {} with rhs_name {name}.", subscription_table.get_name(), processor.get_name()));
+                            return Err(anyhow!(
+                                "Subscription {} does not have columns for `DataConfig` rhs_values {missing:?} for processor {} with rhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
                         }
                     }
                 }
@@ -261,7 +311,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .map(|t| (t.get_name().to_string(), t))
             .collect::<HashMap<_, _>>();
 
-        let tasks = self.tasks
+        let tasks = self
+            .tasks
             .as_ref()
             .unwrap()
             .iter()
@@ -275,14 +326,21 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .as_ref()
             .unwrap()
             .iter()
-            .filter_map(|p| if p.get_subscriptions()
-                .iter()
-                .map(|s| s.get_table_name())
-                .collect::<Vec<_>>()
-                .contains(&p.get_name()) {
-                Some((state_map.get(p.get_name()).unwrap(), p.get_type(), p.get_name()))
-            } else {
-                None
+            .filter_map(|p| {
+                if p.get_subscriptions()
+                    .iter()
+                    .map(|s| s.get_table_name())
+                    .collect::<Vec<_>>()
+                    .contains(&p.get_name())
+                {
+                    Some((
+                        state_map.get(p.get_name()).unwrap(),
+                        p.get_type(),
+                        p.get_name(),
+                    ))
+                } else {
+                    None
+                }
             })
             .collect::<Vec<_>>();
 
@@ -298,59 +356,123 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             if let Ok(_config) = CandleChatConfig::from_table(table) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "CandleChatConfig" {
-                        return Err(anyhow!("Schema for `CandleChatConfig` from subject `{}` for processor type `{}` does not match the expected processor types CandleChatProcessor, MessageParserProcessor, or OpenAIChatProcessor.", 
-                            table.get_name(), r#type));
-                    }                    
+                        return Err(anyhow!(
+                            "Schema for `CandleChatConfig` from subject `{}` for processor type `{}` does not match the expected processor types CandleChatProcessor, MessageParserProcessor, or OpenAIChatProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    }
                 } else {
-                    return Err(anyhow!("Processor type `{}` for `CandleChatConfig` from subject `{}` does not match any of the supported processor types {:?}.", 
-                        r#type, table.get_name(), AvailableProcessors::all_varient_names()));
+                    return Err(anyhow!(
+                        "Processor type `{}` for `CandleChatConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
                 }
             } else if let Ok(_config) = CandleEmbedConfig::from_table(table) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "CandleEmbedConfig" {
-                        return Err(anyhow!("Schema for `CandleEmbedConfig` from subject `{}` for processor type `{}` does not match the expected processor types CandleEmbedProcessor or OpenAIEmbedProcessor.", 
-                            table.get_name(), r#type));
-                    }                    
+                        return Err(anyhow!(
+                            "Schema for `CandleEmbedConfig` from subject `{}` for processor type `{}` does not match the expected processor types CandleEmbedProcessor or OpenAIEmbedProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    }
                 } else {
-                    return Err(anyhow!("Processor type `{}` for `CandleEmbedConfig` from subject `{}` does not match any of the supported processor types {:?}.", 
-                        r#type, table.get_name(), AvailableProcessors::all_varient_names()));
+                    return Err(anyhow!(
+                        "Processor type `{}` for `CandleEmbedConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
                 }
             } else if let Ok(_config) = DataSummaryConfig::from_table(table) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "DataSummaryConfig" {
-                        return Err(anyhow!("Schema for `DataSummaryConfig` from subject `{}` for processor type `{}` does not match the expected processor type DataSummaryProcessor.", 
-                            table.get_name(), r#type));
-                    }                    
+                        return Err(anyhow!(
+                            "Schema for `DataSummaryConfig` from subject `{}` for processor type `{}` does not match the expected processor type DataSummaryProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    }
                 } else {
-                    return Err(anyhow!("Processor type `{}` for `DataSummaryConfig` from subject `{}` does not match any of the supported processor types {:?}.", 
-                        r#type, table.get_name(), AvailableProcessors::all_varient_names()));
-                }        
+                    return Err(anyhow!(
+                        "Processor type `{}` for `DataSummaryConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
             } else if let Ok(config) = DataConfig::from_table(table) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() == "DataConfig" {
-                        if config.operator.to_string().as_str() != r#type && r#type != AvailableProcessors::ProcessorMock.to_string().as_str()
-                        && r#type != AvailableProcessors::AttachmentAggregatorProcessor.to_string().as_str()
-                        && r#type != AvailableProcessors::MessageAggregatorProcessor.to_string().as_str()
-                        && r#type != AvailableProcessors::CandleDataProcessor.to_string().as_str() {
-                            return Err(anyhow!("Operator {} for `DataConfig` from subject `{}` does not match the expected for processor type `{}`.", 
-                                config.operator.to_string(), table.get_name(), r#type));
-                        } else if config.operator.to_string().as_str() != AvailableProcessors::SortColumnAndIndices.to_string().as_str() &&
-                        (r#type == AvailableProcessors::AttachmentAggregatorProcessor.to_string().as_str()
-                        || r#type == AvailableProcessors::MessageAggregatorProcessor.to_string().as_str()) {
-                            return Err(anyhow!("Operator {} for `DataConfig` from subject `{}` for processor type `{}` with does not match the expected for processor type of `{}` required by {} and {}.", 
-                                config.operator.to_string(), table.get_name(), r#type, AvailableProcessors::SortColumnAndIndices.to_string(), AvailableProcessors::AttachmentAggregatorProcessor.to_string(), AvailableProcessors::MessageAggregatorProcessor));
+                        if config.operator.to_string().as_str() != r#type
+                            && r#type != AvailableProcessors::ProcessorMock.to_string().as_str()
+                            && r#type
+                                != AvailableProcessors::AttachmentAggregatorProcessor
+                                    .to_string()
+                                    .as_str()
+                            && r#type
+                                != AvailableProcessors::MessageAggregatorProcessor
+                                    .to_string()
+                                    .as_str()
+                            && r#type
+                                != AvailableProcessors::CandleDataProcessor
+                                    .to_string()
+                                    .as_str()
+                        {
+                            return Err(anyhow!(
+                                "Operator {} for `DataConfig` from subject `{}` does not match the expected for processor type `{}`.",
+                                config.operator,
+                                table.get_name(),
+                                r#type
+                            ));
+                        } else if config.operator.to_string().as_str()
+                            != AvailableProcessors::SortColumnAndIndices
+                                .to_string()
+                                .as_str()
+                            && (r#type
+                                == AvailableProcessors::AttachmentAggregatorProcessor
+                                    .to_string()
+                                    .as_str()
+                                || r#type
+                                    == AvailableProcessors::MessageAggregatorProcessor
+                                        .to_string()
+                                        .as_str())
+                        {
+                            return Err(anyhow!(
+                                "Operator {} for `DataConfig` from subject `{}` for processor type `{}` with does not match the expected for processor type of `{}` required by {} and {}.",
+                                config.operator,
+                                table.get_name(),
+                                r#type,
+                                AvailableProcessors::SortColumnAndIndices,
+                                AvailableProcessors::AttachmentAggregatorProcessor,
+                                AvailableProcessors::MessageAggregatorProcessor
+                            ));
                         }
                     } else {
-                        return Err(anyhow!("Schema for `DataConfig` from subject `{}` for processor type `{}` does not match the expected processor type DataProcessor nor any of the `CandleOperator`s {:?}.", 
-                            table.get_name(), r#type, AvailableCandleOperators::all_varient_names()));
-                    }   
+                        return Err(anyhow!(
+                            "Schema for `DataConfig` from subject `{}` for processor type `{}` does not match the expected processor type DataProcessor nor any of the `CandleOperator`s {:?}.",
+                            table.get_name(),
+                            r#type,
+                            AvailableCandleOperators::all_varient_names()
+                        ));
+                    }
                 } else {
-                    return Err(anyhow!("Processor type `{}` for `DataConfig` from subject `{}` does not match any of the supported processor types {:?}.", 
-                        r#type, table.get_name(), AvailableProcessors::all_varient_names()));
-                } 
-                data_config_vec.push((config, table.get_name().to_string()));                
+                    return Err(anyhow!(
+                        "Processor type `{}` for `DataConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+                data_config_vec.push((config, table.get_name().to_string()));
             } else {
-                return Err(anyhow!("Config could not be built for subject {}.", table.get_name()));
+                return Err(anyhow!(
+                    "Config could not be built for subject {}.",
+                    table.get_name()
+                ));
             }
         }
 
@@ -358,34 +480,49 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         for (config, name) in data_config_vec {
             let data_operator = match config.operator.build(&config) {
                 Ok(data_operator) => data_operator,
-                Err(err) => return Err(anyhow!("Failed to build `{}` with DataConfig from subject `{name}`. {err}", config.operator))
+                Err(err) => {
+                    return Err(anyhow!(
+                        "Failed to build `{}` with DataConfig from subject `{name}`. {err}",
+                        config.operator
+                    ));
+                }
             };
 
             // Try to run each operator
-            if let Some(lhs_name) = config.lhs_name {
-                if let Some(lhs_table) = state_map.get(&lhs_name) {
-                    if lhs_table.count_rows() > 0 {
-                        if let Some(rhs_name) = config.rhs_name {
-                            let device = device(false)?;
-                            if let Some(rhs_table) = state_map.get(&rhs_name) {
-                                if rhs_table.count_rows() > 0 {
-                                    if let Err(err) = data_operator.forward(lhs_table.get_record_batches(), Some(rhs_table.get_record_batches()), &device) {
-                                        return Err(anyhow!("Failed to run `{}` with DataConfig from subject `{name}` and lhs_args {:?} and rhs_args {:?}. {err}", config.operator, lhs_table.get_record_batches(), rhs_table.get_record_batches()));
-                                    }
-                                }                                
-                            } else {
-                                if let Err(err) = data_operator.forward(lhs_table.get_record_batches(), None, &device) {
-                                    return Err(anyhow!("Failed to run `{}` with DataConfig from subject `{name}` and lhs_args {:?}. {err}", config.operator, lhs_table.get_record_batches()));
-                                }
-                            }
-                        }
+            if let Some(lhs_name) = config.lhs_name
+                && let Some(lhs_table) = state_map.get(&lhs_name)
+                && lhs_table.count_rows() > 0
+                && let Some(rhs_name) = config.rhs_name
+            {
+                let device = device(false)?;
+                if let Some(rhs_table) = state_map.get(&rhs_name) {
+                    if rhs_table.count_rows() > 0
+                        && let Err(err) = data_operator.forward(
+                            lhs_table.get_record_batches(),
+                            Some(rhs_table.get_record_batches()),
+                            &device,
+                        )
+                    {
+                        return Err(anyhow!(
+                            "Failed to run `{}` with DataConfig from subject `{name}` and lhs_args {:?} and rhs_args {:?}. {err}",
+                            config.operator,
+                            lhs_table.get_record_batches(),
+                            rhs_table.get_record_batches()
+                        ));
                     }
+                } else if let Err(err) =
+                    data_operator.forward(lhs_table.get_record_batches(), None, &device)
+                {
+                    return Err(anyhow!(
+                        "Failed to run `{}` with DataConfig from subject `{name}` and lhs_args {:?}. {err}",
+                        config.operator,
+                        lhs_table.get_record_batches()
+                    ));
                 }
             }
         }
 
         Ok(())
-        
     }
     fn check_processor_config_subjects(&self) -> Result<()> {
         let processor_names = self
@@ -701,7 +838,10 @@ pub mod test_session_context_builder_agents {
     use std::vec;
 
     use phymes_core::{
-        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, TableBuilderTrait, TablePublication, TableSubscription, test_session_context_builder::make_test_session_builder_tasks, test_table::make_test_table, test_task::make_runtime_env
+        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, TableBuilderTrait,
+        TablePublication, TableSubscription,
+        test_session_context_builder::make_test_session_builder_tasks, test_table::make_test_table,
+        test_task::make_runtime_env,
     };
     use phymes_data::{AvailableCandleOperators, DataConfig};
 
@@ -712,21 +852,30 @@ pub mod test_session_context_builder_agents {
             make_test_table("state_1", 4, 8, 3)?,
             Table::get_builder()
                 .with_name("processor_1")
-                .with_json(&AvailableProcessors::CandleDataProcessor.to_example_json()?, 1)
+                .with_json(
+                    &AvailableProcessors::CandleDataProcessor.to_example_json()?,
+                    1,
+                )
                 .unwrap()
                 .build()
                 .unwrap(),
             make_test_table("state_2", 4, 8, 3)?,
             Table::get_builder()
                 .with_name("processor_2")
-                .with_json(&AvailableProcessors::CandleDataProcessor.to_example_json()?, 1)
+                .with_json(
+                    &AvailableProcessors::CandleDataProcessor.to_example_json()?,
+                    1,
+                )
                 .unwrap()
                 .build()
                 .unwrap(),
             make_test_table("state_3", 4, 8, 3)?,
             Table::get_builder()
                 .with_name("processor_3")
-                .with_json(&AvailableProcessors::CandleDataProcessor.to_example_json()?, 1)
+                .with_json(
+                    &AvailableProcessors::CandleDataProcessor.to_example_json()?,
+                    1,
+                )
                 .unwrap()
                 .build()
                 .unwrap(),
@@ -842,9 +991,12 @@ pub mod test_session_context_builder_agents {
 mod tests {
 
     use phymes_core::{
-        BuildableTrait, BuilderTrait, DataFormat, PublishAndSubscribeTrait, TableBuilderTrait, TaskTrait, test_session_context_builder::{
+        BuildableTrait, BuilderTrait, DataFormat, PublishAndSubscribeTrait, TableBuilderTrait,
+        TaskTrait,
+        test_session_context_builder::{
             make_test_session_builder_parallel_task, make_test_session_builder_tasks,
-        }, test_task::{make_runtime_env, make_state_tables}
+        },
+        test_task::{make_runtime_env, make_state_tables},
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
 
@@ -960,8 +1112,8 @@ mod tests {
             rhs_fk: Some("id".to_string()),
             lhs_pk: Some("title".to_string()),
             rhs_pk: Some("title".to_string()),
-            lhs_values: Some(vec!["metadata".to_string(),"score".to_string()]),
-            rhs_values: Some(vec!["metadata".to_string(),"score".to_string()]),
+            lhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
+            rhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
             operator: AvailableCandleOperators::JoinInner,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
             ..Default::default()
@@ -1066,8 +1218,8 @@ mod tests {
             rhs_fk: Some("id".to_string()),
             lhs_pk: Some("title".to_string()),
             rhs_pk: Some("title".to_string()),
-            lhs_values: Some(vec!["metadata".to_string(),"missing_value".to_string()]),
-            rhs_values: Some(vec!["metadata".to_string(),"score".to_string()]),
+            lhs_values: Some(vec!["metadata".to_string(), "missing_value".to_string()]),
+            rhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
             operator: AvailableCandleOperators::JoinInner,
             ..Default::default()
         };

@@ -3,7 +3,7 @@ use arrow::{
     datatypes::{Field, Schema},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
@@ -14,11 +14,13 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait, candle_data::{DataAggregatorOperator, DataConfig}, candle_operators::{
+    ToolTrait,
+    candle_data::{DataAggregatorOperator, DataConfig},
+    candle_operators::{
         data_operator::DataOperatorTrait,
         group_by_and_aggregate::{create_agg_column_name, group_by_and_aggregate},
         sort_column_and_indices::take_columns_by_indices,
-    }
+    },
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
@@ -123,11 +125,26 @@ impl ToolTrait for Pivot {
 
 impl DataOperatorTrait for Pivot {
     fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!("Missing `lhs_values` for `{}`.", Self::get_static_name()))?;
-        let agg_columns = config.agg_columns.clone().ok_or(anyhow!("Missing `agg_columns` for `{}`.", Self::get_static_name()))?;
-        let agg_operators = config.agg_operators.clone().ok_or(anyhow!("Missing `agg_operators` for `{}`.", Self::get_static_name()))?;
-        let default_values = config.default_values.clone().ok_or(anyhow!("Missing `default_values` for `{}`.", Self::get_static_name()))?;
-        let pvt_columns = config.pvt_columns.clone().ok_or(anyhow!("Missing `pvt_columns` for `{}`.", Self::get_static_name()))?;
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_values` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let agg_columns = config.agg_columns.clone().ok_or(anyhow!(
+            "Missing `agg_columns` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let agg_operators = config.agg_operators.clone().ok_or(anyhow!(
+            "Missing `agg_operators` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let default_values = config.default_values.clone().ok_or(anyhow!(
+            "Missing `default_values` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let pvt_columns = config.pvt_columns.clone().ok_or(anyhow!(
+            "Missing `pvt_columns` for `{}`.",
+            Self::get_static_name()
+        ))?;
 
         Ok(Pivot {
             lhs_values,

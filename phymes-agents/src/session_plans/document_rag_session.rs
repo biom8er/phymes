@@ -1,20 +1,23 @@
 use std::{sync::Arc, vec};
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
+    DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
 };
 use phymes_data::{
-    AvailableCandleOperators, DataCastOperator, DataConfig, DataDistanceOperator, DataSummaryConfig
-};
-use phymes_ml::{
-    AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig,
+    AvailableCandleOperators, DataCastOperator, DataConfig, DataDistanceOperator, DataSummaryConfig,
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::AvailableOpenAIAssets;
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
 
 use arrow::datatypes::{DataType, SchemaRef};
 
-use crate::{AvailableProcessors, session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
+use crate::{
+    AvailableProcessors, session_plans::AvailableInterfaceSubjects,
+    session_traits::CustomAgentsBuilderTrait,
+};
 
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///

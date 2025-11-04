@@ -117,13 +117,11 @@ impl TableSubscription {
             Ok(TableSubscription::AlwaysFullTable {
                 table_name: subject.to_string(),
             })
-        } else if line.contains("|") & line.contains("-.->") & line.contains("LastRecordBatch")
-        {
+        } else if line.contains("|") & line.contains("-.->") & line.contains("LastRecordBatch") {
             Ok(TableSubscription::OnUpdateLastRecordBatch {
                 table_name: subject.to_string(),
             })
-        } else if line.contains("|") & line.contains("-->") & line.contains("LastRecordBatch")
-        {
+        } else if line.contains("|") & line.contains("-->") & line.contains("LastRecordBatch") {
             Ok(TableSubscription::AlwaysLastRecordBatch {
                 table_name: subject.to_string(),
             })
@@ -204,7 +202,6 @@ impl TableSubscriptionTrait for Table {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -213,22 +210,30 @@ mod tests {
     fn test_table_subscription_from_str_mermaid() -> Result<()> {
         let line = "message_parsing-subject-->|FullTable|message_parser-subscribe";
         let subject = "message_parser";
-        let publication = TableSubscription::AlwaysFullTable { table_name: subject.to_string() };
+        let publication = TableSubscription::AlwaysFullTable {
+            table_name: subject.to_string(),
+        };
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parsing-subject-.->|FullTable|message_parser-subscribe";
-        let publication = TableSubscription::OnUpdateFullTable { table_name: subject.to_string() };
+        let publication = TableSubscription::OnUpdateFullTable {
+            table_name: subject.to_string(),
+        };
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parsing-subject-->|LastRecordBatch|message_parser-subscribe";
-        let publication = TableSubscription::AlwaysLastRecordBatch { table_name: subject.to_string() };
+        let publication = TableSubscription::AlwaysLastRecordBatch {
+            table_name: subject.to_string(),
+        };
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parsing-subject-.->|LastRecordBatch|message_parser-subscribe";
-        let publication = TableSubscription::OnUpdateLastRecordBatch { table_name: subject.to_string() };
+        let publication = TableSubscription::OnUpdateLastRecordBatch {
+            table_name: subject.to_string(),
+        };
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 

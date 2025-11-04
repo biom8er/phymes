@@ -1,10 +1,16 @@
 use std::fmt::Display;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::{MappableTrait, TableSubscribePolicyTrait, table::{AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe, AnyTableSchemaSubscribe, ChatContentSubscribe}};
+use crate::{
+    MappableTrait, TableSubscribePolicyTrait,
+    table::{
+        AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe,
+        AnyTableSchemaSubscribe, ChatContentSubscribe,
+    },
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableTableSubscribePolicies {
@@ -60,10 +66,18 @@ impl Display for AvailableTableSubscribePolicies {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::AlwaysSubscribe => write!(f, "{}", AlwaysSubscribe::get_static_name()),
-            Self::AnyTableNameSubscribe => write!(f, "{}", AnyTableNameSubscribe::get_static_name()),
-            Self::AllTableNamesSubscribe => write!(f, "{}", AllTableNamesSubscribe::get_static_name()),
-            Self::AnyTableSchemaSubscribe => write!(f, "{}", AnyTableSchemaSubscribe::get_static_name()),
-            Self::AllTableSchemasSubscribe => write!(f, "{}", AllTableSchemasSubscribe::get_static_name()),
+            Self::AnyTableNameSubscribe => {
+                write!(f, "{}", AnyTableNameSubscribe::get_static_name())
+            }
+            Self::AllTableNamesSubscribe => {
+                write!(f, "{}", AllTableNamesSubscribe::get_static_name())
+            }
+            Self::AnyTableSchemaSubscribe => {
+                write!(f, "{}", AnyTableSchemaSubscribe::get_static_name())
+            }
+            Self::AllTableSchemasSubscribe => {
+                write!(f, "{}", AllTableSchemasSubscribe::get_static_name())
+            }
             Self::ChatContentSubscribe => write!(f, "{}", ChatContentSubscribe::get_static_name()),
         }
     }

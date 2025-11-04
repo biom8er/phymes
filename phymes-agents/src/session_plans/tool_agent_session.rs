@@ -3,18 +3,25 @@ use serde_json::json;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields, create_tools_record_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields,
+    create_tools_record_batch,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataConfig, DataSummaryConfig, MERMAID_XYCHART_TABLE_EXPRESSION, ToolTrait,
+    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataConfig,
+    DataSummaryConfig, MERMAID_XYCHART_TABLE_EXPRESSION, ToolTrait,
 };
-use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 #[cfg(feature = "openai_api")]
 use phymes_ml::AvailableOpenAIAssets;
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
 use arrow::datatypes::{DataType, Field, Fields};
 
-use crate::{AvailableProcessors, session_plans::AvailableInterfaceSubjects, session_traits::CustomAgentsBuilderTrait};
+use crate::{
+    AvailableProcessors, session_plans::AvailableInterfaceSubjects,
+    session_traits::CustomAgentsBuilderTrait,
+};
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
@@ -728,7 +735,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AvailableInterfaceSubjects::AssistantScript
                 .to_table(None, None)
                 .unwrap(),
-            AvailableSubjects::SessionErrors.to_table(None, None).unwrap()
+            AvailableSubjects::SessionErrors
+                .to_table(None, None)
+                .unwrap(),
         ])
     }
 }

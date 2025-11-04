@@ -315,11 +315,15 @@ pub fn check_not_null_constraints(
 pub mod test_task {
     use super::*;
     use crate::{
-        AvailableTableSubscribePolicies, ProcessorBuilder, session::{
+        AvailableTableSubscribePolicies, ProcessorBuilder,
+        session::{
             BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, RuntimeEnv, RuntimeEnvTrait,
-        }, table::{
-            Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, test_table::{make_test_table, make_test_table_chat}
-        }, task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, test_processor::ProcessorMock}
+        },
+        table::{
+            Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+            test_table::{make_test_table, make_test_table_chat},
+        },
+        task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, test_processor::ProcessorMock},
     };
 
     use arrow::array::{ArrayRef, StringArray, UInt16Array, UInt32Array};
@@ -392,19 +396,26 @@ pub mod test_task {
         Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ProcessorBuilder::default().with_name(processor_name.as_str())
-                .with_type(ProcessorMock::get_static_name())
-                .with_publications(&[TablePublication::Extend {
-                    table_name: table_name.to_string(),
-                }]).with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
+            .with_processor(vec![
+                ProcessorBuilder::default()
+                    .with_name(processor_name.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .with_publications(&[TablePublication::Extend {
                         table_name: table_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: config_name.to_string(),
-                    },
-                ]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
-                .build_arc::<ProcessorMock>()?])
+                    }])
+                    .with_subscriptions(&[
+                        TableSubscription::OnUpdateFullTable {
+                            table_name: table_name.to_string(),
+                        },
+                        TableSubscription::AlwaysFullTable {
+                            table_name: config_name.to_string(),
+                        },
+                    ])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build_arc::<ProcessorMock>()?,
+            ])
             .build()
     }
 
@@ -419,22 +430,29 @@ pub mod test_task {
         Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ProcessorBuilder::default().with_name(processor_name.as_str())
-                .with_type(ProcessorMock::get_static_name())
-                .with_publications(&[TablePublication::Extend {
-                    table_name: table_name_1.to_string(),
-                }]).with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
+            .with_processor(vec![
+                ProcessorBuilder::default()
+                    .with_name(processor_name.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .with_publications(&[TablePublication::Extend {
                         table_name: table_name_1.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: table_name_2.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: config_name.to_string(),
-                    },
-                ]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
-                .build_arc::<ProcessorMock>()?])
+                    }])
+                    .with_subscriptions(&[
+                        TableSubscription::OnUpdateFullTable {
+                            table_name: table_name_1.to_string(),
+                        },
+                        TableSubscription::OnUpdateFullTable {
+                            table_name: table_name_2.to_string(),
+                        },
+                        TableSubscription::AlwaysFullTable {
+                            table_name: config_name.to_string(),
+                        },
+                    ])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build_arc::<ProcessorMock>()?,
+            ])
             .build()
     }
 
@@ -450,29 +468,44 @@ pub mod test_task {
         Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ProcessorBuilder::default().with_name(processor_name_1.as_str())
-                .with_type(ProcessorMock::get_static_name())
-                .with_publications(&[TablePublication::Extend {
-                    table_name: table_name.to_string(),
-                }]).with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
+            .with_processor(vec![
+                ProcessorBuilder::default()
+                    .with_name(processor_name_1.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .with_publications(&[TablePublication::Extend {
                         table_name: table_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: config_name.to_string(),
-                    },
-                ]).with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
-                .build_arc::<ProcessorMock>()?,
-                ProcessorBuilder::default().with_name(processor_name_2.as_str())
-                .with_type(ProcessorMock::get_static_name())
-                .with_publications(&[]).with_subscriptions(&[])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
-                .build_arc::<ProcessorMock>()?,
-                ProcessorBuilder::default().with_name(processor_name_3.as_str())
-                .with_type(ProcessorMock::get_static_name())
-                .with_publications(&[]).with_subscriptions(&[])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
-                .build_arc::<ProcessorMock>()?])
+                    }])
+                    .with_subscriptions(&[
+                        TableSubscription::OnUpdateFullTable {
+                            table_name: table_name.to_string(),
+                        },
+                        TableSubscription::AlwaysFullTable {
+                            table_name: config_name.to_string(),
+                        },
+                    ])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build_arc::<ProcessorMock>()?,
+                ProcessorBuilder::default()
+                    .with_name(processor_name_2.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .with_publications(&[])
+                    .with_subscriptions(&[])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build_arc::<ProcessorMock>()?,
+                ProcessorBuilder::default()
+                    .with_name(processor_name_3.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .with_publications(&[])
+                    .with_subscriptions(&[])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build_arc::<ProcessorMock>()?,
+            ])
             .build()
     }
 
@@ -662,11 +695,15 @@ mod tests {
         );
         assert_eq!(messages.len(), 2);
         assert_eq!(
-            remove_message_by_subject("test_table", &mut messages).unwrap().get_subject(),
+            remove_message_by_subject("test_table", &mut messages)
+                .unwrap()
+                .get_subject(),
             "test_table"
         );
         assert_eq!(
-           remove_message_by_subject("test_config", &mut messages).unwrap().get_subject(),
+            remove_message_by_subject("test_config", &mut messages)
+                .unwrap()
+                .get_subject(),
             "test_config"
         );
 
@@ -684,7 +721,9 @@ mod tests {
         );
         assert_eq!(messages.len(), 1);
         assert_eq!(
-            remove_message_by_subject("test_config", &mut messages).unwrap().get_subject(),
+            remove_message_by_subject("test_config", &mut messages)
+                .unwrap()
+                .get_subject(),
             "test_config"
         );
 
@@ -702,11 +741,15 @@ mod tests {
         );
         assert_eq!(messages.len(), 2);
         assert_eq!(
-            remove_message_by_subject("test_table", &mut messages).unwrap().get_subject(),
+            remove_message_by_subject("test_table", &mut messages)
+                .unwrap()
+                .get_subject(),
             "test_table"
         );
         assert_eq!(
-            remove_message_by_subject("test_config", &mut messages).unwrap().get_subject(),
+            remove_message_by_subject("test_config", &mut messages)
+                .unwrap()
+                .get_subject(),
             "test_config"
         );
         Ok(())
