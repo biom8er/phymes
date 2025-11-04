@@ -449,8 +449,8 @@ impl Stream for DataSummaryStream {
                 &self.config.as_ref().unwrap().summary_format,
                 None
             )?;
-            if batch.num_rows() == 0 {
-                if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            if batch.num_rows() == 0
+                && let Some(diagnostic_builder) = &self.diagnostic_builder {
                     let event = diagnostic_builder
                         .clone()
                         .to_child("DataSummaryStream")?
@@ -459,7 +459,6 @@ impl Stream for DataSummaryStream {
                         format!("The result of the data summary stream with config {:?} was an empty RecordBatch.",
                             self.config.as_ref().unwrap())));
                 };
-            }
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));

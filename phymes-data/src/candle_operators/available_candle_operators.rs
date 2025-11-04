@@ -96,7 +96,7 @@ impl ToolTrait for AvailableCandleOperators {
         match self {
             Self::VectorDistance => VectorDistance::default().to_json_tool_schema(),
             Self::SortColumnAndIndices => SortColumnAndIndices::default().to_json_tool_schema(),
-            Self::HumanInTheLoop => HumanInTheLoop::default().to_json_tool_schema(),
+            Self::HumanInTheLoop => HumanInTheLoop.to_json_tool_schema(),
             Self::ChunkDocuments => ChunkDocuments::default().to_json_tool_schema(),
             Self::JoinInner => JoinInner::default().to_json_tool_schema(),
             Self::ExtractPDFText => ExtractPDFText::default().to_json_tool_schema(),
@@ -115,7 +115,7 @@ impl ToolTrait for AvailableCandleOperators {
         match self {
             Self::VectorDistance => VectorDistance::default().get_description(),
             Self::SortColumnAndIndices => SortColumnAndIndices::default().get_description(),
-            Self::HumanInTheLoop => HumanInTheLoop::default().get_description(),
+            Self::HumanInTheLoop => HumanInTheLoop.get_description(),
             Self::ChunkDocuments => ChunkDocuments::default().get_description(),
             Self::JoinInner => JoinInner::default().get_description(),
             Self::ExtractPDFText => ExtractPDFText::default().get_description(),

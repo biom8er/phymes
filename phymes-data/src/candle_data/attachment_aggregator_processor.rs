@@ -291,8 +291,8 @@ impl Stream for AggregatorStream {
                     .unwrap()
                     .get_device(),
             )?;
-            if batch.num_rows() == 0 {
-                if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            if batch.num_rows() == 0
+                && let Some(diagnostic_builder) = &self.diagnostic_builder {
                     let event = diagnostic_builder
                         .clone()
                         .to_child("AggregatorStream")?
@@ -302,7 +302,6 @@ impl Stream for AggregatorStream {
                             self.data_operator.as_ref().unwrap().get_name(), 
                             self.config.as_ref().unwrap())));
                 };
-            }
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));

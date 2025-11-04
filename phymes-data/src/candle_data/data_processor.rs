@@ -434,8 +434,8 @@ impl Stream for CandleDataStream {
                 return Poll::Ready(Some(Err(err)));
             }
         };
-        if batch.num_rows() == 0 {
-            if let Some(diagnostic_builder) = &self.diagnostic_builder {
+        if batch.num_rows() == 0
+            && let Some(diagnostic_builder) = &self.diagnostic_builder {
                 let event = diagnostic_builder
                     .clone()
                     .to_child("CandleDataStream")?
@@ -445,7 +445,6 @@ impl Stream for CandleDataStream {
                         self.data_operator.as_ref().unwrap().get_name(), 
                         self.config.as_ref().unwrap())));
             };
-        }
         if let Some(diagnostic_builder) = &self.diagnostic_builder {
             let event = diagnostic_builder
                 .clone()
