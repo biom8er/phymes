@@ -133,6 +133,26 @@ impl ToolTrait for AvailableCandleOperators {
 }
 
 impl AvailableCandleOperators {
+    pub fn all_varient_names() -> Vec<String> {
+        let processor_names = [
+            Self::VectorDistance.to_string(),
+            Self::SortColumnAndIndices.to_string(),
+            Self::HumanInTheLoop.to_string(),
+            Self::ChunkDocuments.to_string(),
+            Self::JoinInner.to_string(),
+            Self::ExtractPDFText.to_string(),
+            Self::GroupByAndAggregate.to_string(),
+            Self::FilterColumnsAndIndices.to_string(),
+            Self::ExtractTabularData.to_string(),
+            Self::SelectAndCast.to_string(),
+            Self::Pivot.to_string(),
+            Self::NormalizeTime.to_string(),
+        ];
+        processor_names
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+    }
     /// Build the actual operator
     pub fn build(&self, config: &DataConfig) -> Result<Box<dyn DataOperatorTrait>> {
         match self {

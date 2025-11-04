@@ -117,8 +117,10 @@ impl DataConfigTrait for AvailableProcessors {
             Self::ProcessorEcho => Ok(Vec::new()),
             Self::CandleDataProcessor => serde_json::to_vec(&DataConfig::default()),
             Self::VectorDistance => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
+                rhs_name: Some("rhs_name".to_string()),
                 rhs_pk: Some("rhs_pk".to_string()),
                 rhs_values: Some(vec!["rhs_values".to_string()]),
                 dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
@@ -128,6 +130,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::SortColumnAndIndices => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 asc: Some(true),
                 cpu: false,
@@ -136,11 +139,13 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::HumanInTheLoop => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 cpu: false,
                 operator: AvailableCandleOperators::HumanInTheLoop,
                 ..Default::default()
             }),
             Self::ChunkDocuments => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 chunk_size: Some(512),
@@ -151,6 +156,8 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::JoinInner => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
+                rhs_name: Some("rhs_name".to_string()),
                 lhs_pk: Some("lhs_pk".to_string()),
                 rhs_pk: Some("rhs_pk".to_string()),
                 lhs_fk: Some("lhs_fk".to_string()),
@@ -161,6 +168,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::ExtractPDFText => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cpu: false,
@@ -169,6 +177,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::GroupByAndAggregate => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 agg_columns: Some(vec!["agg_columns".to_string()]),
                 agg_operators: Some(vec![DataAggregatorOperator::Sum]),
@@ -178,6 +187,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::FilterColumnsAndIndices => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cmp_columns: Some(vec!["cmp_columns".to_string()]),
                 cmp_operators: Some(vec![DataComparatorOperator::Equals]),
@@ -188,6 +198,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::ExtractTabularData => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 format: Some(DataFormat::None),
                 cpu: false,
@@ -196,6 +207,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::SelectAndCast => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 as_columns: Some(vec!["as_columns".to_string()]),
                 cast_operators: Some(vec![DataCastOperator::None]),
@@ -207,6 +219,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::Pivot => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 agg_columns: Some(vec!["agg_columns".to_string()]),
                 agg_operators: Some(vec![DataAggregatorOperator::Sum]),
@@ -218,6 +231,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::NormalizeTime => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::NormalizeTime,
@@ -362,7 +376,7 @@ impl ToolTrait for AvailableProcessors {
 
 impl AvailableProcessors {
     /// Get all available processor plans
-    pub fn get_all_processor_names() -> Vec<String> {
+    pub fn all_varient_names() -> Vec<String> {
         let processor_names = [
             AvailableProcessors::ProcessorMock.to_string(),
             AvailableProcessors::ProcessorEcho.to_string(),
@@ -396,6 +410,7 @@ impl AvailableProcessors {
             .collect::<Vec<_>>()
     }
 
+    /// New [AvailableProcessors] from a short name identifying the variant contained in a [String]
     pub fn from_str_fuzzy(line: &str) -> Result<Self> {
         if line.contains(&AvailableProcessors::ProcessorMock.to_string()) {
             Ok(AvailableProcessors::ProcessorMock)
@@ -452,11 +467,12 @@ impl AvailableProcessors {
             }
             #[cfg(not(feature = "openai_api"))]
             Err(anyhow!(
-                "Processor not found in {line}. Available processors are {:?}.", AvailableProcessors::get_all_processor_names()
+                "Processor not found in {line}. Available processors are {:?}.", AvailableProcessors::all_varient_names()
             ))
         }
     }
 
+    /// Build the [ProcessorTrait] object
     pub fn build_arc(
         self,
         name: &str,
@@ -547,6 +563,7 @@ impl AvailableProcessors {
         }
     }
 
+    /// Build the [ProcessorTrait] object form the [ProcessorBuilder]
     pub fn build_with_builder(self, builder: ProcessorBuilder) -> Result<Arc<dyn ProcessorTrait>> {
         match self {
             Self::ProcessorMock => builder.build_arc::<ProcessorMock>(),
@@ -575,5 +592,37 @@ impl AvailableProcessors {
             #[cfg(feature = "openai_api")]
             Self::OpenAIEmbedProcessor => builder.build_arc::<OpenAIEmbedProcessor>(),
         }
+    }
+
+    /// Identify the [DataConfigTrait] object for the [ProcessorTrait] object
+    pub fn config_type(&self) -> &str {
+        match self {
+            Self::ProcessorEcho => "",
+            Self::ProcessorMock
+            | Self::CandleDataProcessor 
+            | Self::ChunkDocuments
+            | Self::ExtractPDFText
+            | Self::ExtractTabularData
+            | Self::FilterColumnsAndIndices
+            | Self::GroupByAndAggregate
+            | Self::HumanInTheLoop
+            | Self::JoinInner
+            | Self::NormalizeTime
+            | Self::Pivot
+            | Self::SelectAndCast
+            | Self::SortColumnAndIndices
+            | Self::VectorDistance 
+            | Self::AttachmentAggregatorProcessor 
+            | Self::MessageAggregatorProcessor => "DataConfig",
+            Self::DataSummaryProcessor => "DataSummaryConfig",
+            Self::CandleChatProcessor
+            | Self::MessageParserProcessor => "CandleChatConfig",
+            Self::CandleEmbedProcessor => "CandleEmbedConfig",
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIChatProcessor => "CandleChatConfig",
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIEmbedProcessor => "CandleEmbedConfig",
+        }
+
     }
 }
