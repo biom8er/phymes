@@ -1,0 +1,6 @@
+[
+{"args":{"name":"main"},"name":"thread_name","ph":"M","pid":1,"tid":0},
+{".file":"phymes-ml/src/candle_chat/chat_processor.rs",".line":93,"cat":"phymes_ml::candle_chat::chat_processor","name":"process","ph":"B","pid":1,"tid":0,"ts":56051.37},
+{".file":"phymes-ml/src/candle_chat/chat_processor.rs",".line":100,"cat":"phymes_ml::candle_chat::chat_processor","name":"event phymes-ml/src/candle_chat/chat_processor.rs:100","ph":"i","pid":1,"s":"t","tid":0,"ts":57880.426},
+{".file":"phymes-ml/src/candle_chat/chat_processor.rs",".line":93,"cat":"phymes_ml::candle_chat::chat_processor","name":"process","ph":"E","pid":1,"tid":0,"ts":60076.806}
+]

@@ -705,7 +705,6 @@ pub mod bench_chat_processor {
         user_content: &str,
         name: &str,
     ) -> Result<Table> {
-        // Named variables
         let messages = "messages";
 
         // State for the chat processor config
@@ -748,7 +747,7 @@ pub mod bench_chat_processor {
         #[allow(unused_variables)]
         let chat_processor = CandleChatProcessor::new(
             name,
-            "",
+            CandleChatProcessor::get_static_name(),
             &[TablePublication::ExtendChunks {
                 table_name: messages.to_string(),
                 col_name: "content".to_string(),
@@ -767,6 +766,7 @@ pub mod bench_chat_processor {
         #[cfg(all(not(feature = "candle"), feature = "openai_api"))]
         let chat_processor = OpenAIChatProcessor::new(
             name,
+            OpenAIChatProcessor::get_static_name(),
             &[TablePublication::ExtendChunks {
                 table_name: messages.to_string(),
                 col_name: "content".to_string(),
@@ -791,7 +791,10 @@ pub mod bench_chat_processor {
         // Update the chat history with the response
         let (message_builder, _stream) = message_builder
             .append_chat_response_sendable_record_batch_stream(
-                &mut stream.remove(messages).unwrap().get_message_own(),
+                &mut stream
+                    .remove(format!("from_{name}_on_{messages}").as_str())
+                    .unwrap()
+                    .get_message_own(),
                 1000,
             )
             .await?;

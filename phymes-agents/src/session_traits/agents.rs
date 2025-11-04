@@ -51,6 +51,9 @@ pub trait SessionContextBuilderAgentsTrait {
     /// 1. Check that [DataOperatorTrait]s of [CandleDataProcessor]s can be build with the specified [DataConfig]s
     /// 2. Check that all other configs can be generated from the provided table
     /// 3. Check that all config schemas match their processor
+    ///
+    /// [DataOperatorTrait]: phymes_data::DataOperatorTrait
+    /// [CandleDataProcessor]: phymes_data::CandleDataProcessor
     fn check_processor_config_builds(&self) -> Result<()>;
 
     /// Check that all [ProcessorTrait]s subscribe to a subject of the same name

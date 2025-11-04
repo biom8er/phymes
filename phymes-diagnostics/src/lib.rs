@@ -10,8 +10,9 @@ pub use diagnostics::{
 };
 pub use events::{Event, EventBuilderTrait, EventRecord};
 pub use metrics::{
-    BaselineMetrics, HashMap, HashSet, Metric, MetricBuilderTrait, convert_timestamp_micros_to_str,
-    create_timestamp_micros, create_timestamp_str,
+    BaselineMetrics, Count, Gauge, HashMap, HashSet, Metric, MetricBuilderTrait, RecordOutput,
+    Time, Timestamp, convert_timestamp_micros_to_str, create_timestamp_micros,
+    create_timestamp_str,
 };
 pub use traces::{
     CurrentContext, Span, SpanBuilder, Trace, TraceBuilderTrait, TraceRecord, TraceableTrait,

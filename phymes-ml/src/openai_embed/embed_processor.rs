@@ -3,15 +3,17 @@ use crate::{
     openai_asset::OpenAIRequestState,
 };
 
+use phymes_data::DataConfigTrait;
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, EmbeddingRequest,
     EmbeddingResponse, EncodingFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
-    ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
-    SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe,
-    TableTrait, remove_message_by_subject,
+    ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait,
+    remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -32,9 +34,10 @@ use tracing::{Level, event};
 #[derive(Debug)]
 pub struct OpenAIEmbedProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe_policy: Box<dyn SubscribeTrait>,
+    r#type: String,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for OpenAIEmbedProcessor {
@@ -43,13 +46,13 @@ impl MappableTrait for OpenAIEmbedProcessor {
     }
 }
 
-impl PubSubTrait for OpenAIEmbedProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
-        self.publications.iter().collect()
+impl PublishAndSubscribeTrait for OpenAIEmbedProcessor {
+    fn get_publications(&self) -> Vec<&TablePublication> {
+        self.publications.iter().collect::<Vec<_>>()
     }
 
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
-        self.subscriptions.iter().collect()
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
+        self.subscriptions.iter().collect::<Vec<_>>()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
         self.subscribe_policy
@@ -60,27 +63,21 @@ impl PubSubTrait for OpenAIEmbedProcessor {
 impl ProcessorTrait for OpenAIEmbedProcessor {
     fn new(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe_policy: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+        r#type: &str,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             subscribe_policy,
-        })
-    }
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublish::None],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe_policy: AvailableTableSubscribePolicies::default().build(),
-        })
+        }
     }
 
-    fn get_subscribe_policy(&self) -> &dyn SubscribeTrait {
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
         self.subscribe_policy.as_ref()
     }
 

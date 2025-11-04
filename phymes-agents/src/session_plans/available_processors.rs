@@ -18,7 +18,7 @@ use phymes_ml::{
     CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
 };
 #[cfg(feature = "openai_api")]
-use phymes_ml::{OpenAIChatProcessorProcessor, OpenAIEmbedProcessorProcessor};
+use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
 
 /// The available [ProcessorTrait]s
@@ -70,7 +70,7 @@ pub enum AvailableProcessors {
     #[value(name = "CandleEmbedProcessor")]
     CandleEmbedProcessor,
     #[cfg(feature = "openai_api")]
-    #[value(name = "OpenAIChatProcessorProcessor")]
+    #[value(name = "OpenAIChatProcessor")]
     OpenAIChatProcessor,
     #[cfg(feature = "openai_api")]
     #[value(name = "OpenAIEmbedProcessor")]
@@ -491,12 +491,12 @@ impl AvailableProcessors {
             #[cfg(feature = "openai_api")]
             if line.contains(&AvailableProcessors::OpenAIChatProcessor.to_string()) {
                 Ok(AvailableProcessors::OpenAIChatProcessor)
-            } else if line.contains(&AvailableProcessors::OpenAIEmbedProcessor) {
+            } else if line.contains(&AvailableProcessors::OpenAIEmbedProcessor.to_string()) {
                 Ok(AvailableProcessors::OpenAIEmbedProcessor)
             } else {
                 Err(anyhow!(
                     "Processor not found in {line}. Available processors are {:?}.",
-                    AvailableProcessors::get_all_processor_names()
+                    AvailableProcessors::all_varient_names()
                 ))
             }
             #[cfg(not(feature = "openai_api"))]
@@ -593,7 +593,7 @@ impl AvailableProcessors {
                 subscribe_policy,
             )),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIChatProcessor => Arc::new(OpenAIChatProcessorProcessor::new(
+            Self::OpenAIChatProcessor => Arc::new(OpenAIChatProcessor::new(
                 name,
                 self.to_string().as_str(),
                 publications,
@@ -601,7 +601,7 @@ impl AvailableProcessors {
                 subscribe_policy,
             )),
             #[cfg(feature = "openai_api")]
-            Self::OpenAIEmbedProcessor => Arc::new(OpenAIEmbedProcessorProcessor::new(
+            Self::OpenAIEmbedProcessor => Arc::new(OpenAIEmbedProcessor::new(
                 name,
                 self.to_string().as_str(),
                 publications,

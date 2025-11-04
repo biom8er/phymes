@@ -454,7 +454,9 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
         };
 
         // Update the signals
-        diagram_svg.set(mermaid_js_object.svg.unwrap_or_default());
+        if mermaid_js_object.error.is_none() {
+            diagram_svg.set(mermaid_js_object.svg.unwrap_or_default());
+        }
         error_mjs.set(mermaid_js_object.error.unwrap_or_default());
     });
 
@@ -491,12 +493,7 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
         if let Some(error_ctxb) = diagram_code().1 {
             p { "{error_ctxb}" },
         }
-        // if !diagram_svg().is_empty() {
-        //     p { "{diagram_svg}" }
-        // }
-        if !diagram_svg().is_empty() {
-            mermaid_div { diagram_svg }
-        }
+        mermaid_div { diagram_svg }
     }
 }
 

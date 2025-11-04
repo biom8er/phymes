@@ -16,8 +16,6 @@ use phymes_core::{
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::extract_tool_calls_str;
-#[cfg(feature = "openai_api")]
-use phymes_ml::{OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 

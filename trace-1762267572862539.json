@@ -1,0 +1,8 @@
+[
+{"args":{"name":"main"},"name":"thread_name","ph":"M","pid":1,"tid":0},
+{".file":"phymes-ml/src/candle_chat/chat_processor.rs",".line":93,"cat":"phymes_ml::candle_chat::chat_processor","name":"process","ph":"B","pid":1,"tid":0,"ts":54379.651},
+{".file":"phymes-ml/src/candle_chat/chat_processor.rs",".line":100,"cat":"phymes_ml::candle_chat::chat_processor","name":"event phymes-ml/src/candle_chat/chat_processor.rs:100","ph":"i","pid":1,"s":"t","tid":0,"ts":55797.546},
+{".file":"phymes-ml/src/candle_chat/chat_processor.rs",".line":93,"cat":"phymes_ml::candle_chat::chat_processor","name":"process","ph":"E","pid":1,"tid":0,"ts":58192.442},
+{".file":"phymes-ml/src/candle_chat/chat_processor.rs",".line":228,"cat":"phymes_ml::candle_chat::chat_processor","name":"init_config","ph":"B","pid":1,"tid":0,"ts":59566.639},
+{".file":"phymes-ml/src/candle_chat/chat_processor.rs",".line":228,"cat":"phymes_ml::candle_chat::chat_processor","name":"init_config","ph":"E","pid":1,"tid":0,"ts":59653.611}
+]
