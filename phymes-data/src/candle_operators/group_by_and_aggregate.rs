@@ -16,9 +16,11 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
+    ToolTrait,
     candle_data::{DataAggregatorOperator, DataConfig},
     candle_operators::{
         data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices,
@@ -26,7 +28,7 @@ use crate::{
 };
 
 /// Group the [RecordBatch] according to the `lhs_values` columns and aggregate using a specified aggregation operator over specified columns
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct GroupByAndAggregate {
     lhs_values: Vec<String>,
     agg_columns: Vec<String>,
@@ -39,47 +41,11 @@ impl MappableTrait for GroupByAndAggregate {
     }
 }
 
-impl DataOperatorTrait for GroupByAndAggregate {
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        let lhs_values = self
-            .lhs_values
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        let agg_columns = self
-            .agg_columns
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        let batches = group_by_and_aggregate(
-            &lhs_values,
-            lhs_args,
-            &agg_columns,
-            &self.agg_operators,
-            device,
-        )?;
-        Ok(batches)
-    }
-    fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
-        let agg_columns = config.agg_columns.clone().unwrap_or_default();
-        let agg_operators = config.agg_operators.clone().unwrap_or_default();
-
-        GroupByAndAggregate {
-            lhs_values,
-            agg_columns,
-            agg_operators,
-        }
-    }
-    fn get_description() -> String {
+impl ToolTrait for GroupByAndAggregate {
+    fn get_description(&self) -> String {
         "Group by user specified columns and aggregate user specified aggregation columns using the user specified aggregation operators.".to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -111,7 +77,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -127,6 +93,63 @@ impl DataOperatorTrait for GroupByAndAggregate {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for GroupByAndAggregate {
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        let lhs_values = self
+            .lhs_values
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let agg_columns = self
+            .agg_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let batches = group_by_and_aggregate(
+            &lhs_values,
+            lhs_args,
+            &agg_columns,
+            &self.agg_operators,
+            device,
+        )?;
+        Ok(batches)
+    }
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_values` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let agg_columns = config.agg_columns.clone().ok_or(anyhow!(
+            "Missing `agg_columns` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let agg_operators = config.agg_operators.clone().ok_or(anyhow!(
+            "Missing `agg_operators` for `{}`.",
+            Self::get_static_name()
+        ))?;
+
+        // Ensure that the array lengths for columns and operators match
+        if agg_columns.len() != agg_operators.len() {
+            return Err(anyhow!(
+                "agg_columns length {} is not equal to the agg_operators length {}",
+                agg_columns.len(),
+                agg_operators.len()
+            ));
+        }
+
+        Ok(GroupByAndAggregate {
+            lhs_values,
+            agg_columns,
+            agg_operators,
+        })
     }
 }
 
@@ -335,15 +358,6 @@ pub fn group_by_and_aggregate(
     agg_operators: &[DataAggregatorOperator],
     device: &Device,
 ) -> Result<RecordBatch> {
-    // Ensure that the array lengths for columns and operators match
-    if agg_columns.len() != agg_operators.len() {
-        return Err(anyhow!(
-            "agg_columns length {} is not equal to the agg_operators length {}",
-            agg_columns.len(),
-            agg_operators.len()
-        ));
-    }
-
     // Presort the lhs group by columns
     let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
     for (iter, column_name) in lhs_values.iter().enumerate() {
@@ -356,8 +370,8 @@ pub fn group_by_and_aggregate(
 
     // Wrap the lhs and rhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("group_by_and_aggregate")
         .with_record_batches(vec![lhs_sorted])?
-        .with_name("")
         .build()?;
 
     // Partition the group by columns

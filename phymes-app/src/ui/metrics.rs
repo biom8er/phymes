@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use phymes_agents::AvailableInterfaceSubjects;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublish,
+    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublication,
 };
 use phymes_server::create_session_name;
 use serde_json::{Map, Value};
@@ -69,7 +69,7 @@ pub fn metrics_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_stream(false)
     });
 

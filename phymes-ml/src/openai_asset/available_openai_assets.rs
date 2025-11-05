@@ -5,13 +5,14 @@ use tracing::{Level, event};
 /// General dependencies
 use std::env;
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableOpenAIAssets {
     #[value(name = "o3")]
     O3,
     #[value(name = "o3-mini")]
     O3Mini,
     #[value(name = "gpt-4o-mini")]
+    #[default]
     GPT4OMini,
     #[value(name = "text-embedding-3-large")]
     TextEmbedding3Large,
@@ -23,12 +24,6 @@ pub enum AvailableOpenAIAssets {
     MetaLlamaV3p2_3B,
     #[value(name = "Llama-3.2-nv-embedqa-1b-v2")]
     NvidiaLlamaV3p2NvEmbedQA1BV2,
-}
-
-impl Default for AvailableOpenAIAssets {
-    fn default() -> Self {
-        Self::GPT4OMini
-    }
 }
 
 impl AvailableOpenAIAssets {

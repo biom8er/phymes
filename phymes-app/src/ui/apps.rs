@@ -3,7 +3,7 @@ use phymes_agents::AvailableSessionPlans;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    TablePublish,
+    TablePublication,
 };
 use phymes_server::create_session_name;
 use serde_json::{Map, Value};
@@ -70,7 +70,7 @@ pub fn apps_interface_view() -> Element {
             .with_session_name(&session_name)
             .with_format(&DataFormat::Bytes)
             .with_publisher(&session_name)
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_stream(false)
     });
 
@@ -454,13 +454,15 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
         };
 
         // Update the signals
-        diagram_svg.set(mermaid_js_object.svg.unwrap_or_default());
+        if mermaid_js_object.error.is_none() {
+            diagram_svg.set(mermaid_js_object.svg.unwrap_or_default());
+        }
         error_mjs.set(mermaid_js_object.error.unwrap_or_default());
     });
 
     // Add pan and zoom to the svg
     use_effect(move || {
-        let _ = diagram_svg(); // needed to triger the effect
+        let _ = diagram_svg(); // needed to trigger the effect
         document::eval(
             format!(
                 r#"
@@ -491,7 +493,7 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
         if let Some(error_ctxb) = diagram_code().1 {
             p { "{error_ctxb}" },
         }
-        if !diagram_svg().is_empty() {
+        if error_mjs().is_empty() && !diagram_svg().is_empty() {
             mermaid_div { diagram_svg }
         }
     }

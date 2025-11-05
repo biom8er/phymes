@@ -17,9 +17,11 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
+    ToolTrait,
     candle_data::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
     candle_operators::{
         data_operator::DataOperatorTrait, group_by_and_aggregate::build_aggregator_column_list,
@@ -29,7 +31,7 @@ use crate::{
 
 /// Filter the [RecordBatch]es against the `cmp_columns` based on the [DataComparatorOperator], merge the predicate arrays
 ///   according to the [DataComparatorPredicate]
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FilterColumnsAndIndices {
     lhs_values: Vec<String>,
     cmp_columns: Vec<String>,
@@ -43,50 +45,12 @@ impl MappableTrait for FilterColumnsAndIndices {
     }
 }
 
-impl DataOperatorTrait for FilterColumnsAndIndices {
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        let lhs_values = self
-            .lhs_values
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        let cmp_columns = self
-            .cmp_columns
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        filter_columns_and_indices(
-            &lhs_values,
-            lhs_args,
-            &cmp_columns,
-            &self.cmp_operators,
-            &self.cmp_predicate,
-            device,
-        )
-    }
-    fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
-        let cmp_columns = config.cmp_columns.clone().unwrap_or_default();
-        let cmp_operators = config.cmp_operators.clone().unwrap_or_default();
-        let cmp_predicate = config.cmp_predicate.clone().unwrap_or_default();
-
-        FilterColumnsAndIndices {
-            lhs_values,
-            cmp_columns,
-            cmp_operators,
-            cmp_predicate,
-        }
-    }
-    fn get_description() -> String {
+impl ToolTrait for FilterColumnsAndIndices {
+    fn get_description(&self) -> String {
         "Filter by specified columns using a specified comparator operator over specified columns."
             .to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -118,7 +82,7 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -134,6 +98,74 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for FilterColumnsAndIndices {
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        let lhs_values = self
+            .lhs_values
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let cmp_columns = self
+            .cmp_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        filter_columns_and_indices(
+            &lhs_values,
+            lhs_args,
+            &cmp_columns,
+            &self.cmp_operators,
+            &self.cmp_predicate,
+            device,
+        )
+    }
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!(
+            "Missing `doc_template` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let cmp_columns = config.cmp_columns.clone().ok_or(anyhow!(
+            "Missing `cmp_columns` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let cmp_operators = config.cmp_operators.clone().ok_or(anyhow!(
+            "Missing `cmp_operators` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let cmp_predicate = config.cmp_predicate.clone().ok_or(anyhow!(
+            "Missing `cmp_predicate` for `{}`.",
+            Self::get_static_name()
+        ))?;
+
+        // Ensure that the array lengths for values, columns, and operators match
+        if lhs_values.len() != cmp_columns.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the cmp_columns length {}",
+                lhs_values.len(),
+                cmp_columns.len()
+            ));
+        } else if lhs_values.len() != cmp_operators.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the cmp_operators length {}",
+                lhs_values.len(),
+                cmp_operators.len()
+            ));
+        }
+
+        Ok(FilterColumnsAndIndices {
+            lhs_values,
+            cmp_columns,
+            cmp_operators,
+            cmp_predicate,
+        })
     }
 }
 
@@ -206,25 +238,10 @@ pub fn filter_columns_and_indices(
     cmp_predicate: &DataComparatorPredicate,
     device: &Device,
 ) -> Result<RecordBatch> {
-    // Ensure that the array lengths for values, columns, and operators match
-    if lhs_values.len() != cmp_columns.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the cmp_columns length {}",
-            lhs_values.len(),
-            cmp_columns.len()
-        ));
-    } else if lhs_values.len() != cmp_operators.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the cmp_operators length {}",
-            lhs_values.len(),
-            cmp_operators.len()
-        ));
-    }
-
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("filter_columns_and_indices")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?;
 
     // Apply the filter to each column based on type and comparator

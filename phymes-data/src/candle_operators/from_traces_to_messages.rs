@@ -14,6 +14,7 @@ use phymes_core::{
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
 use phymes_diagnostics::HashSet;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     candle_data::DataConfig,
@@ -23,7 +24,7 @@ use crate::{
 };
 
 /// Compute the normalized start and end times in a [RecordBatch]
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FromTracesToMessages {}
 
 impl MappableTrait for FromTracesToMessages {
@@ -41,60 +42,8 @@ impl DataOperatorTrait for FromTracesToMessages {
     ) -> Result<RecordBatch> {
         from_traces_to_messages(lhs_args, rhs_args.unwrap(), device)
     }
-    fn new(_config: &DataConfig) -> Self {
-        FromTracesToMessages {}
-    }
-    fn get_description() -> String {
-        "".to_string()
-    }
-    fn get_json_tool_schema() -> String {
-        let mut properties = HashMap::new();
-        properties.insert(
-            "lhs_name".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_values".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::Array),
-                description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "op_kwargs".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some(
-                    "DataCastOperator and DataType with optional column renaming and template injection in the form of a JSON object".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        let function = Function {
-            name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
-            parameters: FunctionParameters {
-                schema_type: JSONSchemaType::Object,
-                properties: Some(properties),
-                required: Some(vec![
-                    "lhs_name".to_string(),
-                    "lhs_values".to_string(),
-                    "op_kwargs".to_string(),
-                ]),
-            },
-        };
-        let tool = Tool {
-            r#type: ToolType::Function,
-            function,
-        };
-        serde_json::to_string(&tool).unwrap()
+    fn new(_config: &DataConfig) -> Result<Self> {
+        Ok(FromTracesToMessages {})
     }
 }
 

@@ -39,11 +39,12 @@ impl std::fmt::Debug for CandleModelWeights {
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableCandleAssets {
     #[value(name = "Qwen-v2.5-0.5b-chat")]
     QwenV2p5_0p5bChat,
     #[value(name = "Qwen-v2.5-1.5b-chat")]
+    #[default]
     QwenV2p5_1p5bChat,
     #[value(name = "Qwen-v2.5-3b-chat")]
     QwenV2p5_3bChat,
@@ -85,12 +86,6 @@ pub enum AvailableCandleAssets {
     BertEmbed,
     #[value(name = "Quantized-BERT-embed")]
     QuantizedBertEmbed,
-}
-
-impl Default for AvailableCandleAssets {
-    fn default() -> Self {
-        Self::QwenV2p5_1p5bChat
-    }
 }
 
 impl AvailableCandleAssets {

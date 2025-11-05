@@ -1,25 +1,27 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
     JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool,
-    ToolType, create_values_record_batch,
+    ToolType, create_mermaid_content_template_batch, create_values_record_batch,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::instrument;
 
 use crate::{
+    AvailableJinja2Templates, ToolTrait,
     candle_data::{DataConfig, table_and_data_format_to_record_batch},
     candle_operators::DataOperatorTrait,
 };
 
 /// Inject a table into a string template
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ApplyTemplate {
-    doc_template: String,
+    doc_template: AvailableJinja2Templates,
     doc_name: String,
     table_expression: String,
     doc_input: Value,
@@ -32,47 +34,11 @@ impl MappableTrait for ApplyTemplate {
     }
 }
 
-impl DataOperatorTrait for ApplyTemplate {
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        apply_template(
-            lhs_args,
-            &self.doc_template,
-            &self.doc_name,
-            &self.table_expression,
-            &self.doc_input,
-            &self.format,
-            device,
-        )
-    }
-    fn new(config: &DataConfig) -> Self {
-        let doc_template = config.doc_template.clone().unwrap_or_default();
-        let doc_name = config.doc_name.clone().unwrap_or_default();
-        let table_expression = config.table_expression.clone().unwrap_or_default();
-        let doc_input = if let Some(doc_input) = config.doc_input.as_ref() {
-            serde_json::from_str::<Value>(doc_input).unwrap_or_default()
-        } else {
-            Value::default()
-        };
-        let format = config.format.unwrap_or_default();
-
-        // Make the object
-        ApplyTemplate {
-            doc_template,
-            doc_name,
-            table_expression,
-            doc_input,
-            format,
-        }
-    }
-    fn get_description() -> String {
+impl ToolTrait for ApplyTemplate {
+    fn get_description(&self) -> String {
         "Inject a table into a string template.".to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -95,7 +61,7 @@ impl DataOperatorTrait for ApplyTemplate {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -107,6 +73,60 @@ impl DataOperatorTrait for ApplyTemplate {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for ApplyTemplate {
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        apply_template(
+            lhs_args,
+            &self.doc_template,
+            &self.doc_name,
+            &self.table_expression,
+            &self.doc_input,
+            &self.format,
+            device,
+        )
+    }
+    fn new(config: &DataConfig) -> Result<Self> {
+        let doc_template = config.doc_template.clone().ok_or(anyhow!(
+            "Missing `doc_template` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let doc_name = config.doc_name.clone().ok_or(anyhow!(
+            "Missing `doc_name` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let table_expression = config.table_expression.clone().ok_or(anyhow!(
+            "Missing `table_expression` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let doc_input = if let Some(doc_input) = config.doc_input.as_ref() {
+            serde_json::from_str::<Value>(doc_input)?
+        } else {
+            return Err(anyhow!(
+                "Missing `doc_input` for `{}`.",
+                Self::get_static_name()
+            ));
+        };
+        let format = config.format.ok_or(anyhow!(
+            "Missing `format` for `{}`.",
+            Self::get_static_name()
+        ))?;
+
+        // Make the object
+        Ok(ApplyTemplate {
+            doc_template,
+            doc_name,
+            table_expression,
+            doc_input,
+            format,
+        })
     }
 }
 
@@ -146,17 +166,17 @@ impl DataOperatorTrait for ApplyTemplate {
 ))]
 pub fn apply_template(
     lhs_args: &[RecordBatch],
-    doc_template: &str,
+    doc_template: &AvailableJinja2Templates,
     doc_name: &str,
     table_expression: &str,
     doc_input: &Value,
     format: &DataFormat,
     _device: &Device,
 ) -> Result<RecordBatch> {
-    // Convert the RecordBatches into a json objct
+    // Convert the RecordBatches into a json object
     let lhs_json_object = Table::get_builder()
+        .with_name("apply_template")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?
         .to_json_object()?;
 
@@ -171,22 +191,25 @@ pub fn apply_template(
 
     // Apply the template
     let document =
-        TableScript::new_from_template(doc_template.to_string()).apply_template(&input)?;
+        TableScript::new_from_template(doc_template.to_template()).apply_template(&input)?;
 
     // Wrap into a table
-    let batch = create_values_record_batch(
-        vec![String::new()],
-        vec![String::new()],
-        vec![String::new()],
-        vec![document],
-    )?;
+    let batch = match format {
+        DataFormat::None => create_mermaid_content_template_batch(vec![document])?,
+        _ => create_values_record_batch(
+            vec![String::new()],
+            vec![String::new()],
+            vec![String::new()],
+            vec![document],
+        )?,
+    };
     let table = Table::get_builder()
         .with_name(doc_name)
         .with_record_batches(vec![batch])?
         .build()?;
 
     // Convert to the desired format
-    table_and_data_format_to_record_batch(&table, format)
+    table_and_data_format_to_record_batch(&table, format, Some("content"))
 }
 
 #[cfg(test)]
@@ -207,13 +230,14 @@ mod tests {
             "eos_token": "[EOS]",
             "add_generation_prompt": true,
         });
+        let jinja2_template = AvailableJinja2Templates::Custom(template.to_string());
 
         // Make the device
         let device = device(false)?;
 
         let result = apply_template(
             test_table.get_record_batches(),
-            template,
+            &jinja2_template,
             "viz",
             table_expression,
             &input_template,

@@ -1,3 +1,4 @@
+mod available_jinja2_templates;
 mod mermaid_er_diagram;
 mod mermaid_flowchart;
 mod mermaid_gantt;
@@ -5,6 +6,8 @@ mod mermaid_html;
 mod mermaid_kanban;
 mod mermaid_sequence_diagram;
 mod mermaid_xychart;
+
+pub use available_jinja2_templates::AvailableJinja2Templates;
 
 pub use mermaid_er_diagram::{
     MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,

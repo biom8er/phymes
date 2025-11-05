@@ -19,12 +19,13 @@ use serde_json::json;
 use tracing::instrument;
 
 use crate::{
+    ToolTrait,
     candle_data::{DataCastOperator, DataConfig},
     candle_operators::DataOperatorTrait,
 };
 
 /// Select and cast the [RecordBatch]es based on the [DataCastOperator] and [DataType] with optional column renaming and template injection
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SelectAndCast {
     lhs_values: Vec<String>,
     as_columns: Vec<String>,
@@ -36,6 +37,62 @@ pub struct SelectAndCast {
 impl MappableTrait for SelectAndCast {
     fn get_name(&self) -> &str {
         Self::get_static_name()
+    }
+}
+
+impl ToolTrait for SelectAndCast {
+    fn get_description(&self) -> String {
+        "Cast specified columns using a specified cast operator and cast data type with optional column renaming and template injection."
+            .to_string()
+    }
+    fn to_json_tool_schema(&self) -> String {
+        let mut properties = HashMap::new();
+        properties.insert(
+            "lhs_name".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The name of the left hand side table".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "A list of value column identifiers for the left hand side table".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "op_kwargs".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "DataCastOperator and DataType with optional column renaming and template injection in the form of a JSON object".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        let function = Function {
+            name: Self::get_static_name().to_string(),
+            description: Some(self.get_description()),
+            parameters: FunctionParameters {
+                schema_type: JSONSchemaType::Object,
+                properties: Some(properties),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "lhs_values".to_string(),
+                    "op_kwargs".to_string(),
+                ]),
+            },
+        };
+        let tool = Tool {
+            r#type: ToolType::Function,
+            function,
+        };
+        serde_json::to_string(&tool).unwrap()
     }
 }
 
@@ -71,79 +128,68 @@ impl DataOperatorTrait for SelectAndCast {
             device,
         )
     }
-    fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
-        let as_columns = config.as_columns.clone().unwrap_or_default();
-        let cast_operators = config.cast_operators.clone().unwrap_or_default();
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_values` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let as_columns = config.as_columns.clone().ok_or(anyhow!(
+            "Missing `as_columns` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let cast_operators = config.cast_operators.clone().ok_or(anyhow!(
+            "Missing `cast_operators` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let cast_datatypes = config
             .cast_datatypes
             .clone()
-            .unwrap_or_default()
+            .ok_or(anyhow!(
+                "Missing `cast_datatypes` for `{}`.",
+                Self::get_static_name()
+            ))?
             .iter()
             .map(|s| from_str_to_data_type(s).unwrap())
             .collect::<Vec<_>>();
-        let cast_templates = config.cast_templates.clone().unwrap_or_default();
+        let cast_templates = config.cast_templates.clone().ok_or(anyhow!(
+            "Missing `cast_templates` for `{}`.",
+            Self::get_static_name()
+        ))?;
 
-        SelectAndCast {
+        // Ensure that the array lengths match
+        if lhs_values.len() != as_columns.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the as_columns length {}",
+                lhs_values.len(),
+                as_columns.len()
+            ));
+        } else if lhs_values.len() != cast_operators.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the cast_operators length {}",
+                lhs_values.len(),
+                cast_operators.len()
+            ));
+        } else if lhs_values.len() != cast_datatypes.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the cast_datatypes length {}",
+                lhs_values.len(),
+                cast_datatypes.len()
+            ));
+        } else if lhs_values.len() != cast_templates.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the with_templates length {}",
+                lhs_values.len(),
+                cast_templates.len()
+            ));
+        }
+
+        Ok(SelectAndCast {
             lhs_values,
             as_columns,
             cast_operators,
             cast_datatypes,
             cast_templates,
-        }
-    }
-    fn get_description() -> String {
-        "Cast specified columns using a specified cast operator and cast data type with optional column renaming and template injection."
-            .to_string()
-    }
-    fn get_json_tool_schema() -> String {
-        let mut properties = HashMap::new();
-        properties.insert(
-            "lhs_name".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_values".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::Array),
-                description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "op_kwargs".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some(
-                    "DataCastOperator and DataType with optional column renaming and template injection in the form of a JSON object".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        let function = Function {
-            name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
-            parameters: FunctionParameters {
-                schema_type: JSONSchemaType::Object,
-                properties: Some(properties),
-                required: Some(vec![
-                    "lhs_name".to_string(),
-                    "lhs_values".to_string(),
-                    "op_kwargs".to_string(),
-                ]),
-            },
-        };
-        let tool = Tool {
-            r#type: ToolType::Function,
-            function,
-        };
-        serde_json::to_string(&tool).unwrap()
+        })
     }
 }
 
@@ -187,37 +233,10 @@ pub fn select_and_cast(
     cast_templates: &[&str],
     _device: &Device,
 ) -> Result<RecordBatch> {
-    // Ensure that the array lengths for values, columns, and operators match
-    if lhs_values.len() != as_columns.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the as_columns length {}",
-            lhs_values.len(),
-            as_columns.len()
-        ));
-    } else if lhs_values.len() != cast_operators.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the cast_operators length {}",
-            lhs_values.len(),
-            cast_operators.len()
-        ));
-    } else if lhs_values.len() != cast_datatypes.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the cast_datatypes length {}",
-            lhs_values.len(),
-            cast_datatypes.len()
-        ));
-    } else if lhs_values.len() != cast_templates.len() {
-        return Err(anyhow!(
-            "lhs_values length {} is not equal to the with_templates length {}",
-            lhs_values.len(),
-            cast_templates.len()
-        ));
-    }
-
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("select_and_cast")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?;
 
     // Apply the cast and optional column renaming and template injection based on the lhs_values

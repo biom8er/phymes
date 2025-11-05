@@ -13,7 +13,7 @@ use reqwest::{self, header::CONTENT_TYPE};
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat,
     MappableTrait, MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
-    SessionInterfaceMessageBuilderTrait, TablePublish, TableTrait,
+    SessionInterfaceMessageBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_server::create_session_name;
 
@@ -62,7 +62,7 @@ pub fn messaging_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_update(&TablePublish::None)
+            .with_update(&TablePublication::None)
             .with_stream(false)
     });
 
@@ -340,7 +340,7 @@ pub fn messaging_interface_footer(
                                 .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                 .with_format(&DataFormat::Bytes)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                                .with_update(&TablePublish::Extend { table_name: AvailableInterfaceSubjects::UserMessages.to_string() })
+                                .with_update(&TablePublication::Extend { table_name: AvailableInterfaceSubjects::UserMessages.to_string() })
                                 .with_stream(false)
                                 .with_subject(chat.get_name())
                                 .with_message(chat.to_bytes().unwrap().to_vec())

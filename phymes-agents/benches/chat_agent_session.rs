@@ -10,7 +10,7 @@ use phymes_agents::{
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
     IPCMessage, MappableTrait, MessageBuilderTrait, SessionStream, SessionStreamState, Table,
-    TableBuilderTrait, TablePublish, TableTrait,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_diagnostics::HashMap;
 
@@ -102,7 +102,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     let message = IPCMessage::get_builder()
                         .with_message(chat.to_ipc_stream()?)
                         .with_subject(chat.get_name())
-                        .with_update(&TablePublish::Extend {
+                        .with_update(&TablePublication::Extend {
                             table_name: chat.get_name().to_string(),
                         })
                         .with_publisher(&session_context_name)
@@ -124,7 +124,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     let message = IPCMessage::get_builder()
                         .with_message(chat.to_ipc_stream()?)
                         .with_subject(chat.get_name())
-                        .with_update(&TablePublish::Extend {
+                        .with_update(&TablePublication::Extend {
                             table_name: chat.get_name().to_string(),
                         })
                         .with_publisher(&session_context_name)

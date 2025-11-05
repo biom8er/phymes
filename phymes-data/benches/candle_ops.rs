@@ -4,9 +4,9 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 use phymes_core::{
-    AllTableNamesSubscribe, BuildableTrait, BuilderTrait, MessageBuilderTrait, MessageTrait,
-    ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SubscribeTrait, Table,
-    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, device,
+    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MessageBuilderTrait,
+    MessageTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, Table,
+    TableBuilderTrait, TablePublication, TableSubscription, TableTrait, device,
     from_diagnostics_to_tables, pivot_metrics_table, test_table::TestTableSizes,
 };
 use phymes_data::{
@@ -183,7 +183,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 .with_name(lhs_name.as_str())
                                 .with_publisher("s1")
                                 .with_subject("d1")
-                                .with_update(&TablePublish::None)
+                                .with_update(&TablePublication::None)
                                 .with_message(
                                     TestTableSizes::new_from_name(lhs_size)
                                         .unwrap()
@@ -200,7 +200,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 .with_name(rhs_name.as_str())
                                 .with_publisher("s1")
                                 .with_subject("d1")
-                                .with_update(&TablePublish::None)
+                                .with_update(&TablePublication::None)
                                 .with_message(
                                     TestTableSizes::new_from_name(rhs_size)
                                         .unwrap()
@@ -225,7 +225,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 .with_name(name.as_str())
                                 .with_publisher("")
                                 .with_subject("")
-                                .with_update(&TablePublish::None)
+                                .with_update(&TablePublication::None)
                                 .with_message(config_table.to_record_batch_stream())
                                 .build()
                                 .unwrap(),
@@ -249,20 +249,21 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
                         // Make the stream and run
                         let _result = rt.block_on(async {
-                            let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
+                            let ops_processor = CandleDataProcessor::new(
                                 name.as_str(),
-                                &[TablePublish::Replace {
+                                "",
+                                &[TablePublication::Replace {
                                     table_name: "results".to_string(),
                                 }],
                                 &[
-                                    TableSubscribe::AlwaysFullTable {
+                                    TableSubscription::AlwaysFullTable {
                                         table_name: lhs_name.clone(),
                                     },
-                                    TableSubscribe::AlwaysFullTable {
+                                    TableSubscription::AlwaysFullTable {
                                         table_name: rhs_name.clone(),
                                     },
                                 ],
-                                AllTableNamesSubscribe::new_box(),
+                                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
                             );
                             let mut ops_stream = ops_processor
                                 .process(messages, Some(&diagnostic_builder), runtime_env.clone())

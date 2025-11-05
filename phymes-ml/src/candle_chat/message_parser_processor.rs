@@ -5,13 +5,14 @@ use std::{
 };
 
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilderTrait,
-    TablePublish, TableSubscribe, TableTrait, ToolCall, create_chat_record_batch,
-    create_values_record_batch,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication,
+    TableSubscribePolicyTrait, TableSubscription, TableTrait, ToolCall, create_chat_record_batch,
+    create_values_record_batch, remove_message_by_subject,
 };
+use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
     create_timestamp_micros,
@@ -46,9 +47,10 @@ use super::tool_parser::extract_tool_calls_str;
 #[derive(Debug)]
 pub struct MessageParserProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    r#type: String,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for MessageParserProcessor {
@@ -57,49 +59,42 @@ impl MappableTrait for MessageParserProcessor {
     }
 }
 
-impl PubSubTrait for MessageParserProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
+impl PublishAndSubscribeTrait for MessageParserProcessor {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
 impl ProcessorTrait for MessageParserProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+        r#type: &str,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
-        })
+            subscribe_policy,
+        }
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublish::None],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
-        })
-    }
-
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -124,12 +119,14 @@ impl ProcessorTrait for MessageParserProcessor {
         };
 
         // Extract out the messages and config
-        let messages =
-            match message.remove(self.get_subscriptions().first().unwrap().get_table_name()) {
-                Some(i) => i.get_message_own(),
-                None => return Err(anyhow!("Messages not provided for {}.", self.get_name())),
-            };
-        let config = match message.remove(self.get_name()) {
+        let messages = match remove_message_by_subject(
+            self.get_subscriptions().first().unwrap().get_table_name(),
+            &mut message,
+        ) {
+            Some(i) => i.get_message_own(),
+            None => return Err(anyhow!("Messages not provided for {}.", self.get_name())),
+        };
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
@@ -147,11 +144,11 @@ impl ProcessorTrait for MessageParserProcessor {
         //  can correct before moving on.
         // DM: this is not rigorously tested yet...
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.get_publications().first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.get_publications().first().unwrap().get_table_name())
             .with_message(out)
             .with_update(self.get_publications().first().unwrap())
+            .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
 
@@ -198,9 +195,7 @@ impl MessageParserStream {
 
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config: CandleChatConfig = serde_json::from_value(serde_json::Value::Object(
-                config_table.to_json_object()?.first().unwrap().to_owned(),
-            ))?;
+            let config = CandleChatConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         Ok(())
@@ -251,7 +246,7 @@ impl Stream for MessageParserStream {
 
             // Concatenate into a single record batch
             let message = Table::get_builder()
-                .with_name("")
+                .with_name("MessageParserStream")
                 .with_record_batches(batches)?
                 .build()?
                 .concat_record_batches()?;
@@ -413,8 +408,10 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{TableBuilder, TablePublish};
+    use phymes_core::{AvailableTableSubscribePolicies, TableBuilder, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+
+    use crate::AvailableCandleAssets;
 
     use super::*;
 
@@ -439,7 +436,7 @@ mod tests {
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("messages")
@@ -455,12 +452,18 @@ mod tests {
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
+                                max_tokens: 1000,
+                                temperature: 0.8,
+                                seed: 299792458,
+                                repeat_penalty: 1.1,
+                                repeat_last_n: 64,
+                                candle_asset: Some(AvailableCandleAssets::default()),
                                 ..Default::default()
                             })?,
                             1,
@@ -484,22 +487,26 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new_arc_with_pub_sub(
+        let processor = MessageParserProcessor::new(
             "message_processor",
-            &[TablePublish::ExtendChunks {
+            "",
+            &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             }],
-            &[TableSubscribe::AlwaysFullTable {
+            &[TableSubscription::AlwaysFullTable {
                 table_name: "messages".to_string(),
             }],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("messages").unwrap().get_message_own(),
+            stream
+                .remove("from_message_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")
@@ -543,7 +550,7 @@ mod tests {
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("messages")
@@ -559,12 +566,18 @@ mod tests {
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
+                                max_tokens: 1000,
+                                temperature: 0.8,
+                                seed: 299792458,
+                                repeat_penalty: 1.1,
+                                repeat_last_n: 64,
+                                candle_asset: Some(AvailableCandleAssets::default()),
                                 ..Default::default()
                             })?,
                             1,
@@ -588,22 +601,26 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new_arc_with_pub_sub(
+        let processor = MessageParserProcessor::new(
             "message_processor",
-            &[TablePublish::ExtendChunks {
+            "",
+            &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             }],
-            &[TableSubscribe::AlwaysFullTable {
+            &[TableSubscription::AlwaysFullTable {
                 table_name: "messages".to_string(),
             }],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("messages").unwrap().get_message_own(),
+            stream
+                .remove("from_message_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")
@@ -647,7 +664,7 @@ mod tests {
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("messages")
@@ -663,12 +680,18 @@ mod tests {
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(
                     Table::get_builder()
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
+                                max_tokens: 1000,
+                                temperature: 0.8,
+                                seed: 299792458,
+                                repeat_penalty: 1.1,
+                                repeat_last_n: 64,
+                                candle_asset: Some(AvailableCandleAssets::default()),
                                 ..Default::default()
                             })?,
                             1,
@@ -692,22 +715,26 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new_arc_with_pub_sub(
+        let processor = MessageParserProcessor::new(
             "message_processor",
-            &[TablePublish::ExtendChunks {
+            "",
+            &[TablePublication::ExtendChunks {
                 table_name: "messages".to_string(),
                 col_name: "content".to_string(),
             }],
-            &[TableSubscribe::AlwaysFullTable {
+            &[TableSubscription::AlwaysFullTable {
                 table_name: "messages".to_string(),
             }],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // DM: this will result in an error because the schema is dynamically updated
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("messages").unwrap().get_message_own(),
+            stream
+                .remove("from_message_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")

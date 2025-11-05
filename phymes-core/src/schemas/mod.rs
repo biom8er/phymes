@@ -9,8 +9,8 @@ pub use blob::{BlobBuilderTraitExt, BlobSubject, create_blob_batch, create_blob_
 
 mod mermaid;
 pub use mermaid::{
-    SessionMermaidSubject, create_mermaid_sequence_diagram_participants_template_batch,
-    create_session_mermaid_batch,
+    SessionMermaidSubject, create_mermaid_content_template_batch,
+    create_mermaid_sequence_diagram_participants_template_batch, create_session_mermaid_batch,
 };
 
 mod chat;
@@ -26,7 +26,7 @@ pub use user::{
 };
 
 mod error;
-pub use error::{create_error_batch, create_error_message_map, create_error_message_map_stream};
+pub use error::{create_error_message_map, create_error_message_map_stream};
 
 mod diagnostics;
 pub use diagnostics::{

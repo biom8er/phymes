@@ -1,13 +1,13 @@
 use std::{fmt::Display, sync::Arc};
 
+use anyhow::Result;
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
-
-/// General dependencies
 use clap::ValueEnum;
 use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilderTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    ToolTrait,
     candle_data::DataConfig,
     candle_operators::{
         ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData,
@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableCandleOperators {
     #[value(name = "VectorDistance")]
     #[serde(alias = "vector-distance")]
@@ -25,6 +25,7 @@ pub enum AvailableCandleOperators {
     #[value(name = "SortColumnAndIndices")]
     #[serde(alias = "sort-column-and-indices")]
     SortColumnAndIndices,
+    #[default]
     #[value(name = "HumanInTheLoop")]
     #[serde(alias = "human-in-the-loop")]
     HumanInTheLoop,
@@ -66,12 +67,6 @@ pub enum AvailableCandleOperators {
     FromTracesToMessages,
 }
 
-impl Default for AvailableCandleOperators {
-    fn default() -> Self {
-        Self::VectorDistance
-    }
-}
-
 impl Display for AvailableCandleOperators {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -98,47 +93,88 @@ impl Display for AvailableCandleOperators {
     }
 }
 
-impl AvailableCandleOperators {
-    /// Wrapper to return the JSON schema SortColumnAndIndices
-    pub fn get_json_tool_schema(&self) -> String {
+impl ToolTrait for AvailableCandleOperators {
+    fn to_json_tool_schema(&self) -> String {
         match self {
-            Self::VectorDistance => VectorDistance::get_json_tool_schema(),
-            Self::SortColumnAndIndices => SortColumnAndIndices::get_json_tool_schema(),
-            Self::HumanInTheLoop => HumanInTheLoop::get_json_tool_schema(),
-            Self::ChunkDocuments => ChunkDocuments::get_json_tool_schema(),
-            Self::JoinInner => JoinInner::get_json_tool_schema(),
-            Self::ExtractPDFText => ExtractPDFText::get_json_tool_schema(),
-            Self::GroupByAndAggregate => GroupByAndAggregate::get_json_tool_schema(),
-            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::get_json_tool_schema(),
-            Self::ExtractTabularData => ExtractTabularData::get_json_tool_schema(),
-            Self::SelectAndCast => SelectAndCast::get_json_tool_schema(),
-            Self::ApplyTemplate => ApplyTemplate::get_json_tool_schema(),
-            Self::Pivot => Pivot::get_json_tool_schema(),
-            Self::NormalizeTime => NormalizeTime::get_json_tool_schema(),
-            Self::FromTasksToParticipants => FromTasksToParticipants::get_json_tool_schema(),
-            Self::FromTracesToMessages => FromTracesToMessages::get_json_tool_schema(),
+            Self::VectorDistance => VectorDistance::default().to_json_tool_schema(),
+            Self::SortColumnAndIndices => SortColumnAndIndices::default().to_json_tool_schema(),
+            Self::HumanInTheLoop => HumanInTheLoop.to_json_tool_schema(),
+            Self::ChunkDocuments => ChunkDocuments::default().to_json_tool_schema(),
+            Self::JoinInner => JoinInner::default().to_json_tool_schema(),
+            Self::ExtractPDFText => ExtractPDFText::default().to_json_tool_schema(),
+            Self::GroupByAndAggregate => GroupByAndAggregate::default().to_json_tool_schema(),
+            Self::FilterColumnsAndIndices => {
+                FilterColumnsAndIndices::default().to_json_tool_schema()
+            }
+            Self::ExtractTabularData => ExtractTabularData::default().to_json_tool_schema(),
+            Self::SelectAndCast => SelectAndCast::default().to_json_tool_schema(),
+            Self::ApplyTemplate => ApplyTemplate::default().to_json_tool_schema(),
+            Self::Pivot => Pivot::default().to_json_tool_schema(),
+            Self::NormalizeTime => NormalizeTime::default().to_json_tool_schema(),
+            Self::FromTasksToParticipants => String::new(),
+            Self::FromTracesToMessages => String::new(),
         }
     }
-
-    /// Build the actual operator
-    #[allow(clippy::too_many_arguments)]
-    pub fn build(&self, config: &DataConfig) -> Box<dyn DataOperatorTrait> {
+    fn get_description(&self) -> String {
         match self {
-            Self::VectorDistance => Box::new(VectorDistance::new(config)),
-            Self::SortColumnAndIndices => Box::new(SortColumnAndIndices::new(config)),
-            Self::HumanInTheLoop => Box::new(HumanInTheLoop::new(config)),
-            Self::ChunkDocuments => Box::new(ChunkDocuments::new(config)),
-            Self::JoinInner => Box::new(JoinInner::new(config)),
-            Self::ExtractPDFText => Box::new(ExtractPDFText::new(config)),
-            Self::GroupByAndAggregate => Box::new(GroupByAndAggregate::new(config)),
-            Self::FilterColumnsAndIndices => Box::new(FilterColumnsAndIndices::new(config)),
-            Self::ExtractTabularData => Box::new(ExtractTabularData::new(config)),
-            Self::SelectAndCast => Box::new(SelectAndCast::new(config)),
-            Self::ApplyTemplate => Box::new(ApplyTemplate::new(config)),
-            Self::Pivot => Box::new(Pivot::new(config)),
-            Self::NormalizeTime => Box::new(NormalizeTime::new(config)),
-            Self::FromTasksToParticipants => Box::new(FromTasksToParticipants::new(config)),
-            Self::FromTracesToMessages => Box::new(FromTracesToMessages::new(config)),
+            Self::VectorDistance => VectorDistance::default().get_description(),
+            Self::SortColumnAndIndices => SortColumnAndIndices::default().get_description(),
+            Self::HumanInTheLoop => HumanInTheLoop.get_description(),
+            Self::ChunkDocuments => ChunkDocuments::default().get_description(),
+            Self::JoinInner => JoinInner::default().get_description(),
+            Self::ExtractPDFText => ExtractPDFText::default().get_description(),
+            Self::GroupByAndAggregate => GroupByAndAggregate::default().get_description(),
+            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::default().get_description(),
+            Self::ExtractTabularData => ExtractTabularData::default().get_description(),
+            Self::SelectAndCast => SelectAndCast::default().get_description(),
+            Self::ApplyTemplate => ApplyTemplate::default().get_description(),
+            Self::Pivot => Pivot::default().get_description(),
+            Self::NormalizeTime => NormalizeTime::default().get_description(),
+            Self::FromTasksToParticipants => String::new(),
+            Self::FromTracesToMessages => String::new(),
+        }
+    }
+}
+
+impl AvailableCandleOperators {
+    pub fn all_varient_names() -> Vec<String> {
+        let processor_names = [
+            Self::VectorDistance.to_string(),
+            Self::SortColumnAndIndices.to_string(),
+            Self::HumanInTheLoop.to_string(),
+            Self::ChunkDocuments.to_string(),
+            Self::JoinInner.to_string(),
+            Self::ExtractPDFText.to_string(),
+            Self::GroupByAndAggregate.to_string(),
+            Self::FilterColumnsAndIndices.to_string(),
+            Self::ExtractTabularData.to_string(),
+            Self::SelectAndCast.to_string(),
+            Self::Pivot.to_string(),
+            Self::NormalizeTime.to_string(),
+        ];
+        processor_names
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+    }
+    /// Build the actual operator
+    pub fn build(&self, config: &DataConfig) -> Result<Box<dyn DataOperatorTrait>> {
+        match self {
+            Self::VectorDistance => Ok(Box::new(VectorDistance::new(config)?)),
+            Self::SortColumnAndIndices => Ok(Box::new(SortColumnAndIndices::new(config)?)),
+            Self::HumanInTheLoop => Ok(Box::new(HumanInTheLoop::new(config)?)),
+            Self::ChunkDocuments => Ok(Box::new(ChunkDocuments::new(config)?)),
+            Self::JoinInner => Ok(Box::new(JoinInner::new(config)?)),
+            Self::ExtractPDFText => Ok(Box::new(ExtractPDFText::new(config)?)),
+            Self::GroupByAndAggregate => Ok(Box::new(GroupByAndAggregate::new(config)?)),
+            Self::FilterColumnsAndIndices => Ok(Box::new(FilterColumnsAndIndices::new(config)?)),
+            Self::ExtractTabularData => Ok(Box::new(ExtractTabularData::new(config)?)),
+            Self::SelectAndCast => Ok(Box::new(SelectAndCast::new(config)?)),
+            Self::ApplyTemplate => Ok(Box::new(ApplyTemplate::new(config)?)),
+            Self::Pivot => Ok(Box::new(Pivot::new(config)?)),
+            Self::NormalizeTime => Ok(Box::new(NormalizeTime::new(config)?)),
+            Self::FromTasksToParticipants => Ok(Box::new(FromTasksToParticipants::new(config)?)),
+            Self::FromTracesToMessages => Ok(Box::new(FromTracesToMessages::new(config)?)),
         }
     }
 }
@@ -149,7 +185,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
     for destination in destinations.iter() {
         if let Ok(ops) = AvailableCandleOperators::from_str(destination, false) {
             tool_id_vec.push(ops.to_string());
-            tool_vec.push(ops.get_json_tool_schema());
+            tool_vec.push(ops.to_json_tool_schema());
         }
     }
     if tool_id_vec.is_empty() {

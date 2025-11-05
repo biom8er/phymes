@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     session::common_traits::{BuildableTrait, BuilderTrait, MappableTrait},
-    table::{DataFormat, TablePublish},
+    table::{DataFormat, TablePublication},
     task::{MessageBuilderTrait, MessageTrait},
 };
 
@@ -27,7 +27,7 @@ pub struct SessionInterfaceMessage {
     /// The actual message as byte stream
     message: Vec<u8>,
     /// How to update the state
-    update: TablePublish,
+    update: TablePublication,
     /// The name of the session
     session_name: String,
     /// Format of the message
@@ -43,7 +43,7 @@ impl SessionInterfaceMessage {
         subject: &str,
         publisher: &str,
         message: Option<Vec<u8>>,
-        update: Option<TablePublish>,
+        update: Option<TablePublication>,
         session_name: &str,
         format: &DataFormat,
         stream: bool,
@@ -85,7 +85,7 @@ impl MessageTrait for SessionInterfaceMessage {
     fn get_publisher(&self) -> &str {
         &self.publisher
     }
-    fn get_update(&self) -> &TablePublish {
+    fn get_update(&self) -> &TablePublication {
         &self.update
     }
     fn get_message(&self) -> &<Self as MessageTrait>::T {
@@ -128,7 +128,7 @@ pub struct SessionInterfaceMessageBuilder {
     /// The actually message
     pub message: Option<Vec<u8>>,
     /// How to update the state
-    pub update: Option<TablePublish>,
+    pub update: Option<TablePublication>,
     /// The name of the session
     pub session_name: Option<String>,
     /// Format of the message
@@ -186,7 +186,7 @@ impl MessageBuilderTrait for SessionInterfaceMessageBuilder {
         self.publisher = Some(name.to_string());
         self
     }
-    fn with_update(mut self, update: &TablePublish) -> Self {
+    fn with_update(mut self, update: &TablePublication) -> Self {
         self.update = Some(update.to_owned());
         self
     }
@@ -225,7 +225,7 @@ impl MessageBuilderTrait for SessionInterfaceMessageBuilder {
         self
     }
     fn check_subject(&self) -> Result<()> {
-        if self.update.as_ref().unwrap() != &TablePublish::None
+        if self.update.as_ref().unwrap() != &TablePublication::None
             && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name()
         {
             Err(anyhow!(

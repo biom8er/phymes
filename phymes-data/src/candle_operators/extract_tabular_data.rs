@@ -8,12 +8,13 @@ use phymes_core::{
     JSONSchemaDefine, JSONSchemaType, JsonFormat, MappableTrait, Table, TableBuilder,
     TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
+use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Extract tabular data in either CSV or JSON format from Bytes
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ExtractTabularData {
     lhs_values: String,
     format: DataFormat,
@@ -25,34 +26,11 @@ impl MappableTrait for ExtractTabularData {
     }
 }
 
-impl DataOperatorTrait for ExtractTabularData {
-    fn new(config: &DataConfig) -> Self
-    where
-        Self: Sized,
-    {
-        let lhs_values = config
-            .lhs_values
-            .as_ref()
-            .cloned()
-            .unwrap_or_default()
-            .first()
-            .cloned()
-            .unwrap_or_default();
-        let format = config.format.unwrap_or_default();
-        ExtractTabularData { lhs_values, format }
-    }
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
-        _device: &Device,
-    ) -> Result<RecordBatch> {
-        extract_tabular_data(&self.lhs_values, lhs_args, &self.format)
-    }
-    fn get_description() -> String {
+impl ToolTrait for ExtractTabularData {
+    fn get_description(&self) -> String {
         "Extract tabular data in either CSV or JSON format from Bytes".to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -82,7 +60,7 @@ impl DataOperatorTrait for ExtractTabularData {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -101,6 +79,41 @@ impl DataOperatorTrait for ExtractTabularData {
     }
 }
 
+impl DataOperatorTrait for ExtractTabularData {
+    fn new(config: &DataConfig) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let lhs_values = config
+            .lhs_values
+            .as_ref()
+            .cloned()
+            .ok_or(anyhow!(
+                "Missing `lhs_values` for `{}`.",
+                Self::get_static_name()
+            ))?
+            .first()
+            .cloned()
+            .ok_or(anyhow!(
+                "`lhs_values` is empty for `{}`.",
+                Self::get_static_name()
+            ))?;
+        let format = config.format.ok_or(anyhow!(
+            "Missing `format` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        Ok(ExtractTabularData { lhs_values, format })
+    }
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        _device: &Device,
+    ) -> Result<RecordBatch> {
+        extract_tabular_data(&self.lhs_values, lhs_args, &self.format)
+    }
+}
+
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[instrument(skip(lhs_values, lhs_args))]
 pub fn extract_tabular_data(
@@ -109,7 +122,7 @@ pub fn extract_tabular_data(
     format: &DataFormat,
 ) -> Result<RecordBatch> {
     let args_table = Table::get_builder()
-        .with_name("")
+        .with_name("extract_tabular_data")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?;

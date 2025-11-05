@@ -1,7 +1,7 @@
 use arrow::record_batch::RecordBatch;
 use phymes_diagnostics::create_timestamp_micros;
 
-use crate::candle_data::DataConfig;
+use crate::{ToolTrait, candle_data::DataConfig};
 
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
@@ -10,10 +10,11 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_chat_record_batch,
 };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Redirect a tool call to the user for intervention
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct HumanInTheLoop;
 
 impl MappableTrait for HumanInTheLoop {
@@ -22,14 +23,11 @@ impl MappableTrait for HumanInTheLoop {
     }
 }
 
-impl DataOperatorTrait for HumanInTheLoop {
-    fn new(_config: &DataConfig) -> Self {
-        HumanInTheLoop {}
-    }
-    fn get_description() -> String {
+impl ToolTrait for HumanInTheLoop {
+    fn get_description(&self) -> String {
         "The response to the user.".to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_args".to_string(),
@@ -41,7 +39,7 @@ impl DataOperatorTrait for HumanInTheLoop {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -53,6 +51,12 @@ impl DataOperatorTrait for HumanInTheLoop {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for HumanInTheLoop {
+    fn new(_config: &DataConfig) -> Result<Self> {
+        Ok(HumanInTheLoop {})
     }
     fn forward(
         &self,
@@ -66,8 +70,8 @@ impl DataOperatorTrait for HumanInTheLoop {
 
 fn create_hitl_record_batch(lhs_args: &[RecordBatch]) -> Result<RecordBatch> {
     let content = Table::get_builder()
+        .with_name("create_hitl_record_batch")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?
         .get_column_as_vec_str("content")
         .first()

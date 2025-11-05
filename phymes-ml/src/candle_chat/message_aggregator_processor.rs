@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
-    RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
-    SubscribeTrait, TablePublish, TableSubscribe, create_chat_fields,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, create_chat_fields,
+    remove_message_by_subject,
 };
 
 use anyhow::{Result, anyhow};
@@ -23,9 +24,10 @@ use tracing::{Level, event, instrument};
 #[derive(Debug)]
 pub struct MessageAggregatorProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    r#type: String,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for MessageAggregatorProcessor {
@@ -34,51 +36,42 @@ impl MappableTrait for MessageAggregatorProcessor {
     }
 }
 
-impl PubSubTrait for MessageAggregatorProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
+impl PublishAndSubscribeTrait for MessageAggregatorProcessor {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
 impl ProcessorTrait for MessageAggregatorProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+        r#type: &str,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
-        })
+            subscribe_policy,
+        }
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublish::Extend {
-                table_name: "messages".to_string(),
-            }],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
-        })
-    }
-
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -106,7 +99,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
         let input = collect_messages_by_schema(&mut message, &create_chat_fields());
 
         // Extract out the config
-        let config = match message.remove(self.get_name()) {
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
@@ -121,11 +114,11 @@ impl ProcessorTrait for MessageAggregatorProcessor {
             stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.get_publications().first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.get_publications().first().unwrap().get_table_name())
             .with_message(out)
             .with_update(self.get_publications().first().unwrap())
+            .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
 
@@ -140,7 +133,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        TableBuilder, TableBuilderTrait, TableTrait, device,
+        AvailableTableSubscribePolicies, TableBuilder, TableBuilderTrait, TableTrait, device,
         test_table::{make_test_table, make_test_table_chat},
     };
     use phymes_data::{AvailableCandleOperators, CandleTensorService, DataConfig};
@@ -158,7 +151,7 @@ mod tests {
                 .with_name("m1")
                 .with_publisher("s1")
                 .with_subject("messages")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(make_test_table_chat("messages")?.to_record_batch_stream())
                 .build()?,
         );
@@ -168,7 +161,7 @@ mod tests {
                 .with_name("m2")
                 .with_publisher("s1")
                 .with_subject("messages")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(make_test_table_chat("messages")?.to_record_batch_stream())
                 .build()?,
         );
@@ -178,7 +171,7 @@ mod tests {
                 .with_name("m3")
                 .with_publisher("s3")
                 .with_subject("messages")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(make_test_table("t1", 4, 8, 3)?.to_record_batch_stream())
                 .build()?,
         );
@@ -200,8 +193,8 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name("aggregator_processor")
                 .with_publisher("")
-                .with_subject("")
-                .with_update(&TablePublish::None)
+                .with_subject("aggregator_processor")
+                .with_update(&TablePublication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -223,16 +216,31 @@ mod tests {
         let runtime_env = Arc::new(Mutex::new(runtime_env));
 
         // Create the aggregator and run
-        let agg_arc_1 = MessageAggregatorProcessor::new_arc("aggregator_processor");
+        let agg_arc_1 = MessageAggregatorProcessor::new(
+            "aggregator_processor",
+            "",
+            &[TablePublication::Extend {
+                table_name: "messages".to_string(),
+            }],
+            &[TableSubscription::None],
+            AvailableTableSubscribePolicies::default().build(),
+        );
         let mut agg_stream =
             agg_arc_1.process(message_1, Some(&diagnostic_builder), runtime_env)?;
         assert_eq!(agg_stream.len(), 2);
-        assert!(agg_stream.get("messages").is_some());
+        assert!(
+            agg_stream
+                .get("from_aggregator_processor_on_messages")
+                .is_some()
+        );
         assert!(agg_stream.get("m3").is_some());
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            agg_stream.remove("messages").unwrap().get_message_own(),
+            agg_stream
+                .remove("from_aggregator_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")

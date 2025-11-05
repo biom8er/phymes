@@ -3,16 +3,18 @@ use arrow::{
     datatypes::{Field, Schema},
 };
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
+    ToolTrait,
     candle_data::{DataAggregatorOperator, DataConfig},
     candle_operators::{
         data_operator::DataOperatorTrait,
@@ -22,7 +24,7 @@ use crate::{
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Pivot {
     lhs_values: Vec<String>,
     agg_columns: Vec<String>,
@@ -37,62 +39,11 @@ impl MappableTrait for Pivot {
     }
 }
 
-impl DataOperatorTrait for Pivot {
-    fn new(config: &DataConfig) -> Self {
-        let lhs_values = config.lhs_values.as_ref().cloned().unwrap_or_default();
-        let agg_columns = config.agg_columns.clone().unwrap_or_default();
-        let agg_operators = config.agg_operators.clone().unwrap_or_default();
-        let default_values = config.default_values.clone().unwrap_or_default();
-        let pvt_columns = config.pvt_columns.clone().unwrap_or_default();
-
-        Pivot {
-            lhs_values,
-            agg_columns,
-            agg_operators,
-            default_values,
-            pvt_columns,
-        }
-    }
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        let lhs_values = self
-            .lhs_values
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        let agg_columns = self
-            .agg_columns
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        let default_values = self
-            .default_values
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        let pvt_columns = self
-            .pvt_columns
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        pivot(
-            &lhs_values,
-            lhs_args,
-            &agg_columns,
-            &self.agg_operators,
-            &default_values,
-            &pvt_columns,
-            device,
-        )
-    }
-    fn get_description() -> String {
+impl ToolTrait for Pivot {
+    fn get_description(&self) -> String {
         "Pivot on selected columns".to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -152,7 +103,7 @@ impl DataOperatorTrait for Pivot {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -169,6 +120,75 @@ impl DataOperatorTrait for Pivot {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for Pivot {
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_values` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let agg_columns = config.agg_columns.clone().ok_or(anyhow!(
+            "Missing `agg_columns` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let agg_operators = config.agg_operators.clone().ok_or(anyhow!(
+            "Missing `agg_operators` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let default_values = config.default_values.clone().ok_or(anyhow!(
+            "Missing `default_values` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let pvt_columns = config.pvt_columns.clone().ok_or(anyhow!(
+            "Missing `pvt_columns` for `{}`.",
+            Self::get_static_name()
+        ))?;
+
+        Ok(Pivot {
+            lhs_values,
+            agg_columns,
+            agg_operators,
+            default_values,
+            pvt_columns,
+        })
+    }
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        let lhs_values = self
+            .lhs_values
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let agg_columns = self
+            .agg_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let default_values = self
+            .default_values
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        let pvt_columns = self
+            .pvt_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        pivot(
+            &lhs_values,
+            lhs_args,
+            &agg_columns,
+            &self.agg_operators,
+            &default_values,
+            &pvt_columns,
+            device,
+        )
     }
 }
 
@@ -281,7 +301,7 @@ fn pivot_missing_values(
 
     // Build the pivot table
     let table = Table::get_builder()
-        .with_name("")
+        .with_name("pivot_missing_values")
         .with_schema(Arc::new(Schema::new(pvt_fields)))
         .with_json_values(&rows_vec)?
         .build()?;
@@ -374,11 +394,9 @@ pub fn pivot(
         .collect::<Vec<&str>>();
     let pvt_values_group =
         group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
-    // DM: Workaround for out of memory error on the GPU when analyzing session metrics...
-    // let pvt_values_group = group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, &Device::Cpu)?;
     let pvt_values_table = Table::get_builder()
+        .with_name("pivot")
         .with_record_batches(vec![pvt_values_group])?
-        .with_name("")
         .build()?;
 
     // Make the values column names
@@ -410,12 +428,12 @@ pub fn pivot(
 
     // Wrap the all grouped batches into tables
     let pvt_columns_table = Table::get_builder()
+        .with_name("pvt_columns_table")
         .with_record_batches(vec![pvt_columns_group])?
-        .with_name("")
         .build()?;
     let pvt_rows_table = Table::get_builder()
+        .with_name("pvt_rows_table")
         .with_record_batches(vec![pvt_rows_group])?
-        .with_name("")
         .build()?;
 
     // Check that there are no missing values

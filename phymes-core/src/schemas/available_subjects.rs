@@ -7,7 +7,6 @@ use crate::{
             create_metrics_pivot_fields, create_metrics_pivot_norm_time_fields,
             create_traces_fields,
         },
-        error::create_error_fields,
         mermaid::{
             create_mermaid_content_template_fields,
             create_mermaid_er_diagram_entities_template_fields,
@@ -385,7 +384,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::BuilderMermaid => {
                 create_schema_from_fields(&create_session_mermaid_fields)
             }
-            AvailableSubjects::SessionErrors => create_schema_from_fields(&create_error_fields),
+            AvailableSubjects::SessionErrors => create_schema_from_fields(&create_chat_fields),
             AvailableSubjects::SessionMetrics => create_schema_from_fields(&create_metrics_fields),
             AvailableSubjects::MetricMermaidGantt => {
                 create_schema_from_fields(&create_metrics_mermaid_gantt_fields)
@@ -442,7 +441,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::MermaidXYChart => {
                 create_schema_from_fields(&create_mermaid_xychart_template_fields)
             }
-            AvailableSubjects::AnalyticsErrors => create_schema_from_fields(&create_error_fields),
+            AvailableSubjects::AnalyticsErrors => create_schema_from_fields(&create_chat_fields),
             AvailableSubjects::AnalyticsMetrics => {
                 create_schema_from_fields(&create_metrics_fields)
             }

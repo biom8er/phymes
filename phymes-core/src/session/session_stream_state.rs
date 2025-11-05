@@ -12,7 +12,7 @@ use super::{
     session_context::SessionContext,
 };
 use crate::table::{
-    Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait, TableUpdateTrait,
+    Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableTrait,
 };
 use crate::task::MessageTrait;
 
@@ -120,7 +120,7 @@ impl SessionStreamState {
         for (_name, message) in messages.into_iter() {
             // Should the subject be updated?
             let update = message.get_update().clone();
-            if update == TablePublish::None {
+            if update == TablePublication::None {
                 continue;
             }
 
@@ -137,7 +137,7 @@ impl SessionStreamState {
 
                 // Update the state
                 // Check for a mismatch in the schema and intercept any errors
-                state.write().update_table(batches, update)?;
+                state.write().publish_to_table(batches, update)?;
 
                 // Record the table name that was updated and the pubisher who updated it
                 if let Some(v) = subjects_updated.get_mut(state.read().get_name()) {
@@ -292,7 +292,7 @@ mod tests {
         session::session_context_builder::test_session_context_builder::{
             make_test_session_context_parallel_task, make_test_session_context_sequential_task,
         },
-        table::TablePublish,
+        table::TablePublication,
         task::test_task::make_test_input_message,
         test_table::make_test_table,
     };
@@ -309,7 +309,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::None,
+            &TablePublication::None,
             true,
         )?;
         let session_stream_step = SessionStreamState::new(session_context);
@@ -374,7 +374,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Extend {
+            &TablePublication::Extend {
                 table_name: "state_1".to_string(),
             },
             true,
@@ -445,7 +445,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Extend {
+            &TablePublication::Extend {
                 table_name: "state_1".to_string(),
             },
             false,
@@ -459,7 +459,7 @@ mod tests {
             "state_1",
             "session_1",
             Some(make_test_table("state_1", 4, 8, 3)?.to_ipc_stream()?),
-            Some(TablePublish::Extend {
+            Some(TablePublication::Extend {
                 table_name: "NotFound".to_string(),
             }),
         );

@@ -2,18 +2,16 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AllTableNamesSubscribe, AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait,
-    BuilderTrait, DataFormat, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait,
-    SubscribeTrait, Table, TableBuilder, TableBuilderTrait, TablePublish, TableSubscribe, TaskPlan,
-    create_user_batch, create_user_session_contexts_batch,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
+    DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch,
+    create_user_session_contexts_batch,
 };
-use phymes_data::{
-    AvailableCandleOperators, CandleDataProcessor, DataConfig, DataSummaryConfig,
-    DataSummaryProcessor,
-};
+use phymes_data::{AvailableCandleOperators, DataConfig, DataSummaryConfig};
 use phymes_diagnostics::create_timestamp_micros;
 
 use crate::{
+    AvailableProcessors,
     session_plans::{
         AvailableInterfaceSubjects, AvailableSessionPlans, make_example_mermaid_table,
     },
@@ -180,125 +178,125 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            CandleDataProcessor::new_arc_with_pub_sub(
+            AvailableProcessors::ExtractTabularData.build_arc(
                 self.filter_and_join_session_contexts_by_email_inbox_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: AvailableSubjects::UserInbox.to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableInterfaceSubjects::UserJson.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: self
                             .filter_and_join_session_contexts_by_email_inbox_processor_name
                             .to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            AvailableProcessors::JoinInner.build_arc(
                 self.filter_session_contexts_by_email_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
                 }],
                 &[
-                    TableSubscribe::AlwaysLastRecordBatch {
+                    TableSubscription::AlwaysLastRecordBatch {
                         table_name: self
                             .filter_session_contexts_by_email_processor_name
                             .to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::UserInbox.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: AvailableSubjects::UserSessionContexts.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            AvailableProcessors::JoinInner.build_arc(
                 self.join_session_contexts_with_mermaid_diagrams_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
                 }],
                 &[
-                    TableSubscribe::AlwaysLastRecordBatch {
+                    TableSubscription::AlwaysLastRecordBatch {
                         table_name: self
                             .join_session_contexts_with_mermaid_diagrams_processor_name
                             .to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: AvailableSubjects::BuilderMermaid.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            CandleDataProcessor::new_arc_with_pub_sub(
+            AvailableProcessors::JoinInner.build_arc(
                 self.filter_user_info_by_email_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: self.filter_user_info_by_email_table_name.to_string(),
                 }],
                 &[
-                    TableSubscribe::AlwaysLastRecordBatch {
+                    TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.filter_user_info_by_email_processor_name.to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::UserInbox.to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: AvailableSubjects::User.to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            DataSummaryProcessor::new_arc_with_pub_sub(
+            AvailableProcessors::DataSummaryProcessor.build_arc(
                 self.filter_and_join_session_contexts_by_email_outbox_processor_name,
-                &[TablePublish::Replace {
+                &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
                 }],
                 &[
-                    TableSubscribe::AlwaysLastRecordBatch {
+                    TableSubscription::AlwaysLastRecordBatch {
                         table_name: self
                             .filter_and_join_session_contexts_by_email_outbox_processor_name
                             .to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: self.filter_user_info_by_email_table_name.to_string(),
                     },
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid
                             .to_string(),
                     },
                 ],
-                AnyTableNameSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            ProcessorEcho::new_arc_with_pub_sub(
+            AvailableProcessors::ProcessorEcho.build_arc(
                 self.session_context_name,
                 &[
-                    TablePublish::Extend {
+                    TablePublication::Extend {
                         table_name: AvailableSubjects::BuilderMermaid.to_string(),
                     },
-                    TablePublish::Extend {
+                    TablePublication::Extend {
                         table_name: AvailableSubjects::User.to_string(),
                     },
-                    TablePublish::Extend {
+                    TablePublication::Extend {
                         table_name: AvailableSubjects::UserSessionContexts.to_string(),
                     },
-                    TablePublish::Replace {
+                    TablePublication::Replace {
                         table_name: AvailableInterfaceSubjects::UserJson.to_string(),
                     },
-                    TablePublish::Replace {
+                    TablePublication::Replace {
                         table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
                     },
                 ],
-                &[TableSubscribe::OnUpdateFullTable {
+                &[TableSubscription::OnUpdateFullTable {
                     table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
                 }],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
         ];
 
@@ -335,7 +333,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         // Attachment config
         let attachment_config = DataSummaryConfig {
-            format: DataFormat::JsonDefault,
+            summary_format: DataFormat::JsonDefault,
             ..Default::default()
         };
         let attachment_config_json = serde_json::to_vec(&attachment_config).unwrap();
@@ -477,7 +475,7 @@ pub(crate) mod user_session_inner {
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublish::Replace {
+            .with_update(&TablePublication::Replace {
                 table_name: blob.get_name().to_string(),
             })
             .with_publisher(user_agent_session.session_context_name)

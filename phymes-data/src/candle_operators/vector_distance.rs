@@ -9,16 +9,20 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 
 use super::data_operator::DataOperatorTrait;
-use crate::candle_data::{DataConfig, DataDistanceOperator};
+use crate::{
+    candle_data::{DataConfig, DataDistanceOperator},
+    candle_operators::ToolTrait,
+};
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct VectorDistance {
     lhs_pk: String,
     lhs_values: String,
@@ -33,56 +37,12 @@ impl MappableTrait for VectorDistance {
     }
 }
 
-impl DataOperatorTrait for VectorDistance {
-    fn new(config: &DataConfig) -> Self {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().unwrap_or_default();
-        let lhs_values = config
-            .lhs_values
-            .as_ref()
-            .cloned()
-            .unwrap_or_default()
-            .first()
-            .cloned()
-            .unwrap_or_default();
-        let rhs_pk = config.rhs_pk.clone().unwrap_or_default();
-        let rhs_values = config
-            .rhs_values
-            .clone()
-            .unwrap()
-            .first()
-            .unwrap()
-            .to_string();
-        let dist_operator = config.dist_operator.clone().unwrap_or_default();
-        VectorDistance {
-            lhs_pk,
-            lhs_values,
-            rhs_pk,
-            rhs_values,
-            dist_operator,
-        }
-    }
-    fn get_description() -> String {
+impl ToolTrait for VectorDistance {
+    fn get_description(&self) -> String {
         "Compute the relative similarity score between two different lists of embedding vectors"
             .to_string()
     }
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        vector_distance(
-            &self.lhs_pk,
-            &self.lhs_values,
-            lhs_args,
-            &self.rhs_pk,
-            &self.rhs_values,
-            rhs_args.unwrap_or(&[]),
-            &self.dist_operator,
-            device,
-        )
-    }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -142,7 +102,7 @@ impl DataOperatorTrait for VectorDistance {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -161,6 +121,75 @@ impl DataOperatorTrait for VectorDistance {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for VectorDistance {
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_pk` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let lhs_values = config
+            .lhs_values
+            .as_ref()
+            .cloned()
+            .ok_or(anyhow!(
+                "Missing `lhs_values` for `{}`.",
+                Self::get_static_name()
+            ))?
+            .first()
+            .cloned()
+            .ok_or(anyhow!(
+                "`lhs_values` is empty for `{}`.",
+                Self::get_static_name()
+            ))?;
+        let rhs_pk = config.rhs_pk.clone().ok_or(anyhow!(
+            "Missing `rhs_pk` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let rhs_values = config
+            .rhs_values
+            .as_ref()
+            .cloned()
+            .ok_or(anyhow!(
+                "Missing `rhs_values` for `{}`.",
+                Self::get_static_name()
+            ))?
+            .first()
+            .cloned()
+            .ok_or(anyhow!(
+                "`rhs_values` is empty for `{}`.",
+                Self::get_static_name()
+            ))?;
+        let dist_operator = config.dist_operator.clone().ok_or(anyhow!(
+            "Missing `dist_operator` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        Ok(VectorDistance {
+            lhs_pk,
+            lhs_values,
+            rhs_pk,
+            rhs_values,
+            dist_operator,
+        })
+    }
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        vector_distance(
+            &self.lhs_pk,
+            &self.lhs_values,
+            lhs_args,
+            &self.rhs_pk,
+            &self.rhs_values,
+            rhs_args.unwrap_or(&[]),
+            &self.dist_operator,
+            device,
+        )
     }
 }
 
@@ -319,12 +348,12 @@ fn vector_distance(
 ) -> Result<RecordBatch> {
     // Wrap the lhs and rhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("vector_distance_lhs")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?;
     let rhs_table = Table::get_builder()
+        .with_name("vector_distance_rhs")
         .with_record_batches(rhs_args.to_vec())?
-        .with_name("")
         .build()?;
 
     // Compute the relative similarity score

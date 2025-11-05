@@ -9,7 +9,7 @@ use tracing::{Level, event};
 use super::{
     ProcessorTrait,
     message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-    publish_subscribe::PubSubTrait,
+    publish_subscribe::PublishAndSubscribeTrait,
 };
 
 use crate::{
@@ -17,7 +17,7 @@ use crate::{
         BuildableTrait, BuilderTrait, MappableTrait, RunnableTrait, RuntimeEnv,
         SendableRecordBatchStreamMessageMap, StateMap,
     },
-    table::{TablePublish, TableSubscribe},
+    table::{TablePublication, TableSubscription},
 };
 
 /// Trait to implement the actual task which could involve one or
@@ -60,7 +60,7 @@ use crate::{
 ///
 /// Parallel execution could be integrated into any uses case to improve execution speed
 pub trait TaskTrait:
-    MappableTrait + BuildableTrait + RunnableTrait + PubSubTrait + Sync + Send
+    MappableTrait + BuildableTrait + RunnableTrait + PublishAndSubscribeTrait + Sync + Send
 {
     /// Make the outbox
     ///
@@ -192,18 +192,18 @@ impl TaskTrait for Task {
     }
 }
 
-impl PubSubTrait for Task {
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+impl PublishAndSubscribeTrait for Task {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.get_processors()
             .iter()
             .flat_map(|p| p.get_subscriptions())
-            .collect::<Vec<&TableSubscribe>>()
+            .collect::<Vec<&TableSubscription>>()
     }
-    fn get_publications(&self) -> Vec<&TablePublish> {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.get_processors()
             .iter()
             .flat_map(|p| p.get_publications())
-            .collect::<Vec<&TablePublish>>()
+            .collect::<Vec<&TablePublication>>()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
         for processor in self.get_processors() {
@@ -315,12 +315,12 @@ pub fn check_not_null_constraints(
 pub mod test_task {
     use super::*;
     use crate::{
+        AvailableTableSubscribePolicies, ProcessorBuilder,
         session::{
             BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, RuntimeEnv, RuntimeEnvTrait,
         },
         table::{
-            AllTableNamesSubscribe, SubscribeTrait, Table, TableBuilder, TableBuilderTrait,
-            TablePublish, TableTrait,
+            Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
             test_table::{make_test_table, make_test_table_chat},
         },
         task::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, test_processor::ProcessorMock},
@@ -396,21 +396,26 @@ pub mod test_task {
         Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
-                processor_name.as_str(),
-                &[TablePublish::Extend {
-                    table_name: table_name.to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateFullTable {
+            .with_processor(vec![
+                ProcessorBuilder::default()
+                    .with_name(processor_name.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .with_publications(&[TablePublication::Extend {
                         table_name: table_name.to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: config_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            )])
+                    }])
+                    .with_subscriptions(&[
+                        TableSubscription::OnUpdateFullTable {
+                            table_name: table_name.to_string(),
+                        },
+                        TableSubscription::AlwaysFullTable {
+                            table_name: config_name.to_string(),
+                        },
+                    ])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build_arc::<ProcessorMock>()?,
+            ])
             .build()
     }
 
@@ -425,24 +430,29 @@ pub mod test_task {
         Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
-            .with_processor(vec![ProcessorMock::new_arc_with_pub_sub(
-                processor_name.as_str(),
-                &[TablePublish::Extend {
-                    table_name: table_name_1.to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateFullTable {
+            .with_processor(vec![
+                ProcessorBuilder::default()
+                    .with_name(processor_name.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .with_publications(&[TablePublication::Extend {
                         table_name: table_name_1.to_string(),
-                    },
-                    TableSubscribe::OnUpdateFullTable {
-                        table_name: table_name_2.to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: config_name.to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            )])
+                    }])
+                    .with_subscriptions(&[
+                        TableSubscription::OnUpdateFullTable {
+                            table_name: table_name_1.to_string(),
+                        },
+                        TableSubscription::OnUpdateFullTable {
+                            table_name: table_name_2.to_string(),
+                        },
+                        TableSubscription::AlwaysFullTable {
+                            table_name: config_name.to_string(),
+                        },
+                    ])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build_arc::<ProcessorMock>()?,
+            ])
             .build()
     }
 
@@ -459,23 +469,42 @@ pub mod test_task {
             .with_name(name)
             .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
             .with_processor(vec![
-                ProcessorMock::new_arc_with_pub_sub(
-                    processor_name_1.as_str(),
-                    &[TablePublish::Extend {
+                ProcessorBuilder::default()
+                    .with_name(processor_name_1.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .with_publications(&[TablePublication::Extend {
                         table_name: table_name.to_string(),
-                    }],
-                    &[
-                        TableSubscribe::OnUpdateFullTable {
+                    }])
+                    .with_subscriptions(&[
+                        TableSubscription::OnUpdateFullTable {
                             table_name: table_name.to_string(),
                         },
-                        TableSubscribe::AlwaysFullTable {
+                        TableSubscription::AlwaysFullTable {
                             table_name: config_name.to_string(),
                         },
-                    ],
-                    AllTableNamesSubscribe::new_box(),
-                ),
-                ProcessorMock::new_arc(processor_name_2.as_str()),
-                ProcessorMock::new_arc(processor_name_3.as_str()),
+                    ])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build_arc::<ProcessorMock>()?,
+                ProcessorBuilder::default()
+                    .with_name(processor_name_2.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .with_publications(&[])
+                    .with_subscriptions(&[])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build_arc::<ProcessorMock>()?,
+                ProcessorBuilder::default()
+                    .with_name(processor_name_3.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .with_publications(&[])
+                    .with_subscriptions(&[])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build_arc::<ProcessorMock>()?,
             ])
             .build()
     }
@@ -485,7 +514,7 @@ pub mod test_task {
         publisher: &str,
         subject: &str,
         table_name: &str,
-        update: &TablePublish,
+        update: &TablePublication,
         test_table: bool,
     ) -> Result<IPCMessageMap> {
         // mock table as input
@@ -514,8 +543,9 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::remove_message_by_subject;
     use crate::table::{
-        TableBuilder, TableBuilderTrait, TablePublish, TableTrait, test_table::make_test_table,
+        TableBuilder, TableBuilderTrait, TablePublication, TableTrait, test_table::make_test_table,
     };
     use crate::task::message::MessageTrait;
     use arrow::array::{Array, DictionaryArray, Int32Array, NullArray, RunArray};
@@ -659,19 +689,21 @@ mod tests {
             "test_table",
             "test_config",
         )?;
-        let messages = test_task.get_subscriptions_from_state(
+        let mut messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?,
         );
         assert_eq!(messages.len(), 2);
-        assert!(messages.get("test_table").is_some());
         assert_eq!(
-            messages.get("test_table").unwrap().get_subject(),
+            remove_message_by_subject("test_table", &mut messages)
+                .unwrap()
+                .get_subject(),
             "test_table"
         );
-        assert!(messages.get("test_config").is_some());
         assert_eq!(
-            messages.get("test_config").unwrap().get_subject(),
+            remove_message_by_subject("test_config", &mut messages)
+                .unwrap()
+                .get_subject(),
             "test_config"
         );
 
@@ -683,14 +715,15 @@ mod tests {
             "test_table_2",
             "test_config",
         )?;
-        let messages = test_task.get_subscriptions_from_state(
+        let mut messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[false]),
             &test_task::make_state("test_table", "test_config")?,
         );
         assert_eq!(messages.len(), 1);
-        assert!(messages.get("test_config").is_some());
         assert_eq!(
-            messages.get("test_config").unwrap().get_subject(),
+            remove_message_by_subject("test_config", &mut messages)
+                .unwrap()
+                .get_subject(),
             "test_config"
         );
 
@@ -702,19 +735,21 @@ mod tests {
             "test_table_2",
             "test_config",
         )?;
-        let messages = test_task.get_subscriptions_from_state(
+        let mut messages = test_task.get_subscriptions_from_state(
             &test_task::make_state_updates(&["test_table"], &[true]),
             &test_task::make_state("test_table", "test_config")?,
         );
         assert_eq!(messages.len(), 2);
-        assert!(messages.get("test_table").is_some());
         assert_eq!(
-            messages.get("test_table").unwrap().get_subject(),
+            remove_message_by_subject("test_table", &mut messages)
+                .unwrap()
+                .get_subject(),
             "test_table"
         );
-        assert!(messages.get("test_config").is_some());
         assert_eq!(
-            messages.get("test_config").unwrap().get_subject(),
+            remove_message_by_subject("test_config", &mut messages)
+                .unwrap()
+                .get_subject(),
             "test_config"
         );
         Ok(())
@@ -730,37 +765,33 @@ mod tests {
         )?;
 
         // Case 1: Message has subject that the task does not publish on
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            "test_message".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("test_message")
-                .with_publisher("s1")
-                .with_subject("d1")
-                .with_update(&TablePublish::Extend {
-                    table_name: "d1".to_string(),
-                })
-                .with_message(make_test_table("d1", 1, 8, 2)?.to_record_batch_stream())
-                .build()?,
-        );
-        let inbox = test_task.make_outbox(message);
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("test_message")
+            .with_publisher("s1")
+            .with_subject("d1")
+            .with_update(&TablePublication::Extend {
+                table_name: "d1".to_string(),
+            })
+            .with_message(make_test_table("d1", 1, 8, 2)?.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+        let inbox = test_task.make_outbox(messages);
         assert_eq!(inbox.len(), 0);
 
         // Case 2: Message has subject that the task does not publish on
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            "test_message".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("test_message")
-                .with_publisher("s1")
-                .with_subject("test_table")
-                .with_update(&TablePublish::Extend {
-                    table_name: "test_table".to_string(),
-                })
-                .with_message(make_test_table("test_table", 1, 8, 2)?.to_record_batch_stream())
-                .build()?,
-        );
-        let inbox = test_task.make_outbox(message);
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("test_message")
+            .with_publisher("s1")
+            .with_subject("test_table")
+            .with_update(&TablePublication::Extend {
+                table_name: "test_table".to_string(),
+            })
+            .with_message(make_test_table("test_table", 1, 8, 2)?.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+        let inbox = test_task.make_outbox(messages);
         assert_eq!(inbox.len(), 1);
         assert_eq!(
             inbox
@@ -788,7 +819,7 @@ mod tests {
                 .get("from_test_task_on_test_table")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "test_table".to_string()
             }
         );

@@ -1,229 +1,47 @@
-use anyhow::{Result, anyhow};
 use phymes_diagnostics::HashMap;
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::session::{MappableTrait, StateMap};
-
-use super::{
-    stream::SendableRecordBatchStream,
-    table_trait::{Table, TableTrait},
+use crate::{
+    AvailableSubjects, TableSubscription,
+    session::{MappableTrait, StateMap},
 };
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
-pub enum TableSubscribe {
-    /// Only when the subject has been updated
-    OnUpdateFullTable { table_name: String },
-    /// Only when the subject has been updated
-    /// and just the last RecordBatch
-    OnUpdateLastRecordBatch { table_name: String },
-    /// Always read the full table
-    AlwaysFullTable { table_name: String },
-    /// Always read just the last record batch
-    AlwaysLastRecordBatch { table_name: String },
-    /// No download
-    #[default]
-    None,
-    /// Custom subscription function
-    Custom(String),
-}
-
-impl TableSubscribe {
-    pub fn get_table_name(&self) -> &str {
-        match self {
-            Self::OnUpdateFullTable { table_name: tn } => tn,
-            Self::OnUpdateLastRecordBatch { table_name: tn } => tn,
-            Self::AlwaysFullTable { table_name: tn } => tn,
-            Self::AlwaysLastRecordBatch { table_name: tn } => tn,
-            Self::None => "",
-            Self::Custom(_name) => "",
-        }
-    }
-
-    #[allow(dead_code)]
-    fn get_full_name(&self) -> String {
-        match self {
-            Self::OnUpdateFullTable { table_name: tn } => format!("OnUpdateFullTable-{tn}"),
-            Self::OnUpdateLastRecordBatch { table_name: tn } => {
-                format!("OnUpdateLastRecordBatch-{tn}")
-            }
-            Self::AlwaysFullTable { table_name: tn } => format!("AlwaysFullTable-{tn}"),
-            Self::AlwaysLastRecordBatch { table_name: tn } => format!("AlwaysLastRecordBatch-{tn}"),
-            Self::None => "None".to_string(),
-            Self::Custom(name) => name.to_string(),
-        }
-    }
-
-    pub fn is_update(&self) -> bool {
-        match self {
-            Self::OnUpdateFullTable { table_name: _tn }
-            | Self::OnUpdateLastRecordBatch { table_name: _tn } => true,
-            Self::AlwaysFullTable { table_name: _tn }
-            | Self::AlwaysLastRecordBatch { table_name: _tn } => false,
-            Self::None => false,
-            Self::Custom(_name) => false,
-        }
-    }
-
-    pub fn get_short_name(&self) -> &str {
-        match self {
-            Self::OnUpdateFullTable { table_name: _tn } => "FullTable",
-            Self::OnUpdateLastRecordBatch { table_name: _tn } => "LastRecordBatch",
-            Self::AlwaysFullTable { table_name: _tn } => "FullTable",
-            Self::AlwaysLastRecordBatch { table_name: _tn } => "LastRecordBatch",
-            Self::None => "None",
-            Self::Custom(name) => name,
-        }
-    }
-
-    pub fn from_str(name: &str, subject: &str) -> Result<TableSubscribe> {
-        let subscription = if name.contains("OnUpdateFullTable") {
-            TableSubscribe::OnUpdateFullTable {
-                table_name: subject.to_string(),
-            }
-        } else if name.contains("AlwaysFullTable") {
-            TableSubscribe::AlwaysFullTable {
-                table_name: subject.to_string(),
-            }
-        } else if name.contains("OnUpdateLastRecordBatch") {
-            TableSubscribe::OnUpdateLastRecordBatch {
-                table_name: subject.to_string(),
-            }
-        } else if name.contains("AlwaysLastRecordBatch") {
-            TableSubscribe::AlwaysLastRecordBatch {
-                table_name: subject.to_string(),
-            }
-        } else if name.contains("None") {
-            TableSubscribe::None {}
-        } else {
-            return Err(anyhow!(
-                "Variant for ArrowTableSubscribe {name} with subject {subject} was not recognized."
-            ));
-        };
-        Ok(subscription)
-    }
-}
-
-impl MappableTrait for TableSubscribe {
-    fn get_name(&self) -> &str {
-        match self {
-            Self::OnUpdateFullTable { table_name: _tn } => "OnUpdateFullTable",
-            Self::OnUpdateLastRecordBatch { table_name: _tn } => "OnUpdateLastRecordBatch",
-            Self::AlwaysFullTable { table_name: _tn } => "AlwaysFullTable",
-            Self::AlwaysLastRecordBatch { table_name: _tn } => "AlwaysLastRecordBatch",
-            Self::None => "None",
-            Self::Custom(name) => name,
-        }
-    }
-}
-
-/// Subscribe to an arrow table
-pub trait TableSubscribeTrait: TableTrait {
-    /// Implement the subscription
-    ///
-    /// # Arguments
-    ///
-    /// * `updated` - whether the table has been updated or not
-    /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
-    fn subscribe_table(
-        &self,
-        subscribe: &TableSubscribe,
-        updated: bool,
-    ) -> Option<SendableRecordBatchStream>;
-}
-
-impl TableSubscribeTrait for Table {
-    fn subscribe_table(
-        &self,
-        subscribe: &TableSubscribe,
-        updated: bool,
-    ) -> Option<SendableRecordBatchStream> {
-        match subscribe {
-            TableSubscribe::AlwaysFullTable { table_name: _ } => {
-                Some(self.to_record_batch_stream())
-            }
-            TableSubscribe::AlwaysLastRecordBatch { table_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch())
-            }
-            TableSubscribe::OnUpdateFullTable { table_name: _ } => {
-                if updated {
-                    Some(self.to_record_batch_stream())
-                } else {
-                    None
-                }
-            }
-            TableSubscribe::OnUpdateLastRecordBatch { table_name: _ } => {
-                if updated {
-                    Some(self.to_record_batch_stream_last_record_batch())
-                } else {
-                    None
-                }
-            }
-            TableSubscribe::None => None,
-            TableSubscribe::Custom(_) => None,
-        }
-    }
-}
-
-/// Helper function to convert a [String] to a [SubscribeTrait]
-///
-/// # Notes
-/// * This method will eventually be on an enum of all concrete
-///   [SubscribeTrait] implementations
-/// * Comparison by `contains` can be dangerous so order matters
-pub fn from_str_to_subscribe(line: &str) -> Result<Box<dyn SubscribeTrait>> {
-    let subscribe = if line.contains(AllTableSchemasSubscribe::get_static_name()) {
-        AllTableSchemasSubscribe::new_box()
-    } else if line.contains(AnyTableSchemaSubscribe::get_static_name()) {
-        AnyTableSchemaSubscribe::new_box()
-    } else if line.contains(AllTableNamesSubscribe::get_static_name()) {
-        AllTableNamesSubscribe::new_box()
-    } else if line.contains(AnyTableNameSubscribe::get_static_name()) {
-        AnyTableNameSubscribe::new_box()
-    } else if line.contains(AlwaysSubscribe::get_static_name()) {
-        AlwaysSubscribe::new_box()
-    } else if line.contains(ChatContentSubscribe::get_static_name()) {
-        ChatContentSubscribe::new_box()
-    } else {
-        return Err(anyhow!("Subscribe policy {line} was not recognized."));
-    };
-    Ok(subscribe)
-}
+use super::table_trait::{Table, TableTrait};
 
 /// Determine when all subscriptions are ready
-pub trait SubscribeTrait: MappableTrait + Debug + Send + Sync {
+pub trait TableSubscribePolicyTrait: MappableTrait + Debug + Send + Sync {
     fn check_subscriptions(
         &self,
-        subscriptions: &[TableSubscribe],
+        subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
         state: &StateMap,
     ) -> bool;
-    fn new_box() -> Box<dyn SubscribeTrait>
+    fn new_box() -> Box<dyn TableSubscribePolicyTrait>
     where
         Self: Sized;
-    fn clone_boxed(&self) -> Box<dyn SubscribeTrait>;
+    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait>;
 }
 
 /// Always subscribe (dummy subscription check for testing)
 #[derive(Default, Debug, Clone)]
 pub struct AlwaysSubscribe;
 
-impl SubscribeTrait for AlwaysSubscribe {
+impl TableSubscribePolicyTrait for AlwaysSubscribe {
     fn check_subscriptions(
         &self,
-        _subscriptions: &[TableSubscribe],
+        _subscriptions: &[TableSubscription],
         _updates: &HashMap<String, bool>,
         _state: &StateMap,
     ) -> bool {
         true
     }
-    fn new_box() -> Box<dyn SubscribeTrait>
+    fn new_box() -> Box<dyn TableSubscribePolicyTrait>
     where
         Self: Sized,
     {
         Box::new(Self)
     }
-    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
+    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -241,10 +59,10 @@ impl MappableTrait for AlwaysSubscribe {
 #[derive(Default, Debug, Clone)]
 pub struct AnyTableNameSubscribe;
 
-impl SubscribeTrait for AnyTableNameSubscribe {
+impl TableSubscribePolicyTrait for AnyTableNameSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[TableSubscribe],
+        subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
         _state: &StateMap,
     ) -> bool {
@@ -259,10 +77,10 @@ impl SubscribeTrait for AnyTableNameSubscribe {
         }
         is_update_count == 0
     }
-    fn new_box() -> Box<dyn SubscribeTrait> {
+    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
+    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -280,10 +98,10 @@ impl MappableTrait for AnyTableNameSubscribe {
 #[derive(Default, Debug, Clone)]
 pub struct AllTableNamesSubscribe;
 
-impl SubscribeTrait for AllTableNamesSubscribe {
+impl TableSubscribePolicyTrait for AllTableNamesSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[TableSubscribe],
+        subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
         _state: &StateMap,
     ) -> bool {
@@ -296,10 +114,10 @@ impl SubscribeTrait for AllTableNamesSubscribe {
         }
         true
     }
-    fn new_box() -> Box<dyn SubscribeTrait> {
+    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
+    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -317,10 +135,10 @@ impl MappableTrait for AllTableNamesSubscribe {
 #[derive(Default, Debug, Clone)]
 pub struct AnyTableSchemaSubscribe;
 
-impl SubscribeTrait for AnyTableSchemaSubscribe {
+impl TableSubscribePolicyTrait for AnyTableSchemaSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[TableSubscribe],
+        subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
         state: &StateMap,
     ) -> bool {
@@ -350,10 +168,10 @@ impl SubscribeTrait for AnyTableSchemaSubscribe {
         }
         is_update_count == 0
     }
-    fn new_box() -> Box<dyn SubscribeTrait> {
+    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
+    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -371,10 +189,10 @@ impl MappableTrait for AnyTableSchemaSubscribe {
 #[derive(Default, Debug, Clone)]
 pub struct AllTableSchemasSubscribe;
 
-impl SubscribeTrait for AllTableSchemasSubscribe {
+impl TableSubscribePolicyTrait for AllTableSchemasSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[TableSubscribe],
+        subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
         state: &StateMap,
     ) -> bool {
@@ -402,10 +220,10 @@ impl SubscribeTrait for AllTableSchemasSubscribe {
         }
         true
     }
-    fn new_box() -> Box<dyn SubscribeTrait> {
+    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
+    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -424,40 +242,48 @@ impl MappableTrait for AllTableSchemasSubscribe {
 pub struct ChatContentSubscribe {
     user_message_table_name: String,
     tool_message_table_name: String,
+    error_message_table_name: String,
 }
 
+#[allow(dead_code)]
 impl ChatContentSubscribe {
     pub fn new_box_with_table_names(
         user_message_table_name: &str,
         tool_message_table_name: &str,
-    ) -> Box<dyn SubscribeTrait> {
+        error_message_table_name: &str,
+    ) -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(Self {
             user_message_table_name: user_message_table_name.to_string(),
             tool_message_table_name: tool_message_table_name.to_string(),
+            error_message_table_name: error_message_table_name.to_string(),
         })
     }
 }
 
-impl SubscribeTrait for ChatContentSubscribe {
+impl TableSubscribePolicyTrait for ChatContentSubscribe {
     fn check_subscriptions(
         &self,
-        _subscriptions: &[TableSubscribe],
+        _subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
         _state: &StateMap,
     ) -> bool {
         let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
         let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
-        *tool || *user
+        let error = updates
+            .get(&self.error_message_table_name)
+            .unwrap_or(&false);
+        *tool || *user || *error
     }
-    fn new_box() -> Box<dyn SubscribeTrait> {
+    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(Self {
             // DM: dangerous as the strings needs to stay syncronized with the actual table names
             // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
             user_message_table_name: "UserMessages".to_string(),
             tool_message_table_name: "ToolMessages".to_string(),
+            error_message_table_name: AvailableSubjects::SessionErrors.to_string(),
         })
     }
-    fn clone_boxed(&self) -> Box<dyn SubscribeTrait> {
+    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -496,28 +322,28 @@ mod test_subscribe {
     }
 
     #[allow(dead_code)]
-    pub fn make_test_subscriptions(use_table_name: bool) -> Vec<TableSubscribe> {
+    pub fn make_test_subscriptions(use_table_name: bool) -> Vec<TableSubscription> {
         if use_table_name {
             vec![
-                TableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscription::OnUpdateLastRecordBatch {
                     table_name: "t1".to_string(),
                 },
-                TableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscription::OnUpdateLastRecordBatch {
                     table_name: "t2".to_string(),
                 },
-                TableSubscribe::AlwaysLastRecordBatch {
+                TableSubscription::AlwaysLastRecordBatch {
                     table_name: "t3".to_string(),
                 },
             ]
         } else {
             vec![
-                TableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscription::OnUpdateLastRecordBatch {
                     table_name: "t3".to_string(),
                 },
-                TableSubscribe::OnUpdateLastRecordBatch {
+                TableSubscription::OnUpdateLastRecordBatch {
                     table_name: "t3".to_string(),
                 },
-                TableSubscribe::AlwaysLastRecordBatch {
+                TableSubscription::AlwaysLastRecordBatch {
                     table_name: "t3".to_string(),
                 },
             ]

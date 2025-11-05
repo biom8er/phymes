@@ -5,14 +5,16 @@ use std::{
 };
 
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-    BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PubSubTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, create_blob_fields, device,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, create_blob_fields, device,
+    remove_message_by_subject,
 };
 
 use crate::{
+    DataConfigTrait,
     candle_data::{data_config::DataConfig, tensor_service::CandleTensorService},
     candle_operators::DataOperatorTrait,
 };
@@ -24,7 +26,8 @@ use arrow::{
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    TraceBuilderTrait,
 };
 use tracing::{Level, event, instrument};
 
@@ -56,9 +59,10 @@ pub fn collect_messages_by_schema(
 #[derive(Debug)]
 pub struct AttachmentAggregatorProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    r#type: String,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for AttachmentAggregatorProcessor {
@@ -67,51 +71,42 @@ impl MappableTrait for AttachmentAggregatorProcessor {
     }
 }
 
-impl PubSubTrait for AttachmentAggregatorProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
+impl PublishAndSubscribeTrait for AttachmentAggregatorProcessor {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
 impl ProcessorTrait for AttachmentAggregatorProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+        r#type: &str,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
-        })
+            subscribe_policy,
+        }
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublish::Extend {
-                table_name: "messages".to_string(),
-            }],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
-        })
-    }
-
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -139,7 +134,7 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         let input = collect_messages_by_schema(&mut message, &create_blob_fields());
 
         // Extract out the config
-        let config = match message.remove(self.get_name()) {
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
@@ -154,11 +149,22 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
             stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.get_publications().first().unwrap().get_table_name())
             .with_publisher(self.get_name())
-            .with_subject(self.get_publications().first().unwrap().get_table_name())
+            .with_subject(
+                self.get_publications()
+                    .first()
+                    .ok_or(anyhow!(
+                        "Missing publications for processor {}",
+                        self.get_name()
+                    ))?
+                    .get_table_name(),
+            )
             .with_message(out)
-            .with_update(self.get_publications().first().unwrap())
+            .with_update(self.get_publications().first().ok_or(anyhow!(
+                "Missing publications for processor {}",
+                self.get_name()
+            ))?)
+            .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
 
@@ -210,9 +216,7 @@ impl AggregatorStream {
     #[instrument(skip(self))]
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config: DataConfig = serde_json::from_value(serde_json::Value::Object(
-                config_table.to_json_object()?.first().unwrap().to_owned(),
-            ))?;
+            let config = DataConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         Ok(())
@@ -280,7 +284,7 @@ impl Stream for AggregatorStream {
                     .as_ref()
                     .unwrap()
                     .operator
-                    .build(self.config.as_ref().unwrap());
+                    .build(self.config.as_ref().unwrap())?;
                 self.data_operator.replace(operator);
             }
 
@@ -300,13 +304,24 @@ impl Stream for AggregatorStream {
                 &batches,
                 None,
                 self.runtime_env
-                    .try_lock()
-                    .unwrap()
+                    .lock()
                     .tensor_service
                     .as_ref()
                     .unwrap()
                     .get_device(),
             )?;
+            if batch.num_rows() == 0
+                && let Some(diagnostic_builder) = &self.diagnostic_builder
+            {
+                let event = diagnostic_builder
+                    .clone()
+                    .to_child("AggregatorStream")?
+                    .warn(line!(), file!(), "poll_next");
+                event.insert("empty_batch", &serde_json::Value::String(
+                        format!("The result of the data operator {} with config {:?} was an empty RecordBatch.", 
+                            self.data_operator.as_ref().unwrap().get_name(),
+                            self.config.as_ref().unwrap())));
+            };
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));

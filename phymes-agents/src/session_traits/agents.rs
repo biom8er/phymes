@@ -5,12 +5,14 @@ use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
 use parking_lot::{Mutex, RwLock};
 use phymes_core::{
-    AnyTableNameSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-    MappableTrait, ProcessorEcho, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext,
-    SessionContextBuilder, SessionContextBuilderTrait, StateMap, SubscribeTrait, Table,
-    TableBuilderTrait, TablePublish, TableSubscribe, TableTrait, TaskMap, TaskPlan,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext,
+    SessionContextBuilder, SessionContextBuilderTrait, StateMap, Table, TableBuilderTrait,
+    TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan, device,
 };
-use phymes_diagnostics::HashMap;
+use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig};
+use phymes_diagnostics::{HashMap, HashSet};
+use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
 
 use crate::{
     AvailableInterfaceSubjects, AvailableProcessors,
@@ -36,8 +38,23 @@ pub trait SessionContextBuilderAgentsTrait {
     where
         Self: Sized;
 
-    /// Check for consistency between the `lhs_name` and `rhs_name` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
+    /// Check the [DataConfig] entries with their linked [ProcessorTrait] subscriptions
+    ///
+    /// # Notes
+    /// 1. Check for consistency between the `lhs_name` and `rhs_name` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
+    /// 2. Check for consistency between the `lhs_pk`, `rhs_pk`, `lhs_fk`, `rhs_fk`, `lhs_values`, and `rhs_values` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
     fn check_data_config_subjects(&self) -> Result<()>;
+
+    /// Check that all processor configs can be built
+    ///
+    /// # Notes
+    /// 1. Check that [DataOperatorTrait]s of [CandleDataProcessor]s can be build with the specified [DataConfig]s
+    /// 2. Check that all other configs can be generated from the provided table
+    /// 3. Check that all config schemas match their processor
+    ///
+    /// [DataOperatorTrait]: phymes_data::DataOperatorTrait
+    /// [CandleDataProcessor]: phymes_data::CandleDataProcessor
+    fn check_processor_config_builds(&self) -> Result<()>;
 
     /// Check that all [ProcessorTrait]s subscribe to a subject of the same name
     fn check_processor_config_subjects(&self) -> Result<()>;
@@ -71,6 +88,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         self.check_state()?;
         self.check_processor_config_subjects()?;
         self.check_data_config_subjects()?;
+        self.check_processor_config_builds()?;
 
         // build the tasks, state, and runtime objects
         let (name, tasks, mut state, runtime_envs, max_iter, diagnostics, tables) =
@@ -92,7 +110,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         ))
     }
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
-        let (tables, _state) = self.to_arrow_tables(false, true, true)?;
+        let (tables, _state) = self.to_arrow_tables(false, true, true, true)?;
         let (name, tasks, state, runtime_envs, max_iter, diagnostics) = self.build_inner()?;
         Ok((
             name,
@@ -113,8 +131,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .map(|t| (t.get_name().to_string(), t))
             .collect::<HashMap<_, _>>();
 
-        // Find the config subject for each process and check if the subscriptions are in the lhs_name/rhs_name
-        let processor_names = self
+        // Find the config subject for each process
+        let processors = self
             .processors
             .as_ref()
             .unwrap()
@@ -126,50 +144,385 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .collect::<Vec<_>>()
                     .contains(&p.get_name())
             })
-            .filter_map(|p| {
-                let mut names = Vec::new();
-                let table = state_map.get(p.get_name()).unwrap();
-                if let Ok(_index) = table.get_schema().index_of("lhs_name") {
-                    let vec_str = table.get_column_as_vec_str("lhs_name");
-                    let name = vec_str.last().unwrap();
-                    if !name.is_empty() {
-                        names.push(name.to_string());
-                    }
-                }
-                if let Ok(_index) = table.get_schema().index_of("rhs_name") {
-                    let vec_str = table.get_column_as_vec_str("rhs_name");
-                    let name = vec_str.last().unwrap();
-                    if !name.is_empty() {
-                        names.push(name.to_string());
-                    }
-                }
-                let missing = names
+            .collect::<Vec<_>>();
+
+        // Iterate through the LHS and RHS entries
+        for processor in processors {
+            let table = state_map.get(processor.get_name()).unwrap();
+            let column_names = table
+                .get_schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().to_string())
+                .collect::<HashSet<_>>();
+
+            // Check the LHS entries
+            if column_names.contains("lhs_name") {
+                let vec_str = table.get_column_as_vec_str("lhs_name");
+                let name = vec_str.last().unwrap();
+
+                let subscriptions = processor
+                    .get_subscriptions()
                     .iter()
-                    .filter_map(|n| {
-                        if p.get_subscriptions()
-                            .iter()
-                            .map(|s| s.get_table_name())
-                            .collect::<Vec<_>>()
-                            .contains(&n.as_str())
-                        {
-                            None
+                    .filter_map(|s| {
+                        if &s.get_table_name() == name {
+                            Some(name.to_string())
                         } else {
-                            Some(n.to_string())
+                            None
                         }
                     })
                     .collect::<Vec<_>>();
-                if missing.is_empty() {
-                    None
+                if subscriptions.is_empty() {
+                    return Err(anyhow!(
+                        "A subscriptions with the same name as the `DataConfig` lhs_name was not found for processor {} with lhs_name {name}.",
+                        processor.get_name()
+                    ));
+                }
+                let subscription_table = state_map.get(subscriptions.first().unwrap()).unwrap();
+                let subscription_col_names = subscription_table
+                    .get_schema()
+                    .fields()
+                    .iter()
+                    .map(|f| f.name().to_string())
+                    .collect::<HashSet<_>>();
+
+                if !subscription_col_names.is_empty() {
+                    if column_names.contains("lhs_pk") {
+                        let vec_str = table.get_column_as_vec_str("lhs_pk");
+                        let pk = vec_str.last().unwrap();
+                        if !subscription_col_names.contains(*pk) {
+                            return Err(anyhow!(
+                                "Subscription {} does not have a column for `DataConfig` lhs_pk {pk} for processor {} with lhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
+                        }
+                    }
+                    if column_names.contains("lhs_fk") {
+                        let vec_str = table.get_column_as_vec_str("lhs_fk");
+                        let fk = vec_str.last().unwrap();
+                        if !subscription_col_names.contains(*fk) {
+                            return Err(anyhow!(
+                                "Subscription {} does not have a column for `DataConfig` lhs_fk {fk} for processor {} with lhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
+                        }
+                    }
+                    if column_names.contains("lhs_values") {
+                        let vec_str =
+                            table.get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?;
+                        let values = vec_str.last().unwrap();
+                        let mut missing = values
+                            .iter()
+                            .filter(|v| !subscription_col_names.contains(v.as_str()))
+                            .collect::<Vec<_>>();
+                        missing.sort();
+                        if !missing.is_empty() {
+                            return Err(anyhow!(
+                                "Subscription {} does not have columns for `DataConfig` lhs_values {missing:?} for processor {} with lhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
+                        }
+                    }
+                }
+            }
+
+            // Check the RHS entries
+            if column_names.contains("rhs_name") {
+                let vec_str = table.get_column_as_vec_str("rhs_name");
+                let name = vec_str.last().unwrap();
+
+                let subscriptions = processor
+                    .get_subscriptions()
+                    .iter()
+                    .filter_map(|s| {
+                        if &s.get_table_name() == name {
+                            Some(name.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if subscriptions.is_empty() {
+                    return Err(anyhow!(
+                        "A subscriptions with the same name as the `DataConfig` rhs_name was not found for processor {} with rhs_name {name}.",
+                        processor.get_name()
+                    ));
+                }
+                let subscription_table = state_map.get(subscriptions.first().unwrap()).unwrap();
+                let subscription_col_names = subscription_table
+                    .get_schema()
+                    .fields()
+                    .iter()
+                    .map(|f| f.name().to_string())
+                    .collect::<HashSet<_>>();
+
+                if !subscription_col_names.is_empty() {
+                    if column_names.contains("rhs_pk") {
+                        let vec_str = table.get_column_as_vec_str("rhs_pk");
+                        let pk = vec_str.last().unwrap();
+                        if !subscription_col_names.contains(*pk) {
+                            return Err(anyhow!(
+                                "Subscription {} does not have a column for `DataConfig` rhs_pk {pk} for processor {} with rhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
+                        }
+                    }
+                    if column_names.contains("rhs_fk") {
+                        let vec_str = table.get_column_as_vec_str("rhs_fk");
+                        let fk = vec_str.last().unwrap();
+                        if !subscription_col_names.contains(*fk) {
+                            return Err(anyhow!(
+                                "Subscription {} does not have a column for `DataConfig` rhs_fk {fk} for processor {} with rhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
+                        }
+                    }
+                    if column_names.contains("rhs_values") {
+                        let vec_str =
+                            table.get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?;
+                        let values = vec_str.last().unwrap();
+                        let mut missing = values
+                            .iter()
+                            .filter(|v| !subscription_col_names.contains(v.as_str()))
+                            .collect::<Vec<_>>();
+                        missing.sort();
+                        if !missing.is_empty() {
+                            return Err(anyhow!(
+                                "Subscription {} does not have columns for `DataConfig` rhs_values {missing:?} for processor {} with rhs_name {name}.",
+                                subscription_table.get_name(),
+                                processor.get_name()
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+    fn check_processor_config_builds(&self) -> Result<()> {
+        let state_map = self
+            .state
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|t| (t.get_name().to_string(), t))
+            .collect::<HashMap<_, _>>();
+
+        let tasks = self
+            .tasks
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|t| t.task_name.to_string())
+            .collect::<HashSet<_>>();
+
+        // Find the config tables whereby a config table is defined as
+        //  a subject with the same name as a processor
+        let config_tables = self
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter_map(|p| {
+                if p.get_subscriptions()
+                    .iter()
+                    .map(|s| s.get_table_name())
+                    .collect::<Vec<_>>()
+                    .contains(&p.get_name())
+                {
+                    Some((
+                        state_map.get(p.get_name()).unwrap(),
+                        p.get_type(),
+                        p.get_name(),
+                    ))
                 } else {
-                    Some((p.get_name(), missing))
+                    None
                 }
             })
             .collect::<Vec<_>>();
 
-        if !processor_names.is_empty() {
-            return Err(anyhow!(
-                "A subscriptions with the same names as the `DataConfig` lhs_name and rhs_name were not found for processors with lhs_name and rhs_name {processor_names:?}."
-            ));
+        // Try to build each config
+        let mut data_config_vec = Vec::new();
+        for (table, r#type, name) in config_tables {
+            // Check for processors names that are tasks names with empty rows
+            if tasks.contains(name) && table.count_rows() == 0 {
+                continue;
+            }
+
+            // Check everything else
+            if let Ok(_config) = CandleChatConfig::from_table(table) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "CandleChatConfig" {
+                        return Err(anyhow!(
+                            "Schema for `CandleChatConfig` from subject `{}` for processor type `{}` does not match the expected processor types CandleChatProcessor, MessageParserProcessor, or OpenAIChatProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `CandleChatConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+            } else if let Ok(_config) = CandleEmbedConfig::from_table(table) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "CandleEmbedConfig" {
+                        return Err(anyhow!(
+                            "Schema for `CandleEmbedConfig` from subject `{}` for processor type `{}` does not match the expected processor types CandleEmbedProcessor or OpenAIEmbedProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `CandleEmbedConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+            } else if let Ok(_config) = DataSummaryConfig::from_table(table) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "DataSummaryConfig" {
+                        return Err(anyhow!(
+                            "Schema for `DataSummaryConfig` from subject `{}` for processor type `{}` does not match the expected processor type DataSummaryProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `DataSummaryConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+            } else if let Ok(config) = DataConfig::from_table(table) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() == "DataConfig" {
+                        if config.operator.to_string().as_str() != r#type
+                            && r#type != AvailableProcessors::ProcessorMock.to_string().as_str()
+                            && r#type
+                                != AvailableProcessors::AttachmentAggregatorProcessor
+                                    .to_string()
+                                    .as_str()
+                            && r#type
+                                != AvailableProcessors::MessageAggregatorProcessor
+                                    .to_string()
+                                    .as_str()
+                            && r#type
+                                != AvailableProcessors::CandleDataProcessor
+                                    .to_string()
+                                    .as_str()
+                        {
+                            return Err(anyhow!(
+                                "Operator {} for `DataConfig` from subject `{}` does not match the expected for processor type `{}`.",
+                                config.operator,
+                                table.get_name(),
+                                r#type
+                            ));
+                        } else if config.operator.to_string().as_str()
+                            != AvailableProcessors::SortColumnAndIndices
+                                .to_string()
+                                .as_str()
+                            && (r#type
+                                == AvailableProcessors::AttachmentAggregatorProcessor
+                                    .to_string()
+                                    .as_str()
+                                || r#type
+                                    == AvailableProcessors::MessageAggregatorProcessor
+                                        .to_string()
+                                        .as_str())
+                        {
+                            return Err(anyhow!(
+                                "Operator {} for `DataConfig` from subject `{}` for processor type `{}` with does not match the expected for processor type of `{}` required by {} and {}.",
+                                config.operator,
+                                table.get_name(),
+                                r#type,
+                                AvailableProcessors::SortColumnAndIndices,
+                                AvailableProcessors::AttachmentAggregatorProcessor,
+                                AvailableProcessors::MessageAggregatorProcessor
+                            ));
+                        }
+                    } else {
+                        return Err(anyhow!(
+                            "Schema for `DataConfig` from subject `{}` for processor type `{}` does not match the expected processor type DataProcessor nor any of the `CandleOperator`s {:?}.",
+                            table.get_name(),
+                            r#type,
+                            AvailableCandleOperators::all_varient_names()
+                        ));
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `DataConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+                data_config_vec.push((config, table.get_name().to_string()));
+            } else {
+                return Err(anyhow!(
+                    "Config could not be built for subject {}.",
+                    table.get_name()
+                ));
+            }
+        }
+
+        // Try to build each DataOperator
+        for (config, name) in data_config_vec {
+            let data_operator = match config.operator.build(&config) {
+                Ok(data_operator) => data_operator,
+                Err(err) => {
+                    return Err(anyhow!(
+                        "Failed to build `{}` with DataConfig from subject `{name}`. {err}",
+                        config.operator
+                    ));
+                }
+            };
+
+            // Try to run each operator
+            if let Some(lhs_name) = config.lhs_name
+                && let Some(lhs_table) = state_map.get(&lhs_name)
+                && lhs_table.count_rows() > 0
+                && let Some(rhs_name) = config.rhs_name
+            {
+                let device = device(false)?;
+                if let Some(rhs_table) = state_map.get(&rhs_name) {
+                    if rhs_table.count_rows() > 0
+                        && let Err(err) = data_operator.forward(
+                            lhs_table.get_record_batches(),
+                            Some(rhs_table.get_record_batches()),
+                            &device,
+                        )
+                    {
+                        return Err(anyhow!(
+                            "Failed to run `{}` with DataConfig from subject `{name}` and lhs_args {:?} and rhs_args {:?}. {err}",
+                            config.operator,
+                            lhs_table.get_record_batches(),
+                            rhs_table.get_record_batches()
+                        ));
+                    }
+                } else if let Err(err) =
+                    data_operator.forward(lhs_table.get_record_batches(), None, &device)
+                {
+                    return Err(anyhow!(
+                        "Failed to run `{}` with DataConfig from subject `{name}` and lhs_args {:?}. {err}",
+                        config.operator,
+                        lhs_table.get_record_batches()
+                    ));
+                }
+            }
         }
 
         Ok(())
@@ -213,8 +566,6 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 "Add a name for the session before making the default processor configuration subjects."
             ));
         }
-        // DM: need to find a way to customize the default further for `DataConfig`
-        let name = "";
 
         // Find the processors that are missing a config
         let processors_to_update = self
@@ -253,7 +604,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     let new_processor = AvailableProcessors::from_str(p.get_type(), false).unwrap();
 
                     // Make the default config
-                    let config = new_processor.to_example_config_json(name).unwrap();
+                    let config = new_processor.to_example_json().unwrap();
                     let table = Table::get_builder()
                         .with_name(p.get_name())
                         .with_json(&config, 1)
@@ -331,21 +682,21 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .get_subscriptions()
                     .into_iter()
                     .map(|e| e.to_owned())
-                    .collect::<Vec<TableSubscribe>>();
-                subscriptions.push(TableSubscribe::AlwaysFullTable {
+                    .collect::<Vec<TableSubscription>>();
+                subscriptions.push(TableSubscription::AlwaysFullTable {
                     table_name: to_update.get_name().to_string(),
                 });
                 let new_processor =
                     AvailableProcessors::from_str(to_update.get_type(), false).unwrap();
-                let new_processor = new_processor.build_arc_with_pub_sub(
+                let new_processor = new_processor.build_arc(
                     to_update.get_name(),
                     &to_update
                         .get_publications()
                         .into_iter()
                         .map(|e| e.to_owned())
-                        .collect::<Vec<TablePublish>>(),
+                        .collect::<Vec<TablePublication>>(),
                     &subscriptions,
-                    to_update.get_subscribe().clone_boxed(),
+                    to_update.get_subscribe_policy().clone_boxed(),
                 );
                 processors.push(new_processor)
             } else {
@@ -390,7 +741,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let mut publications = subscriptions
             .map(|s| {
                 s.iter()
-                    .map(|s| TablePublish::Extend {
+                    .map(|s| TablePublication::Extend {
                         table_name: s.to_string(),
                     })
                     .collect::<Vec<_>>()
@@ -399,7 +750,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let mut subscriptions = subscriptions
             .map(|s| {
                 s.iter()
-                    .map(|s| TableSubscribe::OnUpdateLastRecordBatch {
+                    .map(|s| TableSubscription::OnUpdateLastRecordBatch {
                         table_name: s.to_string(),
                     })
                     .collect::<Vec<_>>()
@@ -411,16 +762,16 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     // DM: Leave the option for AvailableInterfaceSubjects to be both subscriptions and publications
                     // DM: Use publications/subscription policies that retain the information across sessions
                     if subject.is_session_publication() {
-                        publications.push(TablePublish::Extend {
+                        publications.push(TablePublication::Extend {
                             table_name: subject.to_string(),
                         });
                     }
                     if subject.is_session_subscription() {
-                        subscriptions.push(TableSubscribe::OnUpdateLastRecordBatch {
+                        subscriptions.push(TableSubscription::OnUpdateLastRecordBatch {
                             table_name: subject.to_string(),
                         });
                         // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the session!
-                        publications.push(TablePublish::Extend {
+                        publications.push(TablePublication::Extend {
                             table_name: subject.to_string(),
                         });
                     }
@@ -428,11 +779,11 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             }
         }
         let mut processors = self.processors.take().unwrap_or_default();
-        processors.push(ProcessorEcho::new_arc_with_pub_sub(
+        processors.push(AvailableProcessors::ProcessorEcho.build_arc(
             session_name.as_str(),
             &publications,
             &subscriptions,
-            AnyTableNameSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
         ));
         self.processors.replace(processors);
 
@@ -487,91 +838,135 @@ pub trait CustomAgentsBuilderTrait {
 
 pub mod test_session_context_builder_agents {
 
+    use std::vec;
+
     use phymes_core::{
-        AllTableNamesSubscribe, BuildableTrait, BuilderTrait, SubscribeTrait, TableBuilderTrait,
-        TablePublish, TableSubscribe,
-        test_processor::ProcessorMock,
-        test_session_context_builder::make_test_session_builder_tasks,
-        test_task::{make_runtime_env, make_state_tables},
+        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, TableBuilderTrait,
+        TablePublication, TableSubscription,
+        test_session_context_builder::make_test_session_builder_tasks, test_table::make_test_table,
+        test_task::make_runtime_env,
     };
     use phymes_data::{AvailableCandleOperators, DataConfig};
 
     use super::*;
 
-    #[allow(dead_code)]
-    pub fn make_test_session_builder_agents() -> Result<SessionContextBuilder> {
+    pub fn make_test_state_agents() -> Result<Vec<Table>> {
+        let state = vec![
+            make_test_table("state_1", 4, 8, 3)?,
+            Table::get_builder()
+                .with_name("processor_1")
+                .with_json(
+                    &AvailableProcessors::CandleDataProcessor.to_example_json()?,
+                    1,
+                )
+                .unwrap()
+                .build()
+                .unwrap(),
+            make_test_table("state_2", 4, 8, 3)?,
+            Table::get_builder()
+                .with_name("processor_2")
+                .with_json(
+                    &AvailableProcessors::CandleDataProcessor.to_example_json()?,
+                    1,
+                )
+                .unwrap()
+                .build()
+                .unwrap(),
+            make_test_table("state_3", 4, 8, 3)?,
+            Table::get_builder()
+                .with_name("processor_3")
+                .with_json(
+                    &AvailableProcessors::CandleDataProcessor.to_example_json()?,
+                    1,
+                )
+                .unwrap()
+                .build()
+                .unwrap(),
+        ];
+        Ok(state)
+    }
+
+    pub fn make_test_processors_agents() -> Result<Vec<Arc<dyn ProcessorTrait>>> {
         let processor_plans = vec![
-            ProcessorMock::new_arc_with_pub_sub(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "processor_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "processor_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new_arc_with_pub_sub(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "processor_2",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_2".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_2".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "processor_2".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new_arc_with_pub_sub(
+            AvailableProcessors::ProcessorMock.build_arc(
                 "processor_3",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateFullTable {
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_3".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "processor_3".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            ProcessorMock::new_arc_with_pub_sub(
+            AvailableProcessors::JoinInner.build_arc(
                 "session_1",
-                &[TablePublish::Extend {
+                &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
                 }],
                 &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_2".to_string(),
                     },
-                    TableSubscribe::OnUpdateLastRecordBatch {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "session_1".to_string(),
                     },
                 ],
-                AllTableNamesSubscribe::new_box(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
         ];
-        let mut state = make_state_tables("state_1", "processor_1")?;
-        state.extend(make_state_tables("state_2", "processor_2")?);
-        state.extend(make_state_tables("state_3", "processor_3")?);
+        Ok(processor_plans)
+    }
+
+    #[allow(dead_code)]
+    pub fn make_test_session_builder_agents() -> Result<SessionContextBuilder> {
+        let processor_plans = make_test_processors_agents()?;
+        let mut state = make_test_state_agents()?;
 
         let join_config = DataConfig {
             lhs_name: Some("state_1".to_string()),
             rhs_name: Some("state_2".to_string()),
+            lhs_fk: Some("id".to_string()),
+            rhs_fk: Some("id".to_string()),
+            lhs_pk: Some("id".to_string()),
+            rhs_pk: Some("id".to_string()),
             operator: AvailableCandleOperators::JoinInner,
             ..Default::default()
         };
@@ -599,15 +994,14 @@ pub mod test_session_context_builder_agents {
 mod tests {
 
     use phymes_core::{
-        AllTableNamesSubscribe, BuildableTrait, BuilderTrait, PubSubTrait, SubscribeTrait,
-        TableBuilderTrait, TablePublish, TableSubscribe, TaskTrait,
-        test_processor::ProcessorMock,
+        BuildableTrait, BuilderTrait, DataFormat, PublishAndSubscribeTrait, TableBuilderTrait,
+        TaskTrait,
         test_session_context_builder::{
             make_test_session_builder_parallel_task, make_test_session_builder_tasks,
         },
         test_task::{make_runtime_env, make_state_tables},
     };
-    use phymes_data::{AvailableCandleOperators, DataConfig};
+    use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
 
     use super::*;
 
@@ -615,7 +1009,7 @@ mod tests {
     fn test_build_with_tables_success() -> Result<()> {
         let session = test_session_context_builder_agents::make_test_session_builder_agents()?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 13);
+        assert_eq!(session.get_states().len(), 16);
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session");
         assert_eq!(session.get_max_iter(), 25);
@@ -628,7 +1022,7 @@ mod tests {
         let session = test_session_context_builder_agents::make_test_session_builder_agents()?
             .add_session_interface(Some(&["state_1"]))?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 13);
+        assert_eq!(session.get_states().len(), 16);
         assert_eq!(session.get_tasks().len(), 5);
         assert_eq!(
             session.get_tasks().get("session").unwrap().get_name(),
@@ -676,6 +1070,7 @@ mod tests {
 
     #[test]
     fn test_build_with_tables_missing_processor_configs_subjects() -> Result<()> {
+        // Check that missing config subscriptions can be identified
         let mut state = make_state_tables("state_1", "config_1")?;
         state.extend(make_state_tables("state_2", "config_2")?);
         state.extend(make_state_tables("state_3", "config_3")?);
@@ -692,14 +1087,14 @@ mod tests {
             ),
         }
 
-        // The default for the config subjects will also fail because of a mismatch in the data config tables
+        // Check that the default processor subjects fix the issue
         let session = make_test_session_builder_parallel_task()
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
             .add_processor_subjects()?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 16);
+        assert_eq!(session.get_states().len(), 19);
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session");
         assert_eq!(session.get_max_iter(), 25);
@@ -709,78 +1104,125 @@ mod tests {
 
     #[test]
     fn test_build_with_tables_missing_data_config_subjects() -> Result<()> {
-        let processor_plans = vec![
-            ProcessorMock::new_arc_with_pub_sub(
-                "processor_1",
-                &[TablePublish::Extend {
-                    table_name: "state_1".to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: "processor_1".to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-            ProcessorMock::new_arc_with_pub_sub(
-                "processor_2",
-                &[TablePublish::Extend {
-                    table_name: "state_2".to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateFullTable {
-                        table_name: "state_2".to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: "processor_2".to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-            ProcessorMock::new_arc_with_pub_sub(
-                "processor_3",
-                &[TablePublish::Extend {
-                    table_name: "state_3".to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateFullTable {
-                        table_name: "state_3".to_string(),
-                    },
-                    TableSubscribe::AlwaysFullTable {
-                        table_name: "processor_3".to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-            ProcessorMock::new_arc_with_pub_sub(
-                "session_1",
-                &[TablePublish::Extend {
-                    table_name: "state_3".to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: "state_1".to_string(),
-                    },
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: "state_2".to_string(),
-                    },
-                    TableSubscribe::OnUpdateLastRecordBatch {
-                        table_name: "session_1".to_string(),
-                    },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-        ];
-        let mut state = make_state_tables("state_1", "processor_1")?;
-        state.extend(make_state_tables("state_2", "processor_2")?);
-        state.extend(make_state_tables("state_3", "processor_3")?);
+        let processor_plans = test_session_context_builder_agents::make_test_processors_agents()?;
+        let state = test_session_context_builder_agents::make_test_state_agents()?;
 
+        // Check that no errors are found
+        let join_config = DataConfig {
+            lhs_name: Some("state_1".to_string()),
+            rhs_name: Some("state_2".to_string()),
+            lhs_fk: Some("id".to_string()),
+            rhs_fk: Some("id".to_string()),
+            lhs_pk: Some("title".to_string()),
+            rhs_pk: Some("title".to_string()),
+            lhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
+            rhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
+            operator: AvailableCandleOperators::JoinInner,
+            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            ..Default::default()
+        };
+        let join_config_json = serde_json::to_vec(&join_config).unwrap();
+        let join_config_state = Table::get_builder()
+            .with_name("session_1")
+            .with_json(&join_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        let mut state_test = state.clone();
+        state_test.push(join_config_state);
+
+        let result = SessionContextBuilder::new()
+            .with_tasks(make_test_session_builder_tasks())
+            .with_processors(processor_plans.clone())
+            .with_name("session")
+            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_state(state_test)
+            .with_diagnostics(true)
+            .build_with_tables();
+        assert!(result.is_ok());
+
+        // Test that mismatches in the lhs/rhs name are identified
         let join_config = DataConfig {
             lhs_name: Some("state_1".to_string()),
             rhs_name: Some("missing_state".to_string()),
+            operator: AvailableCandleOperators::JoinInner,
+            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            ..Default::default()
+        };
+        let join_config_json = serde_json::to_vec(&join_config).unwrap();
+        let join_config_state = Table::get_builder()
+            .with_name("session_1")
+            .with_json(&join_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        let mut state_test = state.clone();
+        state_test.push(join_config_state);
+
+        let result = SessionContextBuilder::new()
+            .with_tasks(make_test_session_builder_tasks())
+            .with_processors(processor_plans.clone())
+            .with_name("session")
+            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_state(state_test)
+            .with_diagnostics(true)
+            .build_with_tables();
+        match result {
+            Ok(_) => panic!("Should have failed"),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "A subscriptions with the same name as the `DataConfig` rhs_name was not found for processor session_1 with rhs_name missing_state."
+            ),
+        }
+
+        // Test that mismatches in the lhs/rhs pk, fk are identified
+        let join_config = DataConfig {
+            lhs_name: Some("state_1".to_string()),
+            rhs_name: Some("state_2".to_string()),
+            lhs_fk: Some("id".to_string()),
+            rhs_fk: Some("id".to_string()),
+            lhs_pk: Some("title".to_string()),
+            rhs_pk: Some("missing_pk".to_string()),
+            operator: AvailableCandleOperators::JoinInner,
+            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            ..Default::default()
+        };
+        let join_config_json = serde_json::to_vec(&join_config).unwrap();
+        let join_config_state = Table::get_builder()
+            .with_name("session_1")
+            .with_json(&join_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        let mut state_test = state.clone();
+        state_test.push(join_config_state);
+
+        let result = SessionContextBuilder::new()
+            .with_tasks(make_test_session_builder_tasks())
+            .with_processors(processor_plans.clone())
+            .with_name("session")
+            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_state(state_test)
+            .with_diagnostics(true)
+            .build_with_tables();
+        match result {
+            Ok(_) => panic!("Should have failed"),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Subscription state_2 does not have a column for `DataConfig` rhs_pk missing_pk for processor session_1 with rhs_name state_2."
+            ),
+        }
+
+        // Test that mismatches in the lhs/rhs pk, fk, and values are identified
+        let join_config = DataConfig {
+            lhs_name: Some("state_1".to_string()),
+            rhs_name: Some("state_2".to_string()),
+            lhs_fk: Some("id".to_string()),
+            rhs_fk: Some("id".to_string()),
+            lhs_pk: Some("title".to_string()),
+            rhs_pk: Some("title".to_string()),
+            lhs_values: Some(vec!["metadata".to_string(), "missing_value".to_string()]),
+            rhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
             operator: AvailableCandleOperators::JoinInner,
             ..Default::default()
         };
@@ -791,21 +1233,131 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        state.push(join_config_state);
+        let mut state_test = state.clone();
+        state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans)
+            .with_processors(processor_plans.clone())
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(state)
+            .with_state(state_test)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "A subscriptions with the same names as the `DataConfig` lhs_name and rhs_name were not found for processors with lhs_name and rhs_name [(\"session_1\", [\"missing_state\"])]."
+                "Subscription state_1 does not have columns for `DataConfig` lhs_values [\"missing_value\"] for processor session_1 with lhs_name state_1."
+            ),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_with_tables_failing_processor_config_builds() -> Result<()> {
+        let processor_plans = test_session_context_builder_agents::make_test_processors_agents()?;
+        let state = test_session_context_builder_agents::make_test_state_agents()?;
+
+        // Test for mismatch between processor and config types
+        let join_config = DataSummaryConfig {
+            summary_format: DataFormat::None,
+            ..Default::default()
+        };
+        let join_config_json = serde_json::to_vec(&join_config).unwrap();
+        let join_config_state = Table::get_builder()
+            .with_name("session_1")
+            .with_json(&join_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        let mut state_test = state.clone();
+        state_test.push(join_config_state);
+
+        let result = SessionContextBuilder::new()
+            .with_tasks(make_test_session_builder_tasks())
+            .with_processors(processor_plans.clone())
+            .with_name("session")
+            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_state(state_test)
+            .with_diagnostics(true)
+            .build_with_tables();
+        match result {
+            Ok(_) => panic!("Should have failed"),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Schema for `DataSummaryConfig` from subject `session_1` for processor type `JoinInner` does not match the expected processor type DataSummaryProcessor."
+            ),
+        }
+
+        // Test for a mismatch between operators
+        let join_config = DataConfig {
+            lhs_name: Some("state_1".to_string()),
+            lhs_values: Some(vec!["id".to_string()]),
+            cpu: false,
+            operator: AvailableCandleOperators::NormalizeTime,
+            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            ..Default::default()
+        };
+        let join_config_json = serde_json::to_vec(&join_config).unwrap();
+        let join_config_state = Table::get_builder()
+            .with_name("session_1")
+            .with_json(&join_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        let mut state_test = state.clone();
+        state_test.push(join_config_state);
+
+        let result = SessionContextBuilder::new()
+            .with_tasks(make_test_session_builder_tasks())
+            .with_processors(processor_plans.clone())
+            .with_name("session")
+            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_state(state_test)
+            .with_diagnostics(true)
+            .build_with_tables();
+        match result {
+            Ok(_) => panic!("Should have failed"),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Operator NormalizeTime for `DataConfig` from subject `session_1` does not match the expected for processor type `JoinInner`."
+            ),
+        }
+
+        // Test for missing required operator members
+        let join_config = DataConfig {
+            lhs_name: Some("state_1".to_string()),
+            rhs_name: Some("state_2".to_string()),
+            lhs_fk: Some("id".to_string()),
+            rhs_fk: Some("id".to_string()),
+            operator: AvailableCandleOperators::JoinInner,
+            ..Default::default()
+        };
+        let join_config_json = serde_json::to_vec(&join_config).unwrap();
+        let join_config_state = Table::get_builder()
+            .with_name("session_1")
+            .with_json(&join_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        let mut state_test = state.clone();
+        state_test.push(join_config_state);
+
+        let result = SessionContextBuilder::new()
+            .with_tasks(make_test_session_builder_tasks())
+            .with_processors(processor_plans.clone())
+            .with_name("session")
+            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_state(state_test)
+            .with_diagnostics(true)
+            .build_with_tables();
+        match result {
+            Ok(_) => panic!("Should have failed"),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Failed to build `JoinInner` with DataConfig from subject `session_1`. Missing `lhs_pk` for `JoinInner`."
             ),
         }
 

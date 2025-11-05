@@ -1,5 +1,8 @@
+use anyhow::{Result, anyhow};
 use clap::Parser;
+use phymes_core::{MappableTrait, Table, TableTrait};
 use phymes_data::DataConfigTrait;
+use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::candle_assets::AvailableCandleAssets;
@@ -100,49 +103,47 @@ pub struct CandleChatConfig {
 }
 
 impl DataConfigTrait for CandleChatConfig {
-    fn to_example(name: &str) -> Self {
-        match name {
-            "CandleAsset" => Self {
-                max_tokens: 1000,
-                temperature: 0.8,
-                seed: 299792458,
-                repeat_penalty: 1.1,
-                repeat_last_n: 64,
-                weights_config_file: Some(format!(
-                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
-                    std::env::var("HOME").unwrap_or("".to_string())
+    fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&Self::default())
+    }
+    fn from_table(table: &Table) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        // Check for the required fields
+        let column_names = table
+            .get_schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect::<HashSet<_>>();
+        if !((column_names.contains("candle_asset") || column_names.contains("openai_asset"))
+            && column_names.contains("max_tokens")
+            && column_names.contains("temperature")
+            && column_names.contains("seed")
+            && column_names.contains("repeat_penalty")
+            && column_names.contains("repeat_last_n")
+            && column_names.contains("frequency_penalty"))
+        {
+            return Err(anyhow!(
+                "Table {} is missing required Field for `candle_asset`, `openai_asset`, `max_tokens`, `temperature`, `seed`, `repeat_penalty`, `repeat_last_n`, or `frequency_penalty` in CandleChatConfig.",
+                table.get_name()
+            ));
+        }
+
+        // Try to build the config
+        match table.to_struct::<CandleChatConfig>() {
+            Ok(config_vec) => match config_vec.first() {
+                Some(config) => Ok(config.to_owned()),
+                None => Err(anyhow!(
+                    "No config data found for CandleChatConfig with subject {}",
+                    table.get_name()
                 )),
-                weights_file: Some(format!(
-                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
-                    std::env::var("HOME").unwrap_or("".to_string())
-                )),
-                tokenizer_file: Some(format!(
-                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
-                    std::env::var("HOME").unwrap_or("".to_string())
-                )),
-                tokenizer_config_file: Some(format!(
-                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
-                    std::env::var("HOME").unwrap_or("".to_string())
-                )),
-                candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
-                ..Default::default()
             },
-            "OpenAIAsset" => Self {
-                max_tokens: 1000,
-                temperature: 0.8,
-                seed: 299792458,
-                repeat_penalty: 1.1,
-                repeat_last_n: 64,
-                candle_asset: None,
-                openai_asset: Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B),
-                weights_config_file: None,
-                weights_file: None,
-                tokenizer_file: None,
-                tokenizer_config_file: None,
-                api_url: Some("http://0.0.0.0:8000/v1".to_string()),
-                ..Default::default()
-            },
-            _ => Self::default(),
+            Err(err) => Err(anyhow!(
+                "CandleChatConfig could not be built for subject {}. {err}",
+                table.get_name()
+            )),
         }
     }
 }

@@ -10,13 +10,14 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
+use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ChunkDocuments {
     lhs_pk: String,
     lhs_values: String,
@@ -30,46 +31,11 @@ impl MappableTrait for ChunkDocuments {
     }
 }
 
-impl DataOperatorTrait for ChunkDocuments {
-    fn new(config: &DataConfig) -> Self {
-        let lhs_pk = config.lhs_pk.as_ref().cloned().unwrap_or_default();
-        let lhs_values = config
-            .lhs_values
-            .as_ref()
-            .cloned()
-            .unwrap_or_default()
-            .first()
-            .cloned()
-            .unwrap_or_default();
-        let chunk_size = config.chunk_size.unwrap_or(512);
-        let chunk_overlap = config.chunk_overlap.unwrap_or(64);
-
-        ChunkDocuments {
-            lhs_pk,
-            lhs_values,
-            chunk_size,
-            chunk_overlap,
-        }
-    }
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        chunk_documents(
-            &self.lhs_pk,
-            &self.lhs_values,
-            lhs_args,
-            self.chunk_size,
-            self.chunk_overlap,
-            device,
-        )
-    }
-    fn get_description() -> String {
+impl ToolTrait for ChunkDocuments {
+    fn get_description(&self) -> String {
         "Chunk documents by splitting the document text".to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -101,7 +67,7 @@ impl DataOperatorTrait for ChunkDocuments {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -117,6 +83,53 @@ impl DataOperatorTrait for ChunkDocuments {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for ChunkDocuments {
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_pk` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let lhs_values = config
+            .lhs_values
+            .as_ref()
+            .cloned()
+            .ok_or(anyhow!(
+                "Missing `lhs_values` for `{}`.",
+                Self::get_static_name()
+            ))?
+            .first()
+            .cloned()
+            .ok_or(anyhow!(
+                "`lhs_values` is empty for `{}`.",
+                Self::get_static_name()
+            ))?;
+        let chunk_size = config.chunk_size.unwrap_or(512);
+        let chunk_overlap = config.chunk_overlap.unwrap_or(64);
+
+        Ok(ChunkDocuments {
+            lhs_pk,
+            lhs_values,
+            chunk_size,
+            chunk_overlap,
+        })
+    }
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        chunk_documents(
+            &self.lhs_pk,
+            &self.lhs_values,
+            lhs_args,
+            self.chunk_size,
+            self.chunk_overlap,
+            device,
+        )
     }
 }
 
@@ -150,8 +163,8 @@ fn chunk_documents(
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("chunk_documents")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?;
 
     // Extract out the document text

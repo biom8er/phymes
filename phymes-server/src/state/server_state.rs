@@ -10,10 +10,10 @@ use phymes_agents::{
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait,
     IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, JsonFormat,
-    MappableTrait, MessageBuilderTrait, MessageTrait, SessionContextBuilder, SessionStream,
-    SessionStreamState, Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait,
-    UserSubject, create_session_mermaid_batch, create_user_inbox_batch,
-    create_user_session_contexts_batch,
+    MappableTrait, MessageBuilderTrait, MessageTrait, SessionContextBuilder,
+    SessionContextBuilderTrait, SessionStream, SessionStreamState, Table, TableBuilder,
+    TableBuilderTrait, TablePublication, TableTrait, UserSubject, create_session_mermaid_batch,
+    create_user_inbox_batch, create_user_session_contexts_batch,
 };
 use phymes_diagnostics::HashMap;
 
@@ -68,8 +68,8 @@ impl UserState {
         // Prepare the input message
         let batch = create_user_inbox_batch(vec![email.to_string()])?;
         let bytes = Table::get_builder()
-            .with_record_batches(vec![batch])?
             .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
+            .with_record_batches(vec![batch])?
             .build()?
             .to_json()?;
         let blob = AvailableInterfaceSubjects::UserJson
@@ -79,7 +79,7 @@ impl UserState {
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublish::Replace {
+            .with_update(&TablePublication::Replace {
                 table_name: blob.get_name().to_string(),
             })
             .with_publisher(session_context_name.as_str())
@@ -112,9 +112,9 @@ impl UserState {
                         .unwrap();
                     let json_format = JsonFormat::default();
                     let table = Table::get_builder()
+                        .with_name("attachment_data")
                         .with_json(bytes.first().unwrap(), json_format.batch_size)
                         .unwrap()
-                        .with_name("")
                         .build()
                         .unwrap();
                     Some(table)
@@ -181,7 +181,7 @@ impl UserState {
             .with_subject(AvailableSubjects::UserSessionContexts.to_string().as_str())
             .with_publisher(&create_session_name(email, session_plan.as_str()))
             .with_message(user_session_contexts_bytes)
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: AvailableSubjects::UserSessionContexts.to_string(),
             })
             .make_name()?
@@ -190,7 +190,7 @@ impl UserState {
             .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
             .with_publisher(&create_session_name(email, session_plan.as_str()))
             .with_message(mermaid_bytes)
-            .with_update(&TablePublish::Extend {
+            .with_update(&TablePublication::Extend {
                 table_name: AvailableSubjects::BuilderMermaid.to_string(),
             })
             .make_name()?
@@ -325,6 +325,7 @@ impl ServerState {
                     )?
                     .add_processor_subjects()?
                     .add_session_interface(None)?
+                    .with_diagnostics(true)
                     .build_with_tables()?;
                     let session_stream_state =
                         Arc::new(RwLock::new(SessionStreamState::new(session_context)));

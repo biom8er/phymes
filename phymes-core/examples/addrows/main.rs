@@ -2,7 +2,7 @@ use anyhow::Result;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_core::{
-    IPCMessage, MappableTrait, SessionStream, SessionStreamState, TablePublish,
+    IPCMessage, MappableTrait, SessionStream, SessionStreamState, TablePublication,
     test_session_context_builder::make_test_session_context_sequential_task,
     test_task::make_test_input_message,
 };
@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
         "session_1",
         "state_1",
         "state_1",
-        &TablePublish::Replace {
+        &TablePublication::Replace {
             table_name: "state_1".to_string(),
         },
         true,

@@ -19,7 +19,7 @@ use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
     JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
     SessionInterfaceMessage, SessionInterfaceMessageTrait, SessionStream, SessionStreamState,
-    TableBuilder, TableBuilderTrait, TablePublish, TableTrait,
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 
 // General imports
@@ -116,7 +116,7 @@ pub async fn session_diagnostics(
                 let metrics_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsMetrics.to_string().as_str())
-                    .with_update(&TablePublish::Replace {
+                    .with_update(&TablePublication::Replace {
                         table_name: AvailableSubjects::AnalyticsMetrics.to_string(),
                     })
                     .with_publisher(diagnostic_session.session_context_name)
@@ -133,7 +133,7 @@ pub async fn session_diagnostics(
                 let traces_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsTraces.to_string().as_str())
-                    .with_update(&TablePublish::Replace {
+                    .with_update(&TablePublication::Replace {
                         table_name: AvailableSubjects::AnalyticsTraces.to_string(),
                     })
                     .with_publisher(diagnostic_session.session_context_name)
@@ -150,7 +150,7 @@ pub async fn session_diagnostics(
                 let events_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsEvents.to_string().as_str())
-                    .with_update(&TablePublish::Replace {
+                    .with_update(&TablePublication::Replace {
                         table_name: AvailableSubjects::AnalyticsEvents.to_string(),
                     })
                     .with_publisher(diagnostic_session.session_context_name)
@@ -167,7 +167,7 @@ pub async fn session_diagnostics(
                 let tasks_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsTasks.to_string().as_str())
-                    .with_update(&TablePublish::Replace {
+                    .with_update(&TablePublication::Replace {
                         table_name: AvailableSubjects::AnalyticsTasks.to_string(),
                     })
                     .with_publisher(diagnostic_session.session_context_name)

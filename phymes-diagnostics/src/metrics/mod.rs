@@ -9,7 +9,7 @@ mod value;
 
 // public exports
 pub use available_metrics::Metric;
-pub use baseline::BaselineMetrics;
+pub use baseline::{BaselineMetrics, RecordOutput};
 pub use builder::MetricBuilderTrait;
 pub use common::{HashMap, HashSet};
 pub use instant::{convert_timestamp_micros_to_str, create_timestamp_micros, create_timestamp_str};

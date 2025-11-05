@@ -10,7 +10,7 @@ use phymes_agents::{
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait,
     ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, QueriesBuilderTraitExt,
-    SessionStream, SessionStreamState, Table, TableBuilderTrait, TablePublish, TableTrait,
+    SessionStream, SessionStreamState, Table, TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_data::make_pdf_document;
 use phymes_diagnostics::HashMap;
@@ -152,7 +152,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     let blob_message = IPCMessage::get_builder()
                         .with_message(blob.to_ipc_stream()?)
                         .with_subject(blob.get_name())
-                        .with_update(&TablePublish::Extend {
+                        .with_update(&TablePublication::Extend {
                             table_name: blob.get_name().to_string(),
                         })
                         .with_publisher(session_context_name.as_str())
@@ -173,7 +173,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     let chat_message = IPCMessage::get_builder()
                         .with_message(chat.to_ipc_stream()?)
                         .with_subject(chat.get_name())
-                        .with_update(&TablePublish::Extend {
+                        .with_update(&TablePublication::Extend {
                             table_name: chat.get_name().to_string(),
                         })
                         .with_publisher(session_context_name.as_str())
@@ -186,7 +186,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     let query_message = IPCMessage::get_builder()
                         .with_message(query.to_ipc_stream()?)
                         .with_subject(query.get_name())
-                        .with_update(&TablePublish::Extend {
+                        .with_update(&TablePublication::Extend {
                             table_name: query.get_name().to_string(),
                         })
                         .with_publisher(session_context_name.as_str())

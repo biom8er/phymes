@@ -95,7 +95,7 @@ mod tests {
             common_traits::{BuilderTrait, MappableTrait},
             session_context_builder::test_session_context_builder::make_test_session_context_sequential_task,
         },
-        table::{TableBuilder, TableBuilderTrait, TablePublish, TableTrait},
+        table::{TableBuilder, TableBuilderTrait, TablePublication, TableTrait},
         task::{MessageTrait, test_task::make_test_input_message},
     };
 
@@ -111,7 +111,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_1".to_string(),
             },
             true,
@@ -157,7 +157,7 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "state_1".to_string()
             }
         );

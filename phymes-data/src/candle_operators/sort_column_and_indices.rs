@@ -13,13 +13,14 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{candle_data::DataConfig, candle_operators::DataOperatorTrait};
+use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait};
 
 /// Sort the [RecordBatch] according to the `score` column and then apply the sorting order to the rest of the record batch columns
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SortColumnAndIndices {
     lhs_values: String,
     asc: bool,
@@ -31,32 +32,11 @@ impl MappableTrait for SortColumnAndIndices {
     }
 }
 
-impl DataOperatorTrait for SortColumnAndIndices {
-    fn new(config: &DataConfig) -> Self {
-        let lhs_values = config
-            .lhs_values
-            .as_ref()
-            .cloned()
-            .unwrap_or_default()
-            .first()
-            .cloned()
-            .unwrap_or_default();
-        let asc = config.asc.unwrap_or(true);
-
-        SortColumnAndIndices { lhs_values, asc }
-    }
-    fn forward(
-        &self,
-        lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
-        device: &Device,
-    ) -> Result<RecordBatch> {
-        sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device)
-    }
-    fn get_description() -> String {
+impl ToolTrait for SortColumnAndIndices {
+    fn get_description(&self) -> String {
         "Sort the the list of computed scores in ascending order".to_string()
     }
-    fn get_json_tool_schema() -> String {
+    fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
         properties.insert(
             "lhs_name".to_string(),
@@ -88,7 +68,7 @@ impl DataOperatorTrait for SortColumnAndIndices {
         );
         let function = Function {
             name: Self::get_static_name().to_string(),
-            description: Some(Self::get_description()),
+            description: Some(self.get_description()),
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
@@ -104,6 +84,36 @@ impl DataOperatorTrait for SortColumnAndIndices {
             function,
         };
         serde_json::to_string(&tool).unwrap()
+    }
+}
+
+impl DataOperatorTrait for SortColumnAndIndices {
+    fn new(config: &DataConfig) -> Result<Self> {
+        let lhs_values = config
+            .lhs_values
+            .as_ref()
+            .cloned()
+            .ok_or(anyhow!(
+                "Missing `lhs_values` for `{}`.",
+                Self::get_static_name()
+            ))?
+            .first()
+            .cloned()
+            .ok_or(anyhow!(
+                "`lhs_values` is empty for `{}`.",
+                Self::get_static_name()
+            ))?;
+        let asc = config.asc.unwrap_or(true);
+
+        Ok(SortColumnAndIndices { lhs_values, asc })
+    }
+    fn forward(
+        &self,
+        lhs_args: &[RecordBatch],
+        _rhs_args: Option<&[RecordBatch]>,
+        device: &Device,
+    ) -> Result<RecordBatch> {
+        sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device)
     }
 }
 
@@ -159,6 +169,12 @@ pub fn take_columns_by_indices(
                     Arc::new(StringArray::from(table.get_column_as_vec_str(column)));
                 arrow::compute::take(&array_ref, asort_arr, None)?
             }
+            DataType::Boolean => {
+                // DM: it maybe possible to move Boolean to the GPU in the future
+                let array_ref: ArrayRef =
+                    Arc::new(StringArray::from(table.get_column_as_vec_str(column)));
+                arrow::compute::take(&array_ref, asort_arr, None)?
+            }
             DataType::FixedSizeList(_f, _s) => {
                 let array_ref: ArrayRef = table.get_column_as_array(column);
                 arrow::compute::take(&array_ref, asort_arr, None)?
@@ -202,8 +218,8 @@ pub fn sort_column_and_indices(
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
+        .with_name("sort_column_and_indices")
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("")
         .build()?;
 
     // Extract out the column to sort by

@@ -1,11 +1,11 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
-use crate::candle_operators::DataOperatorTrait;
+use crate::{DataConfigTrait, candle_operators::DataOperatorTrait};
 use phymes_core::{
-    AllTableNamesSubscribe, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait,
-    MessageTrait, ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, SubscribeTrait, TableBuilder, TableBuilderTrait,
-    TablePublish, TableSubscribe, TableTrait, device,
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder,
+    TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait,
+    device, remove_message_by_subject,
 };
 
 use arrow::{
@@ -18,7 +18,8 @@ use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    TraceBuilderTrait,
 };
 use std::{
     pin::Pin,
@@ -34,9 +35,10 @@ use tracing::{Level, event, instrument};
 #[derive(Debug)]
 pub struct CandleDataProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    r#type: String,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for CandleDataProcessor {
@@ -45,50 +47,43 @@ impl MappableTrait for CandleDataProcessor {
     }
 }
 
-impl PubSubTrait for CandleDataProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
+impl PublishAndSubscribeTrait for CandleDataProcessor {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
 impl ProcessorTrait for CandleDataProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+        r#type: &str,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
-        })
+            subscribe_policy,
+        }
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublish::None],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
-        })
-    }
-
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -113,7 +108,8 @@ impl ProcessorTrait for CandleDataProcessor {
         };
 
         // Extract out the config
-        let config = match message.remove(self.get_name()) {
+        // let config = match message.remove(self.get_name()) {
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
@@ -122,8 +118,8 @@ impl ProcessorTrait for CandleDataProcessor {
         let mut subscriptions = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         for subs in self.subscriptions.iter() {
             if subs.get_table_name() != self.get_name() {
-                match message.remove(subs.get_table_name()) {
-                    // DM: need to migrate this to `make_random_name` to avoid hash collisions
+                match remove_message_by_subject(subs.get_table_name(), &mut message) {
+                    // change from a random key to the subject name as the key to align with the [DataConfig]
                     Some(m) => {
                         subscriptions.insert(m.get_subject().to_string(), m);
                     }
@@ -147,11 +143,22 @@ impl ProcessorTrait for CandleDataProcessor {
             stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
-            .with_subject(self.publications.first().unwrap().get_table_name())
+            .with_subject(
+                self.publications
+                    .first()
+                    .ok_or(anyhow!(
+                        "Missing publications for processor {}",
+                        self.get_name()
+                    ))?
+                    .get_table_name(),
+            )
             .with_message(out)
-            .with_update(self.publications.first().unwrap())
+            .with_update(self.publications.first().ok_or(anyhow!(
+                "Missing publications for processor {}",
+                self.get_name()
+            ))?)
+            .make_name()?
             .build()?;
         let _ = message.insert(out_m.get_name().to_string(), out_m);
 
@@ -262,7 +269,13 @@ impl Stream for CandleDataStream {
                 batches.push(batch);
             }
             let values = Fields::from_iter(vec![Field::new("values", DataType::Utf8, false)]);
-            if batches.first().unwrap().schema().fields().contains(&values) {
+            if batches
+                .first()
+                .ok_or(anyhow!("Config stream for CandleDataStream is empty"))?
+                .schema()
+                .fields()
+                .contains(&values)
+            {
                 let config_json = batches
                     .first()
                     .unwrap()
@@ -285,21 +298,35 @@ impl Stream for CandleDataStream {
                     .with_name("config")
                     .with_record_batches(batches)?
                     .build()?;
-                let config: DataConfig = serde_json::from_value(serde_json::Value::Object(
-                    config_table.to_json_object()?.first().unwrap().to_owned(),
-                ))?;
+                let config = DataConfig::from_table(&config_table)?;
                 self.config.replace(config);
             }
         }
+        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            let event = diagnostic_builder
+                .clone()
+                .to_child("CandleDataStream")?
+                .debug(line!(), file!(), "poll_next");
+            event.insert(
+                "config",
+                &serde_json::Value::String(format!("{:?}", &self.config)),
+            );
+            if let Some(doc_template) = &self.config.as_ref().unwrap().doc_template {
+                event.insert(
+                    "doc_template",
+                    &serde_json::Value::String(doc_template.to_string()),
+                );
+            }
+        };
 
         // Build the data operator
         if self.data_operator.is_none() {
             let operator = self
                 .config
                 .as_ref()
-                .unwrap()
+                .ok_or(anyhow!("Config CandleDataStream is empty"))?
                 .operator
-                .build(self.config.as_ref().unwrap());
+                .build(self.config.as_ref().unwrap())?;
             self.data_operator.replace(operator);
         }
 
@@ -311,7 +338,10 @@ impl Stream for CandleDataStream {
                 .unwrap()
                 .lhs_name
                 .as_ref()
-                .unwrap()
+                .ok_or(anyhow!(
+                    "lhs_name was not provided for config {:?}",
+                    self.config
+                ))?
                 .clone();
             let lhs = match self.messages.get_mut(lhs_name.as_str()) {
                 Some(lhs) => {
@@ -344,6 +374,16 @@ impl Stream for CandleDataStream {
             };
             self.lhs_inbox = lhs;
         };
+        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            let event = diagnostic_builder
+                .clone()
+                .to_child("CandleDataStream")?
+                .debug(line!(), file!(), "poll_next");
+            event.insert(
+                "lhs_inbox",
+                &serde_json::Value::String(format!("{:?}", &self.lhs_inbox)),
+            );
+        };
 
         // Collect the RHS document chunks
         if self.rhs_inbox.is_empty() && self.config.as_ref().unwrap().rhs_name.is_some() {
@@ -353,7 +393,10 @@ impl Stream for CandleDataStream {
                 .unwrap()
                 .rhs_name
                 .as_ref()
-                .unwrap()
+                .ok_or(anyhow!(
+                    "rhs_name was not provided for config {:?}",
+                    self.config
+                ))?
                 .clone();
             let rhs = match self.messages.get_mut(rhs_name.as_str()) {
                 Some(rhs) => {
@@ -393,20 +436,71 @@ impl Stream for CandleDataStream {
             };
             self.rhs_inbox = rhs;
         }
+        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            let event = diagnostic_builder
+                .clone()
+                .to_child("CandleDataStream")?
+                .debug(line!(), file!(), "poll_next");
+            event.insert(
+                "rhs_inbox",
+                &serde_json::Value::String(format!("{:?}", &self.rhs_inbox)),
+            );
+        };
 
         // Compute the data operator
         self.init_tensor_service()?;
-        let batch = self.data_operator.as_ref().unwrap().forward(
+        let batch = match self.data_operator.as_ref().unwrap().forward(
             &self.lhs_inbox,
             Some(&self.rhs_inbox),
             self.runtime_env
-                .try_lock()
-                .unwrap()
+                .lock()
                 .tensor_service
                 .as_ref()
                 .unwrap()
                 .get_device(),
-        )?;
+        ) {
+            Ok(batch) => batch,
+            Err(err) => {
+                if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                    let event = diagnostic_builder
+                        .clone()
+                        .to_child("CandleDataStream")?
+                        .warn(line!(), file!(), "poll_next");
+                    event.insert(
+                        "data_operator",
+                        &serde_json::Value::String(format!(
+                            "Data operator {} with config {:?} resulted in an error: {err:?}",
+                            self.data_operator.as_ref().unwrap().get_name(),
+                            self.config.as_ref().unwrap()
+                        )),
+                    );
+                };
+                return Poll::Ready(Some(Err(err)));
+            }
+        };
+        if batch.num_rows() == 0
+            && let Some(diagnostic_builder) = &self.diagnostic_builder
+        {
+            let event = diagnostic_builder
+                .clone()
+                .to_child("CandleDataStream")?
+                .warn(line!(), file!(), "poll_next");
+            event.insert(
+                "empty_batch",
+                &serde_json::Value::String(format!(
+                    "The result of the data operator {} with config {:?} was an empty RecordBatch.",
+                    self.data_operator.as_ref().unwrap().get_name(),
+                    self.config.as_ref().unwrap()
+                )),
+            );
+        };
+        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            let event = diagnostic_builder
+                .clone()
+                .to_child("CandleDataStream")?
+                .debug(line!(), file!(), "poll_next");
+            event.insert("result", &serde_json::Value::String(format!("{batch:?}")));
+        };
 
         // // DM: need to update this with the other config options for streaming
         // self.rhs_inbox.clear();
@@ -499,10 +593,10 @@ pub mod test_candle_ops_processor {
 
 #[cfg(test)]
 mod tests {
-    use crate::candle_operators::AvailableCandleOperators;
+    use crate::{DataDistanceOperator, candle_operators::AvailableCandleOperators};
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
-    use phymes_core::{Table, TablePublish};
+    use phymes_core::{AvailableTableSubscribePolicies, Table, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
@@ -550,7 +644,7 @@ mod tests {
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -560,7 +654,7 @@ mod tests {
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -575,6 +669,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),
+            dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
             operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()
         };
@@ -763,7 +858,7 @@ mod tests {
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -773,7 +868,7 @@ mod tests {
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject("d1")
-                .with_update(&TablePublish::None)
+                .with_update(&TablePublication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -867,16 +962,14 @@ mod tests {
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
-        let _ = messages.insert(
-            "lhs_name".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("lhs_name")
-                .with_publisher("")
-                .with_subject("lhs_name")
-                .with_update(&TablePublish::None)
-                .with_message(lhs_table.to_record_batch_stream())
-                .build()?,
-        );
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("lhs_name")
+            .with_publisher("")
+            .with_subject("lhs_name")
+            .with_update(&TablePublication::None)
+            .with_message(lhs_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
         let rhs_ids_vec = vec!["1", "2", "3", "4"];
         let rhs_embeddings_vec: Vec<Vec<f32>> = vec![
             vec![1., 1., 1., 1.],
@@ -893,16 +986,14 @@ mod tests {
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch])?
             .build()?;
-        let _ = messages.insert(
-            "rhs_name".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("rhs_name")
-                .with_publisher("")
-                .with_subject("rhs_name")
-                .with_update(&TablePublish::None)
-                .with_message(rhs_table.to_record_batch_stream())
-                .build()?,
-        );
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("rhs_name")
+            .with_publisher("")
+            .with_subject("rhs_name")
+            .with_update(&TablePublication::None)
+            .with_message(rhs_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
 
         // Make the config
         let config = DataConfig {
@@ -914,6 +1005,7 @@ mod tests {
             rhs_pk: Some("rhs_pk".to_string()),
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),
+            dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
             operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()
         };
@@ -922,16 +1014,14 @@ mod tests {
             .with_name("candle_ops_processor")
             .with_json(&config_json, 1)?
             .build()?;
-        let _ = messages.insert(
-            "candle_ops_processor".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("candle_ops_processor")
-                .with_publisher("")
-                .with_subject("")
-                .with_update(&TablePublish::None)
-                .with_message(config_table.to_record_batch_stream())
-                .build()?,
-        );
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_publisher("")
+            .with_subject("candle_ops_processor")
+            .with_update(&TablePublication::None)
+            .with_message(config_table.to_record_batch_stream())
+            .make_random_name()?
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
 
         let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
@@ -950,25 +1040,26 @@ mod tests {
         let runtime_env = Arc::new(Mutex::new(runtime_env));
 
         // Make the stream and run
-        let ops_processor = CandleDataProcessor::new_arc_with_pub_sub(
+        let ops_processor = CandleDataProcessor::new(
             "candle_ops_processor",
-            &[TablePublish::Replace {
+            "",
+            &[TablePublication::Replace {
                 table_name: "results".to_string(),
             }],
             &[
-                TableSubscribe::AlwaysFullTable {
+                TableSubscription::AlwaysFullTable {
                     table_name: "lhs_name".to_string(),
                 },
-                TableSubscribe::AlwaysFullTable {
+                TableSubscription::AlwaysFullTable {
                     table_name: "rhs_name".to_string(),
                 },
             ],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut ops_stream =
             ops_processor.process(messages, Some(&diagnostic_builder), runtime_env)?;
         let result = ops_stream
-            .remove("results")
+            .remove("from_candle_ops_processor_on_results")
             .unwrap()
             .get_message_own()
             .try_collect::<Vec<_>>()

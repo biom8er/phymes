@@ -9,9 +9,10 @@ mod test_exec;
 pub use message::{
     IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    remove_message_by_subject,
 };
 pub use processor::{ProcessorBuilder, ProcessorEcho, ProcessorTrait, test_processor};
-pub use publish_subscribe::PubSubTrait;
+pub use publish_subscribe::PublishAndSubscribeTrait;
 pub use task_trait::{Task, TaskBuilder, TaskBuilderTrait, TaskTrait, test_task};
 
 #[allow(unused_imports)]

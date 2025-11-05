@@ -18,7 +18,7 @@ use phymes_agents::{
 use phymes_core::{
     AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
     IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, SessionStream,
-    SessionStreamState, TableBuilder, TableBuilderTrait, TablePublish, TableTrait,
+    SessionStreamState, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 
 pub async fn run_main() -> Result<()> {
@@ -54,7 +54,7 @@ pub async fn run_main() -> Result<()> {
     let chat_message = IPCMessage::get_builder()
         .with_message(chat.to_ipc_stream()?)
         .with_subject(chat.get_name())
-        .with_update(&TablePublish::Extend {
+        .with_update(&TablePublication::Extend {
             table_name: chat.get_name().to_string(),
         })
         .with_publisher(doc_rag_session.session_context_name)
@@ -67,7 +67,7 @@ pub async fn run_main() -> Result<()> {
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
         .with_subject(blob.get_name())
-        .with_update(&TablePublish::Extend {
+        .with_update(&TablePublication::Extend {
             table_name: blob.get_name().to_string(),
         })
         .with_publisher(doc_rag_session.session_context_name)

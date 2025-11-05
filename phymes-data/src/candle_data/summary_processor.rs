@@ -6,12 +6,12 @@ use std::{
 
 use bytes::Bytes;
 use phymes_core::{
-    AllTableNamesSubscribe, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-    BuilderTrait, CsvFormat, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
-    ProcessorTrait, PubSubTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
-    SubscribeTrait, Table, TableBuilderTrait, TablePublish, TableSubscribe, TableTrait,
-    create_blob_batch, create_chat_record_batch,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat, DataFormat,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication,
+    TableSubscribePolicyTrait, TableSubscription, TableTrait, create_blob_batch,
+    create_chat_record_batch, remove_message_by_subject,
 };
 
 use anyhow::{Result, anyhow};
@@ -22,10 +22,12 @@ use arrow::{
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
-    create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    TraceBuilderTrait, create_timestamp_micros,
 };
 use tracing::{Level, event, instrument};
+
+use crate::DataConfigTrait;
 
 use super::summary_config::DataSummaryConfig;
 
@@ -39,9 +41,10 @@ use super::summary_config::DataSummaryConfig;
 #[derive(Debug)]
 pub struct DataSummaryProcessor {
     name: String,
-    publications: Vec<TablePublish>,
-    subscriptions: Vec<TableSubscribe>,
-    subscribe: Box<dyn SubscribeTrait>,
+    r#type: String,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for DataSummaryProcessor {
@@ -50,50 +53,43 @@ impl MappableTrait for DataSummaryProcessor {
     }
 }
 
-impl PubSubTrait for DataSummaryProcessor {
-    fn get_publications(&self) -> Vec<&TablePublish> {
+impl PublishAndSubscribeTrait for DataSummaryProcessor {
+    fn get_publications(&self) -> Vec<&TablePublication> {
         self.publications.iter().collect()
     }
 
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe> {
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
         self.subscriptions.iter().collect()
     }
     fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe
+        self.subscribe_policy
             .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 
 impl ProcessorTrait for DataSummaryProcessor {
-    fn new_arc_with_pub_sub(
+    fn new(
         name: &str,
-        publications: &[TablePublish],
-        subscriptions: &[TableSubscribe],
-        subscribe: Box<dyn SubscribeTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
+        r#type: &str,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    ) -> Self {
+        Self {
             name: name.to_string(),
+            r#type: r#type.to_string(),
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
-            subscribe,
-        })
+            subscribe_policy,
+        }
     }
 
-    fn new_arc(name: &str) -> Arc<dyn ProcessorTrait> {
-        Arc::new(Self {
-            name: name.to_string(),
-            publications: vec![TablePublish::None],
-            subscriptions: vec![TableSubscribe::None],
-            subscribe: AllTableNamesSubscribe::new_box(),
-        })
-    }
-
-    fn get_subscribe(&self) -> &dyn SubscribeTrait {
-        self.subscribe.as_ref()
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
-        Self::get_static_name()
+        &self.r#type
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -118,7 +114,7 @@ impl ProcessorTrait for DataSummaryProcessor {
         };
 
         // Extract out the config
-        let config = match message.remove(self.get_name()) {
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
@@ -128,7 +124,7 @@ impl ProcessorTrait for DataSummaryProcessor {
         let mut table_names = Vec::new();
         for subs in self.subscriptions.iter() {
             if subs.get_table_name() != self.get_name() {
-                match message.remove(subs.get_table_name()) {
+                match remove_message_by_subject(subs.get_table_name(), &mut message) {
                     Some(m) => {
                         subscriptions.push(m);
                         table_names.push(subs.get_table_name())
@@ -161,11 +157,11 @@ impl ProcessorTrait for DataSummaryProcessor {
         )?);
         let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_name(self.publications.first().unwrap().get_table_name())
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
             .with_message(out)
             .with_update(self.publications.first().unwrap())
+            .make_name()?
             .build()?;
         let _ = outbox.insert(out_m.get_name().to_string(), out_m);
 
@@ -216,24 +212,37 @@ impl DataSummaryStream {
 
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config: DataSummaryConfig = serde_json::from_value(serde_json::Value::Object(
-                config_table.to_json_object()?.first().unwrap().to_owned(),
-            ))?;
+            let config = DataSummaryConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         Ok(())
     }
 }
 
-/// Helper function to convert a table into the desired output format
+/// Helper function to convert a [Table] into the desired output [DataFormat]
+///
+/// # Arguments
+/// `table` - the [Table] containing the data
+/// `format` - the desired output [DataFormat]
+/// `content` - Optional string to include JUST the contents of column data `content`
+///   which is needed for some tool calling and visualization generation methods
 pub fn table_and_data_format_to_record_batch(
     table: &Table,
     format: &DataFormat,
+    content: Option<&str>,
 ) -> Result<RecordBatch> {
     match format {
         DataFormat::None => {
+            // Extract out the content
+            let content = if let Some(content) = content {
+                match table.get_column_as_vec_string(content)? {
+                    Some(column) => column.join(""),
+                    None => String::new(),
+                }
+            } else {
+                serde_json::to_string(&table.to_json_object()?)?
+            };
             // Wrap into a record batch
-            let content = serde_json::to_string(&table.to_json_object()?)?;
             create_chat_record_batch(
                 vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
                 vec![content],
@@ -403,9 +412,14 @@ impl Stream for DataSummaryStream {
             };
 
             // Concatenate into a single record batch
-            let schema = batches_col.first().unwrap().schema();
+            let schema = match batches_col.first() {
+                Some(cols) => cols.schema(),
+                None => {
+                    return Poll::Ready(Some(Err(anyhow!("No batches were found to summarize!"))));
+                }
+            };
             let mut batch_json = Table::get_builder()
-                .with_name("")
+                .with_name("DataSummaryStream")
                 .with_record_batches(batches_col)?
                 .build()?
                 .concat_record_batches()?
@@ -440,8 +454,20 @@ impl Stream for DataSummaryStream {
             // Convert to the desired format
             let batch = table_and_data_format_to_record_batch(
                 &table,
-                &self.config.as_ref().unwrap().format,
+                &self.config.as_ref().unwrap().summary_format,
+                None,
             )?;
+            if batch.num_rows() == 0
+                && let Some(diagnostic_builder) = &self.diagnostic_builder
+            {
+                let event = diagnostic_builder
+                    .clone()
+                    .to_child("DataSummaryStream")?
+                    .warn(line!(), file!(), "poll_next");
+                event.insert("empty_batch", &serde_json::Value::String(
+                        format!("The result of the data summary stream with config {:?} was an empty RecordBatch.",
+                            self.config.as_ref().unwrap())));
+            };
 
             // record the poll
             let poll = Poll::Ready(Some(Ok(batch)));
@@ -467,7 +493,9 @@ impl RecordBatchStream for DataSummaryStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{MessageTrait, TableBuilder, TablePublish};
+    use phymes_core::{
+        AvailableTableSubscribePolicies, MessageTrait, TableBuilder, TablePublication,
+    };
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
 
     use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
@@ -495,7 +523,7 @@ mod tests {
             num_rows: Some(2),
             num_batches: Some(1),
             col_names: Some(vec!["embedding".to_string(), "lhs_pk".to_string()]),
-            format: DataFormat::None,
+            summary_format: DataFormat::None,
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()
@@ -505,26 +533,22 @@ mod tests {
 
         // Make the input messages
         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = messages.insert(
-            "lhs_name".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("lhs_name")
-                .with_publisher("")
-                .with_subject("lhs_name")
-                .with_update(&TablePublish::None)
-                .with_message(lhs_table.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = messages.insert(
-            "summary_processor".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("summary_processor")
-                .with_publisher("")
-                .with_subject("summary_processor")
-                .with_update(&TablePublish::None)
-                .with_message(config_table.to_record_batch_stream())
-                .build()?,
-        );
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("lhs_name")
+            .with_publisher("")
+            .with_subject("lhs_name")
+            .with_update(&TablePublication::None)
+            .with_message(lhs_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("summary_processor")
+            .with_publisher("")
+            .with_subject("summary_processor")
+            .with_update(&TablePublication::None)
+            .with_message(config_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
 
         let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
@@ -539,22 +563,26 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = DataSummaryProcessor::new_arc_with_pub_sub(
+        let processor = DataSummaryProcessor::new(
             "summary_processor",
-            &[TablePublish::Extend {
+            "",
+            &[TablePublication::Extend {
                 table_name: "messages".to_string(),
             }],
-            &[TableSubscribe::AlwaysFullTable {
+            &[TableSubscription::AlwaysFullTable {
                 table_name: "lhs_name".to_string(),
             }],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream =
             processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("messages").unwrap().get_message_own(),
+            stream
+                .remove("from_summary_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")
@@ -591,7 +619,7 @@ mod tests {
             num_rows: Some(2),
             num_batches: Some(1),
             col_names: Some(vec!["lhs_pk".to_string()]),
-            format: DataFormat::Csv(CsvFormat {
+            summary_format: DataFormat::Csv(CsvFormat {
                 ..Default::default()
             }),
         };
@@ -603,26 +631,22 @@ mod tests {
 
         // Make the input messages
         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = messages.insert(
-            "lhs_name".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("lhs_name")
-                .with_publisher("")
-                .with_subject("lhs_name")
-                .with_update(&TablePublish::None)
-                .with_message(lhs_table.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = messages.insert(
-            "summary_processor".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("summary_processor")
-                .with_publisher("")
-                .with_subject("summary_processor")
-                .with_update(&TablePublish::None)
-                .with_message(config_table.to_record_batch_stream())
-                .build()?,
-        );
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("lhs_name")
+            .with_publisher("")
+            .with_subject("lhs_name")
+            .with_update(&TablePublication::None)
+            .with_message(lhs_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("summary_processor")
+            .with_publisher("")
+            .with_subject("summary_processor")
+            .with_update(&TablePublication::None)
+            .with_message(config_table.to_record_batch_stream())
+            .build()?;
+        let _ = messages.insert(message.get_name().to_string(), message);
 
         let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
@@ -637,22 +661,26 @@ mod tests {
         }));
 
         // Create the processor and run
-        let processor = DataSummaryProcessor::new_arc_with_pub_sub(
+        let processor = DataSummaryProcessor::new(
             "summary_processor",
-            &[TablePublish::Extend {
+            "",
+            &[TablePublication::Extend {
                 table_name: "messages".to_string(),
             }],
-            &[TableSubscribe::AlwaysFullTable {
+            &[TableSubscription::AlwaysFullTable {
                 table_name: "lhs_name".to_string(),
             }],
-            AllTableNamesSubscribe::new_box(),
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
         let mut stream =
             processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove("messages").unwrap().get_message_own(),
+            stream
+                .remove("from_summary_processor_on_messages")
+                .unwrap()
+                .get_message_own(),
         )
         .await?
         .with_name("")

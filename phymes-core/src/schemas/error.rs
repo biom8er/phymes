@@ -1,44 +1,36 @@
-use std::sync::Arc;
-
 use anyhow::{Error, Result};
-use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray},
-    datatypes::{DataType, Field, Fields},
-};
-use phymes_diagnostics::HashMap;
-use serde::{Deserialize, Serialize};
+use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
 use crate::{
+    create_chat_record_batch,
     schemas::available_subjects::AvailableSubjects,
     session::{BuilderTrait, MappableTrait},
-    table::{Table, TableBuilder, TableBuilderTrait, TablePublish, TableTrait},
+    table::{Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait},
     task::{
         IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage,
         SendableRecordBatchStreamMessageBuilder,
     },
 };
 
-pub(crate) fn create_error_fields() -> Fields {
-    let error = Field::new("error", DataType::Utf8, false);
-    Fields::from(vec![error])
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct ErrorSubject {
-    pub error: String,
-}
-
-pub fn create_error_batch(error: Vec<String>) -> Result<RecordBatch> {
-    let error: ArrayRef = Arc::new(StringArray::from(error));
-    let batch = RecordBatch::try_from_iter(vec![("error", error)])?;
-    Ok(batch)
-}
-
-fn create_error_table(err: &Error) -> Result<Table> {
-    // DM: must use :? and not .to_string() with Anyhow::Error to see full backtrace if available
-    let error_str = format! {"{err:?}"};
-    let batch = create_error_batch(vec![error_str])?;
+/// Create the error table
+///
+/// # Arguments
+/// `err` - [anyhow::Error]
+/// `with_display` - whether to show the full backtrace or not
+///
+/// # Notes
+/// - use :? and not .to_string() with Anyhow::Error to see full backtrace if available
+pub fn create_error_table(err: &Error, with_display: bool) -> Result<Table> {
+    let error_str = if with_display {
+        format! {"{err:?}"}
+    } else {
+        format! {"{err}"}
+    };
+    let batch = create_chat_record_batch(
+        vec!["tool".to_string()],
+        vec![error_str],
+        vec![create_timestamp_micros()],
+    )?;
     TableBuilder::new()
         .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
         .with_record_batches(vec![batch])?
@@ -48,12 +40,13 @@ fn create_error_table(err: &Error) -> Result<Table> {
 pub fn create_error_message_map_stream(
     err: &Error,
     publisher: &str,
+    with_display: bool,
 ) -> Result<HashMap<String, SendableRecordBatchStreamMessage>> {
-    let table = create_error_table(err)?;
+    let table = create_error_table(err, with_display)?;
     let message = SendableRecordBatchStreamMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
-        .with_update(&TablePublish::Extend {
+        .with_update(&TablePublication::Extend {
             table_name: AvailableSubjects::SessionErrors.to_string(),
         })
         .with_message(table.to_record_batch_stream())
@@ -67,16 +60,17 @@ pub fn create_error_message_map_stream(
 pub fn create_error_message_map(
     err: &Error,
     publisher: &str,
+    with_display: bool,
 ) -> Result<HashMap<String, IPCMessage>> {
-    let table = create_error_table(err)?;
+    let table = create_error_table(err, with_display)?;
     let message = IPCMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
-        .with_update(&TablePublish::Extend {
+        .with_update(&TablePublication::Extend {
             table_name: AvailableSubjects::SessionErrors.to_string(),
         })
         .with_message(table.to_ipc_stream()?)
-        .make_name()?
+        .make_random_name()?
         .build()?;
     let mut message_map = HashMap::<String, IPCMessage>::new();
     let _ = message_map.insert(message.get_name().to_string(), message);

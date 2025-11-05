@@ -1,10 +1,12 @@
 use std::fmt::Display;
 
+use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::DataFormat;
+use phymes_core::{DataFormat, MappableTrait, Table, TableTrait};
+use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::candle_operators::AvailableCandleOperators;
+use crate::{AvailableJinja2Templates, candle_operators::AvailableCandleOperators};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataStreamManager {
@@ -218,20 +220,18 @@ impl Display for DataCastOperator {
 
 /// Traits for all configs
 pub trait DataConfigTrait {
-    /// Create an example
-    ///
-    /// # Arguments
-    /// `name`: String specifying the name of the example which for [DataConfig] would be the name of the [AvailableCandleOperators]
-    fn to_example(name: &str) -> Self;
-
     /// Create an example and serialize to JSON
-    fn to_example_json(name: &str) -> Result<Vec<u8>, serde_json::Error>
+    ///
+    /// # Notes
+    /// - example implementation: serde_json::to_vec(&DataConfig)
+    fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error>
     where
-        Self: Sized,
-        Self: Serialize,
-    {
-        serde_json::to_vec(&Self::to_example(name))
-    }
+        Self: Serialize;
+
+    /// Build the config from a [Table]
+    fn from_table(table: &Table) -> Result<Self>
+    where
+        Self: Sized;
 }
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]
@@ -301,17 +301,17 @@ pub struct DataConfig {
     pub op_kwargs: Option<String>,
 
     /// The streaming strategy to use
-    #[arg(long, default_value = "accumulate-lhs-accumulate-rhs")]
+    #[arg(long)]
     pub stream: DataStreamManager,
 
     /// The operator to invoke
-    #[arg(long, default_value = "relative-similarity-score")]
+    #[arg(long)]
     pub operator: AvailableCandleOperators,
 
     /// Minijinja [String] template
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub doc_template: Option<String>,
+    pub doc_template: Option<AvailableJinja2Templates>,
 
     /// The name of the resulting document after applying the minijinja template
     #[arg(long)]
@@ -431,7 +431,7 @@ impl Default for DataConfig {
             rhs_args: None,
             op_kwargs: None,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
-            operator: AvailableCandleOperators::VectorDistance,
+            operator: AvailableCandleOperators::HumanInTheLoop,
             doc_template: None,
             doc_name: None,
             table_expression: None,
@@ -457,28 +457,40 @@ impl Default for DataConfig {
 }
 
 impl DataConfigTrait for DataConfig {
-    fn to_example(name: &str) -> Self {
-        match name {
-            s if s == AvailableCandleOperators::ApplyTemplate.to_string() => Self {
-                cpu: false,
-                lhs_name: Some("lhs_name".to_string()),
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
-                operator: AvailableCandleOperators::ApplyTemplate,
-                doc_template: Some("doc_template".to_string()),
-                doc_name: Some("doc_name".to_string()),
-                table_expression: Some("rows".to_string()),
-                doc_input: Some("{}".to_string()),
-                format: Some(DataFormat::Txt),
-                ..Default::default()
+    fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&Self::default())
+    }
+    fn from_table(table: &Table) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        // Check for the required fields
+        let column_names = table
+            .get_schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect::<HashSet<_>>();
+        if !(column_names.contains("operator") && column_names.contains("cpu")) {
+            return Err(anyhow!(
+                "Table {} is missing required Field for `operator` or `cpu` in DataConfig.",
+                table.get_name()
+            ));
+        }
+
+        // Try to build the config
+        match table.to_struct::<DataConfig>() {
+            Ok(config_vec) => match config_vec.first() {
+                Some(config) => Ok(config.to_owned()),
+                None => Err(anyhow!(
+                    "No config data found for DataConfig with subject {}",
+                    table.get_name()
+                )),
             },
-            // DM: Add examples for the rest of the operators
-            "Aggregator" => Self {
-                lhs_values: Some(vec!["timestamp".to_string()]),
-                asc: Some(true),
-                operator: AvailableCandleOperators::SortColumnAndIndices,
-                ..Default::default()
-            },
-            _ => Self::default(),
+            Err(err) => Err(anyhow!(
+                "DataConfig could not be built for subject {}. {err}",
+                table.get_name()
+            )),
         }
     }
 }

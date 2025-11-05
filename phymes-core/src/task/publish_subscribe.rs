@@ -1,19 +1,20 @@
 use phymes_diagnostics::HashMap;
 
 use crate::{
+    MappableTrait,
     session::{BuildableTrait, BuilderTrait, SendableRecordBatchStreamMessageMap, StateMap},
-    table::{TablePublish, TableSubscribe, TableSubscribeTrait},
+    table::{TablePublication, TableSubscription, TableSubscriptionTrait},
     task::{MessageBuilderTrait, SendableRecordBatchStreamMessage},
 };
 
 /// For task or processor objects that publish and
 /// subscribe to messages
-pub trait PubSubTrait {
+pub trait PublishAndSubscribeTrait {
     /// Get an immutable list of subscription subject names
-    fn get_subscriptions(&self) -> Vec<&TableSubscribe>;
+    fn get_subscriptions(&self) -> Vec<&TableSubscription>;
 
     /// Get an immutable list of publication subject names
-    fn get_publications(&self) -> Vec<&TablePublish>;
+    fn get_publications(&self) -> Vec<&TablePublication>;
 
     /// Get subscriptions from the state
     ///
@@ -43,11 +44,7 @@ pub trait PubSubTrait {
             // default or dummy tables may not be found in the state so we just ignore them
             if let Some(table) = state.get(subscription.get_table_name()) {
                 // OnUpdate... tables are not subscribed to if they have not been updated
-                if let Some(message) = table
-                    .try_read()
-                    .unwrap()
-                    .subscribe_table(subscription, *updated)
-                {
+                if let Some(message) = table.read().subscribe_table(subscription, *updated) {
                     let publications = self.get_publications();
                     let update = publications
                         .iter()
@@ -55,7 +52,7 @@ pub trait PubSubTrait {
                         .collect::<Vec<_>>();
                     let update = match update.first() {
                         Some(u) => u,
-                        None => &TablePublish::None,
+                        None => &TablePublication::None,
                     };
                     let out = SendableRecordBatchStreamMessage::get_builder()
                         .with_publisher("State")
@@ -66,9 +63,7 @@ pub trait PubSubTrait {
                         .unwrap()
                         .build()
                         .unwrap();
-                    // DM: need to migrate map key to `make_random_name` to prevent hash collisions
-                    //  when the same table is subscribed to by multiple processors in the chain...
-                    let _ = map.insert(subscription.get_table_name().to_string(), out);
+                    let _ = map.insert(out.get_name().to_string(), out);
                 }
             }
         }

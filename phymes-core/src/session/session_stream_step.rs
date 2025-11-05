@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
@@ -17,7 +17,7 @@ use crate::schemas::{create_error_message_map, create_error_message_map_stream};
 use crate::session::session_stream_state::SessionStreamState;
 use crate::table::{TableBuilder, TableBuilderTrait, TableTrait};
 use crate::task::{
-    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, PubSubTrait,
+    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, PublishAndSubscribeTrait,
     SendableRecordBatchStreamMessage,
 };
 
@@ -60,23 +60,36 @@ impl SessionStreamStep {
         while let Some(response) = join_set.join_next().await {
             match response {
                 Ok((resp_name, resp)) => {
-                    // Complete the input message with the processed stream
-                    let table = TableBuilder::new()
-                        .with_name(resp_name.as_str())
-                        .with_record_batches(resp?)?
-                        .build()?;
-                    let message = response_builder
-                        .remove(resp_name.as_str())
-                        .unwrap()
-                        .with_message(table.to_ipc_stream()?)
-                        .build()?;
-                    let message_map = message.to_map()?;
+                    // Check the response
+                    let message_map = match resp {
+                        Ok(batches) => match TableBuilder::new()
+                            .with_name(resp_name.as_str())
+                            .with_record_batches(batches)
+                        {
+                            Ok(builder) => {
+                                let table = builder.build()?;
+
+                                // Complete the input message with the processed stream
+                                let message = response_builder
+                                    .remove(resp_name.as_str())
+                                    .unwrap()
+                                    .with_message(table.to_ipc_stream()?)
+                                    .build()?;
+                                message.to_map()?
+                            }
+                            Err(err) => create_error_message_map(&err, "SessionStreamStep", true)?,
+                        },
+                        Err(err) => create_error_message_map(&err, "SessionStreamStep", true)?,
+                    };
+
+                    // Add the message to the joined responses
                     response_batches.extend(message_map);
                 }
                 Err(err) => {
                     // Intercept the error and forward to the error subject
                     event!(Level::ERROR, "{err}");
-                    let message_map = create_error_message_map(&err.into(), "SessionStreamStep")?;
+                    let message_map =
+                        create_error_message_map(&anyhow!("{err}"), "SessionStreamStep", true)?;
                     response_batches.extend(message_map);
                 }
             }
@@ -177,7 +190,7 @@ impl SessionStreamStep {
         let update = match state.write().update_state_from_messages(messages) {
             Ok(update) => update,
             Err(err) => {
-                let message_map = create_error_message_map_stream(&err, span.span().0)?;
+                let message_map = create_error_message_map_stream(&err, span.span().0, true)?;
                 response_streams.extend(message_map);
                 HashMap::<String, Vec<String>>::new()
             }
@@ -224,7 +237,7 @@ impl SessionStreamStep {
                 Err(err) => {
                     // Intercept the error and wrap into a `SendableRecordBatch` for consumption
                     event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name);
-                    let message_map = create_error_message_map_stream(&err, task_name)?;
+                    let message_map = create_error_message_map_stream(&err, task_name, true)?;
                     response_streams.extend(message_map);
                 }
             }
@@ -251,7 +264,7 @@ impl SessionStreamStep {
             let response_batches =
                 match SessionStreamStep::join_message_streams(response_streams).await {
                     Ok(response_batches) => response_batches,
-                    Err(err) => create_error_message_map(&err, span.span().0)?,
+                    Err(err) => create_error_message_map(&err, span.span().0, true)?,
                 };
 
             // Update the state and handle any errors (without locking the state)
@@ -259,7 +272,7 @@ impl SessionStreamStep {
             let mut update = match state.write().update_state_from_messages(response_batches) {
                 Ok(update) => update,
                 Err(err) => {
-                    let message_map = create_error_message_map(&err, span.span().0)?;
+                    let message_map = create_error_message_map(&err, span.span().0, true)?;
                     error_messages.extend(message_map);
                     HashMap::<String, Vec<String>>::new()
                 }
@@ -303,12 +316,12 @@ mod tests {
     use crate::session::session_context_builder::{
         SessionContextBuilder, SessionContextBuilderTrait, TaskPlan,
     };
-    use crate::table::{AllTableNamesSubscribe, SubscribeTrait, TablePublish, TableSubscribe};
+    use crate::table::{TablePublication, TableSubscription};
     use crate::task::{
-        ProcessorTrait,
         test_processor::{ProcessorError, ProcessorMock},
         test_task::{make_runtime_env, make_state_tables, make_test_input_message},
     };
+    use crate::{AvailableTableSubscribePolicies, ProcessorBuilder};
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
@@ -321,7 +334,7 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublish::None,
+                &TablePublication::None,
                 true,
             )?,
         )
@@ -429,7 +442,7 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublish::Extend {
+                &TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 },
                 true,
@@ -569,7 +582,7 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublish::Replace {
+                &TablePublication::Replace {
                     table_name: "state_1".to_string(),
                 },
                 true,
@@ -707,7 +720,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_1".to_string(),
             },
             true,
@@ -717,7 +730,7 @@ mod tests {
             "session_1",
             "state_2",
             "state_2",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_2".to_string(),
             },
             true,
@@ -727,7 +740,7 @@ mod tests {
             "session_1",
             "state_3",
             "state_3",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_3".to_string(),
             },
             true,
@@ -922,7 +935,7 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "state_1".to_string()
             }
         );
@@ -963,7 +976,7 @@ mod tests {
                 .get("from_session_1_on_state_2")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "state_2".to_string()
             }
         );
@@ -1004,7 +1017,7 @@ mod tests {
                 .get("from_session_1_on_state_3")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "state_3".to_string()
             }
         );
@@ -1178,7 +1191,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_1".to_string(),
             },
             true,
@@ -1341,7 +1354,7 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublish::Extend {
+            TablePublication::Extend {
                 table_name: "state_1".to_string()
             }
         );
@@ -1454,7 +1467,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_1".to_string(),
             },
             false,
@@ -1483,31 +1496,37 @@ mod tests {
             },
         ];
         let processors = vec![
-            ProcessorMock::new_arc_with_pub_sub(
-                "processor_1",
-                &[TablePublish::Extend {
+            ProcessorBuilder::default()
+                .with_name("processor_1")
+                .with_type("")
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }],
-                &[
-                    TableSubscribe::OnUpdateFullTable {
+                }])
+                .with_subscriptions(&[
+                    TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
-                    TableSubscribe::AlwaysFullTable {
+                    TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
-                ],
-                AllTableNamesSubscribe::new_box(),
-            ),
-            ProcessorError::new_arc_with_pub_sub(
-                "error_1",
-                &[TablePublish::Extend {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build_arc::<ProcessorMock>()?,
+            ProcessorBuilder::default()
+                .with_name("error_1")
+                .with_type("")
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }],
-                &[TableSubscribe::OnUpdateFullTable {
+                }])
+                .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
                     table_name: "state_1".to_string(),
-                }],
-                AllTableNamesSubscribe::new_box(),
-            ),
+                }])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build_arc::<ProcessorError>()?,
         ];
         let state = make_state_tables("state_1", "config_1")?;
         let mut session_context = SessionContextBuilder::new()
@@ -1525,7 +1544,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublish::Replace {
+            &TablePublication::Replace {
                 table_name: "state_1".to_string(),
             },
             true,
