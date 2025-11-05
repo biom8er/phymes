@@ -75,7 +75,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
         std::env::var("HOME").unwrap_or("".to_string())
     ));
     config_qwen2p5_2.candle_asset = Some(AvailableCandleAssets::QwenV2p5_3bChat);
-    let config_vec = vec![
+    let config_vec = [
         config_smollm2_1,
         // config_smollm2_2,
         // config_smollm2_3,

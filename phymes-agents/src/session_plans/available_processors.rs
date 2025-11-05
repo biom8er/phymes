@@ -397,10 +397,80 @@ impl DataConfigTrait for AvailableProcessors {
 
 impl ToolTrait for AvailableProcessors {
     fn get_description(&self) -> String {
-        todo!()
+        match self {
+            Self::ProcessorEcho => todo!(),
+            Self::ProcessorMock => todo!(),
+            Self::CandleDataProcessor => todo!(),
+            Self::ChunkDocuments => AvailableCandleOperators::ChunkDocuments.get_description(),
+            Self::ExtractPDFText => AvailableCandleOperators::ExtractPDFText.get_description(),
+            Self::ExtractTabularData => {
+                AvailableCandleOperators::ExtractTabularData.get_description()
+            }
+            Self::FilterColumnsAndIndices => {
+                AvailableCandleOperators::FilterColumnsAndIndices.get_description()
+            }
+            Self::GroupByAndAggregate => {
+                AvailableCandleOperators::GroupByAndAggregate.get_description()
+            }
+            Self::HumanInTheLoop => AvailableCandleOperators::HumanInTheLoop.get_description(),
+            Self::JoinInner => AvailableCandleOperators::JoinInner.get_description(),
+            Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.get_description(),
+            Self::Pivot => AvailableCandleOperators::Pivot.get_description(),
+            Self::SelectAndCast => AvailableCandleOperators::SelectAndCast.get_description(),
+            Self::SortColumnAndIndices => {
+                AvailableCandleOperators::SortColumnAndIndices.get_description()
+            }
+            Self::VectorDistance => AvailableCandleOperators::VectorDistance.get_description(),
+            Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.get_description(),
+            Self::AttachmentAggregatorProcessor => todo!(),
+            Self::MessageAggregatorProcessor => todo!(),
+            Self::DataSummaryProcessor => todo!(),
+            Self::CandleChatProcessor => todo!(),
+            Self::MessageParserProcessor => todo!(),
+            Self::CandleEmbedProcessor => todo!(),
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIChatProcessor => todo!(),
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIEmbedProcessor => todo!(),
+        }
     }
     fn to_json_tool_schema(&self) -> String {
-        todo!()
+        match self {
+            Self::ProcessorEcho => todo!(),
+            Self::ProcessorMock => todo!(),
+            Self::CandleDataProcessor => todo!(),
+            Self::ChunkDocuments => AvailableCandleOperators::ChunkDocuments.to_json_tool_schema(),
+            Self::ExtractPDFText => AvailableCandleOperators::ExtractPDFText.to_json_tool_schema(),
+            Self::ExtractTabularData => {
+                AvailableCandleOperators::ExtractTabularData.to_json_tool_schema()
+            }
+            Self::FilterColumnsAndIndices => {
+                AvailableCandleOperators::FilterColumnsAndIndices.to_json_tool_schema()
+            }
+            Self::GroupByAndAggregate => {
+                AvailableCandleOperators::GroupByAndAggregate.to_json_tool_schema()
+            }
+            Self::HumanInTheLoop => AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
+            Self::JoinInner => AvailableCandleOperators::JoinInner.to_json_tool_schema(),
+            Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.to_json_tool_schema(),
+            Self::Pivot => AvailableCandleOperators::Pivot.to_json_tool_schema(),
+            Self::SelectAndCast => AvailableCandleOperators::SelectAndCast.to_json_tool_schema(),
+            Self::SortColumnAndIndices => {
+                AvailableCandleOperators::SortColumnAndIndices.to_json_tool_schema()
+            }
+            Self::VectorDistance => AvailableCandleOperators::VectorDistance.to_json_tool_schema(),
+            Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.to_json_tool_schema(),
+            Self::AttachmentAggregatorProcessor => todo!(),
+            Self::MessageAggregatorProcessor => todo!(),
+            Self::DataSummaryProcessor => todo!(),
+            Self::CandleChatProcessor => todo!(),
+            Self::MessageParserProcessor => todo!(),
+            Self::CandleEmbedProcessor => todo!(),
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIChatProcessor => todo!(),
+            #[cfg(feature = "openai_api")]
+            Self::OpenAIEmbedProcessor => todo!(),
+        }
     }
 }
 

@@ -456,7 +456,7 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
         // Update the signals
         if mermaid_js_object.error.is_none() {
             diagram_svg.set(mermaid_js_object.svg.unwrap_or_default());
-        }        
+        }
         error_mjs.set(mermaid_js_object.error.unwrap_or_default());
     });
 
