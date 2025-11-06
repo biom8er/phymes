@@ -304,8 +304,8 @@ pub fn subjects_interface_view() -> Element {
                     }
                 }
             }
-            if !active_subject_name().is_empty() {
-                attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| true), except_files: use_signal(||".csv".to_string()), active_subject_name }
+            if !active_subject_name().is_empty() || !subject_schema_names.is_empty() {
+                attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| true), except_files: use_signal(||".csv".to_string()), active_subject_name, subject_names: subject_schema_names }
             }
         }
     }

@@ -238,17 +238,26 @@ pub fn attachments_interface_view() -> Element {
                     }
                 })}
             }
-            attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| false), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None }
+            attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| false), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, subject_names: None }
         }
     }
 }
 
+/// Attach files interface component
+/// 
+/// # Arguments
+/// `extend_input` - whether to extend the subject with the attachment data
+/// `add_input` - whether to replace the subject with the attachment data 
+/// `except_files` - what files to except
+/// `active_subject_name` - Optional, the active subject
+/// `subject_names` - Optional, the list of all available subjects
 #[component]
 pub fn attachments_interface_footer(
     extend_input: Signal<bool>,
     add_input: Signal<bool>,
     except_files: Signal<String>,
     active_subject_name: Option<Signal<String>>,
+    subject_names: Option<Signal<Vec<String>>>,
 ) -> Element {
     let files_uploaded = use_signal(Vec::<SessionInterfaceMessage>::new);
     let filenames_uploaded = use_signal(Vec::<String>::new);
@@ -271,10 +280,10 @@ pub fn attachments_interface_footer(
             div {
                 class: "attach_button",
                 if extend_input() {
-                    attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, files_uploaded, filenames_uploaded, extensions_uploaded }
+                    attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
                 }
                 if add_input() {
-                    attach_files_input { extend_publish: use_signal(|| false), except_files, active_subject_name, files_uploaded, filenames_uploaded, extensions_uploaded }
+                    attach_files_input { extend_publish: use_signal(|| false), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
                 }
             }
 
