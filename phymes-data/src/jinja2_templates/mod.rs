@@ -42,3 +42,5 @@ pub use mermaid_xychart::{
 pub(crate) use minimal_html::test_minimal_html;
 pub use minimal_html::{MINIMAL_HTML_BODY_TEMPLATE, MINIMAL_HTML_POST, MINIMAL_HTML_PRE};
 pub use minimal_table::{MINIMAL_TABLE_INPUT, MINIMAL_TABLE_TEMPLATE};
+pub use minimal_list::{MINIMAL_LIST_INPUT, MINIMAL_LIST_TEMPLATE};
+pub use minimal_figures::MINIMAL_FIGURE_TEMPLATE;

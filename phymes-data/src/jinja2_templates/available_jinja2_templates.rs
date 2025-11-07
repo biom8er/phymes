@@ -9,7 +9,7 @@ use crate::{
     MERMAID_FLOWCHART_NODES_TEMPLATE, MERMAID_FLOWCHART_TEMPLATE, MERMAID_GANTT_TEMPLATE,
     MERMAID_HTML_POST, MERMAID_HTML_PRE, MERMAID_KANBAN_TEMPLATE,
     MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE,
-    MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_XYCHART_TEMPLATE, jinja2_templates::{MINIMAL_HTML_BODY_TEMPLATE, MINIMAL_HTML_POST, MINIMAL_HTML_PRE, MINIMAL_TABLE_TEMPLATE},
+    MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_XYCHART_TEMPLATE, jinja2_templates::{MINIMAL_FIGURE_TEMPLATE, MINIMAL_HTML_BODY_TEMPLATE, MINIMAL_HTML_POST, MINIMAL_HTML_PRE, MINIMAL_LIST_TEMPLATE, MINIMAL_TABLE_TEMPLATE},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -59,6 +59,14 @@ pub enum AvailableJinja2Templates {
     MinimalHTMLTableTemplate,
     #[value(name = "MinimalHTMLTableHTML")]
     MinimalHTMLTableHTML,
+    #[value(name = "MinimalHTMLListTemplate")]
+    MinimalHTMLListTemplate,
+    #[value(name = "MinimalHTMLListHTML")]
+    MinimalHTMLListHTML,
+    #[value(name = "MinimalHTMLFiguresTemplate")]
+    MinimalHTMLFiguresTemplate,
+    #[value(name = "MinimalHTMLFiguresHTML")]
+    MinimalHTMLFiguresHTML,
     #[value(skip)]
     Custom(String),
 }
@@ -131,6 +139,20 @@ impl AvailableJinja2Templates {
                 MINIMAL_HTML_POST,
             ]
             .join(""),
+            Self::MinimalHTMLListTemplate => MINIMAL_LIST_TEMPLATE.to_string(),
+            Self::MinimalHTMLListHTML => [
+                MINIMAL_HTML_PRE,
+                MINIMAL_LIST_TEMPLATE,
+                MINIMAL_HTML_POST,
+            ]
+            .join(""),
+            Self::MinimalHTMLFiguresTemplate => MINIMAL_FIGURE_TEMPLATE.to_string(),
+            Self::MinimalHTMLFiguresHTML => [
+                MINIMAL_HTML_PRE,
+                MINIMAL_FIGURE_TEMPLATE,
+                MINIMAL_HTML_POST,
+            ]
+            .join(""),
             Self::Custom(s) => s.to_string(),
         }
     }
@@ -155,11 +177,15 @@ impl AvailableJinja2Templates {
             | Self::MermaidSequenceDiagramHTML
             | Self::MermaidXYChartTemplate
             | Self::MermaidXYChartHTML
-            | Self::MinimalHTMLBodyTemplate
-            | Self::MinimalHTMLBodyHTML
+            | Self::MinimalHTMLListTemplate
+            | Self::MinimalHTMLListHTML
+            | Self::MinimalHTMLFiguresTemplate
+            | Self::MinimalHTMLFiguresHTML
             | Self::Custom(_) => false,
             Self::MinimalHTMLTableTemplate
-            | Self::MinimalHTMLTableHTML => true,
+            | Self::MinimalHTMLTableHTML
+            | Self::MinimalHTMLBodyTemplate
+            | Self::MinimalHTMLBodyHTML => true,
         }
     }
 }
@@ -195,6 +221,10 @@ impl Display for AvailableJinja2Templates {
             Self::MinimalHTMLBodyHTML => write!(f, "MinimalHTMLBodyHTML"),
             Self::MinimalHTMLTableTemplate => write!(f, "MinimalHTMLTableTemplate"),
             Self::MinimalHTMLTableHTML => write!(f, "MinimalHTMLTableHTML"),
+            Self::MinimalHTMLListTemplate => write!(f, "MinimalHTMLListTemplate"),
+            Self::MinimalHTMLListHTML => write!(f, "MinimalHTMLListHTML"),
+            Self::MinimalHTMLFiguresTemplate => write!(f, "MinimalHTMLFiguresTemplate"),
+            Self::MinimalHTMLFiguresHTML => write!(f, "MinimalHTMLFiguresHTML"),
             Self::Custom(s) => write!(f, "{s}"),
         }
     }

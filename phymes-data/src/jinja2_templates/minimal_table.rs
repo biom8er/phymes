@@ -4,12 +4,7 @@
 /// 
 /// # Notes
 /// - thead and tbody sections are support, but tfoot is not yet supported
-/// 
-/// # Usage
-/// 1. Make the thead section
-/// 2. Make the tbody template section
-/// 3. Make the final template
-/// 4. Render the template with the table data
+/// - href e.g., <td><a href="{{ ontology.URL }}">{{ ontology.name }}</a></td>, is not yet supported
 pub static MINIMAL_TABLE_TEMPLATE: &str = r#"
 <table>
     <caption>
