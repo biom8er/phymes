@@ -6,6 +6,8 @@ mod mermaid_html;
 mod mermaid_kanban;
 mod mermaid_sequence_diagram;
 mod mermaid_xychart;
+mod minimal_html;
+mod minimal_table;
 
 pub use available_jinja2_templates::AvailableJinja2Templates;
 

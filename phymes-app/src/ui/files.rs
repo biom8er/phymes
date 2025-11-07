@@ -72,9 +72,6 @@ pub fn attach_files_input(
                         if let Some(contents) = file_engine.read_file(file_name).await {
                             let extension = ext.to_str().unwrap();
                             let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
-                            tracing::debug!("filename: {file_name}");
-                            tracing::debug!("extension: {extension}");
-                            tracing::debug!("file_stem: {file_stem}");
                             // 1. Use the active subject to determine the target subject of the file
                             let (subject_name, is_blob) = if let Some(name) = &active_subject_name {
                                 if name().is_empty() {
@@ -114,7 +111,6 @@ pub fn attach_files_input(
                                     },
                                 }
                             };
-                            tracing::debug!("subject_name: {subject_name}");
 
                             // Wrap the contents into a blob batch if no active subject is set
                             let (message, format) = if is_blob {
