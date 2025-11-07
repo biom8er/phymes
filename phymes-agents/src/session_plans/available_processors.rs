@@ -137,7 +137,6 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_name: Some("lhs_name".to_string()),
                 doc_template: Some(AvailableJinja2Templates::default()),
                 doc_name: Some("doc_name".to_string()),
-                table_expression: Some("table_expression".to_string()),
                 doc_input: Some("{}".to_string()),
                 format: Some(DataFormat::Html),
                 cpu: false,

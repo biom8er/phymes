@@ -8,8 +8,7 @@ use phymes_core::{
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
-    DataConfig, MERMAID_GANTT_TABLE_EXPRESSION, MERMAID_KANBAN_TABLE_EXPRESSION,
-    MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION,
+    DataConfig
 };
 use serde_json::json;
 
@@ -853,7 +852,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ),
             doc_template: Some(AvailableJinja2Templates::MermaidGanttTemplate),
             doc_name: Some(DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string()),
-            table_expression: Some(MERMAID_GANTT_TABLE_EXPRESSION.to_string()),
             doc_input: Some(
                 serde_json::to_string(&json!({
                 "title": self.metrics_processors_traces_apply_gantt_task_name,
@@ -882,7 +880,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ),
             doc_template: Some(AvailableJinja2Templates::MermaidGanttTemplate),
             doc_name: Some(DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string()),
-            table_expression: Some(MERMAID_GANTT_TABLE_EXPRESSION.to_string()),
             doc_input: Some(
                 serde_json::to_string(&json!({
                 "title": self.metrics_elapsed_compute_apply_gantt_task_name,
@@ -911,7 +908,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ),
             doc_template: Some(AvailableJinja2Templates::MermaidGanttTemplate),
             doc_name: Some(DiagnosticsVisualizations::MetricOutputRowsGantt.to_string()),
-            table_expression: Some(MERMAID_GANTT_TABLE_EXPRESSION.to_string()),
             doc_input: Some(
                 serde_json::to_string(&json!({
                 "title": self.metrics_output_rows_apply_gantt_task_name,
@@ -956,7 +952,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ),
             doc_template: Some(AvailableJinja2Templates::MermaidSequenceDiagramMessagesTemplate),
             doc_name: Some(self.apply_sequence_diagram_messages_task_name.to_string()),
-            table_expression: Some(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION.to_string()),
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
             format: Some(DataFormat::None),
             operator: AvailableCandleOperators::ApplyTemplate,
@@ -1006,7 +1001,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 self.apply_sequence_diagram_participants_task_name
                     .to_string(),
             ),
-            table_expression: Some(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION.to_string()),
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
             format: Some(DataFormat::None),
             operator: AvailableCandleOperators::ApplyTemplate,
@@ -1029,7 +1023,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ),
             doc_template: Some(AvailableJinja2Templates::MermaidSequenceDiagramTemplate),
             doc_name: Some(DiagnosticsVisualizations::TraceSequenceDiagram.to_string()),
-            table_expression: Some(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION.to_string()),
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
             format: Some(DataFormat::Txt),
             operator: AvailableCandleOperators::ApplyTemplate,
@@ -1109,7 +1102,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             lhs_name: Some(self.events_select_and_cast_to_kanban_task_name.to_string()),
             doc_template: Some(AvailableJinja2Templates::MermaidKanbanTemplate),
             doc_name: Some(DiagnosticsVisualizations::EventKanban.to_string()),
-            table_expression: Some(MERMAID_KANBAN_TABLE_EXPRESSION.to_string()),
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
             format: Some(DataFormat::Txt),
             operator: AvailableCandleOperators::ApplyTemplate,

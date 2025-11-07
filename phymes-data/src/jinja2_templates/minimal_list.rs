@@ -17,9 +17,6 @@ pub static MINIMAL_LIST_TEMPLATE: &str = r#"
 </ul>
 {%- endif %}"#;
 
-/// The `table_expression` variable name in `DataConfig`
-pub static MINIMAL_LIST_EXPRESSION: &str = "rows";
-
 /// HTML table input jinja2 template
 pub static MINIMAL_LIST_INPUT: &str = r#"{
 "ordered": "{{ ordered }}"
@@ -29,7 +26,7 @@ pub static MINIMAL_LIST_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::minimal_html::{MINIMAL_HTML_PRE, MINIMAL_HTML_POST};
+    use crate::jinja2_templates::{TEMPLATE_TABLE_EXPRESSION, minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE}};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
@@ -60,7 +57,7 @@ mod tests {
             ("item", item_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MINIMAL_LIST_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
@@ -92,7 +89,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            ""
+            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n<ol>\n    <li>Item 1</li>\n    <li>Item 2</li>\n    <li>Item 3</li>\n    <li>Item 4</li>\n    <li>Item 5</li>\n    <li>Item 6</li>\n</ol>\n  </body>\n</html>"
         );
         Ok(())
     }

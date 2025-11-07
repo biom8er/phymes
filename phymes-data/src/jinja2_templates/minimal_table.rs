@@ -13,39 +13,25 @@
 pub static MINIMAL_TABLE_TEMPLATE: &str = r#"
 <table>
     <caption>
-        {{ caption }}
+        {% raw %}{{ caption }}{% endraw %}
     </caption>
     <thead>
-        {{ thead }}
-    </thead>
-    <tbody>
-        {{ tbody }}
-    </tbody>
-</table>"#;
-
-/// The `thead` HTML table section
-pub static MINIMAL_TABLE_THEAD_TEMPLATE: &str = r#"
         <tr>
 {%- for header in headers %}
             <th>{{ header }}</th>
 {%- endfor %}
-        </tr>"#;
-
-/// The `tbody` HTML table section
-pub static MINIMAL_TABLE_TBODY_TEMPLATE: &str = r#"
+        </tr>
+    </thead>
+    <tbody>
 {% raw %}{%- for row in rows %}{% endraw %}
         <tr>
 {%- for header in headers %}
             <td>{% raw %}{{{% endraw %}row.{{ header }}{% raw %}}}{% endraw %}</td>
 {%- endfor %}
         </tr>
-{% raw %}{%- endfor %}{% endraw %}"#;
-
-/// The `table_expression` variable name in `DataConfig`
-pub static MINIMAL_TABLE_EXPRESSION: &str = "rows";
-
-/// thead key
-pub static MINIMAL_TABLE_HEADERS_EXPRESSION: &str = "headers";
+{% raw %}{%- endfor %}{% endraw %}
+    </tbody>
+</table>"#;
 
 /// HTML table input jinja2 template
 pub static MINIMAL_TABLE_INPUT: &str = r#"{
@@ -56,7 +42,7 @@ pub static MINIMAL_TABLE_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::minimal_html::{MINIMAL_HTML_PRE, MINIMAL_HTML_POST};
+    use crate::jinja2_templates::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION, minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE}};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use phymes_core::{
@@ -99,53 +85,28 @@ mod tests {
             ("end", end_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MINIMAL_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
         // 1. make the thead
         let headers = table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<Vec<_>>();
         let mut input_object = Map::new();
-        let _ = input_object.insert(MINIMAL_TABLE_HEADERS_EXPRESSION.to_string(), headers.clone().into());
-        let template_inputs = serde_json::to_value(input_object)?;
-        let rendered_thead = TableScript::new_from_template(MINIMAL_TABLE_THEAD_TEMPLATE.to_string())
-            .apply_template(&template_inputs)?;
-
-        assert_eq!(
-            rendered_thead,
-            "\n        <tr>\n            <th>section</th>\n            <th>task</th>\n            <th>start</th>\n            <th>end</th>\n        </tr>"
-        );
-
-        // 2. make the tbody
-        let mut input_object = Map::new();
-        let _ = input_object.insert(MINIMAL_TABLE_HEADERS_EXPRESSION.to_string(), headers.into());
-        let template_inputs = serde_json::to_value(input_object)?;
-        let rendered_tbody = TableScript::new_from_template(MINIMAL_TABLE_TBODY_TEMPLATE.to_string())
-            .apply_template(&template_inputs)?;
-
-        assert_eq!(
-            rendered_tbody,
-            "\n{%- for row in rows %}\n        <tr>\n            <td>{{row.section}}</td>\n            <td>{{row.task}}</td>\n            <td>{{row.start}}</td>\n            <td>{{row.end}}</td>\n        </tr>\n{%- endfor %}"
-        );
-
-        // 3. make the final template
-        let inputs = serde_json::json!({
-            "caption": "Table caption"
-        });
-        let mut input_object: Map<String, Value> = serde_json::from_value(inputs)?;
-        let _ = input_object.insert("thead".to_string(), rendered_thead.into());
-        let _ = input_object.insert("tbody".to_string(), rendered_tbody.into());
+        let _ = input_object.insert(TEMPLATE_HEADER_EXPRESSION.to_string(), headers.into());
         let template_inputs = serde_json::to_value(input_object)?;
         let rendered_template = TableScript::new_from_template(MINIMAL_TABLE_TEMPLATE.to_string())
             .apply_template(&template_inputs)?;
 
         assert_eq!(
             rendered_template,
-            "\n<table>\n    <caption>\n        Table caption\n    </caption>\n    <thead>\n        \n        <tr>\n            <th>section</th>\n            <th>task</th>\n            <th>start</th>\n            <th>end</th>\n        </tr>\n    </thead>\n    <tbody>\n        \n{%- for row in rows %}\n        <tr>\n            <td>{{row.section}}</td>\n            <td>{{row.task}}</td>\n            <td>{{row.start}}</td>\n            <td>{{row.end}}</td>\n        </tr>\n{%- endfor %}\n    </tbody>\n</table>"
+            "\n<table>\n    <caption>\n        {{ caption }}\n    </caption>\n    <thead>\n        <tr>\n            <th>section</th>\n            <th>task</th>\n            <th>start</th>\n            <th>end</th>\n        </tr>\n    </thead>\n    <tbody>\n{%- for row in rows %}\n        <tr>\n            <td>{{row.section}}</td>\n            <td>{{row.task}}</td>\n            <td>{{row.start}}</td>\n            <td>{{row.end}}</td>\n        </tr>\n{%- endfor %}\n    </tbody>\n</table>"
         );
 
-        // 4. render the final table
-        let mut input_object = Map::new();
+        // Render the final table
+        let inputs = serde_json::json!({
+            "caption": "Table caption"
+        });
+        let mut input_object: Map<String, Value> = serde_json::from_value(inputs)?;
         let _ = input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
         let template_inputs = serde_json::to_value(input_object)?;
 
@@ -156,7 +117,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n<table>\n    <caption>\n        Table caption\n    </caption>\n    <thead>\n        \n        <tr>\n            <th>section</th>\n            <th>task</th>\n            <th>start</th>\n            <th>end</th>\n        </tr>\n    </thead>\n    <tbody>\n        <tr>\n            <td>Section 1</td>\n            <td>A</td>\n            <td>0</td>\n            <td>7</td>\n        </tr>\n        <tr>\n            <td>Section 1</td>\n            <td>B</td>\n            <td>1</td>\n            <td>8</td>\n        </tr>\n        <tr>\n            <td>Section 1</td>\n            <td>C</td>\n            <td>2</td>\n            <td>9</td>\n        </tr>\n        <tr>\n            <td>Section 2</td>\n            <td>D</td>\n            <td>0</td>\n            <td>10</td>\n        </tr>\n        <tr>\n            <td>Section 2</td>\n            <td>E</td>\n            <td>1</td>\n            <td>11</td>\n        </tr>\n        <tr>\n            <td>Section 2</td>\n            <td>F</td>\n            <td>2</td>\n            <td>12</td>\n        </tr>\n    </tbody>\n</table>\n  </body>\n</html>"
+            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n<table>\n    <caption>\n        Table caption\n    </caption>\n    <thead>\n        <tr>\n            <th>section</th>\n            <th>task</th>\n            <th>start</th>\n            <th>end</th>\n        </tr>\n    </thead>\n    <tbody>\n        <tr>\n            <td>Section 1</td>\n            <td>A</td>\n            <td>0</td>\n            <td>7</td>\n        </tr>\n        <tr>\n            <td>Section 1</td>\n            <td>B</td>\n            <td>1</td>\n            <td>8</td>\n        </tr>\n        <tr>\n            <td>Section 1</td>\n            <td>C</td>\n            <td>2</td>\n            <td>9</td>\n        </tr>\n        <tr>\n            <td>Section 2</td>\n            <td>D</td>\n            <td>0</td>\n            <td>10</td>\n        </tr>\n        <tr>\n            <td>Section 2</td>\n            <td>E</td>\n            <td>1</td>\n            <td>11</td>\n        </tr>\n        <tr>\n            <td>Section 2</td>\n            <td>F</td>\n            <td>2</td>\n            <td>12</td>\n        </tr>\n    </tbody>\n</table>\n  </body>\n</html>"
         );
         Ok(())
     }

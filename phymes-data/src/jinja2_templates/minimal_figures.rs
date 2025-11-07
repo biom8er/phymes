@@ -14,14 +14,11 @@ pub static MINIMAL_FIGURE_TEMPLATE: &str = r#"
 </div>
 {%- endfor %}"#;
 
-/// The `table_expression` variable name in `DataConfig`
-pub static MINIMAL_FIGURE_EXPRESSION: &str = "rows";
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::minimal_html::{MINIMAL_HTML_PRE, MINIMAL_HTML_POST};
+    use crate::jinja2_templates::{TEMPLATE_TABLE_EXPRESSION, minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE}};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
@@ -75,7 +72,7 @@ mod tests {
             ("caption", caption_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MINIMAL_FIGURE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 

@@ -318,11 +318,6 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_name: Option<String>,
 
-    /// The expression for the table within the minijinja template
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub table_expression: Option<String>,
-
     /// A serialized JSON [Value] representing the input for the template beyond the table_expression
     ///   where the table_expression will be inserted into to complete the input for the template
     ///
@@ -434,7 +429,6 @@ impl Default for DataConfig {
             operator: AvailableCandleOperators::HumanInTheLoop,
             doc_template: None,
             doc_name: None,
-            table_expression: None,
             doc_input: None,
             chunk_size: None,
             chunk_overlap: None,

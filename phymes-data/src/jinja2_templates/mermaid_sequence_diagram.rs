@@ -23,14 +23,11 @@ pub static MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE: &str = r#"
     {%- endif %}
 {%- endfor %}"#;
 
-/// The `table_expression` variable name in `DataConfig`
-pub static MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION: &str = "rows";
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
+    use crate::jinja2_templates::{TEMPLATE_TABLE_EXPRESSION, mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
@@ -66,7 +63,7 @@ mod tests {
             ("participant_type", participant_type_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
@@ -149,7 +146,7 @@ mod tests {
             ("note_location", note_location_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
@@ -174,7 +171,7 @@ mod tests {
         let content_arr: ArrayRef = Arc::new(StringArray::from(content_vec));
         let batch = RecordBatch::try_from_iter(vec![("content", content_arr)])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_SEQUENCE_DIAGRAM_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 

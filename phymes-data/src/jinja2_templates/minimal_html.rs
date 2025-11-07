@@ -84,29 +84,14 @@ pub static MINIMAL_HTML_BODY_TEMPLATE: &str = r#"
 {%- endfor %}
 {% raw %}{%- endfor %}{% endraw %}"#;
 
-/// The entry point for the HTML body template headers
-pub static MINIMAL_HTML_BODY_TEMPLATE_EXPRESSION: &str = "headers";
-
-/// The entry point for the rendered HTML body template rows
-pub static MINIMAL_HTML_BODY_EXPRESSION: &str = "rows";
-
-#[cfg(test)]
-mod tests {
+pub mod test_minimal_html {
     use std::sync::Arc;
 
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
-    use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
-        TableTrait,
-    };
-    use serde_json::Map;
 
-    use super::*;
-
-    #[test]
-    fn test_minimal_body_html() -> Result<()> {
-        // Create the dummy data for the headers
+    /// Create the dummy data for the headers
+    pub fn make_html_headers() -> Result<RecordBatch> {
         let start_tag_vec = [
             "<h1>",
             "<p>",
@@ -143,24 +128,10 @@ mod tests {
             ("header", header_arr),
             ("end_tag", end_tag_arr),
         ])?;
-        let table = Table::get_builder()
-            .with_name(MINIMAL_HTML_BODY_TEMPLATE_EXPRESSION)
-            .with_record_batches(vec![batch])?
-            .build()?;
-
-        // Render the html template
-        let mut input_object = Map::new();
-        let _ = input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
-        let template_inputs = serde_json::to_value(input_object)?;
-        let rendered_template = TableScript::new_from_template(MINIMAL_HTML_BODY_TEMPLATE.to_string())
-            .apply_template(&template_inputs)?;
-
-        assert_eq!(
-            rendered_template,
-            "\n{%- for row in rows %}\n<h1>{{row.title}}</h1>\n<p>{{row.version}}</p>\n<p>{{row.description}}</p>\n<h2> Background</h2>\n{%- endfor %}"
-        );
-
-        // Create the dummy data for the html data
+        Ok(batch)
+    }
+    /// Create the dummy data for the html data
+    pub fn make_html_rows() -> Result<RecordBatch> {
         let title_vec = [
             "Title 1",
             "Title 2",
@@ -194,8 +165,46 @@ mod tests {
             ("version", version_arr),
             ("description", description_arr),
         ])?;
+        Ok(batch)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
+        TableTrait,
+    };
+    use serde_json::Map;
+
+    use crate::jinja2_templates::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION};
+
+    use super::*;
+
+    #[test]
+    fn test_minimal_body_html() -> Result<()> {
+        let batch = test_minimal_html::make_html_headers()?;
         let table = Table::get_builder()
-            .with_name(MINIMAL_HTML_BODY_EXPRESSION)
+            .with_name(TEMPLATE_HEADER_EXPRESSION)
+            .with_record_batches(vec![batch])?
+            .build()?;
+
+        // Render the html template
+        let mut input_object = Map::new();
+        let _ = input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
+        let template_inputs = serde_json::to_value(input_object)?;
+        let rendered_template = TableScript::new_from_template(MINIMAL_HTML_BODY_TEMPLATE.to_string())
+            .apply_template(&template_inputs)?;
+
+        assert_eq!(
+            rendered_template,
+            "\n{%- for row in rows %}\n<h1>{{row.title}}</h1>\n<p>{{row.version}}</p>\n<p>{{row.description}}</p>\n<h2> Background</h2>\n{%- endfor %}"
+        );
+
+        let batch = test_minimal_html::make_html_rows()?;
+        let table = Table::get_builder()
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
@@ -209,7 +218,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            ""
+            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n<h1>Title 1</h1>\n<p>Version 1</p>\n<p>Description 1</p>\n<h2> Background</h2>\n<h1>Title 2</h1>\n<p>Version 2</p>\n<p>Description 2</p>\n<h2> Background</h2>\n<h1>Title 3</h1>\n<p>Version 3</p>\n<p>Description 3</p>\n<h2> Background</h2>\n  </body>\n</html>"
         );
         Ok(())
     }

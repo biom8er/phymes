@@ -15,14 +15,11 @@ pub static MERMAID_KANBAN_TEMPLATE: &str = r#"
                 {{ row.task_name }}[{{ row.task_description }}]@{ ticket: {{ row.task_ticket }}, assigned: '{{ row.task_assigned }}'}
 {%- endfor %}"#;
 
-/// The `table_expression` variable name in `DataConfig`
-pub static MERMAID_KANBAN_TABLE_EXPRESSION: &str = "rows";
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
+    use crate::jinja2_templates::{TEMPLATE_TABLE_EXPRESSION, mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
@@ -94,7 +91,7 @@ mod tests {
             ("task_priority", task_priority_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_KANBAN_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 

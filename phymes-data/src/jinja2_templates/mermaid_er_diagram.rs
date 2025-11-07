@@ -25,9 +25,6 @@ pub static MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE: &str = r#"
     {{ row.subject_name }} {{ row.relation_type }} {{ row.object_name }}: "{{ row.relation_content }}"
 {%- endfor %}"#;
 
-/// The `table_expression` variable name in `DataConfig`
-pub static MERMAID_ER_DIAGRAM_TABLE_EXPRESSION: &str = "rows";
-
 /// Input schema for the erDiagram
 pub static MERMAID_ER_DIAGRAM_INPUT: &str = r#"{
 "direction": "{{ direction }}"
@@ -37,7 +34,7 @@ pub static MERMAID_ER_DIAGRAM_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
+    use crate::jinja2_templates::{TEMPLATE_TABLE_EXPRESSION, mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
@@ -91,7 +88,7 @@ mod tests {
             ("attribute_comment", attribute_comment_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_ER_DIAGRAM_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
@@ -133,7 +130,7 @@ mod tests {
             ("relation_content", relation_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_ER_DIAGRAM_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
@@ -155,7 +152,7 @@ mod tests {
         let content_arr: ArrayRef = Arc::new(StringArray::from(content_vec));
         let batch = RecordBatch::try_from_iter(vec![("content", content_arr)])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_ER_DIAGRAM_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 

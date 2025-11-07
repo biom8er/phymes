@@ -21,9 +21,6 @@ pub static MERMAID_GANTT_TEMPLATE: &str = r#"
                 {{ row.task }}:{{ row.start }}, {{ row.end }}
     {%- endfor %}"#;
 
-/// The `table_expression` variable name in `DataConfig`
-pub static MERMAID_GANTT_TABLE_EXPRESSION: &str = "rows";
-
 /// Mermaid.js gantt input jinja2 template
 ///
 /// # Example
@@ -53,7 +50,7 @@ pub static MERMAID_GANTT_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
+    use crate::jinja2_templates::{TEMPLATE_TABLE_EXPRESSION, mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use phymes_core::{
@@ -96,7 +93,7 @@ mod tests {
             ("end", end_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_GANTT_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
