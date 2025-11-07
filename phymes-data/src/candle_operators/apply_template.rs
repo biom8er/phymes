@@ -148,6 +148,7 @@ impl DataOperatorTrait for ApplyTemplate {
 /// # Arguments
 ///
 /// * `lhs_args` - Slice of [RecordBatch]es
+/// * `rhs_args` - Optional Slice of [RecordBatch]es used to generate the template
 /// * `doc_template` - Minijinja [String] template
 /// * `doc_name` - The name of the resulting document
 /// * `table_expression` - The expression for the table within the minijinja template
