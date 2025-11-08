@@ -518,6 +518,8 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::ProcessorEcho)
         } else if line.contains(&AvailableProcessors::CandleDataProcessor.to_string()) {
             Ok(AvailableProcessors::CandleDataProcessor)
+        } else if line.contains(&AvailableProcessors::Pivot.to_string()) {
+            Ok(AvailableProcessors::Pivot)
         } else if line.contains(&AvailableProcessors::ApplyTemplate.to_string()) {
             Ok(AvailableProcessors::ApplyTemplate)
         } else if line.contains(&AvailableProcessors::VectorDistance.to_string()) {
