@@ -60,7 +60,8 @@ fn mermaid_js() -> Element {
                     mermaid.initialize({
                         theme: "dark",
                         startOnLoad: false,
-                        securityLevel: "loose"
+                        securityLevel: "loose",
+                        suppressErrorRendering: true
                     });
                 });
                 "#
@@ -76,7 +77,8 @@ fn mermaid_js() -> Element {
                 mermaid.initialize({
                     theme: "dark",
                     startOnLoad: false,
-                    securityLevel: "loose"
+                    securityLevel: "loose",
+                    suppressErrorRendering: true
                 });
                 "#
             );
@@ -90,7 +92,8 @@ fn mermaid_js() -> Element {
         //             mermaid.initialize({{
         //                 theme: "dark",
         //                 startOnLoad: false,
-        //                 securityLevel: "loose"
+        //                 securityLevel: "loose",
+        //                 suppressErrorRendering: true
         //             }});
         //         }});
         //         "#).as_str()
