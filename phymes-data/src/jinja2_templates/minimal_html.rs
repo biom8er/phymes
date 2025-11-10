@@ -76,7 +76,7 @@ pub static MINIMAL_HTML_POST: &str = r#"
 pub static MINIMAL_HTML_BODY_TEMPLATE: &str = r#"
 {% raw %}{%- for row in rows %}{% endraw %}
 {%- for header in headers %}
-    {%- if header.header %}
+    {%- if header.header and header.header != "NULL" %}
 {{ header.start_tag }}{% raw %}{{{% endraw %}row.{{ header.header }}{% raw %}}}{% endraw %}{{ header.end_tag }}
     {%- else %}
 {{ header.start_tag }}

@@ -8,7 +8,7 @@ pub static MINIMAL_FIGURE_TEMPLATE: &str = r#"
 {%- for row in rows %}
 <div>
     <figure>
-        <img src="{{ row.src }}" alt="{{ row.alt }}" style="{{ row.style }}">
+        <img src='{{ row.src }}' alt='{{ row.alt }}' style='{{ row.style }}'>
         <figcaption>{{ row.caption }}</figcaption>
     </figure>
 </div>

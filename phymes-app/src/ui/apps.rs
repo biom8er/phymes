@@ -422,8 +422,8 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
     let mut diagram_svg = use_signal(String::new);
     let mut error_mjs = use_signal(String::new);
     let id = use_signal(|| "graphDiv".to_string());
-    /// Temporary DOM elemented created by Mermaid.js breaks Dioxus
-    /// when the actual SVG target ID is used...
+    // Temporary DOM elemented created by Mermaid.js breaks Dioxus
+    // when the actual SVG target ID is used...
     let id_decoy = use_signal(|| "GraphDiv".to_string());
 
     // Render the mermaid.js diagram

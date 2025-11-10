@@ -189,6 +189,7 @@ impl Display for DataDistanceOperator {
 /// 1. Check if conversion is possible <https://arrow.apache.org/rust/arrow_cast/cast/fn.can_cast_types.html>
 /// 2. Convert between types <https://arrow.apache.org/rust/arrow_cast/cast/fn.cast_with_options.html>
 /// 3. Encode/Decode Base64 <https://arrow.apache.org/rust/arrow_cast/base64/index.html> with BASE64_URL_SAFE_NO_PAD engine
+/// 4. Convert a List-UInt8 (Bytes) to Utf8
 ///
 /// Casting allows for applying a [String] template for formatting
 ///
@@ -203,6 +204,8 @@ pub enum DataCastOperator {
     // Base64Decode,
     #[value(name = "Cast")]
     Cast,
+    #[value(name = "BytesToString")]
+    BytesToString,
     #[value(name = "None")]
     None,
 }
@@ -213,6 +216,7 @@ impl Display for DataCastOperator {
             // Self::Base64Encode => write!(f, "Base64Encode"),
             // Self::Base64Decode => write!(f, "Base64Decode"),
             Self::Cast => write!(f, "Cast"),
+            Self::BytesToString => write!(f, "BytesToString"),
             Self::None => write!(f, "None"),
         }
     }
