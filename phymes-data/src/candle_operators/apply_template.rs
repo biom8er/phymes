@@ -191,8 +191,14 @@ pub fn apply_template(
         // Apply the template to create the actual template
         TableScript::new_from_template(doc_template.to_template()).apply_template(&input)?
     // 2. Use the lhs_args fields to help generate the template
-    } else if doc_template.has_headers() {    
-        let headers = lhs_args.first().unwrap().schema().fields().iter().map(|f| f.name().to_string()).collect::<Vec<_>>();
+    } else if doc_template.has_headers() {
+        let headers = lhs_args.first()
+            .ok_or(anyhow!("lhs_args is empty for apply_template."))?
+            .schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect::<Vec<_>>();
         let input = json!({TEMPLATE_HEADER_EXPRESSION.to_string(): headers});
 
         // Apply the template to create the actual template

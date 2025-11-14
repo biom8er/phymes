@@ -55,6 +55,8 @@ pub enum DataAggregatorOperator {
     Count,
     #[value(name = "Concat")]
     Concat,
+    #[value(name = "List")]
+    List,
     // #[value(name = "Set")]
     // Set,
     // #[value(name = "First")]
@@ -73,6 +75,7 @@ impl Display for DataAggregatorOperator {
             Self::Var => write!(f, "Var"),
             Self::Count => write!(f, "Count"),
             Self::Concat => write!(f, "Concat"),
+            Self::List => write!(f, "List"),
         }
     }
 }
