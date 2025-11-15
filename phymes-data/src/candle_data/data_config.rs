@@ -39,6 +39,17 @@ impl Display for DataStreamManager {
 }
 
 /// Data Aggregation (Reduction) operators
+/// 
+/// # Notes
+/// - Max, Min, Sum, Mean, and Var can only be applied to non-nested primitive [DataType]s
+/// - Count can be applied to all [DataType]s and generates a UInt32Array
+/// - Concat can only be applied to Utf8 [DataType] to generate a new Utf8 [DataType] by joining the [String]s together
+/// - List and Set can be applied to all [DataType]s.
+///   Non-nested primitive and non-primitive [DataType]s will generate a nested primitive or non-primitive Array.
+///   Nested primitive or non-primitive [DataType]s will maintain the nested primitive or non-primitive Array through extension of the list or set.
+/// - First and Last can be applied to all [DataType]s.
+/// 
+/// [DataType]: arrow::datatypes::DataType
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataAggregatorOperator {
     #[value(name = "Max")]
@@ -57,12 +68,12 @@ pub enum DataAggregatorOperator {
     Concat,
     #[value(name = "List")]
     List,
-    // #[value(name = "Set")]
-    // Set,
-    // #[value(name = "First")]
-    // First,
-    // #[value(name = "Last")]
-    // Last,
+    #[value(name = "Set")]
+    Set,
+    #[value(name = "First")]
+    First,
+    #[value(name = "Last")]
+    Last,
 }
 
 impl Display for DataAggregatorOperator {
@@ -76,6 +87,9 @@ impl Display for DataAggregatorOperator {
             Self::Count => write!(f, "Count"),
             Self::Concat => write!(f, "Concat"),
             Self::List => write!(f, "List"),
+            Self::Set => write!(f, "Set"),
+            Self::First => write!(f, "First"),
+            Self::Last => write!(f, "Last"),
         }
     }
 }
