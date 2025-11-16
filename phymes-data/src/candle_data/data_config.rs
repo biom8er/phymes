@@ -41,13 +41,13 @@ impl Display for DataStreamManager {
 /// Data Aggregation (Reduction) operators
 /// 
 /// # Notes
-/// - Max, Min, Sum, Mean, and Var can only be applied to non-nested primitive [DataType]s
-/// - Count can be applied to all [DataType]s and generates a UInt32Array
-/// - Concat can only be applied to Utf8 [DataType] to generate a new Utf8 [DataType] by joining the [String]s together
-/// - List and Set can be applied to all [DataType]s.
+/// - `Max`, `Min`, `Sum`, `Mean`, and `Var` can only be applied to non-nested primitive [DataType]s
+/// - `Count` can be applied to all [DataType]s and generates a UInt32Array
+/// - `Concat` can only be applied to Utf8 [DataType] to generate a new Utf8 [DataType] by joining the [String]s together
+/// - `List` and `Set` can be applied to all primitive [DataType]s except floats.
 ///   Non-nested primitive and non-primitive [DataType]s will generate a nested primitive or non-primitive Array.
 ///   Nested primitive or non-primitive [DataType]s will maintain the nested primitive or non-primitive Array through extension of the list or set.
-/// - First and Last can be applied to all [DataType]s.
+/// - `First` and `Last` can be applied to all [DataType]s.
 /// 
 /// [DataType]: arrow::datatypes::DataType
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
