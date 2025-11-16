@@ -3,11 +3,11 @@ use std::{collections::HashMap, fmt::Display, ops::Range, sync::Arc};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        ArrayData, ArrayRef, FixedSizeListArray, Float32Array, Float64Array, Int64Array, ListArray, ListBuilder, RecordBatch, StringArray, StringBuilder, UInt8Array, UInt32Array
+        ArrayData, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, Float32Array, Float64Array, Int64Array, ListArray, ListBuilder, PrimitiveBuilder, RecordBatch, StringArray, StringBuilder, UInt8Array, UInt32Array
     },
     buffer::Buffer,
     compute::kernels::partition::partition,
-    datatypes::{ArrowNativeType, DataType, Field, Schema},
+    datatypes::{ArrowNativeType, DataType, Field, Float32Type, Float64Type, Int64Type, Schema, UInt8Type, UInt32Type},
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
@@ -285,7 +285,27 @@ where
 }
 
 /// Helper function to build a list primitive type
-pub fn build_aggregator_column_list_primitive<T>(agg_vec: Vec<Vec<T>>, data_type: DataType) -> ArrayRef
+pub fn build_aggregator_column_list_primitive<T, D>(agg_vec: Vec<Vec<T>>, data_type: DataType) -> ArrayRef
+where
+    T: ArrowNativeType + 'static,
+    D: ArrowPrimitiveType<Native = T> + 'static, 
+{   
+    let value_builder = PrimitiveBuilder::<D>::new();
+    let mut list_builder = ListBuilder::new(value_builder)
+        .with_field(Field::new_list_field(data_type, false));
+    for values in agg_vec {
+        list_builder.values().append_slice(values.as_slice());
+        list_builder.append(true);
+    }
+    Arc::new(list_builder.finish())
+}
+
+/// Helper function to build a list primitive type
+/// 
+/// # Note
+/// - This method appears to fail for dim_0 = 1 or dim_1 = 1
+/// - Recommend to use [build_aggregator_column_list_primitive] which uses the recommended [ListBuilder]
+pub fn build_aggregator_column_list_primitive_v1<T>(agg_vec: Vec<Vec<T>>, data_type: DataType) -> ArrayRef
 where
     T: ArrowNativeType + 'static,
 {
@@ -512,7 +532,7 @@ pub fn group_by_and_aggregate(
                         &lhs_table,
                         &ranges,
                     );
-                    build_aggregator_column_list_primitive::<u8>(agg_vec, DataType::UInt8)
+                    build_aggregator_column_list_primitive::<u8, UInt8Type>(agg_vec, DataType::UInt8)
                 }
                 DataType::UInt32 => {
                     let agg_vec = extract_aggregator_column_nested_primitive::<u32>(
@@ -520,7 +540,7 @@ pub fn group_by_and_aggregate(
                         &lhs_table,
                         &ranges,
                     );
-                    build_aggregator_column_list_primitive::<u32>(agg_vec, DataType::UInt32)
+                    build_aggregator_column_list_primitive::<u32, UInt32Type>(agg_vec, DataType::UInt32)
                 }
                 DataType::Int64 => {
                     let agg_vec = extract_aggregator_column_nested_primitive::<i64>(
@@ -528,7 +548,7 @@ pub fn group_by_and_aggregate(
                         &lhs_table,
                         &ranges,
                     );
-                    build_aggregator_column_list_primitive::<i64>(agg_vec, DataType::Int64)
+                    build_aggregator_column_list_primitive::<i64, Int64Type>(agg_vec, DataType::Int64)
                 }
                 DataType::Float32 => {
                     let agg_vec = extract_aggregator_column_nested_primitive::<f32>(
@@ -536,7 +556,7 @@ pub fn group_by_and_aggregate(
                         &lhs_table,
                         &ranges,
                     );
-                    build_aggregator_column_list_primitive::<f32>(agg_vec, DataType::Float32)
+                    build_aggregator_column_list_primitive::<f32, Float32Type>(agg_vec, DataType::Float32)
                 }
                 DataType::Float64 => {
                     let agg_vec = extract_aggregator_column_nested_primitive::<f64>(
@@ -544,7 +564,7 @@ pub fn group_by_and_aggregate(
                         &lhs_table,
                         &ranges,
                     );
-                    build_aggregator_column_list_primitive::<f64>(agg_vec, DataType::Float64)
+                    build_aggregator_column_list_primitive::<f64, Float64Type>(agg_vec, DataType::Float64)
                 }
                 _ => {
                     return Err(anyhow!(
@@ -950,7 +970,7 @@ pub fn group_by_and_aggregate(
                                 .to_owned();
                             agg_values.push(agg_value);
                         }
-                        build_aggregator_column_list_primitive(agg_values, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<u8, UInt8Type>(agg_values, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::UInt32 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -974,7 +994,7 @@ pub fn group_by_and_aggregate(
                                 .to_owned();
                             agg_values.push(agg_value);
                         }
-                        build_aggregator_column_list_primitive(agg_values, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<u32, UInt32Type>(agg_values, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::Int64 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -998,7 +1018,7 @@ pub fn group_by_and_aggregate(
                                 .to_owned();
                             agg_values.push(agg_value);
                         }
-                        build_aggregator_column_list_primitive(agg_values, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<i64, Int64Type>(agg_values, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::Float32 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1022,7 +1042,7 @@ pub fn group_by_and_aggregate(
                                 .to_owned();
                             agg_values.push(agg_value);
                         }
-                        build_aggregator_column_list_primitive(agg_values, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<f32, Float32Type>(agg_values, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::Float64 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1046,7 +1066,7 @@ pub fn group_by_and_aggregate(
                                 .to_owned();
                             agg_values.push(agg_value);
                         }
-                        build_aggregator_column_list_primitive(agg_values, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<f64, Float64Type>(agg_values, lhs_table.get_column_data_type(agg_column)?)
                     },
                     _ => {
                         return Err(anyhow!(
@@ -1360,7 +1380,7 @@ pub fn group_by_and_aggregate(
                                 .to_owned();
                             agg_values.push(agg_value);
                         }
-                        build_aggregator_column_list_primitive(agg_values, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<u8, UInt8Type>(agg_values, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::UInt32 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1384,7 +1404,7 @@ pub fn group_by_and_aggregate(
                                 .to_owned();
                             agg_values.push(agg_value);
                         }
-                        build_aggregator_column_list_primitive(agg_values, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<u32, UInt32Type>(agg_values, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::Int64 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1408,7 +1428,7 @@ pub fn group_by_and_aggregate(
                                 .to_owned();
                             agg_values.push(agg_value);
                         }
-                        build_aggregator_column_list_primitive(agg_values, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<i64, Int64Type>(agg_values, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::Float32 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1432,7 +1452,7 @@ pub fn group_by_and_aggregate(
                                 .to_owned();
                             agg_values.push(agg_value);
                         }
-                        build_aggregator_column_list_primitive(agg_values, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<f32, Float32Type>(agg_values, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::Float64 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1456,7 +1476,7 @@ pub fn group_by_and_aggregate(
                                 .to_owned();
                             agg_values.push(agg_value);
                         }
-                        build_aggregator_column_list_primitive(agg_values, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<f64, Float64Type>(agg_values, lhs_table.get_column_data_type(agg_column)?)
                     },
                     _ => {
                         return Err(anyhow!(
@@ -1489,7 +1509,7 @@ pub fn group_by_and_aggregate(
                             .collect::<Vec<_>>()
                         )
                         .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<u8>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                    build_aggregator_column_list_primitive::<u8, UInt8Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                 },
                 DataType::UInt32 => {
                     let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1506,7 +1526,8 @@ pub fn group_by_and_aggregate(
                             .collect::<Vec<_>>()
                         )
                         .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<u32>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                    dbg!(&agg_vecs);
+                    build_aggregator_column_list_primitive::<u32, UInt32Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                 },
                 DataType::Int64 => {
                     let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1523,7 +1544,7 @@ pub fn group_by_and_aggregate(
                             .collect::<Vec<_>>()
                         )
                         .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<i64>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                    build_aggregator_column_list_primitive::<i64, Int64Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                 },
                 DataType::Float32 => {
                     let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1540,7 +1561,7 @@ pub fn group_by_and_aggregate(
                             .collect::<Vec<_>>()
                         )
                         .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<f32>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                    build_aggregator_column_list_primitive::<f32, Float32Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                 },
                 DataType::Float64 => {
                     let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1557,7 +1578,7 @@ pub fn group_by_and_aggregate(
                             .collect::<Vec<_>>()
                         )
                         .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<f64>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                    build_aggregator_column_list_primitive::<f64, Float64Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                 },
                 DataType::Utf8 => {
                     let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1692,7 +1713,7 @@ pub fn group_by_and_aggregate(
                                 .collect::<Vec<_>>()
                             )
                             .collect::<Vec<_>>();
-                        build_aggregator_column_list_primitive(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<u8, UInt8Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::UInt32 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1710,7 +1731,7 @@ pub fn group_by_and_aggregate(
                                 .collect::<Vec<_>>()
                             )
                             .collect::<Vec<_>>();
-                        build_aggregator_column_list_primitive(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<u32, UInt32Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::Int64 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1728,7 +1749,7 @@ pub fn group_by_and_aggregate(
                                 .collect::<Vec<_>>()
                             )
                             .collect::<Vec<_>>();
-                        build_aggregator_column_list_primitive(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<i64, Int64Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::Float32 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1746,7 +1767,7 @@ pub fn group_by_and_aggregate(
                                 .collect::<Vec<_>>()
                             )
                             .collect::<Vec<_>>();
-                        build_aggregator_column_list_primitive(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<f32, Float32Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::Float64 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1764,7 +1785,7 @@ pub fn group_by_and_aggregate(
                                 .collect::<Vec<_>>()
                             )
                             .collect::<Vec<_>>();
-                        build_aggregator_column_list_primitive(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<f64, Float64Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                     },
                     _ => {
                         return Err(anyhow!(
@@ -1799,7 +1820,7 @@ pub fn group_by_and_aggregate(
                             .collect::<Vec<_>>()
                         )
                         .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<u8>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                    build_aggregator_column_list_primitive::<u8, UInt8Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                 },
                 DataType::UInt32 => {
                     let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1818,7 +1839,7 @@ pub fn group_by_and_aggregate(
                             .collect::<Vec<_>>()
                         )
                         .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<u32>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                    build_aggregator_column_list_primitive::<u32, UInt32Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                 },
                 DataType::Int64 => {
                     let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1837,7 +1858,7 @@ pub fn group_by_and_aggregate(
                             .collect::<Vec<_>>()
                         )
                         .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<i64>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                    build_aggregator_column_list_primitive::<i64, Int64Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                 },
                 DataType::Utf8 => {
                     let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1946,7 +1967,7 @@ pub fn group_by_and_aggregate(
                                 .collect::<Vec<_>>()
                             )
                             .collect::<Vec<_>>();
-                        build_aggregator_column_list_primitive(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<u8, UInt8Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::UInt32 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1966,7 +1987,7 @@ pub fn group_by_and_aggregate(
                                 .collect::<Vec<_>>()
                             )
                             .collect::<Vec<_>>();
-                        build_aggregator_column_list_primitive(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<u32, UInt32Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                     },
                     DataType::Int64 => {
                         let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
@@ -1986,7 +2007,7 @@ pub fn group_by_and_aggregate(
                                 .collect::<Vec<_>>()
                             )
                             .collect::<Vec<_>>();
-                        build_aggregator_column_list_primitive(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
+                        build_aggregator_column_list_primitive::<i64, Int64Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                     },
                     _ => {
                         return Err(anyhow!(
@@ -2002,9 +2023,6 @@ pub fn group_by_and_aggregate(
                         lhs_table.get_column_data_type(agg_column)?
                     ));
                 }
-            },
-            _ => {
-                return Err(anyhow!("Unsupported aggregator operator {agg_operator} for column {agg_column}"));
             }
         };
         let columns_name = create_agg_column_name(agg_column, agg_operator);
@@ -2056,7 +2074,9 @@ mod tests {
         let result = group_by_and_aggregate(
             &["lhs_text"],
             &[lhs_batch_1, lhs_batch_2],
-            &["lhs_pk", "lhs_pk", "lhs_pk", "lhs_pk", "lhs_metadata", "lhs_metadata", "lhs_metadata", "lhs_metadata"],
+            &["lhs_pk", "lhs_pk", "lhs_pk", "lhs_pk", "lhs_metadata", "lhs_metadata", 
+                "lhs_metadata", "lhs_metadata"
+            ],
             &[
                 DataAggregatorOperator::Concat,
                 DataAggregatorOperator::Count,
@@ -2083,7 +2103,9 @@ mod tests {
         let lhs_id = result_table.get_column_as_vec_nested_nonprimitive::<String>("lhs_pk-List")?;
         assert_eq!(lhs_id, [["0","1","2","3"]]);
         let lhs_id = result_table.get_column_as_vec_nested_nonprimitive::<String>("lhs_pk-Set")?;
-        assert_eq!(lhs_id, [["0","1","2","3"]]);
+        let mut lhs_id_sort = lhs_id.into_iter().flatten().collect::<Vec<_>>();
+        lhs_id_sort.sort();
+        assert_eq!(lhs_id_sort, ["0","1","2","3"]);
         let metadata = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata-Sum")?;
         assert_eq!(metadata, [10]);
         let metadata = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata-Max")?;
@@ -2091,7 +2113,9 @@ mod tests {
         let metadata = result_table.get_column_as_vec_nested_primitive::<u32>("lhs_metadata-List")?;
         assert_eq!(metadata, [[1,2,3,4]]);
         let metadata = result_table.get_column_as_vec_nested_primitive::<u32>("lhs_metadata-Set")?;
-        assert_eq!(metadata, [[1,2,3,4]]);
+        let mut metadata_sort = metadata.into_iter().flatten().collect::<Vec<_>>();
+        metadata_sort.sort();
+        assert_eq!(metadata_sort, [1,2,3,4]);
 
         // ------ lhs_values = String, u32 ------
         // Make the test record batches
