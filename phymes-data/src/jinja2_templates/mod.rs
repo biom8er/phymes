@@ -15,6 +15,7 @@ mod mermaid_xychart;
 mod minimal_html;
 mod minimal_figures;
 mod minimal_list;
+mod minimal_code;
 mod minimal_table;
 
 pub use available_jinja2_templates::AvailableJinja2Templates;

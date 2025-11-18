@@ -1526,7 +1526,6 @@ pub fn group_by_and_aggregate(
                             .collect::<Vec<_>>()
                         )
                         .collect::<Vec<_>>();
-                    dbg!(&agg_vecs);
                     build_aggregator_column_list_primitive::<u32, UInt32Type>(agg_vecs, lhs_table.get_column_data_type(agg_column)?)
                 },
                 DataType::Int64 => {

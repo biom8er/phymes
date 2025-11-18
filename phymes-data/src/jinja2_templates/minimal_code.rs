@@ -1,25 +1,31 @@
 /// HTML5 table jinja2 template
 ///
-/// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/ul>
-/// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/ol>
-pub static MINIMAL_LIST_TEMPLATE: &str = r#"
-{%- if ordered %}
-<ol>
+/// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/code>
+/// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/pre>
+/// 
+/// # Notes:
+/// - only `code` element is supported
+/// - `samp` element is not yet fully supported
+/// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/samp>
+/// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/kbd>
+pub static MINIMAL_PRECODE_TEMPLATE: &str = r#"
+{%- if samp %}
+<pre><samp>
 {%- else %}
-<ul>
+<pre><code>
 {%- endif %}
 {%- for row in rows %}
-    <li>{{ row.item }}</li>
+{{ row.item }}
 {%- endfor %}
-{%- if ordered %}
-</ol>
+{%- if samp %}
+</samp></pre>
 {%- else %}
-</ul>
+</code></pre>
 {%- endif %}"#;
 
 /// HTML table input jinja2 template
-pub static MINIMAL_LIST_INPUT: &str = r#"{
-"ordered": "{{ ordered }}"
+pub static MINIMAL_PRECODE_INPUT: &str = r#"{
+"samp": "{{ samp }}"
 }"#;
 
 #[cfg(test)]
@@ -38,15 +44,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_minimal_list_html() -> Result<()> {
+    fn test_minimal_code_html() -> Result<()> {
         // Create the dummy data for the table
         let item_vec = [
-            "Item 1",
-            "Item 2",
-            "Item 3",
-            "Item 4",
-            "Item 5",
-            "Item 6",
+            "y1 = m*x1 + b1;",
+            "y2 = m*x2 + b2;",
+            "y3 = m*x3 + b3;",
         ]
         .into_iter()
         .map(|s| s.to_string())
@@ -63,9 +66,9 @@ mod tests {
 
         // Create the input for the template
         let inputs = serde_json::json!({
-            "ordered": "",
+            "samp": "",
         });
-        let input_string = TableScript::new_from_template(MINIMAL_LIST_INPUT.to_string())
+        let input_string = TableScript::new_from_template(MINIMAL_PRECODE_INPUT.to_string())
             .apply_template(&inputs)?
             .lines()
             .map(|line| line.trim())
@@ -80,7 +83,7 @@ mod tests {
         // Create and render the template with the inputs
         let template = [
             MINIMAL_HTML_PRE,
-            MINIMAL_LIST_TEMPLATE,
+            MINIMAL_PRECODE_TEMPLATE,
             MINIMAL_HTML_POST,
         ]
         .join("");
@@ -89,7 +92,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n<ul>\n    <li>Item 1</li>\n    <li>Item 2</li>\n    <li>Item 3</li>\n    <li>Item 4</li>\n    <li>Item 5</li>\n    <li>Item 6</li>\n</ul>\n  </body>\n</html>"
+            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n<pre><code>\ny1 = m*x1 + b1;\ny2 = m*x2 + b2;\ny3 = m*x3 + b3;\n</code></pre>\n  </body>\n</html>"
         );
         Ok(())
     }
