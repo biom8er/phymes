@@ -4,12 +4,7 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE,
-    MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_LINKS_TEMPLATE,
-    MERMAID_FLOWCHART_NODES_TEMPLATE, MERMAID_FLOWCHART_TEMPLATE, MERMAID_GANTT_TEMPLATE,
-    MERMAID_HTML_POST, MERMAID_HTML_PRE, MERMAID_KANBAN_TEMPLATE,
-    MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE,
-    MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_XYCHART_TEMPLATE, jinja2_templates::{MINIMAL_FIGURE_TEMPLATE, MINIMAL_HTML_BODY_TEMPLATE, MINIMAL_HTML_POST, MINIMAL_HTML_PRE, MINIMAL_LIST_TEMPLATE, MINIMAL_TABLE_TEMPLATE},
+    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_LINKS_TEMPLATE, MERMAID_FLOWCHART_NODES_TEMPLATE, MERMAID_FLOWCHART_TEMPLATE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST, MERMAID_HTML_PRE, MERMAID_KANBAN_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_XYCHART_TEMPLATE, MINIMAL_CODE_TEMPLATE, jinja2_templates::{MINIMAL_FIGURE_TEMPLATE, MINIMAL_HTML_BODY_TEMPLATE, MINIMAL_HTML_POST, MINIMAL_HTML_PRE, MINIMAL_LIST_TEMPLATE, MINIMAL_TABLE_TEMPLATE}
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -67,6 +62,10 @@ pub enum AvailableJinja2Templates {
     MinimalHTMLFiguresTemplate,
     #[value(name = "MinimalHTMLFiguresHTML")]
     MinimalHTMLFiguresHTML,
+    #[value(name = "MinimalHTMLCodeTemplate")]
+    MinimalHTMLCodeTemplate,
+    #[value(name = "MinimalHTMLCodeHTML")]
+    MinimalHTMLCodeHTML,
     #[value(skip)]
     Custom(String),
 }
@@ -153,6 +152,13 @@ impl AvailableJinja2Templates {
                 MINIMAL_HTML_POST,
             ]
             .join(""),
+            Self::MinimalHTMLCodeTemplate => MINIMAL_CODE_TEMPLATE.to_string(),
+            Self::MinimalHTMLCodeHTML => [
+                MINIMAL_HTML_PRE,
+                MINIMAL_CODE_TEMPLATE,
+                MINIMAL_HTML_POST,
+            ]
+            .join(""),
             Self::Custom(s) => s.to_string(),
         }
     }
@@ -181,6 +187,8 @@ impl AvailableJinja2Templates {
             | Self::MinimalHTMLListHTML
             | Self::MinimalHTMLFiguresTemplate
             | Self::MinimalHTMLFiguresHTML
+            | Self::MinimalHTMLCodeTemplate
+            | Self::MinimalHTMLCodeHTML
             | Self::Custom(_) => false,
             Self::MinimalHTMLTableTemplate
             | Self::MinimalHTMLTableHTML
@@ -225,6 +233,8 @@ impl Display for AvailableJinja2Templates {
             Self::MinimalHTMLListHTML => write!(f, "MinimalHTMLListHTML"),
             Self::MinimalHTMLFiguresTemplate => write!(f, "MinimalHTMLFiguresTemplate"),
             Self::MinimalHTMLFiguresHTML => write!(f, "MinimalHTMLFiguresHTML"),
+            Self::MinimalHTMLCodeTemplate => write!(f, "MinimalHTMLCodeTemplate"),
+            Self::MinimalHTMLCodeHTML => write!(f, "MinimalHTMLCodeHTML"),
             Self::Custom(s) => write!(f, "{s}"),
         }
     }

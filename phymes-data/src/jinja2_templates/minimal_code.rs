@@ -8,7 +8,7 @@
 /// - `samp` element is not yet fully supported
 /// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/samp>
 /// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/kbd>
-pub static MINIMAL_PRECODE_TEMPLATE: &str = r#"
+pub static MINIMAL_CODE_TEMPLATE: &str = r#"
 {%- if samp %}
 <pre><samp>
 {%- else %}
@@ -24,7 +24,7 @@ pub static MINIMAL_PRECODE_TEMPLATE: &str = r#"
 {%- endif %}"#;
 
 /// HTML table input jinja2 template
-pub static MINIMAL_PRECODE_INPUT: &str = r#"{
+pub static MINIMAL_CODE_INPUT: &str = r#"{
 "samp": "{{ samp }}"
 }"#;
 
@@ -68,7 +68,7 @@ mod tests {
         let inputs = serde_json::json!({
             "samp": "",
         });
-        let input_string = TableScript::new_from_template(MINIMAL_PRECODE_INPUT.to_string())
+        let input_string = TableScript::new_from_template(MINIMAL_CODE_INPUT.to_string())
             .apply_template(&inputs)?
             .lines()
             .map(|line| line.trim())
@@ -83,7 +83,7 @@ mod tests {
         // Create and render the template with the inputs
         let template = [
             MINIMAL_HTML_PRE,
-            MINIMAL_PRECODE_TEMPLATE,
+            MINIMAL_CODE_TEMPLATE,
             MINIMAL_HTML_POST,
         ]
         .join("");

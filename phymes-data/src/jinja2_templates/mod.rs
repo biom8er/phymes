@@ -44,3 +44,4 @@ pub use minimal_html::{test_minimal_html, MINIMAL_HTML_BODY_TEMPLATE, MINIMAL_HT
 pub use minimal_table::{MINIMAL_TABLE_INPUT, MINIMAL_TABLE_TEMPLATE};
 pub use minimal_list::{MINIMAL_LIST_INPUT, MINIMAL_LIST_TEMPLATE};
 pub use minimal_figures::MINIMAL_FIGURE_TEMPLATE;
+pub use minimal_code::{MINIMAL_CODE_INPUT, MINIMAL_CODE_TEMPLATE};
