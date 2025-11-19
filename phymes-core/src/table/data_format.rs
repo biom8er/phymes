@@ -67,6 +67,12 @@ pub enum DataFormat {
     /// HTML format
     #[value(name = "Txt")]
     Txt,
+    /// XML format
+    #[value(name = "Xml")]
+    Xml,
+    /// OWL format
+    #[value(name = "Owl")]
+    Owl,
 }
 
 impl DataFormat {
@@ -80,9 +86,11 @@ impl DataFormat {
             "ipc" => DataFormat::Ipc,
             "html" => DataFormat::Html,
             "txt" => DataFormat::Txt,
+            "Xml" => DataFormat::Xml,
+            "Owl" => DataFormat::Owl,
             _ => {
                 return Err(anyhow!(
-                    "File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, .txt, and .html"
+                    "File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, .txt, .xml,, .owl, and .html"
                 ));
             }
         };
@@ -99,6 +107,8 @@ impl DataFormat {
             Self::Pdf => "pdf",
             Self::Html => "html",
             Self::Txt => "txt",
+            Self::Xml => "Xml",
+            Self::Owl => "Owl",
             Self::None => "",
         }
     }
@@ -116,6 +126,8 @@ impl Display for DataFormat {
             Self::Pdf => write!(f, "Pdf"),
             Self::Html => write!(f, "Html"),
             Self::Txt => write!(f, "Txt"),
+            Self::Xml => write!(f, "Xml"),
+            Self::Owl => write!(f, "Owl"),
             Self::None => write!(f, "None"),
         }
     }

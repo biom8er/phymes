@@ -4,6 +4,7 @@ mod chunk_documents;
 mod data_operator;
 mod extract_pdf_text;
 mod extract_tabular_data;
+mod extract_xml_tags;
 mod filter_columns_and_indices;
 mod group_by_and_aggregate;
 mod human_in_the_loop;
