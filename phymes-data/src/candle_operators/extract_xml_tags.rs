@@ -419,7 +419,6 @@ impl Display for XMLTags {
 /// * `as_columns` - Slice of Strings for the columns of extracted data
 /// * `xml_tags` - The tags in the XML to extract
 /// * `xml_attributes` - The possible attributes of a tag in the XML to extract
-/// * `xml_events` - The possible events in the XML to extract
 /// 
 /// # Notes
 /// * Basic parsing of tags with a flat hierarchy is currently supported
@@ -457,49 +456,56 @@ pub fn extract_xml_tags(
     let mut buf = Vec::new();
     let mut parse = Vec::new();
     let mut data = Vec::new();
-    let mut tag = None;
-    let mut current_object: Option<HashMap<String, Vec<String>>> = None;
+    let mut subjects = Vec::new();
+    let mut predicates: Vec<HashMap<String, Vec<String>>> = Vec::new();
     while let Ok(event) = reader.read_event_into(&mut buf) {
         match event {
+            Event::Empty(ref e) => {
+                // Parse the tag attribute objects
+                let attributes = e.attributes()
+                    .flatten()
+                    .map(|attr| (String::from_utf8_lossy(attr.key.as_ref()).to_string(), String::from_utf8_lossy(&attr.value).to_string()))
+                    .collect::<Vec<_>>();
+
+                // Update the rows with the new triple(s)
+            },
+            Event::Text(ref e) => {
+                // Parse the literal object
+                todo!()
+            },
             Event::Start(ref e) => {
+                // Recurse the subject
                 let start_tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
-                if let Some(tag) = tag {
-                    if tag.as_str() != start_tag {
-                        // continue
-                    }
-                } else {
-                    tag.replace(start_tag.to_string());
-                }
+                subjects.push(start_tag);
+                
+                // Parse the tag attributes for the subject if any
+                let attributes = e.attributes()
+                    .flatten()
+                    .map(|attr| (String::from_utf8_lossy(attr.key.as_ref()).to_string(), String::from_utf8_lossy(&attr.value).to_string()))
+                    .collect::<Vec<_>>();
 
-                // Valid XML tag
-                if let Ok(xml_tag) = XMLTags::from_str(&tag, false) {
-                    if !tags.contains(&xml_tag) {
-                        continue;
-                    }
-
-                    // Parse the tag contents
-                    let parsed = xml_tag.parse(e, &mut reader, &mut parse);
-                    parse.clear();
-
-                    // Update the current object
-                    if let Some(obj) = current_object.as_mut() {
-                        if let Some(val) = obj.get_mut(&xml_tag.to_string()) {
-                            val.extend(parsed);
-                        } else {
-                            obj.insert(xml_tag.to_string(), parsed);
-                        }                        
+                // Initialize the predicates
+                let obj: HashMap<String, Vec<String>> = HashMap::new();
+                for (k, v) in attributes {
+                    if let Some(val) = obj.get_mut(&k) {
+                        val.push(v);
                     } else {
-                        let mut map = HashMap::new();
-                        map.insert(xml_tag.to_string(), parsed);
-                        current_object.replace(map);
+                        obj.insert(k, vec![v]);
                     }
                 }
+                predicates.push(obj);
             }
             Event::End(ref e) => {
-                let tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
-                // Reset the current object and add to the data rows
-                if let Some(obj) = current_object.take() {
-                    data.push(obj);
+                let end_tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
+                if let Some(tag) = subjects.pop() {
+                    assert_eq!(end_tag, tag);
+                    if let Some(predicates) = predicates.pop() {
+
+                        // Add the data row
+                        for t in subjects {
+
+                        }
+                    }
                 }
             }
             Event::Eof => break,
@@ -510,7 +516,7 @@ pub fn extract_xml_tags(
 
     // Initialize the columns
     let mut columns = HashMap::new();
-    for tag in tags.iter() {
+    for tag in subjects.iter() {
         columns.insert(tag.to_string(), data.iter().map(|_| String::new()).collect::<Vec<_>>());
     }
 
