@@ -6,7 +6,7 @@ use phymes_core::{DataFormat, MappableTrait, Table, TableTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{AvailableJinja2Templates, candle_operators::AvailableCandleOperators};
+use crate::{AvailableJinja2Templates, candle_operators::{AvailableCandleOperators, XMLTags}};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataStreamManager {
@@ -433,7 +433,7 @@ pub struct DataConfig {
     /// Vec of [String]s for the XML tags to extract
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<String>>,
+    pub tags: Option<Vec<XMLTags>>,
 }
 
 impl Default for DataConfig {

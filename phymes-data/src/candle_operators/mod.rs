@@ -28,10 +28,11 @@ pub use pivot::Pivot;
 pub use select_and_cast::SelectAndCast;
 pub use sort_column_and_indices::{SortColumnAndIndices, sort_column_and_indices};
 pub use vector_distance::VectorDistance;
+pub use extract_xml_tags::{XMLTags, extract_xml_tags, ExtractXMLTags};
 
+/// Custom functions specific to diagnostic analytics
 mod from_tasks_to_participants;
 mod from_traces_to_messages;
-/// Custom functions specific to diagnostic analytics
 mod normalize_time;
 
 pub use from_tasks_to_participants::FromTasksToParticipants;
