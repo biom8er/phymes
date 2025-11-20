@@ -429,11 +429,6 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dist_operator: Option<DataDistanceOperator>,
-
-    /// Vec of [String]s for the XML tags to extract
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<XMLTags>>,
 }
 
 impl Default for DataConfig {
@@ -472,7 +467,6 @@ impl Default for DataConfig {
             pvt_columns: None,
             default_values: None,
             dist_operator: None,
-            tags: None,
         }
     }
 }

@@ -17,20 +17,19 @@ use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTr
 
 /// Extract xml tags in either XML or OWL format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ExtractXMLTags {
+pub struct ExtractSetData {
     lhs_values: String,
     format: DataFormat,
     as_columns: Vec<String>,
-    tags: Vec<XMLTags>,
 }
 
-impl MappableTrait for ExtractXMLTags {
+impl MappableTrait for ExtractSetData {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for ExtractXMLTags {
+impl ToolTrait for ExtractSetData {
     fn get_description(&self) -> String {
         "Extract XML data in either XMl or OWL format from Bytes".to_string()
     }
@@ -83,7 +82,7 @@ impl ToolTrait for ExtractXMLTags {
     }
 }
 
-impl DataOperatorTrait for ExtractXMLTags {
+impl DataOperatorTrait for ExtractSetData {
     fn new(config: &DataConfig) -> Result<Self>
     where
         Self: Sized,
@@ -115,25 +114,8 @@ impl DataOperatorTrait for ExtractXMLTags {
                 "Missing `as_columns` for `{}`.",
                 Self::get_static_name()
             ))?;
-        let tags = config
-            .tags
-            .as_ref()
-            .cloned()
-            .ok_or(anyhow!(
-                "Missing `tags` for `{}`.",
-                Self::get_static_name()
-            ))?;
 
-        // Ensure that the array lengths for values, columns, and operators match
-        if as_columns.len() != tags.len() {
-            return Err(anyhow!(
-                "as_columns length {} is not equal to the tags length {}",
-                as_columns.len(),
-                tags.len()
-            ));
-        }
-
-        Ok(ExtractXMLTags { lhs_values, format, as_columns, tags })
+        Ok(ExtractSetData { lhs_values, format, as_columns })
     }
     fn forward(
         &self,
@@ -146,7 +128,7 @@ impl DataOperatorTrait for ExtractXMLTags {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        extract_xml_tags(&self.lhs_values, lhs_args, &self.format, &as_columns, &self.tags)
+        extract_set_data(&self.lhs_values, lhs_args, &self.format, &as_columns)
     }
 }
 
@@ -157,6 +139,25 @@ pub struct XMLElement {
     tag: String,
     /// named attributes for the tag
     attributes: HashMap<String, String>,
+}
+
+/// XML element type
+#[derive(Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
+pub enum XMLType {
+    #[default]
+    #[value(name = "Element")]
+    Element,
+    #[value(name = "Text")]
+    Text,
+}
+
+impl Display for XMLType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Element => write!(f, "Element"),
+            Self::Text => write!(f, "Text"),
+        }
+    }
 }
 
 /// XML Tags with for OWL
@@ -375,31 +376,34 @@ fn parse_xml_tag<'a>(e: &BytesStart<'a>) -> Result<String> {
     Ok(serialized)
 }
 
-/// Extract xml tags in either XML, HTML, or OWL format from Bytes
+/// Extract Set (or Graph data) in XML, HTML, or OWL format from Bytes
 /// 
 /// # Arguments
 /// * `lhs_values` - The column to extract data from (i.e., `bytes`)
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `format` - The format of the bytes
-/// * `as_columns` - Slice of Strings for the columns of extracted data
-/// * `xml_tags` - The tags in the XML to extract
-/// * `xml_attributes` - The possible attributes of a tag in the XML to extract
+/// * `subject_tags` - Slice of Strings for the subject tags to consider (e.g., rdf:Description)
+///   owl:Axiom will only pull out the triples
+///   owl:Class and owl:ObjectProperty will also pull out the annotations for the triples
+/// * `subject_attributes` - Slice of Strings of attributes to identify the subject (i.e., rdf:about)
+/// * `predicate_tags` - Slice of Strings for the predicate tags to consider (e.g., rdfs:label)
+/// * `object_tags` - Slice of Strings for the object tags to consider when the object is not a text value
+/// * `object_attributes` - Slice of Strings of attributes to identify the object within the predicate element (i.e., rdf:resource)
 /// 
 /// # Notes
 /// * Basic parsing of tags with a flat hierarchy is currently supported
 /// * Hierarchical or nested structures are not yet supported
 /// * See <https://github.com/phillord/horned-owl> for a full-fledged OWL parser
-#[instrument(skip(lhs_values, lhs_args, format, as_columns, tags))]
-pub fn extract_xml_tags(
+#[instrument(skip(lhs_values, lhs_args, format, as_columns))]
+pub fn extract_set_data(
     lhs_values: &str,
     lhs_args: &[RecordBatch],
     format: &DataFormat,
     as_columns: &[&str],
-    tags: &[XMLTags],
 ) -> Result<RecordBatch> {
     // Extract out the bytes
     let args_table = Table::get_builder()
-        .with_name("extract_xml_tags")
+        .with_name("extract_set_data")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?
@@ -413,17 +417,15 @@ pub fn extract_xml_tags(
         DataFormat::Owl => Reader::from_reader(cursor),
         _ => {
             return Err(anyhow!(
-                "Unsupported format {format:?} for extract_xml_tags operator."
+                "Unsupported format {format:?} for extract_set_data operator."
             ));
         }
     };
 
     // buffer for reading
     let mut buf = Vec::new();
-    // buffer for parsing
-    let mut parse = Vec::new();
     // Map of serialized elements and their children
-    let mut relations = HashMap::<String, Vec<String>>::new();
+    let mut relations = HashMap::<String, Vec<(XMLType, String)>>::new();
     // The current elements in scope
     let mut elements = Vec::<String>::new();
 
@@ -437,7 +439,7 @@ pub fn extract_xml_tags(
                 // Update the relations children
                 if let Some(last_element) = elements.last() {
                     if let Some(relation) = relations.get_mut(last_element) {
-                        relation.push(serialized);
+                        relation.push((XMLType::Element, serialized.clone()));
                     } else {                        
                         return Err(anyhow!("Key `{last_element}` was not found in XML parsed relations {:?}", relations.keys()));
                     }
@@ -447,13 +449,17 @@ pub fn extract_xml_tags(
                 let _ = relations.insert(serialized, Vec::new());
             },
             Event::Text(ref e) => {
+                let text = String::from_utf8_lossy(&e as &[u8]);
+                let text = text.trim();
 
-                // Update the relations children
-                if let Some(last_element) = elements.last() {
-                    if let Some(relation) = relations.get_mut(last_element) {
-                        relation.push(String::from_utf8_lossy(&e as &[u8]).to_string());
-                    } else {
-                        return Err(anyhow!("Key `{last_element}` was not found in XML parsed relations {:?}", relations.keys()));
+                // Update the relations children if there is text
+                if !text.is_empty() {
+                    if let Some(last_element) = elements.last() {
+                        if let Some(relation) = relations.get_mut(last_element) {
+                            relation.push((XMLType::Text, String::from_utf8_lossy(&e as &[u8]).to_string()));
+                        } else {
+                            return Err(anyhow!("Key `{last_element}` was not found in XML parsed relations {:?}", relations.keys()));
+                        }
                     }
                 }
             },
@@ -464,19 +470,19 @@ pub fn extract_xml_tags(
                 // Update the relations children
                 if let Some(last_element) = elements.last() {
                     if let Some(relation) = relations.get_mut(last_element) {
-                        relation.push(serialized);
+                        relation.push((XMLType::Element, serialized.clone()));
                     } else {                        
                         return Err(anyhow!("Key `{last_element}` was not found in XML parsed relations {:?}", relations.keys()));
                     }
                 }
 
                 // Add the new element to the relations
-                let _ = relations.insert(serialized, Vec::new());
+                let _ = relations.insert(serialized.clone(), Vec::new());
 
                 // Add the new element to the current scope
                 elements.push(serialized);
             }
-            Event::End(ref e) => {
+            Event::End(ref _e) => {
                 elements.pop();
             }
             Event::Eof => break,
@@ -486,20 +492,46 @@ pub fn extract_xml_tags(
     }
 
     // Initialize the columns
-    let elements_vec = Vec::new();
-    let children_vec = Vec::new();
+    let mut element_vec = Vec::new();
+    let mut type_vec = Vec::new();
+    let mut children_vec = Vec::new();
     for (element, children) in relations {
-        elements_vec.push(element);
-        children_vec.push(children);
+
+        // Preview the children
+        let mut type_tmp = Vec::new();
+        let mut children_tmp = Vec::new();
+        for (t, c) in children {
+            type_tmp.push(t);
+            children_tmp.push(c);
+        }
+
+        // Join all text children for the case of multi-line text
+        if type_tmp.iter().filter(|t| *t != &XMLType::Text).collect::<Vec<_>>().is_empty() {
+            let children = children_tmp.join("");
+            type_tmp.clear();
+            children_tmp.clear();
+            type_tmp.push(XMLType::Text);
+            children_tmp.push(children);
+        }
+
+        // Update the columns
+        let combined = type_tmp.into_iter().map(|t| t.to_string()).collect::<Vec<_>>()
+            .into_iter().zip(children_tmp);
+        for (t, c) in combined {
+            element_vec.push(element.clone());
+            type_vec.push(t);
+            children_vec.push(c);
+        }
     }
 
     // Build the batch
-    let elements_arr: ArrayRef = Arc::new(StringArray::from(elements_vec));
-    let children_arr = build_aggregator_column_list_nonprimitive<String>(children_vec, DataType::Utf8)?;
-
+    let element_arr: ArrayRef = Arc::new(StringArray::from(element_vec));
+    let type_arr: ArrayRef = Arc::new(StringArray::from(type_vec));
+    let children_arr: ArrayRef = Arc::new(StringArray::from(children_vec));
     let batch = RecordBatch::try_from_iter(vec![
-        ("element", elements_arr),
-        ("children", children_arr),
+        ("element", element_arr),
+        ("child_type", type_arr),
+        ("child", children_arr),
     ])?;
     Ok(batch)
 }
@@ -515,50 +547,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_xml_tags_owl_class() {
+    fn test_extract_set_data_owl_class() {
         // Test owl file
         let owl = r#"<?xml version="1.0"?>
 <rdf:RDF xmlns="http://www.example.com/iri#"
-     xml:base="http://www.example.com/iri"
-     xmlns:o="http://www.example.com/iri#"
-     xmlns:owl="http://www.w3.org/2002/07/owl#"
-     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-     xmlns:xml="http://www.w3.org/XML/1998/namespace"
-     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
-     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
-    <owl:Ontology rdf:about="http://www.example.com/iri">
-        <owl:versionIRI rdf:resource="http://www.example.com/viri"/>
-    </owl:Ontology>  
+ 
 
     <!-- http://purl.obolibrary.org/obo/GO_0010958 -->
 
-    <owl:Class rdf:about="http://purl.obolibrary.org/obo/GO_0010958">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="http://purl.obolibrary.org/obo/GO_0065007"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
-                        <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0089718"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
-        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/GO_1903789"/>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
-                <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0089718"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <obo:IAO_0000115>Any process that modulates the frequency, rate or extent of amino acid import into a cell.</obo:IAO_0000115>
-        <oboInOwl:created_by>tb</oboInOwl:created_by>
-        <oboInOwl:creation_date>2009-05-06T11:33:12Z</oboInOwl:creation_date>
-        <oboInOwl:hasBroadSynonym>regulation of amino acid import</oboInOwl:hasBroadSynonym>
-        <oboInOwl:hasOBONamespace>biological_process</oboInOwl:hasOBONamespace>
-        <oboInOwl:id>GO:0010958</oboInOwl:id>
-        <rdfs:label>regulation of amino acid import across plasma membrane</rdfs:label>
-    </owl:Class>
 
     <owl:Axiom>
         <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/GO_0010958"/>
@@ -568,42 +564,6 @@ mod tests {
         <oboInOwl:hasDbXref>GOC:tb</oboInOwl:hasDbXref>
     </owl:Axiom>
 
-    <!-- http://purl.obolibrary.org/obo/GO_0010968 -->
-
-    <owl:Class rdf:about="http://purl.obolibrary.org/obo/GO_0010968">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="http://purl.obolibrary.org/obo/GO_0065007"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
-                        <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0007020"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
-        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/GO_0031113"/>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
-                <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0007020"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <obo:IAO_0000115>Any process that modulates the rate, frequency or extent of microtubule nucleation. Microtubule nucleation is the &apos;de novo&apos; formation of a microtubule, in which tubulin heterodimers form metastable oligomeric aggregates, some of which go on to support formation of a complete microtubule. Microtubule nucleation usually occurs from a specific site within a cell.</obo:IAO_0000115>
-        <oboInOwl:created_by>tb</oboInOwl:created_by>
-        <oboInOwl:creation_date>2009-05-20T11:51:21Z</oboInOwl:creation_date>
-        <oboInOwl:hasOBONamespace>biological_process</oboInOwl:hasOBONamespace>
-        <oboInOwl:id>GO:0010968</oboInOwl:id>
-        <rdfs:label>regulation of microtubule nucleation</rdfs:label>
-    </owl:Class>
-
-    <owl:Axiom>
-        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/GO_0010968"/>
-        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
-        <owl:annotatedTarget>Any process that modulates the rate, frequency or extent of microtubule nucleation. Microtubule nucleation is the &apos;de novo&apos; formation of a microtubule, in which tubulin heterodimers form metastable oligomeric aggregates, some of which go on to support formation of a complete microtubule. Microtubule nucleation usually occurs from a specific site within a cell.</owl:annotatedTarget>
-        <oboInOwl:hasDbXref>GOC:dph</oboInOwl:hasDbXref>
-        <oboInOwl:hasDbXref>GOC:tb</oboInOwl:hasDbXref>
-    </owl:Axiom>
 </rdf:RDF>"#;
 
         // Make the xml data
@@ -621,12 +581,12 @@ mod tests {
             .into_iter()
             .map(|x| x.to_string().split(":").collect::<Vec<_>>().get(1).unwrap().to_string())
             .collect::<Vec<_>>();
-        let extracted = extract_xml_tags(
+        let extracted = extract_set_data(
             "bytes", 
             &[batch], 
             &DataFormat::Owl,
-            &as_columns.iter().map(|s| s.as_str()).collect::<Vec<&str>>(),
-            &XMLTags::owl_classes()).unwrap();
+            &as_columns.iter().map(|s| s.as_str()).collect::<Vec<&str>>())
+            .unwrap();
         dbg!(&extracted);
 
         // Check the dimensions of the extracted data
@@ -663,7 +623,7 @@ mod tests {
     }    
 
     #[test]
-    fn test_extract_xml_tags_owl_properties() {
+    fn test_extract_set_data_owl_properties() {
         // Test owl file
         let owl = r#"<?xml version="1.0"?>
 <rdf:RDF xmlns="http://www.example.com/iri#"
@@ -723,12 +683,12 @@ mod tests {
             .into_iter()
             .map(|x| x.to_string().split(":").collect::<Vec<_>>().get(1).unwrap().to_string())
             .collect::<Vec<_>>();
-        let extracted = extract_xml_tags(
+        let extracted = extract_set_data(
             "bytes", 
             &[batch], 
             &DataFormat::Owl,
-            &as_columns.iter().map(|s| s.as_str()).collect::<Vec<&str>>(),
-            &XMLTags::owl_classes()).unwrap();
+            &as_columns.iter().map(|s| s.as_str()).collect::<Vec<&str>>())
+            .unwrap();
         dbg!(&extracted);
 
         // Check the dimensions of the extracted data
