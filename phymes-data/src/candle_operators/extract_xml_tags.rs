@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Display, io::Cursor, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
-use arrow::array::{ArrayRef, RecordBatch, StringArray};
+use arrow::{array::{ArrayRef, RecordBatch, StringArray}, datatypes::DataType};
 use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters,
@@ -150,6 +150,15 @@ impl DataOperatorTrait for ExtractXMLTags {
     }
 }
 
+/// XML element
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct XMLElement {
+    /// tag
+    tag: String,
+    /// named attributes for the tag
+    attributes: HashMap<String, String>,
+}
+
 /// XML Tags with for OWL
 /// 
 /// # Notes
@@ -266,68 +275,6 @@ pub enum XMLTags {
 }
 
 impl XMLTags {
-    /// Parse the XML tag
-    pub fn parse<'a>(&self, e: &BytesStart<'a>, reader: &mut Reader<Cursor<&Vec<u8>>>, buf: &mut Vec<u8>) -> Vec<String> {
-        match self {
-            Self::RdfsLabel 
-            | Self::RdfsSeeAlso
-            | Self::OboDefinition
-            | Self::OboInOwlHasOboNamespace
-            | Self::OboInOwlId
-            | Self::OboInOwlHasAlternativeId
-            | Self::OboInOwlHasRelatedSynonym
-            | Self::OboInOwlHasExactSynonym
-            | Self::OboInOwlHasBroadSynonym
-            | Self::OboInOwlHasNarrowSynonym
-            | Self::SkosCloseMatch
-            | Self::SkosExactMatch
-            | Self::SkosBroadMatch
-            | Self::SkosNarrowMatch
-            | Self::SkosRelatedMatch
-            | Self::SkosSemanticRelation
-            | Self::SkosBroader
-            | Self::SkosNarrower
-            | Self::SkosRelated
-            | Self::SkosBroaderTransitive
-            | Self::SkosNarrowerTransitive => {
-                if let Ok(Event::Text(text)) = reader.read_event_into(buf) {
-                    vec![String::from_utf8_lossy(&text as &[u8]).to_string()]
-                } else {
-                    vec![]
-                }
-            },
-            Self::OwlClass | Self::OwlObjectProperty => {
-                e.attributes().flatten().filter_map(|attr| if attr.key.as_ref() == b"rdf:about" {
-                        Some(String::from_utf8_lossy(&attr.value).to_string())
-                    } else {
-                        None
-                    }).collect::<Vec<_>>()
-            },
-            Self::RdfsDomain
-            | Self::RdfsRange
-            | Self::RdfsSubPropertyOf
-            | Self::RdfsSubClassOf
-            | Self::RdfType
-            | Self::OwlSameAs
-            | Self::OwlInverseOf
-            | Self::OwlEquivalentClass
-            | Self::OwlEquivalentProperty
-            | Self::OboInOwlInsubset => {
-                e.attributes().flatten().filter_map(|attr| if attr.key.as_ref() == b"rdf:resource" {
-                        Some(String::from_utf8_lossy(&attr.value).to_string())
-                    } else {
-                        None
-                    }).collect::<Vec<_>>()
-            },
-            Self::Custom(_s) => {
-                if let Ok(Event::Text(text)) = reader.read_event_into(buf) {
-                    vec![String::from_utf8_lossy(&text as &[u8]).to_string()]
-                } else {
-                    vec![]
-                }
-            },
-        }
-    }
     /// OWL common tags
     pub fn owl_common() -> Vec<XMLTags> {
         vec![
@@ -374,6 +321,7 @@ impl Display for XMLTags {
         match self {
             Self::RdfType => write!(f, "rdf:type"),
             Self::RdfsLabel => write!(f, "rdfs:label"),
+            Self::RdfDescription => write!(f, "rdf:description"),
             Self::OboDefinition => write!(f, "obo:IAO_0000115"),
             Self::OwlClass => write!(f, "owl:Class"),
             Self::OwlEquivalentClass => write!(f, "owl:equivalentClass"),
@@ -410,7 +358,24 @@ impl Display for XMLTags {
     }
 }
 
-/// Extract xml tags in either XML or OWL format from Bytes
+/// Helper function to parse the attributes of the XML tag into a serialized [XMLElement]
+fn parse_xml_tag<'a>(e: &BytesStart<'a>) -> Result<String> {    
+    // Parse the tag
+    let start_tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
+
+    // Parse the tag attribute objects
+    let attributes = e.attributes()
+        .flatten()
+        .map(|attr| (String::from_utf8_lossy(attr.key.as_ref()).to_string(), String::from_utf8_lossy(&attr.value).to_string()))
+        .collect::<HashMap<String, String>>();
+
+    // Serialize the element
+    let element = XMLElement {tag: start_tag.to_string(), attributes: attributes };
+    let serialized = serde_json::to_string(&element)?;
+    Ok(serialized)
+}
+
+/// Extract xml tags in either XML, HTML, or OWL format from Bytes
 /// 
 /// # Arguments
 /// * `lhs_values` - The column to extract data from (i.e., `bytes`)
@@ -443,6 +408,7 @@ pub fn extract_xml_tags(
     // Read the XML document
     let cursor = Cursor::new(&values_vec);
     let mut reader = match format {
+        DataFormat::Html => Reader::from_reader(cursor),
         DataFormat::Xml => Reader::from_reader(cursor),
         DataFormat::Owl => Reader::from_reader(cursor),
         _ => {
@@ -452,61 +418,66 @@ pub fn extract_xml_tags(
         }
     };
 
-    // Extract out the tags
+    // buffer for reading
     let mut buf = Vec::new();
+    // buffer for parsing
     let mut parse = Vec::new();
-    let mut data = Vec::new();
-    let mut subjects = Vec::new();
-    let mut predicates: Vec<HashMap<String, Vec<String>>> = Vec::new();
+    // Map of serialized elements and their children
+    let mut relations = HashMap::<String, Vec<String>>::new();
+    // The current elements in scope
+    let mut elements = Vec::<String>::new();
+
+    // Extract out the tags
     while let Ok(event) = reader.read_event_into(&mut buf) {
         match event {
             Event::Empty(ref e) => {
-                // Parse the tag attribute objects
-                let attributes = e.attributes()
-                    .flatten()
-                    .map(|attr| (String::from_utf8_lossy(attr.key.as_ref()).to_string(), String::from_utf8_lossy(&attr.value).to_string()))
-                    .collect::<Vec<_>>();
+                // Parse the tag
+                let serialized = parse_xml_tag(e)?;
 
-                // Update the rows with the new triple(s)
+                // Update the relations children
+                if let Some(last_element) = elements.last() {
+                    if let Some(relation) = relations.get_mut(last_element) {
+                        relation.push(serialized);
+                    } else {                        
+                        return Err(anyhow!("Key `{last_element}` was not found in XML parsed relations {:?}", relations.keys()));
+                    }
+                }
+
+                // Add the new element to the relations
+                let _ = relations.insert(serialized, Vec::new());
             },
             Event::Text(ref e) => {
-                // Parse the literal object
-                todo!()
+
+                // Update the relations children
+                if let Some(last_element) = elements.last() {
+                    if let Some(relation) = relations.get_mut(last_element) {
+                        relation.push(String::from_utf8_lossy(&e as &[u8]).to_string());
+                    } else {
+                        return Err(anyhow!("Key `{last_element}` was not found in XML parsed relations {:?}", relations.keys()));
+                    }
+                }
             },
             Event::Start(ref e) => {
-                // Recurse the subject
-                let start_tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
-                subjects.push(start_tag);
-                
-                // Parse the tag attributes for the subject if any
-                let attributes = e.attributes()
-                    .flatten()
-                    .map(|attr| (String::from_utf8_lossy(attr.key.as_ref()).to_string(), String::from_utf8_lossy(&attr.value).to_string()))
-                    .collect::<Vec<_>>();
+                // Parse the tag
+                let serialized = parse_xml_tag(e)?;
 
-                // Initialize the predicates
-                let obj: HashMap<String, Vec<String>> = HashMap::new();
-                for (k, v) in attributes {
-                    if let Some(val) = obj.get_mut(&k) {
-                        val.push(v);
-                    } else {
-                        obj.insert(k, vec![v]);
+                // Update the relations children
+                if let Some(last_element) = elements.last() {
+                    if let Some(relation) = relations.get_mut(last_element) {
+                        relation.push(serialized);
+                    } else {                        
+                        return Err(anyhow!("Key `{last_element}` was not found in XML parsed relations {:?}", relations.keys()));
                     }
                 }
-                predicates.push(obj);
+
+                // Add the new element to the relations
+                let _ = relations.insert(serialized, Vec::new());
+
+                // Add the new element to the current scope
+                elements.push(serialized);
             }
             Event::End(ref e) => {
-                let end_tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
-                if let Some(tag) = subjects.pop() {
-                    assert_eq!(end_tag, tag);
-                    if let Some(predicates) = predicates.pop() {
-
-                        // Add the data row
-                        for t in subjects {
-
-                        }
-                    }
-                }
+                elements.pop();
             }
             Event::Eof => break,
             _ => {}
@@ -515,34 +486,21 @@ pub fn extract_xml_tags(
     }
 
     // Initialize the columns
-    let mut columns = HashMap::new();
-    for tag in subjects.iter() {
-        columns.insert(tag.to_string(), data.iter().map(|_| String::new()).collect::<Vec<_>>());
-    }
-
-    // Update the columns with the parsed tag values
-    for (i, row) in data.into_iter().enumerate() {
-        for (k, v) in row.into_iter() {
-            if let Some(column) = columns.get_mut(&k) {
-                if let Some(value) = column.get_mut(i) {
-                    value.push_str(&v.join(";"));
-                } else {
-                    return Err(anyhow!("iterator `{i}` was not found in XML parsed columns with length {}", columns.len()));
-                }
-            } else {
-                return Err(anyhow!("Key `{k}` was not found in XML parsed columns with keys {:?}", columns.keys()));
-            }
-        }
+    let elements_vec = Vec::new();
+    let children_vec = Vec::new();
+    for (element, children) in relations {
+        elements_vec.push(element);
+        children_vec.push(children);
     }
 
     // Build the batch
-    let mut batch_vec = Vec::new();
-    for (i, (_tag, column)) in columns.into_iter().enumerate() {
-        let arr: ArrayRef = Arc::new(StringArray::from(column));
-        batch_vec.push((as_columns.get(i).unwrap().to_string(), arr));
-    }
+    let elements_arr: ArrayRef = Arc::new(StringArray::from(elements_vec));
+    let children_arr = build_aggregator_column_list_nonprimitive<String>(children_vec, DataType::Utf8)?;
 
-    let batch = RecordBatch::try_from_iter(batch_vec)?;
+    let batch = RecordBatch::try_from_iter(vec![
+        ("element", elements_arr),
+        ("children", children_arr),
+    ])?;
     Ok(batch)
 }
 
