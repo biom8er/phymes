@@ -119,7 +119,7 @@ impl DataOperatorTrait for ApplyTemplate {
                 Self::get_static_name()
             ));
         };
-        let format = config.format.ok_or(anyhow!(
+        let format = config.format.clone().ok_or(anyhow!(
             "Missing `format` for `{}`.",
             Self::get_static_name()
         ))?;

@@ -70,7 +70,19 @@ impl OwlFormat {
             "oboInOwl:hasExactSynonym",
             "oboInOwl:hasBroadSynonym",
             "oboInOwl:hasNarrowSynonym",
-            "owl:sameAs"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+            "owl:sameAs",
+            "skos:closeMatch",
+            "skos:exactMatch",
+            "skos:broadMatch",
+            "skos:narrowMatch",
+            "skos:relatedMatch",
+            "skos:semanticRelation",
+            "skos:broader",
+            "skos:narrower",
+            "skos:related",
+            "skos:broaderTransitive",
+            "skos:narrowerTransitive",
+            ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let predicate_attributes = ["rdf:resource"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         OwlFormat { 
             subject_tags, 
@@ -97,7 +109,19 @@ impl OwlFormat {
             "owl:inverseOf ",
             "rdfs:subPropertyOf",
             "rdfs:domain",
-            "rdfs:range"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+            "rdfs:range",
+            "skos:closeMatch",
+            "skos:exactMatch",
+            "skos:broadMatch",
+            "skos:narrowMatch",
+            "skos:relatedMatch",
+            "skos:semanticRelation",
+            "skos:broader",
+            "skos:narrower",
+            "skos:related",
+            "skos:broaderTransitive",
+            "skos:narrowerTransitive",
+            ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let predicate_attributes = ["rdf:resource"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         OwlFormat { 
             subject_tags, 
@@ -117,44 +141,6 @@ impl OwlFormat {
             predicate_tags, 
             predicate_attributes
         }
-    }
-    pub fn owl_common() -> Vec<String> {
-        [
-            "rdf:type",
-            "rdfs:label",
-            "rdfs:seeAlso",
-            "obo:IAO_0000115",
-            "oboInOwl:hasOBONamespace",
-            "oboInOwl:id",
-            "oboInOwl:hasAlternativeId",
-            "oboInOwl:hasRelatedSynonym",
-            "oboInOwl:hasExactSynonym",
-            "oboInOwl:hasBroadSynonym",
-            "oboInOwl:hasNarrowSynonym",
-            "owl:sameAs",
-            "oboInOwl:inSubset",
-        ].into_iter().map(|s| s.to_string())
-        .collect::<Vec<_>>()
-    }
-    pub fn owl_class() -> Vec<String> {
-        ["owl:Class",
-            "rdfs:subclassOf",
-        ].into_iter().map(|s| s.to_string())
-        .chain(Self::owl_common())
-        .collect::<Vec<_>>()
-    }
-    pub fn owl_object_property() -> Vec<String> {
-        ["owl:ObjectProperty",
-            "owl:inverseOf ",
-            "rdfs:subPropertyOf",
-            "rdfs:domain",
-            "rdfs:range",
-        ].into_iter().map(|s| s.to_string())
-        .chain(Self::owl_common())
-        .collect::<Vec<_>>()
-    }
-    pub fn owl_named_individual() -> Vec<String> {
-        todo!()
     }
 }
 

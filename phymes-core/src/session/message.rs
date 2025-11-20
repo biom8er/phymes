@@ -245,7 +245,7 @@ impl SessionInterfaceMessageBuilderTrait for SessionInterfaceMessageBuilder {
         self
     }
     fn with_format(mut self, format: &DataFormat) -> Self {
-        self.format = Some(*format);
+        self.format = Some(format.clone());
         self
     }
     fn with_stream(mut self, stream: bool) -> Self {

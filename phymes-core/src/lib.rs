@@ -30,7 +30,7 @@ pub use session::{
     TokenizerConfig, device, test_session_context_builder,
 };
 pub use table::{
-    AvailableTableSubscribePolicies, CsvFormat, DataFormat, JsonFormat, RecordBatchReceiverStream,
+    AvailableTableSubscribePolicies, CsvFormat, DataFormat, JsonFormat, OwlFormat, RecordBatchReceiverStream,
     RecordBatchReceiverStreamBuilder, RecordBatchStream, RecordBatchStreamAdapter,
     SendableRecordBatchStream, Table, TableBuilder, TableBuilderTrait, TablePublication,
     TablePublicationTrait, TableScript, TableSubscribePolicyTrait, TableSubscription,

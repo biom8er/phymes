@@ -6,7 +6,7 @@ use phymes_core::{DataFormat, MappableTrait, Table, TableTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{AvailableJinja2Templates, candle_operators::{AvailableCandleOperators, XMLTags}};
+use crate::{AvailableJinja2Templates, candle_operators::AvailableCandleOperators};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataStreamManager {
