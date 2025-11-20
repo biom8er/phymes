@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Display, io::Cursor, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
-use arrow::{array::{ArrayRef, RecordBatch, StringArray}, datatypes::DataType};
+use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
 use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters,
@@ -135,7 +135,9 @@ impl DataOperatorTrait for ExtractSetData {
 /// XML element
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct XMLElement {
-    /// tag
+    /// index the element was found in the document
+    index: usize,
+    /// tag of the element
     tag: String,
     /// named attributes for the tag
     attributes: HashMap<String, String>,
@@ -360,7 +362,7 @@ impl Display for XMLTags {
 }
 
 /// Helper function to parse the attributes of the XML tag into a serialized [XMLElement]
-fn parse_xml_tag<'a>(e: &BytesStart<'a>) -> Result<String> {    
+fn parse_xml_tag<'a>(index: usize, e: &BytesStart<'a>) -> Result<String> {    
     // Parse the tag
     let start_tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
 
@@ -371,7 +373,7 @@ fn parse_xml_tag<'a>(e: &BytesStart<'a>) -> Result<String> {
         .collect::<HashMap<String, String>>();
 
     // Serialize the element
-    let element = XMLElement {tag: start_tag.to_string(), attributes: attributes };
+    let element = XMLElement {index, tag: start_tag.to_string(), attributes: attributes };
     let serialized = serde_json::to_string(&element)?;
     Ok(serialized)
 }
@@ -382,17 +384,10 @@ fn parse_xml_tag<'a>(e: &BytesStart<'a>) -> Result<String> {
 /// * `lhs_values` - The column to extract data from (i.e., `bytes`)
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `format` - The format of the bytes
-/// * `subject_tags` - Slice of Strings for the subject tags to consider (e.g., rdf:Description)
-///   owl:Axiom will only pull out the triples
-///   owl:Class and owl:ObjectProperty will also pull out the annotations for the triples
-/// * `subject_attributes` - Slice of Strings of attributes to identify the subject (i.e., rdf:about)
-/// * `predicate_tags` - Slice of Strings for the predicate tags to consider (e.g., rdfs:label)
-/// * `object_tags` - Slice of Strings for the object tags to consider when the object is not a text value
-/// * `object_attributes` - Slice of Strings of attributes to identify the object within the predicate element (i.e., rdf:resource)
 /// 
 /// # Notes
-/// * Basic parsing of tags with a flat hierarchy is currently supported
-/// * Hierarchical or nested structures are not yet supported
+/// * Hierarchical or nested children structures are supported
+/// * 
 /// * See <https://github.com/phillord/horned-owl> for a full-fledged OWL parser
 #[instrument(skip(lhs_values, lhs_args, format, as_columns))]
 pub fn extract_set_data(
@@ -428,13 +423,14 @@ pub fn extract_set_data(
     let mut relations = HashMap::<String, Vec<(XMLType, String)>>::new();
     // The current elements in scope
     let mut elements = Vec::<String>::new();
+    let mut index = 0;
 
     // Extract out the tags
     while let Ok(event) = reader.read_event_into(&mut buf) {
         match event {
             Event::Empty(ref e) => {
                 // Parse the tag
-                let serialized = parse_xml_tag(e)?;
+                let serialized = parse_xml_tag(index, e)?;
 
                 // Update the relations children
                 if let Some(last_element) = elements.last() {
@@ -447,6 +443,7 @@ pub fn extract_set_data(
 
                 // Add the new element to the relations
                 let _ = relations.insert(serialized, Vec::new());
+                index += 1;
             },
             Event::Text(ref e) => {
                 let text = String::from_utf8_lossy(&e as &[u8]);
@@ -465,7 +462,7 @@ pub fn extract_set_data(
             },
             Event::Start(ref e) => {
                 // Parse the tag
-                let serialized = parse_xml_tag(e)?;
+                let serialized = parse_xml_tag(index, e)?;
 
                 // Update the relations children
                 if let Some(last_element) = elements.last() {
@@ -478,6 +475,7 @@ pub fn extract_set_data(
 
                 // Add the new element to the relations
                 let _ = relations.insert(serialized.clone(), Vec::new());
+                index += 1;
 
                 // Add the new element to the current scope
                 elements.push(serialized);
@@ -492,9 +490,13 @@ pub fn extract_set_data(
     }
 
     // Initialize the columns
-    let mut element_vec = Vec::new();
-    let mut type_vec = Vec::new();
-    let mut children_vec = Vec::new();
+    let mut element_index_vec = Vec::new();
+    let mut element_tag_vec = Vec::new();
+    let mut element_attr_vec = Vec::new();
+    let mut text_vec = Vec::new();
+    let mut child_index_vec = Vec::new();
+    let mut child_tag_vec = Vec::new();
+    let mut child_attr_vec = Vec::new();
     for (element, children) in relations {
 
         // Preview the children
@@ -514,24 +516,49 @@ pub fn extract_set_data(
             children_tmp.push(children);
         }
 
-        // Update the columns
-        let combined = type_tmp.into_iter().map(|t| t.to_string()).collect::<Vec<_>>()
-            .into_iter().zip(children_tmp);
-        for (t, c) in combined {
-            element_vec.push(element.clone());
-            type_vec.push(t);
-            children_vec.push(c);
+        // Deserialize XML elements
+        let xml_element: XMLElement = serde_json::from_str(&element)?;
+        for (t, c) in type_tmp.into_iter().zip(children_tmp) {
+            match t {
+                XMLType::Text => {
+                    element_index_vec.push(xml_element.index.to_owned() as u32);
+                    element_attr_vec.push(serde_json::to_string(&xml_element.attributes)?);
+                    element_tag_vec.push(xml_element.tag.to_owned());
+                    text_vec.push(c);
+                    child_index_vec.push(0 as u32);
+                    child_attr_vec.push(String::new());
+                    child_tag_vec.push(String::new());
+                },
+                XMLType::Element => {
+                    element_index_vec.push(xml_element.index.to_owned() as u32);
+                    element_attr_vec.push(serde_json::to_string(&xml_element.attributes)?);
+                    element_tag_vec.push(xml_element.tag.to_owned());
+                    text_vec.push(String::new());
+                    let child_element: XMLElement = serde_json::from_str(&c)?;
+                    child_index_vec.push(child_element.index as u32);
+                    child_attr_vec.push(serde_json::to_string(&child_element.attributes)?);
+                    child_tag_vec.push(child_element.tag);
+                }
+            }
         }
     }
 
     // Build the batch
-    let element_arr: ArrayRef = Arc::new(StringArray::from(element_vec));
-    let type_arr: ArrayRef = Arc::new(StringArray::from(type_vec));
-    let children_arr: ArrayRef = Arc::new(StringArray::from(children_vec));
+    let element_index_vec: ArrayRef = Arc::new(UInt32Array::from(element_index_vec));
+    let element_tag_vec: ArrayRef = Arc::new(StringArray::from(element_tag_vec));
+    let element_attr_vec: ArrayRef = Arc::new(StringArray::from(element_attr_vec));
+    let text_vec: ArrayRef = Arc::new(StringArray::from(text_vec));
+    let child_index_vec: ArrayRef = Arc::new(UInt32Array::from(child_index_vec));
+    let child_tag_vec: ArrayRef = Arc::new(StringArray::from(child_tag_vec));
+    let child_attr_vec: ArrayRef = Arc::new(StringArray::from(child_attr_vec));
     let batch = RecordBatch::try_from_iter(vec![
-        ("element", element_arr),
-        ("child_type", type_arr),
-        ("child", children_arr),
+        ("element_index", element_index_vec),
+        ("element_tag", element_tag_vec),
+        ("element_attr", element_attr_vec),
+        ("text", text_vec),
+        ("child_index", child_index_vec),
+        ("child_tag", child_tag_vec),
+        ("child_attr", child_attr_vec),
     ])?;
     Ok(batch)
 }
@@ -551,10 +578,46 @@ mod tests {
         // Test owl file
         let owl = r#"<?xml version="1.0"?>
 <rdf:RDF xmlns="http://www.example.com/iri#"
- 
+     xml:base="http://www.example.com/iri"
+     xmlns:o="http://www.example.com/iri#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+    <owl:Ontology rdf:about="http://www.example.com/iri">
+        <owl:versionIRI rdf:resource="http://www.example.com/viri"/>
+    </owl:Ontology>  
 
     <!-- http://purl.obolibrary.org/obo/GO_0010958 -->
 
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/GO_0010958">
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://purl.obolibrary.org/obo/GO_0065007"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
+                        <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0089718"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/GO_1903789"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
+                <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0089718"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <obo:IAO_0000115>Any process that modulates the frequency, rate or extent of amino acid import into a cell.</obo:IAO_0000115>
+        <oboInOwl:created_by>tb</oboInOwl:created_by>
+        <oboInOwl:creation_date>2009-05-06T11:33:12Z</oboInOwl:creation_date>
+        <oboInOwl:hasBroadSynonym>regulation of amino acid import</oboInOwl:hasBroadSynonym>
+        <oboInOwl:hasOBONamespace>biological_process</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>GO:0010958</oboInOwl:id>
+        <rdfs:label>regulation of amino acid import across plasma membrane</rdfs:label>
+    </owl:Class>
 
     <owl:Axiom>
         <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/GO_0010958"/>
@@ -564,6 +627,42 @@ mod tests {
         <oboInOwl:hasDbXref>GOC:tb</oboInOwl:hasDbXref>
     </owl:Axiom>
 
+    <!-- http://purl.obolibrary.org/obo/GO_0010968 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/GO_0010968">
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://purl.obolibrary.org/obo/GO_0065007"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
+                        <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0007020"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/GO_0031113"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
+                <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0007020"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <obo:IAO_0000115>Any process that modulates the rate, frequency or extent of microtubule nucleation. Microtubule nucleation is the &apos;de novo&apos; formation of a microtubule, in which tubulin heterodimers form metastable oligomeric aggregates, some of which go on to support formation of a complete microtubule. Microtubule nucleation usually occurs from a specific site within a cell.</obo:IAO_0000115>
+        <oboInOwl:created_by>tb</oboInOwl:created_by>
+        <oboInOwl:creation_date>2009-05-20T11:51:21Z</oboInOwl:creation_date>
+        <oboInOwl:hasOBONamespace>biological_process</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>GO:0010968</oboInOwl:id>
+        <rdfs:label>regulation of microtubule nucleation</rdfs:label>
+    </owl:Class>
+
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/GO_0010968"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>Any process that modulates the rate, frequency or extent of microtubule nucleation. Microtubule nucleation is the &apos;de novo&apos; formation of a microtubule, in which tubulin heterodimers form metastable oligomeric aggregates, some of which go on to support formation of a complete microtubule. Microtubule nucleation usually occurs from a specific site within a cell.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>GOC:dph</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>GOC:tb</oboInOwl:hasDbXref>
+    </owl:Axiom>
 </rdf:RDF>"#;
 
         // Make the xml data
@@ -679,10 +778,11 @@ mod tests {
         .unwrap();
 
         // Extract the xml tags
-        let as_columns = XMLTags::owl_classes()
+        let as_columns = XMLTags::owl_properties()
             .into_iter()
-            .map(|x| x.to_string().split(":").collect::<Vec<_>>().get(1).unwrap().to_string())
+            .map(|x| x.to_string())
             .collect::<Vec<_>>();
+        dbg!(&as_columns);
         let extracted = extract_set_data(
             "bytes", 
             &[batch], 
