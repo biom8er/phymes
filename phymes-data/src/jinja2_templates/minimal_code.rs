@@ -6,8 +6,8 @@
 /// # Notes:
 /// - only `code` element is supported
 /// - `samp` element is not yet fully supported
-/// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/samp>
-/// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/kbd>
+///   see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/samp>
+///   see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/kbd>
 pub static MINIMAL_CODE_TEMPLATE: &str = r#"
 {%- if samp %}
 <pre><samp>

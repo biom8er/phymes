@@ -631,7 +631,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<StringArray>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                                 .join("")
                         })
@@ -717,7 +717,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<UInt8Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -739,7 +739,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<UInt32Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -761,7 +761,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<Int64Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -783,7 +783,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<Float32Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -805,7 +805,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<Float64Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1187,7 +1187,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<UInt8Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1209,7 +1209,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<UInt32Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1231,7 +1231,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<Int64Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1253,7 +1253,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<Float32Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1275,7 +1275,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<Float64Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1657,7 +1657,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<UInt8Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1675,7 +1675,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<UInt32Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1693,7 +1693,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<Int64Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1711,7 +1711,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<Float32Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1729,7 +1729,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<Float64Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -2043,7 +2043,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<UInt8Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<HashSet<_>>()
                                 .into_iter()
                                 .collect::<Vec<_>>()
@@ -2063,7 +2063,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<UInt32Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<HashSet<_>>()
                                 .into_iter()
                                 .collect::<Vec<_>>()
@@ -2083,7 +2083,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<Int64Array>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| s)
+                                .flatten()
                                 .collect::<HashSet<_>>()
                                 .into_iter()
                                 .collect::<Vec<_>>()

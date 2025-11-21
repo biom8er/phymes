@@ -348,12 +348,8 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
     )?;
 
     // Sort by the element index
-    for (iter, column_name) in ["child_index", "element_index"].iter().enumerate() {
-        if iter > 0 {
-            batch = sort_column_and_indices(column_name, &[batch], true, device)?;
-        } else {
-            batch = sort_column_and_indices(column_name, &[batch], true, device)?;
-        }
+    for column_name in ["child_index", "element_index"] {
+        batch = sort_column_and_indices(column_name, &[batch], true, device)?;
     }
     Ok(batch)
 }
@@ -534,12 +530,8 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
     let mut batch = create_parse_owl_batch(subjects, predicates, objects)?;
 
     // Sorty by the subject and predicate
-    for (iter, column_name) in ["predicate", "subject"].iter().enumerate() {
-        if iter > 0 {
-            batch = sort_column_and_indices(column_name, &[batch], true, device)?;
-        } else {
-            batch = sort_column_and_indices(column_name, &[batch], true, device)?;
-        }
+    for column_name in ["predicate", "subject"] {
+        batch = sort_column_and_indices(column_name, &[batch], true, device)?;
     }
     Ok(batch)
 }
