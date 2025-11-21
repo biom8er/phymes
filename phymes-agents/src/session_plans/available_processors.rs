@@ -55,6 +55,10 @@ pub enum AvailableProcessors {
     SelectAndCast,
     #[value(name = "Pivot")]
     Pivot,
+    #[value(name = "ExtractSetData")]
+    ExtractSetData,
+    #[value(name = "Melt")]
+    Melt,
     #[value(name = "NormalizeTime")]
     NormalizeTime,
     #[value(name = "DataSummaryProcessor")]
@@ -100,6 +104,8 @@ impl Display for AvailableProcessors {
             }
             Self::SelectAndCast => write!(f, "{}", AvailableCandleOperators::SelectAndCast),
             Self::Pivot => write!(f, "{}", AvailableCandleOperators::Pivot),
+            Self::ExtractSetData => write!(f, "{}", AvailableCandleOperators::ExtractSetData),
+            Self::Melt => write!(f, "{}", AvailableCandleOperators::Melt),
             Self::NormalizeTime => write!(f, "{}", AvailableCandleOperators::NormalizeTime),
             Self::ProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
             Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
@@ -228,9 +234,18 @@ impl DataConfigTrait for AvailableProcessors {
             Self::ExtractTabularData => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
-                format: Some(DataFormat::None),
+                format: Some(DataFormat::CsvDefault),
                 cpu: false,
                 operator: AvailableCandleOperators::ExtractTabularData,
+                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                ..Default::default()
+            }),
+            Self::ExtractSetData => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
+                lhs_values: Some(vec!["lhs_values".to_string()]),
+                format: Some(DataFormat::OwlDefault),
+                cpu: false,
+                operator: AvailableCandleOperators::ExtractSetData,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
@@ -255,6 +270,15 @@ impl DataConfigTrait for AvailableProcessors {
                 pvt_columns: Some(vec!["pvt_columns".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::Pivot,
+                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                ..Default::default()
+            }),
+            Self::Melt => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
+                lhs_values: Some(vec!["lhs_values".to_string()]),
+                pvt_columns: Some(vec!["pvt_columns".to_string()]),
+                cpu: false,
+                operator: AvailableCandleOperators::Melt,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
@@ -415,6 +439,8 @@ impl ToolTrait for AvailableProcessors {
             Self::JoinInner => AvailableCandleOperators::JoinInner.get_description(),
             Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.get_description(),
             Self::Pivot => AvailableCandleOperators::Pivot.get_description(),
+            Self::ExtractSetData => AvailableCandleOperators::ExtractSetData.get_description(),
+            Self::Melt => AvailableCandleOperators::Melt.get_description(),
             Self::SelectAndCast => AvailableCandleOperators::SelectAndCast.get_description(),
             Self::SortColumnAndIndices => {
                 AvailableCandleOperators::SortColumnAndIndices.get_description()
@@ -453,6 +479,8 @@ impl ToolTrait for AvailableProcessors {
             Self::JoinInner => AvailableCandleOperators::JoinInner.to_json_tool_schema(),
             Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.to_json_tool_schema(),
             Self::Pivot => AvailableCandleOperators::Pivot.to_json_tool_schema(),
+            Self::ExtractSetData => AvailableCandleOperators::ExtractSetData.to_json_tool_schema(),
+            Self::Melt => AvailableCandleOperators::Melt.to_json_tool_schema(),
             Self::SelectAndCast => AvailableCandleOperators::SelectAndCast.to_json_tool_schema(),
             Self::SortColumnAndIndices => {
                 AvailableCandleOperators::SortColumnAndIndices.to_json_tool_schema()
@@ -492,6 +520,8 @@ impl AvailableProcessors {
             AvailableProcessors::ExtractTabularData.to_string(),
             AvailableProcessors::SelectAndCast.to_string(),
             AvailableProcessors::Pivot.to_string(),
+            AvailableProcessors::ExtractSetData.to_string(),
+            AvailableProcessors::Melt.to_string(),
             AvailableProcessors::NormalizeTime.to_string(),
             AvailableProcessors::DataSummaryProcessor.to_string(),
             AvailableProcessors::AttachmentAggregatorProcessor.to_string(),
@@ -520,6 +550,10 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::CandleDataProcessor)
         } else if line.contains(&AvailableProcessors::Pivot.to_string()) {
             Ok(AvailableProcessors::Pivot)
+        } else if line.contains(&AvailableProcessors::ExtractSetData.to_string()) {
+            Ok(AvailableProcessors::ExtractSetData)
+        } else if line.contains(&AvailableProcessors::Melt.to_string()) {
+            Ok(AvailableProcessors::Melt)
         } else if line.contains(&AvailableProcessors::ApplyTemplate.to_string()) {
             Ok(AvailableProcessors::ApplyTemplate)
         } else if line.contains(&AvailableProcessors::VectorDistance.to_string()) {
@@ -611,6 +645,8 @@ impl AvailableProcessors {
             | Self::JoinInner
             | Self::NormalizeTime
             | Self::Pivot
+            | Self::ExtractSetData
+            | Self::Melt
             | Self::SelectAndCast
             | Self::SortColumnAndIndices
             | Self::VectorDistance
@@ -697,6 +733,8 @@ impl AvailableProcessors {
             | Self::JoinInner
             | Self::NormalizeTime
             | Self::Pivot
+            | Self::ExtractSetData
+            | Self::Melt
             | Self::SelectAndCast
             | Self::SortColumnAndIndices
             | Self::VectorDistance
@@ -731,6 +769,8 @@ impl AvailableProcessors {
             | Self::JoinInner
             | Self::NormalizeTime
             | Self::Pivot
+            | Self::ExtractSetData
+            | Self::Melt
             | Self::SelectAndCast
             | Self::SortColumnAndIndices
             | Self::VectorDistance
