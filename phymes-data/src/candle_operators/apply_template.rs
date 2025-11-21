@@ -84,15 +84,7 @@ impl DataOperatorTrait for ApplyTemplate {
         device: &Device,
     ) -> Result<RecordBatch> {
         // Check for empty rhs_args and change to None
-        let rhs_args = if let Some(rhs_args) = rhs_args {
-            if rhs_args.is_empty() {
-                None
-            } else {
-                Some(rhs_args)
-            }
-        } else {
-            None
-        };
+        let rhs_args = rhs_args.filter(|&rhs_args| !rhs_args.is_empty());
         apply_template(
             lhs_args,
             rhs_args,

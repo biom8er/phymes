@@ -185,7 +185,7 @@ fn serialize_xml_tag<'a>(index: usize, e: &BytesStart<'a>) -> Result<String> {
     let element = XMLElement {
         index,
         tag: start_tag,
-        attributes: attributes,
+        attributes,
     };
     let serialized = serde_json::to_string(&element)?;
     Ok(serialized)
@@ -227,16 +227,16 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
                 index += 1;
             }
             Event::Text(ref e) => {
-                let text = String::from_utf8_lossy(&e as &[u8]);
+                let text = String::from_utf8_lossy(e as &[u8]);
                 let text = text.trim();
 
                 // Update the relations children if there is text
-                if !text.is_empty() {
-                    if let Some(last_element) = elements.last() {
+                if !text.is_empty()
+                    && let Some(last_element) = elements.last() {
                         if let Some(relation) = relations.get_mut(last_element) {
                             relation.push((
                                 XMLType::Text,
-                                String::from_utf8_lossy(&e as &[u8]).to_string(),
+                                String::from_utf8_lossy(e as &[u8]).to_string(),
                             ));
                         } else {
                             return Err(anyhow!(
@@ -245,7 +245,6 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
                             ));
                         }
                     }
-                }
             }
             Event::Start(ref e) => {
                 // Parse the tag
@@ -319,7 +318,7 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
                     element_attr_vec.push(serde_json::to_string(&xml_element.attributes)?);
                     element_tag_vec.push(xml_element.tag.to_owned());
                     text_vec.push(c);
-                    child_index_vec.push(0 as u32);
+                    child_index_vec.push(0_u32);
                     child_attr_vec.push(String::new());
                     child_tag_vec.push(String::new());
                 }
@@ -424,11 +423,11 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                 }
             }
             Event::Text(ref e) => {
-                let text = String::from_utf8_lossy(&e as &[u8]);
+                let text = String::from_utf8_lossy(e as &[u8]);
                 let text = text.trim();
-                if !text.is_empty() {
-                    if let Some(s) = subject.last() {
-                        if let Some(p) = predicate.as_ref() {
+                if !text.is_empty()
+                    && let Some(s) = subject.last()
+                        && let Some(p) = predicate.as_ref() {
                             // Handle the case of multi-line text
                             if let Some(t) = xml_type.as_ref() {
                                 match t {
@@ -447,8 +446,6 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                                 }
                             }
                         }
-                    }
-                }
             }
             Event::Start(ref e) => {
                 let tag = parse_xml_tag(e);
@@ -493,12 +490,11 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                     } else {
                         // Buffer the subjects when the same subject tag is found
                         // since we are ignoring recursive predicates
-                        if let Some(s) = s_tag.last() {
-                            if s == &tag {
+                        if let Some(s) = s_tag.last()
+                            && s == &tag {
                                 subject.push(tag.clone());
                                 s_tag.push(tag);
                             }
-                        }
                     }
                 } else if format.predicate_tags.contains(&tag) {
                     if subject.len() == 1 {
@@ -519,16 +515,13 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
             Event::End(ref e) => {
                 let tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
                 if let Some(p) = predicate.take() {
-                    if tag != &p {
+                    if tag != p {
                         predicate.replace(p);
                     }
-                } else {
-                    if let Some(s) = s_tag.last() {
-                        if tag == s {
-                            subject.pop();
-                            s_tag.pop();
-                        }
-                    }
+                } else if let Some(s) = s_tag.last()
+                && tag == s {
+                    subject.pop();
+                    s_tag.pop();
                 }
             }
             Event::Eof => break,
@@ -598,9 +591,9 @@ pub fn extract_set_data(
             device,
         ),
         _ => {
-            return Err(anyhow!(
+            Err(anyhow!(
                 "Unsupported format {format:?} for extract_set_data operator."
-            ));
+            ))
         }
     }
 }

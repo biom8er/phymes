@@ -166,7 +166,7 @@ where
     T: Clone + 'static,
 {
     (0..n_rows)
-        .flat_map(|_| values_vec.iter().map(|v| v.clone()).collect::<Vec<_>>())
+        .flat_map(|_| values_vec.to_vec())
         .collect::<Vec<_>>()
 }
 
@@ -220,7 +220,7 @@ pub fn melt(
     // Begin creating the RecordBatch
     let mut batch_vec = Vec::new();
     for column_name in lhs_values {
-        let arr: ArrayRef = match lhs_table.get_column_data_type(&column_name)? {
+        let arr: ArrayRef = match lhs_table.get_column_data_type(column_name)? {
             DataType::UInt8 => {
                 let col_vec = lhs_table.get_column_as_vec_primitive::<u8>(column_name)?;
                 let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
@@ -254,7 +254,7 @@ pub fn melt(
     // Check if all columns have the same data type
     let data_types = variable_columns
         .iter()
-        .map(|name| lhs_table.get_column_data_type(&name).unwrap())
+        .map(|name| lhs_table.get_column_data_type(name).unwrap())
         .collect::<Vec<_>>();
     let data_types_set = data_types.iter().collect::<HashSet<_>>();
     if data_types_set.len() > 1 {
