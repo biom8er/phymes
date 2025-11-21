@@ -7,14 +7,9 @@ use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilder
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ToolTrait,
-    candle_data::DataConfig,
-    candle_operators::{
-        ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData,
-        FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages,
-        GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, SelectAndCast,
-        SortColumnAndIndices, VectorDistance,
-    },
+    ExtractSetData, ToolTrait, candle_data::DataConfig, candle_operators::{
+        ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData, FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages, GroupByAndAggregate, HumanInTheLoop, JoinInner, Melt, NormalizeTime, Pivot, SelectAndCast, SortColumnAndIndices, VectorDistance
+    }
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -56,6 +51,12 @@ pub enum AvailableCandleOperators {
     #[value(name = "Pivot")]
     #[serde(alias = "pivot")]
     Pivot,
+    #[value(name = "ExtractSetData")]
+    #[serde(alias = "extract-set-data")]
+    ExtractSetData,
+    #[value(name = "Melt")]
+    #[serde(alias = "melt")]
+    Melt,
     #[value(name = "NormalizeTime")]
     #[serde(alias = "NormalizeTime")]
     NormalizeTime,
@@ -84,6 +85,8 @@ impl Display for AvailableCandleOperators {
             Self::SelectAndCast => write!(f, "{}", SelectAndCast::get_static_name()),
             Self::ApplyTemplate => write!(f, "{}", ApplyTemplate::get_static_name()),
             Self::Pivot => write!(f, "{}", Pivot::get_static_name()),
+            Self::ExtractSetData => write!(f, "{}", ExtractSetData::get_static_name()),
+            Self::Melt => write!(f, "{}", Melt::get_static_name()),
             Self::NormalizeTime => write!(f, "{}", NormalizeTime::get_static_name()),
             Self::FromTasksToParticipants => {
                 write!(f, "{}", FromTasksToParticipants::get_static_name())
@@ -110,6 +113,8 @@ impl ToolTrait for AvailableCandleOperators {
             Self::SelectAndCast => SelectAndCast::default().to_json_tool_schema(),
             Self::ApplyTemplate => ApplyTemplate::default().to_json_tool_schema(),
             Self::Pivot => Pivot::default().to_json_tool_schema(),
+            Self::ExtractSetData => ExtractSetData::default().to_json_tool_schema(),
+            Self::Melt => Melt::default().to_json_tool_schema(),
             Self::NormalizeTime => NormalizeTime::default().to_json_tool_schema(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
@@ -129,6 +134,8 @@ impl ToolTrait for AvailableCandleOperators {
             Self::SelectAndCast => SelectAndCast::default().get_description(),
             Self::ApplyTemplate => ApplyTemplate::default().get_description(),
             Self::Pivot => Pivot::default().get_description(),
+            Self::ExtractSetData => ExtractSetData::default().get_description(),
+            Self::Melt => Melt::default().get_description(),
             Self::NormalizeTime => NormalizeTime::default().get_description(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
@@ -150,6 +157,8 @@ impl AvailableCandleOperators {
             Self::ExtractTabularData.to_string(),
             Self::SelectAndCast.to_string(),
             Self::Pivot.to_string(),
+            Self::ExtractSetData.to_string(),
+            Self::Melt.to_string(),
             Self::NormalizeTime.to_string(),
         ];
         processor_names
@@ -172,6 +181,8 @@ impl AvailableCandleOperators {
             Self::SelectAndCast => Ok(Box::new(SelectAndCast::new(config)?)),
             Self::ApplyTemplate => Ok(Box::new(ApplyTemplate::new(config)?)),
             Self::Pivot => Ok(Box::new(Pivot::new(config)?)),
+            Self::ExtractSetData => Ok(Box::new(ExtractSetData::new(config)?)),
+            Self::Melt => Ok(Box::new(Melt::new(config)?)),
             Self::NormalizeTime => Ok(Box::new(NormalizeTime::new(config)?)),
             Self::FromTasksToParticipants => Ok(Box::new(FromTasksToParticipants::new(config)?)),
             Self::FromTracesToMessages => Ok(Box::new(FromTracesToMessages::new(config)?)),
@@ -226,6 +237,8 @@ mod tests {
                 "SelectAndCast".to_string(),
                 "ApplyTemplate".to_string(),
                 "Pivot".to_string(),
+                "ExtractSetData".to_string(),
+                "Melt".to_string(),
                 "NormalizeTime".to_string(),
                 "FromTasksToParticipants".to_string(),
                 "FromTracesToMessages".to_string(),
@@ -246,6 +259,8 @@ mod tests {
                 "SelectAndCast",
                 "ApplyTemplate",
                 "Pivot",
+                "ExtractSetData",
+                "Melt",
                 "NormalizeTime",
                 "FromTasksToParticipants",
                 "FromTracesToMessages",
