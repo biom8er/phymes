@@ -175,7 +175,7 @@ where
 /// # Notes
 /// * This function is useful to massage a [RecordBatch] into a format where one or more columns are identifier variables (lhs_values),
 ///   while all other columns, considered measured variables (pvt_columns), are unpivoted to the row axis, leaving just two non-identifier columns, `variable` and `value`.
-/// * If all [Datatype]s in the `pvt_columns` are not the same, they values will be cast to [String]s and a third column for `data_type` will be added
+/// * If all [DataType]s in the `pvt_columns` are not the same, they values will be cast to [String]s and a third column for `data_type` will be added
 ///
 /// # Arguments
 ///
@@ -342,7 +342,7 @@ mod tests {
         let device = device(false)?;
 
         // Make the pivot table
-        let result = melt(&["A"], &[lhs_batch_1.clone()], &["B"], &device)?;
+        let result = melt(&["A"], std::slice::from_ref(&lhs_batch_1), &["B"], &device)?;
 
         let lhs_a = result
             .column_by_name("A")
@@ -376,7 +376,7 @@ mod tests {
         assert_eq!(lhs, vec![1, 3, 5]);
 
         // Make the pivot table
-        let result = melt(&["A"], &[lhs_batch_1.clone()], &["B", "C"], &device)?;
+        let result = melt(&["A"], std::slice::from_ref(&lhs_batch_1), &["B", "C"], &device)?;
 
         let lhs_a = result
             .column_by_name("A")
@@ -410,7 +410,7 @@ mod tests {
         assert_eq!(lhs, vec![1, 3, 5, 2, 4, 6]);
 
         // Make the pivot table
-        let result = melt(&["A", "B"], &[lhs_batch_1.clone()], &["C"], &device)?;
+        let result = melt(&["A", "B"], std::slice::from_ref(&lhs_batch_1), &["C"], &device)?;
 
         let lhs_a = result
             .column_by_name("A")
