@@ -376,7 +376,12 @@ mod tests {
         assert_eq!(lhs, vec![1, 3, 5]);
 
         // Make the pivot table
-        let result = melt(&["A"], std::slice::from_ref(&lhs_batch_1), &["B", "C"], &device)?;
+        let result = melt(
+            &["A"],
+            std::slice::from_ref(&lhs_batch_1),
+            &["B", "C"],
+            &device,
+        )?;
 
         let lhs_a = result
             .column_by_name("A")
@@ -410,7 +415,12 @@ mod tests {
         assert_eq!(lhs, vec![1, 3, 5, 2, 4, 6]);
 
         // Make the pivot table
-        let result = melt(&["A", "B"], std::slice::from_ref(&lhs_batch_1), &["C"], &device)?;
+        let result = melt(
+            &["A", "B"],
+            std::slice::from_ref(&lhs_batch_1),
+            &["C"],
+            &device,
+        )?;
 
         let lhs_a = result
             .column_by_name("A")

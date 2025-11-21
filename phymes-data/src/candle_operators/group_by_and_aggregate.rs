@@ -827,9 +827,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<StringArray>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| {
-                                    s.map(|s| s.to_owned())
-                                })
+                                .filter_map(|s| s.map(|s| s.to_owned()))
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -854,10 +852,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u8>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u8>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -885,10 +883,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -916,10 +914,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<i64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<i64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -947,10 +945,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -978,10 +976,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1018,10 +1016,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u8>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u8>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1049,10 +1047,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1080,10 +1078,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<i64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<i64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1111,10 +1109,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1142,10 +1140,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1297,9 +1295,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<StringArray>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| {
-                                    s.map(|s| s.to_owned())
-                                })
+                                .filter_map(|s| s.map(|s| s.to_owned()))
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1324,10 +1320,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u8>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u8>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1355,10 +1351,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1386,10 +1382,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<i64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<i64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1417,10 +1413,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1448,10 +1444,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1488,10 +1484,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u8>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u8>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1519,10 +1515,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1550,10 +1546,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<i64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<i64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1581,10 +1577,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1612,10 +1608,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1747,9 +1743,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<StringArray>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| {
-                                    s.map(|s| s.to_owned())
-                                })
+                                .filter_map(|s| s.map(|s| s.to_owned()))
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
@@ -1770,10 +1764,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u8>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u8>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>()
@@ -1795,10 +1789,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>()
@@ -1820,10 +1814,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<i64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<i64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>()
@@ -1845,10 +1839,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>()
@@ -1870,10 +1864,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>()
@@ -1904,10 +1898,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u8>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u8>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>()
@@ -1929,10 +1923,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>()
@@ -1954,10 +1948,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<i64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<i64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>()
@@ -1979,10 +1973,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>()
@@ -2004,10 +1998,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<f64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<f64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>()
@@ -2103,9 +2097,7 @@ pub fn group_by_and_aggregate(
                                 .downcast_ref::<StringArray>()
                                 .unwrap()
                                 .iter()
-                                .filter_map(|s| {
-                                    s.map(|s| s.to_owned())
-                                })
+                                .filter_map(|s| s.map(|s| s.to_owned()))
                                 .collect::<HashSet<_>>()
                                 .into_iter()
                                 .collect::<Vec<_>>()
@@ -2128,10 +2120,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u8>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u8>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<HashSet<_>>()
                                     .into_iter()
@@ -2155,10 +2147,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<HashSet<_>>()
                                     .into_iter()
@@ -2182,10 +2174,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<i64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<i64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<HashSet<_>>()
                                     .into_iter()
@@ -2218,10 +2210,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u8>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u8>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<HashSet<_>>()
                                     .into_iter()
@@ -2245,10 +2237,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<u32>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<u32>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<HashSet<_>>()
                                     .into_iter()
@@ -2272,10 +2264,10 @@ pub fn group_by_and_aggregate(
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
-                                        s.map(|s| Table::get_array_as_vec_primitive::<i64>(
-                                                    &s, agg_column,
-                                                )
-                                                .unwrap_or_default())
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_primitive::<i64>(&s, agg_column)
+                                                .unwrap_or_default()
+                                        })
                                     })
                                     .collect::<HashSet<_>>()
                                     .into_iter()

@@ -232,19 +232,20 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
 
                 // Update the relations children if there is text
                 if !text.is_empty()
-                    && let Some(last_element) = elements.last() {
-                        if let Some(relation) = relations.get_mut(last_element) {
-                            relation.push((
-                                XMLType::Text,
-                                String::from_utf8_lossy(e as &[u8]).to_string(),
-                            ));
-                        } else {
-                            return Err(anyhow!(
-                                "Key `{last_element}` was not found in XML parsed relations {:?}",
-                                relations.keys()
-                            ));
-                        }
+                    && let Some(last_element) = elements.last()
+                {
+                    if let Some(relation) = relations.get_mut(last_element) {
+                        relation.push((
+                            XMLType::Text,
+                            String::from_utf8_lossy(e as &[u8]).to_string(),
+                        ));
+                    } else {
+                        return Err(anyhow!(
+                            "Key `{last_element}` was not found in XML parsed relations {:?}",
+                            relations.keys()
+                        ));
                     }
+                }
             }
             Event::Start(ref e) => {
                 // Parse the tag
@@ -423,25 +424,26 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                 let text = text.trim();
                 if !text.is_empty()
                     && let Some(s) = subject.last()
-                        && let Some(p) = predicate.as_ref() {
-                            // Handle the case of multi-line text
-                            if let Some(t) = xml_type.as_ref() {
-                                match t {
-                                    XMLType::Element => {
-                                        subjects.push(s.to_string());
-                                        predicates.push(p.to_string());
-                                        objects.push(text.to_string());
-                                        xml_type.replace(XMLType::Text);
-                                    }
-                                    XMLType::Text => {
-                                        if let Some(mut o) = objects.pop() {
-                                            o.push_str(text);
-                                            objects.push(o);
-                                        }
-                                    }
+                    && let Some(p) = predicate.as_ref()
+                {
+                    // Handle the case of multi-line text
+                    if let Some(t) = xml_type.as_ref() {
+                        match t {
+                            XMLType::Element => {
+                                subjects.push(s.to_string());
+                                predicates.push(p.to_string());
+                                objects.push(text.to_string());
+                                xml_type.replace(XMLType::Text);
+                            }
+                            XMLType::Text => {
+                                if let Some(mut o) = objects.pop() {
+                                    o.push_str(text);
+                                    objects.push(o);
                                 }
                             }
                         }
+                    }
+                }
             }
             Event::Start(ref e) => {
                 let tag = parse_xml_tag(e);
@@ -487,10 +489,11 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                         // Buffer the subjects when the same subject tag is found
                         // since we are ignoring recursive predicates
                         if let Some(s) = s_tag.last()
-                            && s == &tag {
-                                subject.push(tag.clone());
-                                s_tag.push(tag);
-                            }
+                            && s == &tag
+                        {
+                            subject.push(tag.clone());
+                            s_tag.push(tag);
+                        }
                     }
                 } else if format.predicate_tags.contains(&tag) {
                     if subject.len() == 1 {
@@ -515,7 +518,8 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                         predicate.replace(p);
                     }
                 } else if let Some(s) = s_tag.last()
-                && tag == s {
+                    && tag == s
+                {
                     subject.pop();
                     s_tag.pop();
                 }
@@ -582,11 +586,9 @@ pub fn extract_set_data(
             &OwlFormat::owl_format_named_individual(),
             device,
         ),
-        _ => {
-            Err(anyhow!(
-                "Unsupported format {format:?} for extract_set_data operator."
-            ))
-        }
+        _ => Err(anyhow!(
+            "Unsupported format {format:?} for extract_set_data operator."
+        )),
     }
 }
 
