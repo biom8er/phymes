@@ -9,6 +9,7 @@ mod filter_columns_and_indices;
 mod group_by_and_aggregate;
 mod human_in_the_loop;
 mod join_inner;
+mod melt;
 mod pivot;
 mod select_and_cast;
 mod sort_column_and_indices;
