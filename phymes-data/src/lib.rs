@@ -14,7 +14,7 @@ pub use candle_operators::{
     GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot, SelectAndCast,
     SortColumnAndIndices, ToolTrait, VectorDistance, convert_destinations_to_tools,
     filter_columns_and_indices, group_by_and_aggregate, make_pdf_document, sort_column_and_indices,
-    test_extract_tabular_data,
+    test_extract_tabular_data, extract_set_data, ExtractSetData
 };
 pub use jinja2_templates::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,

@@ -28,7 +28,7 @@ pub use pivot::Pivot;
 pub use select_and_cast::SelectAndCast;
 pub use sort_column_and_indices::{SortColumnAndIndices, sort_column_and_indices};
 pub use vector_distance::VectorDistance;
-pub use extract_set_data::{XMLTags, extract_set_data, ExtractSetData};
+pub use extract_set_data::{extract_set_data, ExtractSetData};
 
 /// Custom functions specific to diagnostic analytics
 mod from_tasks_to_participants;

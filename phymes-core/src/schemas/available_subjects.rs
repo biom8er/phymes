@@ -1,13 +1,10 @@
 use crate::{
     schemas::{
-        blob::create_blob_fields,
-        chat::create_chat_fields,
-        diagnostics::{
+        blob::create_blob_fields, chat::create_chat_fields, diagnostics::{
             create_events_fields, create_metrics_fields, create_metrics_mermaid_gantt_fields,
             create_metrics_pivot_fields, create_metrics_pivot_norm_time_fields,
             create_traces_fields,
-        },
-        mermaid::{
+        }, mermaid::{
             create_mermaid_content_template_fields,
             create_mermaid_er_diagram_entities_template_fields,
             create_mermaid_er_diagram_relations_template_fields,
@@ -18,18 +15,15 @@ use crate::{
             create_mermaid_sequence_diagram_participants_template_fields,
             create_mermaid_visualization_fields, create_mermaid_xychart_template_fields,
             create_session_mermaid_fields,
-        },
-        queries::create_queries_fields,
-        session::{
+        }, queries::create_queries_fields, session::{
             create_session_processors_fields, create_session_runtime_envs_fields,
             create_session_subjects_fields, create_session_subjects_num_rows_fields,
             create_session_tasks_fields,
-        },
-        user::{
+        }, set_data::{create_parse_owl_fields, create_parse_xml_fields}, user::{
             create_join_user_inbox_session_contexts_fields,
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
             create_user_inbox_fields, create_user_session_contexts_fields,
-        },
+        }
     },
     session::{BuildableTrait, BuilderTrait},
     table::{Table, TableBuilder, TableBuilderTrait},
@@ -260,6 +254,10 @@ pub enum AvailableSubjects {
     MermaidERDiagramEntitiesTemplate,
     #[value(name = "MermaidERDiagramRelationsTemplate")]
     MermaidERDiagramRelationsTemplate,
+    #[value(name = "ParseXml")]
+    ParseXml,
+    #[value(name = "ParseOwl")]
+    ParseOwl,
 }
 
 impl Display for AvailableSubjects {
@@ -327,6 +325,8 @@ impl Display for AvailableSubjects {
             AvailableSubjects::MermaidERDiagramRelationsTemplate => {
                 write!(f, "MermaidERDiagramRelationsTemplate")
             }
+            AvailableSubjects::ParseXml => write!(f, "ParseXml"),
+            AvailableSubjects::ParseOwl => write!(f, "ParseOwl"),
         }
     }
 }
@@ -456,6 +456,8 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::MermaidERDiagramRelationsTemplate => {
                 create_schema_from_fields(&create_mermaid_er_diagram_relations_template_fields)
             }
+            AvailableSubjects::ParseXml => create_schema_from_fields(&create_parse_xml_fields),
+            AvailableSubjects::ParseOwl => create_schema_from_fields(&create_parse_owl_fields),
         }
     }
 }
