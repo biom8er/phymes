@@ -374,7 +374,15 @@ fn pivot_values(
 /// * `default_values` - Slice of Strings representing the default value when missing values are encountered
 /// * `pvt_columns` - Slice of Strings for the columns to group by
 /// * `device` - The compute device
-#[instrument(skip(lhs_values, lhs_args, agg_columns, agg_operators, default_values, pvt_columns, device))]
+#[instrument(skip(
+    lhs_values,
+    lhs_args,
+    agg_columns,
+    agg_operators,
+    default_values,
+    pvt_columns,
+    device
+))]
 pub fn pivot(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],

@@ -252,37 +252,42 @@ pub fn select_and_cast(
             DataCastOperator::BytesToString => {
                 let to_type = cast_datatypes.get(index).unwrap();
                 if to_type != &DataType::Utf8 {
-                    return Err(anyhow!("Unsupported data type {to_type} for casting from Bytes to String for column {column_name}. The supported data type is Utf8."));
+                    return Err(anyhow!(
+                        "Unsupported data type {to_type} for casting from Bytes to String for column {column_name}. The supported data type is Utf8."
+                    ));
                 }
                 let arr: ArrayRef = match lhs_table.get_column_data_type(column_name)? {
                     DataType::FixedSizeList(f, _) | DataType::List(f) => match f.data_type() {
                         DataType::UInt8 => {
-                            let cast_vec = lhs_table.get_column_as_vec_nested_primitive::<u8>(column_name)?
+                            let cast_vec = lhs_table
+                                .get_column_as_vec_nested_primitive::<u8>(column_name)?
                                 .into_iter()
                                 .map(|v| String::from_utf8_lossy(&v).into_owned())
-                                .collect::<Vec<_>>();                            
+                                .collect::<Vec<_>>();
                             Arc::new(StringArray::from(cast_vec))
-                        },
+                        }
                         DataType::UInt32 => {
-                            let cast_vec = lhs_table.get_column_as_vec_nested_primitive::<u32>(column_name)?
+                            let cast_vec = lhs_table
+                                .get_column_as_vec_nested_primitive::<u32>(column_name)?
                                 .into_iter()
                                 .map(|v| {
                                     let bytes = v.into_iter().map(|i| i as u8).collect::<Vec<_>>();
                                     String::from_utf8_lossy(&bytes).into_owned()
                                 })
-                                .collect::<Vec<_>>();                            
+                                .collect::<Vec<_>>();
                             Arc::new(StringArray::from(cast_vec))
-                        },
+                        }
                         DataType::Int64 => {
-                            let cast_vec = lhs_table.get_column_as_vec_nested_primitive::<i64>(column_name)?
+                            let cast_vec = lhs_table
+                                .get_column_as_vec_nested_primitive::<i64>(column_name)?
                                 .into_iter()
                                 .map(|v| {
                                     let bytes = v.into_iter().map(|i| i as u8).collect::<Vec<_>>();
                                     String::from_utf8_lossy(&bytes).into_owned()
                                 })
-                                .collect::<Vec<_>>();                            
+                                .collect::<Vec<_>>();
                             Arc::new(StringArray::from(cast_vec))
-                        },
+                        }
                         _ => {
                             return Err(anyhow!(
                                 "Unsupported data type {} for casting from Bytes to String for column {column_name}. The supported data types are List-UInt8, List-UInt32, and List-Int64",

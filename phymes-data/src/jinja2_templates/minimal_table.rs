@@ -1,7 +1,7 @@
 /// HTML5 table jinja2 template
 ///
 /// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/table>
-/// 
+///
 /// # Notes
 /// - thead and tbody sections are support, but tfoot is not yet supported
 /// - href e.g., <td><a href="{{ ontology.URL }}">{{ ontology.name }}</a></td>, is not yet supported
@@ -37,7 +37,10 @@ pub static MINIMAL_TABLE_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION, minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE}};
+    use crate::jinja2_templates::{
+        TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION,
+        minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE},
+    };
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use phymes_core::{
@@ -85,7 +88,12 @@ mod tests {
             .build()?;
 
         // 1. make the thead
-        let headers = table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<Vec<_>>();
+        let headers = table
+            .get_schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect::<Vec<_>>();
         let mut input_object = Map::new();
         let _ = input_object.insert(TEMPLATE_HEADER_EXPRESSION.to_string(), headers.into());
         let template_inputs = serde_json::to_value(input_object)?;
@@ -106,7 +114,12 @@ mod tests {
         let template_inputs = serde_json::to_value(input_object)?;
 
         // Create and render the template with the inputs
-        let template = [MINIMAL_HTML_PRE, rendered_template.as_str(), MINIMAL_HTML_POST].join("");
+        let template = [
+            MINIMAL_HTML_PRE,
+            rendered_template.as_str(),
+            MINIMAL_HTML_POST,
+        ]
+        .join("");
         let script_string =
             TableScript::new_from_template(template).apply_template(&template_inputs)?;
 

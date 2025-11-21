@@ -1,10 +1,19 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt32Array}, datatypes::{DataType, Field, Fields}};
+use arrow::{
+    array::{ArrayRef, RecordBatch, StringArray, UInt32Array},
+    datatypes::{DataType, Field, Fields},
+};
 
 pub(crate) fn create_parse_xml_fields() -> Fields {
-    let field_names = ["element_tag", "element_attr", "text", "child_tag", "child_attr"];
+    let field_names = [
+        "element_tag",
+        "element_attr",
+        "text",
+        "child_tag",
+        "child_attr",
+    ];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -52,7 +61,7 @@ pub(crate) fn create_parse_owl_fields() -> Fields {
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();    
+        .collect::<Vec<_>>();
     Fields::from(fields_vec)
 }
 

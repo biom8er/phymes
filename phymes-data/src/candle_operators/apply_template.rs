@@ -15,7 +15,8 @@ use tracing::instrument;
 use crate::{
     AvailableJinja2Templates, ToolTrait,
     candle_data::{DataConfig, table_and_data_format_to_record_batch},
-    candle_operators::DataOperatorTrait, jinja2_templates::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION},
+    candle_operators::DataOperatorTrait,
+    jinja2_templates::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION},
 };
 
 /// Inject a table into a string template
@@ -159,15 +160,7 @@ impl DataOperatorTrait for ApplyTemplate {
 ///   where the table_expression will be inserted into to complete the input for the template
 /// * `doc_extension` - The document extension e.g., .py, .html, .md, .txt, etc.
 /// * `device` - The compute device
-#[instrument(skip(
-    lhs_args,
-    rhs_args,
-    doc_template,
-    doc_name,
-    doc_input,
-    format,
-    _device
-))]
+#[instrument(skip(lhs_args, rhs_args, doc_template, doc_name, doc_input, format, _device))]
 pub fn apply_template(
     lhs_args: &[RecordBatch],
     rhs_args: Option<&[RecordBatch]>,
@@ -192,7 +185,8 @@ pub fn apply_template(
         TableScript::new_from_template(doc_template.to_template()).apply_template(&input)?
     // 2. Use the lhs_args fields to help generate the template
     } else if doc_template.has_headers() {
-        let headers = lhs_args.first()
+        let headers = lhs_args
+            .first()
             .ok_or(anyhow!("lhs_args is empty for apply_template."))?
             .schema()
             .fields()
@@ -218,15 +212,17 @@ pub fn apply_template(
     // Complete the input
     let input = if let Some(input_object) = doc_input.as_object() {
         let mut input_object = input_object.to_owned();
-        let _ = input_object.insert(TEMPLATE_TABLE_EXPRESSION.to_string(), lhs_json_object.into());
+        let _ = input_object.insert(
+            TEMPLATE_TABLE_EXPRESSION.to_string(),
+            lhs_json_object.into(),
+        );
         serde_json::to_value(input_object)?
     } else {
         json!({TEMPLATE_TABLE_EXPRESSION.to_string(): lhs_json_object})
     };
 
     // Apply the template
-    let document =
-        TableScript::new_from_template(doc_template).apply_template(&input)?;
+    let document = TableScript::new_from_template(doc_template).apply_template(&input)?;
 
     // Wrap into a table
     let batch = match format {
@@ -308,7 +304,7 @@ mod tests {
 
         Ok(())
     }
-    
+
     #[test]
     fn test_apply_template_with_rhs_args() -> Result<()> {
         // Make the test record batches

@@ -67,7 +67,7 @@ pub static MINIMAL_HTML_POST: &str = r#"
 </html>"#;
 
 /// Template for rendering a minimal html jinja2 template with specified HTML tag elements
-/// 
+///
 /// # Notes
 /// - Use the `start_tag`, `header`, and `end_tag` to generate HTML lines like the following
 ///   <h1>{{ title }}</h1> where tag_state = <h1>, header = title, and end_tag = </h1>
@@ -92,33 +92,18 @@ pub mod test_minimal_html {
 
     /// Create the dummy data for the headers
     pub fn make_html_headers() -> Result<RecordBatch> {
-        let start_tag_vec = [
-            "<h1>",
-            "<p>",
-            "<p>",
-            "<h2> Background</h2>",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let header_vec = [
-            "title",
-            "version",
-            "description",
-            "",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let end_tag_vec = [
-            "</h1>",
-            "</p>",
-            "</p>",
-            "",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+        let start_tag_vec = ["<h1>", "<p>", "<p>", "<h2> Background</h2>"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let header_vec = ["title", "version", "description", ""]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let end_tag_vec = ["</h1>", "</p>", "</p>", ""]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
 
         let start_tag_arr: ArrayRef = Arc::new(StringArray::from(start_tag_vec));
         let header_arr: ArrayRef = Arc::new(StringArray::from(header_vec));
@@ -132,30 +117,18 @@ pub mod test_minimal_html {
     }
     /// Create the dummy data for the html data
     pub fn make_html_rows() -> Result<RecordBatch> {
-        let title_vec = [
-            "Title 1",
-            "Title 2",
-            "Title 3",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let version_vec = [
-            "Version 1",
-            "Version 2",
-            "Version 3",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let description_vec = [
-            "Description 1",
-            "Description 2",
-            "Description 3",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+        let title_vec = ["Title 1", "Title 2", "Title 3"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let version_vec = ["Version 1", "Version 2", "Version 3"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let description_vec = ["Description 1", "Description 2", "Description 3"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
 
         let title_arr: ArrayRef = Arc::new(StringArray::from(title_vec));
         let version_arr: ArrayRef = Arc::new(StringArray::from(version_vec));
@@ -194,8 +167,9 @@ mod tests {
         let mut input_object = Map::new();
         let _ = input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
         let template_inputs = serde_json::to_value(input_object)?;
-        let rendered_template = TableScript::new_from_template(MINIMAL_HTML_BODY_TEMPLATE.to_string())
-            .apply_template(&template_inputs)?;
+        let rendered_template =
+            TableScript::new_from_template(MINIMAL_HTML_BODY_TEMPLATE.to_string())
+                .apply_template(&template_inputs)?;
 
         assert_eq!(
             rendered_template,
@@ -212,7 +186,12 @@ mod tests {
         let mut input_object = Map::new();
         let _ = input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
         let template_inputs = serde_json::to_value(input_object)?;
-        let template = [MINIMAL_HTML_PRE, rendered_template.as_str(), MINIMAL_HTML_POST].join("");
+        let template = [
+            MINIMAL_HTML_PRE,
+            rendered_template.as_str(),
+            MINIMAL_HTML_POST,
+        ]
+        .join("");
         let script_string =
             TableScript::new_from_template(template).apply_template(&template_inputs)?;
 

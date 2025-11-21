@@ -37,9 +37,8 @@ use crate::state::{
     ACTIVE_SESSION_NAME, EMAIL, JWT,
 };
 
-
 /// Attach files input component
-/// 
+///
 /// # Arguments
 /// `extend_publish` - whether to extend the subject with the attachment data
 /// `except_files` - what files to except
@@ -78,15 +77,19 @@ pub fn attach_files_input(
                                     // 2. If no active subject, use the file_stem and extension to determine the target subject
                                     if let Some(names) = &subject_names {
                                         let subject_name = file_stem.to_string();
-                                        if names.read().contains(&subject_name) && extension == "csv" {
+                                        if names.read().contains(&subject_name)
+                                            && extension == "csv"
+                                        {
                                             (subject_name, false)
                                         } else {
                                             match extension_to_subject(extension) {
-                                                Ok(subject_name) => (subject_name.to_string(), true),
+                                                Ok(subject_name) => {
+                                                    (subject_name.to_string(), true)
+                                                }
                                                 Err(err) => {
                                                     tracing::error!("{err}");
                                                     (file_stem.to_string(), true)
-                                                },
+                                                }
                                             }
                                         }
                                     // 3. If no active subject, use the extension only to determine the target interface subject
@@ -96,19 +99,19 @@ pub fn attach_files_input(
                                             Err(err) => {
                                                 tracing::error!("{err}");
                                                 (file_stem.to_string(), true)
-                                            },
+                                            }
                                         }
                                     }
                                 } else {
                                     (name.read().to_string(), false)
-                                }                                
+                                }
                             } else {
                                 match extension_to_subject(extension) {
                                     Ok(subject_name) => (subject_name.to_string(), true),
                                     Err(err) => {
                                         tracing::error!("{err}");
                                         (file_stem.to_string(), true)
-                                    },
+                                    }
                                 }
                             };
 

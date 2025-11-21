@@ -33,7 +33,7 @@ impl Default for JsonFormat {
 }
 
 /// How to extract out the OWL triples
-/// 
+///
 /// # Notes
 /// * the resultant schema is subject, predicate, object
 /// * subject = serialized {attr: val}
@@ -57,8 +57,14 @@ pub struct OwlFormat {
 
 impl OwlFormat {
     pub fn owl_format_class() -> Self {
-        let subject_tags = ["owl:Class"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let subject_attributes = ["rdf:about"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let subject_tags = ["owl:Class"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let subject_attributes = ["rdf:about"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let predicate_tags = [
             "rdf:type",
             "rdfs:label",
@@ -82,18 +88,30 @@ impl OwlFormat {
             "skos:related",
             "skos:broaderTransitive",
             "skos:narrowerTransitive",
-            ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let predicate_attributes = ["rdf:resource"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        OwlFormat { 
-            subject_tags, 
-            subject_attributes, 
-            predicate_tags, 
-            predicate_attributes
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let predicate_attributes = ["rdf:resource"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        OwlFormat {
+            subject_tags,
+            subject_attributes,
+            predicate_tags,
+            predicate_attributes,
         }
     }
     pub fn owl_format_object_property() -> Self {
-        let subject_tags = ["owl:ObjectProperty"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let subject_attributes = ["rdf:about"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let subject_tags = ["owl:ObjectProperty"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let subject_attributes = ["rdf:about"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let predicate_tags = [
             "rdf:type",
             "rdfs:label",
@@ -121,25 +139,40 @@ impl OwlFormat {
             "skos:related",
             "skos:broaderTransitive",
             "skos:narrowerTransitive",
-            ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let predicate_attributes = ["rdf:resource"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        OwlFormat { 
-            subject_tags, 
-            subject_attributes, 
-            predicate_tags, 
-            predicate_attributes
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let predicate_attributes = ["rdf:resource"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        OwlFormat {
+            subject_tags,
+            subject_attributes,
+            predicate_tags,
+            predicate_attributes,
         }
     }
     pub fn owl_format_named_individual() -> Self {
-        let subject_tags = ["owl:NamedIndividual"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let subject_attributes = ["rdf:about"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let subject_tags = ["owl:NamedIndividual"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let subject_attributes = ["rdf:about"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let predicate_tags = Vec::new();
-        let predicate_attributes = ["rdf:resource"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        OwlFormat { 
-            subject_tags, 
-            subject_attributes, 
-            predicate_tags, 
-            predicate_attributes
+        let predicate_attributes = ["rdf:resource"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        OwlFormat {
+            subject_tags,
+            subject_attributes,
+            predicate_tags,
+            predicate_attributes,
         }
     }
 }
@@ -234,7 +267,11 @@ impl DataFormat {
             Self::Html => "html",
             Self::Txt => "txt",
             Self::Xml => "Xml",
-            Self::Owl(_) | Self::OwlDefault | Self::OwlClass | Self::OwlObjectProperty | Self::OwlNamedIndividual => "Owl",
+            Self::Owl(_)
+            | Self::OwlDefault
+            | Self::OwlClass
+            | Self::OwlObjectProperty
+            | Self::OwlNamedIndividual => "Owl",
             Self::None => "",
         }
     }

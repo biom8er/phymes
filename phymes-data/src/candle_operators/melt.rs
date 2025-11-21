@@ -1,5 +1,7 @@
 use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array}, compute::cast, datatypes::{DataType}
+    array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array},
+    compute::cast,
+    datatypes::DataType,
 };
 
 use anyhow::{Result, anyhow};
@@ -13,7 +15,9 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{ToolTrait, candle_data::DataConfig, candle_operators::data_operator::DataOperatorTrait};
+use crate::{
+    ToolTrait, candle_data::DataConfig, candle_operators::data_operator::DataOperatorTrait,
+};
 
 /// Unpivot (melt) a [RecordBatch] from wide to long format
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -144,32 +148,32 @@ impl DataOperatorTrait for Melt {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        melt(
-            &lhs_values,
-            lhs_args,
-            &pvt_columns,
-            device,
-        )
+        melt(&lhs_values, lhs_args, &pvt_columns, device)
     }
 }
 
 fn expand_column_inner<T>(n_rows: usize, values_vec: &[T]) -> Vec<T>
 where
-    T: Clone + 'static, 
+    T: Clone + 'static,
 {
-    values_vec.iter().flat_map(|v| (0..n_rows).map(|_| v.clone()).collect::<Vec<_>>()).collect::<Vec<_>>()
+    values_vec
+        .iter()
+        .flat_map(|v| (0..n_rows).map(|_| v.clone()).collect::<Vec<_>>())
+        .collect::<Vec<_>>()
 }
 fn expand_column_outer<T>(n_rows: usize, values_vec: &[T]) -> Vec<T>
 where
-    T: Clone + 'static, 
+    T: Clone + 'static,
 {
-    (0..n_rows).flat_map(|_| values_vec.iter().map(|v| v.clone()).collect::<Vec<_>>()).collect::<Vec<_>>()
+    (0..n_rows)
+        .flat_map(|_| values_vec.iter().map(|v| v.clone()).collect::<Vec<_>>())
+        .collect::<Vec<_>>()
 }
 
 /// Unpivot (melt) a [RecordBatch] from wide to long format
-/// 
+///
 /// # Notes
-/// * This function is useful to massage a [RecordBatch] into a format where one or more columns are identifier variables (lhs_values), 
+/// * This function is useful to massage a [RecordBatch] into a format where one or more columns are identifier variables (lhs_values),
 ///   while all other columns, considered measured variables (pvt_columns), are unpivoted to the row axis, leaving just two non-identifier columns, `variable` and `value`.
 /// * If all [Datatype]s in the `pvt_columns` are not the same, they values will be cast to [String]s and a third column for `data_type` will be added
 ///
@@ -194,17 +198,23 @@ pub fn melt(
 
     // Determine what columns to unpivot
     let variable_columns = if pvt_columns.is_empty() {
-        lhs_table.get_schema()
+        lhs_table
+            .get_schema()
             .fields()
             .iter()
-            .filter_map(|f| if lhs_values.contains(&f.name().as_str()) {
-                None
-            } else {
-                Some(f.name().to_string())
+            .filter_map(|f| {
+                if lhs_values.contains(&f.name().as_str()) {
+                    None
+                } else {
+                    Some(f.name().to_string())
+                }
             })
             .collect::<Vec<_>>()
     } else {
-        pvt_columns.iter().map(|s| s.to_string()).collect::<Vec<_>>()
+        pvt_columns
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
     };
 
     // Begin creating the RecordBatch
@@ -215,17 +225,17 @@ pub fn melt(
                 let col_vec = lhs_table.get_column_as_vec_primitive::<u8>(column_name)?;
                 let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
                 Arc::new(UInt8Array::from(expanded_vec))
-            },
+            }
             DataType::UInt32 => {
                 let col_vec = lhs_table.get_column_as_vec_primitive::<u32>(column_name)?;
                 let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
                 Arc::new(UInt32Array::from(expanded_vec))
-            },
+            }
             DataType::Utf8 => {
                 let col_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(column_name)?;
                 let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
                 Arc::new(StringArray::from(expanded_vec))
-            },
+            }
             _ => {
                 return Err(anyhow!(
                     "Unsupported data type {} for the identifier column {column_name} for Melt Operator. The supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, and FixedList and List versions.",
@@ -242,7 +252,10 @@ pub fn melt(
     batch_vec.push((&"variable", Arc::new(StringArray::from(variable_vec))));
 
     // Check if all columns have the same data type
-    let data_types = variable_columns.iter().map(|name| lhs_table.get_column_data_type(&name).unwrap()).collect::<Vec<_>>();
+    let data_types = variable_columns
+        .iter()
+        .map(|name| lhs_table.get_column_data_type(&name).unwrap())
+        .collect::<Vec<_>>();
     let data_types_set = data_types.iter().collect::<HashSet<_>>();
     if data_types_set.len() > 1 {
         // Cast values to strings
@@ -255,24 +268,39 @@ pub fn melt(
         batch_vec.push((&"value", Arc::new(StringArray::from(values_vec))));
 
         // Create the data type column
-        let data_types_vec = expand_column_inner(n_rows, &data_types).into_iter().map(|t| t.to_string()).collect::<Vec<_>>();
+        let data_types_vec = expand_column_inner(n_rows, &data_types)
+            .into_iter()
+            .map(|t| t.to_string())
+            .collect::<Vec<_>>();
         batch_vec.push((&"data_type", Arc::new(StringArray::from(data_types_vec))));
-
     } else {
         // Create the values column
         let arr: ArrayRef = match data_types.first().unwrap() {
             DataType::UInt8 => {
-                let expanded_vec = variable_columns.iter().flat_map(|name| lhs_table.get_column_as_vec_primitive::<u8>(name).unwrap()).collect::<Vec<_>>();
+                let expanded_vec = variable_columns
+                    .iter()
+                    .flat_map(|name| lhs_table.get_column_as_vec_primitive::<u8>(name).unwrap())
+                    .collect::<Vec<_>>();
                 Arc::new(UInt8Array::from(expanded_vec))
-            },
+            }
             DataType::UInt32 => {
-                let expanded_vec = variable_columns.iter().flat_map(|name| lhs_table.get_column_as_vec_primitive::<u32>(name).unwrap()).collect::<Vec<_>>();
+                let expanded_vec = variable_columns
+                    .iter()
+                    .flat_map(|name| lhs_table.get_column_as_vec_primitive::<u32>(name).unwrap())
+                    .collect::<Vec<_>>();
                 Arc::new(UInt32Array::from(expanded_vec))
-            },
+            }
             DataType::Utf8 => {
-                let expanded_vec = variable_columns.iter().flat_map(|name| lhs_table.get_column_as_vec_nonprimitive::<String>(name).unwrap()).collect::<Vec<_>>();
+                let expanded_vec = variable_columns
+                    .iter()
+                    .flat_map(|name| {
+                        lhs_table
+                            .get_column_as_vec_nonprimitive::<String>(name)
+                            .unwrap()
+                    })
+                    .collect::<Vec<_>>();
                 Arc::new(StringArray::from(expanded_vec))
-            },
+            }
             _ => {
                 return Err(anyhow!(
                     "Unsupported data type {} for the values column {variable_columns:?} for the Melt Operator. The supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, and FixedList and List versions.",
@@ -286,7 +314,6 @@ pub fn melt(
 
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
-
 }
 
 #[cfg(test)]
@@ -315,12 +342,7 @@ mod tests {
         let device = device(false)?;
 
         // Make the pivot table
-        let result = melt(
-            &["A"],
-            &[lhs_batch_1.clone()],
-            &["B"],
-            &device,
-        )?;
+        let result = melt(&["A"], &[lhs_batch_1.clone()], &["B"], &device)?;
 
         let lhs_a = result
             .column_by_name("A")
@@ -354,13 +376,8 @@ mod tests {
         assert_eq!(lhs, vec![1, 3, 5]);
 
         // Make the pivot table
-        let result = melt(
-            &["A"],
-            &[lhs_batch_1.clone()],
-            &["B", "C"],
-            &device,
-        )?;
-        
+        let result = melt(&["A"], &[lhs_batch_1.clone()], &["B", "C"], &device)?;
+
         let lhs_a = result
             .column_by_name("A")
             .unwrap()
@@ -393,12 +410,7 @@ mod tests {
         assert_eq!(lhs, vec![1, 3, 5, 2, 4, 6]);
 
         // Make the pivot table
-        let result = melt(
-            &["A", "B"],
-            &[lhs_batch_1.clone()],
-            &["C"],
-            &device,
-        )?;
+        let result = melt(&["A", "B"], &[lhs_batch_1.clone()], &["C"], &device)?;
 
         let lhs_a = result
             .column_by_name("A")
@@ -442,12 +454,7 @@ mod tests {
         assert_eq!(lhs, vec![2, 4, 6]);
 
         // Make the pivot table
-        let result = melt(
-            &["B"],
-            &[lhs_batch_1],
-            &["A", "C"],
-            &device,
-        )?;
+        let result = melt(&["B"], &[lhs_batch_1], &["A", "C"], &device)?;
 
         let lhs = result
             .column_by_name("B")
@@ -488,7 +495,10 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs, vec!["Utf8", "Utf8", "Utf8", "UInt32", "UInt32", "UInt32"]);
+        assert_eq!(
+            lhs,
+            vec!["Utf8", "Utf8", "Utf8", "UInt32", "UInt32", "UInt32"]
+        );
 
         Ok(())
     }

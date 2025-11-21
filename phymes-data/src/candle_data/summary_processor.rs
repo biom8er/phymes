@@ -308,8 +308,8 @@ pub fn table_and_data_format_to_record_batch(
                 vec![create_timestamp_micros()],
             )
         }
-        DataFormat::Pdf 
-        | DataFormat::Ipc 
+        DataFormat::Pdf
+        | DataFormat::Ipc
         | DataFormat::Xml
         | DataFormat::Owl(_)
         | DataFormat::OwlDefault

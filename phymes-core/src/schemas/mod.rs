@@ -42,7 +42,7 @@ pub use session::{
 };
 
 mod set_data;
-pub use set_data::{create_parse_xml_batch, create_parse_owl_batch};
+pub use set_data::{create_parse_owl_batch, create_parse_xml_batch};
 
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
 mod chat_completion;

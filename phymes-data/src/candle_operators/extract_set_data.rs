@@ -1,17 +1,25 @@
 use std::{collections::HashMap, fmt::Display, io::Cursor};
 
 use anyhow::{Result, anyhow};
-use clap::ValueEnum;
 use arrow::array::RecordBatch;
 use candle_core::Device;
+use clap::ValueEnum;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, OwlFormat, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_parse_owl_batch, create_parse_xml_batch
+    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
+    JSONSchemaType, MappableTrait, OwlFormat, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    create_parse_owl_batch, create_parse_xml_batch,
+};
+use quick_xml::{
+    Reader,
+    events::{BytesStart, Event},
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use quick_xml::{Reader, events::{BytesStart, Event}};
 
-use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait, sort_column_and_indices};
+use crate::{
+    ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait,
+    sort_column_and_indices,
+};
 
 /// Extract xml tags in either XML or OWL format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -147,7 +155,7 @@ impl Display for XMLType {
 }
 
 /// Parse XML tag
-fn parse_xml_tag<'a>(e: &BytesStart<'a>) -> String {    
+fn parse_xml_tag<'a>(e: &BytesStart<'a>) -> String {
     let start_tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
     start_tag.to_string()
 }
@@ -174,7 +182,11 @@ fn serialize_xml_tag<'a>(index: usize, e: &BytesStart<'a>) -> Result<String> {
     let attributes = parse_xml_attrs(e, &[]);
 
     // Serialize the element
-    let element = XMLElement {index, tag: start_tag, attributes: attributes };
+    let element = XMLElement {
+        index,
+        tag: start_tag,
+        attributes: attributes,
+    };
     let serialized = serde_json::to_string(&element)?;
     Ok(serialized)
 }
@@ -202,15 +214,18 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
                 if let Some(last_element) = elements.last() {
                     if let Some(relation) = relations.get_mut(last_element) {
                         relation.push((XMLType::Element, serialized.clone()));
-                    } else {                        
-                        return Err(anyhow!("Key `{last_element}` was not found in XML parsed relations {:?}", relations.keys()));
+                    } else {
+                        return Err(anyhow!(
+                            "Key `{last_element}` was not found in XML parsed relations {:?}",
+                            relations.keys()
+                        ));
                     }
                 }
 
                 // Add the new element to the relations
                 let _ = relations.insert(serialized, Vec::new());
                 index += 1;
-            },
+            }
             Event::Text(ref e) => {
                 let text = String::from_utf8_lossy(&e as &[u8]);
                 let text = text.trim();
@@ -219,13 +234,19 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
                 if !text.is_empty() {
                     if let Some(last_element) = elements.last() {
                         if let Some(relation) = relations.get_mut(last_element) {
-                            relation.push((XMLType::Text, String::from_utf8_lossy(&e as &[u8]).to_string()));
+                            relation.push((
+                                XMLType::Text,
+                                String::from_utf8_lossy(&e as &[u8]).to_string(),
+                            ));
                         } else {
-                            return Err(anyhow!("Key `{last_element}` was not found in XML parsed relations {:?}", relations.keys()));
+                            return Err(anyhow!(
+                                "Key `{last_element}` was not found in XML parsed relations {:?}",
+                                relations.keys()
+                            ));
                         }
                     }
                 }
-            },
+            }
             Event::Start(ref e) => {
                 // Parse the tag
                 let serialized = serialize_xml_tag(index, e)?;
@@ -234,8 +255,11 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
                 if let Some(last_element) = elements.last() {
                     if let Some(relation) = relations.get_mut(last_element) {
                         relation.push((XMLType::Element, serialized.clone()));
-                    } else {                        
-                        return Err(anyhow!("Key `{last_element}` was not found in XML parsed relations {:?}", relations.keys()));
+                    } else {
+                        return Err(anyhow!(
+                            "Key `{last_element}` was not found in XML parsed relations {:?}",
+                            relations.keys()
+                        ));
                     }
                 }
 
@@ -264,7 +288,6 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
     let mut child_tag_vec = Vec::new();
     let mut child_attr_vec = Vec::new();
     for (element, children) in relations {
-
         // Preview the children
         let mut type_tmp = Vec::new();
         let mut children_tmp = Vec::new();
@@ -274,7 +297,12 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
         }
 
         // Join all text children for the case of multi-line text
-        if type_tmp.iter().filter(|t| *t != &XMLType::Text).collect::<Vec<_>>().is_empty() {
+        if type_tmp
+            .iter()
+            .filter(|t| *t != &XMLType::Text)
+            .collect::<Vec<_>>()
+            .is_empty()
+        {
             let children = children_tmp.join("");
             type_tmp.clear();
             children_tmp.clear();
@@ -294,7 +322,7 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
                     child_index_vec.push(0 as u32);
                     child_attr_vec.push(String::new());
                     child_tag_vec.push(String::new());
-                },
+                }
                 XMLType::Element => {
                     element_index_vec.push(xml_element.index.to_owned() as u32);
                     element_attr_vec.push(serde_json::to_string(&xml_element.attributes)?);
@@ -310,7 +338,15 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
     }
 
     // Build the batch
-    let mut batch = create_parse_xml_batch(element_tag_vec, element_attr_vec, text_vec, child_tag_vec, child_attr_vec, element_index_vec, child_index_vec)?;
+    let mut batch = create_parse_xml_batch(
+        element_tag_vec,
+        element_attr_vec,
+        text_vec,
+        child_tag_vec,
+        child_attr_vec,
+        element_index_vec,
+        child_index_vec,
+    )?;
 
     // Sort by the element index
     for (iter, column_name) in ["child_index", "element_index"].iter().enumerate() {
@@ -347,17 +383,30 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                 if format.subject_tags.contains(&tag) {
                     // do nothing
                 } else if format.predicate_tags.contains(&tag) {
-                    let attributes = parse_xml_attrs(e, &format.predicate_attributes.iter().map(|s| s.as_str()).collect::<Vec<_>>());
-                    if !attributes.is_empty() {                        
+                    let attributes = parse_xml_attrs(
+                        e,
+                        &format
+                            .predicate_attributes
+                            .iter()
+                            .map(|s| s.as_str())
+                            .collect::<Vec<_>>(),
+                    );
+                    if !attributes.is_empty() {
                         if let Some(s) = subject.last() {
                             if let Some(_p) = predicate.as_ref() {
                                 // do nothing
                             } else {
                                 // Create the triple
-                                let v = if let Some(v) = attributes.get(format.predicate_attributes.first().unwrap()) {
+                                let v = if let Some(v) =
+                                    attributes.get(format.predicate_attributes.first().unwrap())
+                                {
                                     v
                                 } else {
-                                    return Err(anyhow!("Predicate attribute `{}` was not found in XML parsed attributes {:?}", format.predicate_attributes.first().unwrap(), attributes.keys()));
+                                    return Err(anyhow!(
+                                        "Predicate attribute `{}` was not found in XML parsed attributes {:?}",
+                                        format.predicate_attributes.first().unwrap(),
+                                        attributes.keys()
+                                    ));
                                 };
                                 subjects.push(s.to_owned());
                                 predicates.push(tag);
@@ -365,17 +414,19 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                                 xml_type.replace(XMLType::Element);
                             }
                         } else {
-                            return Err(anyhow!("Found a predicate tag `{tag}` when there is no current subject."));
+                            return Err(anyhow!(
+                                "Found a predicate tag `{tag}` when there is no current subject."
+                            ));
                         }
                     } else {
                         // ignore recursive predicates for now
                     }
                 }
-            },
+            }
             Event::Text(ref e) => {
                 let text = String::from_utf8_lossy(&e as &[u8]);
                 let text = text.trim();
-                if !text.is_empty() {                    
+                if !text.is_empty() {
                     if let Some(s) = subject.last() {
                         if let Some(p) = predicate.as_ref() {
                             // Handle the case of multi-line text
@@ -386,7 +437,7 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                                         predicates.push(p.to_string());
                                         objects.push(text.to_string());
                                         xml_type.replace(XMLType::Text);
-                                    },
+                                    }
                                     XMLType::Text => {
                                         if let Some(mut o) = objects.pop() {
                                             o.push_str(text);
@@ -398,11 +449,18 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                         }
                     }
                 }
-            },
+            }
             Event::Start(ref e) => {
                 let tag = parse_xml_tag(e);
                 if format.subject_tags.contains(&tag) {
-                    let attributes = parse_xml_attrs(e, &format.subject_attributes.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+                    let attributes = parse_xml_attrs(
+                        e,
+                        &format
+                            .subject_attributes
+                            .iter()
+                            .map(|s| s.as_str())
+                            .collect::<Vec<_>>(),
+                    );
                     if !attributes.is_empty() {
                         if let Some(s) = subject.last() {
                             if let Some(p) = predicate.as_ref() {
@@ -412,14 +470,22 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                                 objects.push(tag);
                                 xml_type.replace(XMLType::Element);
                             } else {
-                                return Err(anyhow!("Found another subject tag `{tag}` for current subject `{s}` when there was no predicate"));
+                                return Err(anyhow!(
+                                    "Found another subject tag `{tag}` for current subject `{s}` when there was no predicate"
+                                ));
                             }
                         } else {
                             // Create the new subject
-                            let s = if let Some(v) = attributes.get(format.subject_attributes.first().unwrap()) {
+                            let s = if let Some(v) =
+                                attributes.get(format.subject_attributes.first().unwrap())
+                            {
                                 v
                             } else {
-                                return Err(anyhow!("Subject attribute `{}` was not found in XML parsed attributes {:?}", format.subject_attributes.first().unwrap(), attributes.keys()));
+                                return Err(anyhow!(
+                                    "Subject attribute `{}` was not found in XML parsed attributes {:?}",
+                                    format.subject_attributes.first().unwrap(),
+                                    attributes.keys()
+                                ));
                             };
                             subject.push(s.to_string());
                             s_tag.push(tag);
@@ -431,10 +497,10 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                             if s == &tag {
                                 subject.push(tag.clone());
                                 s_tag.push(tag);
-                            }                      
+                            }
                         }
                     }
-                } else if format.predicate_tags.contains(&tag) {                      
+                } else if format.predicate_tags.contains(&tag) {
                     if subject.len() == 1 {
                         if let Some(_p) = predicate.as_ref() {
                             // nothing todo
@@ -444,7 +510,9 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                             xml_type.replace(XMLType::Element);
                         }
                     } else {
-                        return Err(anyhow!("Found a predicate tag `{tag}` when there is no current subject."));
+                        return Err(anyhow!(
+                            "Found a predicate tag `{tag}` when there is no current subject."
+                        ));
                     }
                 }
             }
@@ -484,49 +552,64 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
 }
 
 /// Extract Set (or Graph data) in XML, HTML, or OWL format from Bytes
-/// 
+///
 /// # Arguments
 /// * `lhs_values` - The column to extract data from (i.e., `bytes`)
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `format` - The format of the bytes
-/// 
+///
 /// # Notes
 /// * Hierarchical or nested children structures are supported
-/// * 
+/// *
 /// * See <https://github.com/phillord/horned-owl> for a full-fledged OWL parser
 #[instrument(skip(lhs_values, lhs_args, format, device))]
 pub fn extract_set_data(
     lhs_values: &str,
     lhs_args: &[RecordBatch],
     format: &DataFormat,
-    device: &Device
+    device: &Device,
 ) -> Result<RecordBatch> {
     // Extract out the bytes
     let args_table = Table::get_builder()
         .with_name("extract_set_data")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
-    let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?
-        .into_iter().flatten().collect::<Vec<_>>();
+    let values_vec = args_table
+        .get_column_as_vec_nested_primitive::<u8>(lhs_values)?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
 
     // Read the XML document
     match format {
-        DataFormat::Html
-        | DataFormat::Xml
-        | DataFormat::OwlDefault => parse_xml(&values_vec, device),
+        DataFormat::Html | DataFormat::Xml | DataFormat::OwlDefault => {
+            parse_xml(&values_vec, device)
+        }
         DataFormat::Owl(format) => parse_owl(&values_vec, format, device),
         DataFormat::OwlClass => parse_owl(&values_vec, &OwlFormat::owl_format_class(), device),
-        DataFormat::OwlObjectProperty => parse_owl(&values_vec, &OwlFormat::owl_format_object_property(), device),
-        DataFormat::OwlNamedIndividual => parse_owl(&values_vec, &OwlFormat::owl_format_named_individual(), device),
-        _ => return Err(anyhow!("Unsupported format {format:?} for extract_set_data operator.")),
+        DataFormat::OwlObjectProperty => parse_owl(
+            &values_vec,
+            &OwlFormat::owl_format_object_property(),
+            device,
+        ),
+        DataFormat::OwlNamedIndividual => parse_owl(
+            &values_vec,
+            &OwlFormat::owl_format_named_individual(),
+            device,
+        ),
+        _ => {
+            return Err(anyhow!(
+                "Unsupported format {format:?} for extract_set_data operator."
+            ));
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        BuildableTrait, BuilderTrait, DataFormat, Table, TableBuilderTrait,
-        TableTrait, create_blob_batch, device,
+        BuildableTrait, BuilderTrait, DataFormat, Table, TableBuilderTrait, TableTrait,
+        create_blob_batch, device,
     };
     use phymes_diagnostics::create_timestamp_micros;
 
@@ -575,12 +658,8 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted = extract_set_data(
-            "bytes", 
-            &[batch], 
-            &DataFormat::OwlDefault,
-            &device)
-            .unwrap();
+        let extracted =
+            extract_set_data("bytes", &[batch], &DataFormat::OwlDefault, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 7);
@@ -593,49 +672,75 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let result = table.get_column_as_vec_primitive::<u32>("element_index").unwrap();
+        let result = table
+            .get_column_as_vec_primitive::<u32>("element_index")
+            .unwrap();
         assert_eq!(result, [0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 8, 9, 10, 11]);
         let result = table.get_column_as_vec_str("element_tag");
-        assert_eq!(result, ["rdf:RDF",
-          "rdf:RDF",
-          "owl:Ontology",
-          "owl:versionIRI",
-          "owl:Class",
-          "owl:Class",
-          "owl:equivalentClass",
-          "owl:Class",
-          "owl:intersectionOf",
-          "owl:intersectionOf",
-          "rdf:Description",
-          "owl:Restriction",
-          "owl:Restriction",
-          "owl:onProperty",
-          "owl:someValuesFrom",
-          "rdfs:label"]);
+        assert_eq!(
+            result,
+            [
+                "rdf:RDF",
+                "rdf:RDF",
+                "owl:Ontology",
+                "owl:versionIRI",
+                "owl:Class",
+                "owl:Class",
+                "owl:equivalentClass",
+                "owl:Class",
+                "owl:intersectionOf",
+                "owl:intersectionOf",
+                "rdf:Description",
+                "owl:Restriction",
+                "owl:Restriction",
+                "owl:onProperty",
+                "owl:someValuesFrom",
+                "rdfs:label"
+            ]
+        );
         let _result = table.get_column_as_vec_str("element_attr");
         let result = table.get_column_as_vec_str("text");
-        assert_eq!(result, ["",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "regulation of amino acid import across plasma membrane"]);
-        let result = table.get_column_as_vec_primitive::<u32>("child_index").unwrap();
+        assert_eq!(
+            result,
+            [
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "regulation of amino acid import across plasma membrane"
+            ]
+        );
+        let result = table
+            .get_column_as_vec_primitive::<u32>("child_index")
+            .unwrap();
         assert_eq!(result[..8], [1, 3, 2, 0, 4, 11, 5, 6]); // DM: Sorting on the GPU and CPU changes after index 8
         let result = table.get_column_as_vec_str("child_tag");
-        assert_eq!(result[..8], ["owl:Ontology", "owl:Class", "owl:versionIRI", "", "owl:equivalentClass", "rdfs:label", "owl:Class", "owl:intersectionOf"]);
+        assert_eq!(
+            result[..8],
+            [
+                "owl:Ontology",
+                "owl:Class",
+                "owl:versionIRI",
+                "",
+                "owl:equivalentClass",
+                "rdfs:label",
+                "owl:Class",
+                "owl:intersectionOf"
+            ]
+        );
         let _result = table.get_column_as_vec_str("child_attr");
-    }   
+    }
 
     #[test]
     fn test_extract_set_data_owl_class() {
@@ -743,12 +848,8 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted = extract_set_data(
-            "bytes", 
-            &[batch], 
-            &DataFormat::OwlClass,
-            &device)
-            .unwrap();
+        let extracted =
+            extract_set_data("bytes", &[batch], &DataFormat::OwlClass, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 3);
@@ -762,36 +863,51 @@ mod tests {
             .build()
             .unwrap();
         let result = table.get_column_as_vec_str("subject");
-        assert_eq!(result, ["http://purl.obolibrary.org/obo/GO_0010958",
-          "http://purl.obolibrary.org/obo/GO_0010958",
-          "http://purl.obolibrary.org/obo/GO_0010958",
-          "http://purl.obolibrary.org/obo/GO_0010958",
-          "http://purl.obolibrary.org/obo/GO_0010958",
-          "http://purl.obolibrary.org/obo/GO_0010968",
-          "http://purl.obolibrary.org/obo/GO_0010968",
-          "http://purl.obolibrary.org/obo/GO_0010968",
-          "http://purl.obolibrary.org/obo/GO_0010968"]);
+        assert_eq!(
+            result,
+            [
+                "http://purl.obolibrary.org/obo/GO_0010958",
+                "http://purl.obolibrary.org/obo/GO_0010958",
+                "http://purl.obolibrary.org/obo/GO_0010958",
+                "http://purl.obolibrary.org/obo/GO_0010958",
+                "http://purl.obolibrary.org/obo/GO_0010958",
+                "http://purl.obolibrary.org/obo/GO_0010968",
+                "http://purl.obolibrary.org/obo/GO_0010968",
+                "http://purl.obolibrary.org/obo/GO_0010968",
+                "http://purl.obolibrary.org/obo/GO_0010968"
+            ]
+        );
         let result = table.get_column_as_vec_str("predicate");
-        assert_eq!(result, ["obo:IAO_0000115",
-          "oboInOwl:hasBroadSynonym",
-          "oboInOwl:hasOBONamespace",
-          "oboInOwl:id",
-          "rdfs:label",
-          "obo:IAO_0000115",
-          "oboInOwl:hasOBONamespace",
-          "oboInOwl:id",
-          "rdfs:label"]);
+        assert_eq!(
+            result,
+            [
+                "obo:IAO_0000115",
+                "oboInOwl:hasBroadSynonym",
+                "oboInOwl:hasOBONamespace",
+                "oboInOwl:id",
+                "rdfs:label",
+                "obo:IAO_0000115",
+                "oboInOwl:hasOBONamespace",
+                "oboInOwl:id",
+                "rdfs:label"
+            ]
+        );
         let result = table.get_column_as_vec_str("object");
-        assert_eq!(result, ["Any process that modulates the frequency, rate or extent of amino acid import into a cell.",
-          "regulation of amino acid import",
-          "biological_process",
-          "GO:0010958",
-          "regulation of amino acid import across plasma membrane",
-          "Any process that modulates the rate, frequency or extent of microtubule nucleation. Microtubule nucleation is thede novoformation of a microtubule, in which tubulin heterodimers form metastable oligomeric aggregates, some of which go on to support formation of a complete microtubule. Microtubule nucleation usually occurs from a specific site within a cell.",
-          "biological_process",
-          "GO:0010968",
-          "regulation of microtubule nucleation"]);
-    }    
+        assert_eq!(
+            result,
+            [
+                "Any process that modulates the frequency, rate or extent of amino acid import into a cell.",
+                "regulation of amino acid import",
+                "biological_process",
+                "GO:0010958",
+                "regulation of amino acid import across plasma membrane",
+                "Any process that modulates the rate, frequency or extent of microtubule nucleation. Microtubule nucleation is thede novoformation of a microtubule, in which tubulin heterodimers form metastable oligomeric aggregates, some of which go on to support formation of a complete microtubule. Microtubule nucleation usually occurs from a specific site within a cell.",
+                "biological_process",
+                "GO:0010968",
+                "regulation of microtubule nucleation"
+            ]
+        );
+    }
 
     #[test]
     fn test_extract_set_data_owl_properties() {
@@ -853,12 +969,8 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted = extract_set_data(
-            "bytes", 
-            &[batch], 
-            &DataFormat::OwlObjectProperty,
-            &device)
-            .unwrap();
+        let extracted =
+            extract_set_data("bytes", &[batch], &DataFormat::OwlObjectProperty, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 3);
@@ -872,46 +984,61 @@ mod tests {
             .build()
             .unwrap();
         let result = table.get_column_as_vec_str("subject");
-        assert_eq!(result, ["http://purl.obolibrary.org/obo/RO_0002437",
-          "http://purl.obolibrary.org/obo/RO_0002437",
-          "http://purl.obolibrary.org/obo/RO_0002437",
-          "http://purl.obolibrary.org/obo/RO_0002437",
-          "http://purl.obolibrary.org/obo/RO_0002437",
-          "http://purl.obolibrary.org/obo/RO_0002437",
-          "http://purl.obolibrary.org/obo/RO_0002437",
-          "http://purl.obolibrary.org/obo/RO_0002437",
-          "http://purl.obolibrary.org/obo/RO_0002437",
-          "http://purl.obolibrary.org/obo/RO_0002438",
-          "http://purl.obolibrary.org/obo/RO_0002438",
-          "http://purl.obolibrary.org/obo/RO_0002438",
-          "http://purl.obolibrary.org/obo/RO_0002438"]);
+        assert_eq!(
+            result,
+            [
+                "http://purl.obolibrary.org/obo/RO_0002437",
+                "http://purl.obolibrary.org/obo/RO_0002437",
+                "http://purl.obolibrary.org/obo/RO_0002437",
+                "http://purl.obolibrary.org/obo/RO_0002437",
+                "http://purl.obolibrary.org/obo/RO_0002437",
+                "http://purl.obolibrary.org/obo/RO_0002437",
+                "http://purl.obolibrary.org/obo/RO_0002437",
+                "http://purl.obolibrary.org/obo/RO_0002437",
+                "http://purl.obolibrary.org/obo/RO_0002437",
+                "http://purl.obolibrary.org/obo/RO_0002438",
+                "http://purl.obolibrary.org/obo/RO_0002438",
+                "http://purl.obolibrary.org/obo/RO_0002438",
+                "http://purl.obolibrary.org/obo/RO_0002438"
+            ]
+        );
         let result = table.get_column_as_vec_str("predicate");
-        assert_eq!(result, ["obo:IAO_0000115",
-          "rdf:type",
-          "rdfs:domain",
-          "rdfs:label",
-          "rdfs:range",
-          "rdfs:seeAlso",
-          "rdfs:seeAlso",
-          "rdfs:subPropertyOf",
-          "rdfs:subPropertyOf",
-          "obo:IAO_0000115",
-          "rdfs:label",
-          "rdfs:seeAlso",
-          "rdfs:subPropertyOf"]);
+        assert_eq!(
+            result,
+            [
+                "obo:IAO_0000115",
+                "rdf:type",
+                "rdfs:domain",
+                "rdfs:label",
+                "rdfs:range",
+                "rdfs:seeAlso",
+                "rdfs:seeAlso",
+                "rdfs:subPropertyOf",
+                "rdfs:subPropertyOf",
+                "obo:IAO_0000115",
+                "rdfs:label",
+                "rdfs:seeAlso",
+                "rdfs:subPropertyOf"
+            ]
+        );
         let result = table.get_column_as_vec_str("object");
-        assert_eq!(result, ["An interaction relationship in which at least one of the partners is an organism and the other is either an organism or an abiotic entity with which the organism interacts.",
-          "http://www.w3.org/2002/07/owl#SymmetricProperty",
-          "http://purl.obolibrary.org/obo/BFO_0000040",
-          "biotically interacts with",
-          "http://purl.obolibrary.org/obo/BFO_0000040",
-          "http://dx.doi.org/10.1016/j.ecoinf.2014.08.005",
-          "http://eol.org/schema/terms/interactsWith",
-          "http://purl.obolibrary.org/obo/RO_0002321",
-          "http://purl.obolibrary.org/obo/RO_0002434",
-          "An interaction relationship in which the partners are related via a feeding relationship.",
-          "trophically interacts with",
-          "http://dx.doi.org/10.1016/j.ecoinf.2014.08.005",
-          "http://purl.obolibrary.org/obo/RO_0002574"]);
+        assert_eq!(
+            result,
+            [
+                "An interaction relationship in which at least one of the partners is an organism and the other is either an organism or an abiotic entity with which the organism interacts.",
+                "http://www.w3.org/2002/07/owl#SymmetricProperty",
+                "http://purl.obolibrary.org/obo/BFO_0000040",
+                "biotically interacts with",
+                "http://purl.obolibrary.org/obo/BFO_0000040",
+                "http://dx.doi.org/10.1016/j.ecoinf.2014.08.005",
+                "http://eol.org/schema/terms/interactsWith",
+                "http://purl.obolibrary.org/obo/RO_0002321",
+                "http://purl.obolibrary.org/obo/RO_0002434",
+                "An interaction relationship in which the partners are related via a feeding relationship.",
+                "trophically interacts with",
+                "http://dx.doi.org/10.1016/j.ecoinf.2014.08.005",
+                "http://purl.obolibrary.org/obo/RO_0002574"
+            ]
+        );
     }
 }

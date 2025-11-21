@@ -244,10 +244,10 @@ pub fn attachments_interface_view() -> Element {
 }
 
 /// Attach files interface component
-/// 
+///
 /// # Arguments
 /// `extend_input` - whether to extend the subject with the attachment data
-/// `add_input` - whether to replace the subject with the attachment data 
+/// `add_input` - whether to replace the subject with the attachment data
 /// `except_files` - what files to except
 /// `active_subject_name` - Optional, the active subject
 /// `subject_names` - Optional, the list of all available subjects

@@ -26,7 +26,10 @@ pub static MINIMAL_LIST_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::{TEMPLATE_TABLE_EXPRESSION, minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE}};
+    use crate::jinja2_templates::{
+        TEMPLATE_TABLE_EXPRESSION,
+        minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE},
+    };
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
@@ -40,22 +43,13 @@ mod tests {
     #[test]
     fn test_minimal_list_html() -> Result<()> {
         // Create the dummy data for the table
-        let item_vec = [
-            "Item 1",
-            "Item 2",
-            "Item 3",
-            "Item 4",
-            "Item 5",
-            "Item 6",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+        let item_vec = ["Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
 
         let item_arr: ArrayRef = Arc::new(StringArray::from(item_vec));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("item", item_arr),
-        ])?;
+        let batch = RecordBatch::try_from_iter(vec![("item", item_arr)])?;
         let table = Table::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
@@ -78,12 +72,7 @@ mod tests {
         let template_inputs = serde_json::to_value(input_object)?;
 
         // Create and render the template with the inputs
-        let template = [
-            MINIMAL_HTML_PRE,
-            MINIMAL_LIST_TEMPLATE,
-            MINIMAL_HTML_POST,
-        ]
-        .join("");
+        let template = [MINIMAL_HTML_PRE, MINIMAL_LIST_TEMPLATE, MINIMAL_HTML_POST].join("");
         let script_string =
             TableScript::new_from_template(template).apply_template(&template_inputs)?;
 

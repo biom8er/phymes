@@ -24,7 +24,8 @@ use crate::{
     ToolTrait,
     candle_data::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
     candle_operators::{
-        data_operator::DataOperatorTrait, group_by_and_aggregate::{build_aggregator_column_list_primitive_v1},
+        data_operator::DataOperatorTrait,
+        group_by_and_aggregate::build_aggregator_column_list_primitive_v1,
         sort_column_and_indices::take_columns_by_indices,
     },
 };

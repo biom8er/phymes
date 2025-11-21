@@ -37,7 +37,10 @@ pub static MERMAID_XYCHART_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::{TEMPLATE_TABLE_EXPRESSION, mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE}};
+    use crate::jinja2_templates::{
+        TEMPLATE_TABLE_EXPRESSION,
+        mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE},
+    };
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use phymes_core::{

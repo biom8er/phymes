@@ -2,7 +2,7 @@
 ///
 /// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/code>
 /// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/pre>
-/// 
+///
 /// # Notes:
 /// - only `code` element is supported
 /// - `samp` element is not yet fully supported
@@ -32,7 +32,10 @@ pub static MINIMAL_CODE_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::{TEMPLATE_TABLE_EXPRESSION, minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE}};
+    use crate::jinja2_templates::{
+        TEMPLATE_TABLE_EXPRESSION,
+        minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE},
+    };
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
@@ -46,19 +49,13 @@ mod tests {
     #[test]
     fn test_minimal_code_html() -> Result<()> {
         // Create the dummy data for the table
-        let item_vec = [
-            "y1 = m*x1 + b1;",
-            "y2 = m*x2 + b2;",
-            "y3 = m*x3 + b3;",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+        let item_vec = ["y1 = m*x1 + b1;", "y2 = m*x2 + b2;", "y3 = m*x3 + b3;"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
 
         let item_arr: ArrayRef = Arc::new(StringArray::from(item_vec));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("item", item_arr),
-        ])?;
+        let batch = RecordBatch::try_from_iter(vec![("item", item_arr)])?;
         let table = Table::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
@@ -81,12 +78,7 @@ mod tests {
         let template_inputs = serde_json::to_value(input_object)?;
 
         // Create and render the template with the inputs
-        let template = [
-            MINIMAL_HTML_PRE,
-            MINIMAL_CODE_TEMPLATE,
-            MINIMAL_HTML_POST,
-        ]
-        .join("");
+        let template = [MINIMAL_HTML_PRE, MINIMAL_CODE_TEMPLATE, MINIMAL_HTML_POST].join("");
         let script_string =
             TableScript::new_from_template(template).apply_template(&template_inputs)?;
 

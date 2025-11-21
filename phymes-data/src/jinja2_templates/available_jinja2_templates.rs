@@ -4,7 +4,16 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_LINKS_TEMPLATE, MERMAID_FLOWCHART_NODES_TEMPLATE, MERMAID_FLOWCHART_TEMPLATE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST, MERMAID_HTML_PRE, MERMAID_KANBAN_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_XYCHART_TEMPLATE, MINIMAL_CODE_TEMPLATE, jinja2_templates::{MINIMAL_FIGURE_TEMPLATE, MINIMAL_HTML_BODY_TEMPLATE, MINIMAL_HTML_POST, MINIMAL_HTML_PRE, MINIMAL_LIST_TEMPLATE, MINIMAL_TABLE_TEMPLATE}
+    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE,
+    MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_LINKS_TEMPLATE,
+    MERMAID_FLOWCHART_NODES_TEMPLATE, MERMAID_FLOWCHART_TEMPLATE, MERMAID_GANTT_TEMPLATE,
+    MERMAID_HTML_POST, MERMAID_HTML_PRE, MERMAID_KANBAN_TEMPLATE,
+    MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE,
+    MERMAID_SEQUENCE_DIAGRAM_TEMPLATE, MERMAID_XYCHART_TEMPLATE, MINIMAL_CODE_TEMPLATE,
+    jinja2_templates::{
+        MINIMAL_FIGURE_TEMPLATE, MINIMAL_HTML_BODY_TEMPLATE, MINIMAL_HTML_POST, MINIMAL_HTML_PRE,
+        MINIMAL_LIST_TEMPLATE, MINIMAL_TABLE_TEMPLATE,
+    },
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -132,33 +141,21 @@ impl AvailableJinja2Templates {
             ]
             .join(""),
             Self::MinimalHTMLTableTemplate => MINIMAL_TABLE_TEMPLATE.to_string(),
-            Self::MinimalHTMLTableHTML => [
-                MINIMAL_HTML_PRE,
-                MINIMAL_TABLE_TEMPLATE,
-                MINIMAL_HTML_POST,
-            ]
-            .join(""),
+            Self::MinimalHTMLTableHTML => {
+                [MINIMAL_HTML_PRE, MINIMAL_TABLE_TEMPLATE, MINIMAL_HTML_POST].join("")
+            }
             Self::MinimalHTMLListTemplate => MINIMAL_LIST_TEMPLATE.to_string(),
-            Self::MinimalHTMLListHTML => [
-                MINIMAL_HTML_PRE,
-                MINIMAL_LIST_TEMPLATE,
-                MINIMAL_HTML_POST,
-            ]
-            .join(""),
+            Self::MinimalHTMLListHTML => {
+                [MINIMAL_HTML_PRE, MINIMAL_LIST_TEMPLATE, MINIMAL_HTML_POST].join("")
+            }
             Self::MinimalHTMLFiguresTemplate => MINIMAL_FIGURE_TEMPLATE.to_string(),
-            Self::MinimalHTMLFiguresHTML => [
-                MINIMAL_HTML_PRE,
-                MINIMAL_FIGURE_TEMPLATE,
-                MINIMAL_HTML_POST,
-            ]
-            .join(""),
+            Self::MinimalHTMLFiguresHTML => {
+                [MINIMAL_HTML_PRE, MINIMAL_FIGURE_TEMPLATE, MINIMAL_HTML_POST].join("")
+            }
             Self::MinimalHTMLCodeTemplate => MINIMAL_CODE_TEMPLATE.to_string(),
-            Self::MinimalHTMLCodeHTML => [
-                MINIMAL_HTML_PRE,
-                MINIMAL_CODE_TEMPLATE,
-                MINIMAL_HTML_POST,
-            ]
-            .join(""),
+            Self::MinimalHTMLCodeHTML => {
+                [MINIMAL_HTML_PRE, MINIMAL_CODE_TEMPLATE, MINIMAL_HTML_POST].join("")
+            }
             Self::Custom(s) => s.to_string(),
         }
     }
@@ -168,7 +165,7 @@ impl AvailableJinja2Templates {
             Self::MermaidERDiagramEntitiesTemplate
             | Self::MermaidERDiagramRelationsTemplate
             | Self::MermaidERDiagramTemplate
-            | Self::MermaidERDiagramHTML 
+            | Self::MermaidERDiagramHTML
             | Self::MermaidFlowchartNodesTemplate
             | Self::MermaidFlowchartLinksTemplate
             | Self::MermaidFlowchartTemplate

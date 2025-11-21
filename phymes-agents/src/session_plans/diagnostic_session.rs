@@ -8,7 +8,7 @@ use phymes_core::{
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
-    DataConfig
+    DataConfig,
 };
 use serde_json::json;
 
