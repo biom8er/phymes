@@ -963,8 +963,10 @@ impl TableBuilderTrait for TableBuilder {
         let schema = match record_batches.first() {
             Some(batch) => batch.schema(),
             None => {
-                dbg!(bytes);
-                return Err(anyhow!("Failed to read the IPC stream."));
+                return Err(anyhow!(
+                    "Failed to read the IPC stream for data with bytes {}. Ensure that there are no NULL values.",
+                    bytes.len()
+                ));
             }
         };
         Self::new()

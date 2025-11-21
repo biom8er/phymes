@@ -25,6 +25,7 @@ use crate::{
             create_session_subjects_fields, create_session_subjects_num_rows_fields,
             create_session_tasks_fields,
         },
+        set_data::{create_parse_owl_fields, create_parse_xml_fields},
         user::{
             create_join_user_inbox_session_contexts_fields,
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
@@ -260,6 +261,10 @@ pub enum AvailableSubjects {
     MermaidERDiagramEntitiesTemplate,
     #[value(name = "MermaidERDiagramRelationsTemplate")]
     MermaidERDiagramRelationsTemplate,
+    #[value(name = "ParseXml")]
+    ParseXml,
+    #[value(name = "ParseOwl")]
+    ParseOwl,
 }
 
 impl Display for AvailableSubjects {
@@ -327,6 +332,8 @@ impl Display for AvailableSubjects {
             AvailableSubjects::MermaidERDiagramRelationsTemplate => {
                 write!(f, "MermaidERDiagramRelationsTemplate")
             }
+            AvailableSubjects::ParseXml => write!(f, "ParseXml"),
+            AvailableSubjects::ParseOwl => write!(f, "ParseOwl"),
         }
     }
 }
@@ -456,6 +463,8 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::MermaidERDiagramRelationsTemplate => {
                 create_schema_from_fields(&create_mermaid_er_diagram_relations_template_fields)
             }
+            AvailableSubjects::ParseXml => create_schema_from_fields(&create_parse_xml_fields),
+            AvailableSubjects::ParseOwl => create_schema_from_fields(&create_parse_owl_fields),
         }
     }
 }

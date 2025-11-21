@@ -332,10 +332,11 @@ impl Stream for CandleEmbedStream {
             )?;
 
             // Embed the query
-            let embedding = self.batch_embed(&tokens, &masks).unwrap();
-            let batch =
-                convert_embedding_tensor_to_record_batch(embedding, table.get_record_batches_own())
-                    .unwrap();
+            let embedding = self.batch_embed(&tokens, &masks)?;
+            let batch = convert_embedding_tensor_to_record_batch(
+                embedding,
+                table.get_record_batches_own(),
+            )?;
 
             // Record the schema
             self.schema = batch.schema();

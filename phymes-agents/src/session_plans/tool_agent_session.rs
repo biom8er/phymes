@@ -10,7 +10,7 @@ use phymes_core::{
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataConfig,
-    DataSummaryConfig, MERMAID_XYCHART_TABLE_EXPRESSION, ToolTrait,
+    DataSummaryConfig, ToolTrait,
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -607,7 +607,6 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_name: Some(AvailableSubjects::MermaidXYChart.to_string()),
             doc_template: Some(AvailableJinja2Templates::MermaidXYChartHTML),
             doc_name: Some(self.state_scores_table_name.to_string()),
-            table_expression: Some(MERMAID_XYCHART_TABLE_EXPRESSION.to_string()),
             doc_input: Some(
                 serde_json::to_string(&json!({
                 "title": self.state_scores_table_name,

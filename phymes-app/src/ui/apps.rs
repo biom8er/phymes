@@ -422,6 +422,9 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
     let mut diagram_svg = use_signal(String::new);
     let mut error_mjs = use_signal(String::new);
     let id = use_signal(|| "graphDiv".to_string());
+    // Temporary DOM elemented created by Mermaid.js breaks Dioxus
+    // when the actual SVG target ID is used...
+    let id_decoy = use_signal(|| "GraphDiv".to_string());
 
     // Render the mermaid.js diagram
     let _ = use_resource(move || async move {
@@ -430,7 +433,7 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
                 r#"
         try {{
             let code = await dioxus.recv();
-            const {{ svg }} = await mermaid.render("{id}", code);
+            const {{ svg }} = await mermaid.render("{id_decoy}", code);
             return {{ svg: svg, error: null }};
         }} catch (error) {{
             return {{ svg: null, error: error.message }};
@@ -493,17 +496,17 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
         if let Some(error_ctxb) = diagram_code().1 {
             p { "{error_ctxb}" },
         }
-        if error_mjs().is_empty() && !diagram_svg().is_empty() {
-            mermaid_div { diagram_svg }
+        if !diagram_svg().is_empty() {
+            mermaid_div { diagram_svg, id }
         }
     }
 }
 
 #[component]
-pub fn mermaid_div(diagram_svg: Signal<String>) -> Element {
+pub fn mermaid_div(diagram_svg: Signal<String>, id: Signal<String>) -> Element {
     rsx! {
         div {
-            id: "graphDiv",
+            id: id(),
             class: "mermaid",
             svg { dangerous_inner_html: diagram_svg() }
         }

@@ -39,6 +39,17 @@ impl Display for DataStreamManager {
 }
 
 /// Data Aggregation (Reduction) operators
+///
+/// # Notes
+/// - `Max`, `Min`, `Sum`, `Mean`, and `Var` can only be applied to non-nested primitive [DataType]s
+/// - `Count` can be applied to all [DataType]s and generates a UInt32Array
+/// - `Concat` can only be applied to Utf8 [DataType] to generate a new Utf8 [DataType] by joining the [String]s together
+/// - `List` and `Set` can be applied to all primitive [DataType]s except floats.
+///   Non-nested primitive and non-primitive [DataType]s will generate a nested primitive or non-primitive Array.
+///   Nested primitive or non-primitive [DataType]s will maintain the nested primitive or non-primitive Array through extension of the list or set.
+/// - `First` and `Last` can be applied to all [DataType]s.
+///
+/// [DataType]: arrow::datatypes::DataType
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
 pub enum DataAggregatorOperator {
     #[value(name = "Max")]
@@ -55,12 +66,14 @@ pub enum DataAggregatorOperator {
     Count,
     #[value(name = "Concat")]
     Concat,
-    // #[value(name = "Set")]
-    // Set,
-    // #[value(name = "First")]
-    // First,
-    // #[value(name = "Last")]
-    // Last,
+    #[value(name = "List")]
+    List,
+    #[value(name = "Set")]
+    Set,
+    #[value(name = "First")]
+    First,
+    #[value(name = "Last")]
+    Last,
 }
 
 impl Display for DataAggregatorOperator {
@@ -73,6 +86,10 @@ impl Display for DataAggregatorOperator {
             Self::Var => write!(f, "Var"),
             Self::Count => write!(f, "Count"),
             Self::Concat => write!(f, "Concat"),
+            Self::List => write!(f, "List"),
+            Self::Set => write!(f, "Set"),
+            Self::First => write!(f, "First"),
+            Self::Last => write!(f, "Last"),
         }
     }
 }
@@ -189,6 +206,7 @@ impl Display for DataDistanceOperator {
 /// 1. Check if conversion is possible <https://arrow.apache.org/rust/arrow_cast/cast/fn.can_cast_types.html>
 /// 2. Convert between types <https://arrow.apache.org/rust/arrow_cast/cast/fn.cast_with_options.html>
 /// 3. Encode/Decode Base64 <https://arrow.apache.org/rust/arrow_cast/base64/index.html> with BASE64_URL_SAFE_NO_PAD engine
+/// 4. Convert a List-UInt8 (Bytes) to Utf8
 ///
 /// Casting allows for applying a [String] template for formatting
 ///
@@ -203,6 +221,8 @@ pub enum DataCastOperator {
     // Base64Decode,
     #[value(name = "Cast")]
     Cast,
+    #[value(name = "BytesToString")]
+    BytesToString,
     #[value(name = "None")]
     None,
 }
@@ -213,6 +233,7 @@ impl Display for DataCastOperator {
             // Self::Base64Encode => write!(f, "Base64Encode"),
             // Self::Base64Decode => write!(f, "Base64Decode"),
             Self::Cast => write!(f, "Cast"),
+            Self::BytesToString => write!(f, "BytesToString"),
             Self::None => write!(f, "None"),
         }
     }
@@ -317,11 +338,6 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_name: Option<String>,
-
-    /// The expression for the table within the minijinja template
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub table_expression: Option<String>,
 
     /// A serialized JSON [Value] representing the input for the template beyond the table_expression
     ///   where the table_expression will be inserted into to complete the input for the template
@@ -434,7 +450,6 @@ impl Default for DataConfig {
             operator: AvailableCandleOperators::HumanInTheLoop,
             doc_template: None,
             doc_name: None,
-            table_expression: None,
             doc_input: None,
             chunk_size: None,
             chunk_overlap: None,

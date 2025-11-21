@@ -10,7 +10,7 @@ mod table_subscription;
 mod table_trait;
 
 pub use available_table_subscribe_policies::AvailableTableSubscribePolicies;
-pub use data_format::{CsvFormat, DataFormat, JsonFormat};
+pub use data_format::{CsvFormat, DataFormat, JsonFormat, OwlFormat};
 pub use data_types::{from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type};
 pub use stream::{RecordBatchStream, SendableRecordBatchStream};
 pub use stream_adapter::{

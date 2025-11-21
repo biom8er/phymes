@@ -16,6 +16,7 @@ use crate::{
     AvailableJinja2Templates, ToolTrait,
     candle_data::{DataConfig, table_and_data_format_to_record_batch},
     candle_operators::DataOperatorTrait,
+    jinja2_templates::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION},
 };
 
 /// Inject a table into a string template
@@ -23,7 +24,6 @@ use crate::{
 pub struct ApplyTemplate {
     doc_template: AvailableJinja2Templates,
     doc_name: String,
-    table_expression: String,
     doc_input: Value,
     format: DataFormat,
 }
@@ -80,14 +80,16 @@ impl DataOperatorTrait for ApplyTemplate {
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
-        _rhs_args: Option<&[RecordBatch]>,
+        rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
+        // Check for empty rhs_args and change to None
+        let rhs_args = rhs_args.filter(|&rhs_args| !rhs_args.is_empty());
         apply_template(
             lhs_args,
+            rhs_args,
             &self.doc_template,
             &self.doc_name,
-            &self.table_expression,
             &self.doc_input,
             &self.format,
             device,
@@ -102,10 +104,6 @@ impl DataOperatorTrait for ApplyTemplate {
             "Missing `doc_name` for `{}`.",
             Self::get_static_name()
         ))?;
-        let table_expression = config.table_expression.clone().ok_or(anyhow!(
-            "Missing `table_expression` for `{}`.",
-            Self::get_static_name()
-        ))?;
         let doc_input = if let Some(doc_input) = config.doc_input.as_ref() {
             serde_json::from_str::<Value>(doc_input)?
         } else {
@@ -114,7 +112,7 @@ impl DataOperatorTrait for ApplyTemplate {
                 Self::get_static_name()
             ));
         };
-        let format = config.format.ok_or(anyhow!(
+        let format = config.format.clone().ok_or(anyhow!(
             "Missing `format` for `{}`.",
             Self::get_static_name()
         ))?;
@@ -123,7 +121,6 @@ impl DataOperatorTrait for ApplyTemplate {
         Ok(ApplyTemplate {
             doc_template,
             doc_name,
-            table_expression,
             doc_input,
             format,
         })
@@ -148,34 +145,58 @@ impl DataOperatorTrait for ApplyTemplate {
 /// # Arguments
 ///
 /// * `lhs_args` - Slice of [RecordBatch]es
+/// * `rhs_args` - Optional Slice of [RecordBatch]es used to generate the template
 /// * `doc_template` - Minijinja [String] template
 /// * `doc_name` - The name of the resulting document
-/// * `table_expression` - The expression for the table within the minijinja template
 /// * `doc_input` - A JSON Value representing the input for the template beyond the table_expression
 ///   where the table_expression will be inserted into to complete the input for the template
 /// * `doc_extension` - The document extension e.g., .py, .html, .md, .txt, etc.
 /// * `device` - The compute device
-#[instrument(skip(
-    lhs_args,
-    doc_template,
-    doc_name,
-    table_expression,
-    doc_input,
-    format,
-    _device
-))]
+#[instrument(skip(lhs_args, rhs_args, doc_template, doc_name, doc_input, format, _device))]
 pub fn apply_template(
     lhs_args: &[RecordBatch],
+    rhs_args: Option<&[RecordBatch]>,
     doc_template: &AvailableJinja2Templates,
     doc_name: &str,
-    table_expression: &str,
     doc_input: &Value,
     format: &DataFormat,
     _device: &Device,
 ) -> Result<RecordBatch> {
+    // Create the template
+    let doc_template = if let Some(rhs_args) = rhs_args {
+        // 1. Use the rhs_args to help generate the template
+        // Convert the RecordBatches into a json object
+        let rhs_json_object = Table::get_builder()
+            .with_name("rhs_apply_template")
+            .with_record_batches(rhs_args.to_vec())?
+            .build()?
+            .to_json_object()?;
+        let input = json!({TEMPLATE_HEADER_EXPRESSION.to_string(): rhs_json_object});
+
+        // Apply the template to create the actual template
+        TableScript::new_from_template(doc_template.to_template()).apply_template(&input)?
+    // 2. Use the lhs_args fields to help generate the template
+    } else if doc_template.has_headers() {
+        let headers = lhs_args
+            .first()
+            .ok_or(anyhow!("lhs_args is empty for apply_template."))?
+            .schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect::<Vec<_>>();
+        let input = json!({TEMPLATE_HEADER_EXPRESSION.to_string(): headers});
+
+        // Apply the template to create the actual template
+        TableScript::new_from_template(doc_template.to_template()).apply_template(&input)?
+    // 3. Use the template as is
+    } else {
+        doc_template.to_template()
+    };
+
     // Convert the RecordBatches into a json object
     let lhs_json_object = Table::get_builder()
-        .with_name("apply_template")
+        .with_name("lhs_apply_template")
         .with_record_batches(lhs_args.to_vec())?
         .build()?
         .to_json_object()?;
@@ -183,15 +204,17 @@ pub fn apply_template(
     // Complete the input
     let input = if let Some(input_object) = doc_input.as_object() {
         let mut input_object = input_object.to_owned();
-        let _ = input_object.insert(table_expression.to_string(), lhs_json_object.into());
+        let _ = input_object.insert(
+            TEMPLATE_TABLE_EXPRESSION.to_string(),
+            lhs_json_object.into(),
+        );
         serde_json::to_value(input_object)?
     } else {
-        json!({table_expression.to_string(): lhs_json_object})
+        json!({TEMPLATE_TABLE_EXPRESSION.to_string(): lhs_json_object})
     };
 
     // Apply the template
-    let document =
-        TableScript::new_from_template(doc_template.to_template()).apply_template(&input)?;
+    let document = TableScript::new_from_template(doc_template).apply_template(&input)?;
 
     // Wrap into a table
     let batch = match format {
@@ -216,30 +239,32 @@ pub fn apply_template(
 mod tests {
     use phymes_core::{device, test_table::make_test_table_chat};
 
+    use crate::jinja2_templates::test_minimal_html;
+
     use super::*;
 
     #[test]
-    fn test_apply_template() -> Result<()> {
+    fn test_apply_template_no_rhs_args() -> Result<()> {
         // Make the test record batches
         let test_table = make_test_table_chat("messages")?;
 
         let template = r#"""{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0]['role'] == 'system' %}\n{{- messages[0]['content'] }}\n    {%- else %}\n{{- 'You are Qwen, created by Alibaba Cloud. You are a helpful assistant.' }}\n    {%- endif %}\n    {{- '\\n\\n# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>' }}\n    {%- for tool in tools %}\n{{- '\\n' }}\n{{- tool | tojson }}\n    {%- endfor %}\n    {{- '\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\\n</tool_call><|im_end|>\\n' }}\n{%- else %}\n    {%- if messages[0]['role'] == 'system' %}\n{{- '<|im_start|>system\\n' + messages[0]['content'] + '<|im_end|>\\n' }}\n    {%- else %}\n{{- '<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- for message in messages %}\n    {%- if (message.role == 'user') or (message.role == 'system' and not loop.first) or (message.role == 'assistant' and not message.tool_calls) %}\n{{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == 'assistant' %}\n{{- '<|im_start|>' + message.role }}\n{%- if message.content %}\n    {{- '\\n' + message.content }}\n{%- endif %}\n{%- for tool_call in message.tool_calls %}\n    {%- if tool_call.function is defined %}\n{%- set tool_call = tool_call.function %}\n    {%- endif %}\n    {{- '\\n<tool_call>\\n{\"name\": \"' }}\n    {{- tool_call.name }}\n    {{- '\", \"arguments\": ' }}\n    {{- tool_call.arguments | tojson }}\n    {{- '}\\n</tool_call>' }}\n{%- endfor %}\n{{- '<|im_end|>\\n' }}\n    {%- elif message.role == 'tool' %}\n{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != 'tool') %}\n    {{- '<|im_start|>user' }}\n{%- endif %}\n{{- '\\n<tool_response>\\n' }}\n{{- message.content }}\n{{- '\\n</tool_response>' }}\n{%- if loop.last or (messages[loop.index0 + 1].role != 'tool') %}\n    {{- '<|im_end|>\\n' }}\n{%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n{%- endif %}\n"""#;
-        let table_expression = "messages";
+        let template = template.replace("message", "row");
         let input_template = serde_json::json!({
             "bos_token": "[BOS]",
             "eos_token": "[EOS]",
             "add_generation_prompt": true,
         });
-        let jinja2_template = AvailableJinja2Templates::Custom(template.to_string());
+        let jinja2_template = AvailableJinja2Templates::Custom(template);
 
         // Make the device
         let device = device(false)?;
 
         let result = apply_template(
             test_table.get_record_batches(),
+            None,
             &jinja2_template,
             "viz",
-            table_expression,
             &input_template,
             &DataFormat::Html,
             &device,
@@ -266,6 +291,53 @@ mod tests {
             lhs_text,
             [
                 "\"\"\\n\\n<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n\\n\\n\\n\\n\\n<|im_start|>user\\nHi!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nHello how can I help?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>user\\nWhat is Deep Learning?<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\nmagic!<|im_end|>\\n\\n\\n\\n\\n<|im_start|>assistant\\n\\n\\n\"\""
+            ]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_apply_template_with_rhs_args() -> Result<()> {
+        // Make the test record batches
+        let rhs_args = test_minimal_html::make_html_headers()?;
+        let lhs_args = test_minimal_html::make_html_rows()?;
+        let jinja2_template = AvailableJinja2Templates::MinimalHTMLBodyHTML;
+
+        // Make the device
+        let device = device(false)?;
+
+        let result = apply_template(
+            &[lhs_args],
+            Some(&[rhs_args]),
+            &jinja2_template,
+            "doc",
+            &Value::Null,
+            &DataFormat::Html,
+            &device,
+        )?;
+
+        // Check the results
+        let result_table = Table::get_builder()
+            .with_record_batches(vec![result])?
+            .with_name("")
+            .build()?;
+
+        let lhs_text = result_table.get_column_as_vec_str("filename");
+        assert_eq!(lhs_text, ["doc"]);
+        let lhs_text = result_table.get_column_as_vec_str("extension");
+        assert_eq!(lhs_text, ["html"]);
+        let lhs_text = result_table.get_column_as_vec_str("metadata");
+        assert_eq!(lhs_text, ["assistant"]);
+        let lhs_text = result_table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .map(|bytes| String::from_utf8(bytes).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            lhs_text,
+            [
+                "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n<h1>Title 1</h1>\n<p>Version 1</p>\n<p>Description 1</p>\n<h2> Background</h2>\n<h1>Title 2</h1>\n<p>Version 2</p>\n<p>Description 2</p>\n<h2> Background</h2>\n<h1>Title 3</h1>\n<p>Version 3</p>\n<p>Description 3</p>\n<h2> Background</h2>\n  </body>\n</html>"
             ]
         );
 

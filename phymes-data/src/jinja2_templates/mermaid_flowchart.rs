@@ -27,9 +27,6 @@ pub static MERMAID_FLOWCHART_LINKS_TEMPLATE: &str = r#"
     {%- endif %}
 {%- endfor %}"#;
 
-/// The `table_expression` variable name in `DataConfig`
-pub static MERMAID_FLOWCHART_TABLE_EXPRESSION: &str = "rows";
-
 /// Mermaid.js gantt input jinja2 template
 ///
 /// # Example
@@ -55,7 +52,10 @@ pub static MERMAID_FLOWCHART_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
+    use crate::jinja2_templates::{
+        TEMPLATE_TABLE_EXPRESSION,
+        mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE},
+    };
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
@@ -121,7 +121,7 @@ mod tests {
             ("node_label", node_label_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_FLOWCHART_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
@@ -196,7 +196,7 @@ mod tests {
             ("link_text", link_arr),
         ])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_FLOWCHART_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
@@ -221,7 +221,7 @@ mod tests {
         let content_arr: ArrayRef = Arc::new(StringArray::from(content_vec));
         let batch = RecordBatch::try_from_iter(vec![("content", content_arr)])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_FLOWCHART_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 

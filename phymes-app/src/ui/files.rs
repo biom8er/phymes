@@ -37,11 +37,22 @@ use crate::state::{
     ACTIVE_SESSION_NAME, EMAIL, JWT,
 };
 
+/// Attach files input component
+///
+/// # Arguments
+/// `extend_publish` - whether to extend the subject with the attachment data
+/// `except_files` - what files to except
+/// `active_subject_name` - Optional, the active subject
+/// `subject_names` - Optional, the list of all available subjects
+/// `files_uploaded` - the file data to upload
+/// `filenames_uploaded` - the filenames associated with each file
+/// `extensions_uploaded` - the file extensions associated with each file
 #[component]
 pub fn attach_files_input(
     extend_publish: Signal<bool>,
     except_files: Signal<String>,
     active_subject_name: Option<Signal<String>>,
+    subject_names: Option<Signal<Vec<String>>>,
     mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
     mut filenames_uploaded: Signal<Vec<String>>,
     mut extensions_uploaded: Signal<Vec<String>>,
@@ -57,39 +68,74 @@ pub fn attach_files_input(
                 None => tracing::error!("File {file_name} has no extension."),
                 Some(ext) => match DataFormat::from_extension(ext.to_str().unwrap()) {
                     Ok(data_format) => {
-                        // if let Some(contents) = file_engine.read_file_to_string(file_name).await {
                         if let Some(contents) = file_engine.read_file(file_name).await {
-                            // Determine the subject based on the file extension if no active subject is set
                             let extension = ext.to_str().unwrap();
                             let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
-                            let subject_name = if let Some(name) = &active_subject_name {
-                                name.read().to_string()
+                            // 1. Use the active subject to determine the target subject of the file
+                            let (subject_name, is_blob) = if let Some(name) = &active_subject_name {
+                                if name().is_empty() {
+                                    // 2. If no active subject, use the file_stem and extension to determine the target subject
+                                    if let Some(names) = &subject_names {
+                                        let subject_name = file_stem.to_string();
+                                        if names.read().contains(&subject_name)
+                                            && extension == "csv"
+                                        {
+                                            (subject_name, false)
+                                        } else {
+                                            match extension_to_subject(extension) {
+                                                Ok(subject_name) => {
+                                                    (subject_name.to_string(), true)
+                                                }
+                                                Err(err) => {
+                                                    tracing::error!("{err}");
+                                                    (file_stem.to_string(), true)
+                                                }
+                                            }
+                                        }
+                                    // 3. If no active subject, use the extension only to determine the target interface subject
+                                    } else {
+                                        match extension_to_subject(extension) {
+                                            Ok(subject_name) => (subject_name.to_string(), true),
+                                            Err(err) => {
+                                                tracing::error!("{err}");
+                                                (file_stem.to_string(), true)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    (name.read().to_string(), false)
+                                }
                             } else {
-                                extension_to_subject(extension).unwrap().to_string()
+                                match extension_to_subject(extension) {
+                                    Ok(subject_name) => (subject_name.to_string(), true),
+                                    Err(err) => {
+                                        tracing::error!("{err}");
+                                        (file_stem.to_string(), true)
+                                    }
+                                }
                             };
 
                             // Wrap the contents into a blob batch if no active subject is set
-                            let (message, format) = match active_subject_name {
-                                Some(_) => (contents, data_format),
-                                None => {
-                                    let batch = create_blob_batch(
-                                        vec![file_stem.to_string()],
-                                        vec![extension.to_string()],
-                                        vec![contents],
-                                        vec!["user".to_string()],
-                                        vec![create_timestamp_micros()],
-                                    )
+                            let (message, format) = if is_blob {
+                                let batch = create_blob_batch(
+                                    vec![file_stem.to_string()],
+                                    vec![extension.to_string()],
+                                    vec![contents],
+                                    vec!["user".to_string()],
+                                    vec![create_timestamp_micros()],
+                                )
+                                .unwrap();
+                                let message = Table::get_builder()
+                                    .with_name(subject_name.as_str())
+                                    .with_record_batches(vec![batch])
+                                    .unwrap()
+                                    .build()
+                                    .unwrap()
+                                    .to_ipc_stream()
                                     .unwrap();
-                                    let message = Table::get_builder()
-                                        .with_name(subject_name.as_str())
-                                        .with_record_batches(vec![batch])
-                                        .unwrap()
-                                        .build()
-                                        .unwrap()
-                                        .to_ipc_stream()
-                                        .unwrap();
-                                    (message, DataFormat::Ipc)
-                                }
+                                (message, DataFormat::Ipc)
+                            } else {
+                                (contents, data_format)
                             };
 
                             // Update the publish method

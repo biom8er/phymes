@@ -24,7 +24,8 @@ use crate::{
     ToolTrait,
     candle_data::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
     candle_operators::{
-        data_operator::DataOperatorTrait, group_by_and_aggregate::build_aggregator_column_list,
+        data_operator::DataOperatorTrait,
+        group_by_and_aggregate::build_aggregator_column_list_primitive_v1,
         sort_column_and_indices::take_columns_by_indices,
     },
 };
@@ -324,7 +325,7 @@ pub fn filter_columns_and_indices(
             }
             DataType::FixedSizeList(f, _) | DataType::List(f) => match f.data_type() {
                 DataType::UInt8 => {
-                    let values_arr = build_aggregator_column_list::<u8>(
+                    let values_arr = build_aggregator_column_list_primitive_v1::<u8>(
                         lhs_table.get_column_as_vec_nested_primitive::<u8>(column_name)?,
                         DataType::UInt8,
                     );
@@ -350,7 +351,7 @@ pub fn filter_columns_and_indices(
                     Tensor::from_iter(predicate_vec, device)?
                 }
                 DataType::UInt32 => {
-                    let values_arr = build_aggregator_column_list::<u32>(
+                    let values_arr = build_aggregator_column_list_primitive_v1::<u32>(
                         lhs_table.get_column_as_vec_nested_primitive::<u32>(column_name)?,
                         DataType::UInt32,
                     );
@@ -376,7 +377,7 @@ pub fn filter_columns_and_indices(
                     Tensor::from_iter(predicate_vec, device)?
                 }
                 DataType::Int64 => {
-                    let values_arr = build_aggregator_column_list::<i64>(
+                    let values_arr = build_aggregator_column_list_primitive_v1::<i64>(
                         lhs_table.get_column_as_vec_nested_primitive::<i64>(column_name)?,
                         DataType::Int64,
                     );
@@ -402,7 +403,7 @@ pub fn filter_columns_and_indices(
                     Tensor::from_iter(predicate_vec, device)?
                 }
                 DataType::Float32 => {
-                    let values_arr = build_aggregator_column_list::<f32>(
+                    let values_arr = build_aggregator_column_list_primitive_v1::<f32>(
                         lhs_table.get_column_as_vec_nested_primitive::<f32>(column_name)?,
                         DataType::Float32,
                     );
@@ -428,7 +429,7 @@ pub fn filter_columns_and_indices(
                     Tensor::from_iter(predicate_vec, device)?
                 }
                 DataType::Float64 => {
-                    let values_arr = build_aggregator_column_list::<f64>(
+                    let values_arr = build_aggregator_column_list_primitive_v1::<f64>(
                         lhs_table.get_column_as_vec_nested_primitive::<f64>(column_name)?,
                         DataType::Float64,
                     );

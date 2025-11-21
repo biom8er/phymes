@@ -363,7 +363,7 @@ fn pivot_values(
     Ok(batch)
 }
 
-/// Group by specified columns and aggregate using a specified aggregation operator over specified columns
+/// Create a spreadsheet-style pivot table as a [RecordBatch].
 ///
 /// # Arguments
 ///
@@ -373,9 +373,16 @@ fn pivot_values(
 /// * `agg_operators` - Slice of [DataAggregatorOperator]s specifying the aggregator operator to apply to each lhs_value column
 /// * `default_values` - Slice of Strings representing the default value when missing values are encountered
 /// * `pvt_columns` - Slice of Strings for the columns to group by
-/// * `fill_value` - Value to replace missing values with (in the resulting pivot table, after aggregation)
 /// * `device` - The compute device
-#[instrument(skip(lhs_values, lhs_args, agg_columns, agg_operators, pvt_columns, device))]
+#[instrument(skip(
+    lhs_values,
+    lhs_args,
+    agg_columns,
+    agg_operators,
+    default_values,
+    pvt_columns,
+    device
+))]
 pub fn pivot(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],

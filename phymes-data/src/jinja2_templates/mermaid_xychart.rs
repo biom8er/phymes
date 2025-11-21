@@ -8,9 +8,6 @@ pub static MERMAID_XYCHART_TEMPLATE: &str = r#"
             y-axis "{{ y_title }}"
             line [{%- for row in rows %}{{ row.y }}{% if not loop.last %}, {% endif %}{%- endfor %}]"#;
 
-/// The `table_expression` variable name in `DataConfig`
-pub static MERMAID_XYCHART_TABLE_EXPRESSION: &str = "rows";
-
 /// Mermaid.js xy chart input jinja2 template
 ///
 /// # Example
@@ -40,7 +37,10 @@ pub static MERMAID_XYCHART_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE};
+    use crate::jinja2_templates::{
+        TEMPLATE_TABLE_EXPRESSION,
+        mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE},
+    };
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use phymes_core::{
@@ -68,7 +68,7 @@ mod tests {
         let y_arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(y_vec));
         let batch = RecordBatch::try_from_iter(vec![("x", x_arr), ("y", y_arr)])?;
         let table = Table::get_builder()
-            .with_name(MERMAID_XYCHART_TABLE_EXPRESSION)
+            .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
 
