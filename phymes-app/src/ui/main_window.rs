@@ -84,12 +84,13 @@ pub fn main_window_view() -> Element {
 
     rsx! {
         main {
-            id: "chat_main",
+            class: "w-full h-screen bg-black text-white flex flex-col",
             header {
+                class: "flex items-center justify-between h-16 p-2",
                 div {
-                    class: "navbar",
+                    class: "flex items-center gap-2 w-1/4",
                     label {
-                        class: "checkbtn",
+                        class: "p-1 text-white cursor-pointer",
                         r#for: "navbartoggle",
                         svg { dangerous_inner_html: b8_menu_icon_svg() }
                     }
@@ -100,33 +101,37 @@ pub fn main_window_view() -> Element {
                             let current = navbar_toggle.read().to_owned();
                             navbar_toggle.set(!current);
                         },
+                        class: "hidden",
                     }
                 }
                 div {
-                    class: "search",
+                    class: "flex items-center justify-end gap-3 w-3/4",
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Help);
                         },
+                        class: "p-1",
                         svg { dangerous_inner_html: aws_help_icon_svg() }
                     }
                     a {
                         href: "https://github.com/biom8er/phymes",
                         target: "_blank",
                         rel: "noopener noreferrer",
+                        class: "inline-flex items-center p-1",
                         svg { dangerous_inner_html: b8_logo_icon_svg() }
                     }
                 }
             }
 
             div {
-                class: "sidebar",
+                class: "fixed left-0 top-0 w-16 h-full bg-gray-800 flex flex-col items-center py-2 space-y-2",
                 // DM: add tooltip for each of the icons
                 // see https://www.w3schools.com/css/css_tooltip.asp
                 button {
                     onclick: move |_| async move {
                         header_menu.set(HeaderMenu::Account);
                     },
+                    class: "p-1 rounded hover:bg-gray-700",
                     svg { dangerous_inner_html: ms_person_icon_svg() }
                 }
                 if BUILDER() {
@@ -134,6 +139,7 @@ pub fn main_window_view() -> Element {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Builds);
                         },
+                        class: "p-1 rounded hover:bg-gray-700",
                         svg { dangerous_inner_html: ms_tools_icon_svg() }
                     }
                 } else {
@@ -141,19 +147,21 @@ pub fn main_window_view() -> Element {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Apps);
                         },
-                        // svg { dangerous_inner_html: settings_icon_svg() }
+                        class: "p-1 rounded hover:bg-gray-700",
                         svg { dangerous_inner_html: ms_apps_icon_svg() }
                     }
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Messages);
                         },
+                        class: "p-1 rounded hover:bg-gray-700",
                         svg { dangerous_inner_html: ms_message_icon_svg() }
                     }
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Attachments);
                         },
+                        class: "p-1 rounded hover:bg-gray-700",
                         svg { dangerous_inner_html: ms_attachment_icon_svg() }
                     }
                 }
@@ -162,34 +170,40 @@ pub fn main_window_view() -> Element {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Subjects);
                         },
+                        class: "p-1 rounded hover:bg-gray-700",
                         svg { dangerous_inner_html: ms_database_icon_svg() }
                     }
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Metrics);
                         },
+                        class: "p-1 rounded hover:bg-gray-700",
                         svg { dangerous_inner_html: ms_top_speed_icon_svg() }
                     }
                 }
             }
 
-            // DM: required because each component is its own type!
-            if header_menu.read().as_str() == "Help" {
-                about_text_modal {},
-            } else if header_menu.read().as_str() == "Account" {
-                sign_in_view {},
-            } else if header_menu.read().as_str() == "Builds" {
-                apps_interface_view {},
-            } else if header_menu.read().as_str() == "Apps" {
-                apps_interface_view {},
-            } else if header_menu.read().as_str() == "Subjects" {
-                subjects_interface_view {},
-            } else if header_menu.read().as_str() == "Messages" {
-                messaging_interface_view {},
-            } else if header_menu.read().as_str() == "Attachments" {
-                attachments_interface_view {},
-            } else if header_menu.read().as_str() == "Metrics" {
-                metrics_interface_view {},
+            // Main content area to the right of the sidebar
+            div {
+                class: "ml-16 w-full",
+                // DM: required because each component is its own type!
+                if header_menu.read().as_str() == "Help" {
+                    about_text_modal {},
+                } else if header_menu.read().as_str() == "Account" {
+                    sign_in_view {},
+                } else if header_menu.read().as_str() == "Builds" {
+                    apps_interface_view {},
+                } else if header_menu.read().as_str() == "Apps" {
+                    apps_interface_view {},
+                } else if header_menu.read().as_str() == "Subjects" {
+                    subjects_interface_view {},
+                } else if header_menu.read().as_str() == "Messages" {
+                    messaging_interface_view {},
+                } else if header_menu.read().as_str() == "Attachments" {
+                    attachments_interface_view {},
+                } else if header_menu.read().as_str() == "Metrics" {
+                    metrics_interface_view {},
+                }
             }
         }
     }
@@ -270,7 +284,7 @@ pub fn split_panel_drag_handle() -> Element {
 
     rsx! {
         div {
-            class: "drag-handle",
+            class: "drag-handle h-1.5 bg-gray-500 cursor-row-resize",
             // onmousemove: move |event| {
             //     if is_dragging() {
             //         y_coordinate.set(event.client_coordinates().y);
@@ -314,12 +328,12 @@ pub fn split_panel_drag_handle() -> Element {
 pub fn about_text_modal() -> Element {
     rsx! {
         div {
-            class: "messaging_list",
+            class: "ml-16 p-2 list-none h-[77%] min-h-[50%] max-h-[77%] overflow-auto",
             p { "Welcome to PHYMES by Biom🤖er" },
             ul {
                 li {
                     div {
-                        class: "help_li_item",
+                        class: "w-full h-auto flex items-center p-2",
                         h2 { "{HeaderMenu::Help.as_str()}" }
                         svg { dangerous_inner_html: aws_help_icon_svg() }
                         p { "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHubp https://github.com/biom8er/phymes/issues if you run into problems." }
@@ -327,7 +341,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item",
+                        class: "w-full h-auto flex items-center p-2",
                         h2 { "Menu" }
                         svg { dangerous_inner_html: b8_menu_icon_svg() }
                         p { "Hide or show the menu items below." }
@@ -335,7 +349,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item",
+                        class: "w-full h-auto flex items-center p-2",
                         h2 { "{HeaderMenu::Builds.as_str()}" }
                         svg { dangerous_inner_html: ms_tools_icon_svg() }
                         p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
@@ -343,7 +357,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item",
+                        class: "w-full h-auto flex items-center p-2",
                         h2 { "{HeaderMenu::Apps.as_str()}" }
                         svg { dangerous_inner_html: ms_apps_icon_svg() }
                         p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
@@ -351,7 +365,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item",
+                        class: "w-full h-auto flex items-center p-2",
                         h2 { "{HeaderMenu::Messages.as_str()}" }
                         svg { dangerous_inner_html: ms_message_icon_svg() }
                         p { "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated." }
@@ -359,7 +373,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item",
+                        class: "w-full h-auto flex items-center p-2",
                         h2 { "{HeaderMenu::Attachments.as_str()}" }
                         svg { dangerous_inner_html: ms_message_icon_svg() }
                         p { "The attachment history for the active session plan. A file upload and download interface is provided for users to publish attachments to the attachments subject and to receive subscriptions from the attachments subjects when the attachments subjects are updated." }
@@ -367,7 +381,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item",
+                        class: "w-full h-auto flex items-center p-2",
                         h2 { "{HeaderMenu::Subjects.as_str()}" }
                         svg { dangerous_inner_html: ms_database_icon_svg() }
                         p { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
@@ -375,7 +389,7 @@ pub fn about_text_modal() -> Element {
                 }
                 li {
                     div {
-                        class: "help_li_item",
+                        class: "w-full h-auto flex items-center p-2",
                         h2 { "{HeaderMenu::Metrics.as_str()}" }
                         svg { dangerous_inner_html: ms_top_speed_icon_svg() }
                         p { "A list of metrics associated with the active session plan. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest." }

@@ -7,7 +7,8 @@ mod ui;
 use ui::main_window_view;
 
 // CSS
-static MAIN_CSS: Asset = asset!("/assets/main.css");
+// static MAIN_CSS: Asset = asset!("/assets/main.css");
+static TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 #[cfg(feature = "mermaid_js_embed")]
 static MERMAID_JS: Asset = asset!("/assets/mermaid.min.js");
 // static MERMAID_MJS: Asset = asset!("/assets/mermaid.esm.min.mjs");
@@ -41,7 +42,8 @@ fn main() {
 fn app() -> Element {
     // render the UI
     rsx! {
-        document::Link { rel: "stylesheet", href: MAIN_CSS },
+        // document::Link { rel: "stylesheet", href: MAIN_CSS },
+        document::Link { rel: "stylesheet", href: TAILWIND_CSS },
         mermaid_js {},
         div {
             id: "container",
