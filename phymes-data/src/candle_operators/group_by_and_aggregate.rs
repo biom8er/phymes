@@ -265,7 +265,7 @@ where
 }
 
 /// Helper function to build a fixed list primitive type
-fn build_aggregator_column_fixed_size_list<T>(agg_vec: Vec<Vec<T>>, data_type: DataType) -> ArrayRef
+pub(crate) fn build_aggregator_column_fixed_size_list<T>(agg_vec: Vec<Vec<T>>, data_type: DataType) -> ArrayRef
 where
     T: ArrowNativeType + 'static,
 {
