@@ -1,4 +1,4 @@
-use dioxus::prelude::*;
+use dioxus::{html::FileData, prelude::*};
 use phymes_core::{
     create_blob_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, Table, TableBuilderTrait,
@@ -9,10 +9,6 @@ use phymes_server::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
-
-// File upload imports
-use dioxus::prelude::dioxus_elements::FileEngine;
-use std::sync::Arc;
 
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
@@ -59,16 +55,16 @@ pub fn attach_files_input(
 ) -> Element {
     let enable_directory_upload = use_signal(|| false);
 
-    let read_files = move |file_engine: Arc<dyn FileEngine>, publish: TablePublication| async move {
-        let files = file_engine.files();
-        for file_name in &files {
+    let read_files = move |files: Vec<FileData>, publish: TablePublication| async move {
+        for file in files {
+            let filename = file.name();
             // Determine the file type
-            let file_path = std::path::Path::new(file_name);
+            let file_path = std::path::Path::new(&filename);
             match file_path.extension() {
-                None => tracing::error!("File {file_name} has no extension."),
+                None => tracing::error!("File {filename} has no extension."),
                 Some(ext) => match DataFormat::from_extension(ext.to_str().unwrap()) {
                     Ok(data_format) => {
-                        if let Some(contents) = file_engine.read_file(file_name).await {
+                        if let Ok(contents) = file.read_bytes().await {
                             let extension = ext.to_str().unwrap();
                             let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
                             // 1. Use the active subject to determine the target subject of the file
@@ -120,7 +116,7 @@ pub fn attach_files_input(
                                 let batch = create_blob_batch(
                                     vec![file_stem.to_string()],
                                     vec![extension.to_string()],
-                                    vec![contents],
+                                    vec![contents.into()],
                                     vec!["user".to_string()],
                                     vec![create_timestamp_micros()],
                                 )
@@ -135,7 +131,7 @@ pub fn attach_files_input(
                                     .unwrap();
                                 (message, DataFormat::Ipc)
                             } else {
-                                (contents, data_format)
+                                (contents.into(), data_format)
                             };
 
                             // Update the publish method
@@ -180,27 +176,11 @@ pub fn attach_files_input(
     };
 
     let upload_files_extend = move |evt: FormEvent| async move {
-        if let Some(file_engine) = evt.files() {
-            read_files(
-                file_engine,
-                TablePublication::Extend {
-                    table_name: "".to_string(),
-                },
-            )
-            .await;
-        }
+        read_files(evt.files(), TablePublication::Extend { table_name: "".to_string()}).await;
     };
 
     let upload_files_replace = move |evt: FormEvent| async move {
-        if let Some(file_engine) = evt.files() {
-            read_files(
-                file_engine,
-                TablePublication::Replace {
-                    table_name: "".to_string(),
-                },
-            )
-            .await;
-        }
+        read_files(evt.files(), TablePublication::Replace { table_name: "".to_string()}).await;
     };
 
     rsx! {
@@ -234,20 +214,17 @@ pub fn attach_textfiles_input(
     mut content: Signal<String>,
 ) -> Element {
     let enable_directory_upload = use_signal(|| false);
-
-    let read_files = move |file_engine: Arc<dyn FileEngine>| async move {
-        let files = file_engine.files();
-        for file_name in &files {
-            if let Some(contents) = file_engine.read_file_to_string(file_name).await {
+    
+    let read_files = move |files: Vec<FileData>| async move {
+        for file in files {
+            if let Ok(contents) = file.read_string().await {
                 content.set([content(), contents].join(""));
             }
         }
     };
 
     let upload_files = move |evt: FormEvent| async move {
-        if let Some(file_engine) = evt.files() {
-            read_files(file_engine).await;
-        }
+        read_files(evt.files()).await;
     };
 
     rsx! {
