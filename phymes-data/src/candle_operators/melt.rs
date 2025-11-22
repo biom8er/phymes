@@ -1,7 +1,10 @@
 use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array},
+    array::{
+        ArrayRef, Float32Array, Float64Array, Int64Array, RecordBatch, StringArray, UInt8Array,
+        UInt32Array,
+    },
     compute::cast,
-    datatypes::DataType,
+    datatypes::{DataType, Float32Type, Float64Type, Int64Type, UInt8Type, UInt32Type},
 };
 
 use anyhow::{Result, anyhow};
@@ -16,7 +19,15 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait, candle_data::DataConfig, candle_operators::data_operator::DataOperatorTrait,
+    ToolTrait,
+    candle_data::DataConfig,
+    candle_operators::{
+        data_operator::DataOperatorTrait,
+        group_by_and_aggregate::{
+            build_aggregator_column_fixed_size_list, build_aggregator_column_list_nonprimitive,
+            build_aggregator_column_list_primitive,
+        },
+    },
 };
 
 /// Unpivot (melt) a [RecordBatch] from wide to long format
@@ -231,11 +242,136 @@ pub fn melt(
                 let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
                 Arc::new(UInt32Array::from(expanded_vec))
             }
+            DataType::Int64 => {
+                let col_vec = lhs_table.get_column_as_vec_primitive::<i64>(column_name)?;
+                let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                Arc::new(Int64Array::from(expanded_vec))
+            }
+            DataType::Float32 => {
+                let col_vec = lhs_table.get_column_as_vec_primitive::<f32>(column_name)?;
+                let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                Arc::new(Float32Array::from(expanded_vec))
+            }
+            DataType::Float64 => {
+                let col_vec = lhs_table.get_column_as_vec_primitive::<f64>(column_name)?;
+                let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                Arc::new(Float64Array::from(expanded_vec))
+            }
             DataType::Utf8 => {
                 let col_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(column_name)?;
                 let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
                 Arc::new(StringArray::from(expanded_vec))
             }
+            DataType::FixedSizeList(f, _) => match f.data_type() {
+                DataType::UInt8 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_primitive::<u8>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_fixed_size_list::<u8>(expanded_vec, DataType::UInt8)
+                }
+                DataType::UInt32 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_primitive::<u32>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_fixed_size_list::<u32>(expanded_vec, DataType::UInt32)
+                }
+                DataType::Int64 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_primitive::<i64>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_fixed_size_list::<i64>(expanded_vec, DataType::Int64)
+                }
+                DataType::Float32 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_primitive::<f32>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_fixed_size_list::<f32>(expanded_vec, DataType::Float32)
+                }
+                DataType::Float64 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_primitive::<f64>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_fixed_size_list::<f64>(expanded_vec, DataType::Float64)
+                }
+                // DM: Note the conversion from fixedSizeList to List
+                DataType::Utf8 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_nonprimitive::<String>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_list_nonprimitive::<String>(
+                        expanded_vec,
+                        DataType::Utf8,
+                    )
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {} for the identifier column {column_name} for Melt Operator. The supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, and FixedList and List versions.",
+                        lhs_table.get_column_data_type(column_name)?
+                    ));
+                }
+            },
+            DataType::List(f) => match f.data_type() {
+                DataType::UInt8 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_primitive::<u8>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                        expanded_vec,
+                        DataType::UInt8,
+                    )
+                }
+                DataType::UInt32 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_primitive::<u32>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                        expanded_vec,
+                        DataType::UInt32,
+                    )
+                }
+                DataType::Int64 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_primitive::<i64>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_list_primitive::<i64, Int64Type>(
+                        expanded_vec,
+                        DataType::Int64,
+                    )
+                }
+                DataType::Float32 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_primitive::<f32>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_list_primitive::<f32, Float32Type>(
+                        expanded_vec,
+                        DataType::Float32,
+                    )
+                }
+                DataType::Float64 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_primitive::<f64>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_list_primitive::<f64, Float64Type>(
+                        expanded_vec,
+                        DataType::Float64,
+                    )
+                }
+                DataType::Utf8 => {
+                    let col_vec =
+                        lhs_table.get_column_as_vec_nested_nonprimitive::<String>(column_name)?;
+                    let expanded_vec = expand_column_outer(variable_columns.len(), &col_vec);
+                    build_aggregator_column_list_nonprimitive::<String>(
+                        expanded_vec,
+                        DataType::Utf8,
+                    )
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {} for the identifier column {column_name} for Melt Operator. The supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, and FixedList and List versions.",
+                        lhs_table.get_column_data_type(column_name)?
+                    ));
+                }
+            },
             _ => {
                 return Err(anyhow!(
                     "Unsupported data type {} for the identifier column {column_name} for Melt Operator. The supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, and FixedList and List versions.",
@@ -290,6 +426,27 @@ pub fn melt(
                     .collect::<Vec<_>>();
                 Arc::new(UInt32Array::from(expanded_vec))
             }
+            DataType::Int64 => {
+                let expanded_vec = variable_columns
+                    .iter()
+                    .flat_map(|name| lhs_table.get_column_as_vec_primitive::<i64>(name).unwrap())
+                    .collect::<Vec<_>>();
+                Arc::new(Int64Array::from(expanded_vec))
+            }
+            DataType::Float32 => {
+                let expanded_vec = variable_columns
+                    .iter()
+                    .flat_map(|name| lhs_table.get_column_as_vec_primitive::<f32>(name).unwrap())
+                    .collect::<Vec<_>>();
+                Arc::new(Float32Array::from(expanded_vec))
+            }
+            DataType::Float64 => {
+                let expanded_vec = variable_columns
+                    .iter()
+                    .flat_map(|name| lhs_table.get_column_as_vec_primitive::<f64>(name).unwrap())
+                    .collect::<Vec<_>>();
+                Arc::new(Float64Array::from(expanded_vec))
+            }
             DataType::Utf8 => {
                 let expanded_vec = variable_columns
                     .iter()
@@ -301,6 +458,176 @@ pub fn melt(
                     .collect::<Vec<_>>();
                 Arc::new(StringArray::from(expanded_vec))
             }
+            DataType::FixedSizeList(f, _) => match f.data_type() {
+                DataType::UInt8 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_primitive::<u8>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_fixed_size_list::<u8>(expanded_vec, DataType::UInt8)
+                }
+                DataType::UInt32 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_primitive::<u32>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_fixed_size_list::<u32>(expanded_vec, DataType::UInt32)
+                }
+                DataType::Int64 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_primitive::<i64>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_fixed_size_list::<i64>(expanded_vec, DataType::Int64)
+                }
+                DataType::Float32 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_primitive::<f32>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_fixed_size_list::<f32>(expanded_vec, DataType::Float32)
+                }
+                DataType::Float64 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_primitive::<f64>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_fixed_size_list::<f64>(expanded_vec, DataType::Float64)
+                }
+                // DM: Note the conversion from fixedSizeList to List
+                DataType::Utf8 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_nonprimitive::<String>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_nonprimitive::<String>(
+                        expanded_vec,
+                        DataType::Utf8,
+                    )
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {} for the values column {variable_columns:?} for the Melt Operator. The supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, and FixedList and List versions.",
+                        data_types.first().unwrap()
+                    ));
+                }
+            },
+            DataType::List(f) => match f.data_type() {
+                DataType::UInt8 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_primitive::<u8>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                        expanded_vec,
+                        DataType::UInt8,
+                    )
+                }
+                DataType::UInt32 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_primitive::<u32>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                        expanded_vec,
+                        DataType::UInt32,
+                    )
+                }
+                DataType::Int64 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_primitive::<i64>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<i64, Int64Type>(
+                        expanded_vec,
+                        DataType::Int64,
+                    )
+                }
+                DataType::Float32 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_primitive::<f32>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<f32, Float32Type>(
+                        expanded_vec,
+                        DataType::Float32,
+                    )
+                }
+                DataType::Float64 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_primitive::<f64>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<f64, Float64Type>(
+                        expanded_vec,
+                        DataType::Float64,
+                    )
+                }
+                DataType::Utf8 => {
+                    let expanded_vec = variable_columns
+                        .iter()
+                        .flat_map(|name| {
+                            lhs_table
+                                .get_column_as_vec_nested_nonprimitive::<String>(name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_nonprimitive::<String>(
+                        expanded_vec,
+                        DataType::Utf8,
+                    )
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {} for the values column {variable_columns:?} for the Melt Operator. The supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, and FixedList and List versions.",
+                        data_types.first().unwrap()
+                    ));
+                }
+            },
             _ => {
                 return Err(anyhow!(
                     "Unsupported data type {} for the values column {variable_columns:?} for the Melt Operator. The supported data types are UInt8, UInt32, Int64, Float32, Float64, Utf8, and FixedList and List versions.",
