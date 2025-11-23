@@ -7,7 +7,6 @@
     'Noto Color Emoji';
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
-    --color-gray-50: oklch(98.5% 0.002 247.839);
     --color-gray-200: oklch(92.8% 0.006 264.531);
     --color-gray-500: oklch(55.1% 0.027 264.364);
     --color-gray-700: oklch(37.3% 0.034 259.733);
@@ -17,8 +16,6 @@
     --color-neutral-300: oklch(87% 0 0);
     --color-neutral-400: oklch(70.8% 0 0);
     --color-neutral-700: oklch(37.1% 0 0);
-    --color-neutral-800: oklch(26.9% 0 0);
-    --color-neutral-900: oklch(20.5% 0 0);
     --color-white: #fff;
     --spacing: 0.25rem;
     --text-lg: 1.125rem;
@@ -387,18 +384,12 @@
   .overflow-auto {
     overflow: auto;
   }
-  .overflow-hidden {
-    overflow: hidden;
-  }
   .rounded {
     border-radius: 0.25rem;
   }
   .border {
     border-style: var(--tw-border-style);
     border-width: 1px;
-  }
-  .bg-gray-50 {
-    background-color: var(--color-gray-50);
   }
   .bg-gray-500 {
     background-color: var(--color-gray-500);
@@ -414,9 +405,6 @@
   }
   .bg-neutral-200 {
     background-color: var(--color-neutral-200);
-  }
-  .bg-white {
-    background-color: var(--color-white);
   }
   .p-1 {
     padding: calc(var(--spacing) * 1);
@@ -510,10 +498,6 @@
     --tw-ease: var(--ease-out);
     transition-timing-function: var(--ease-out);
   }
-  .select-none {
-    -webkit-user-select: none;
-    user-select: none;
-  }
   .hover\:bg-gray-700 {
     &:hover {
       @media (hover: hover) {
@@ -586,16 +570,6 @@
   .dark\:bg-neutral-700 {
     @media (prefers-color-scheme: dark) {
       background-color: var(--color-neutral-700);
-    }
-  }
-  .dark\:bg-neutral-800 {
-    @media (prefers-color-scheme: dark) {
-      background-color: var(--color-neutral-800);
-    }
-  }
-  .dark\:bg-neutral-900 {
-    @media (prefers-color-scheme: dark) {
-      background-color: var(--color-neutral-900);
     }
   }
 }

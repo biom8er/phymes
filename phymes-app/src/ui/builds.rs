@@ -402,12 +402,12 @@ pub fn builds_interface_footer(
     rsx! {
         if !JWT.read().is_empty() && !active_session_name.read().is_empty() {
             footer {
-                class: "resizable_text_input",
+            class: "container flex flex-row items-center p-2 gap-2",
                 div {
-                    class: "text_input",
+                    class: "flex-1 h-full",
                     form {
-                        id: "diagram_code_form",
                         textarea {
+                            class: "w-full h-full p-2 rounded bg-gray-800 text-gray-200 resize-none",
                             value: "{diagram_code.to_string()}",
                             oninput: move |event| async move {
                                 // Update the active diagrams
@@ -425,7 +425,7 @@ pub fn builds_interface_footer(
                 }
 
                 div {
-                    class: "submit_button",
+                    class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                     // This must be outside the form or it will be refreshed on each submit
                     button {
                         onclick: move |_| async move {
@@ -500,10 +500,14 @@ pub fn builds_interface_footer(
                         },
                         // Show the save button only when modified
                         if !is_saved() && !diagram_code().is_empty() {
-                            svg { dangerous_inner_html: b8_save_icon_svg() }
+                            svg { 
+                                class: "max-w-[48px] max-h-[48px]",
+                                dangerous_inner_html: b8_save_icon_svg()
+                            }
                         }
                     }
                     button {
+                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Generate defaults if possible
                             match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
@@ -524,7 +528,10 @@ pub fn builds_interface_footer(
                         },
                         // Show the save button only when modified
                         if !is_flowchart_shown() && diagram_code().is_empty() {
-                            svg { dangerous_inner_html: ms_code_icon_svg() }
+                            svg { 
+                                class: "max-w-[48px] max-h-[48px]",
+                                dangerous_inner_html: ms_code_icon_svg()
+                            }
                         }
                     }
                 }

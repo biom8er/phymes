@@ -30,14 +30,12 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 // mod imports
 use crate::{
     state::{
-        extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download,
-        svg_icons::{
+        ACTIVE_SESSION_NAME, EMAIL, JWT, extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download, svg_icons::{
             aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg,
             ms_arrow_download_icon_svg,
-        },
-        update_attachments_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
+        }, update_attachments_state
     },
-    ui::{attach_files_input, clear_upload_files_button, upload_files_button},
+    ui::{attach_files_input, clear_upload_files_button, main_window::split_panel_horizontal, upload_files_button},
 };
 
 /// View for attachments between the user and AI assistant
@@ -181,64 +179,78 @@ pub fn attachments_interface_view() -> Element {
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "container p-2 overflow-auto flex flex-col items-center",
                 p { "Please sign-in before attachments." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "container p-2 overflow-auto flex flex-col items-center",
                 p { "Please activate a session before attachments." },
             }
         } else {
-            ul {
-                class: "messaging_list",
-                {(0..attachments_roles.len()).map(|i| {
-                    let role = attachments_roles.get(i).unwrap();
-                    let index = attachments_indices.get(i).unwrap();
-                    let timestamp = convert_timestamp_micros_to_str(*attachments_timestamps.get(i).unwrap());
-                    let content = attachments_contents.get(i).unwrap();
-                    let filename = attachments_filenames.get(i).unwrap();
-                    let extension = attachments_extensions.get(i).unwrap();
-                    rsx! {
-                        li {
-                            key: "{index}",
-                            class: "assistant", // we borrow the assistant class for styling
-                            div {
-                                class: "entete",
-                                if role.as_str() == "assistant" {
-                                    svg { dangerous_inner_html: aws_assistant_icon_svg() }
-                                    h2 { "AI Assistant" }
-                                } else {
-                                    svg { dangerous_inner_html: aws_user_icon_svg() }
-                                    h2 { "User" }
-                                }
-                                h3 { "{timestamp}" }
-                                svg { dangerous_inner_html: extension_to_icon_svg(&extension) }
-                                if let Some(f) = content.as_ref() {
-                                    a {
-                                        href: extension_and_file_to_data_href(&extension, f).unwrap(),
-                                        download: filename_and_extension_to_download(&filename, &extension),
-                                        "{filename_and_extension_to_download(&filename, &extension)}"
-                                    },
-                                    button {
-                                        onclick: move |_| async move {
-                                            *attachments_contents.get_mut(i).unwrap() = None;
-                                        },
-                                        svg { dangerous_inner_html: fa_trash_icon_svg() }
-                                    }
-                                } else {
-                                    h3 { "{filename}.{extension}" },
-                                    button {
-                                        svg { dangerous_inner_html: ms_arrow_download_icon_svg() }
-                                        // TODO: download the attachment
+            split_panel_horizontal {
+                top: rsx! {
+                    ul {
+                        class: "container p-2 overflow-auto flex flex-col list-none",
+                        {(0..attachments_roles.len()).map(|i| {
+                            let role = attachments_roles.get(i).unwrap();
+                            let index = attachments_indices.get(i).unwrap();
+                            let timestamp = convert_timestamp_micros_to_str(*attachments_timestamps.get(i).unwrap());
+                            let content = attachments_contents.get(i).unwrap();
+                            let filename = attachments_filenames.get(i).unwrap();
+                            let extension = attachments_extensions.get(i).unwrap();
+                            rsx! {
+                                li {
+                                    key: "{index}",
+                                    class: "flex flex-col flex-content-start gap-1 my-2", // we borrow the assistant class for styling
+                                    div {
+                                        class: "flex items-center gap-2",
+                                        if role.as_str() == "assistant" {
+                                            svg { dangerous_inner_html: aws_assistant_icon_svg() }
+                                            h2 { "AI Assistant" }
+                                        } else {
+                                            svg { dangerous_inner_html: aws_user_icon_svg() }
+                                            h2 { "User" }
+                                        }
+                                        h3 { "{timestamp}" }
+                                        svg { dangerous_inner_html: extension_to_icon_svg(&extension) }
+                                        if let Some(f) = content.as_ref() {
+                                            a {
+                                                href: extension_and_file_to_data_href(&extension, f).unwrap(),
+                                                download: filename_and_extension_to_download(&filename, &extension),
+                                                "{filename_and_extension_to_download(&filename, &extension)}"
+                                            },
+                                            button {
+                                                class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                                                onclick: move |_| async move {
+                                                    *attachments_contents.get_mut(i).unwrap() = None;
+                                                },
+                                                svg { 
+                                                    class: "max-w-[48px] max-h-[48px]",
+                                                    dangerous_inner_html: fa_trash_icon_svg()
+                                                }
+                                            }
+                                        } else {
+                                            h3 { "{filename}.{extension}" },
+                                            button {
+                                                class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                                                svg { 
+                                                    class: "max-w-[48px] max-h-[48px]",
+                                                    dangerous_inner_html: ms_arrow_download_icon_svg()
+                                                }
+                                                // TODO: download the attachment
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
+                        })}
                     }
-                })}
-            }
-            attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| false), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, subject_names: None }
+                },
+                bottom: rsx! {
+                    attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| false), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, subject_names: None }
+                }
+            }            
         }
     }
 }
@@ -277,8 +289,9 @@ pub fn attachments_interface_footer(
 
     rsx! {
         footer {
+            class: "container flex flex-row items-center p-2 gap-2",
             div {
-                class: "attach_button",
+                class: "w-[64px] p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                 if extend_input() {
                     attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
                 }
@@ -288,18 +301,18 @@ pub fn attachments_interface_footer(
             }
 
             div {
-                class: "text_input",
+                class: "flex-1 h-full overflow-auto",
                 form {
-                    id: "message_form",
                     textarea {
                         placeholder: "Staged files",
                         value: "{filenames}",
+                        class: "w-full h-full p-2 rounded bg-gray-800 text-gray-200 resize-none",
                     }
                 }
             }
 
             div {
-                class: "submit_button",
+                class: "w-[64px]",
                 if !files_uploaded.read().is_empty() {
                     upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
                     clear_upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}

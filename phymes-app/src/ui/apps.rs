@@ -10,12 +10,9 @@ use serde_json::{Map, Value};
 
 use crate::{
     state::{
-        filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects,
-        svg_icons::{ms_search_icon_svg, ms_sync_icon_svg},
-        sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME,
-        BUILDER, EMAIL, JWT, SESSION_NAMES,
+        ACTIVE_SESSION_NAME, BUILDER, EMAIL, JWT, SESSION_NAMES, SyncCurrentActiveSessionState, filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}, sync_current_active_session_state
     },
-    ui::{builds_dropdown_view, builds_interface_footer, split_panel_drag_handle},
+    ui::{builds_dropdown_view, builds_interface_footer, main_window::split_panel_horizontal, split_panel_drag_handle},
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -303,18 +300,26 @@ pub fn apps_interface_view() -> Element {
                 p { "Waiting to retrieve available session plans..." },
             }
         } else {
-            div {
-                class: "w-full h-full p-2 flex flex-col",
-                if BUILDER() {
-                    builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
-                } else {
-                    apps_dropdown_view { is_flowchart_shown }
-                }
-                mermaid_view { diagram_code }
-                if BUILDER() {
-                    split_panel_drag_handle {}
-                    builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
-                }
+            split_panel_horizontal {
+                top: rsx! {
+                    div {
+                        class: "h-full w-full p-2 flex flex-col",
+                        if BUILDER() {
+                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
+                        } else {
+                            apps_dropdown_view { is_flowchart_shown }
+                        }
+                        mermaid_view { diagram_code }
+                    }
+                },
+                bottom: rsx! {
+                    div {
+                        class: "h-full w-full p-2 flex flex-col",
+                        if BUILDER() {
+                            builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
+                        }
+                    }
+                },
             }
         }
     }

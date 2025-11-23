@@ -301,6 +301,85 @@ pub fn split_panel_drag_handle() -> Element {
     }
 }
 
+#[component]
+pub fn split_panel_horizontal(
+    top: Element,
+    bottom: Element,
+    #[props(default = 80.0)]
+    initial_top_pct: f32,
+) -> Element {
+    let mut top_pct = use_signal(|| initial_top_pct.clamp(10.0, 90.0));
+    let mut is_dragging = use_signal(|| false);
+    let mut start_y = use_signal(|| 0.0);
+    let mut start_pct = use_signal(|| top_pct());
+
+    let on_mouse_move = {
+        move |evt: MouseEvent| {
+            if !is_dragging() {
+                return;
+            }
+            let dy = evt.page_coordinates().y as f32 - start_y();
+
+            // TODO
+            if dy > 5.0 {
+                let delta_pct = 5.0;
+                let new_pct = (start_pct() + delta_pct).clamp(10.0, 90.0);
+                top_pct.set(new_pct);
+            } else if dy < -5.0 {
+                let delta_pct = -5.0;
+                let new_pct = (start_pct() + delta_pct).clamp(10.0, 90.0);
+                top_pct.set(new_pct);
+            }
+        }
+    };
+
+    let on_mouse_up = {
+        move |_evt: MouseEvent| {
+            if is_dragging() {
+                is_dragging.set(false);
+            }
+        }
+    };
+
+    let on_divider_mouse_down = {
+        move |evt: MouseEvent| {
+            is_dragging.set(true);
+            start_y.set(evt.page_coordinates().y as f32);
+            start_pct.set(top_pct());
+            evt.prevent_default();
+        }
+    };
+
+    let top_style = format!("height: {}%;", top_pct());
+    let bottom_style = format!("height: {}%;", 100.0 - top_pct());
+
+    rsx! {
+        div {
+            class: "flex flex-col h-full w-full",
+
+            div {
+                class: "w-full",
+                style: "{top_style}",
+                {top}
+            }
+
+            div {
+                class: "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize",
+                onmousedown: on_divider_mouse_down,
+                // Attach global listeners via onmousemove/onmouseup on parent
+                onmousemove: on_mouse_move,
+                onmouseup: on_mouse_up,
+            }
+
+            div {
+                class: "w-full",
+                style: "{bottom_style}",
+                {bottom}
+            }
+        }
+    }
+}
+
 /// About text view with information on using the application
 ///
 /// # Notes
