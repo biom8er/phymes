@@ -51,141 +51,122 @@ impl HeaderMenu {
 pub fn main_window_view() -> Element {
     // View control signals
     let mut header_menu: Signal<HeaderMenu> = use_signal(|| HeaderMenu::Account);
-    let mut navbar_toggle: Signal<bool> = use_signal(|| false);
-
-    // Toggle the sidebar visibility
-    use_effect(move || {
-        let navbar_toggle = navbar_toggle.read();
-        document::eval(
-            format!(
-                r#" var nav_toggle = {navbar_toggle};
-            var elements = document.getElementsByClassName("sidebar");
-            for (var i = 0; i < elements.length; i++) {{
-                var x = elements[i];
-                if (x.style.display === "none") {{
-                    x.style.display = "block";
-                }} else {{
-                    x.style.display = "none";
-                }}
-            }}
-            var elements = document.getElementsByClassName("messaging_list");
-            for (var i = 0; i < elements.length; i++) {{
-                var x = elements[i];
-                if (x.style.marginLeft  === "0px") {{
-                    x.style.display = "64px";
-                }} else {{
-                    x.style.display = "0px";
-                }}
-            }}"#
-            )
-            .as_str(),
-        );
-    });
 
     rsx! {
         main {
-            class: "w-full h-screen bg-black text-white flex flex-col",
-            header {
-                class: "flex items-center justify-between h-16 p-2",
+            class: "w-full h-full align-top",
+
+            // Responsive sidebar that is horizontal on mobile and vertical on large screens
+            aside {
+                class: "fixed left-0 top-0 sm:w-[64px] w-full sm:h-full h-[64px] bg-gray-800 flex sm:flex-col flex-row items-center py-2 space-y-2",
                 div {
-                    class: "flex items-center gap-2 w-1/4",
-                    label {
-                        class: "p-1 text-white cursor-pointer",
-                        r#for: "navbartoggle",
-                        svg { dangerous_inner_html: b8_menu_icon_svg() }
-                    }
-                    input {
-                        r#type: "checkbox",
-                        id: "navbartoggle",
-                        onclick: move |_| {
-                            let current = navbar_toggle.read().to_owned();
-                            navbar_toggle.set(!current);
+                    class: "sm:w-auto w-2/3 sm:h-2/3 h-auto place-content-start",
+                    // DM: add tooltip for each of the icons
+                    // see https://www.w3schools.com/css/css_tooltip.asp
+                    button {
+                        onclick: move |_| async move {
+                            header_menu.set(HeaderMenu::Account);
                         },
-                        class: "hidden",
+                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                        svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_person_icon_svg() 
+                        }
+                    }
+                    if BUILDER() {
+                        button {
+                            onclick: move |_| async move {
+                                header_menu.set(HeaderMenu::Builds);
+                            },
+                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            svg { 
+                                class: "max-w-[48px] max-h-[48px]",
+                                dangerous_inner_html: ms_tools_icon_svg() 
+                            }
+                        }
+                    } else {
+                        button {
+                            onclick: move |_| async move {
+                                header_menu.set(HeaderMenu::Apps);
+                            },
+                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            svg { 
+                                class: "max-w-[48px] max-h-[48px]",
+                                dangerous_inner_html: ms_apps_icon_svg() 
+                            }
+                        }
+                        button {
+                            onclick: move |_| async move {
+                                header_menu.set(HeaderMenu::Messages);
+                            },
+                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            svg { 
+                                class: "max-w-[48px] max-h-[48px]",
+                                dangerous_inner_html: ms_message_icon_svg() 
+                            }
+                        }
+                        button {
+                            onclick: move |_| async move {
+                                header_menu.set(HeaderMenu::Attachments);
+                            },
+                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            svg { 
+                                class: "max-w-[48px] max-h-[48px]",
+                                dangerous_inner_html: ms_attachment_icon_svg() 
+                            }
+                        }
+                    }
+                    if DEBUGGER() {
+                        button {
+                            onclick: move |_| async move {
+                                header_menu.set(HeaderMenu::Subjects);
+                            },
+                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            svg { 
+                                class: "max-w-[48px] max-h-[48px]",
+                                dangerous_inner_html: ms_database_icon_svg() 
+                            }
+                        }
+                        button {
+                            onclick: move |_| async move {
+                                header_menu.set(HeaderMenu::Metrics);
+                            },
+                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            svg { 
+                                class: "max-w-[48px] max-h-[48px]",
+                                dangerous_inner_html: ms_top_speed_icon_svg() 
+                            }
+                        }
                     }
                 }
                 div {
-                    class: "flex items-center justify-end gap-3 w-3/4",
+                    class: "sm:w-auto w-1/3 sm:h-1/3 h-auto place-content-end",
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Help);
                         },
-                        class: "p-1",
-                        svg { dangerous_inner_html: aws_help_icon_svg() }
+                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                        svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: aws_help_icon_svg() 
+                        }
                     }
                     a {
                         href: "https://github.com/biom8er/phymes",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        class: "inline-flex items-center p-1",
-                        svg { dangerous_inner_html: b8_logo_icon_svg() }
-                    }
-                }
-            }
-
-            div {
-                class: "fixed left-0 top-0 w-16 h-full bg-gray-800 flex flex-col items-center py-2 space-y-2",
-                // DM: add tooltip for each of the icons
-                // see https://www.w3schools.com/css/css_tooltip.asp
-                button {
-                    onclick: move |_| async move {
-                        header_menu.set(HeaderMenu::Account);
-                    },
-                    class: "p-1 rounded hover:bg-gray-700",
-                    svg { dangerous_inner_html: ms_person_icon_svg() }
-                }
-                if BUILDER() {
-                    button {
-                        onclick: move |_| async move {
-                            header_menu.set(HeaderMenu::Builds);
-                        },
-                        class: "p-1 rounded hover:bg-gray-700",
-                        svg { dangerous_inner_html: ms_tools_icon_svg() }
-                    }
-                } else {
-                    button {
-                        onclick: move |_| async move {
-                            header_menu.set(HeaderMenu::Apps);
-                        },
-                        class: "p-1 rounded hover:bg-gray-700",
-                        svg { dangerous_inner_html: ms_apps_icon_svg() }
-                    }
-                    button {
-                        onclick: move |_| async move {
-                            header_menu.set(HeaderMenu::Messages);
-                        },
-                        class: "p-1 rounded hover:bg-gray-700",
-                        svg { dangerous_inner_html: ms_message_icon_svg() }
-                    }
-                    button {
-                        onclick: move |_| async move {
-                            header_menu.set(HeaderMenu::Attachments);
-                        },
-                        class: "p-1 rounded hover:bg-gray-700",
-                        svg { dangerous_inner_html: ms_attachment_icon_svg() }
-                    }
-                }
-                if DEBUGGER() {
-                    button {
-                        onclick: move |_| async move {
-                            header_menu.set(HeaderMenu::Subjects);
-                        },
-                        class: "p-1 rounded hover:bg-gray-700",
-                        svg { dangerous_inner_html: ms_database_icon_svg() }
-                    }
-                    button {
-                        onclick: move |_| async move {
-                            header_menu.set(HeaderMenu::Metrics);
-                        },
-                        class: "p-1 rounded hover:bg-gray-700",
-                        svg { dangerous_inner_html: ms_top_speed_icon_svg() }
+                        class: "inline-flex p-1 rounded hover:bg-gray-700 cursor-pointer",
+                        svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: b8_logo_icon_svg() 
+                        }
                     }
                 }
             }
 
             // Main content area to the right of the sidebar
             div {
-                class: "ml-16 w-full",
+                class: "fixed left-0 sm:left-[64px] top-[64px] sm:top-0 w-full h-full",
                 // DM: required because each component is its own type!
                 if header_menu.read().as_str() == "Help" {
                     about_text_modal {},
@@ -328,74 +309,135 @@ pub fn split_panel_drag_handle() -> Element {
 pub fn about_text_modal() -> Element {
     rsx! {
         div {
-            class: "ml-16 p-2 list-none h-[77%] min-h-[50%] max-h-[77%] overflow-auto",
-            p { "Welcome to PHYMES by Biom🤖er" },
-            ul {
-                li {
-                    div {
-                        class: "w-full h-auto flex items-center p-2",
-                        h2 { "{HeaderMenu::Help.as_str()}" }
-                        svg { dangerous_inner_html: aws_help_icon_svg() }
-                        p { "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHubp https://github.com/biom8er/phymes/issues if you run into problems." }
+            class: "container p-2 overflow-auto flex flex-col items-center",
+            p { 
+                class: "text-lg",
+                "Welcome to PHYMES by Biom🤖er" 
+            },
+            table { 
+                class: "table-auto rounded bg-gray-800 text-gray-200",
+                caption {  
+                    class: "caption-top",
+                    "Table 1.1: Menu items available in the sidebar."
+                }
+                thead {  
+                    class: "bg-gray-700",
+                    tr {  
+                        th { "Item" }
+                        th { "Icon" }
+                        th { "Description" }
                     }
                 }
-                li {
-                    div {
-                        class: "w-full h-auto flex items-center p-2",
-                        h2 { "Menu" }
-                        svg { dangerous_inner_html: b8_menu_icon_svg() }
-                        p { "Hide or show the menu items below." }
+                tbody { 
+                    class: "table-auto text-gray-200",
+                    tr { 
+                        td { "{HeaderMenu::Help.as_str()}" }
+                        td { svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: aws_help_icon_svg()
+                        } }
+                        td { "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHub https://github.com/biom8er/phymes/issues if you run into problems." }
                     }
-                }
-                li {
-                    div {
-                        class: "w-full h-auto flex items-center p-2",
-                        h2 { "{HeaderMenu::Builds.as_str()}" }
-                        svg { dangerous_inner_html: ms_tools_icon_svg() }
-                        p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
-                    }
-                }
-                li {
-                    div {
-                        class: "w-full h-auto flex items-center p-2",
-                        h2 { "{HeaderMenu::Apps.as_str()}" }
-                        svg { dangerous_inner_html: ms_apps_icon_svg() }
-                        p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
-                    }
-                }
-                li {
-                    div {
-                        class: "w-full h-auto flex items-center p-2",
-                        h2 { "{HeaderMenu::Messages.as_str()}" }
-                        svg { dangerous_inner_html: ms_message_icon_svg() }
-                        p { "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated." }
-                    }
-                }
-                li {
-                    div {
-                        class: "w-full h-auto flex items-center p-2",
-                        h2 { "{HeaderMenu::Attachments.as_str()}" }
-                        svg { dangerous_inner_html: ms_message_icon_svg() }
-                        p { "The attachment history for the active session plan. A file upload and download interface is provided for users to publish attachments to the attachments subject and to receive subscriptions from the attachments subjects when the attachments subjects are updated." }
-                    }
-                }
-                li {
-                    div {
-                        class: "w-full h-auto flex items-center p-2",
-                        h2 { "{HeaderMenu::Subjects.as_str()}" }
-                        svg { dangerous_inner_html: ms_database_icon_svg() }
-                        p { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
-                    }
-                }
-                li {
-                    div {
-                        class: "w-full h-auto flex items-center p-2",
-                        h2 { "{HeaderMenu::Metrics.as_str()}" }
-                        svg { dangerous_inner_html: ms_top_speed_icon_svg() }
-                        p { "A list of metrics associated with the active session plan. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest." }
+                    tr { 
+                        td { "{HeaderMenu::Builds.as_str()}" }
+                        td { svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_tools_icon_svg()
+                        } }
+                        td { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
                     }
                 }
             }
+            // div {
+            //     li {
+            //         div {
+            //             class: "flex flex-row",
+            //             h2 { "{HeaderMenu::Help.as_str()}" }
+            //             svg { 
+            //                 class: "max-w-[48px] max-h-[48px]",
+            //                 dangerous_inner_html: aws_help_icon_svg()
+            //             }
+            //             p { "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHub https://github.com/biom8er/phymes/issues if you run into problems." }
+            //         }
+            //     }
+            //     li {
+            //         div {
+            //             class: "flex flex-row",
+            //             h2 { "Menu" }
+            //             svg { 
+            //                 class: "max-w-[48px] max-h-[48px]",
+            //                 dangerous_inner_html: b8_menu_icon_svg()
+            //             }
+            //             p { "Hide or show the menu items below." }
+            //         }
+            //     }
+            //     li {
+            //         div {
+            //             class: "flex flex-row",
+            //             h2 { "{HeaderMenu::Builds.as_str()}" }
+            //             svg { 
+            //                 class: "max-w-[48px] max-h-[48px]",
+            //                 dangerous_inner_html: ms_tools_icon_svg()
+            //             }
+            //             p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
+            //         }
+            //     }
+            //     li {
+            //         div {
+            //             class: "flex flex-row",
+            //             h2 { "{HeaderMenu::Apps.as_str()}" }
+            //             svg { 
+            //                 class: "max-w-[48px] max-h-[48px]",
+            //                 dangerous_inner_html: ms_apps_icon_svg()
+            //             }
+            //             p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
+            //         }
+            //     }
+            //     li {
+            //         div {
+            //             class: "flex flex-row",
+            //             h2 { "{HeaderMenu::Messages.as_str()}" }
+            //             svg { 
+            //                 class: "max-w-[48px] max-h-[48px]",
+            //                 dangerous_inner_html: ms_message_icon_svg()
+            //             }
+            //             p { "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated." }
+            //         }
+            //     }
+            //     li {
+            //         div {
+            //             class: "flex flex-row",
+            //             h2 { "{HeaderMenu::Attachments.as_str()}" }
+            //             svg { 
+            //                 class: "max-w-[48px] max-h-[48px]",
+            //                 dangerous_inner_html: ms_attachment_icon_svg()
+            //             }
+            //             p { "The attachment history for the active session plan. A file upload and download interface is provided for users to publish attachments to the attachments subject and to receive subscriptions from the attachments subjects when the attachments subjects are updated." }
+            //         }
+            //     }
+            //     li {
+            //         div {
+            //             class: "flex flex-row",
+            //             h2 { "{HeaderMenu::Subjects.as_str()}" }
+            //             svg { 
+            //                 class: "max-w-[48px] max-h-[48px]",
+            //                 dangerous_inner_html: ms_database_icon_svg()
+            //             }
+            //             p { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
+            //         }
+            //     }
+            //     li {
+            //         div {
+            //             class: "flex flex-row",
+            //             h2 { "{HeaderMenu::Metrics.as_str()}" }
+            //             svg { 
+            //                 class: "max-w-[48px] max-h-[48px]",
+            //                 dangerous_inner_html: ms_top_speed_icon_svg()
+            //             }
+            //             p { "A list of metrics associated with the active session plan. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest." }
+            //         }
+            //     }
+            // }
         }
     }
 }

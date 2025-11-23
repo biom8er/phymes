@@ -294,27 +294,27 @@ pub fn apps_interface_view() -> Element {
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "container p-2 flex flex-col items-center",
                 p { "Please sign-in before activating a session." },
             }
         } else if SESSION_NAMES.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "container p-2 flex flex-col items-center",
                 p { "Waiting to retrieve available session plans..." },
             }
         } else {
             div {
-                class: "messaging_list",
+                class: "w-full h-full p-2 flex flex-col",
                 if BUILDER() {
                     builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
                 } else {
                     apps_dropdown_view { is_flowchart_shown }
                 }
                 mermaid_view { diagram_code }
-            }
-            if BUILDER() {
-                split_panel_drag_handle {}
-                builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
+                if BUILDER() {
+                    split_panel_drag_handle {}
+                    builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
+                }
             }
         }
     }
@@ -344,73 +344,89 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
 
     rsx! {
         div {
-            class: "dropdown_form",
-            form {
-                class: "dropdown_form_input",
-                input {
-                    r#type: "text",
-                    placeholder: "search apps",
-                    value: "{subject_dropdown}",
-                    onclick: move |_| show_subject_dropdown.set(true),
-                    onfocusout: move |_| show_subject_dropdown.set(false),
-                    oninput: move |evt| subject_dropdown.set(evt.value()),
-                    onkeyup: move |_| {
-                        subjects_filtered.set(subjects_vec().iter()
-                            .filter(|s| !s.contains(subject_dropdown.read().as_str()))
-                            .cloned()
-                            .collect::<Vec<_>>());
-                    }
-                },
-            },
-            button {
-                class: "dropdown_form_button",
-                onclick: move |_evt| async move {
-                    // Reset the dropdown
-                    let active_session = subject_dropdown.try_read().unwrap().to_string();
-                    subject_dropdown.set(String::new());
-
-                    // Set the active session
-                    sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
-                },
-                svg { dangerous_inner_html: ms_search_icon_svg() },
-            },
-
-            if !ACTIVE_SESSION_NAME().is_empty() {
-                button {
-                    onclick: move |_| async move {
-                        let current = is_flowchart_shown.read().to_owned();
-                        is_flowchart_shown.set(!current);
-                    },
-                    svg { dangerous_inner_html: ms_sync_icon_svg() },
-                },
-            }
-
-        }
-
-        // Dynamic dropdown
-        if show_subject_dropdown() {
+            class: "container p-2 rounded flex flex-row bg-gray-800 sm:max-w-3/4",
             div {
-                class: "dropdown_list",
-                ul {
-                    id: "apps_dropdown_list",
-                    {subjects_vec().iter().filter(|s| ACTIVE_SESSION_NAME.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
-                        let sub = sub.clone();
-                        rsx! {
-                            li {
-                                key: "{i}",
-                                div {
-                                    onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
-                                    p { "{sub}" },
-                                }
-                            }
+                class: "w-full flex flex-col",
+                form {
+                    class: "gap-2",
+                    input {
+                        class: "w-full bg-gray-700",
+                        r#type: "text",
+                        placeholder: "search apps",
+                        value: "{subject_dropdown}",
+                        onclick: move |_| show_subject_dropdown.set(true),
+                        onfocusout: move |_| show_subject_dropdown.set(false),
+                        oninput: move |evt| subject_dropdown.set(evt.value()),
+                        onkeyup: move |_| {
+                            subjects_filtered.set(subjects_vec().iter()
+                                .filter(|s| !s.contains(subject_dropdown.read().as_str()))
+                                .cloned()
+                                .collect::<Vec<_>>());
                         }
-                    })}
+                    },
+                },               
+
+                // Dynamic dropdown
+                if show_subject_dropdown() {
+                    div {
+                        class: "p-2 rounded bg-gray-800 list-none",
+                        ul {
+                            id: "apps_dropdown_list",
+                            {subjects_vec().iter().filter(|s| ACTIVE_SESSION_NAME.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
+                                let sub = sub.clone();
+                                rsx! {
+                                    li {
+                                        class: "hover:bg-gray-700 cursor-pointer",
+                                        key: "{i}",
+                                        div {
+                                            onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
+                                            p { "{sub}" },
+                                        }
+                                    }
+                                }
+                            })}
+                        }
+                    }
+                }
+            }
+            
+            div {
+                class: "flex flex-row",
+                button {
+                    class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                    onclick: move |_evt| async move {
+                        // Reset the dropdown
+                        let active_session = subject_dropdown.try_read().unwrap().to_string();
+                        subject_dropdown.set(String::new());
+
+                        // Set the active session
+                        sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
+                    },
+                    svg { 
+                        class: "max-w-[48px] max-h-[48px]",
+                        dangerous_inner_html: ms_search_icon_svg() 
+                    },
+                },
+
+                if !ACTIVE_SESSION_NAME().is_empty() {
+                    button {
+                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                        onclick: move |_| async move {
+                            let current = is_flowchart_shown.read().to_owned();
+                            is_flowchart_shown.set(!current);
+                        },
+                        svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_sync_icon_svg() 
+                        },
+                    },
                 }
             }
         }
 
         if !ACTIVE_SESSION_NAME().is_empty() {
             div {
+                class: "container p-2 flex flex-col items-center",
                 p { "{ACTIVE_SESSION_NAME().to_string()}" },
             }
         }
@@ -507,7 +523,7 @@ pub fn mermaid_div(diagram_svg: Signal<String>, id: Signal<String>) -> Element {
     rsx! {
         div {
             id: id(),
-            class: "mermaid",
+            class: "container w-full h-full",
             svg { dangerous_inner_html: diagram_svg() }
         }
     }

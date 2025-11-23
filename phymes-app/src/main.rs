@@ -46,7 +46,7 @@ fn app() -> Element {
         document::Link { rel: "stylesheet", href: TAILWIND_CSS },
         mermaid_js {},
         div {
-            id: "container",
+            class: "w-screen h-screen bg-gray-900 text-white flex flex-col",
             main_window_view {}
         }
     }
