@@ -424,7 +424,7 @@ pub fn builds_interface_footer(
 
     rsx! {
         footer {
-            class: "container h-full max-h-[128px] sm:max-h-full grid grid-rows-[64px_1fr] grid-cols-[1fr_64px] items-center p-2 gap-2",
+            class: "container h-full grid grid-rows-[64px_1fr] grid-cols-[1fr_64px] items-center p-2 gap-2",
             form {
                 class: "container w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-1",
                 textarea {

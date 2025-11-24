@@ -303,9 +303,9 @@ pub fn attachments_interface_footer(
     });
 
     let styles = if extend_input() && add_input() {
-        "container h-full max-h-[128px] sm:max-h-full grid grid-rows-[128px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+        "container h-full grid grid-rows-[128px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
     } else {
-        "container h-full max-h-[128px] sm:max-h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+        "container h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
     };
 
     rsx! {

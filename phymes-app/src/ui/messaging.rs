@@ -235,7 +235,7 @@ pub fn messaging_interface_view() -> Element {
             split_panel {
                 top: rsx! {
                     ul {
-                        class: "container p-2 overflow-auto flex flex-col list-none",
+                        class: "container p-2 flex flex-col list-none",
                         {(0..messaging_roles().len()).map(|i| {
                             let role = messaging_roles.get(i).unwrap();
                             let index = messaging_indices.get(i).unwrap();
@@ -306,7 +306,7 @@ pub fn messaging_interface_footer(
 
     rsx! {
         footer {
-            class: "container h-full max-h-[128px] sm:max-h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2",
+            class: "container h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2",
             div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-1 p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                 attach_textfiles_input { except_files: use_signal(|| ".txt,.csv,.tsv,.js,.ts,.py,.java,.c,.cpp,.cs,.rb,.go,.rs,.json,.svg,.html".to_string()), content: prompt }
@@ -318,7 +318,7 @@ pub fn messaging_interface_footer(
                     placeholder: "Type your message here...",
                     value: "{prompt.to_string()}",
                     oninput: move |event| prompt.set(event.value()),
-                    class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
+                    class: "container w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
                 }
             }
 

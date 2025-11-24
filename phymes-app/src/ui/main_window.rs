@@ -54,11 +54,11 @@ pub fn main_window_view() -> Element {
 
     rsx! {
         main {
-            class: "w-full h-full align-top",
+            class: "w-full h-full",
 
             // Responsive sidebar that is horizontal on mobile and vertical on large screens
             aside {
-                class: "fixed left-0 top-0 sm:w-[64px] w-full sm:h-full h-[64px] bg-gray-800 flex sm:flex-col flex-row items-center py-2 space-y-2",
+                class: "sm:w-[64px] w-full sm:h-full h-[64px] bg-gray-800 flex sm:flex-col flex-row items-center py-2 space-y-2",
                 div {
                     class: "sm:w-auto w-2/3 sm:h-2/3 h-auto place-content-start",
                     // DM: add tooltip for each of the icons
@@ -166,7 +166,7 @@ pub fn main_window_view() -> Element {
 
             // Main content area to the right of the sidebar
             div {
-                class: "fixed left-0 sm:left-[64px] top-[64px] sm:top-0 w-full h-full",
+                class: "w-full sm:w-[calc(100%-64px)] h-[calc(100%-64px)] sm:h-full",
                 // DM: required because each component is its own type!
                 if header_menu.read().as_str() == "Help" {
                     about_text_modal {},
@@ -362,7 +362,6 @@ pub fn split_panel(
             } else {
                 evt.page_coordinates().x as f32 - start_y()
             };
-            tracing::debug!("dy {dy}, start_y {start_y}, coord {}", evt.page_coordinates().y);
 
             // DM: since we either need to call external JS or use a UI-dependent library
             //  to get the coordinates, we instead implement a snap behavior that
@@ -405,9 +404,9 @@ pub fn split_panel(
     };
 
     let top_bottom_class = if horizontal {
-        ("flex flex-col h-full w-full", "w-full", "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize")
+        ("flex flex-col h-full w-full overflow-hidden", "w-full overflow-auto", "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize")
     } else {
-        ("flex flex-row h-full w-full", "h-full", "h-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
+        ("flex flex-row h-full w-full overflow-hidden", "h-full overflow-auto", "h-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
     };
 
     let height_or_width = if horizontal {
