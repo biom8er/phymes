@@ -29,7 +29,7 @@ arrow = { version = "56.2.0", default-features = false }
 candle-core = { version = "0.9.1" }
 tokio = { version = "1.47.0", default-features = false, optional = true}
 futures = { version = "0.3.31", default-features = false }
-clap = { version = "4.2.4", features = ["derive"] }
+clap = { version = "4.5.53", features = ["derive"] }
 anyhow = { version = "1", default-features = false }
 tracing = "0.1.41"
 tracing-chrome = "0.7.1"
