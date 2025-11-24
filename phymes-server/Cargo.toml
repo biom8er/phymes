@@ -44,7 +44,7 @@ futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false }
 anyhow = "1.0.95"
-bytes = "1.10.0"
+bytes = "1.11.0"
 tower-http = { version = "0.6.2", default-features = false, optional = true }
 tower-service = { version = "0.3.3", optional = true }
 clap = {version = "4.5.40", features = ["derive"] }

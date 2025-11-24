@@ -55,7 +55,7 @@ new_string_template = "1.5"
 minijinja = "2.6.0"
 minijinja-contrib = { version = "2.6.0", features = ["pycompat"] }
 parking_lot = "0.12.3"
-bytes = "1.10.1"
+bytes = "1.11.0"
 getrandom = { version = "0.3.1", features = ["wasm_js"] }
 getrandom_0_2 = { package = "getrandom", version = "0.2.15", features = ["js"] }
 chrono = "0.4.41"

@@ -48,6 +48,6 @@ minijinja = { version = "2.6.0", features = ["json"] }
 minijinja-contrib = { version = "2.6.0", features = ["pycompat"] }
 candle-core = { version = "0.9.1" }
 tokenizers = { version = "0.21.1", default-features = false, optional = true }
-bytes = "1.10.1"
+bytes = "1.11.0"
 getrandom = { version = "0.3.1", features = ["wasm_js"] }
 num-traits = { version = "0.2", default-features = false }
