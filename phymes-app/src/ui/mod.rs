@@ -11,7 +11,7 @@ mod metrics;
 mod sign_in;
 mod subjects;
 
-pub use main_window::{main_window_view, split_panel_drag_handle};
+pub use main_window::{main_window_view, split_panel};
 
 pub use apps::{apps_interface_view, mermaid_view};
 pub use attachments::{attachments_interface_footer, attachments_interface_view};

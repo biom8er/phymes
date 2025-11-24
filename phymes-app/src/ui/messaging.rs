@@ -223,19 +223,19 @@ pub fn messaging_interface_view() -> Element {
         // Check for sign-in
         if JWT.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Please sign-in before messaging." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Please activate a session before messaging." },
             }
         } else {
             split_panel {
                 top: rsx! {
                     ul {
-                        class: "container p-2 flex flex-col list-none",
+                        class: "p-2 flex flex-col list-none",
                         {(0..messaging_roles().len()).map(|i| {
                             let role = messaging_roles.get(i).unwrap();
                             let index = messaging_indices.get(i).unwrap();
@@ -306,19 +306,19 @@ pub fn messaging_interface_footer(
 
     rsx! {
         footer {
-            class: "container h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2",
+            class: "h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2",
             div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-1 p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                 attach_textfiles_input { except_files: use_signal(|| ".txt,.csv,.tsv,.js,.ts,.py,.java,.c,.cpp,.cs,.rb,.go,.rs,.json,.svg,.html".to_string()), content: prompt }
             }
                 
             form {
-                class: "container w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
+                class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
                 textarea {
                     placeholder: "Type your message here...",
                     value: "{prompt.to_string()}",
                     oninput: move |event| prompt.set(event.value()),
-                    class: "container w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
+                    class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
                 }
             }
 

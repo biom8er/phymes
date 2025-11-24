@@ -243,24 +243,24 @@ pub fn metrics_interface_view() -> Element {
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Please sign-in before searching metrics." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Please activate a session before searching metrics." },
             }
         } else if metric_names.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Waiting to retrieve session plan metrics..." },
             }
         } else if active_metric.read().is_empty() {
             metrics_dropdown {active_metric, metric_names}
         } else {
             div {
-                class: "container h-full w-full p-2 flex flex-col items-center",
+                class: "h-full w-full p-2 flex flex-col items-center",
                 metrics_dropdown {active_metric, metric_names}
                 mermaid_view {diagram_code}
             }
@@ -290,7 +290,7 @@ pub fn metrics_dropdown(
 
     rsx! {
         div {
-            class: "container p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_96px] sm:max-w-3/4",
+            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_96px] sm:max-w-3/4",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {

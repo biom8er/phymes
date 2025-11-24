@@ -12,7 +12,7 @@ use crate::{
     state::{
         ACTIVE_SESSION_NAME, BUILDER, EMAIL, JWT, SESSION_NAMES, SyncCurrentActiveSessionState, filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}, sync_current_active_session_state
     },
-    ui::{builds_dropdown_view, builds_interface_footer, main_window::split_panel, split_panel_drag_handle},
+    ui::{builds_dropdown_view, builds_interface_footer, main_window::split_panel},
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -291,19 +291,19 @@ pub fn apps_interface_view() -> Element {
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Please sign-in before activating a session." },
             }
         } else if SESSION_NAMES.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Waiting to retrieve available session plans..." },
             }
         } else {
             split_panel {
                 top: rsx! {
                     div {
-                        class: "container h-full w-full p-2 flex flex-col items-center",
+                        class: "h-full w-full p-2 flex flex-col items-center",
                         if BUILDER() {
                             builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
                         } else {
@@ -314,7 +314,7 @@ pub fn apps_interface_view() -> Element {
                 },
                 bottom: rsx! {
                     div {
-                        class: "container h-full w-full p-2 flex flex-col",
+                        class: "h-full w-full p-2 flex flex-col",
                         if BUILDER() {
                             builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
                         }
@@ -350,7 +350,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
     rsx! {
         div {
             // input + 2 buttons of 64 px by 64 px
-            class: "container p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_128px] sm:max-w-3/4",
+            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_128px] w-full sm:max-w-3/4",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
@@ -428,7 +428,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
 
         if !ACTIVE_SESSION_NAME().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "{ACTIVE_SESSION_NAME().to_string()}" },
             }
         }
@@ -525,7 +525,7 @@ pub fn mermaid_div(diagram_svg: Signal<String>, id: Signal<String>) -> Element {
     rsx! {
         div {
             id: id(),
-            class: "container w-full h-full",
+            class: "w-full h-full",
             svg { dangerous_inner_html: diagram_svg() }
         }
     }

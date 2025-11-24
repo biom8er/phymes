@@ -480,7 +480,7 @@ pub fn download_files_list(
 ) -> Element {
     rsx! {
         ul {
-            class: "container p-2 overflow-auto flex flex-col list-none bg-gray-800",
+            class: "p-2 overflow-auto flex flex-col list-none bg-gray-800",
             {(0..files_downloaded().len()).map(|i| {
                 let f_download = filename_and_extension_to_download(filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
                 let f_href = extension_and_file_to_data_href(extensions_downloaded().get(i).unwrap() ,files_downloaded().get(i).unwrap()).unwrap();

@@ -276,7 +276,7 @@ pub fn subjects_interface_view() -> Element {
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Please sign-in before searching subjects." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
@@ -286,14 +286,14 @@ pub fn subjects_interface_view() -> Element {
             }
         } else if subject_schema_names.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Waiting to retrieve session plan subject schemas..." },
             }
         } else {
             split_panel {
                 top: rsx! {
                     div {
-                        class: "container p-2 overflow-auto flex flex-col items-center",
+                        class: "p-2 overflow-auto flex flex-col items-center",
                         subjects_dropdown_menu { active_subject_name, subject_schema_names, files_downloaded, filenames_downloaded, extensions_downloaded },
                         subjects_schema_table { active_subject_name, subject_schema_names, subject_schema_columns, subject_schema_types, subject_names, subject_num_rows }
 
@@ -337,7 +337,7 @@ pub fn subjects_dropdown_menu(
     rsx! {
         div {
             // input + buttons of 64 px by 64 px
-            class: "container p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_148px] sm:max-w-3/4",
+            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_148px] sm:max-w-3/4",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {

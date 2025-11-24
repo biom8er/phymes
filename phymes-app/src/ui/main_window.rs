@@ -53,8 +53,8 @@ pub fn main_window_view() -> Element {
     let mut header_menu: Signal<HeaderMenu> = use_signal(|| HeaderMenu::Account);
 
     rsx! {
-        main {
-            class: "w-full h-full",
+        main {            
+            class: "w-screen h-screen bg-gray-900 text-white flex flex-col sm:flex-row",
 
             // Responsive sidebar that is horizontal on mobile and vertical on large screens
             aside {
@@ -167,7 +167,6 @@ pub fn main_window_view() -> Element {
             // Main content area to the right of the sidebar
             div {
                 class: "w-full sm:w-[calc(100%-64px)] h-[calc(100%-64px)] sm:h-full",
-                // DM: required because each component is its own type!
                 if header_menu.read().as_str() == "Help" {
                     about_text_modal {},
                 } else if header_menu.read().as_str() == "Account" {
@@ -186,117 +185,6 @@ pub fn main_window_view() -> Element {
                     metrics_interface_view {},
                 }
             }
-        }
-    }
-}
-
-/// Split panel vertical drag
-///
-/// # Notes
-/// * this component is a work in progress...
-/// * the JS listeners are necessary for the component to work
-/// * the dioxus signals are also needed to trigger the JS code
-/// * attempting to call the JS directly without the listeners results in bugs
-///   See commented code for trying to resize with JS directly
-#[component]
-pub fn split_panel_drag_handle() -> Element {
-    // let mut is_dragging: Signal<bool> = use_signal(|| false);
-    // let mut y_coordinate: Signal<f64> = use_signal(|| 0.0 as f64);
-    let mut js_trigger: Signal<bool> = use_signal(|| false);
-
-    // use_effect(move || {
-    //     // Resize the two window windows
-    //     let y_coordinate = y_coordinate.read().to_owned();
-    //     document::eval(format!(
-    //         r#"const container = document.querySelector('#container');
-    //         const topPane = document.querySelector('.messaging_list');
-    //         const bottomPane = document.querySelector('.resizable_text_input');
-    //         const dragHandle = document.querySelector('.drag-handle');
-
-    //         const containerHeight = container.offsetHeight;
-    //         const offsetY = {y_coordinate} - container.getBoundingClientRect().top;
-    //         let percentHeight = (offsetY / containerHeight) * 100;
-
-    //         // Clamp between 10% and 90% for usability
-    //         percentHeight = Math.max(10, Math.min(90, percentHeight));
-    //         percentHeightChange = 100 - percentHeight;
-
-    //         topPane.style.height = `${{percentHeight}}%`;
-    //         bottomPane.style.height = `${{percentHeightChange}}%`;"#).as_str()
-    //     );
-    // });
-    use_effect(move || {
-        // Resize the two window windows
-        let _js_trigger = js_trigger.read().to_owned();
-        document::eval(
-            r#"const container = document.querySelector('#container');
-            const topPane = document.querySelector('.messaging_list');
-            const bottomPane = document.querySelector('.resizable_text_input');
-            const dragHandle = document.querySelector('.drag-handle');
-
-            let isDragging = false;
-
-            dragHandle.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                document.body.style.cursor = 'row-resize';
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-
-                const containerHeight = container.offsetHeight;
-                const offsetY = e.clientY - container.getBoundingClientRect().top;
-                let percentHeight = (offsetY / containerHeight) * 100;
-
-                // Clamp between 10% and 90% for usability
-                percentHeight = Math.max(10, Math.min(90, percentHeight));
-                percentHeightChange = 100 - percentHeight;
-
-                topPane.style.height = `${percentHeight}%`;
-                bottomPane.style.height = `${percentHeightChange}%`;
-            });
-
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-                document.body.style.cursor = 'default';
-            });"#,
-        );
-    });
-
-    rsx! {
-        div {
-            class: "drag-handle h-1.5 bg-gray-500 cursor-row-resize",
-            // onmousemove: move |event| {
-            //     if is_dragging() {
-            //         y_coordinate.set(event.client_coordinates().y);
-            //     }
-            // },
-            // onmousedown: move |_| is_dragging.set(true),
-            // onmouseup: move |_| is_dragging.set(false),
-            onclick: move |_| {
-                let current = js_trigger.read().to_owned();
-                js_trigger.set(!current);
-            },
-            onmousedown: move |_| {
-                let current = js_trigger.read().to_owned();
-                js_trigger.set(!current);
-            },
-            onmouseup: move |_| {
-                let current = js_trigger.read().to_owned();
-                js_trigger.set(!current);
-            },
-            onmousemove: move |_| {
-                let current = js_trigger.read().to_owned();
-                js_trigger.set(!current);
-            },
-            onmouseenter: move |_| {
-                let current = js_trigger.read().to_owned();
-                js_trigger.set(!current);
-            },
-            onmouseleave: move |_| {
-                let current = js_trigger.read().to_owned();
-                js_trigger.set(!current);
-            },
         }
     }
 }
@@ -336,7 +224,9 @@ impl SnapPct {
 /// Split panel generic container
 /// 
 /// # Notes
-/// * When horizontal is false, top = left and bottom = right
+/// * On large screens top = left and bottom = right
+/// * The x and y coordinates are calculated regardless of screen size
+///   so that the CSS can determine which value to use
 #[component]
 pub fn split_panel(
     top: Element,
@@ -364,8 +254,8 @@ pub fn split_panel(
             };
 
             // DM: since we either need to call external JS or use a UI-dependent library
-            //  to get the coordinates, we instead implement a snap behavior that
-            //  snaps the containers at 20, 50, and 80 percentages
+            //  to get the container dimensions to calculate the relative position, 
+            //  we instead implement a snap behavior that snaps the containers at 20, 50, and 80 percentages
             if dy > 5.0 {
                 let new_pct = top_pct().decrease();
                 top_pct.set(new_pct);
@@ -452,7 +342,7 @@ pub fn split_panel(
 pub fn about_text_modal() -> Element {
     rsx! {
         div {
-            class: "container p-2 overflow-auto flex flex-col items-center",
+            class: "p-2 overflow-auto flex flex-col items-center",
             p { 
                 class: "text-lg",
                 "Welcome to PHYMES by Biom🤖er" 

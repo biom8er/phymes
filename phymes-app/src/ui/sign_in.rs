@@ -25,7 +25,7 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 pub fn sign_in_view() -> Element {
     rsx! {
         div {
-            class: "container p-2 overflow-auto flex flex-col items-center",
+            class: "p-2 w-full overflow-auto flex flex-col items-center",
             if !JWT.read().is_empty() {
                 sign_out_form {}
                 application_mode {}
@@ -65,7 +65,7 @@ pub fn sign_in_form() -> Element {
     //  7. Send follow-up email notifying the user that their password was reset
     rsx! {
         form {
-            class: "container p-4 rounded bg-gray-800 sm:max-w-1/2",
+            class: "p-4 rounded bg-gray-800 w-full sm:max-w-1/2",
             div {
                 class: "flex flex-col gap-2",
                 label { "Email" }

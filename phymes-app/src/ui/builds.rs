@@ -70,7 +70,7 @@ pub fn builds_dropdown_view(
     rsx! {
         div {
             // input + 5 buttons of 64 px by 64 px
-            class: "container p-2 gap-2 rounded bg-gray-800 grid grid-rows-[64px_1fr] grid-cols-[1fr_320px]",
+            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[64px_1fr] grid-cols-[1fr_320px]",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
@@ -424,11 +424,11 @@ pub fn builds_interface_footer(
 
     rsx! {
         footer {
-            class: "container h-full grid grid-rows-[64px_1fr] grid-cols-[1fr_64px] items-center p-2 gap-2",
+            class: "h-full grid grid-rows-[64px_1fr] grid-cols-[1fr_64px] items-center p-2 gap-2",
             form {
-                class: "container w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-1",
+                class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-1",
                 textarea {
-                    class: "container w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
+                    class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
                     value: "{diagram_code.to_string()}",
                     oninput: move |event| async move {
                         // Update the active diagrams

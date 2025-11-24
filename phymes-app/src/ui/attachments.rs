@@ -179,19 +179,19 @@ pub fn attachments_interface_view() -> Element {
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Please sign-in before attachments." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "container p-2 flex flex-col items-center",
+                class: "p-2 flex flex-col items-center",
                 p { "Please activate a session before attachments." },
             }
         } else {
             split_panel {
                 top: rsx! {
                     ul {
-                        class: "container p-2 overflow-auto flex flex-col list-none",
+                        class: "p-2 overflow-auto flex flex-col list-none",
                         {(0..attachments_roles.len()).map(|i| {
                             let role = attachments_roles.get(i).unwrap();
                             let index = attachments_indices.get(i).unwrap();
@@ -330,7 +330,7 @@ pub fn attachments_interface_footer(
             div {
                 class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
                 form {
-                    class: "container w-full h-full",
+                    class: "w-full h-full",
                     textarea {
                         placeholder: "Staged files",
                         value: "{filenames}",

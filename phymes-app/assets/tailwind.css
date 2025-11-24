@@ -300,6 +300,9 @@
   .h-\[64px\] {
     height: 64px;
   }
+  .h-\[calc\(100\%-64px\)\] {
+    height: calc(100% - 64px);
+  }
   .h-auto {
     height: auto;
   }
@@ -329,9 +332,6 @@
   }
   .max-w-\[90\%\] {
     max-width: 90%;
-  }
-  .flex-1 {
-    flex: 1;
   }
   .flex-none {
     flex: none;
@@ -587,6 +587,11 @@
       width: 64px;
     }
   }
+  .sm\:w-\[calc\(100\%-64px\)\] {
+    @media (width >= 40rem) {
+      width: calc(100% - 64px);
+    }
+  }
   .sm\:w-auto {
     @media (width >= 40rem) {
       width: auto;
@@ -605,6 +610,11 @@
   .sm\:flex-col {
     @media (width >= 40rem) {
       flex-direction: column;
+    }
+  }
+  .sm\:flex-row {
+    @media (width >= 40rem) {
+      flex-direction: row;
     }
   }
   .dark\:bg-neutral-700 {
