@@ -303,7 +303,7 @@ pub fn apps_interface_view() -> Element {
             split_panel_horizontal {
                 top: rsx! {
                     div {
-                        class: "h-full w-full p-2 flex flex-col",
+                        class: "container h-full w-full p-2 flex flex-col items-center",
                         if BUILDER() {
                             builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
                         } else {
@@ -314,7 +314,7 @@ pub fn apps_interface_view() -> Element {
                 },
                 bottom: rsx! {
                     div {
-                        class: "h-full w-full p-2 flex flex-col",
+                        class: "container h-full w-full p-2 flex flex-col",
                         if BUILDER() {
                             builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
                         }
@@ -349,54 +349,51 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
 
     rsx! {
         div {
-            class: "container p-2 rounded flex flex-row bg-gray-800 sm:max-w-3/4",
-            div {
-                class: "w-full flex flex-col",
-                form {
-                    class: "gap-2",
-                    input {
-                        class: "w-full bg-gray-700",
-                        r#type: "text",
-                        placeholder: "search apps",
-                        value: "{subject_dropdown}",
-                        onclick: move |_| show_subject_dropdown.set(true),
-                        onfocusout: move |_| show_subject_dropdown.set(false),
-                        oninput: move |evt| subject_dropdown.set(evt.value()),
-                        onkeyup: move |_| {
-                            subjects_filtered.set(subjects_vec().iter()
-                                .filter(|s| !s.contains(subject_dropdown.read().as_str()))
-                                .cloned()
-                                .collect::<Vec<_>>());
-                        }
-                    },
-                },               
+            // input + 2 buttons of 64 px by 64 px
+            class: "container p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_96px] sm:max-w-3/4",
+            form {
+                class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
+                input {
+                    class: "w-full h-full bg-gray-700",
+                    r#type: "text",
+                    placeholder: "search apps",
+                    value: "{subject_dropdown}",
+                    onclick: move |_| show_subject_dropdown.set(true),
+                    onfocusout: move |_| show_subject_dropdown.set(false),
+                    oninput: move |evt| subject_dropdown.set(evt.value()),
+                    onkeyup: move |_| {
+                        subjects_filtered.set(subjects_vec().iter()
+                            .filter(|s| !s.contains(subject_dropdown.read().as_str()))
+                            .cloned()
+                            .collect::<Vec<_>>());
+                    }
+                },
+            },
 
-                // Dynamic dropdown
-                if show_subject_dropdown() {
-                    div {
-                        class: "p-2 rounded bg-gray-800 list-none",
-                        ul {
-                            id: "apps_dropdown_list",
-                            {subjects_vec().iter().filter(|s| ACTIVE_SESSION_NAME.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
-                                let sub = sub.clone();
-                                rsx! {
-                                    li {
-                                        class: "hover:bg-gray-700 cursor-pointer",
-                                        key: "{i}",
-                                        div {
-                                            onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
-                                            p { "{sub}" },
-                                        }
+            // Dynamic dropdown
+            if show_subject_dropdown() {
+                div {
+                    class: "p-2 rounded bg-gray-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
+                    ul {
+                        {subjects_vec().iter().filter(|s| ACTIVE_SESSION_NAME.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
+                            let sub = sub.clone();
+                            rsx! {
+                                li {
+                                    class: "hover:bg-gray-700 cursor-pointer",
+                                    key: "{i}",
+                                    div {
+                                        onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
+                                        p { "{sub}" },
                                     }
                                 }
-                            })}
-                        }
+                            }
+                        })}
                     }
                 }
             }
             
             div {
-                class: "flex flex-row",
+                class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
                     class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
                     onclick: move |_evt| async move {

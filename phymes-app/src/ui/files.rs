@@ -479,31 +479,30 @@ pub fn download_files_list(
     mut extensions_downloaded: Signal<Vec<String>>,
 ) -> Element {
     rsx! {
-        div {
-            class: "files",
-            p { "Files to download" },
-            ul {
-                class: "file_list",
-                {(0..files_downloaded().len()).map(|i| {
-                    let f_download = filename_and_extension_to_download(filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
-                    let f_href = extension_and_file_to_data_href(extensions_downloaded().get(i).unwrap() ,files_downloaded().get(i).unwrap()).unwrap();
-                    rsx! {
-                        li {
-                            // key: "{i}",
-                            div {
-                                class: "files",
-                                svg { dangerous_inner_html: extension_to_icon_svg(extensions_downloaded().get(i).unwrap()) },
-                                a {
-                                    href: f_href.to_owned(),
-                                    download: f_download.to_owned(),
-                                    "{f_download}"
-                                },
-                            }
+        ul {
+            class: "container p-2 overflow-auto flex flex-col list-none bg-gray-800",
+            {(0..files_downloaded().len()).map(|i| {
+                let f_download = filename_and_extension_to_download(filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
+                let f_href = extension_and_file_to_data_href(extensions_downloaded().get(i).unwrap() ,files_downloaded().get(i).unwrap()).unwrap();
+                rsx! {
+                    li {
+                        class: "flex flex-col flex-content-start gap-1 my-2", // we borrow the assistant class for styling
+                        div {
+                            class: "flex items-center gap-2",
+                            svg { 
+                                class: "max-w-[48px] max-h-[48px]",
+                                dangerous_inner_html: extension_to_icon_svg(extensions_downloaded().get(i).unwrap()) 
+                            },
+                            a {
+                                href: f_href.to_owned(),
+                                download: f_download.to_owned(),
+                                "{f_download}"
+                            },
                         }
                     }
-                })}
-            },
-        }
+                }
+            })}
+        },
     }
 }
 

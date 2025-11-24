@@ -243,27 +243,24 @@ pub fn metrics_interface_view() -> Element {
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "container p-2 flex flex-col items-center",
                 p { "Please sign-in before searching metrics." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "container p-2 flex flex-col items-center",
                 p { "Please activate a session before searching metrics." },
             }
         } else if metric_names.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "container p-2 flex flex-col items-center",
                 p { "Waiting to retrieve session plan metrics..." },
             }
         } else if active_metric.read().is_empty() {
-            div {
-                class: "messaging_list",
-                metrics_dropdown {active_metric, metric_names}
-            }
+            metrics_dropdown {active_metric, metric_names}
         } else {
             div {
-                class: "messaging_list",
+                class: "container h-full w-full p-2 flex flex-col items-center",
                 metrics_dropdown {active_metric, metric_names}
                 mermaid_view {diagram_code}
             }
@@ -293,10 +290,11 @@ pub fn metrics_dropdown(
 
     rsx! {
         div {
-            class: "dropdown_form",
+            class: "container p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_96px] sm:max-w-3/4",
             form {
-                class: "dropdown_form_input",
+                class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
+                    class: "w-full h-full bg-gray-700",
                     r#type: "text",
                     placeholder: "search session",
                     value: "{metric_dropdown}",
@@ -311,36 +309,43 @@ pub fn metrics_dropdown(
                     }
                 },
             },
-            button {
-                class: "dropdown_form_button",
-                onclick: move |_evt| async move {
-                    // Reset the dropdown
-                    active_metric.set(metric_dropdown.try_read().unwrap().to_string());
-                    metric_dropdown.set(String::new());
-                },
-                svg { dangerous_inner_html: ms_search_icon_svg() },
-            },
-        }
 
-        // Dynamic dropdown
-        if show_metric_dropdown() {
-            div {
-                class: "dropdown_list",
-                ul {
-                    id: "sessions_dropdown_list",
-                    {metrics_vec().iter().filter(|s| active_metric()!=**s && !metrics_filtered.read().contains(&s.to_string())).enumerate().map(|(i, sub)|  {
-                        let sub = sub.clone();
-                        rsx! {
-                            li {
-                                key: "{i}",
-                                div {
-                                    onmouseover: move |_evt| metric_dropdown.set(sub.to_string()),
-                                    p { "{sub}" },
+            // Dynamic dropdown
+            if show_metric_dropdown() {
+                div {
+                    class: "p-2 rounded bg-gray-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
+                    ul {
+                        {metrics_vec().iter().filter(|s| active_metric()!=**s && !metrics_filtered.read().contains(&s.to_string())).enumerate().map(|(i, sub)|  {
+                            let sub = sub.clone();
+                            rsx! {
+                                li {
+                                    class: "hover:bg-gray-700 cursor-pointer",
+                                    key: "{i}",
+                                    div {
+                                        onmouseover: move |_evt| metric_dropdown.set(sub.to_string()),
+                                        p { "{sub}" },
+                                    }
                                 }
                             }
-                        }
-                    })}
+                        })}
+                    }
                 }
+            }
+            
+            div {
+                class: "row-span-1 col-span-1 row-start-1 col-start-2",
+                button {
+                    class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                    onclick: move |_evt| async move {
+                        // Reset the dropdown
+                        active_metric.set(metric_dropdown.try_read().unwrap().to_string());
+                        metric_dropdown.set(String::new());
+                    },
+                    svg { 
+                        class: "max-w-[48px] max-h-[48px]",
+                        dangerous_inner_html: ms_search_icon_svg()
+                    },
+                },
             }
         }
     }

@@ -223,12 +223,12 @@ pub fn messaging_interface_view() -> Element {
         // Check for sign-in
         if JWT.read().is_empty() {
             div {
-                class: "container p-2 overflow-auto flex flex-col items-center",
+                class: "container p-2 flex flex-col items-center",
                 p { "Please sign-in before messaging." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "container p-2 overflow-auto flex flex-col items-center",
+                class: "container p-2 flex flex-col items-center",
                 p { "Please activate a session before messaging." },
             }
         } else {
@@ -257,14 +257,20 @@ pub fn messaging_interface_view() -> Element {
                                                 class: "max-w-[48px] max-h-[48px]",
                                                 dangerous_inner_html: aws_assistant_icon_svg() 
                                             }
-                                            h2 { "AI Assistant" }
+                                            h2 { 
+                                                class: "font-bold",
+                                                "AI Assistant" 
+                                            }
                                             h3 { "{timestamp}" }
                                         }
                                     } else {
                                         div {
                                             class: "flex items-center gap-2",
                                             h3 { "{timestamp}" }
-                                            h2 { "User" }
+                                            h2 { 
+                                                class: "font-bold",
+                                                "User" 
+                                            }
                                             svg { 
                                                 class: "max-w-[48px] max-h-[48px]",
                                                 dangerous_inner_html: aws_user_icon_svg()
@@ -300,26 +306,27 @@ pub fn messaging_interface_footer(
 
     rsx! {
         footer {
-            class: "container flex flex-row items-center p-2 gap-2",
+            class: "container h-full max-h-[128px] sm:max-h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2",
             div {
-                class: "w-[64px] p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                class: "row-span-1 col-span-1 row-start-1 col-start-1 p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                 attach_textfiles_input { except_files: use_signal(|| ".txt,.csv,.tsv,.js,.ts,.py,.java,.c,.cpp,.cs,.rb,.go,.rs,.json,.svg,.html".to_string()), content: prompt }
             }
 
             div {
-                class: "flex-1 h-full overflow-auto",
+                class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
                 form {
+                    class: "container w-full h-full",
                     textarea {
                         placeholder: "Type your message here...",
                         value: "{prompt.to_string()}",
                         oninput: move |event| prompt.set(event.value()),
-                        class: "w-full h-full p-2 rounded bg-gray-800 text-gray-200 resize-none",
+                        class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
                     }
                 }
             }
 
             div {
-                class: "w-[64px]",
+                class: "row-span-1 col-span-1 row-start-1 col-start-3",
                 // This must be outside the form or it will be refreshed on each submit
                 if prompt.read().is_empty() {
                     button {

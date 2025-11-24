@@ -179,12 +179,12 @@ pub fn attachments_interface_view() -> Element {
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "container p-2 overflow-auto flex flex-col items-center",
+                class: "container p-2 flex flex-col items-center",
                 p { "Please sign-in before attachments." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "container p-2 overflow-auto flex flex-col items-center",
+                class: "container p-2 flex flex-col items-center",
                 p { "Please activate a session before attachments." },
             }
         } else {
@@ -206,14 +206,29 @@ pub fn attachments_interface_view() -> Element {
                                     div {
                                         class: "flex items-center gap-2",
                                         if role.as_str() == "assistant" {
-                                            svg { dangerous_inner_html: aws_assistant_icon_svg() }
-                                            h2 { "AI Assistant" }
+                                            svg { 
+                                                class: "max-w-[48px] max-h-[48px]",
+                                                dangerous_inner_html: aws_assistant_icon_svg() 
+                                            }
+                                            h2 { 
+                                                class: "font-bold",
+                                                "AI Assistant"
+                                            }
                                         } else {
-                                            svg { dangerous_inner_html: aws_user_icon_svg() }
-                                            h2 { "User" }
+                                            svg { 
+                                                class: "max-w-[48px] max-h-[48px]",
+                                                dangerous_inner_html: aws_user_icon_svg() 
+                                            }
+                                            h2 { 
+                                                class: "font-bold",
+                                                "User" 
+                                            }
                                         }
                                         h3 { "{timestamp}" }
-                                        svg { dangerous_inner_html: extension_to_icon_svg(&extension) }
+                                        svg { 
+                                            class: "max-w-[48px] max-h-[48px]",
+                                            dangerous_inner_html: extension_to_icon_svg(&extension)
+                                        }
                                         if let Some(f) = content.as_ref() {
                                             a {
                                                 href: extension_and_file_to_data_href(&extension, f).unwrap(),
@@ -287,32 +302,45 @@ pub fn attachments_interface_footer(
         filenames_vec.join(", ")
     });
 
+    let styles = if extend_input() && add_input() {
+        "container h-full max-h-[128px] sm:max-h-full grid grid-rows-[128px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+    } else {
+        "container h-full max-h-[128px] sm:max-h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+    };
+
     rsx! {
         footer {
-            class: "container flex flex-row items-center p-2 gap-2",
+            class: styles,
             div {
-                class: "w-[64px] p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                class: "row-span-1 col-span-1 row-start-1 col-start-1 flex flex-col",
                 if extend_input() {
-                    attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
+                    div {
+                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
+                    }
                 }
                 if add_input() {
-                    attach_files_input { extend_publish: use_signal(|| false), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
-                }
-            }
-
-            div {
-                class: "flex-1 h-full overflow-auto",
-                form {
-                    textarea {
-                        placeholder: "Staged files",
-                        value: "{filenames}",
-                        class: "w-full h-full p-2 rounded bg-gray-800 text-gray-200 resize-none",
+                    div {
+                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        attach_files_input { extend_publish: use_signal(|| false), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
                     }
                 }
             }
 
             div {
-                class: "w-[64px]",
+                class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
+                form {
+                    class: "container w-full h-full",
+                    textarea {
+                        placeholder: "Staged files",
+                        value: "{filenames}",
+                        class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
+                    }
+                }
+            }
+
+            div {
+                class: "row-span-1 col-span-1 row-start-1 col-start-3",
                 if !files_uploaded.read().is_empty() {
                     upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
                     clear_upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
