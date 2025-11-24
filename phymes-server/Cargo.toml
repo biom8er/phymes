@@ -51,7 +51,7 @@ clap = {version = "4.5.40", features = ["derive"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
 serde_path_to_error = "0.1.17"
-jsonwebtoken = { version = "9.3.1" }
+jsonwebtoken = { version = "10.2.0" }
 reqwest = { version = "0.12.22", features = ["json", "stream"], default-features = false, optional = true }
 bcrypt = { version = "0.17.0", default-features = false, features = ["alloc"]}
 chrono = { version = "0.4.41", features = ["wasmbind"] }
