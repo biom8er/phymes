@@ -35,7 +35,7 @@ use crate::{
             ms_arrow_download_icon_svg,
         }, update_attachments_state
     },
-    ui::{attach_files_input, clear_upload_files_button, main_window::split_panel_horizontal, upload_files_button},
+    ui::{attach_files_input, clear_upload_files_button, main_window::split_panel, upload_files_button},
 };
 
 /// View for attachments between the user and AI assistant
@@ -188,7 +188,7 @@ pub fn attachments_interface_view() -> Element {
                 p { "Please activate a session before attachments." },
             }
         } else {
-            split_panel_horizontal {
+            split_panel {
                 top: rsx! {
                     ul {
                         class: "container p-2 overflow-auto flex flex-col list-none",

@@ -20,6 +20,7 @@
     --spacing: 0.25rem;
     --text-lg: 1.125rem;
     --text-lg--line-height: calc(1.75 / 1.125);
+    --font-weight-bold: 700;
     --ease-in: cubic-bezier(0.4, 0, 1, 1);
     --ease-out: cubic-bezier(0, 0, 0.2, 1);
     --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
@@ -229,6 +230,9 @@
   .row-start-1 {
     grid-row-start: 1;
   }
+  .row-start-2 {
+    grid-row-start: 2;
+  }
   .container {
     width: 100%;
     @media (width >= 40rem) {
@@ -326,9 +330,6 @@
   .w-2\/3 {
     width: calc(2/3 * 100%);
   }
-  .w-\[64px\] {
-    width: 64px;
-  }
   .w-full {
     width: 100%;
   }
@@ -340,9 +341,6 @@
   }
   .max-w-\[90\%\] {
     max-width: 90%;
-  }
-  .flex-1 {
-    flex: 1;
   }
   .flex-none {
     flex: none;
@@ -377,11 +375,32 @@
   .list-none {
     list-style-type: none;
   }
+  .grid-cols-\[1fr_64px\] {
+    grid-template-columns: 1fr 64px;
+  }
+  .grid-cols-\[1fr_96px\] {
+    grid-template-columns: 1fr 96px;
+  }
+  .grid-cols-\[1fr_128px\] {
+    grid-template-columns: 1fr 128px;
+  }
+  .grid-cols-\[1fr_148px\] {
+    grid-template-columns: 1fr 148px;
+  }
+  .grid-cols-\[1fr_320px\] {
+    grid-template-columns: 1fr 320px;
+  }
   .grid-cols-\[64px_1fr_64px\] {
     grid-template-columns: 64px 1fr 64px;
   }
+  .grid-rows-\[48px_1fr\] {
+    grid-template-rows: 48px 1fr;
+  }
   .grid-rows-\[64px_1fr\] {
     grid-template-rows: 64px 1fr;
+  }
+  .grid-rows-\[128px_1fr\] {
+    grid-template-rows: 128px 1fr;
   }
   .flex-col {
     flex-direction: column;
@@ -464,6 +483,10 @@
   .leading-6 {
     --tw-leading: calc(var(--spacing) * 6);
     line-height: calc(var(--spacing) * 6);
+  }
+  .font-bold {
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
   }
   .text-wrap {
     text-wrap: wrap;
@@ -645,6 +668,10 @@
   syntax: "*";
   inherits: false;
 }
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
 @property --tw-ordinal {
   syntax: "*";
   inherits: false;
@@ -798,6 +825,7 @@
       --tw-space-y-reverse: 0;
       --tw-border-style: solid;
       --tw-leading: initial;
+      --tw-font-weight: initial;
       --tw-ordinal: initial;
       --tw-slashed-zero: initial;
       --tw-numeric-figure: initial;

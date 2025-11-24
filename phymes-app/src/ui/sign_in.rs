@@ -250,13 +250,13 @@ pub fn application_mode() -> Element {
             },
             "{builder}"
         },
-        button {
-            class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
-            onclick: move |_evt| async move {
-                sync_debugger_state.send(SyncDebuggerState { show: !DEBUGGER()});
-            },
-            // If we are enabling builder mode, disable debugger mode
-            if !BUILDER() {
+        // If we are enabling builder mode, disable debugger mode
+        if !BUILDER() {
+            button {
+                class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                onclick: move |_evt| async move {
+                    sync_debugger_state.send(SyncDebuggerState { show: !DEBUGGER()});
+                },
                 "{debugger}"
             }
         }

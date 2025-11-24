@@ -301,14 +301,52 @@ pub fn split_panel_drag_handle() -> Element {
     }
 }
 
+/// Snap horizontal or vertical positions
+#[derive(Clone, Copy, PartialEq)]
+pub enum SnapPct {
+    Pct20,
+    Pct50,
+    Pct80
+}
+
+impl SnapPct {
+    pub fn to_f32(&self) -> f32 {
+        match self {
+            Self::Pct20 => 20.0,
+            Self::Pct50 => 50.0,
+            Self::Pct80 => 80.0,
+        }
+    }
+    pub fn increase(&self) -> Self {
+        match self {
+            Self::Pct20 => SnapPct::Pct20,
+            Self::Pct50 => SnapPct::Pct20,
+            Self::Pct80 => SnapPct::Pct50,
+        }
+    }
+    pub fn decrease(&self) -> Self {
+        match self {
+            Self::Pct20 => SnapPct::Pct50,
+            Self::Pct50 => SnapPct::Pct80,
+            Self::Pct80 => SnapPct::Pct80,
+        }
+    }
+}
+
+/// Split panel generic container
+/// 
+/// # Notes
+/// * When horizontal is false, top = left and bottom = right
 #[component]
-pub fn split_panel_horizontal(
+pub fn split_panel(
     top: Element,
     bottom: Element,
-    #[props(default = 80.0)]
-    initial_top_pct: f32,
+    #[props(default = SnapPct::Pct80)]
+    initial_top_pct: SnapPct,
+    #[props(default = true)]
+    horizontal: bool,
 ) -> Element {
-    let mut top_pct = use_signal(|| initial_top_pct.clamp(10.0, 90.0));
+    let mut top_pct = use_signal(|| initial_top_pct);
     let mut is_dragging = use_signal(|| false);
     let mut start_y = use_signal(|| 0.0);
     let mut start_pct = use_signal(|| top_pct());
@@ -318,17 +356,29 @@ pub fn split_panel_horizontal(
             if !is_dragging() {
                 return;
             }
-            let dy = evt.page_coordinates().y as f32 - start_y();
 
-            // TODO
+            let dy = if horizontal {
+                evt.page_coordinates().y as f32 - start_y()
+            } else {
+                evt.page_coordinates().x as f32 - start_y()
+            };
+            tracing::debug!("dy {dy}, start_y {start_y}, coord {}", evt.page_coordinates().y);
+
+            // DM: since we either need to call external JS or use a UI-dependent library
+            //  to get the coordinates, we instead implement a snap behavior that
+            //  snaps the containers at 20, 50, and 80 percentages
             if dy > 5.0 {
-                let delta_pct = 5.0;
-                let new_pct = (start_pct() + delta_pct).clamp(10.0, 90.0);
+                let new_pct = top_pct().decrease();
                 top_pct.set(new_pct);
+
+                // Stop drag
+                is_dragging.set(false);
             } else if dy < -5.0 {
-                let delta_pct = -5.0;
-                let new_pct = (start_pct() + delta_pct).clamp(10.0, 90.0);
+                let new_pct = top_pct().increase();
                 top_pct.set(new_pct);
+
+                // Stop drag
+                is_dragging.set(false);
             }
         }
     };
@@ -344,35 +394,50 @@ pub fn split_panel_horizontal(
     let on_divider_mouse_down = {
         move |evt: MouseEvent| {
             is_dragging.set(true);
-            start_y.set(evt.page_coordinates().y as f32);
+            if horizontal {
+                start_y.set(evt.page_coordinates().y as f32);
+            } else {
+                start_y.set(evt.page_coordinates().x as f32);
+            }
             start_pct.set(top_pct());
             evt.prevent_default();
         }
     };
 
-    let top_style = format!("height: {}%;", top_pct());
-    let bottom_style = format!("height: {}%;", 100.0 - top_pct());
+    let top_bottom_class = if horizontal {
+        ("flex flex-col h-full w-full", "w-full", "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize")
+    } else {
+        ("flex flex-row h-full w-full", "h-full", "h-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
+    };
+
+    let height_or_width = if horizontal {
+        "height"
+    } else {
+        "width"
+    };
+    let top_style = format!("{height_or_width}: {}%;", top_pct().to_f32());
+    let bottom_style = format!("{height_or_width}: {}%;", 100.0 - top_pct().to_f32());
 
     rsx! {
         div {
-            class: "flex flex-col h-full w-full",
+            class: top_bottom_class.0,
+            // Attach global listeners via onmousemove/onmouseup on parent
+            onmousemove: on_mouse_move,
+            onmouseup: on_mouse_up,
 
             div {
-                class: "w-full",
+                class: top_bottom_class.1,
                 style: "{top_style}",
                 {top}
             }
 
             div {
-                class: "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize",
+                class: top_bottom_class.2,
                 onmousedown: on_divider_mouse_down,
-                // Attach global listeners via onmousemove/onmouseup on parent
-                onmousemove: on_mouse_move,
-                onmouseup: on_mouse_up,
             }
 
             div {
-                class: "w-full",
+                class: top_bottom_class.1,
                 style: "{bottom_style}",
                 {bottom}
             }

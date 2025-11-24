@@ -29,7 +29,7 @@ use crate::{
     },
     ui::{
         attachments_interface_footer, clear_download_files_button, download_files_button,
-        download_files_list, main_window::split_panel_horizontal,
+        download_files_list, main_window::split_panel,
     },
 };
 
@@ -290,7 +290,7 @@ pub fn subjects_interface_view() -> Element {
                 p { "Waiting to retrieve session plan subject schemas..." },
             }
         } else {
-            split_panel_horizontal {
+            split_panel {
                 top: rsx! {
                     div {
                         class: "container p-2 overflow-auto flex flex-col items-center",

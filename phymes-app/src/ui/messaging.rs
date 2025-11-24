@@ -37,7 +37,7 @@ use crate::{
             aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg,
         }, update_message_content_state, update_message_state
     },
-    ui::{attach_textfiles_input, main_window::split_panel_horizontal},
+    ui::{attach_textfiles_input, main_window::split_panel},
 };
 
 /// View for messaging between the user and AI assistant
@@ -232,7 +232,7 @@ pub fn messaging_interface_view() -> Element {
                 p { "Please activate a session before messaging." },
             }
         } else {
-            split_panel_horizontal {
+            split_panel {
                 top: rsx! {
                     ul {
                         class: "container p-2 overflow-auto flex flex-col list-none",
@@ -311,17 +311,14 @@ pub fn messaging_interface_footer(
                 class: "row-span-1 col-span-1 row-start-1 col-start-1 p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                 attach_textfiles_input { except_files: use_signal(|| ".txt,.csv,.tsv,.js,.ts,.py,.java,.c,.cpp,.cs,.rb,.go,.rs,.json,.svg,.html".to_string()), content: prompt }
             }
-
-            div {
-                class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
-                form {
-                    class: "container w-full h-full",
-                    textarea {
-                        placeholder: "Type your message here...",
-                        value: "{prompt.to_string()}",
-                        oninput: move |event| prompt.set(event.value()),
-                        class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
-                    }
+                
+            form {
+                class: "container w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
+                textarea {
+                    placeholder: "Type your message here...",
+                    value: "{prompt.to_string()}",
+                    oninput: move |event| prompt.set(event.value()),
+                    class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
                 }
             }
 

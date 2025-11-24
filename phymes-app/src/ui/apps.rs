@@ -12,7 +12,7 @@ use crate::{
     state::{
         ACTIVE_SESSION_NAME, BUILDER, EMAIL, JWT, SESSION_NAMES, SyncCurrentActiveSessionState, filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}, sync_current_active_session_state
     },
-    ui::{builds_dropdown_view, builds_interface_footer, main_window::split_panel_horizontal, split_panel_drag_handle},
+    ui::{builds_dropdown_view, builds_interface_footer, main_window::split_panel, split_panel_drag_handle},
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -300,7 +300,7 @@ pub fn apps_interface_view() -> Element {
                 p { "Waiting to retrieve available session plans..." },
             }
         } else {
-            split_panel_horizontal {
+            split_panel {
                 top: rsx! {
                     div {
                         class: "container h-full w-full p-2 flex flex-col items-center",
@@ -350,7 +350,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
     rsx! {
         div {
             // input + 2 buttons of 64 px by 64 px
-            class: "container p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_96px] sm:max-w-3/4",
+            class: "container p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_128px] sm:max-w-3/4",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {

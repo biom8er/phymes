@@ -70,7 +70,7 @@ pub fn builds_dropdown_view(
     rsx! {
         div {
             // input + 5 buttons of 64 px by 64 px
-            class: "container p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_240px] sm:max-w-3/4",
+            class: "container p-2 gap-2 rounded bg-gray-800 grid grid-rows-[64px_1fr] grid-cols-[1fr_320px]",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
@@ -88,11 +88,34 @@ pub fn builds_dropdown_view(
                             .collect::<Vec<_>>());
                     }
                 },
-            },
+            },            
+
+            // Dynamic dropdown
+            if show_subject_dropdown() {
+                div {
+                    class: "p-2 rounded bg-gray-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
+                    ul {
+                        {subjects_vec().iter().filter(|s| active_session_name.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
+                            let sub = sub.clone();
+                            rsx! {
+                                li {
+                                    class: "hover:bg-gray-700 cursor-pointer",
+                                    key: "{i}",
+                                    div {
+                                        onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
+                                        p { "{sub}" },
+                                    }
+                                }
+                            }
+                        })}
+                    }
+                }
+            }
+
             div {  
                 class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
-                    class: "dropdown_form_button",
+                    class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
                     onclick: move |_evt| async move {
                         // Reset the dropdown
                         active_session_name.set(subject_dropdown.try_read().unwrap().to_string());
@@ -370,28 +393,6 @@ pub fn builds_dropdown_view(
             }
         }
 
-        // Dynamic dropdown
-        if show_subject_dropdown() {
-            div {
-                class: "dropdown_list",
-                ul {
-                    id: "builds_dropdown_list",
-                    {subjects_vec().iter().filter(|s| active_session_name.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
-                        let sub = sub.clone();
-                        rsx! {
-                            li {
-                                key: "{i}",
-                                div {
-                                    onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
-                                    p { "{sub}" },
-                                }
-                            }
-                        }
-                    })}
-                }
-            }
-        }
-
         if !active_session_name().is_empty() {
             div {
                 p { "{active_session_name().to_string()}" },
@@ -422,34 +423,34 @@ pub fn builds_interface_footer(
     });
 
     rsx! {
-        if !JWT.read().is_empty() && !active_session_name.read().is_empty() {
-            footer {
-            class: "container flex flex-row items-center p-2 gap-2",
-                div {
-                    class: "flex-1 h-full",
-                    form {
-                        textarea {
-                            class: "w-full h-full p-2 rounded bg-gray-800 text-gray-200 resize-none",
-                            value: "{diagram_code.to_string()}",
-                            oninput: move |event| async move {
-                                // Update the active diagrams
-                                if is_flowchart_shown() {
-                                    active_flowchart_diagram.set(event.value());
-                                } else {
-                                    active_er_diagram.set(event.value());
-                                };
+        footer {
+            class: "container h-full max-h-[128px] sm:max-h-full grid grid-rows-[64px_1fr] grid-cols-[1fr_64px] items-center p-2 gap-2",
+            form {
+                class: "container w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-1",
+                textarea {
+                    class: "container w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
+                    value: "{diagram_code.to_string()}",
+                    oninput: move |event| async move {
+                        // Update the active diagrams
+                        if is_flowchart_shown() {
+                            active_flowchart_diagram.set(event.value());
+                        } else {
+                            active_er_diagram.set(event.value());
+                        };
 
-                                // Change to unsaved
-                                is_saved.set(false);
-                            },
-                        }
-                    }
+                        // Change to unsaved
+                        is_saved.set(false);
+                    },
                 }
+            }
 
-                div {
-                    class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
-                    // This must be outside the form or it will be refreshed on each submit
+            div {
+                class: "row-span-1 col-span-1 row-start-1 col-start-2",
+                
+                // Show the save button only when modified
+                if !is_saved() && !diagram_code().is_empty() {
                     button {
+                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
@@ -520,14 +521,15 @@ pub fn builds_interface_footer(
                             // Change to saved
                             is_saved.set(true);
                         },
-                        // Show the save button only when modified
-                        if !is_saved() && !diagram_code().is_empty() {
-                            svg { 
-                                class: "max-w-[48px] max-h-[48px]",
-                                dangerous_inner_html: b8_save_icon_svg()
-                            }
+                        svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: b8_save_icon_svg()
                         }
                     }
+                }
+
+                // Show the save button only when modified
+                if !is_flowchart_shown() && diagram_code().is_empty() {
                     button {
                         class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                         onclick: move |_| async move {
@@ -548,12 +550,9 @@ pub fn builds_interface_footer(
                                 Err(err) => tracing::error!("{err:?}"),
                             }
                         },
-                        // Show the save button only when modified
-                        if !is_flowchart_shown() && diagram_code().is_empty() {
-                            svg { 
-                                class: "max-w-[48px] max-h-[48px]",
-                                dangerous_inner_html: ms_code_icon_svg()
-                            }
+                        svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_code_icon_svg()
                         }
                     }
                 }
