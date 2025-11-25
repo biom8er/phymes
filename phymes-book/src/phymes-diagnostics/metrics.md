@@ -1,0 +1,3 @@
+# Metrics
+
+Events add context to enable building a comprehensive timeline of what happened, when it happened, and why it happened. Metrics focus on aggregating numerical data over time from events to provide an overview of system performance and resource utilization. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest.

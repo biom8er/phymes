@@ -192,31 +192,39 @@ pub fn main_window_view() -> Element {
 /// Snap horizontal or vertical positions
 #[derive(Clone, Copy, PartialEq)]
 pub enum SnapPct {
+    Pct0,
     Pct20,
     Pct50,
-    Pct80
+    Pct80,
+    Pct100
 }
 
 impl SnapPct {
     pub fn to_f32(&self) -> f32 {
         match self {
+            Self::Pct0 => 0.0,
             Self::Pct20 => 20.0,
             Self::Pct50 => 50.0,
             Self::Pct80 => 80.0,
-        }
-    }
-    pub fn increase(&self) -> Self {
-        match self {
-            Self::Pct20 => SnapPct::Pct20,
-            Self::Pct50 => SnapPct::Pct20,
-            Self::Pct80 => SnapPct::Pct50,
+            Self::Pct100 => 100.0,
         }
     }
     pub fn decrease(&self) -> Self {
         match self {
+            Self::Pct0 => SnapPct::Pct0,
+            Self::Pct20 => SnapPct::Pct0,
+            Self::Pct50 => SnapPct::Pct20,
+            Self::Pct80 => SnapPct::Pct50,
+            Self::Pct100 => SnapPct::Pct80,
+        }
+    }
+    pub fn increase(&self) -> Self {
+        match self {
+            Self::Pct0 => SnapPct::Pct20,
             Self::Pct20 => SnapPct::Pct50,
             Self::Pct50 => SnapPct::Pct80,
-            Self::Pct80 => SnapPct::Pct80,
+            Self::Pct80 => SnapPct::Pct100,
+            Self::Pct100 => SnapPct::Pct100,
         }
     }
 }
@@ -257,13 +265,13 @@ pub fn split_panel(
             //  to get the container dimensions to calculate the relative position, 
             //  we instead implement a snap behavior that snaps the containers at 20, 50, and 80 percentages
             if dy > 5.0 {
-                let new_pct = top_pct().decrease();
+                let new_pct = top_pct().increase();
                 top_pct.set(new_pct);
 
                 // Stop drag
                 is_dragging.set(false);
             } else if dy < -5.0 {
-                let new_pct = top_pct().increase();
+                let new_pct = top_pct().decrease();
                 top_pct.set(new_pct);
 
                 // Stop drag
@@ -293,40 +301,31 @@ pub fn split_panel(
         }
     };
 
-    let top_bottom_class = if horizontal {
-        ("flex flex-col h-full w-full overflow-hidden", "w-full overflow-auto", "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize")
-    } else {
-        ("flex flex-row h-full w-full overflow-hidden", "h-full overflow-auto", "h-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
-    };
-
-    let height_or_width = if horizontal {
-        "height"
-    } else {
-        "width"
-    };
-    let top_style = format!("{height_or_width}: {}%;", top_pct().to_f32());
-    let bottom_style = format!("{height_or_width}: {}%;", 100.0 - top_pct().to_f32());
+    // let top_style = format!("@media (width < 48rem) {{ height: {}%; }}; @media (width >= 48rem) {{ width: {}%; }}", top_pct().to_f32(), top_pct().to_f32());
+    // let bottom_style = format!("@media (width < 48rem) {{ height: {}%; }}; @media (width >= 48rem) {{ width: {}%; }}", 100.0 - top_pct().to_f32(), 100.0 - top_pct().to_f32());
+    let top_style = format!("height: {}%;", top_pct().to_f32());
+    let bottom_style = format!("height: {}%;", 100.0 - top_pct().to_f32());
 
     rsx! {
         div {
-            class: top_bottom_class.0,
+            class: "flex flex-col lg:flex-row h-full w-full overflow-hidden",
             // Attach global listeners via onmousemove/onmouseup on parent
             onmousemove: on_mouse_move,
             onmouseup: on_mouse_up,
 
             div {
-                class: top_bottom_class.1,
+                class: "w-full lg:w-auto h-auto lg:h-full overflow-auto",
                 style: "{top_style}",
                 {top}
             }
 
             div {
-                class: top_bottom_class.2,
+                class: "w-full lg:w-2 h-2 lg:h-full bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize lg:cursor-col-resize",
                 onmousedown: on_divider_mouse_down,
             }
 
             div {
-                class: top_bottom_class.1,
+                class: "w-full lg:w-auto h-auto lg:h-full overflow-auto",
                 style: "{bottom_style}",
                 {bottom}
             }
@@ -377,100 +376,50 @@ pub fn about_text_modal() -> Element {
                             class: "max-w-[48px] max-h-[48px]",
                             dangerous_inner_html: ms_tools_icon_svg()
                         } }
-                        td { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
+                        td { "A list of undeployed session plans in the building phase. Each session is like a different app with different functionality and state. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
+                    }
+                    tr { 
+                        td { "{HeaderMenu::Apps.as_str()}" }
+                        td { svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_tools_icon_svg()
+                        } }
+                        td { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time." }
+                    }
+                    tr { 
+                        td { "{HeaderMenu::Messages.as_str()}" }
+                        td { svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_tools_icon_svg()
+                        } }
+                        td { "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated." }
+                    }
+                    tr { 
+                        td { "{HeaderMenu::Attachments.as_str()}" }
+                        td { svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_tools_icon_svg()
+                        } }
+                        td { "The attachment history for the active session plan. A file upload and download interface is provided for users to publish attachments to the attachments subject and to receive subscriptions from the attachments subjects when the attachments subjects are updated." }
+                    }
+                    tr { 
+                        td { "{HeaderMenu::Subjects.as_str()}" }
+                        td { svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_tools_icon_svg()
+                        } }
+                        td { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
+                    }
+                    tr { 
+                        td { "{HeaderMenu::Metrics.as_str()}" }
+                        td { svg { 
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_tools_icon_svg()
+                        } }
+                        td { "The diagnostics for debugging and optimizing the active session plan. The diagnostic tools include logs, traces, and metrics. Traces track the flow of subject messages through tasks and processors. Events add context to enable building a comprehensive timeline of what happened, when it happened, and why it happened. Metrics focus on aggregating numerical data over time from events to provide an overview of system performance and resource utilization. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest." }
                     }
                 }
             }
-            // div {
-            //     li {
-            //         div {
-            //             class: "flex flex-row",
-            //             h2 { "{HeaderMenu::Help.as_str()}" }
-            //             svg { 
-            //                 class: "max-w-[48px] max-h-[48px]",
-            //                 dangerous_inner_html: aws_help_icon_svg()
-            //             }
-            //             p { "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHub https://github.com/biom8er/phymes/issues if you run into problems." }
-            //         }
-            //     }
-            //     li {
-            //         div {
-            //             class: "flex flex-row",
-            //             h2 { "Menu" }
-            //             svg { 
-            //                 class: "max-w-[48px] max-h-[48px]",
-            //                 dangerous_inner_html: b8_menu_icon_svg()
-            //             }
-            //             p { "Hide or show the menu items below." }
-            //         }
-            //     }
-            //     li {
-            //         div {
-            //             class: "flex flex-row",
-            //             h2 { "{HeaderMenu::Builds.as_str()}" }
-            //             svg { 
-            //                 class: "max-w-[48px] max-h-[48px]",
-            //                 dangerous_inner_html: ms_tools_icon_svg()
-            //             }
-            //             p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
-            //         }
-            //     }
-            //     li {
-            //         div {
-            //             class: "flex flex-row",
-            //             h2 { "{HeaderMenu::Apps.as_str()}" }
-            //             svg { 
-            //                 class: "max-w-[48px] max-h-[48px]",
-            //                 dangerous_inner_html: ms_apps_icon_svg()
-            //             }
-            //             p { "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans." }
-            //         }
-            //     }
-            //     li {
-            //         div {
-            //             class: "flex flex-row",
-            //             h2 { "{HeaderMenu::Messages.as_str()}" }
-            //             svg { 
-            //                 class: "max-w-[48px] max-h-[48px]",
-            //                 dangerous_inner_html: ms_message_icon_svg()
-            //             }
-            //             p { "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated." }
-            //         }
-            //     }
-            //     li {
-            //         div {
-            //             class: "flex flex-row",
-            //             h2 { "{HeaderMenu::Attachments.as_str()}" }
-            //             svg { 
-            //                 class: "max-w-[48px] max-h-[48px]",
-            //                 dangerous_inner_html: ms_attachment_icon_svg()
-            //             }
-            //             p { "The attachment history for the active session plan. A file upload and download interface is provided for users to publish attachments to the attachments subject and to receive subscriptions from the attachments subjects when the attachments subjects are updated." }
-            //         }
-            //     }
-            //     li {
-            //         div {
-            //             class: "flex flex-row",
-            //             h2 { "{HeaderMenu::Subjects.as_str()}" }
-            //             svg { 
-            //                 class: "max-w-[48px] max-h-[48px]",
-            //                 dangerous_inner_html: ms_database_icon_svg()
-            //             }
-            //             p { "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop." }
-            //         }
-            //     }
-            //     li {
-            //         div {
-            //             class: "flex flex-row",
-            //             h2 { "{HeaderMenu::Metrics.as_str()}" }
-            //             svg { 
-            //                 class: "max-w-[48px] max-h-[48px]",
-            //                 dangerous_inner_html: ms_top_speed_icon_svg()
-            //             }
-            //             p { "A list of metrics associated with the active session plan. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest." }
-            //         }
-            //     }
-            // }
         }
     }
 }

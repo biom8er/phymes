@@ -1,0 +1,3 @@
+# Diagnostic span
+
+All traces, events, and metrics are recorded within `Span`s that contain additional context and metadata to facilitate the integrated analysis of diagnostics to enable faster debugging and optimization of sessions. The `Span` contains the parent Span of execution and the current Span of execution. Contextual information including the line number, file name, thread, function name, and timestamp are recorded for each `Span`. All traces, events, and metrics can be linked based on the unique `Span` id. Arbitrary key-value pairs (i.e., Labels) can be optionally used by the user to differentiate `Spans` when the unique ID automatically generated per span is not sufficient.
