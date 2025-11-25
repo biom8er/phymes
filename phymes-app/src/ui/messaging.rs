@@ -318,7 +318,7 @@ pub fn messaging_interface_footer(
                     placeholder: "Type your message here...",
                     value: "{prompt.to_string()}",
                     oninput: move |event| prompt.set(event.value()),
-                    class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
+                    class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto focus:outline-none",
                 }
             }
 

@@ -303,9 +303,9 @@ pub fn attachments_interface_footer(
     });
 
     let styles = if extend_input() && add_input() {
-        "container h-full grid grid-rows-[128px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+        "h-full grid grid-rows-[128px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
     } else {
-        "container h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+        "h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
     };
 
     rsx! {
@@ -334,7 +334,7 @@ pub fn attachments_interface_footer(
                     textarea {
                         placeholder: "Staged files",
                         value: "{filenames}",
-                        class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
+                        class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto focus:outline-none",
                     }
                 }
             }

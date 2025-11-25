@@ -474,6 +474,7 @@ pub fn subjects_schema_table(
                         let subject_type = schema_columns_types().1.get(i).unwrap().to_string();
                         rsx! {
                             tr {
+                                class: "odd:bg-gray-800 even:bg-gray-900",
                                 td { "{subject_col}" },
                                 td { "{subject_type}" },
                             }
