@@ -331,7 +331,7 @@ pub fn metrics_dropdown(
                     }
                 }
             }
-            
+
             div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
@@ -341,7 +341,7 @@ pub fn metrics_dropdown(
                         active_metric.set(metric_dropdown.try_read().unwrap().to_string());
                         metric_dropdown.set(String::new());
                     },
-                    svg { 
+                    svg {
                         class: "max-w-[48px] max-h-[48px]",
                         dangerous_inner_html: ms_search_icon_svg()
                     },

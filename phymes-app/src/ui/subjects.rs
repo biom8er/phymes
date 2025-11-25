@@ -25,7 +25,9 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 use crate::{
     state::{
-        ACTIVE_SESSION_NAME, EMAIL, JWT, SUBJECT_SCHEMA_HEADERS, get_non_duplicated_sorted_subjects, get_subject_num_rows_by_subject_name, get_subject_schema_col_type_by_subject_name, svg_icons::ms_search_icon_svg
+        get_non_duplicated_sorted_subjects, get_subject_num_rows_by_subject_name,
+        get_subject_schema_col_type_by_subject_name, svg_icons::ms_search_icon_svg,
+        ACTIVE_SESSION_NAME, EMAIL, JWT, SUBJECT_SCHEMA_HEADERS,
     },
     ui::{
         attachments_interface_footer, clear_download_files_button, download_files_button,
@@ -305,7 +307,7 @@ pub fn subjects_interface_view() -> Element {
                 bottom: rsx! {
                     attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| true), except_files: use_signal(||".csv".to_string()), active_subject_name, subject_names: subject_schema_names }
                 },
-            }            
+            }
         }
     }
 }
@@ -378,7 +380,7 @@ pub fn subjects_dropdown_menu(
                     }
                 }
             }
-            
+
             div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
@@ -387,9 +389,9 @@ pub fn subjects_dropdown_menu(
                         active_subject_name.set(subject_dropdown.read().to_string());
                         subject_dropdown.set(String::new());
                     },
-                    svg { 
+                    svg {
                         class: "max-w-[48px] max-h-[48px]",
-                        dangerous_inner_html: ms_search_icon_svg() 
+                        dangerous_inner_html: ms_search_icon_svg()
                     },
                 },
                 if !active_subject_name().is_empty() {
@@ -457,7 +459,7 @@ pub fn subjects_schema_table(
                 } else {
                     caption { "{active_subject_name.to_string()}: {num_rows().first().unwrap()} rows." },
                 }
-                thead { 
+                thead {
                     class: "bg-gray-700",
                     tr {
                         {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {

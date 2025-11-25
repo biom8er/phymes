@@ -30,12 +30,17 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 // mod imports
 use crate::{
     state::{
-        ACTIVE_SESSION_NAME, EMAIL, JWT, extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download, svg_icons::{
+        extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download,
+        svg_icons::{
             aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg,
             ms_arrow_download_icon_svg,
-        }, update_attachments_state
+        },
+        update_attachments_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
     },
-    ui::{attach_files_input, clear_upload_files_button, main_window::split_panel, upload_files_button},
+    ui::{
+        attach_files_input, clear_upload_files_button, main_window::split_panel,
+        upload_files_button,
+    },
 };
 
 /// View for attachments between the user and AI assistant
@@ -206,26 +211,26 @@ pub fn attachments_interface_view() -> Element {
                                     div {
                                         class: "flex items-center gap-2",
                                         if role.as_str() == "assistant" {
-                                            svg { 
+                                            svg {
                                                 class: "max-w-[48px] max-h-[48px]",
-                                                dangerous_inner_html: aws_assistant_icon_svg() 
+                                                dangerous_inner_html: aws_assistant_icon_svg()
                                             }
-                                            h2 { 
+                                            h2 {
                                                 class: "font-bold",
                                                 "AI Assistant"
                                             }
                                         } else {
-                                            svg { 
+                                            svg {
                                                 class: "max-w-[48px] max-h-[48px]",
-                                                dangerous_inner_html: aws_user_icon_svg() 
+                                                dangerous_inner_html: aws_user_icon_svg()
                                             }
-                                            h2 { 
+                                            h2 {
                                                 class: "font-bold",
-                                                "User" 
+                                                "User"
                                             }
                                         }
                                         h3 { "{timestamp}" }
-                                        svg { 
+                                        svg {
                                             class: "max-w-[48px] max-h-[48px]",
                                             dangerous_inner_html: extension_to_icon_svg(&extension)
                                         }
@@ -240,7 +245,7 @@ pub fn attachments_interface_view() -> Element {
                                                 onclick: move |_| async move {
                                                     *attachments_contents.get_mut(i).unwrap() = None;
                                                 },
-                                                svg { 
+                                                svg {
                                                     class: "max-w-[48px] max-h-[48px]",
                                                     dangerous_inner_html: fa_trash_icon_svg()
                                                 }
@@ -249,7 +254,7 @@ pub fn attachments_interface_view() -> Element {
                                             h3 { "{filename}.{extension}" },
                                             button {
                                                 class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                                                svg { 
+                                                svg {
                                                     class: "max-w-[48px] max-h-[48px]",
                                                     dangerous_inner_html: ms_arrow_download_icon_svg()
                                                 }
@@ -265,7 +270,7 @@ pub fn attachments_interface_view() -> Element {
                 bottom: rsx! {
                     attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| false), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, subject_names: None }
                 }
-            }            
+            }
         }
     }
 }

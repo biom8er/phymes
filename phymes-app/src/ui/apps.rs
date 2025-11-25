@@ -10,9 +10,15 @@ use serde_json::{Map, Value};
 
 use crate::{
     state::{
-        ACTIVE_SESSION_NAME, BUILDER, EMAIL, JWT, SESSION_NAMES, SyncCurrentActiveSessionState, filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}, sync_current_active_session_state
+        filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects,
+        svg_icons::{ms_search_icon_svg, ms_sync_icon_svg},
+        sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME,
+        BUILDER, EMAIL, JWT, SESSION_NAMES,
     },
-    ui::{diagram_code_editor, builds_dropdown_view, main_window::{SnapPct, split_panel}},
+    ui::{
+        builds_dropdown_view, diagram_code_editor,
+        main_window::{split_panel, SnapPct},
+    },
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -304,7 +310,7 @@ pub fn apps_interface_view() -> Element {
             }
         } else {
             if BUILDER() {
-                split_panel { 
+                split_panel {
                     top: rsx! {
                         div {
                             class: "h-full w-full p-2 flex flex-col items-center",
@@ -398,7 +404,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                     }
                 }
             }
-            
+
             div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
@@ -411,9 +417,9 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                         // Set the active session
                         sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
                     },
-                    svg { 
+                    svg {
                         class: "max-w-[48px] max-h-[48px]",
-                        dangerous_inner_html: ms_search_icon_svg() 
+                        dangerous_inner_html: ms_search_icon_svg()
                     },
                 },
 
@@ -424,9 +430,9 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                             let current = is_flowchart_shown.read().to_owned();
                             is_flowchart_shown.set(!current);
                         },
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
-                            dangerous_inner_html: ms_sync_icon_svg() 
+                            dangerous_inner_html: ms_sync_icon_svg()
                         },
                     },
                 }
@@ -520,16 +526,16 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
                 class: "rounded p-2 items-center text-gray-200 bg-gray-700",
                 p {
                     class: "text-gray-200",
-                    "{error_mjs}" 
+                    "{error_mjs}"
                 },
             }
         }
         if let Some(error_ctxb) = diagram_code().1 {
             div {
                 class: "rounded p-2 items-center bg-gray-700",
-                p { 
+                p {
                     class: "text-gray-200",
-                    "{error_ctxb}" 
+                    "{error_ctxb}"
                 },
             }
         }

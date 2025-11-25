@@ -194,9 +194,9 @@ pub fn sign_out_form() -> Element {
     let clear_session_names_state = use_coroutine_handle::<ClearSessionNamesState>();
 
     rsx! {
-        p { 
+        p {
             class: "block mx-auto mt-4 px-4 py-2",
-            "Signed in as {EMAIL.read().to_string()}." 
+            "Signed in as {EMAIL.read().to_string()}."
         },
         button {
             class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
@@ -235,7 +235,7 @@ pub fn application_mode() -> Element {
     });
 
     rsx! {
-        p { 
+        p {
             class: "block mx-auto mt-4 px-4 py-2",
             "Application modes"
         }

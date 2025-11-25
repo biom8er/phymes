@@ -46,7 +46,7 @@ pub fn builds_dropdown_view(
     mut mermaid_flowchart_diagrams: Signal<Vec<String>>,
     mut mermaid_er_diagrams: Signal<Vec<String>>,
     mut mermaid_timestamps: Signal<Vec<i64>>,
-    mut is_saved: Signal<bool>
+    mut is_saved: Signal<bool>,
 ) -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_session_names_state);
@@ -91,7 +91,7 @@ pub fn builds_dropdown_view(
                             .collect::<Vec<_>>());
                     }
                 },
-            },            
+            },
 
             // Dynamic dropdown
             if show_subject_dropdown() {
@@ -115,7 +115,7 @@ pub fn builds_dropdown_view(
                 }
             }
 
-            div {  
+            div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
                     class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
@@ -124,11 +124,11 @@ pub fn builds_dropdown_view(
                         active_session_name.set(subject_dropdown.try_read().unwrap().to_string());
                         subject_dropdown.set(String::new());
                     },
-                    svg { 
+                    svg {
                         class: "max-w-[48px] max-h-[48px]",
-                        dangerous_inner_html: ms_edit_icon_svg() 
+                        dangerous_inner_html: ms_edit_icon_svg()
                     },
-                },                
+                },
 
                 if !active_session_name().is_empty() {
                     button {
@@ -146,9 +146,9 @@ pub fn builds_dropdown_view(
                             // Set the active session
                             active_session_name.set(active_session.clone());
                         },
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
-                            dangerous_inner_html: ms_column_arrow_right_icon_svg() 
+                            dangerous_inner_html: ms_column_arrow_right_icon_svg()
                         },
                     },
                     button {
@@ -264,9 +264,9 @@ pub fn builds_dropdown_view(
                             // Reset the active session to the first session
                             active_session_name.set(active_session);
                         },
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
-                            dangerous_inner_html: fa_trash_icon_svg() 
+                            dangerous_inner_html: fa_trash_icon_svg()
                         },
                     },
                     button {
@@ -275,9 +275,9 @@ pub fn builds_dropdown_view(
                             let current = is_flowchart_shown.read().to_owned();
                             is_flowchart_shown.set(!current);
                         },
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
-                            dangerous_inner_html: ms_sync_icon_svg() 
+                            dangerous_inner_html: ms_sync_icon_svg()
                         },
                     },
                     button {
@@ -387,13 +387,13 @@ pub fn builds_dropdown_view(
                             sync_session_names.send(SyncSessionNamesState { session_plans });
 
                         },
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
-                            dangerous_inner_html: ms_deploy_icon_svg() 
+                            dangerous_inner_html: ms_deploy_icon_svg()
                         },
                     },
                 }
-                
+
                 // Show the save button only when modified
                 if !is_saved() {
                     button {
@@ -468,7 +468,7 @@ pub fn builds_dropdown_view(
                             // Change to saved
                             is_saved.set(true);
                         },
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
                             dangerous_inner_html: b8_save_icon_svg()
                         }
@@ -497,7 +497,7 @@ pub fn builds_dropdown_view(
                                 Err(err) => tracing::error!("{err:?}"),
                             }
                         },
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
                             dangerous_inner_html: ms_code_icon_svg()
                         }
@@ -517,7 +517,6 @@ pub fn builds_dropdown_view(
     }
 }
 
-
 /// Code editor element with textarea callbacks
 #[component]
 pub fn diagram_code_editor(
@@ -525,7 +524,7 @@ pub fn diagram_code_editor(
     active_session_name: Signal<String>,
     mut active_flowchart_diagram: Signal<String>,
     mut active_er_diagram: Signal<String>,
-    mut is_saved: Signal<bool>
+    mut is_saved: Signal<bool>,
 ) -> Element {
     // Determine the code to show
     let code: Memo<String> = use_memo(move || {
@@ -557,24 +556,27 @@ pub fn diagram_code_editor(
     use_effect(move || {
         let _ = code.read();
         document::eval(
-            format!(r#"const gutter = document.getElementById('gutter');
+            format!(
+                r#"const gutter = document.getElementById('gutter');
 const code = document.getElementById('code');
 code.addEventListener('scroll', () => {{
     gutter.scrollTop = code.scrollTop;
-}});"#).as_str(),
+}});"#
+            )
+            .as_str(),
         );
     });
 
     rsx! {
-        div { 
+        div {
             class: "w-full h-full rounded-md shadow-sm py-2 p-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
-            div { 
+            div {
                 id: "gutter",
                 class: "h-full text-right flex flex-col whitespace-pre overflow-hidden",
                 {(1..=line_count).map(|n| rsx! {
-                    div { 
-                        class: "px-2 text-gray-500 select-none", 
-                        "{n}" 
+                    div {
+                        class: "px-2 text-gray-500 select-none",
+                        "{n}"
                     }
                 })}
             }

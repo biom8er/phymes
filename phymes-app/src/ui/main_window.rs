@@ -3,9 +3,9 @@ use dioxus::prelude::*;
 
 use crate::state::{
     svg_icons::{
-        aws_help_icon_svg, b8_logo_icon_svg, ms_apps_icon_svg,
-        ms_attachment_icon_svg, ms_database_icon_svg, ms_message_icon_svg, ms_person_icon_svg,
-        ms_tools_icon_svg, ms_top_speed_icon_svg,
+        aws_help_icon_svg, b8_logo_icon_svg, ms_apps_icon_svg, ms_attachment_icon_svg,
+        ms_database_icon_svg, ms_message_icon_svg, ms_person_icon_svg, ms_tools_icon_svg,
+        ms_top_speed_icon_svg,
     },
     BUILDER, DEBUGGER,
 };
@@ -53,7 +53,7 @@ pub fn main_window_view() -> Element {
     let mut header_menu: Signal<HeaderMenu> = use_signal(|| HeaderMenu::Account);
 
     rsx! {
-        main {            
+        main {
             class: "w-screen h-screen bg-gray-900 text-white flex flex-col sm:flex-row",
 
             // Responsive sidebar that is horizontal on mobile and vertical on large screens
@@ -68,9 +68,9 @@ pub fn main_window_view() -> Element {
                             header_menu.set(HeaderMenu::Account);
                         },
                         class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
-                            dangerous_inner_html: ms_person_icon_svg() 
+                            dangerous_inner_html: ms_person_icon_svg()
                         }
                     }
                     if BUILDER() {
@@ -79,9 +79,9 @@ pub fn main_window_view() -> Element {
                                 header_menu.set(HeaderMenu::Builds);
                             },
                             class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                            svg { 
+                            svg {
                                 class: "max-w-[48px] max-h-[48px]",
-                                dangerous_inner_html: ms_tools_icon_svg() 
+                                dangerous_inner_html: ms_tools_icon_svg()
                             }
                         }
                     } else {
@@ -90,9 +90,9 @@ pub fn main_window_view() -> Element {
                                 header_menu.set(HeaderMenu::Apps);
                             },
                             class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                            svg { 
+                            svg {
                                 class: "max-w-[48px] max-h-[48px]",
-                                dangerous_inner_html: ms_apps_icon_svg() 
+                                dangerous_inner_html: ms_apps_icon_svg()
                             }
                         }
                         button {
@@ -100,9 +100,9 @@ pub fn main_window_view() -> Element {
                                 header_menu.set(HeaderMenu::Messages);
                             },
                             class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                            svg { 
+                            svg {
                                 class: "max-w-[48px] max-h-[48px]",
-                                dangerous_inner_html: ms_message_icon_svg() 
+                                dangerous_inner_html: ms_message_icon_svg()
                             }
                         }
                         button {
@@ -110,9 +110,9 @@ pub fn main_window_view() -> Element {
                                 header_menu.set(HeaderMenu::Attachments);
                             },
                             class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                            svg { 
+                            svg {
                                 class: "max-w-[48px] max-h-[48px]",
-                                dangerous_inner_html: ms_attachment_icon_svg() 
+                                dangerous_inner_html: ms_attachment_icon_svg()
                             }
                         }
                     }
@@ -122,9 +122,9 @@ pub fn main_window_view() -> Element {
                                 header_menu.set(HeaderMenu::Subjects);
                             },
                             class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                            svg { 
+                            svg {
                                 class: "max-w-[48px] max-h-[48px]",
-                                dangerous_inner_html: ms_database_icon_svg() 
+                                dangerous_inner_html: ms_database_icon_svg()
                             }
                         }
                         button {
@@ -132,9 +132,9 @@ pub fn main_window_view() -> Element {
                                 header_menu.set(HeaderMenu::Metrics);
                             },
                             class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                            svg { 
+                            svg {
                                 class: "max-w-[48px] max-h-[48px]",
-                                dangerous_inner_html: ms_top_speed_icon_svg() 
+                                dangerous_inner_html: ms_top_speed_icon_svg()
                             }
                         }
                     }
@@ -146,9 +146,9 @@ pub fn main_window_view() -> Element {
                             header_menu.set(HeaderMenu::Help);
                         },
                         class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
-                            dangerous_inner_html: aws_help_icon_svg() 
+                            dangerous_inner_html: aws_help_icon_svg()
                         }
                     }
                     a {
@@ -156,9 +156,9 @@ pub fn main_window_view() -> Element {
                         target: "_blank",
                         rel: "noopener noreferrer",
                         class: "inline-flex p-1 rounded hover:bg-gray-700 cursor-pointer",
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
-                            dangerous_inner_html: b8_logo_icon_svg() 
+                            dangerous_inner_html: b8_logo_icon_svg()
                         }
                     }
                 }
@@ -196,7 +196,7 @@ pub enum SnapPct {
     Pct20,
     Pct50,
     Pct80,
-    Pct100
+    Pct100,
 }
 
 impl SnapPct {
@@ -230,7 +230,7 @@ impl SnapPct {
 }
 
 /// Split panel generic container
-/// 
+///
 /// # Notes
 /// * On large screens top = left and bottom = right
 /// * It is not possible to dynamically change from horizontal to vertical without JS
@@ -238,10 +238,8 @@ impl SnapPct {
 pub fn split_panel(
     top: Element,
     bottom: Element,
-    #[props(default = SnapPct::Pct80)]
-    initial_top_pct: SnapPct,
-    #[props(default = true)]
-    horizontal: bool,
+    #[props(default = SnapPct::Pct80)] initial_top_pct: SnapPct,
+    #[props(default = true)] horizontal: bool,
 ) -> Element {
     let mut top_pct = use_signal(|| initial_top_pct);
     let mut is_dragging = use_signal(|| false);
@@ -261,7 +259,7 @@ pub fn split_panel(
             };
 
             // DM: since we either need to call external JS or use a UI-dependent library
-            //  to get the container dimensions to calculate the relative position, 
+            //  to get the container dimensions to calculate the relative position,
             //  we instead implement a snap behavior that snaps the containers at 20, 50, and 80 percentages
             if dxy > 5.0 {
                 let new_pct = top_pct().increase();
@@ -306,11 +304,7 @@ pub fn split_panel(
         ("flex flex-row h-full w-full overflow-hidden", "h-full overflow-auto", "h-full w-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
     };
 
-    let height_or_width = if horizontal {
-        "height"
-    } else {
-        "width"
-    };
+    let height_or_width = if horizontal { "height" } else { "width" };
     let top_style = format!("{height_or_width}: {}%;", top_pct().to_f32());
     let bottom_style = format!("{height_or_width}: {}%;", 100.0 - top_pct().to_f32());
 
@@ -354,8 +348,7 @@ pub fn about_text_modal() -> Element {
         HeaderMenu::Messages.as_str(),
         HeaderMenu::Attachments.as_str(),
         HeaderMenu::Subjects.as_str(),
-        HeaderMenu::Metrics.as_str()
-
+        HeaderMenu::Metrics.as_str(),
     ];
     let icons = [
         aws_help_icon_svg(),
@@ -364,7 +357,7 @@ pub fn about_text_modal() -> Element {
         ms_message_icon_svg(),
         ms_attachment_icon_svg(),
         ms_database_icon_svg(),
-        ms_top_speed_icon_svg()
+        ms_top_speed_icon_svg(),
     ];
     let descriptions = [
         "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHub https://github.com/biom8er/phymes/issues if you run into problems.",
@@ -375,7 +368,8 @@ pub fn about_text_modal() -> Element {
         "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop.",
         "The diagnostics for debugging and optimizing the active session plan. The diagnostic tools include logs, traces, and metrics. Traces track the flow of subject messages through tasks and processors. Events add context to enable building a comprehensive timeline of what happened, when it happened, and why it happened. Metrics focus on aggregating numerical data over time from events to provide an overview of system performance and resource utilization. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest."
     ];
-    let rows = items.into_iter()
+    let rows = items
+        .into_iter()
         .zip(icons.into_iter())
         .zip(descriptions.into_iter())
         .map(|((a, b), c)| (a, b, c))
@@ -384,32 +378,32 @@ pub fn about_text_modal() -> Element {
     rsx! {
         div {
             class: "p-2 flex flex-col items-center w-auto h-auto overflow-hidden",
-            p { 
+            p {
                 class: "text-lg",
-                "Welcome to PHYMES by Biom🤖er" 
+                "Welcome to PHYMES by Biom🤖er"
             },
-            table { 
+            table {
                 class: "table-auto overflow-auto rounded bg-gray-800 text-gray-200",
-                caption {  
+                caption {
                     class: "caption-top",
                     "Table 1.1: Menu items available in the sidebar."
                 }
-                thead {  
+                thead {
                     class: "bg-gray-700",
-                    tr {  
+                    tr {
                         th { "Item" }
                         th { "Icon" }
                         th { "Description" }
                     }
                 }
-                tbody { 
+                tbody {
                     class: "table-auto text-gray-200",
                     {rows.into_iter().map(|(item, icon, description)| {
                         rsx! {
-                            tr { 
+                            tr {
                                 class: "odd:bg-gray-800 even:bg-gray-900",
                                 td { "{item}" }
-                                td { svg { 
+                                td { svg {
                                     class: "max-w-[48px] max-h-[48px]",
                                     dangerous_inner_html: icon
                                 } }
@@ -436,28 +430,28 @@ pub fn code_editor(initial_text: String) -> Element {
     };
 
     // DM: The JS is not needed...
-//     // Listener to synchronize scrolling between the gutter and code
-//     use_effect(move || {
-//         let _ = text.read();
-//         document::eval(
-//             format!(r#"const gutter = document.getElementById('gutter');
-// const code = document.getElementById('code');
-// code.addEventListener('scroll', () => {{
-//     gutter.scrollTop = code.scrollTop;
-// }});"#).as_str(),
-//         );
-//     });
+    //     // Listener to synchronize scrolling between the gutter and code
+    //     use_effect(move || {
+    //         let _ = text.read();
+    //         document::eval(
+    //             format!(r#"const gutter = document.getElementById('gutter');
+    // const code = document.getElementById('code');
+    // code.addEventListener('scroll', () => {{
+    //     gutter.scrollTop = code.scrollTop;
+    // }});"#).as_str(),
+    //         );
+    //     });
 
     rsx! {
-        div { 
+        div {
             class: "w-full max-h-[128px] rounded-md shadow-sm py-2 p-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
-            div { 
+            div {
                 id: "gutter",
                 class: "h-full text-right flex flex-col whitespace-pre overflow-hidden",
                 {(1..=line_count).map(|n| rsx! {
-                    div { 
-                        class: "px-2 text-gray-500 select-none", 
-                        "{n}" 
+                    div {
+                        class: "px-2 text-gray-500 select-none",
+                        "{n}"
                     }
                 })}
             }

@@ -33,9 +33,10 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 // mod imports
 use crate::{
     state::{
-        ACTIVE_SESSION_NAME, EMAIL, JWT, svg_icons::{
+        svg_icons::{
             aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg,
-        }, update_message_content_state, update_message_state
+        },
+        update_message_content_state, update_message_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
     },
     ui::{attach_textfiles_input, main_window::split_panel},
 };
@@ -253,13 +254,13 @@ pub fn messaging_interface_view() -> Element {
                                     if role.as_str() == "assistant" {
                                         div {
                                             class: "flex items-center gap-2",
-                                            svg { 
+                                            svg {
                                                 class: "max-w-[48px] max-h-[48px]",
-                                                dangerous_inner_html: aws_assistant_icon_svg() 
+                                                dangerous_inner_html: aws_assistant_icon_svg()
                                             }
-                                            h2 { 
+                                            h2 {
                                                 class: "font-bold",
-                                                "AI Assistant" 
+                                                "AI Assistant"
                                             }
                                             h3 { "{timestamp}" }
                                         }
@@ -267,11 +268,11 @@ pub fn messaging_interface_view() -> Element {
                                         div {
                                             class: "flex items-center gap-2",
                                             h3 { "{timestamp}" }
-                                            h2 { 
+                                            h2 {
                                                 class: "font-bold",
-                                                "User" 
+                                                "User"
                                             }
-                                            svg { 
+                                            svg {
                                                 class: "max-w-[48px] max-h-[48px]",
                                                 dangerous_inner_html: aws_user_icon_svg()
                                             }
@@ -311,7 +312,7 @@ pub fn messaging_interface_footer(
                 class: "row-span-1 col-span-1 row-start-1 col-start-1 p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                 attach_textfiles_input { except_files: use_signal(|| ".txt,.csv,.tsv,.js,.ts,.py,.java,.c,.cpp,.cs,.rb,.go,.rs,.json,.svg,.html".to_string()), content: prompt }
             }
-                
+
             form {
                 class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
                 textarea {
@@ -328,7 +329,7 @@ pub fn messaging_interface_footer(
                 if prompt.read().is_empty() {
                     button {
                         class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
                             dangerous_inner_html: b8_microphone_icon_svg()
                         }
@@ -447,7 +448,7 @@ pub fn messaging_interface_footer(
                                 Err(e) => update_message_content_state(messaging_contents, e.to_string().as_str(), true),
                             }
                         },
-                        svg { 
+                        svg {
                             class: "max-w-[48px] max-h-[48px]",
                             dangerous_inner_html: b8_send_icon_svg()
                         }

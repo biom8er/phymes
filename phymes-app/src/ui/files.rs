@@ -176,21 +176,33 @@ pub fn attach_files_input(
     };
 
     let upload_files_extend = move |evt: FormEvent| async move {
-        read_files(evt.files(), TablePublication::Extend { table_name: "".to_string()}).await;
+        read_files(
+            evt.files(),
+            TablePublication::Extend {
+                table_name: "".to_string(),
+            },
+        )
+        .await;
     };
 
     let upload_files_replace = move |evt: FormEvent| async move {
-        read_files(evt.files(), TablePublication::Replace { table_name: "".to_string()}).await;
+        read_files(
+            evt.files(),
+            TablePublication::Replace {
+                table_name: "".to_string(),
+            },
+        )
+        .await;
     };
 
     rsx! {
         if extend_publish() {
-            label { 
-                r#for: "textread_extend", 
-                svg { 
+            label {
+                r#for: "textread_extend",
+                svg {
                     class: "max-w-[48px] max-h-[48px]",
-                    dangerous_inner_html: ms_cloud_add_icon_svg() 
-                } 
+                    dangerous_inner_html: ms_cloud_add_icon_svg()
+                }
             }
             input {
                 r#type: "file",
@@ -202,12 +214,12 @@ pub fn attach_files_input(
                 class: "hidden",
             },
         } else {
-            label { 
-                r#for: "textread_add", 
-                svg { 
+            label {
+                r#for: "textread_add",
+                svg {
                     class: "max-w-[48px] max-h-[48px]",
-                    dangerous_inner_html: ms_cloud_arrow_up_icon_svg() 
-                } 
+                    dangerous_inner_html: ms_cloud_arrow_up_icon_svg()
+                }
             }
             input {
                 r#type: "file",
@@ -228,7 +240,7 @@ pub fn attach_textfiles_input(
     mut content: Signal<String>,
 ) -> Element {
     let enable_directory_upload = use_signal(|| false);
-    
+
     let read_files = move |files: Vec<FileData>| async move {
         for file in files {
             if let Ok(contents) = file.read_string().await {
@@ -242,12 +254,12 @@ pub fn attach_textfiles_input(
     };
 
     rsx! {
-        label { 
-            r#for: "textread", 
-            svg { 
+        label {
+            r#for: "textread",
+            svg {
                 class: "max-w-[48px] max-h-[48px]",
-                dangerous_inner_html: ms_document_text_icon_svg() 
-            } 
+                dangerous_inner_html: ms_document_text_icon_svg()
+            }
         }
         input {
             class: "hidden",
@@ -355,7 +367,7 @@ pub fn upload_files_button(
                 filenames_uploaded.set(Vec::new());
                 extensions_uploaded.set(Vec::new());
             },
-            svg { 
+            svg {
                 class: "max-w-[48px] max-h-[48px]",
                 dangerous_inner_html: b8_send_icon_svg()
             }
@@ -377,9 +389,9 @@ pub fn clear_upload_files_button(
                 filenames_uploaded.set(Vec::new());
                 extensions_uploaded.set(Vec::new());
             },
-            svg { 
+            svg {
                 class: "max-w-[48px] max-h-[48px]",
-                dangerous_inner_html: fa_trash_icon_svg() 
+                dangerous_inner_html: fa_trash_icon_svg()
             }
         },
     }
@@ -464,7 +476,7 @@ pub fn download_files_button(
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
                 }
             },
-            svg { 
+            svg {
                 class: "max-w-[48px] max-h-[48px]",
                 dangerous_inner_html: ms_cloud_arrow_down_icon_svg()
             },
@@ -489,9 +501,9 @@ pub fn download_files_list(
                         class: "flex flex-col flex-content-start gap-1 my-2", // we borrow the assistant class for styling
                         div {
                             class: "flex items-center gap-2",
-                            svg { 
+                            svg {
                                 class: "max-w-[48px] max-h-[48px]",
-                                dangerous_inner_html: extension_to_icon_svg(extensions_downloaded().get(i).unwrap()) 
+                                dangerous_inner_html: extension_to_icon_svg(extensions_downloaded().get(i).unwrap())
                             },
                             a {
                                 href: f_href.to_owned(),
@@ -520,7 +532,7 @@ pub fn clear_download_files_button(
                 filenames_downloaded.set(Vec::new());
                 extensions_downloaded.set(Vec::new());
             },
-            svg { 
+            svg {
                 class: "max-w-[48px] max-h-[48px]",
                 dangerous_inner_html: fa_trash_icon_svg()
             }
