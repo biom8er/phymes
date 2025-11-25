@@ -12,7 +12,7 @@ use crate::{
     state::{
         ACTIVE_SESSION_NAME, BUILDER, EMAIL, JWT, SESSION_NAMES, SyncCurrentActiveSessionState, filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}, sync_current_active_session_state
     },
-    ui::{builds_dropdown_view, builds_interface_footer, main_window::split_panel},
+    ui::{diagram_code_editor, builds_dropdown_view, main_window::{SnapPct, split_panel}},
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -288,6 +288,9 @@ pub fn apps_interface_view() -> Element {
         (diagram_code, builder_error)
     });
 
+    // Track when the diagram code changes
+    let mut is_saved = use_signal(|| true);
+
     rsx! {
         if JWT.read().is_empty() {
             div {
@@ -300,26 +303,30 @@ pub fn apps_interface_view() -> Element {
                 p { "Waiting to retrieve available session plans..." },
             }
         } else {
-            split_panel {
-                top: rsx! {
-                    div {
-                        class: "h-full w-full p-2 flex flex-col items-center",
-                        if BUILDER() {
-                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
-                        } else {
-                            apps_dropdown_view { is_flowchart_shown }
+            if BUILDER() {
+                split_panel { 
+                    top: rsx! {
+                        div {
+                            class: "h-full w-full p-2 flex flex-col items-center",
+                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps, is_saved }
+                            diagram_code_editor { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, is_saved }
                         }
-                        mermaid_view { diagram_code }
-                    }
-                },
-                bottom: rsx! {
-                    div {
-                        class: "h-full w-full p-2 flex flex-col",
-                        if BUILDER() {
-                            builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
+                    },
+                    bottom: rsx! {
+                        div {
+                            class: "h-full w-full p-2 flex flex-col items-center",
+                            mermaid_view { diagram_code }
                         }
-                    }
-                },
+                    },
+                    initial_top_pct: SnapPct::Pct50,
+                    horizontal: false,
+                }
+            } else {
+                div {
+                    class: "h-full w-full p-2 flex flex-col items-center",
+                    apps_dropdown_view { is_flowchart_shown }
+                    mermaid_view { diagram_code }
+                }
             }
         }
     }
@@ -509,10 +516,22 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
 
     rsx! {
         if !error_mjs().is_empty() {
-            p { "{error_mjs}" },
+            div {
+                class: "rounded p-2 items-center text-gray-200 bg-gray-700",
+                p {
+                    class: "text-gray-200",
+                    "{error_mjs}" 
+                },
+            }
         }
         if let Some(error_ctxb) = diagram_code().1 {
-            p { "{error_ctxb}" },
+            div {
+                class: "rounded p-2 items-center bg-gray-700",
+                p { 
+                    class: "text-gray-200",
+                    "{error_ctxb}" 
+                },
+            }
         }
         if !diagram_svg().is_empty() {
             mermaid_div { diagram_svg, id }

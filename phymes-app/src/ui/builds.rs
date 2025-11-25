@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use dioxus::prelude::*;
 use phymes_agents::{
     AvailableSessionPlans, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
@@ -44,6 +46,7 @@ pub fn builds_dropdown_view(
     mut mermaid_flowchart_diagrams: Signal<Vec<String>>,
     mut mermaid_er_diagrams: Signal<Vec<String>>,
     mut mermaid_timestamps: Signal<Vec<i64>>,
+    mut is_saved: Signal<bool>
 ) -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_session_names_state);
@@ -70,7 +73,7 @@ pub fn builds_dropdown_view(
     rsx! {
         div {
             // input + 5 buttons of 64 px by 64 px
-            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[64px_1fr] grid-cols-[1fr_320px]",
+            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[64px_1fr] grid-cols-[1fr_418px]",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
@@ -390,65 +393,9 @@ pub fn builds_dropdown_view(
                         },
                     },
                 }
-            }
-        }
-
-        if !active_session_name().is_empty() {
-            div {
-                p { "{active_session_name().to_string()}" },
-                if !build_errors.try_read().unwrap().is_empty() {
-                    p { "{build_errors}" },
-                }
-            }
-        }
-    }
-}
-
-/// Diagram code editor
-#[component]
-pub fn builds_interface_footer(
-    is_flowchart_shown: Signal<bool>,
-    active_session_name: Signal<String>,
-    mut active_flowchart_diagram: Signal<String>,
-    mut active_er_diagram: Signal<String>,
-) -> Element {
-    let mut is_saved = use_signal(|| true);
-
-    let diagram_code: Memo<String> = use_memo(move || {
-        if is_flowchart_shown() {
-            active_flowchart_diagram.read().to_string()
-        } else {
-            active_er_diagram.read().to_string()
-        }
-    });
-
-    rsx! {
-        footer {
-            class: "h-full grid grid-rows-[64px_1fr] grid-cols-[1fr_64px] items-center p-2 gap-2",
-            form {
-                class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-1",
-                textarea {
-                    class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto",
-                    value: "{diagram_code.to_string()}",
-                    oninput: move |event| async move {
-                        // Update the active diagrams
-                        if is_flowchart_shown() {
-                            active_flowchart_diagram.set(event.value());
-                        } else {
-                            active_er_diagram.set(event.value());
-                        };
-
-                        // Change to unsaved
-                        is_saved.set(false);
-                    },
-                }
-            }
-
-            div {
-                class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 
                 // Show the save button only when modified
-                if !is_saved() && !diagram_code().is_empty() {
+                if !is_saved() {
                     button {
                         class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                         onclick: move |_| async move {
@@ -529,7 +476,7 @@ pub fn builds_interface_footer(
                 }
 
                 // Show the save button only when modified
-                if !is_flowchart_shown() && diagram_code().is_empty() {
+                if !is_flowchart_shown() && active_er_diagram().is_empty() {
                     button {
                         class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                         onclick: move |_| async move {
@@ -556,6 +503,87 @@ pub fn builds_interface_footer(
                         }
                     }
                 }
+            }
+        }
+
+        if !active_session_name().is_empty() {
+            div {
+                p { "{active_session_name().to_string()}" },
+                if !build_errors.try_read().unwrap().is_empty() {
+                    p { "{build_errors}" },
+                }
+            }
+        }
+    }
+}
+
+
+/// Code editor element with textarea callbacks
+#[component]
+pub fn diagram_code_editor(
+    is_flowchart_shown: Signal<bool>,
+    active_session_name: Signal<String>,
+    mut active_flowchart_diagram: Signal<String>,
+    mut active_er_diagram: Signal<String>,
+    mut is_saved: Signal<bool>
+) -> Element {
+    // Determine the code to show
+    let code: Memo<String> = use_memo(move || {
+        if is_flowchart_shown() {
+            active_flowchart_diagram.read().to_string()
+        } else {
+            active_er_diagram.read().to_string()
+        }
+    });
+
+    // Call back to update the code
+    let on_input = move |event: Event<FormData>| async move {
+        // Update the active diagrams
+        if is_flowchart_shown() {
+            active_flowchart_diagram.set(event.value());
+        } else {
+            active_er_diagram.set(event.value());
+        };
+
+        // Change to unsaved
+        is_saved.set(false);
+    };
+
+    // Compute the line numbers for the gutter
+    // DM: cannot use `lines` or there is a delay for new lines
+    let line_count = code.read().split('\n').count().max(1);
+
+    // Listener to synchronize scrolling between the gutter and code
+    use_effect(move || {
+        let _ = code.read();
+        document::eval(
+            format!(r#"const gutter = document.getElementById('gutter');
+const code = document.getElementById('code');
+code.addEventListener('scroll', () => {{
+    gutter.scrollTop = code.scrollTop;
+}});"#).as_str(),
+        );
+    });
+
+    rsx! {
+        div { 
+            class: "w-full h-full rounded-md shadow-sm py-2 p-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
+            div { 
+                id: "gutter",
+                class: "h-full text-right flex flex-col whitespace-pre overflow-hidden",
+                {(1..=line_count).map(|n| rsx! {
+                    div { 
+                        class: "px-2 text-gray-500 select-none", 
+                        "{n}" 
+                    }
+                })}
+            }
+
+            textarea {
+                id: "code",
+                value: "{code.to_string()}",
+                oninput: on_input,
+                class: "w-full h-full grow bg-gray-800 px-3 resize-none focus:outline-none whitespace-pre overflow-hidden"
             }
         }
     }

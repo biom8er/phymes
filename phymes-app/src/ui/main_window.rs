@@ -60,7 +60,7 @@ pub fn main_window_view() -> Element {
             aside {
                 class: "sm:w-[64px] w-full sm:h-full h-[64px] bg-gray-800 flex sm:flex-col flex-row items-center py-2 space-y-2",
                 div {
-                    class: "sm:w-auto w-4/5 sm:h-4/5 h-auto place-content-start",
+                    class: "sm:w-auto w-[calc(100%-128px)] sm:h-[calc(100%-128px)] h-auto place-content-start",
                     // DM: add tooltip for each of the icons
                     // see https://www.w3schools.com/css/css_tooltip.asp
                     button {
@@ -140,7 +140,7 @@ pub fn main_window_view() -> Element {
                     }
                 }
                 div {
-                    class: "sm:w-auto w-1/5 sm:h-1/5 h-auto place-content-end",
+                    class: "sm:w-auto w-[128px] sm:h-[128px] h-auto place-content-end",
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Help);
@@ -168,12 +168,7 @@ pub fn main_window_view() -> Element {
             div {
                 class: "w-full sm:w-[calc(100%-64px)] h-[calc(100%-64px)] sm:h-full",
                 if header_menu.read().as_str() == "Help" {
-                    // about_text_modal {},
-                    code_editor {
-                        initial_text: r#"fn main() {
-    println!("Hello, Heidelberg!");
-}"#.to_string()
-                    }
+                    about_text_modal {},
                 } else if header_menu.read().as_str() == "Account" {
                     sign_in_view {},
                 } else if header_menu.read().as_str() == "Builds" {
@@ -308,7 +303,7 @@ pub fn split_panel(
     let (div_class, top_bottom_class, middle_class) = if horizontal {
         ("flex flex-col h-full w-full overflow-hidden", "w-full overflow-auto", "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize")
     } else {
-        ("flex flex-row h-full w-full overflow-hidden", "h-full overflow-auto", "h-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
+        ("flex flex-row h-full w-full overflow-hidden", "h-full overflow-auto", "h-full w-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
     };
 
     let height_or_width = if horizontal {
@@ -455,7 +450,7 @@ pub fn code_editor(initial_text: String) -> Element {
 
     rsx! {
         div { 
-            class: "w-full max-h-[128px] rounded-md shadow-sm py-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
+            class: "w-full max-h-[128px] rounded-md shadow-sm py-2 p-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
             div { 
                 id: "gutter",
                 class: "h-full text-right flex flex-col whitespace-pre overflow-hidden",
