@@ -69,7 +69,7 @@ pub fn subjects_interface_view() -> Element {
     // Get the active session schema for the subject view and
     // Get the active session row counts for the subject view
     // DM: these are combined into a single async block to prevent concurrent mutable borrows of the same user state
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         // Get the active session schema for the subject view
         subject_schema_names.set(Vec::new());
         subject_schema_columns.set(Vec::new());

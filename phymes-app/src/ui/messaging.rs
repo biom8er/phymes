@@ -68,7 +68,7 @@ pub fn messaging_interface_view() -> Element {
 
     // Get the last 25 messages for the messages view
     let got_messages = use_memo(move || !messaging_roles().is_empty());
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         // Prevent re-fetching messages if we already have some
         if got_messages() {
             return;

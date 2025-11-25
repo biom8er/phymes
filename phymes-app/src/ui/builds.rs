@@ -1,5 +1,3 @@
-use std::future::Future;
-
 use dioxus::prelude::*;
 use phymes_agents::{
     AvailableSessionPlans, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,

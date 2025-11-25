@@ -72,7 +72,7 @@ pub fn attachments_interface_view() -> Element {
 
     // Get the last 25 attachments (without the actual blob content) for the attachments view
     let got_attachments = use_memo(move || !attachments_roles().is_empty());
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         // Prevent re-fetching attachments if we already have some
         if got_attachments() {
             return;

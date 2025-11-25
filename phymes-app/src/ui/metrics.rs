@@ -74,7 +74,7 @@ pub fn metrics_interface_view() -> Element {
     });
 
     // Get the active session info for the metrics view;
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         // Prevent re-fetching metrics if we already have them
         if !metric_names.is_empty() {
             return;

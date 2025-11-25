@@ -200,7 +200,7 @@ pub enum SnapPct {
 }
 
 impl SnapPct {
-    pub fn to_f32(&self) -> f32 {
+    pub fn as_f32(&self) -> f32 {
         match self {
             Self::Pct0 => 0.0,
             Self::Pct20 => 20.0,
@@ -244,7 +244,7 @@ pub fn split_panel(
     let mut top_pct = use_signal(|| initial_top_pct);
     let mut is_dragging = use_signal(|| false);
     let mut start_y = use_signal(|| 0.0);
-    let mut start_pct = use_signal(|| top_pct());
+    let mut start_pct = use_signal(|| initial_top_pct);
 
     let on_mouse_move = {
         move |evt: MouseEvent| {
@@ -305,8 +305,8 @@ pub fn split_panel(
     };
 
     let height_or_width = if horizontal { "height" } else { "width" };
-    let top_style = format!("{height_or_width}: {}%;", top_pct().to_f32());
-    let bottom_style = format!("{height_or_width}: {}%;", 100.0 - top_pct().to_f32());
+    let top_style = format!("{height_or_width}: {}%;", top_pct().as_f32());
+    let bottom_style = format!("{height_or_width}: {}%;", 100.0 - top_pct().as_f32());
 
     rsx! {
         div {

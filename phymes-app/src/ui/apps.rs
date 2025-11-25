@@ -78,7 +78,7 @@ pub fn apps_interface_view() -> Element {
     });
 
     // Get the mermaid.js diagrams for the session
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         // clear the current mermaid state
         mermaid_session_context_names.set(Vec::new());
         mermaid_flowchart_diagrams.set(Vec::new());
@@ -258,7 +258,7 @@ pub fn apps_interface_view() -> Element {
     });
 
     // Update the active mermaid.js diagrams for the session
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         if let Some(diagram) = filtered_diagrams().0 {
             active_flowchart_diagram.set(diagram.to_string());
         }
@@ -295,7 +295,7 @@ pub fn apps_interface_view() -> Element {
     });
 
     // Track when the diagram code changes
-    let mut is_saved = use_signal(|| true);
+    let is_saved = use_signal(|| true);
 
     rsx! {
         if JWT.read().is_empty() {
@@ -458,7 +458,7 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
     let id_decoy = use_signal(|| "GraphDiv".to_string());
 
     // Render the mermaid.js diagram
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         let eval = document::eval(
             format!(
                 r#"
