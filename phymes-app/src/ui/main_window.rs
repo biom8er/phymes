@@ -455,13 +455,13 @@ pub fn code_editor(initial_text: String) -> Element {
 
     rsx! {
         div { 
-            class: "w-full rounded-md shadow-sm p-2 px-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
+            class: "w-full max-h-[128px] rounded-md shadow-sm py-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
             div { 
                 id: "gutter",
                 class: "h-full text-right flex flex-col whitespace-pre overflow-hidden",
                 {(1..=line_count).map(|n| rsx! {
                     div { 
-                        class: "text-gray-500 select-none", 
+                        class: "px-2 text-gray-500 select-none", 
                         "{n}" 
                     }
                 })}
@@ -471,8 +471,7 @@ pub fn code_editor(initial_text: String) -> Element {
                 id: "code",
                 value: "{text}",
                 oninput: on_input,
-                // onscroll: on_scroll,
-                class: "w-full h-full grow bg-gray-800 resize-none focus:outline-none whitespace-pre overflow-hidden"
+                class: "w-full h-full grow bg-gray-800 px-3 resize-none focus:outline-none whitespace-pre overflow-hidden"
             }
         }
     }

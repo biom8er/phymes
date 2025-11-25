@@ -315,6 +315,9 @@
   .max-h-\[48px\] {
     max-height: 48px;
   }
+  .max-h-\[128px\] {
+    max-height: 128px;
+  }
   .w-1\/5 {
     width: calc(1/5 * 100%);
   }
@@ -478,6 +481,9 @@
   }
   .px-2 {
     padding-inline: calc(var(--spacing) * 2);
+  }
+  .px-3 {
+    padding-inline: calc(var(--spacing) * 3);
   }
   .px-4 {
     padding-inline: calc(var(--spacing) * 4);
