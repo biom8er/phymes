@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, ops::{BitAnd, BitOr, BitXor, Not}, sync::Arc};
+use std::{collections::HashMap, ops::{BitAnd, BitOr, BitXor, Not}, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -308,7 +308,7 @@ where
 
 /// Helper function to choose the source of the column
 fn find_column(lhs_table: &Table, lhs_batches: &[(&&str, ArrayRef)], column_name: &str) -> Result<ArrayRef> {
-    if let Ok(field) = lhs_table.get_schema().field_with_name(column_name) {
+    if let Ok(_field) = lhs_table.get_schema().field_with_name(column_name) {
         Ok(lhs_table.get_column_as_array(column_name))
     } else {
         let mut lhs_filtered = lhs_batches.iter()
@@ -343,10 +343,10 @@ fn rhs_helper(rhs_values: &[&str], lhs_table: &Table, lhs_batches: &[(&&str, Arr
 /// Cast and transform specified columns using a specified cast operator and cast data type with optional column renaming and template injection
 /// 
 /// # Notes
-/// * Order of operations is as follows:
-///   1. Cast
-///   2. Template
-///   3. Transform
+/// * Order of operations are as follows:
+///   1. Cast (LHS only)
+///   2. Template (LHS only)
+///   3. Transform (LHS and optionally RHS)
 ///   4. Rename
 ///
 /// # Usage
@@ -423,241 +423,17 @@ pub fn select_and_cast(
     // Apply the cast and optional column renaming and template injection based on the lhs_values
     let mut batch_vec = Vec::new();
     for (index, column_name) in lhs_values.iter().enumerate() {
-        // Try casting if possible
-        let (column_cast, column_data_type) = match cast_operators.get(index).unwrap() {
-            DataCastOperator::Cast => {
-                let to_type = cast_datatypes.get(index).unwrap();
-                let arr = cast(&find_column(&lhs_table, &batch_vec, column_name)?, to_type)?;
-                (arr, to_type.to_owned())
-            }
-            DataCastOperator::BytesToString => {
-                let to_type = cast_datatypes.get(index).unwrap();
-                if to_type != &DataType::Utf8 {
-                    return Err(anyhow!(
-                        "Unsupported data type {to_type} for casting from Bytes to String for column {column_name}. The supported data type is Utf8."
-                    ));
-                }
-                let arr: ArrayRef = match lhs_table.get_column_data_type(column_name)? {
-                    DataType::FixedSizeList(f, _) | DataType::List(f) => match f.data_type() {
-                        DataType::UInt8 => {
-                            let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
-                                .as_any()
-                                .downcast_ref::<FixedSizeListArray>()
-                                .unwrap()
-                                .iter()
-                                .filter_map(|s| {
-                                    s.map(|s| {
-                                        Table::get_array_as_vec_primitive::<u8>(&s, column_name)
-                                            .unwrap_or_default()
-                                    })
-                                })
-                                .collect::<Vec<_>>();
-                            let cast_vec = lhs_vec
-                                .into_iter()
-                                .map(|v| String::from_utf8_lossy(&v).into_owned())
-                                .collect::<Vec<_>>();
-                            Arc::new(StringArray::from(cast_vec))
-                        }
-                        DataType::UInt32 => {
-                            let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
-                                .as_any()
-                                .downcast_ref::<FixedSizeListArray>()
-                                .unwrap()
-                                .iter()
-                                .filter_map(|s| {
-                                    s.map(|s| {
-                                        Table::get_array_as_vec_primitive::<u32>(&s, column_name)
-                                            .unwrap_or_default()
-                                    })
-                                })
-                                .collect::<Vec<_>>();
-                            let cast_vec = lhs_vec
-                                .into_iter()
-                                .map(|v| {
-                                    let bytes = v.into_iter().map(|i| i as u8).collect::<Vec<_>>();
-                                    String::from_utf8_lossy(&bytes).into_owned()
-                                })
-                                .collect::<Vec<_>>();
-                            Arc::new(StringArray::from(cast_vec))
-                        }
-                        DataType::Int64 => {
-                            let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
-                                .as_any()
-                                .downcast_ref::<FixedSizeListArray>()
-                                .unwrap()
-                                .iter()
-                                .filter_map(|s| {
-                                    s.map(|s| {
-                                        Table::get_array_as_vec_primitive::<i64>(&s, column_name)
-                                            .unwrap_or_default()
-                                    })
-                                })
-                                .collect::<Vec<_>>();
-                            let cast_vec = lhs_vec
-                                .into_iter()
-                                .map(|v| {
-                                    let bytes = v.into_iter().map(|i| i as u8).collect::<Vec<_>>();
-                                    String::from_utf8_lossy(&bytes).into_owned()
-                                })
-                                .collect::<Vec<_>>();
-                            Arc::new(StringArray::from(cast_vec))
-                        }
-                        _ => {
-                            return Err(anyhow!(
-                                "Unsupported data type {} for casting from Bytes to String for column {column_name}. The supported data types are List-UInt8, List-UInt32, and List-Int64",
-                                lhs_table.get_column_data_type(column_name)?
-                            ));
-                        }
-                    },
-                    _ => {
-                        return Err(anyhow!(
-                            "Unsupported data type {} for casting from Bytes to String for column {column_name}. The supported data types are List-UInt8, List-UInt32, and List-Int64",
-                            lhs_table.get_column_data_type(column_name)?
-                        ));
-                    }
-                };
-                (arr, to_type.to_owned())
-            }
-            DataCastOperator::None => (
-                lhs_table.get_column_as_array(column_name),
-                lhs_table.get_column_data_type(column_name)?,
-            ),
-        };
-
-        // Inject into a string template
-        let column_cast = if let Some(template) = cast_templates.get(index) {
-            if template.is_empty() {
-                column_cast
-            } else {
-                match column_data_type {
-                    DataType::UInt8 => {
-                        let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast
-                            .as_any()
-                            .downcast_ref::<UInt8Array>()
-                            .unwrap()
-                            .iter()
-                            .map(|s| {
-                                template
-                                    .apply_template(
-                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
-                                    )
-                                    .unwrap()
-                            })
-                            .collect::<Vec<_>>();
-                        let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
-                        arr
-                    }
-                    DataType::UInt32 => {
-                        let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast
-                            .as_any()
-                            .downcast_ref::<UInt32Array>()
-                            .unwrap()
-                            .iter()
-                            .map(|s| {
-                                template
-                                    .apply_template(
-                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
-                                    )
-                                    .unwrap()
-                            })
-                            .collect::<Vec<_>>();
-                        let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
-                        arr
-                    }
-                    DataType::Int64 => {
-                        let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast
-                            .as_any()
-                            .downcast_ref::<Int64Array>()
-                            .unwrap()
-                            .iter()
-                            .map(|s| {
-                                template
-                                    .apply_template(
-                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
-                                    )
-                                    .unwrap()
-                            })
-                            .collect::<Vec<_>>();
-                        let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
-                        arr
-                    }
-                    DataType::Float32 => {
-                        let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast
-                            .as_any()
-                            .downcast_ref::<Float32Array>()
-                            .unwrap()
-                            .iter()
-                            .map(|s| {
-                                template
-                                    .apply_template(
-                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
-                                    )
-                                    .unwrap()
-                            })
-                            .collect::<Vec<_>>();
-                        let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
-                        arr
-                    }
-                    DataType::Float64 => {
-                        let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast
-                            .as_any()
-                            .downcast_ref::<Float64Array>()
-                            .unwrap()
-                            .iter()
-                            .map(|s| {
-                                template
-                                    .apply_template(
-                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
-                                    )
-                                    .unwrap()
-                            })
-                            .collect::<Vec<_>>();
-                        let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
-                        arr
-                    }
-                    DataType::Utf8 => {
-                        let template = TableScript::new_from_template(template.to_string());
-                        let arr_vec = column_cast
-                            .as_any()
-                            .downcast_ref::<StringArray>()
-                            .unwrap()
-                            .iter()
-                            .map(|s| {
-                                template
-                                    .apply_template(
-                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
-                                    )
-                                    .unwrap()
-                            })
-                            .collect::<Vec<_>>();
-                        let arr: ArrayRef = Arc::new(StringArray::from(arr_vec));
-                        arr
-                    }
-                    _ => {
-                        return Err(anyhow!(
-                            "Unsupported data type {} for injecting into a String template for column {column_name}",
-                            lhs_table.get_column_data_type(column_name)?
-                        ));
-                    }
-                }
-            }
-        } else {
-            column_cast
-        };
 
         // Transform the column
+        let lhs_arr = find_column(&lhs_table, &batch_vec, column_name)?;
+        let column_data_type = lhs_arr.data_type();
         let column_cast: ArrayRef = match column_operators.get(index).unwrap() {
             DataColumnOperator::Add 
             | DataColumnOperator::Sub
             | DataColumnOperator::Mult
             | DataColumnOperator::Div
             | DataColumnOperator::Max
-            | DataColumnOperator::Min => match lhs_table.get_column_data_type(column_name)? {
+            | DataColumnOperator::Min => match column_data_type {
                 DataType::UInt8 => {
                     let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_vec, index)?;
                     let tensor = column_operator_tensor::<u8>(
@@ -715,8 +491,7 @@ pub fn select_and_cast(
                 }
                 _ => {
                     return Err(anyhow!(
-                        "Unsupported data type {} for column operator {} and column {column_name}",
-                        lhs_table.get_column_data_type(column_name)?,
+                        "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
                         column_operators.get(index).unwrap()
                     ));
                 }
@@ -726,7 +501,7 @@ pub fn select_and_cast(
                 let rhs_arr = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?;
                 rem(&lhs_arr, &rhs_arr)?
             },
-            DataColumnOperator::List => match lhs_table.get_column_data_type(column_name)? {
+            DataColumnOperator::List => match column_data_type {
                 DataType::UInt8 => {
                     let lhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
                     let rhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
@@ -736,8 +511,7 @@ pub fn select_and_cast(
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<u8, UInt8Type>(
                         agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
+                        column_data_type.clone())
                 }
                 DataType::UInt32 => {
                     let lhs_vec = Table::get_array_as_vec_primitive::<u32>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
@@ -748,8 +522,7 @@ pub fn select_and_cast(
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<u32, UInt32Type>(
                         agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
+                        column_data_type.clone())
                 }
                 DataType::Int64 => {
                     let lhs_vec = Table::get_array_as_vec_primitive::<i64>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
@@ -760,8 +533,7 @@ pub fn select_and_cast(
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<i64, Int64Type>(
                         agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
+                        column_data_type.clone())
                 }
                 DataType::Float32 => {
                     let lhs_vec = Table::get_array_as_vec_primitive::<f32>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
@@ -772,8 +544,7 @@ pub fn select_and_cast(
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<f32, Float32Type>(
                         agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
+                        column_data_type.clone())
                 }
                 DataType::Float64 => {
                     let lhs_vec = Table::get_array_as_vec_primitive::<f64>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
@@ -784,8 +555,7 @@ pub fn select_and_cast(
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<f64, Float64Type>(
                         agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
+                        column_data_type.clone())
                 }
                 DataType::Utf8 => {
                     let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
@@ -796,8 +566,7 @@ pub fn select_and_cast(
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_nonprimitive::<String>(
                         agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
+                        column_data_type.clone())
                 }
                 DataType::FixedSizeList(f, _) => match f.data_type() {
                     DataType::UInt8 => {
@@ -825,16 +594,16 @@ pub fn select_and_cast(
                                 })
                             })
                             .collect::<Vec<_>>();
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(mut l, r)| {
-                            l.extend(r);
-                            l
-                        })
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_fixed_size_list::<u8>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?)
+                        let agg_values = lhs_vec.into_iter()
+                            .zip(rhs_vec.into_iter())
+                            .map(|(mut l, r)| {
+                                l.extend(r);
+                                l
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<u8>(
+                            agg_values,
+                            column_data_type.clone())
                     }
                     DataType::UInt32 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -861,16 +630,16 @@ pub fn select_and_cast(
                                 })
                             })
                             .collect::<Vec<_>>();
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(mut l, r)| {
-                            l.extend(r);
-                            l
-                        })
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_fixed_size_list::<u32>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?)
+                        let agg_values = lhs_vec.into_iter()
+                            .zip(rhs_vec.into_iter())
+                            .map(|(mut l, r)| {
+                                l.extend(r);
+                                l
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<u32>(
+                            agg_values,
+                            column_data_type.clone())
                     }
                     DataType::Int64 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -897,16 +666,16 @@ pub fn select_and_cast(
                                 })
                             })
                             .collect::<Vec<_>>();
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(mut l, r)| {
-                            l.extend(r);
-                            l
-                        })
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_fixed_size_list::<i64>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?)
+                        let agg_values = lhs_vec.into_iter()
+                            .zip(rhs_vec.into_iter())
+                            .map(|(mut l, r)| {
+                                l.extend(r);
+                                l
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<i64>(
+                            agg_values,
+                            column_data_type.clone())
                     }
                     DataType::Float32 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -933,16 +702,16 @@ pub fn select_and_cast(
                                 })
                             })
                             .collect::<Vec<_>>();
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(mut l, r)| {
-                            l.extend(r);
-                            l
-                        })
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_fixed_size_list::<f32>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?)
+                        let agg_values = lhs_vec.into_iter()
+                            .zip(rhs_vec.into_iter())
+                            .map(|(mut l, r)| {
+                                l.extend(r);
+                                l
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<f32>(
+                            agg_values,
+                            column_data_type.clone())
                     }
                     DataType::Float64 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -969,16 +738,16 @@ pub fn select_and_cast(
                                 })
                             })
                             .collect::<Vec<_>>();
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(mut l, r)| {
-                            l.extend(r);
-                            l
-                        })
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_fixed_size_list::<f64>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?)
+                        let agg_values = lhs_vec.into_iter()
+                            .zip(rhs_vec.into_iter())
+                            .map(|(mut l, r)| {
+                                l.extend(r);
+                                l
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<f64>(
+                            agg_values,
+                            column_data_type.clone())
                     }
                     DataType::Utf8 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1014,12 +783,11 @@ pub fn select_and_cast(
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_nonprimitive::<String>(
                             agg_values,
-                            lhs_table.get_column_data_type(column_name)?)
-                        }
+                            column_data_type.clone())
+                    }
                     _ => {
                         return Err(anyhow!(
-                            "Unsupported data type {} for column operator {} and column {column_name}",
-                            lhs_table.get_column_data_type(column_name)?,
+                            "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
                             column_operators.get(index).unwrap()
                         ));
                     }
@@ -1050,16 +818,16 @@ pub fn select_and_cast(
                                 })
                             })
                             .collect::<Vec<_>>();
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(mut l, r)| {
-                            l.extend(r);
-                            l
-                        })
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<u8, UInt8Type>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?)
+                        let agg_values = lhs_vec.into_iter()
+                            .zip(rhs_vec.into_iter())
+                            .map(|(mut l, r)| {
+                                l.extend(r);
+                                l
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                            agg_values,
+                            column_data_type.clone())
                     }
                     DataType::UInt32 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1086,16 +854,16 @@ pub fn select_and_cast(
                                 })
                             })
                             .collect::<Vec<_>>();
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(mut l, r)| {
-                            l.extend(r);
-                            l
-                        })
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<u32, UInt32Type>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?)
+                        let agg_values = lhs_vec.into_iter()
+                            .zip(rhs_vec.into_iter())
+                            .map(|(mut l, r)| {
+                                l.extend(r);
+                                l
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                            agg_values,
+                            column_data_type.clone())
                     }
                     DataType::Int64 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1122,16 +890,16 @@ pub fn select_and_cast(
                                 })
                             })
                             .collect::<Vec<_>>();
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(mut l, r)| {
-                            l.extend(r);
-                            l
-                        })
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<i64, Int64Type>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?)
+                        let agg_values = lhs_vec.into_iter()
+                            .zip(rhs_vec.into_iter())
+                            .map(|(mut l, r)| {
+                                l.extend(r);
+                                l
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<i64, Int64Type>(
+                            agg_values,
+                            column_data_type.clone())
                     }
                     DataType::Float32 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1158,16 +926,16 @@ pub fn select_and_cast(
                                 })
                             })
                             .collect::<Vec<_>>();
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(mut l, r)| {
-                            l.extend(r);
-                            l
-                        })
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<f32, Float32Type>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?)
+                        let agg_values = lhs_vec.into_iter()
+                            .zip(rhs_vec.into_iter())
+                            .map(|(mut l, r)| {
+                                l.extend(r);
+                                l
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<f32, Float32Type>(
+                            agg_values,
+                            column_data_type.clone())
                     }
                     DataType::Float64 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1194,16 +962,16 @@ pub fn select_and_cast(
                                 })
                             })
                             .collect::<Vec<_>>();
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(mut l, r)| {
-                            l.extend(r);
-                            l
-                        })
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<f64, Float64Type>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?)
+                        let agg_values = lhs_vec.into_iter()
+                            .zip(rhs_vec.into_iter())
+                            .map(|(mut l, r)| {
+                                l.extend(r);
+                                l
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<f64, Float64Type>(
+                            agg_values,
+                            column_data_type.clone())
                     }
                     DataType::Utf8 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1239,25 +1007,23 @@ pub fn select_and_cast(
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_nonprimitive::<String>(
                             agg_values,
-                            lhs_table.get_column_data_type(column_name)?)
+                            column_data_type.clone())
                     }
                     _ => {
                         return Err(anyhow!(
-                            "Unsupported data type {} for column operator {} and column {column_name}",
-                            lhs_table.get_column_data_type(column_name)?,
+                            "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
                             column_operators.get(index).unwrap()
                         ));
                     }
                 }
                 _ => {
                     return Err(anyhow!(
-                        "Unsupported data type {} for column operator {} and column {column_name}",
-                        lhs_table.get_column_data_type(column_name)?,
+                        "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
                         column_operators.get(index).unwrap()
                     ));
                 }
             },
-            DataColumnOperator::Set => match lhs_table.get_column_data_type(column_name)? {
+            DataColumnOperator::Set => match column_data_type {
                 DataType::UInt8 => {
                     let lhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
                     let rhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
@@ -1267,8 +1033,7 @@ pub fn select_and_cast(
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<u8, UInt8Type>(
                         agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
+                        column_data_type.clone())
                 }
                 DataType::UInt32 => {
                     let lhs_vec = Table::get_array_as_vec_primitive::<u32>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
@@ -1279,8 +1044,7 @@ pub fn select_and_cast(
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<u32, UInt32Type>(
                         agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
+                        column_data_type.clone())
                 }
                 DataType::Int64 => {
                     let lhs_vec = Table::get_array_as_vec_primitive::<i64>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
@@ -1291,8 +1055,7 @@ pub fn select_and_cast(
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<i64, Int64Type>(
                         agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
+                        column_data_type.clone())
                 }
                 DataType::Utf8 => {
                     let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
@@ -1303,8 +1066,7 @@ pub fn select_and_cast(
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_nonprimitive::<String>(
                         agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
+                        column_data_type.clone())
                 }
                 DataType::FixedSizeList(f, _) => match f.data_type() {
                     DataType::UInt8 => {
@@ -1338,7 +1100,7 @@ pub fn select_and_cast(
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<u8, UInt8Type>(
                             agg_values,
-                            lhs_table.get_column_data_type(column_name)?)
+                            column_data_type.clone())
                     }
                     DataType::UInt32 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1371,7 +1133,7 @@ pub fn select_and_cast(
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<u32, UInt32Type>(
                             agg_values,
-                            lhs_table.get_column_data_type(column_name)?)
+                            column_data_type.clone())
                     }
                     DataType::Int64 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1404,7 +1166,7 @@ pub fn select_and_cast(
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<i64, Int64Type>(
                             agg_values,
-                            lhs_table.get_column_data_type(column_name)?)
+                            column_data_type.clone())
                     }
                     DataType::Utf8 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1437,12 +1199,11 @@ pub fn select_and_cast(
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_nonprimitive::<String>(
                             agg_values,
-                            lhs_table.get_column_data_type(column_name)?)
+                            column_data_type.clone())
                         }
                     _ => {
                         return Err(anyhow!(
-                            "Unsupported data type {} for column operator {} and column {column_name}",
-                            lhs_table.get_column_data_type(column_name)?,
+                            "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
                             column_operators.get(index).unwrap()
                         ));
                     }
@@ -1479,7 +1240,7 @@ pub fn select_and_cast(
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<u8, UInt8Type>(
                             agg_values,
-                            lhs_table.get_column_data_type(column_name)?)
+                            column_data_type.clone())
                     }
                     DataType::UInt32 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1512,7 +1273,7 @@ pub fn select_and_cast(
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<u32, UInt32Type>(
                             agg_values,
-                            lhs_table.get_column_data_type(column_name)?)
+                            column_data_type.clone())
                     }
                     DataType::Int64 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1545,7 +1306,7 @@ pub fn select_and_cast(
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<i64, Int64Type>(
                             agg_values,
-                            lhs_table.get_column_data_type(column_name)?)
+                            column_data_type.clone())
                     }
                     DataType::Utf8 => {
                         let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
@@ -1578,25 +1339,23 @@ pub fn select_and_cast(
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_nonprimitive::<String>(
                             agg_values,
-                            lhs_table.get_column_data_type(column_name)?)
+                            column_data_type.clone())
                     }
                     _ => {
                         return Err(anyhow!(
-                            "Unsupported data type {} for column operator {} and column {column_name}",
-                            lhs_table.get_column_data_type(column_name)?,
+                            "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
                             column_operators.get(index).unwrap()
                         ));
                     }
                 }
                 _ => {
                     return Err(anyhow!(
-                        "Unsupported data type {} for column operator {} and column {column_name}",
-                        lhs_table.get_column_data_type(column_name)?,
+                        "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
                         column_operators.get(index).unwrap()
                     ));
                 }
             },
-            DataColumnOperator::Concat => match lhs_table.get_column_data_type(column_name)? {
+            DataColumnOperator::Concat => match column_data_type {
                 DataType::Utf8 => {
                     let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
                     let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
@@ -1608,8 +1367,7 @@ pub fn select_and_cast(
                 }
                 _ => {
                     return Err(anyhow!(
-                        "Unsupported data type {} for column operator {} and column {column_name}",
-                        lhs_table.get_column_data_type(column_name)?,
+                        "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
                         column_operators.get(index).unwrap()
                     ));
                 }
@@ -1620,7 +1378,7 @@ pub fn select_and_cast(
             | DataColumnOperator::XOr
             | DataColumnOperator::Not
             | DataColumnOperator::LeftShift
-            | DataColumnOperator::RightShift => match lhs_table.get_column_data_type(column_name)? {
+            | DataColumnOperator::RightShift => match column_data_type {
                 DataType::UInt8 => {
                     let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_vec, index)?;
                     column_operator_arrow::<u8, UInt8Type>(
@@ -1649,15 +1407,231 @@ pub fn select_and_cast(
                         rhs_arr.as_ref())?
                 },
                 _ => return Err(anyhow!(
-                    "Unsupported data type {} for column operator {} and column {column_name}",
-                    lhs_table.get_column_data_type(column_name)?,
+                    "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
                     column_operators.get(index).unwrap()
                 )),
             },
             DataColumnOperator::Len => {
                 todo!()
             },
-            DataColumnOperator::None => column_cast,
+            DataColumnOperator::None => find_column(&lhs_table, &batch_vec, column_name)?
+        };
+
+        // Try casting if possible
+        let column_data_type = column_cast.data_type();
+        let column_cast: ArrayRef = match cast_operators.get(index).unwrap() {
+            DataCastOperator::Cast => {
+                let to_type = cast_datatypes.get(index).unwrap();
+                cast(&column_cast, to_type)?
+            }
+            DataCastOperator::BytesToString => {
+                let to_type = cast_datatypes.get(index).unwrap();
+                if to_type != &DataType::Utf8 {
+                    return Err(anyhow!(
+                        "Unsupported data type {to_type} for casting from Bytes to String for column {column_name}. The supported data type is Utf8."
+                    ));
+                }
+                match column_data_type {
+                    DataType::FixedSizeList(f, _) | DataType::List(f) => match f.data_type() {
+                        DataType::UInt8 => {
+                            let lhs_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                            .unwrap_or_default()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            let cast_vec = lhs_vec
+                                .into_iter()
+                                .map(|v| String::from_utf8_lossy(&v).into_owned())
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(cast_vec))
+                        }
+                        DataType::UInt32 => {
+                            let lhs_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                            .unwrap_or_default()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            let cast_vec = lhs_vec
+                                .into_iter()
+                                .map(|v| {
+                                    let bytes = v.into_iter().map(|i| i as u8).collect::<Vec<_>>();
+                                    String::from_utf8_lossy(&bytes).into_owned()
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(cast_vec))
+                        }
+                        DataType::Int64 => {
+                            let lhs_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                            .unwrap_or_default()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            let cast_vec = lhs_vec
+                                .into_iter()
+                                .map(|v| {
+                                    let bytes = v.into_iter().map(|i| i as u8).collect::<Vec<_>>();
+                                    String::from_utf8_lossy(&bytes).into_owned()
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(cast_vec))
+                        }
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {column_data_type} for casting from Bytes to String for column {column_name}. The supported data types are List-UInt8, List-UInt32, and List-Int64",
+                            ));
+                        }
+                    },
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported data type {column_data_type} for casting from Bytes to String for column {column_name}. The supported data types are List-UInt8, List-UInt32, and List-Int64",
+                        ));
+                    }
+                }
+            }
+            DataCastOperator::None => {
+                column_cast
+            },
+        };
+
+        // Inject into a string template
+        let column_data_type = column_cast.data_type();
+        let column_cast = if let Some(template) = cast_templates.get(index) {
+            if template.is_empty() {
+                column_cast
+            } else {
+                match column_data_type {
+                    DataType::UInt8 => {
+                        let template = TableScript::new_from_template(template.to_string());
+                        let arr_vec = column_cast
+                            .as_any()
+                            .downcast_ref::<UInt8Array>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
+                            .collect::<Vec<_>>();
+                        Arc::new(StringArray::from(arr_vec))
+                    }
+                    DataType::UInt32 => {
+                        let template = TableScript::new_from_template(template.to_string());
+                        let arr_vec = column_cast
+                            .as_any()
+                            .downcast_ref::<UInt32Array>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
+                            .collect::<Vec<_>>();
+                        Arc::new(StringArray::from(arr_vec))
+                    }
+                    DataType::Int64 => {
+                        let template = TableScript::new_from_template(template.to_string());
+                        let arr_vec = column_cast
+                            .as_any()
+                            .downcast_ref::<Int64Array>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
+                            .collect::<Vec<_>>();
+                        Arc::new(StringArray::from(arr_vec))
+                    }
+                    DataType::Float32 => {
+                        let template = TableScript::new_from_template(template.to_string());
+                        let arr_vec = column_cast
+                            .as_any()
+                            .downcast_ref::<Float32Array>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
+                            .collect::<Vec<_>>();
+                        Arc::new(StringArray::from(arr_vec))
+                    }
+                    DataType::Float64 => {
+                        let template = TableScript::new_from_template(template.to_string());
+                        let arr_vec = column_cast
+                            .as_any()
+                            .downcast_ref::<Float64Array>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
+                            .collect::<Vec<_>>();
+                        Arc::new(StringArray::from(arr_vec))
+                    }
+                    DataType::Utf8 => {
+                        let template = TableScript::new_from_template(template.to_string());
+                        let arr_vec = column_cast
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| {
+                                template
+                                    .apply_template(
+                                        &json!({column_name.to_string(): s.unwrap_or_default()}),
+                                    )
+                                    .unwrap()
+                            })
+                            .collect::<Vec<_>>();
+                        Arc::new(StringArray::from(arr_vec))
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported data type {column_data_type} for injecting into a String template for column {column_name}"
+                        ));
+                    }
+                }
+            }
+        } else {
+            column_cast
         };
 
         // Rename the columns
@@ -1711,8 +1685,7 @@ mod tests {
         // Make the device
         let device = device(false)?;
 
-        // ------ String, UInt32, All ------
-        // Group the text
+        // ------ String, UInt32, Cast, No operators ------
         let result = select_and_cast(
             &["lhs_pk", "lhs_text", "lhs_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
@@ -1751,6 +1724,58 @@ mod tests {
         assert_eq!(lhs_id, vec![0, 1, 2, 3]);
         let metadata = result_table.get_column_as_vec_primitive::<f32>("new_metadata")?;
         assert_eq!(metadata, vec![1., 2., 3., 4.]);
+
+        // ------ String, UInt32, Cast, Operator ------
+        let result = select_and_cast(
+            &["lhs_pk", "lhs_text", "lhs_metadata", "new_text"],
+            &[lhs_batch_1.clone(), lhs_batch_2.clone()],
+            &["", "lhs_text", "new_pk", "lhs_text"],
+            &["new_pk", "new_text", "new_metadata", "newer_text"],
+            &[
+                DataColumnOperator::None,
+                DataColumnOperator::Concat,
+                DataColumnOperator::Add,
+                DataColumnOperator::List,
+            ],
+            &[
+                DataCastOperator::Cast,
+                DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::None,
+            ],
+            &[DataType::UInt32, DataType::Utf8, DataType::UInt32, DataType::Utf8],
+            &["", "Into template {{ lhs_text }}", "", ""],
+            &device,
+        )?;
+        let result_table = Table::get_builder()
+            .with_record_batches(vec![result])?
+            .with_name("")
+            .build()?;
+
+        let lhs_text = result_table.get_column_as_vec_str("new_text");
+        assert_eq!(
+            lhs_text,
+            vec![
+                "Into template leftleft",
+                "Into template 11",
+                "Into template leftleft",
+                "Into template 33"
+            ]
+        );
+        let lhs_text = result_table.get_column_as_vec_nested_nonprimitive::<String>("newer_text")?;
+        assert_eq!(
+            lhs_text,
+            [
+                ["Into template leftleft","left"],
+                ["Into template 11","1"],
+                ["Into template leftleft","left"],
+                ["Into template 33","3"],
+            ]
+        );
+        let lhs_id = result_table.get_column_as_vec_primitive::<u32>("new_pk")?;
+        assert_eq!(lhs_id, vec![0, 1, 2, 3]);
+        let metadata = result_table.get_column_as_vec_primitive::<u32>("new_metadata")?;
+        assert_eq!(metadata, vec![1, 3, 5, 7]);
 
         Ok(())
     }
