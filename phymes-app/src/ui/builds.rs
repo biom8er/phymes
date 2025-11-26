@@ -45,6 +45,7 @@ pub fn builds_dropdown_view(
     mut mermaid_er_diagrams: Signal<Vec<String>>,
     mut mermaid_timestamps: Signal<Vec<i64>>,
     mut is_saved: Signal<bool>,
+    mut build_errors: Signal<String>,
 ) -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_session_names_state);
@@ -64,9 +65,6 @@ pub fn builds_dropdown_view(
         )
     });
     let mut subjects_filtered: Signal<Vec<String>> = use_signal(Vec::new);
-
-    // Error message signal
-    let mut build_errors = use_signal(String::new);
 
     rsx! {
         div {
@@ -500,15 +498,6 @@ pub fn builds_dropdown_view(
                             dangerous_inner_html: ms_code_icon_svg()
                         }
                     }
-                }
-            }
-        }
-
-        if !active_session_name().is_empty() {
-            div {
-                p { "{active_session_name().to_string()}" },
-                if !build_errors.try_read().unwrap().is_empty() {
-                    p { "{build_errors}" },
                 }
             }
         }

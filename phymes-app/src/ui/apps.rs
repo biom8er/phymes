@@ -297,6 +297,9 @@ pub fn apps_interface_view() -> Element {
     // Track when the diagram code changes
     let is_saved = use_signal(|| true);
 
+    // Build errors that may have occured
+    let build_errors = use_signal(String::new);
+
     rsx! {
         if JWT.read().is_empty() {
             div {
@@ -314,14 +317,14 @@ pub fn apps_interface_view() -> Element {
                     top: rsx! {
                         div {
                             class: "h-full w-full p-2 flex flex-col items-center",
-                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps, is_saved }
+                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps, is_saved, build_errors }
                             diagram_code_editor { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, is_saved }
                         }
                     },
                     bottom: rsx! {
                         div {
                             class: "h-full w-full p-2 flex flex-col items-center",
-                            mermaid_view { diagram_code }
+                            mermaid_view { diagram_code, build_errors }
                         }
                     },
                     initial_top_pct: SnapPct::Pct50,
@@ -331,7 +334,7 @@ pub fn apps_interface_view() -> Element {
                 div {
                     class: "h-full w-full p-2 flex flex-col items-center",
                     apps_dropdown_view { is_flowchart_shown }
-                    mermaid_view { diagram_code }
+                    mermaid_view { diagram_code, build_errors }
                 }
             }
         }
@@ -448,8 +451,13 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
     }
 }
 
+/// View to visualize mermaid.js diagrams
+/// 
+/// # Notes
+/// * mermaid.js is used to render SVG diagrams
+/// * errors when creating the SVG are also shown
 #[component]
-pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
+pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>, mut build_errors: Signal<String>) -> Element {
     let mut diagram_svg = use_signal(String::new);
     let mut error_mjs = use_signal(String::new);
     let id = use_signal(|| "graphDiv".to_string());
@@ -536,6 +544,15 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
                 p {
                     class: "text-gray-200",
                     "{error_ctxb}"
+                },
+            }
+        }
+        if !build_errors().is_empty() {
+            div {
+                class: "rounded p-2 items-center bg-gray-700",
+                p {
+                    class: "text-gray-200",
+                    "{build_errors}"
                 },
             }
         }

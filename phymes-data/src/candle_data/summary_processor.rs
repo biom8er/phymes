@@ -313,6 +313,7 @@ pub fn table_and_data_format_to_record_batch(
         | DataFormat::Xml
         | DataFormat::Owl(_)
         | DataFormat::OwlDefault
+        | DataFormat::OwlOntology
         | DataFormat::OwlClass
         | DataFormat::OwlObjectProperty
         | DataFormat::OwlNamedIndividual => Err(anyhow!("{format} format is not yet supported.")),

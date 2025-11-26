@@ -56,6 +56,39 @@ pub struct OwlFormat {
 }
 
 impl OwlFormat {
+    pub fn owl_format_ontology() -> Self {
+        let subject_tags = ["owl:Ontology"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let subject_attributes = ["rdf:about"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let predicate_tags = [
+            "owl:versionIRI",
+            "obo:IAO_0000700",
+            "dc:description",
+            "dc:title",
+            "terms:license",
+            "oboInOwl:default-namespace",
+            "oboInOwl:hasOBOFormatVersion",
+            "owl:versionInfo",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let predicate_attributes = ["rdf:resource"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        OwlFormat {
+            subject_tags,
+            subject_attributes,
+            predicate_tags,
+            predicate_attributes,
+        }
+    }
     pub fn owl_format_class() -> Self {
         let subject_tags = ["owl:Class"]
             .into_iter()
@@ -219,6 +252,8 @@ pub enum DataFormat {
     #[value(name = "OwlDefault")]
     OwlDefault,
     /// OWL format
+    #[value(name = "OwlOntology")]
+    OwlOntology,
     #[value(name = "OwlClass")]
     OwlClass,
     #[value(name = "OwlObjectProperty")]
@@ -244,6 +279,7 @@ impl DataFormat {
             "txt" => DataFormat::Txt,
             "Xml" => DataFormat::Xml,
             "OwlDefault" => DataFormat::OwlDefault,
+            "OwlOntology" => DataFormat::OwlOntology,
             "OwlClass" => DataFormat::OwlClass,
             "OwlObjectProperty" => DataFormat::OwlObjectProperty,
             "OwlNamedIndividual" => DataFormat::OwlNamedIndividual,
@@ -269,6 +305,7 @@ impl DataFormat {
             Self::Xml => "Xml",
             Self::Owl(_)
             | Self::OwlDefault
+            | Self::OwlOntology
             | Self::OwlClass
             | Self::OwlObjectProperty
             | Self::OwlNamedIndividual => "Owl",
@@ -292,6 +329,7 @@ impl Display for DataFormat {
             Self::Xml => write!(f, "Xml"),
             Self::Owl(_) => write!(f, "Owl"),
             Self::OwlDefault => write!(f, "OwlDefault"),
+            Self::OwlOntology => write!(f, "OwlOntology"),
             Self::OwlClass => write!(f, "OwlClass"),
             Self::OwlObjectProperty => write!(f, "OwlObjectProperty"),
             Self::OwlNamedIndividual => write!(f, "OwlNamedIndividual"),

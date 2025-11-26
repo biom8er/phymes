@@ -240,6 +240,9 @@ pub fn metrics_interface_view() -> Element {
         (visualization, None)
     });
 
+    // Build errors that may have occured
+    let build_errors = use_signal(String::new);
+
     rsx! {
         if JWT.read().is_empty() {
             div {
@@ -262,7 +265,7 @@ pub fn metrics_interface_view() -> Element {
             div {
                 class: "h-full w-full p-2 flex flex-col items-center",
                 metrics_dropdown {active_metric, metric_names}
-                mermaid_view {diagram_code}
+                mermaid_view {diagram_code, build_errors}
             }
         }
     }
