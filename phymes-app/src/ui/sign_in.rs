@@ -25,7 +25,7 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 pub fn sign_in_view() -> Element {
     rsx! {
         div {
-            class: "messaging_list",
+            class: "p-2 w-full overflow-auto flex flex-col items-center",
             if !JWT.read().is_empty() {
                 sign_out_form {}
                 application_mode {}
@@ -65,19 +65,22 @@ pub fn sign_in_form() -> Element {
     //  7. Send follow-up email notifying the user that their password was reset
     rsx! {
         form {
-            class: "sign_in_form",
+            class: "p-4 rounded bg-gray-800 w-full sm:max-w-1/2",
             div {
+                class: "flex flex-col gap-2",
                 label { "Email" }
                 input {
                     r#type: "email",
                     placeholder: "email",
                     oninput: move |event| email.set(event.value()),
+                    class: "w-full p-2 rounded bg-gray-700",
                 }
                 label { "Password" }
                 input {
                     r#type: "password",
                     placeholder: "password",
                     oninput: move |event| password.set(event.value()),
+                    class: "w-full p-2 rounded bg-gray-700 text-white",
                 }
                 // label { "Remember me" }
                 // input {
@@ -87,6 +90,7 @@ pub fn sign_in_form() -> Element {
             }
         }
         button {
+            class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
             onclick: move |_| async move {
                 let route = "/app/v1/sign_in";
 
@@ -171,6 +175,7 @@ pub fn sign_in_form() -> Element {
             "sign-in"
         }
         button {
+            class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
             onclick: move |_| async move {
                 // TODO
             },
@@ -189,8 +194,12 @@ pub fn sign_out_form() -> Element {
     let clear_session_names_state = use_coroutine_handle::<ClearSessionNamesState>();
 
     rsx! {
-        p { "Signed in as {EMAIL.read().to_string()}." },
+        p {
+            class: "block mx-auto mt-4 px-4 py-2",
+            "Signed in as {EMAIL.read().to_string()}."
+        },
         button {
+            class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
             onclick: move |_| async move {
                 clear_jwt_state.send(ClearJWTState {});
                 clear_session_names_state.send(ClearSessionNamesState {});
@@ -226,8 +235,12 @@ pub fn application_mode() -> Element {
     });
 
     rsx! {
-        p { "Application modes" }
+        p {
+            class: "block mx-auto mt-4 px-4 py-2",
+            "Application modes"
+        }
         button {
+            class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
             onclick: move |_evt| async move {
                 sync_builder_state.send(SyncBuilderState { show: !BUILDER()});
                 if BUILDER() {
@@ -237,12 +250,13 @@ pub fn application_mode() -> Element {
             },
             "{builder}"
         },
-        button {
-            onclick: move |_evt| async move {
-                sync_debugger_state.send(SyncDebuggerState { show: !DEBUGGER()});
-            },
-            // If we are enabling builder mode, disable debugger mode
-            if !BUILDER() {
+        // If we are enabling builder mode, disable debugger mode
+        if !BUILDER() {
+            button {
+                class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                onclick: move |_evt| async move {
+                    sync_debugger_state.send(SyncDebuggerState { show: !DEBUGGER()});
+                },
                 "{debugger}"
             }
         }

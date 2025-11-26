@@ -11,6 +11,11 @@
 
 # Reference Guide
 
+- [Phymes-Diagnostics](./phymes-diagnostics/README.md)
+    - [Diagnostic span](./phymes-diagnostics/diagnostic_span.md)
+    - [Traces](./phymes-diagnostics/traces.md)
+    - [Events](./phymes-diagnostics/events.md)
+    - [Metrics)](./phymes-diagnostics/metrics.md)
 - [Phymes-Core](./phymes-core/README.md)
     - [Algorithm](./phymes-core/algorithm.md)
     - [Glossary](./phymes-core/glossary.md)

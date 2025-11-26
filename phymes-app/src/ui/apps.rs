@@ -15,7 +15,10 @@ use crate::{
         sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME,
         BUILDER, EMAIL, JWT, SESSION_NAMES,
     },
-    ui::{builds_dropdown_view, builds_interface_footer, split_panel_drag_handle},
+    ui::{
+        builds_dropdown_view, diagram_code_editor,
+        main_window::{split_panel, SnapPct},
+    },
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -75,7 +78,7 @@ pub fn apps_interface_view() -> Element {
     });
 
     // Get the mermaid.js diagrams for the session
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         // clear the current mermaid state
         mermaid_session_context_names.set(Vec::new());
         mermaid_flowchart_diagrams.set(Vec::new());
@@ -255,7 +258,7 @@ pub fn apps_interface_view() -> Element {
     });
 
     // Update the active mermaid.js diagrams for the session
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         if let Some(diagram) = filtered_diagrams().0 {
             active_flowchart_diagram.set(diagram.to_string());
         }
@@ -291,30 +294,45 @@ pub fn apps_interface_view() -> Element {
         (diagram_code, builder_error)
     });
 
+    // Track when the diagram code changes
+    let is_saved = use_signal(|| true);
+
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "p-2 flex flex-col items-center",
                 p { "Please sign-in before activating a session." },
             }
         } else if SESSION_NAMES.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "p-2 flex flex-col items-center",
                 p { "Waiting to retrieve available session plans..." },
             }
         } else {
-            div {
-                class: "messaging_list",
-                if BUILDER() {
-                    builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps }
-                } else {
-                    apps_dropdown_view { is_flowchart_shown }
-                }
-                mermaid_view { diagram_code }
-            }
             if BUILDER() {
-                split_panel_drag_handle {}
-                builds_interface_footer { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram }
+                split_panel {
+                    top: rsx! {
+                        div {
+                            class: "h-full w-full p-2 flex flex-col items-center",
+                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps, is_saved }
+                            diagram_code_editor { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, is_saved }
+                        }
+                    },
+                    bottom: rsx! {
+                        div {
+                            class: "h-full w-full p-2 flex flex-col items-center",
+                            mermaid_view { diagram_code }
+                        }
+                    },
+                    initial_top_pct: SnapPct::Pct50,
+                    horizontal: false,
+                }
+            } else {
+                div {
+                    class: "h-full w-full p-2 flex flex-col items-center",
+                    apps_dropdown_view { is_flowchart_shown }
+                    mermaid_view { diagram_code }
+                }
             }
         }
     }
@@ -344,10 +362,12 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
 
     rsx! {
         div {
-            class: "dropdown_form",
+            // input + 2 buttons of 64 px by 64 px
+            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_128px] w-full sm:max-w-3/4",
             form {
-                class: "dropdown_form_input",
+                class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
+                    class: "w-full h-full bg-gray-700",
                     r#type: "text",
                     placeholder: "search apps",
                     value: "{subject_dropdown}",
@@ -362,55 +382,66 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                     }
                 },
             },
-            button {
-                class: "dropdown_form_button",
-                onclick: move |_evt| async move {
-                    // Reset the dropdown
-                    let active_session = subject_dropdown.try_read().unwrap().to_string();
-                    subject_dropdown.set(String::new());
 
-                    // Set the active session
-                    sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
-                },
-                svg { dangerous_inner_html: ms_search_icon_svg() },
-            },
-
-            if !ACTIVE_SESSION_NAME().is_empty() {
-                button {
-                    onclick: move |_| async move {
-                        let current = is_flowchart_shown.read().to_owned();
-                        is_flowchart_shown.set(!current);
-                    },
-                    svg { dangerous_inner_html: ms_sync_icon_svg() },
-                },
-            }
-
-        }
-
-        // Dynamic dropdown
-        if show_subject_dropdown() {
-            div {
-                class: "dropdown_list",
-                ul {
-                    id: "apps_dropdown_list",
-                    {subjects_vec().iter().filter(|s| ACTIVE_SESSION_NAME.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
-                        let sub = sub.clone();
-                        rsx! {
-                            li {
-                                key: "{i}",
-                                div {
-                                    onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
-                                    p { "{sub}" },
+            // Dynamic dropdown
+            if show_subject_dropdown() {
+                div {
+                    class: "p-2 rounded bg-gray-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
+                    ul {
+                        {subjects_vec().iter().filter(|s| ACTIVE_SESSION_NAME.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
+                            let sub = sub.clone();
+                            rsx! {
+                                li {
+                                    class: "hover:bg-gray-700 cursor-pointer",
+                                    key: "{i}",
+                                    div {
+                                        onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
+                                        p { "{sub}" },
+                                    }
                                 }
                             }
-                        }
-                    })}
+                        })}
+                    }
+                }
+            }
+
+            div {
+                class: "row-span-1 col-span-1 row-start-1 col-start-2",
+                button {
+                    class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                    onclick: move |_evt| async move {
+                        // Reset the dropdown
+                        let active_session = subject_dropdown.try_read().unwrap().to_string();
+                        subject_dropdown.set(String::new());
+
+                        // Set the active session
+                        sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
+                    },
+                    svg {
+                        class: "max-w-[48px] max-h-[48px]",
+                        dangerous_inner_html: ms_search_icon_svg()
+                    },
+                },
+
+                if !ACTIVE_SESSION_NAME().is_empty() {
+                    button {
+                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                        onclick: move |_| async move {
+                            let current = is_flowchart_shown.read().to_owned();
+                            is_flowchart_shown.set(!current);
+                        },
+                        svg {
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_sync_icon_svg()
+                        },
+                    },
                 }
             }
         }
 
         if !ACTIVE_SESSION_NAME().is_empty() {
             div {
+                class: "p-2 flex flex-col items-center",
                 p { "{ACTIVE_SESSION_NAME().to_string()}" },
             }
         }
@@ -427,7 +458,7 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
     let id_decoy = use_signal(|| "GraphDiv".to_string());
 
     // Render the mermaid.js diagram
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         let eval = document::eval(
             format!(
                 r#"
@@ -491,10 +522,22 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
 
     rsx! {
         if !error_mjs().is_empty() {
-            p { "{error_mjs}" },
+            div {
+                class: "rounded p-2 items-center text-gray-200 bg-gray-700",
+                p {
+                    class: "text-gray-200",
+                    "{error_mjs}"
+                },
+            }
         }
         if let Some(error_ctxb) = diagram_code().1 {
-            p { "{error_ctxb}" },
+            div {
+                class: "rounded p-2 items-center bg-gray-700",
+                p {
+                    class: "text-gray-200",
+                    "{error_ctxb}"
+                },
+            }
         }
         if !diagram_svg().is_empty() {
             mermaid_div { diagram_svg, id }
@@ -507,7 +550,7 @@ pub fn mermaid_div(diagram_svg: Signal<String>, id: Signal<String>) -> Element {
     rsx! {
         div {
             id: id(),
-            class: "mermaid",
+            class: "w-full h-full",
             svg { dangerous_inner_html: diagram_svg() }
         }
     }

@@ -37,7 +37,10 @@ use crate::{
         },
         update_attachments_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
     },
-    ui::{attach_files_input, clear_upload_files_button, upload_files_button},
+    ui::{
+        attach_files_input, clear_upload_files_button, main_window::split_panel,
+        upload_files_button,
+    },
 };
 
 /// View for attachments between the user and AI assistant
@@ -69,7 +72,7 @@ pub fn attachments_interface_view() -> Element {
 
     // Get the last 25 attachments (without the actual blob content) for the attachments view
     let got_attachments = use_memo(move || !attachments_roles().is_empty());
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         // Prevent re-fetching attachments if we already have some
         if got_attachments() {
             return;
@@ -181,64 +184,93 @@ pub fn attachments_interface_view() -> Element {
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "p-2 flex flex-col items-center",
                 p { "Please sign-in before attachments." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "p-2 flex flex-col items-center",
                 p { "Please activate a session before attachments." },
             }
         } else {
-            ul {
-                class: "messaging_list",
-                {(0..attachments_roles.len()).map(|i| {
-                    let role = attachments_roles.get(i).unwrap();
-                    let index = attachments_indices.get(i).unwrap();
-                    let timestamp = convert_timestamp_micros_to_str(*attachments_timestamps.get(i).unwrap());
-                    let content = attachments_contents.get(i).unwrap();
-                    let filename = attachments_filenames.get(i).unwrap();
-                    let extension = attachments_extensions.get(i).unwrap();
-                    rsx! {
-                        li {
-                            key: "{index}",
-                            class: "assistant", // we borrow the assistant class for styling
-                            div {
-                                class: "entete",
-                                if role.as_str() == "assistant" {
-                                    svg { dangerous_inner_html: aws_assistant_icon_svg() }
-                                    h2 { "AI Assistant" }
-                                } else {
-                                    svg { dangerous_inner_html: aws_user_icon_svg() }
-                                    h2 { "User" }
-                                }
-                                h3 { "{timestamp}" }
-                                svg { dangerous_inner_html: extension_to_icon_svg(&extension) }
-                                if let Some(f) = content.as_ref() {
-                                    a {
-                                        href: extension_and_file_to_data_href(&extension, f).unwrap(),
-                                        download: filename_and_extension_to_download(&filename, &extension),
-                                        "{filename_and_extension_to_download(&filename, &extension)}"
-                                    },
-                                    button {
-                                        onclick: move |_| async move {
-                                            *attachments_contents.get_mut(i).unwrap() = None;
-                                        },
-                                        svg { dangerous_inner_html: fa_trash_icon_svg() }
-                                    }
-                                } else {
-                                    h3 { "{filename}.{extension}" },
-                                    button {
-                                        svg { dangerous_inner_html: ms_arrow_download_icon_svg() }
-                                        // TODO: download the attachment
+            split_panel {
+                top: rsx! {
+                    ul {
+                        class: "p-2 overflow-auto flex flex-col list-none",
+                        {(0..attachments_roles.len()).map(|i| {
+                            let role = attachments_roles.get(i).unwrap();
+                            let index = attachments_indices.get(i).unwrap();
+                            let timestamp = convert_timestamp_micros_to_str(*attachments_timestamps.get(i).unwrap());
+                            let content = attachments_contents.get(i).unwrap();
+                            let filename = attachments_filenames.get(i).unwrap();
+                            let extension = attachments_extensions.get(i).unwrap();
+                            rsx! {
+                                li {
+                                    key: "{index}",
+                                    class: "flex flex-col flex-content-start gap-1 my-2", // we borrow the assistant class for styling
+                                    div {
+                                        class: "flex items-center gap-2",
+                                        if role.as_str() == "assistant" {
+                                            svg {
+                                                class: "max-w-[48px] max-h-[48px]",
+                                                dangerous_inner_html: aws_assistant_icon_svg()
+                                            }
+                                            h2 {
+                                                class: "font-bold",
+                                                "AI Assistant"
+                                            }
+                                        } else {
+                                            svg {
+                                                class: "max-w-[48px] max-h-[48px]",
+                                                dangerous_inner_html: aws_user_icon_svg()
+                                            }
+                                            h2 {
+                                                class: "font-bold",
+                                                "User"
+                                            }
+                                        }
+                                        h3 { "{timestamp}" }
+                                        svg {
+                                            class: "max-w-[48px] max-h-[48px]",
+                                            dangerous_inner_html: extension_to_icon_svg(&extension)
+                                        }
+                                        if let Some(f) = content.as_ref() {
+                                            a {
+                                                href: extension_and_file_to_data_href(&extension, f).unwrap(),
+                                                download: filename_and_extension_to_download(&filename, &extension),
+                                                "{filename_and_extension_to_download(&filename, &extension)}"
+                                            },
+                                            button {
+                                                class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                                                onclick: move |_| async move {
+                                                    *attachments_contents.get_mut(i).unwrap() = None;
+                                                },
+                                                svg {
+                                                    class: "max-w-[48px] max-h-[48px]",
+                                                    dangerous_inner_html: fa_trash_icon_svg()
+                                                }
+                                            }
+                                        } else {
+                                            h3 { "{filename}.{extension}" },
+                                            button {
+                                                class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                                                svg {
+                                                    class: "max-w-[48px] max-h-[48px]",
+                                                    dangerous_inner_html: ms_arrow_download_icon_svg()
+                                                }
+                                                // TODO: download the attachment
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
+                        })}
                     }
-                })}
+                },
+                bottom: rsx! {
+                    attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| false), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, subject_names: None }
+                }
             }
-            attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| false), except_files: use_signal(||".csv,.pdf,.json".to_string()), active_subject_name: None, subject_names: None }
         }
     }
 }
@@ -275,31 +307,45 @@ pub fn attachments_interface_footer(
         filenames_vec.join(", ")
     });
 
+    let styles = if extend_input() && add_input() {
+        "h-full grid grid-rows-[128px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+    } else {
+        "h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+    };
+
     rsx! {
         footer {
+            class: styles,
             div {
-                class: "attach_button",
+                class: "row-span-1 col-span-1 row-start-1 col-start-1 flex flex-col",
                 if extend_input() {
-                    attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
+                    div {
+                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
+                    }
                 }
                 if add_input() {
-                    attach_files_input { extend_publish: use_signal(|| false), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
-                }
-            }
-
-            div {
-                class: "text_input",
-                form {
-                    id: "message_form",
-                    textarea {
-                        placeholder: "Staged files",
-                        value: "{filenames}",
+                    div {
+                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        attach_files_input { extend_publish: use_signal(|| false), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
                     }
                 }
             }
 
             div {
-                class: "submit_button",
+                class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
+                form {
+                    class: "w-full h-full",
+                    textarea {
+                        placeholder: "Staged files",
+                        value: "{filenames}",
+                        class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto focus:outline-none",
+                    }
+                }
+            }
+
+            div {
+                class: "row-span-1 col-span-1 row-start-1 col-start-3",
                 if !files_uploaded.read().is_empty() {
                     upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
                     clear_upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}

@@ -31,7 +31,7 @@ use crate::{
     },
     ui::{
         attachments_interface_footer, clear_download_files_button, download_files_button,
-        download_files_list,
+        download_files_list, main_window::split_panel,
     },
 };
 
@@ -69,7 +69,7 @@ pub fn subjects_interface_view() -> Element {
     // Get the active session schema for the subject view and
     // Get the active session row counts for the subject view
     // DM: these are combined into a single async block to prevent concurrent mutable borrows of the same user state
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         // Get the active session schema for the subject view
         subject_schema_names.set(Vec::new());
         subject_schema_columns.set(Vec::new());
@@ -278,7 +278,7 @@ pub fn subjects_interface_view() -> Element {
     rsx! {
         if JWT.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "p-2 flex flex-col items-center",
                 p { "Please sign-in before searching subjects." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
@@ -288,24 +288,25 @@ pub fn subjects_interface_view() -> Element {
             }
         } else if subject_schema_names.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "p-2 flex flex-col items-center",
                 p { "Waiting to retrieve session plan subject schemas..." },
             }
         } else {
-            div {
-                class: "messaging_list",
-                subjects_dropdown_menu { active_subject_name, subject_schema_names, files_downloaded, filenames_downloaded, extensions_downloaded },
-                subjects_schema_table { active_subject_name, subject_schema_names, subject_schema_columns, subject_schema_types, subject_names, subject_num_rows }
-
-                if !files_downloaded.read().is_empty() {
+            split_panel {
+                top: rsx! {
                     div {
-                        class: "file_upload_form",
-                        download_files_list {filenames_downloaded, files_downloaded, extensions_downloaded}
+                        class: "p-2 overflow-auto flex flex-col items-center",
+                        subjects_dropdown_menu { active_subject_name, subject_schema_names, files_downloaded, filenames_downloaded, extensions_downloaded },
+                        subjects_schema_table { active_subject_name, subject_schema_names, subject_schema_columns, subject_schema_types, subject_names, subject_num_rows }
+
+                        if !files_downloaded.read().is_empty() {
+                            download_files_list {filenames_downloaded, files_downloaded, extensions_downloaded}
+                        }
                     }
-                }
-            }
-            if !active_subject_name().is_empty() || !subject_schema_names.is_empty() {
-                attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| true), except_files: use_signal(||".csv".to_string()), active_subject_name, subject_names: subject_schema_names }
+                },
+                bottom: rsx! {
+                    attachments_interface_footer { extend_input: use_signal(|| true), add_input: use_signal(|| true), except_files: use_signal(||".csv".to_string()), active_subject_name, subject_names: subject_schema_names }
+                },
             }
         }
     }
@@ -337,10 +338,12 @@ pub fn subjects_dropdown_menu(
 
     rsx! {
         div {
-            class: "dropdown_form",
+            // input + buttons of 64 px by 64 px
+            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_192px] sm:max-w-3/4",
             form {
-                class: "dropdown_form_input",
+                class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
+                    class: "w-full h-full bg-gray-700",
                     r#type: "text",
                     placeholder: "search subjects",
                     value: "{subject_dropdown}",
@@ -355,40 +358,47 @@ pub fn subjects_dropdown_menu(
                     }
                 },
             },
-            button {
-                class: "dropdown_form_button",
-                onclick: move |_evt| {
-                    active_subject_name.set(subject_dropdown.read().to_string());
-                    subject_dropdown.set(String::new());
-                },
-                svg { dangerous_inner_html: ms_search_icon_svg() },
-            },
-            if !active_subject_name().is_empty() {
-                download_files_button { data_format: use_signal(|| DataFormat::CsvDefault), active_subject_name, filenames_downloaded, files_downloaded, extensions_downloaded}
-            }
-            if !files_downloaded.read().is_empty() {
-                clear_download_files_button {files_downloaded, filenames_downloaded, extensions_downloaded}
-            }
-        }
 
-        // Dynamic dropdown of subjects
-        if show_subject_dropdown() {
-            div {
-                class: "dropdown_list",
-                ul {
-                    id: "search_subjects_dropdown",
-                    {subjects_vec().iter().filter(|s| active_subject_name.to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
-                        let sub = sub.clone();
-                        rsx! {
-                            li {
-                                key: "{i}",
-                                div {
-                                    onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
-                                    p { "{sub}" },
+            // Dynamic dropdown of subjects
+            if show_subject_dropdown() {
+                div {
+                    class: "p-2 rounded bg-gray-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
+                    ul {
+                        {subjects_vec().iter().filter(|s| active_subject_name.to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
+                            let sub = sub.clone();
+                            rsx! {
+                                li {
+                                    class: "hover:bg-gray-700 cursor-pointer",
+                                    key: "{i}",
+                                    div {
+                                        onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
+                                        p { "{sub}" },
+                                    }
                                 }
                             }
-                        }
-                    })}
+                        })}
+                    }
+                }
+            }
+
+            div {
+                class: "row-span-1 col-span-1 row-start-1 col-start-2",
+                button {
+                    class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                    onclick: move |_evt| {
+                        active_subject_name.set(subject_dropdown.read().to_string());
+                        subject_dropdown.set(String::new());
+                    },
+                    svg {
+                        class: "max-w-[48px] max-h-[48px]",
+                        dangerous_inner_html: ms_search_icon_svg()
+                    },
+                },
+                if !active_subject_name().is_empty() {
+                    download_files_button { data_format: use_signal(|| DataFormat::CsvDefault), active_subject_name, filenames_downloaded, files_downloaded, extensions_downloaded}
+                }
+                if !files_downloaded.read().is_empty() {
+                    clear_download_files_button {files_downloaded, filenames_downloaded, extensions_downloaded}
                 }
             }
         }
@@ -441,6 +451,7 @@ pub fn subjects_schema_table(
         div {
             class: "output_table",
             table {
+                class: "table-auto rounded bg-gray-800 text-gray-200",
                 if active_subject_name().is_empty() {
                     caption { "No subject selected." },
                 } else if num_rows().is_empty() {
@@ -448,23 +459,30 @@ pub fn subjects_schema_table(
                 } else {
                     caption { "{active_subject_name.to_string()}: {num_rows().first().unwrap()} rows." },
                 }
-                tr {
-                    {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {
+                thead {
+                    class: "bg-gray-700",
+                    tr {
+                        {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {
+                            rsx! {
+                                th { "{header}" }
+                            }
+                        })}
+                    },
+                }
+                tbody {
+                    class: "table-auto text-gray-200",
+                    {(0..schema_columns_types().0.len()).map(|i| {
+                        let subject_col = schema_columns_types().0.get(i).unwrap().to_string();
+                        let subject_type = schema_columns_types().1.get(i).unwrap().to_string();
                         rsx! {
-                            th { "{header}" }
+                            tr {
+                                class: "odd:bg-gray-800 even:bg-gray-900",
+                                td { "{subject_col}" },
+                                td { "{subject_type}" },
+                            }
                         }
                     })}
-                },
-                {(0..schema_columns_types().0.len()).map(|i| {
-                    let subject_col = schema_columns_types().0.get(i).unwrap().to_string();
-                    let subject_type = schema_columns_types().1.get(i).unwrap().to_string();
-                    rsx! {
-                        tr {
-                            td { "{subject_col}" },
-                            td { "{subject_type}" },
-                        }
-                    }
-                })}
+                }
             }
         }
     }

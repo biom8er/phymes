@@ -38,7 +38,7 @@ use crate::{
         },
         update_message_content_state, update_message_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
     },
-    ui::attach_textfiles_input,
+    ui::{attach_textfiles_input, main_window::split_panel},
 };
 
 /// View for messaging between the user and AI assistant
@@ -68,7 +68,7 @@ pub fn messaging_interface_view() -> Element {
 
     // Get the last 25 messages for the messages view
     let got_messages = use_memo(move || !messaging_roles().is_empty());
-    let _ = use_resource(move || async move {
+    use_resource(move || async move {
         // Prevent re-fetching messages if we already have some
         if got_messages() {
             return;
@@ -224,52 +224,74 @@ pub fn messaging_interface_view() -> Element {
         // Check for sign-in
         if JWT.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "p-2 flex flex-col items-center",
                 p { "Please sign-in before messaging." },
             }
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
-                class: "messaging_list",
+                class: "p-2 flex flex-col items-center",
                 p { "Please activate a session before messaging." },
             }
         } else {
-            ul {
-                id: "messaging",
-                class: "messaging_list",
-                {(0..messaging_roles().len()).map(|i| {
-                    let role = messaging_roles.get(i).unwrap();
-                    let index = messaging_indices.get(i).unwrap();
-                    let timestamp = convert_timestamp_micros_to_str(*messaging_timestamps.get(i).unwrap());
-                    let content = messaging_contents.get(i).unwrap();
-                    rsx! {
-                        li {
-                            key: "{index}",
-                            class: "{role}", // either assistant or user
-                            if role.as_str() == "assistant" {
-                                div {
-                                    class: "entete",
-                                    svg { dangerous_inner_html: aws_assistant_icon_svg() }
-                                    h2 { "AI Assistant" }
-                                    h3 { "{timestamp}" }
-                                }
+            split_panel {
+                top: rsx! {
+                    ul {
+                        class: "p-2 flex flex-col list-none",
+                        {(0..messaging_roles().len()).map(|i| {
+                            let role = messaging_roles.get(i).unwrap();
+                            let index = messaging_indices.get(i).unwrap();
+                            let timestamp = convert_timestamp_micros_to_str(*messaging_timestamps.get(i).unwrap());
+                            let content = messaging_contents.get(i).unwrap();
+                            let li_style = if role.as_str() == "assistant" {
+                                "flex flex-col flex-content-start gap-1 my-2"
                             } else {
-                                div {
-                                    class: "entete",
-                                    h3 { "{timestamp}" }
-                                    h2 { "User" }
-                                    svg { dangerous_inner_html: aws_user_icon_svg() }
+                                "flex flex-col flex-content-end items-end gap-1 my-2"
+                            };
+                            rsx! {
+                                li {
+                                    key: "{index}",
+                                    class: li_style,
+                                    if role.as_str() == "assistant" {
+                                        div {
+                                            class: "flex items-center gap-2",
+                                            svg {
+                                                class: "max-w-[48px] max-h-[48px]",
+                                                dangerous_inner_html: aws_assistant_icon_svg()
+                                            }
+                                            h2 {
+                                                class: "font-bold",
+                                                "AI Assistant"
+                                            }
+                                            h3 { "{timestamp}" }
+                                        }
+                                    } else {
+                                        div {
+                                            class: "flex items-center gap-2",
+                                            h3 { "{timestamp}" }
+                                            h2 {
+                                                class: "font-bold",
+                                                "User"
+                                            }
+                                            svg {
+                                                class: "max-w-[48px] max-h-[48px]",
+                                                dangerous_inner_html: aws_user_icon_svg()
+                                            }
+                                        }
+                                    }
+                                    div {
+                                        class: "p-4 leading-6 max-w-[90%] rounded bg-gray-800",
+                                        dangerous_inner_html: "{content}"
+                                        // dangerous_inner_html: "<p>{content}</p>"
+                                    }
                                 }
                             }
-                            div {
-                                class: "message",
-                                dangerous_inner_html: "{content}"
-                                // dangerous_inner_html: "<p>{content}</p>"
-                            }
-                        }
+                        })}
                     }
-                })}
+                },
+                bottom: rsx! {
+                    messaging_interface_footer { messaging_roles, messaging_contents, messaging_indices, messaging_timestamps }
+                }
             }
-            messaging_interface_footer { messaging_roles, messaging_contents, messaging_indices, messaging_timestamps }
         }
     }
 }
@@ -285,32 +307,36 @@ pub fn messaging_interface_footer(
 
     rsx! {
         footer {
+            class: "h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2",
             div {
-                class: "attach_button",
+                class: "row-span-1 col-span-1 row-start-1 col-start-1 p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                 attach_textfiles_input { except_files: use_signal(|| ".txt,.csv,.tsv,.js,.ts,.py,.java,.c,.cpp,.cs,.rb,.go,.rs,.json,.svg,.html".to_string()), content: prompt }
             }
 
-            div {
-                class: "text_input",
-                form {
-                    id: "message_form",
-                    textarea {
-                        placeholder: "Type your message here...",
-                        value: "{prompt.to_string()}",
-                        oninput: move |event| prompt.set(event.value()),
-                    }
+            form {
+                class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
+                textarea {
+                    placeholder: "Type your message here...",
+                    value: "{prompt.to_string()}",
+                    oninput: move |event| prompt.set(event.value()),
+                    class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto focus:outline-none",
                 }
             }
 
             div {
-                class: "submit_button",
+                class: "row-span-1 col-span-1 row-start-1 col-start-3",
                 // This must be outside the form or it will be refreshed on each submit
                 if prompt.read().is_empty() {
                     button {
-                        svg { dangerous_inner_html: b8_microphone_icon_svg() }
+                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        svg {
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: b8_microphone_icon_svg()
+                        }
                     }
                 } else {
                     button {
+                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                         onclick: move |_| async move {
                             // signed in and ready to chat
                             update_message_state(messaging_roles,
@@ -422,7 +448,10 @@ pub fn messaging_interface_footer(
                                 Err(e) => update_message_content_state(messaging_contents, e.to_string().as_str(), true),
                             }
                         },
-                        svg { dangerous_inner_html: b8_send_icon_svg() }
+                        svg {
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: b8_send_icon_svg()
+                        }
                     }
                 }
             }

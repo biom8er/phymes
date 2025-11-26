@@ -176,16 +176,34 @@ pub fn attach_files_input(
     };
 
     let upload_files_extend = move |evt: FormEvent| async move {
-        read_files(evt.files(), TablePublication::Extend { table_name: "".to_string()}).await;
+        read_files(
+            evt.files(),
+            TablePublication::Extend {
+                table_name: "".to_string(),
+            },
+        )
+        .await;
     };
 
     let upload_files_replace = move |evt: FormEvent| async move {
-        read_files(evt.files(), TablePublication::Replace { table_name: "".to_string()}).await;
+        read_files(
+            evt.files(),
+            TablePublication::Replace {
+                table_name: "".to_string(),
+            },
+        )
+        .await;
     };
 
     rsx! {
         if extend_publish() {
-            label { r#for: "textread_extend", svg { dangerous_inner_html: ms_cloud_add_icon_svg() } }
+            label {
+                r#for: "textread_extend",
+                svg {
+                    class: "max-w-[48px] max-h-[48px]",
+                    dangerous_inner_html: ms_cloud_add_icon_svg()
+                }
+            }
             input {
                 r#type: "file",
                 accept: "{except_files}",
@@ -193,9 +211,16 @@ pub fn attach_files_input(
                 id: "textread_extend",
                 directory: enable_directory_upload,
                 onchange: upload_files_extend,
+                class: "hidden",
             },
         } else {
-            label { r#for: "textread_add", svg { dangerous_inner_html: ms_cloud_arrow_up_icon_svg() } }
+            label {
+                r#for: "textread_add",
+                svg {
+                    class: "max-w-[48px] max-h-[48px]",
+                    dangerous_inner_html: ms_cloud_arrow_up_icon_svg()
+                }
+            }
             input {
                 r#type: "file",
                 accept: "{except_files}",
@@ -203,6 +228,7 @@ pub fn attach_files_input(
                 id: "textread_add",
                 directory: enable_directory_upload,
                 onchange: upload_files_replace,
+                class: "hidden",
             }
         },
     }
@@ -214,7 +240,7 @@ pub fn attach_textfiles_input(
     mut content: Signal<String>,
 ) -> Element {
     let enable_directory_upload = use_signal(|| false);
-    
+
     let read_files = move |files: Vec<FileData>| async move {
         for file in files {
             if let Ok(contents) = file.read_string().await {
@@ -228,8 +254,15 @@ pub fn attach_textfiles_input(
     };
 
     rsx! {
-        label { r#for: "textread", svg { dangerous_inner_html: ms_document_text_icon_svg() } }
+        label {
+            r#for: "textread",
+            svg {
+                class: "max-w-[48px] max-h-[48px]",
+                dangerous_inner_html: ms_document_text_icon_svg()
+            }
+        }
         input {
+            class: "hidden",
             r#type: "file",
             accept: "{except_files}",
             multiple: true,
@@ -280,6 +313,7 @@ pub fn upload_files_button(
 ) -> Element {
     rsx! {
         button {
+            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
             onclick: move |_| async move {
                 // Send files to the server
                 for file in files_uploaded.read().iter() {
@@ -333,7 +367,10 @@ pub fn upload_files_button(
                 filenames_uploaded.set(Vec::new());
                 extensions_uploaded.set(Vec::new());
             },
-            svg { dangerous_inner_html: b8_send_icon_svg() }
+            svg {
+                class: "max-w-[48px] max-h-[48px]",
+                dangerous_inner_html: b8_send_icon_svg()
+            }
         },
     }
 }
@@ -346,12 +383,16 @@ pub fn clear_upload_files_button(
 ) -> Element {
     rsx! {
         button {
+            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
             onclick: move |_| {
                 files_uploaded.set(Vec::new());
                 filenames_uploaded.set(Vec::new());
                 extensions_uploaded.set(Vec::new());
             },
-            svg { dangerous_inner_html: fa_trash_icon_svg() }
+            svg {
+                class: "max-w-[48px] max-h-[48px]",
+                dangerous_inner_html: fa_trash_icon_svg()
+            }
         },
     }
 }
@@ -366,7 +407,7 @@ pub fn download_files_button(
 ) -> Element {
     rsx! {
         button {
-            class: "dropdown_form_button",
+            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
             onclick: move |_evt| async move {
                 files_downloaded.set(Vec::new());
                 filenames_downloaded.set(Vec::new());
@@ -435,7 +476,10 @@ pub fn download_files_button(
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
                 }
             },
-            svg { dangerous_inner_html: ms_cloud_arrow_down_icon_svg() },
+            svg {
+                class: "max-w-[48px] max-h-[48px]",
+                dangerous_inner_html: ms_cloud_arrow_down_icon_svg()
+            },
         },
     }
 }
@@ -447,31 +491,30 @@ pub fn download_files_list(
     mut extensions_downloaded: Signal<Vec<String>>,
 ) -> Element {
     rsx! {
-        div {
-            class: "files",
-            p { "Files to download" },
-            ul {
-                class: "file_list",
-                {(0..files_downloaded().len()).map(|i| {
-                    let f_download = filename_and_extension_to_download(filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
-                    let f_href = extension_and_file_to_data_href(extensions_downloaded().get(i).unwrap() ,files_downloaded().get(i).unwrap()).unwrap();
-                    rsx! {
-                        li {
-                            // key: "{i}",
-                            div {
-                                class: "files",
-                                svg { dangerous_inner_html: extension_to_icon_svg(extensions_downloaded().get(i).unwrap()) },
-                                a {
-                                    href: f_href.to_owned(),
-                                    download: f_download.to_owned(),
-                                    "{f_download}"
-                                },
-                            }
+        ul {
+            class: "p-2 overflow-auto flex flex-col list-none bg-gray-800",
+            {(0..files_downloaded().len()).map(|i| {
+                let f_download = filename_and_extension_to_download(filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
+                let f_href = extension_and_file_to_data_href(extensions_downloaded().get(i).unwrap() ,files_downloaded().get(i).unwrap()).unwrap();
+                rsx! {
+                    li {
+                        class: "flex flex-col flex-content-start gap-1 my-2", // we borrow the assistant class for styling
+                        div {
+                            class: "flex items-center gap-2",
+                            svg {
+                                class: "max-w-[48px] max-h-[48px]",
+                                dangerous_inner_html: extension_to_icon_svg(extensions_downloaded().get(i).unwrap())
+                            },
+                            a {
+                                href: f_href.to_owned(),
+                                download: f_download.to_owned(),
+                                "{f_download}"
+                            },
                         }
                     }
-                })}
-            },
-        }
+                }
+            })}
+        },
     }
 }
 
@@ -483,12 +526,16 @@ pub fn clear_download_files_button(
 ) -> Element {
     rsx! {
         button {
+            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
             onclick: move |_| {
                 files_downloaded.set(Vec::new());
                 filenames_downloaded.set(Vec::new());
                 extensions_downloaded.set(Vec::new());
             },
-            svg { dangerous_inner_html: fa_trash_icon_svg() }
+            svg {
+                class: "max-w-[48px] max-h-[48px]",
+                dangerous_inner_html: fa_trash_icon_svg()
+            }
         },
     }
 }
