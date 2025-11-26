@@ -1,48 +1,46 @@
-use std::{collections::HashMap, fmt::Display, ops::{BitAnd, BitOr, BitXor, Not}, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        ArrayRef, ArrowPrimitiveType, Float32Array, Float64Array, Int64Array, PrimitiveBuilder, RecordBatch, StringArray, UInt8Array, UInt32Array
+        ArrayRef, Float32Array, Float64Array, Int64Array, RecordBatch, StringArray, UInt8Array,
+        UInt32Array,
     },
-    compute::{cast, kernels::{bitwise::{bitwise_and, bitwise_and_not, bitwise_not, bitwise_or, bitwise_shift_left, bitwise_shift_right, bitwise_xor}, numeric::rem}},
-    datatypes::{ArrowNativeType, DataType, UInt8Type},
+    compute::cast,
+    datatypes::DataType,
 };
-use candle_core::{Device, Tensor, WithDType};
-use num_traits::{Bounded, Num, NumCast, WrappingShl, WrappingShr};
+use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType,
     from_str_to_data_type,
 };
-use phymes_diagnostics::HashSet;
 use serde_json::json;
 use tracing::instrument;
 
 use crate::{
-    DataColumnOperator, ToolTrait, candle_data::{DataCastOperator, DataConfig}, candle_operators::{DataOperatorTrait, group_by_and_aggregate::build_aggregator_column_list_primitive}
+    ToolTrait,
+    candle_data::{DataCastOperator, DataConfig},
+    candle_operators::DataOperatorTrait,
 };
 
-/// Select and cast the [RecordBatch]es based on the [DataCastOperator] and [DataType] with optional column renaming and template injection
 /// Transform one or more columns of the [RecordBatch]es by chaining sequential unary or binary [DataColumnOperator]s
 #[derive(Debug, Default)]
-pub struct SelectAndCast {
+pub struct TransformColumns {
     lhs_values: Vec<String>,
-    rhs_values: Vec<String>,
     as_columns: Vec<String>,
-    column_operators: Vec<DataColumnOperator>,
     cast_operators: Vec<DataCastOperator>,
     cast_datatypes: Vec<DataType>,
     cast_templates: Vec<String>,
 }
 
-impl MappableTrait for SelectAndCast {
+impl MappableTrait for TransformColumns {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for SelectAndCast {
+impl ToolTrait for TransformColumns {
     fn get_description(&self) -> String {
         "Cast specified columns using a specified cast operator and cast data type with optional column renaming and template injection."
             .to_string()
@@ -98,7 +96,7 @@ impl ToolTrait for SelectAndCast {
     }
 }
 
-impl DataOperatorTrait for SelectAndCast {
+impl DataOperatorTrait for TransformColumns {
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
@@ -107,11 +105,6 @@ impl DataOperatorTrait for SelectAndCast {
     ) -> Result<RecordBatch> {
         let lhs_values = self
             .lhs_values
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-        let rhs_values = self
-            .rhs_values
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
@@ -125,12 +118,10 @@ impl DataOperatorTrait for SelectAndCast {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        select_and_cast(
+        transform_columns(
             &lhs_values,
             lhs_args,
-            &rhs_values,
             &as_columns,
-            &self.column_operators,
             &self.cast_operators,
             &self.cast_datatypes,
             &cast_templates,
@@ -142,16 +133,8 @@ impl DataOperatorTrait for SelectAndCast {
             "Missing `lhs_values` for `{}`.",
             Self::get_static_name()
         ))?;
-        let rhs_values = config.rhs_values.as_ref().cloned().ok_or(anyhow!(
-            "Missing `rhs_values` for `{}`.",
-            Self::get_static_name()
-        ))?;
         let as_columns = config.as_columns.clone().ok_or(anyhow!(
             "Missing `as_columns` for `{}`.",
-            Self::get_static_name()
-        ))?;
-        let column_operators = config.column_operators.clone().ok_or(anyhow!(
-            "Missing `column_operators` for `{}`.",
             Self::get_static_name()
         ))?;
         let cast_operators = config.cast_operators.clone().ok_or(anyhow!(
@@ -180,18 +163,6 @@ impl DataOperatorTrait for SelectAndCast {
                 lhs_values.len(),
                 as_columns.len()
             ));
-        } else if lhs_values.len() != rhs_values.len() {
-            return Err(anyhow!(
-                "lhs_values length {} is not equal to the rhs_values length {}",
-                lhs_values.len(),
-                rhs_values.len()
-            ));
-        } else if lhs_values.len() != column_operators.len() {
-            return Err(anyhow!(
-                "lhs_values length {} is not equal to the column_operators length {}",
-                lhs_values.len(),
-                column_operators.len()
-            ));
         } else if lhs_values.len() != cast_operators.len() {
             return Err(anyhow!(
                 "lhs_values length {} is not equal to the cast_operators length {}",
@@ -212,11 +183,9 @@ impl DataOperatorTrait for SelectAndCast {
             ));
         }
 
-        Ok(SelectAndCast {
+        Ok(TransformColumns {
             lhs_values,
-            rhs_values,
             as_columns,
-            column_operators,
             cast_operators,
             cast_datatypes,
             cast_templates,
@@ -224,101 +193,9 @@ impl DataOperatorTrait for SelectAndCast {
     }
 }
 
-/// Helper function to compute the column operator for tensors
-fn column_operator_tensor<T>(
-    lhs_column: &str,
-    rhs_column: &str,
-    column_operator: &DataColumnOperator,
-    lhs_table: &Table,
-    device: &Device,
-) -> Result<Tensor>
-where
-    T: Num + Bounded + NumCast + Send + Sync + WithDType + 'static,
-{
-    let lhs_vec = lhs_table.get_column_as_vec_primitive::<T>(lhs_column)?;
-    let lhs_tensor = Tensor::from_iter(lhs_vec, device)?;
-    let rhs_vec = lhs_table.get_column_as_vec_primitive::<T>(rhs_column)?;
-    let rhs_tensor = Tensor::from_iter(rhs_vec, device)?;
-    let tensor = match column_operator {
-        DataColumnOperator::Add => (lhs_tensor + rhs_tensor)?,
-        DataColumnOperator::Sub => (lhs_tensor - rhs_tensor)?,
-        DataColumnOperator::Mult => (lhs_tensor * rhs_tensor)?,
-        DataColumnOperator::Div => (lhs_tensor / rhs_tensor)?,
-        DataColumnOperator::Min => lhs_tensor.minimum(&rhs_tensor)?,
-        DataColumnOperator::Max => lhs_tensor.maximum(&rhs_tensor)?,
-        _ => {
-            return Err(anyhow!(
-                "Unsupported lhs data type {}, rhs data type {}, and column operator {column_operator} for lhs column {lhs_column} and rhs column {rhs_column}",
-                lhs_table.get_column_data_type(lhs_column)?,
-                lhs_table.get_column_data_type(rhs_column)?,
-            ));
-        }
-    };
-    Ok(tensor)
-}
-
-/// Helper function to compute the column operator for tensors
-fn column_operator_arrow<T, D>(
-    lhs_column: &str,
-    rhs_column: &str,
-    column_operator: &DataColumnOperator,
-    lhs_table: &Table,
-) -> Result<ArrayRef>
-where
-    T: ArrowNativeType + Num + Bounded + NumCast + Send + Sync + WithDType + 'static,
-    D: ArrowPrimitiveType<Native = T> + 'static,
-    <D as ArrowPrimitiveType>::Native: Not<Output = <D as ArrowPrimitiveType>::Native>,
-    <D as ArrowPrimitiveType>::Native: BitAnd<Output = <D as ArrowPrimitiveType>::Native>,
-    <D as ArrowPrimitiveType>::Native: BitXor<Output = <D as ArrowPrimitiveType>::Native>,
-    <D as ArrowPrimitiveType>::Native: BitOr<Output = <D as ArrowPrimitiveType>::Native>,
-    <D as ArrowPrimitiveType>::Native: WrappingShl<Output = <D as ArrowPrimitiveType>::Native>,
-    <D as ArrowPrimitiveType>::Native: WrappingShr<Output = <D as ArrowPrimitiveType>::Native>,
-{
-    let lhs_vec = lhs_table.get_column_as_vec_primitive::<T>(lhs_column)?;
-    let mut builder = PrimitiveBuilder::<D>::new();
-    builder.append_slice(&lhs_vec);
-    let lhs_arr = builder.finish();
-    let rhs_vec = lhs_table.get_column_as_vec_primitive::<T>(rhs_column)?;
-    let mut builder = PrimitiveBuilder::<D>::new();
-    builder.append_slice(&rhs_vec);
-    let rhs_arr = builder.finish();
-    let arr = match column_operator {
-        DataColumnOperator::And => bitwise_and::<D>(&lhs_arr, &rhs_arr)?,
-        DataColumnOperator::AndNot => bitwise_and_not::<D>(&lhs_arr, &rhs_arr)?,
-        DataColumnOperator::Or => bitwise_or::<D>(&lhs_arr, &rhs_arr)?,
-        DataColumnOperator::XOr => bitwise_xor::<D>(&lhs_arr, &rhs_arr)?,
-        DataColumnOperator::Not => bitwise_not::<D>(&lhs_arr)?,
-        DataColumnOperator::LeftShift => bitwise_shift_left::<D>(&lhs_arr, &rhs_arr)?,
-        DataColumnOperator::RightShift => bitwise_shift_right::<D>(&lhs_arr, &rhs_arr)?,
-        _ => {
-            return Err(anyhow!(
-                "Unsupported lhs data type {}, rhs data type {}, and column operator {column_operator} for lhs column {lhs_column} and rhs column {rhs_column}",
-                lhs_table.get_column_data_type(lhs_column)?,
-                lhs_table.get_column_data_type(rhs_column)?,
-            ));
-        }
-    };
-    Ok(Arc::new(arr))
-}
-
-/// Cast and transform specified columns using a specified cast operator and cast data type with optional column renaming and template injection
-/// 
-/// # Notes
-/// * Order of operations is as follows:
-///   1. Cast
-///   2. Template
-///   3. Transform
-///   4. Rename
+/// Cast specified columns using a specified cast operator and cast data type with optional column renaming and template injection
 ///
-/// # Usage
-/// 
-/// * An SQL equivalent would be the following at the row level, e.g., SELECT CAST('100' AS INTEGER);
-/// * An SQL equivalent would be the following at the table level, e.g., SELECT COUNT(COL1) AS count...
-///   `lhs_values` = ["COL1", ...]
-///   `as_columns` = ["count", ...]
-///   `cast_operators` = [DataCastOperator::Cast, ...]
-///   `cast_datatypes` = [DataType::UInt32, ...]
-///   `cast_templates` = ["", ...] ignored since this is not a cast to DataType::Utf8
+/// # Notes
 /// * An SQL equivalent to add two columns together and assign the values to a new column would be SELECT COL1 + COL2 as COL3 ...
 ///   `lhs_values` = ["COL1", ...]
 ///   `rhs_values` = ["COL2", ...]
@@ -330,26 +207,24 @@ where
 ///   `as_columns` = ["COL1", ...]
 ///   `column_operators` = [DataColumnOperator::Add, ...]
 /// * An SQL equivalent to create a copy of a column would be SELECT COL3=COL1 ...
-///   `lhs_values` = ["COL1", "COL1", ...]
-///   `rhs_values` = ["", "", ...]
-///   `as_columns` = ["COL1", "COL3", ...]
-///   `column_operators` = [DataColumnOperator::None, DataColumnOperator::None, ...]
+///   `lhs_values` = ["COL1", ...]
+///   `rhs_values` = ["", ...]
+///   `as_columns` = ["COL3", ...]
+///   `column_operators` = [DataColumnOperator::Assign, ...]
 /// * An SQL equivalent to chain multiple column operations sequentially would be SELECT COL4=(COL1 + COL2 - COL3) ...
 ///   `lhs_values` = ["COL1", "COL4", ...]
 ///   `rhs_values` = ["COL2", "COL3", ...]
 ///   `as_columns` = ["COL4", "COL4", ...]
 ///   `column_operators` = [DataColumnOperator::Add, DataColumnOperator::Sub, ...]
+/// * Use [select_and_cast] to cast any values to the desired type before calling [transform_columns]
 ///
 /// # Arguments
 ///
 /// * `lhs_values` - Slice of Strings for the left-hand side columns to apply the unary or binary transformation to
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `rhs_values` - Optional Slice of Strings for the right-hand side columns to apply the binary transformation to
-/// * `as_columns` - Slice of [String]s for the columns to rename to
-/// * `column_operators` - Slice of [DataColumnOperator]s specifying the transformation between two columns
+/// * `as_columns` - Slice of [String]s for the columns to assign the transformed column to (which can also be self)
 /// * `cast_operators` - Slice of [DataCastOperator]s specifying the cast operator to apply to each lhs_values
-/// * `cast_datatypes` - Slice of [DataType]s specifying the data type to cast each lhs_values to
-/// * `cast_templates` - Slice of [String]s specifying the template to use when casting each lhs_value to a [String] representation
 ///   where the template is a simple minijinja template with a single expression for the column
 ///   e.g., "Hello {{ COL1 }}"
 /// * `device` - The compute device
@@ -358,26 +233,21 @@ where
     lhs_args,
     rhs_values,
     as_columns,
-    column_operators,
-    cast_operators,
-    cast_datatypes,
-    cast_templates,
-    device
+    _device
 ))]
-pub fn select_and_cast(
+pub fn transform_columns(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
     rhs_values: &[&str],
     as_columns: &[&str],
-    column_operators: &[DataColumnOperator],
     cast_operators: &[DataCastOperator],
     cast_datatypes: &[DataType],
     cast_templates: &[&str],
-    device: &Device,
+    _device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
-        .with_name("select_and_cast")
+        .with_name("transform_columns")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
 
@@ -578,124 +448,6 @@ pub fn select_and_cast(
             column_cast
         };
 
-        // Transform the column
-        let column_cast: ArrayRef = match column_operators.get(index).unwrap() {
-            DataColumnOperator::Add 
-            | DataColumnOperator::Sub
-            | DataColumnOperator::Mult
-            | DataColumnOperator::Div
-            | DataColumnOperator::Max
-            | DataColumnOperator::Min => match lhs_table.get_column_data_type(column_name)? {
-                DataType::UInt8 => {
-                    let tensor = column_operator_tensor::<u8>(
-                        column_name,
-                        rhs_values.get(index).unwrap(), 
-                        column_operators.get(index).unwrap(), 
-                        &lhs_table, 
-                        &device)?;
-                    Arc::new(UInt8Array::from_iter_values(tensor.to_vec1::<u8>()?))
-                }
-                // TODO the rest of the types
-                _ => {
-                    return Err(anyhow!(
-                        "Unsupported data type {} for column operator {} and column {column_name}",
-                        lhs_table.get_column_data_type(column_name)?,
-                        column_operators.get(index).unwrap()
-                    ));
-                }
-            },
-            DataColumnOperator::Rem => {
-                let lhs_arr = lhs_table.get_column_as_array(column_name);
-                let rhs_arr = lhs_table.get_column_as_array(rhs_values.get(index).unwrap());
-                rem(&lhs_arr, &rhs_arr)?
-            },
-            DataColumnOperator::List => match lhs_table.get_column_data_type(column_name)? {
-                DataType::UInt8 => {
-                    let lhs_vec = lhs_table.get_column_as_vec_primitive::<u8>(column_name)?;
-                    let rhs_vec = lhs_table.get_column_as_vec_primitive::<u8>(rhs_values.get(index).unwrap())?;
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(l,r)| vec![l, r])
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<u8, UInt8Type>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
-                }
-                // TODO the rest of the types
-                _ => {
-                    return Err(anyhow!(
-                        "Unsupported data type {} for column operator {} and column {column_name}",
-                        lhs_table.get_column_data_type(column_name)?,
-                        column_operators.get(index).unwrap()
-                    ));
-                }
-            },
-            DataColumnOperator::Set => match lhs_table.get_column_data_type(column_name)? {
-                DataType::UInt8 => {
-                    let lhs_vec = lhs_table.get_column_as_vec_primitive::<u8>(column_name)?;
-                    let rhs_vec = lhs_table.get_column_as_vec_primitive::<u8>(rhs_values.get(index).unwrap())?;
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(l,r)| [l, r].into_iter().collect::<HashSet<_>>().into_iter().collect::<Vec<_>>())
-                        .collect::<Vec<_>>();
-                    build_aggregator_column_list_primitive::<u8, UInt8Type>(
-                        agg_values,
-                        lhs_table.get_column_data_type(column_name)?,
-                    )
-                }
-                // TODO the rest of the types
-                _ => {
-                    return Err(anyhow!(
-                        "Unsupported data type {} for column operator {} and column {column_name}",
-                        lhs_table.get_column_data_type(column_name)?,
-                        column_operators.get(index).unwrap()
-                    ));
-                }
-            },
-            DataColumnOperator::Concat => match lhs_table.get_column_data_type(column_name)? {
-                DataType::Utf8 => {
-                    let lhs_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(column_name)?;
-                    let rhs_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(rhs_values.get(index).unwrap())?;
-                    let agg_values = lhs_vec.into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(l,r)| [l, r].join(""))
-                        .collect::<Vec<_>>();
-                    Arc::new(StringArray::from(agg_values))
-                }
-                _ => {
-                    return Err(anyhow!(
-                        "Unsupported data type {} for column operator {} and column {column_name}",
-                        lhs_table.get_column_data_type(column_name)?,
-                        column_operators.get(index).unwrap()
-                    ));
-                }
-            },
-            DataColumnOperator::And
-            | DataColumnOperator::AndNot
-            | DataColumnOperator::Or
-            | DataColumnOperator::XOr
-            | DataColumnOperator::Not
-            | DataColumnOperator::LeftShift
-            | DataColumnOperator::RightShift => match lhs_table.get_column_data_type(column_name)? {
-                DataType::UInt8 => column_operator_arrow::<u8, UInt8Type>(
-                    column_name,
-                    rhs_values.get(index).unwrap(), 
-                    column_operators.get(index).unwrap(), 
-                    &lhs_table)?,
-                // TODO the rest of the types
-                _ => return Err(anyhow!(
-                    "Unsupported data type {} for column operator {} and column {column_name}",
-                    lhs_table.get_column_data_type(column_name)?,
-                    column_operators.get(index).unwrap()
-                )),
-            },
-            DataColumnOperator::Len => {
-                todo!()
-            },
-            DataColumnOperator::None => column_cast,
-        };
-
         // Rename the columns
         if let Some(name) = as_columns.get(index) {
             if name.is_empty() {
@@ -719,7 +471,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_select_and_cast() -> Result<()> {
+    fn test_transform_columns() -> Result<()> {
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
@@ -749,16 +501,10 @@ mod tests {
 
         // ------ String, UInt32, All ------
         // Group the text
-        let result = select_and_cast(
+        let result = transform_columns(
             &["lhs_pk", "lhs_text", "lhs_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
-            &["", "", ""],
             &["new_pk", "", "new_metadata"],
-            &[
-                DataColumnOperator::None,
-                DataColumnOperator::None,
-                DataColumnOperator::None,
-            ],
             &[
                 DataCastOperator::Cast,
                 DataCastOperator::None,

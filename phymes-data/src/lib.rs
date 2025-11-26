@@ -4,7 +4,7 @@ mod jinja2_templates;
 
 pub use candle_data::{
     AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
-    DataAggregatorOperator, DataCastOperator, DataComparatorOperator, DataComparatorPredicate,
+    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate,
     DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig,
     DataSummaryProcessor, collect_messages_by_schema,
 };

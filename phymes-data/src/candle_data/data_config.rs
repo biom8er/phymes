@@ -239,6 +239,87 @@ impl Display for DataCastOperator {
     }
 }
 
+/// Data Column operators
+///
+/// # Notes
+/// - `Max`, `Min`, `Add`, `Sub`, `Mult`, `Div`, and `Var` can only be applied to non-nested primitive [DataType]s
+/// - `And`, `Or`, `XOr`, `Not`, `LeftShift`, and `RightShift` can only be applied to non-nested primitive [DataType]s
+/// - `Len` can be applied to all [DataType]s and generates a UInt32Array
+/// - `Concat` can only be applied to Utf8 [DataType] to generate a new Utf8 [DataType] by joining the [String]s together
+/// - `List` and `Set` can be applied to all primitive [DataType]s except floats.
+///   Non-nested primitive and non-primitive [DataType]s will generate a nested primitive or non-primitive Array.
+///   Nested primitive or non-primitive [DataType]s will maintain the nested primitive or non-primitive Array through extension of the list or set.
+/// - `First` and `Last` can be applied to all [DataType]s.
+///
+/// [DataType]: arrow::datatypes::DataType
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+pub enum DataColumnOperator {
+    #[value(name = "And")]
+    And,
+    #[value(name = "AndNot")]
+    AndNot,
+    #[value(name = "Or")]
+    Or,
+    #[value(name = "XOr")]
+    XOr,
+    #[value(name = "Not")]
+    Not,
+    #[value(name = "LeftShift")]
+    LeftShift,
+    #[value(name = "RightShift")]
+    RightShift,
+    #[value(name = "Max")]
+    Max,
+    #[value(name = "Min")]
+    Min,
+    #[value(name = "Add")]
+    Add,
+    #[value(name = "Sub")]
+    Sub,
+    #[value(name = "Mult")]
+    Mult,
+    #[value(name = "Div")]
+    Div,
+    #[value(name = "Rem")]
+    Rem,
+    #[value(name = "List")]
+    List,
+    #[value(name = "Set")]
+    Set,
+    #[value(name = "Concat")]
+    Concat,
+    #[value(name = "Len")]
+    Len,
+    #[value(name = "None")]
+    None,
+}
+
+impl Display for DataColumnOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::And => write!(f, "And"),
+            Self::AndNot => write!(f, "AndNot"),
+            Self::Or => write!(f, "Or"),
+            Self::XOr => write!(f, "XOr"),
+            Self::Not => write!(f, "Not"),
+            Self::LeftShift => write!(f, "LeftShift"),
+            Self::RightShift => write!(f, "RightShift"),
+            Self::Max => write!(f, "Max"),
+            Self::Min => write!(f, "Min"),
+            Self::Add => write!(f, "Add"),
+            Self::Sub => write!(f, "Sub"),
+            Self::Mult => write!(f, "Mult"),
+            Self::Div => write!(f, "Div"),
+            Self::Rem => write!(f, "Rem"),
+            Self::List => write!(f, "List"),
+            Self::Set => write!(f, "Set"),
+            Self::Concat => write!(f, "Concat"),
+            Self::Len => write!(f, "Len"),
+            Self::None => write!(f, "None"),
+        }
+    }
+}
+
 /// Traits for all configs
 pub trait DataConfigTrait {
     /// Create an example and serialize to JSON
@@ -392,6 +473,11 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub as_columns: Option<Vec<String>>,
 
+    /// Vec of of [DataColumnOperator]s specifying the column transformation operator to apply to each lhs_values and optionally rhs_values
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column_operators: Option<Vec<DataColumnOperator>>,
+
     /// Vec of of [DataCastOperator]s specifying the cast operator to apply to each lhs_values
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -460,6 +546,7 @@ impl Default for DataConfig {
             agg_columns: None,
             agg_operators: None,
             as_columns: None,
+            column_operators: None,
             cast_operators: None,
             cast_datatypes: None,
             cast_templates: None,
