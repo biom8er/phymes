@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Display, ops::{BitAnd, BitOr, BitXor, Not},
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        ArrayRef, ArrowPrimitiveType, Float32Array, Float64Array, Int64Array, PrimitiveBuilder, RecordBatch, StringArray, UInt8Array, UInt32Array
+        ArrayRef, ArrowPrimitiveType, FixedSizeListArray, Float32Array, Float64Array, Int64Array, PrimitiveBuilder, RecordBatch, StringArray, UInt8Array, UInt32Array
     },
     compute::{cast, kernels::{bitwise::{bitwise_and, bitwise_and_not, bitwise_not, bitwise_or, bitwise_shift_left, bitwise_shift_right, bitwise_xor}, numeric::rem}},
     datatypes::{ArrowNativeType, DataType, UInt8Type},
@@ -227,32 +227,35 @@ impl DataOperatorTrait for SelectAndCast {
 /// Helper function to compute the column operator for tensors
 fn column_operator_tensor<T>(
     lhs_column: &str,
-    rhs_column: &str,
+    rhs_column: Option<&str>,
     column_operator: &DataColumnOperator,
-    lhs_table: &Table,
+    lhs_arr: &ArrayRef,
+    rhs_arr: Option<&ArrayRef>,
     device: &Device,
 ) -> Result<Tensor>
 where
     T: Num + Bounded + NumCast + Send + Sync + WithDType + 'static,
 {
-    let lhs_vec = lhs_table.get_column_as_vec_primitive::<T>(lhs_column)?;
+    let lhs_vec = Table::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
     let lhs_tensor = Tensor::from_iter(lhs_vec, device)?;
-    let rhs_vec = lhs_table.get_column_as_vec_primitive::<T>(rhs_column)?;
-    let rhs_tensor = Tensor::from_iter(rhs_vec, device)?;
-    let tensor = match column_operator {
-        DataColumnOperator::Add => (lhs_tensor + rhs_tensor)?,
-        DataColumnOperator::Sub => (lhs_tensor - rhs_tensor)?,
-        DataColumnOperator::Mult => (lhs_tensor * rhs_tensor)?,
-        DataColumnOperator::Div => (lhs_tensor / rhs_tensor)?,
-        DataColumnOperator::Min => lhs_tensor.minimum(&rhs_tensor)?,
-        DataColumnOperator::Max => lhs_tensor.maximum(&rhs_tensor)?,
-        _ => {
-            return Err(anyhow!(
-                "Unsupported lhs data type {}, rhs data type {}, and column operator {column_operator} for lhs column {lhs_column} and rhs column {rhs_column}",
-                lhs_table.get_column_data_type(lhs_column)?,
-                lhs_table.get_column_data_type(rhs_column)?,
-            ));
+    let rhs_tensor = if let (Some(rhs_arr), Some(rhs_column)) = (rhs_arr, rhs_column) {
+        let rhs_vec = Table::get_array_as_vec_primitive::<T>(rhs_arr, rhs_column)?;
+        let rhs_tensor = Tensor::from_iter(rhs_vec, device)?;
+        Some(rhs_tensor)
+    } else {
+        match column_operator {
+            DataColumnOperator::Not => None,
+            _ => return Err(anyhow!("rhs column cannot be None for column operator {column_operator} with lhs column {lhs_column}.")),
         }
+    };
+    let tensor = match column_operator {
+        DataColumnOperator::Add => (lhs_tensor + rhs_tensor.unwrap())?,
+        DataColumnOperator::Sub => (lhs_tensor - rhs_tensor.unwrap())?,
+        DataColumnOperator::Mult => (lhs_tensor * rhs_tensor.unwrap())?,
+        DataColumnOperator::Div => (lhs_tensor / rhs_tensor.unwrap())?,
+        DataColumnOperator::Min => lhs_tensor.minimum(&rhs_tensor.unwrap())?,
+        DataColumnOperator::Max => lhs_tensor.maximum(&rhs_tensor.unwrap())?,
+        _ => return Err(anyhow!("Unsupported column operator {column_operator} for lhs column {lhs_column} and rhs column {}", rhs_column.unwrap_or("None"))),
     };
     Ok(tensor)
 }
@@ -260,9 +263,10 @@ where
 /// Helper function to compute the column operator for tensors
 fn column_operator_arrow<T, D>(
     lhs_column: &str,
-    rhs_column: &str,
+    rhs_column: Option<&str>,
     column_operator: &DataColumnOperator,
-    lhs_table: &Table,
+    lhs_arr: &ArrayRef,
+    rhs_arr: Option<&ArrayRef>,
 ) -> Result<ArrayRef>
 where
     T: ArrowNativeType + Num + Bounded + NumCast + Send + Sync + WithDType + 'static,
@@ -274,31 +278,52 @@ where
     <D as ArrowPrimitiveType>::Native: WrappingShl<Output = <D as ArrowPrimitiveType>::Native>,
     <D as ArrowPrimitiveType>::Native: WrappingShr<Output = <D as ArrowPrimitiveType>::Native>,
 {
-    let lhs_vec = lhs_table.get_column_as_vec_primitive::<T>(lhs_column)?;
+    let lhs_vec = Table::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
     let mut builder = PrimitiveBuilder::<D>::new();
     builder.append_slice(&lhs_vec);
     let lhs_arr = builder.finish();
-    let rhs_vec = lhs_table.get_column_as_vec_primitive::<T>(rhs_column)?;
-    let mut builder = PrimitiveBuilder::<D>::new();
-    builder.append_slice(&rhs_vec);
-    let rhs_arr = builder.finish();
-    let arr = match column_operator {
-        DataColumnOperator::And => bitwise_and::<D>(&lhs_arr, &rhs_arr)?,
-        DataColumnOperator::AndNot => bitwise_and_not::<D>(&lhs_arr, &rhs_arr)?,
-        DataColumnOperator::Or => bitwise_or::<D>(&lhs_arr, &rhs_arr)?,
-        DataColumnOperator::XOr => bitwise_xor::<D>(&lhs_arr, &rhs_arr)?,
-        DataColumnOperator::Not => bitwise_not::<D>(&lhs_arr)?,
-        DataColumnOperator::LeftShift => bitwise_shift_left::<D>(&lhs_arr, &rhs_arr)?,
-        DataColumnOperator::RightShift => bitwise_shift_right::<D>(&lhs_arr, &rhs_arr)?,
-        _ => {
-            return Err(anyhow!(
-                "Unsupported lhs data type {}, rhs data type {}, and column operator {column_operator} for lhs column {lhs_column} and rhs column {rhs_column}",
-                lhs_table.get_column_data_type(lhs_column)?,
-                lhs_table.get_column_data_type(rhs_column)?,
-            ));
+    let rhs_arr = if let (Some(rhs_arr), Some(rhs_column)) = (rhs_arr, rhs_column) {
+        let rhs_vec = Table::get_array_as_vec_primitive::<T>(rhs_arr, rhs_column)?;
+        let mut builder = PrimitiveBuilder::<D>::new();
+        builder.append_slice(&rhs_vec);
+        Some(builder.finish())
+    } else {
+        match column_operator {
+            DataColumnOperator::Not => None,
+            _ => return Err(anyhow!("rhs column cannot be None for column operator {column_operator} with lhs column {lhs_column}.")),
         }
     };
+    let arr = match column_operator {
+        DataColumnOperator::And => bitwise_and::<D>(&lhs_arr, &rhs_arr.unwrap())?,
+        DataColumnOperator::AndNot => bitwise_and_not::<D>(&lhs_arr, &rhs_arr.unwrap())?,
+        DataColumnOperator::Or => bitwise_or::<D>(&lhs_arr, &rhs_arr.unwrap())?,
+        DataColumnOperator::XOr => bitwise_xor::<D>(&lhs_arr, &rhs_arr.unwrap())?,
+        DataColumnOperator::Not => bitwise_not::<D>(&lhs_arr)?,
+        DataColumnOperator::LeftShift => bitwise_shift_left::<D>(&lhs_arr, &rhs_arr.unwrap())?,
+        DataColumnOperator::RightShift => bitwise_shift_right::<D>(&lhs_arr, &rhs_arr.unwrap())?,
+        _ => return Err(anyhow!("Unsupported column operator {column_operator} for lhs column {lhs_column} and rhs column {}", rhs_column.unwrap_or("None"))),
+    };
     Ok(Arc::new(arr))
+}
+
+/// Helper function to choose the source of the column
+fn find_column(lhs_table: &Table, lhs_batches: &[(&&str, ArrayRef)], column_name: &str) -> Result<ArrayRef> {
+    if let Ok(field) = lhs_table.get_schema().field_with_name(column_name) {
+        Ok(lhs_table.get_column_as_array(column_name))
+    } else {
+        let mut lhs_filtered = lhs_batches.iter()
+            .filter_map(|(name, arr)| if &&column_name == name {
+                Some(arr)
+            } else {
+                None
+            })
+            .collect::<Vec<_>>();
+        if let Some(arr) = lhs_filtered.pop() {
+            Ok(arr.clone())
+        } else {
+            return Err(anyhow!("Unable to find column {column_name} in the provided lhs_args nor in the new lhs batches for `SelectAndCast` Operator."))
+        }
+    }
 }
 
 /// Cast and transform specified columns using a specified cast operator and cast data type with optional column renaming and template injection
@@ -388,7 +413,7 @@ pub fn select_and_cast(
         let (column_cast, column_data_type) = match cast_operators.get(index).unwrap() {
             DataCastOperator::Cast => {
                 let to_type = cast_datatypes.get(index).unwrap();
-                let arr = cast(&lhs_table.get_column_as_array(column_name), to_type)?;
+                let arr = cast(&find_column(&lhs_table, &batch_vec, column_name)?, to_type)?;
                 (arr, to_type.to_owned())
             }
             DataCastOperator::BytesToString => {
@@ -401,16 +426,38 @@ pub fn select_and_cast(
                 let arr: ArrayRef = match lhs_table.get_column_data_type(column_name)? {
                     DataType::FixedSizeList(f, _) | DataType::List(f) => match f.data_type() {
                         DataType::UInt8 => {
-                            let cast_vec = lhs_table
-                                .get_column_as_vec_nested_primitive::<u8>(column_name)?
+                            let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                            .unwrap_or_default()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            let cast_vec = lhs_vec
                                 .into_iter()
                                 .map(|v| String::from_utf8_lossy(&v).into_owned())
                                 .collect::<Vec<_>>();
                             Arc::new(StringArray::from(cast_vec))
                         }
                         DataType::UInt32 => {
-                            let cast_vec = lhs_table
-                                .get_column_as_vec_nested_primitive::<u32>(column_name)?
+                            let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                            .unwrap_or_default()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            let cast_vec = lhs_vec
                                 .into_iter()
                                 .map(|v| {
                                     let bytes = v.into_iter().map(|i| i as u8).collect::<Vec<_>>();
@@ -420,8 +467,19 @@ pub fn select_and_cast(
                             Arc::new(StringArray::from(cast_vec))
                         }
                         DataType::Int64 => {
-                            let cast_vec = lhs_table
-                                .get_column_as_vec_nested_primitive::<i64>(column_name)?
+                            let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                            .unwrap_or_default()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            let cast_vec = lhs_vec
                                 .into_iter()
                                 .map(|v| {
                                     let bytes = v.into_iter().map(|i| i as u8).collect::<Vec<_>>();
@@ -587,11 +645,22 @@ pub fn select_and_cast(
             | DataColumnOperator::Max
             | DataColumnOperator::Min => match lhs_table.get_column_data_type(column_name)? {
                 DataType::UInt8 => {
+                    let (rhs_column, rhs_arr) = if let Some(rhs_column) = rhs_values.get(index) {
+                        if rhs_column.is_empty() {
+                            (None, None)
+                        } else {
+                            let rhs_arr = find_column(&lhs_table, &batch_vec, rhs_column)?;
+                            (Some(rhs_column.to_string()), Some(rhs_arr))
+                        }
+                    } else {
+                        (None, None)
+                    };
                     let tensor = column_operator_tensor::<u8>(
                         column_name,
-                        rhs_values.get(index).unwrap(), 
-                        column_operators.get(index).unwrap(), 
-                        &lhs_table, 
+                        rhs_column.as_ref().map(|x| x.as_str()),
+                        column_operators.get(index).unwrap(),
+                        &find_column(&lhs_table, &batch_vec, column_name)?, 
+                        rhs_arr.as_ref(), 
                         &device)?;
                     Arc::new(UInt8Array::from_iter_values(tensor.to_vec1::<u8>()?))
                 }
@@ -605,14 +674,14 @@ pub fn select_and_cast(
                 }
             },
             DataColumnOperator::Rem => {
-                let lhs_arr = lhs_table.get_column_as_array(column_name);
-                let rhs_arr = lhs_table.get_column_as_array(rhs_values.get(index).unwrap());
+                let lhs_arr = find_column(&lhs_table, &batch_vec, column_name)?;
+                let rhs_arr = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?;
                 rem(&lhs_arr, &rhs_arr)?
             },
             DataColumnOperator::List => match lhs_table.get_column_data_type(column_name)? {
                 DataType::UInt8 => {
-                    let lhs_vec = lhs_table.get_column_as_vec_primitive::<u8>(column_name)?;
-                    let rhs_vec = lhs_table.get_column_as_vec_primitive::<u8>(rhs_values.get(index).unwrap())?;
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| vec![l, r])
@@ -633,8 +702,8 @@ pub fn select_and_cast(
             },
             DataColumnOperator::Set => match lhs_table.get_column_data_type(column_name)? {
                 DataType::UInt8 => {
-                    let lhs_vec = lhs_table.get_column_as_vec_primitive::<u8>(column_name)?;
-                    let rhs_vec = lhs_table.get_column_as_vec_primitive::<u8>(rhs_values.get(index).unwrap())?;
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| [l, r].into_iter().collect::<HashSet<_>>().into_iter().collect::<Vec<_>>())
@@ -655,8 +724,8 @@ pub fn select_and_cast(
             },
             DataColumnOperator::Concat => match lhs_table.get_column_data_type(column_name)? {
                 DataType::Utf8 => {
-                    let lhs_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(column_name)?;
-                    let rhs_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(rhs_values.get(index).unwrap())?;
+                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| [l, r].join(""))
@@ -678,11 +747,24 @@ pub fn select_and_cast(
             | DataColumnOperator::Not
             | DataColumnOperator::LeftShift
             | DataColumnOperator::RightShift => match lhs_table.get_column_data_type(column_name)? {
-                DataType::UInt8 => column_operator_arrow::<u8, UInt8Type>(
-                    column_name,
-                    rhs_values.get(index).unwrap(), 
-                    column_operators.get(index).unwrap(), 
-                    &lhs_table)?,
+                DataType::UInt8 => {
+                    let (rhs_column, rhs_arr) = if let Some(rhs_column) = rhs_values.get(index) {
+                        if rhs_column.is_empty() {
+                            (None, None)
+                        } else {
+                            let rhs_arr = find_column(&lhs_table, &batch_vec, rhs_column)?;
+                            (Some(rhs_column.to_string()), Some(rhs_arr))
+                        }
+                    } else {
+                        (None, None)
+                    };
+                    column_operator_arrow::<u8, UInt8Type>(
+                        column_name,
+                        rhs_column.as_ref().map(|x| x.as_str()),
+                        column_operators.get(index).unwrap(),
+                        &find_column(&lhs_table, &batch_vec, column_name)?, 
+                        rhs_arr.as_ref())?
+                },
                 // TODO the rest of the types
                 _ => return Err(anyhow!(
                     "Unsupported data type {} for column operator {} and column {column_name}",
