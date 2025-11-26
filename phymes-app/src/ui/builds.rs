@@ -553,11 +553,13 @@ pub fn diagram_code_editor(
     // Listener to synchronize scrolling between the gutter and code
     use_effect(move || {
         let _ = code.read();
-        document::eval(r#"const gutter = document.getElementById('gutter');
+        document::eval(
+            r#"const gutter = document.getElementById('gutter');
 const code = document.getElementById('code');
 code.addEventListener('scroll', () => {
     gutter.scrollTop = code.scrollTop;
-});"#);
+});"#,
+        );
     });
 
     rsx! {
