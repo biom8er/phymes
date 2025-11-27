@@ -62,7 +62,7 @@ pub fn sign_in_form() -> Element {
     //  7. Send follow-up email notifying the user that their password was reset
     rsx! {
         form {
-            class: "p-4 rounded bg-gray-800 w-full sm:max-w-1/2 md:max-w-1/4",
+            class: "p-4 rounded bg-neutral-800 w-full sm:max-w-1/2 md:max-w-1/4",
             div {
                 class: "flex flex-col gap-2",
                 label { "Email" }
@@ -70,14 +70,14 @@ pub fn sign_in_form() -> Element {
                     r#type: "email",
                     placeholder: "email",
                     oninput: move |event| email.set(event.value()),
-                    class: "w-full p-2 rounded bg-gray-700",
+                    class: "w-full p-2 rounded bg-neutral-700",
                 }
                 label { "Password" }
                 input {
                     r#type: "password",
                     placeholder: "password",
                     oninput: move |event| password.set(event.value()),
-                    class: "w-full p-2 rounded bg-gray-700 text-white",
+                    class: "w-full p-2 rounded bg-neutral-700 text-white",
                 }
                 // label { "Remember me" }
                 // input {
@@ -87,7 +87,7 @@ pub fn sign_in_form() -> Element {
             }
         }
         button {
-            class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+            class: "block mx-auto mt-2 px-4 py-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
             onclick: move |_| async move {
                 let route = "/app/v1/sign_in";
 
@@ -172,7 +172,7 @@ pub fn sign_in_form() -> Element {
             "sign-in"
         }
         button {
-            class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+            class: "block mx-auto mt-2 px-4 py-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
             onclick: move |_| async move {
                 // TODO
             },
@@ -196,7 +196,7 @@ pub fn sign_out_form() -> Element {
             "Signed in as {EMAIL.read().to_string()}."
         },
         button {
-            class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+            class: "block mx-auto mt-2 px-4 py-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
             onclick: move |_| async move {
                 clear_jwt_state.send(ClearJWTState {});
                 clear_session_names_state.send(ClearSessionNamesState {});
@@ -237,7 +237,7 @@ pub fn application_mode() -> Element {
             "Application modes"
         }
         button {
-            class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+            class: "block mx-auto mt-2 px-4 py-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
             onclick: move |_evt| async move {
                 sync_builder_state.send(SyncBuilderState { show: !BUILDER()});
                 if BUILDER() {
@@ -250,7 +250,7 @@ pub fn application_mode() -> Element {
         // If we are enabling builder mode, disable debugger mode
         if !BUILDER() {
             button {
-                class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                class: "block mx-auto mt-2 px-4 py-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                 onclick: move |_evt| async move {
                     sync_debugger_state.send(SyncDebuggerState { show: !DEBUGGER()});
                 },

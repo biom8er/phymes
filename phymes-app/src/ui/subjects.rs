@@ -338,12 +338,11 @@ pub fn subjects_dropdown_menu(
 
     rsx! {
         div {
-            // input + buttons of 64 px by 64 px
-            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_192px] md:max-w-3/4",
+            class: "p-2 rounded bg-neutral-800 grid grid-rows-[auto_1fr] grid-cols-[1fr_auto] md:max-w-3/4",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
-                    class: "w-full h-full bg-gray-700",
+                    class: "w-full h-full bg-neutral-700",
                     r#type: "text",
                     placeholder: "search subjects",
                     value: "{subject_dropdown}",
@@ -362,13 +361,13 @@ pub fn subjects_dropdown_menu(
             // Dynamic dropdown of subjects
             if show_subject_dropdown() {
                 div {
-                    class: "p-2 rounded bg-gray-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
+                    class: "p-2 rounded bg-neutral-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
                     ul {
                         {subjects_vec().iter().filter(|s| active_subject_name.to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
                             let sub = sub.clone();
                             rsx! {
                                 li {
-                                    class: "hover:bg-gray-700 cursor-pointer",
+                                    class: "hover:bg-neutral-700 cursor-pointer",
                                     key: "{i}",
                                     div {
                                         onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
@@ -384,7 +383,7 @@ pub fn subjects_dropdown_menu(
             div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
-                    class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                    class: "p-1 rounded hover:bg-neutral-700 cursor-pointer flex-none",
                     onclick: move |_evt| {
                         active_subject_name.set(subject_dropdown.read().to_string());
                         subject_dropdown.set(String::new());
@@ -451,7 +450,7 @@ pub fn subjects_schema_table(
         div {
             class: "output_table",
             table {
-                class: "table-auto rounded bg-gray-800 text-gray-200",
+                class: "table-auto rounded bg-neutral-800 text-gray-200",
                 if active_subject_name().is_empty() {
                     caption { "No subject selected." },
                 } else if num_rows().is_empty() {
@@ -460,7 +459,7 @@ pub fn subjects_schema_table(
                     caption { "{active_subject_name.to_string()}: {num_rows().first().unwrap()} rows." },
                 }
                 thead {
-                    class: "bg-gray-700",
+                    class: "bg-neutral-700",
                     tr {
                         {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {
                             rsx! {
@@ -476,7 +475,7 @@ pub fn subjects_schema_table(
                         let subject_type = schema_columns_types().1.get(i).unwrap().to_string();
                         rsx! {
                             tr {
-                                class: "odd:bg-gray-800 even:bg-gray-900",
+                                class: "odd:bg-neutral-800 even:bg-neutral-900",
                                 td { "{subject_col}" },
                                 td { "{subject_type}" },
                             }

@@ -293,11 +293,11 @@ pub fn metrics_dropdown(
 
     rsx! {
         div {
-            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_96px] sm:max-w-3/4",
+            class: "p-2 gap-2 rounded bg-neutral-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_96px] sm:max-w-3/4",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
-                    class: "w-full h-full bg-gray-700",
+                    class: "w-full h-full bg-neutral-700",
                     r#type: "text",
                     placeholder: "search session",
                     value: "{metric_dropdown}",
@@ -316,13 +316,13 @@ pub fn metrics_dropdown(
             // Dynamic dropdown
             if show_metric_dropdown() {
                 div {
-                    class: "p-2 rounded bg-gray-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
+                    class: "p-2 rounded bg-neutral-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
                     ul {
                         {metrics_vec().iter().filter(|s| active_metric()!=**s && !metrics_filtered.read().contains(&s.to_string())).enumerate().map(|(i, sub)|  {
                             let sub = sub.clone();
                             rsx! {
                                 li {
-                                    class: "hover:bg-gray-700 cursor-pointer",
+                                    class: "hover:bg-neutral-700 cursor-pointer",
                                     key: "{i}",
                                     div {
                                         onmouseover: move |_evt| metric_dropdown.set(sub.to_string()),
@@ -338,7 +338,7 @@ pub fn metrics_dropdown(
             div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
-                    class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                    class: "p-1 rounded hover:bg-neutral-700 cursor-pointer flex-none",
                     onclick: move |_evt| async move {
                         // Reset the dropdown
                         active_metric.set(metric_dropdown.try_read().unwrap().to_string());

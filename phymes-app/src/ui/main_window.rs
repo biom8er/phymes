@@ -54,20 +54,20 @@ pub fn main_window_view() -> Element {
 
     rsx! {
         main {
-            class: "w-screen h-screen bg-gray-900 text-white flex flex-col sm:flex-row",
+            class: "w-screen h-screen bg-neutral-900 text-white flex flex-col sm:flex-row",
 
             // Responsive sidebar that is horizontal on mobile and vertical on large screens
             aside {
-                class: "sm:w-[64px] w-full sm:h-full h-[64px] bg-gray-800 flex sm:flex-col flex-row items-center py-2 space-y-2",
+                class: "sm:w-auto w-full sm:h-full h-auto bg-neutral-800 flex sm:flex-col flex-row items-center p-2",
                 div {
-                    class: "sm:w-auto w-[calc(100%-128px)] sm:h-[calc(100%-128px)] h-auto place-content-start",
+                    class: "sm:w-auto w-full sm:h-full h-auto place-content-start flex sm:flex-col flex-row items-center",
                     // DM: add tooltip for each of the icons
                     // see https://www.w3schools.com/css/css_tooltip.asp
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Account);
                         },
-                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                        class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         svg {
                             class: "max-w-[48px] max-h-[48px]",
                             dangerous_inner_html: ms_person_icon_svg()
@@ -78,7 +78,7 @@ pub fn main_window_view() -> Element {
                             onclick: move |_| async move {
                                 header_menu.set(HeaderMenu::Builds);
                             },
-                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
                                 class: "max-w-[48px] max-h-[48px]",
                                 dangerous_inner_html: ms_tools_icon_svg()
@@ -89,7 +89,7 @@ pub fn main_window_view() -> Element {
                             onclick: move |_| async move {
                                 header_menu.set(HeaderMenu::Apps);
                             },
-                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
                                 class: "max-w-[48px] max-h-[48px]",
                                 dangerous_inner_html: ms_apps_icon_svg()
@@ -99,7 +99,7 @@ pub fn main_window_view() -> Element {
                             onclick: move |_| async move {
                                 header_menu.set(HeaderMenu::Messages);
                             },
-                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
                                 class: "max-w-[48px] max-h-[48px]",
                                 dangerous_inner_html: ms_message_icon_svg()
@@ -109,7 +109,7 @@ pub fn main_window_view() -> Element {
                             onclick: move |_| async move {
                                 header_menu.set(HeaderMenu::Attachments);
                             },
-                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
                                 class: "max-w-[48px] max-h-[48px]",
                                 dangerous_inner_html: ms_attachment_icon_svg()
@@ -121,7 +121,7 @@ pub fn main_window_view() -> Element {
                             onclick: move |_| async move {
                                 header_menu.set(HeaderMenu::Subjects);
                             },
-                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
                                 class: "max-w-[48px] max-h-[48px]",
                                 dangerous_inner_html: ms_database_icon_svg()
@@ -131,7 +131,7 @@ pub fn main_window_view() -> Element {
                             onclick: move |_| async move {
                                 header_menu.set(HeaderMenu::Metrics);
                             },
-                            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                            class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
                                 class: "max-w-[48px] max-h-[48px]",
                                 dangerous_inner_html: ms_top_speed_icon_svg()
@@ -140,12 +140,12 @@ pub fn main_window_view() -> Element {
                     }
                 }
                 div {
-                    class: "sm:w-auto w-[128px] sm:h-[128px] h-auto place-content-end",
+                    class: "place-content-end flex sm:flex-col flex-row items-center",
                     button {
                         onclick: move |_| async move {
                             header_menu.set(HeaderMenu::Help);
                         },
-                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                        class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         svg {
                             class: "max-w-[48px] max-h-[48px]",
                             dangerous_inner_html: aws_help_icon_svg()
@@ -155,7 +155,7 @@ pub fn main_window_view() -> Element {
                         href: "https://github.com/biom8er/phymes",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        class: "inline-flex p-1 rounded hover:bg-gray-700 cursor-pointer",
+                        class: "inline-flex p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         svg {
                             class: "max-w-[48px] max-h-[48px]",
                             dangerous_inner_html: b8_logo_icon_svg()
@@ -166,7 +166,7 @@ pub fn main_window_view() -> Element {
 
             // Main content area to the right of the sidebar
             div {
-                class: "w-full sm:w-[calc(100%-64px)] h-[calc(100%-64px)] sm:h-full",
+                class: "w-full sm:w-[calc(100%-56px)] h-[calc(100%-56px)] sm:h-full",
                 if header_menu.read().as_str() == "Help" {
                     about_text_modal {},
                 } else if header_menu.read().as_str() == "Account" {
@@ -383,13 +383,13 @@ pub fn about_text_modal() -> Element {
                 "Welcome to PHYMES by Biom🤖er"
             },
             table {
-                class: "table-auto overflow-auto rounded bg-gray-800 text-gray-200",
+                class: "table-auto overflow-auto rounded bg-neutral-800 text-gray-200",
                 caption {
                     class: "caption-top",
                     "Table 1.1: Menu items available in the sidebar."
                 }
                 thead {
-                    class: "bg-gray-700",
+                    class: "bg-neutral-700",
                     tr {
                         th { "Item" }
                         th { "Icon" }
@@ -401,7 +401,7 @@ pub fn about_text_modal() -> Element {
                     {rows.into_iter().map(|(item, icon, description)| {
                         rsx! {
                             tr {
-                                class: "odd:bg-gray-800 even:bg-gray-900",
+                                class: "odd:bg-neutral-800 even:bg-neutral-900",
                                 td { "{item}" }
                                 td { svg {
                                     class: "max-w-[48px] max-h-[48px]",
@@ -444,7 +444,7 @@ pub fn code_editor(initial_text: String) -> Element {
 
     rsx! {
         div {
-            class: "w-full max-h-[128px] rounded-md shadow-sm py-2 p-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
+            class: "w-full max-h-[108px] rounded-md shadow-sm py-2 p-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
             div {
                 id: "gutter",
                 class: "h-full text-right flex flex-col whitespace-pre overflow-hidden",
@@ -460,7 +460,7 @@ pub fn code_editor(initial_text: String) -> Element {
                 id: "code",
                 value: "{text}",
                 oninput: on_input,
-                class: "w-full h-full grow bg-gray-800 px-3 resize-none focus:outline-none whitespace-pre overflow-hidden"
+                class: "w-full h-full grow bg-neutral-800 px-3 resize-none focus:outline-none whitespace-pre overflow-hidden"
             }
         }
     }

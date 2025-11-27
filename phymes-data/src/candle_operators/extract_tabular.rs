@@ -122,7 +122,7 @@ pub fn extract_tabular(
     format: &DataFormat,
 ) -> Result<RecordBatch> {
     let args_table = Table::get_builder()
-        .with_name("extract_tabular_data")
+        .with_name("extract_tabular")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?;

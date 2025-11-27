@@ -313,7 +313,7 @@ pub fn upload_files_button(
 ) -> Element {
     rsx! {
         button {
-            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+            class: "p-1 rounded hover:bg-neutral-700 cursor-pointer",
             onclick: move |_| async move {
                 // Send files to the server
                 for file in files_uploaded.read().iter() {
@@ -383,7 +383,7 @@ pub fn clear_upload_files_button(
 ) -> Element {
     rsx! {
         button {
-            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+            class: "p-1 rounded hover:bg-neutral-700 cursor-pointer",
             onclick: move |_| {
                 files_uploaded.set(Vec::new());
                 filenames_uploaded.set(Vec::new());
@@ -407,7 +407,7 @@ pub fn download_files_button(
 ) -> Element {
     rsx! {
         button {
-            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+            class: "p-1 rounded hover:bg-neutral-700 cursor-pointer",
             onclick: move |_evt| async move {
                 files_downloaded.set(Vec::new());
                 filenames_downloaded.set(Vec::new());
@@ -492,7 +492,7 @@ pub fn download_files_list(
 ) -> Element {
     rsx! {
         ul {
-            class: "p-2 overflow-auto flex flex-col list-none bg-gray-800",
+            class: "p-2 overflow-auto flex flex-col list-none bg-neutral-800",
             {(0..files_downloaded().len()).map(|i| {
                 let f_download = filename_and_extension_to_download(filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
                 let f_href = extension_and_file_to_data_href(extensions_downloaded().get(i).unwrap() ,files_downloaded().get(i).unwrap()).unwrap();
@@ -526,7 +526,7 @@ pub fn clear_download_files_button(
 ) -> Element {
     rsx! {
         button {
-            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+            class: "p-1 rounded hover:bg-neutral-700 cursor-pointer",
             onclick: move |_| {
                 files_downloaded.set(Vec::new());
                 filenames_downloaded.set(Vec::new());

@@ -279,7 +279,7 @@ pub fn messaging_interface_view() -> Element {
                                         }
                                     }
                                     div {
-                                        class: "p-4 leading-6 max-w-[90%] rounded bg-gray-800",
+                                        class: "p-4 leading-6 max-w-[90%] rounded bg-neutral-800",
                                         dangerous_inner_html: "{content}"
                                         // dangerous_inner_html: "<p>{content}</p>"
                                     }
@@ -307,9 +307,9 @@ pub fn messaging_interface_footer(
 
     rsx! {
         footer {
-            class: "h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2",
+            class: "h-full grid grid-rows-[auto_1fr] grid-cols-[auto_1fr_auto] items-center p-2",
             div {
-                class: "row-span-1 col-span-1 row-start-1 col-start-1 p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                class: "row-span-1 col-span-1 row-start-1 col-start-1 p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                 attach_textfiles_input { except_files: use_signal(|| ".txt,.csv,.tsv,.js,.ts,.py,.java,.c,.cpp,.cs,.rb,.go,.rs,.json,.svg,.html".to_string()), content: prompt }
             }
 
@@ -319,7 +319,7 @@ pub fn messaging_interface_footer(
                     placeholder: "Type your message here...",
                     value: "{prompt.to_string()}",
                     oninput: move |event| prompt.set(event.value()),
-                    class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto focus:outline-none",
+                    class: "w-full h-full grow p-2 gap-2 rounded bg-neutral-800 text-gray-200 resize-none overflow-auto focus:outline-none",
                 }
             }
 
@@ -328,7 +328,7 @@ pub fn messaging_interface_footer(
                 // This must be outside the form or it will be refreshed on each submit
                 if prompt.read().is_empty() {
                     button {
-                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         svg {
                             class: "max-w-[48px] max-h-[48px]",
                             dangerous_inner_html: b8_microphone_icon_svg()
@@ -336,7 +336,7 @@ pub fn messaging_interface_footer(
                     }
                 } else {
                     button {
-                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // signed in and ready to chat
                             update_message_state(messaging_roles,

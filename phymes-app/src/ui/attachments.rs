@@ -241,7 +241,7 @@ pub fn attachments_interface_view() -> Element {
                                                 "{filename_and_extension_to_download(&filename, &extension)}"
                                             },
                                             button {
-                                                class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                                                class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                                                 onclick: move |_| async move {
                                                     *attachments_contents.get_mut(i).unwrap() = None;
                                                 },
@@ -253,7 +253,7 @@ pub fn attachments_interface_view() -> Element {
                                         } else {
                                             h3 { "{filename}.{extension}" },
                                             button {
-                                                class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+                                                class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                                                 svg {
                                                     class: "max-w-[48px] max-h-[48px]",
                                                     dangerous_inner_html: ms_arrow_download_icon_svg()
@@ -315,18 +315,18 @@ pub fn attachments_interface_footer(
 
     rsx! {
         footer {
-            class: "h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2",
+            class: "h-full grid grid-rows-[auto_1fr] grid-cols-[auto_1fr_auto] items-center p-2",
             div {
                 class: styles,
                 if extend_input() {
                     div {
-                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
                     }
                 }
                 if add_input() {
                     div {
-                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         attach_files_input { extend_publish: use_signal(|| false), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
                     }
                 }
@@ -339,13 +339,13 @@ pub fn attachments_interface_footer(
                     textarea {
                         placeholder: "Staged files",
                         value: "{filenames}",
-                        class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto focus:outline-none",
+                        class: "w-full h-full grow p-2 gap-2 rounded bg-neutral-800 text-gray-200 resize-none overflow-auto focus:outline-none",
                     }
                 }
             }
 
             div {
-                class: "row-span-2 col-span-1 row-start-1 col-start-3",
+                class: "row-span-2 col-span-1 row-start-1 col-start-3 flex flex-col",
                 if !files_uploaded.read().is_empty() {
                     upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
                     clear_upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}

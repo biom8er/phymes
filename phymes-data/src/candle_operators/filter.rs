@@ -241,7 +241,7 @@ pub fn filter(
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
-        .with_name("filter_columns_and_indices")
+        .with_name("filter")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
 

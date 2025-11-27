@@ -562,7 +562,7 @@ pub fn extract_xml(
 ) -> Result<RecordBatch> {
     // Extract out the bytes
     let args_table = Table::get_builder()
-        .with_name("extract_set_data")
+        .with_name("extract_xml")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let values_vec = args_table
@@ -586,6 +586,11 @@ pub fn extract_xml(
         DataFormat::OwlNamedIndividual => parse_owl(
             &values_vec,
             &OwlFormat::owl_format_named_individual(),
+            device,
+        ),
+        DataFormat::OwlOntology => parse_owl(
+            &values_vec,
+            &OwlFormat::owl_format_ontology(),
             device,
         ),
         _ => Err(anyhow!(
