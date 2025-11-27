@@ -319,7 +319,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             lhs_name: Some(AvailableInterfaceSubjects::UserJson.to_string()),
             lhs_values: Some(vec!["bytes".to_string()]),
             format: Some(DataFormat::JsonDefault),
-            operator: AvailableCandleOperators::ExtractTabularData,
+            operator: AvailableCandleOperators::ExtractTabular,
             ..Default::default()
         };
         let extract_tabular_data_config_json =
@@ -346,7 +346,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         // Configs for filter
         let filter_user_info_data_config = DataConfig {
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             lhs_name: Some(AvailableSubjects::UserInbox.to_string()),
             lhs_pk: Some("email".to_string()),
             lhs_fk: Some("email".to_string()),
@@ -366,7 +366,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         // Configs for filter
         let filter_user_session_context_data_config = DataConfig {
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             lhs_name: Some(AvailableSubjects::UserInbox.to_string()),
             lhs_pk: Some("email".to_string()),
             lhs_fk: Some("email".to_string()),
@@ -386,7 +386,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         // Configs for join
         let join_user_session_context_data_config = DataConfig {
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             lhs_name: Some(AvailableSubjects::JoinUserInboxSessionContexts.to_string()),
             lhs_pk: Some("email".to_string()),
             lhs_fk: Some("session_context_name".to_string()),

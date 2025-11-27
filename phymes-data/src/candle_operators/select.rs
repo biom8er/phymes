@@ -20,13 +20,13 @@ use serde_json::json;
 use tracing::instrument;
 
 use crate::{
-    DataColumnOperator, ToolTrait, candle_data::{DataCastOperator, DataConfig}, candle_operators::{DataOperatorTrait, group_by_and_aggregate::{build_aggregator_column_fixed_size_list, build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive}}
+    DataColumnOperator, ToolTrait, candle_data::{DataCastOperator, DataConfig}, candle_operators::{DataOperatorTrait, group_by::{build_aggregator_column_fixed_size_list, build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive}}
 };
 
 /// Select and cast the [RecordBatch]es based on the [DataCastOperator] and [DataType] with optional column renaming and template injection
 /// Transform one or more columns of the [RecordBatch]es by chaining sequential unary or binary [DataColumnOperator]s
 #[derive(Debug, Default)]
-pub struct SelectAndCast {
+pub struct Select {
     lhs_values: Vec<String>,
     rhs_values: Vec<String>,
     as_columns: Vec<String>,
@@ -36,13 +36,13 @@ pub struct SelectAndCast {
     cast_templates: Vec<String>,
 }
 
-impl MappableTrait for SelectAndCast {
+impl MappableTrait for Select {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for SelectAndCast {
+impl ToolTrait for Select {
     fn get_description(&self) -> String {
         "Cast specified columns using a specified cast operator and cast data type with optional column renaming and template injection."
             .to_string()
@@ -98,7 +98,7 @@ impl ToolTrait for SelectAndCast {
     }
 }
 
-impl DataOperatorTrait for SelectAndCast {
+impl DataOperatorTrait for Select {
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
@@ -125,7 +125,7 @@ impl DataOperatorTrait for SelectAndCast {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        select_and_cast(
+        select(
             &lhs_values,
             lhs_args,
             &rhs_values,
@@ -212,7 +212,7 @@ impl DataOperatorTrait for SelectAndCast {
             ));
         }
 
-        Ok(SelectAndCast {
+        Ok(Select {
             lhs_values,
             rhs_values,
             as_columns,
@@ -403,7 +403,7 @@ fn rhs_helper(rhs_values: &[&str], lhs_table: &Table, lhs_batches: &[(&&str, Arr
     cast_templates,
     device
 ))]
-pub fn select_and_cast(
+pub fn select(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
     rhs_values: &[&str],
@@ -1657,7 +1657,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_select_and_cast() -> Result<()> {
+    fn test_select() -> Result<()> {
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
@@ -1686,7 +1686,7 @@ mod tests {
         let device = device(false)?;
 
         // ------ String, UInt32, Cast, No operators ------
-        let result = select_and_cast(
+        let result = select(
             &["lhs_pk", "lhs_text", "lhs_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["", "", ""],
@@ -1726,7 +1726,7 @@ mod tests {
         assert_eq!(metadata, vec![1., 2., 3., 4.]);
 
         // ------ String, UInt32, Cast, Operator ------
-        let result = select_and_cast(
+        let result = select(
             &["lhs_pk", "lhs_text", "lhs_metadata", "new_text"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["", "lhs_text", "new_pk", "lhs_text"],

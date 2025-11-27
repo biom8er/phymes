@@ -21,18 +21,18 @@ use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTr
 
 /// Sort the [RecordBatch] according to the `score` column and then apply the sorting order to the rest of the record batch columns
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct SortColumnAndIndices {
+pub struct Sort {
     lhs_values: String,
     asc: bool,
 }
 
-impl MappableTrait for SortColumnAndIndices {
+impl MappableTrait for Sort {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for SortColumnAndIndices {
+impl ToolTrait for Sort {
     fn get_description(&self) -> String {
         "Sort the the list of computed scores in ascending order".to_string()
     }
@@ -87,7 +87,7 @@ impl ToolTrait for SortColumnAndIndices {
     }
 }
 
-impl DataOperatorTrait for SortColumnAndIndices {
+impl DataOperatorTrait for Sort {
     fn new(config: &DataConfig) -> Result<Self> {
         let lhs_values = config
             .lhs_values
@@ -105,7 +105,7 @@ impl DataOperatorTrait for SortColumnAndIndices {
             ))?;
         let asc = config.asc.unwrap_or(true);
 
-        Ok(SortColumnAndIndices { lhs_values, asc })
+        Ok(Sort { lhs_values, asc })
     }
     fn forward(
         &self,
@@ -113,7 +113,7 @@ impl DataOperatorTrait for SortColumnAndIndices {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        sort_column_and_indices(&self.lhs_values, lhs_args, self.asc, device)
+        sort(&self.lhs_values, lhs_args, self.asc, device)
     }
 }
 
@@ -210,7 +210,7 @@ Sort the [RecordBatch] according to the `score` column
 
 */
 #[instrument(skip(lhs_values, lhs_args, asc, device))]
-pub fn sort_column_and_indices(
+pub fn sort(
     lhs_values: &str,
     lhs_args: &[RecordBatch],
     asc: bool,
@@ -384,7 +384,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_sort_column_and_indices() -> Result<()> {
+    fn test_sort() -> Result<()> {
         // Float32 test (original)
         let lhs_ids_vec_1 = vec!["0", "1"];
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
@@ -412,7 +412,7 @@ mod tests {
         // Make the device
         let device = device(false)?;
 
-        let result = sort_column_and_indices("score", &[batch_1, batch_2], true, &device)?;
+        let result = sort("score", &[batch_1, batch_2], true, &device)?;
 
         let lhs_id = result
             .column_by_name("lhs_pk")
@@ -454,7 +454,7 @@ mod tests {
             ("id", ids_array.clone()),
             ("score", u8_array.clone()),
         ])?;
-        let result = sort_column_and_indices("score", &[batch], true, &device)?;
+        let result = sort("score", &[batch], true, &device)?;
         let sorted_ids = result
             .column_by_name("id")
             .unwrap()
@@ -485,7 +485,7 @@ mod tests {
             ("id", ids_array.clone()),
             ("score", i64_array.clone()),
         ])?;
-        let result = sort_column_and_indices("score", &[batch], true, &device)?;
+        let result = sort("score", &[batch], true, &device)?;
         let sorted_ids = result
             .column_by_name("id")
             .unwrap()
@@ -516,7 +516,7 @@ mod tests {
             ("id", ids_array.clone()),
             ("score", f64_array.clone()),
         ])?;
-        let result = sort_column_and_indices("score", &[batch], true, &device)?;
+        let result = sort("score", &[batch], true, &device)?;
         let sorted_ids = result
             .column_by_name("id")
             .unwrap()
@@ -547,7 +547,7 @@ mod tests {
             ("id", ids_array.clone()),
             ("score", str_array.clone()),
         ])?;
-        let result = sort_column_and_indices("score", &[batch], true, &device)?;
+        let result = sort("score", &[batch], true, &device)?;
         let sorted_ids = result
             .column_by_name("id")
             .unwrap()
@@ -592,7 +592,7 @@ mod tests {
         let list_array: ArrayRef = Arc::new(FixedSizeListArray::from(list_data));
         let batch =
             RecordBatch::try_from_iter(vec![("id", ids_array.clone()), ("score", list_array)])?;
-        let result = sort_column_and_indices("score", &[batch], true, &device)?;
+        let result = sort("score", &[batch], true, &device)?;
         let sorted_ids = result
             .column_by_name("id")
             .unwrap()

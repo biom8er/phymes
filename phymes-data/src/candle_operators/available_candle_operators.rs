@@ -7,13 +7,13 @@ use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilder
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExtractSetData, ToolTrait,
+    ExtractXML, ToolTrait,
     candle_data::DataConfig,
     candle_operators::{
-        ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDFText, ExtractTabularData,
-        FilterColumnsAndIndices, FromTasksToParticipants, FromTracesToMessages,
-        GroupByAndAggregate, HumanInTheLoop, JoinInner, Melt, NormalizeTime, Pivot, SelectAndCast,
-        SortColumnAndIndices, VectorDistance,
+        ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDF, ExtractTabular,
+        Filter, FromTasksToParticipants, FromTracesToMessages,
+        GroupBy, HumanInTheLoop, Join, Melt, NormalizeTime, Pivot, Select,
+        Sort, VectorDistance,
     },
 };
 
@@ -22,9 +22,9 @@ pub enum AvailableCandleOperators {
     #[value(name = "VectorDistance")]
     #[serde(alias = "vector-distance")]
     VectorDistance,
-    #[value(name = "SortColumnAndIndices")]
-    #[serde(alias = "sort-column-and-indices")]
-    SortColumnAndIndices,
+    #[value(name = "Sort")]
+    #[serde(alias = "sort")]
+    Sort,
     #[default]
     #[value(name = "HumanInTheLoop")]
     #[serde(alias = "human-in-the-loop")]
@@ -32,33 +32,33 @@ pub enum AvailableCandleOperators {
     #[value(name = "ChunkDocuments")]
     #[serde(alias = "chunk-documents")]
     ChunkDocuments,
-    #[value(name = "JoinInner")]
-    #[serde(alias = "join-inner")]
-    JoinInner,
-    #[value(name = "ExtractPDFText")]
-    #[serde(alias = "extract-pdf-text")]
+    #[value(name = "Join")]
+    #[serde(alias = "join")]
+    Join,
+    #[value(name = "ExtractPDF")]
+    #[serde(alias = "extract-pdf")]
     ExtractPDFText,
-    #[value(name = "GroupByAndAggregate")]
-    #[serde(alias = "group-by-and-aggregate")]
-    GroupByAndAggregate,
-    #[value(name = "FilterColumnsAndIndices")]
-    #[serde(alias = "filter-columns-and-indices")]
-    FilterColumnsAndIndices,
-    #[value(name = "ExtractTabularData")]
-    #[serde(alias = "extract-tabular-data")]
-    ExtractTabularData,
-    #[value(name = "SelectAndCast")]
-    #[serde(alias = "select-and-cast")]
-    SelectAndCast,
+    #[value(name = "GroupBy")]
+    #[serde(alias = "group-by")]
+    GroupBy,
+    #[value(name = "Filter")]
+    #[serde(alias = "filter")]
+    Filter,
+    #[value(name = "ExtractTabular")]
+    #[serde(alias = "extract-tabular")]
+    ExtractTabular,
+    #[value(name = "Select")]
+    #[serde(alias = "select")]
+    Select,
     #[value(name = "ApplyTemplate")]
     #[serde(alias = "apply-template")]
     ApplyTemplate,
     #[value(name = "Pivot")]
     #[serde(alias = "pivot")]
     Pivot,
-    #[value(name = "ExtractSetData")]
-    #[serde(alias = "extract-set-data")]
-    ExtractSetData,
+    #[value(name = "ExtractXML")]
+    #[serde(alias = "extract-xml")]
+    ExtractXML,
     #[value(name = "Melt")]
     #[serde(alias = "melt")]
     Melt,
@@ -77,20 +77,20 @@ impl Display for AvailableCandleOperators {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::VectorDistance => write!(f, "{}", VectorDistance::get_static_name()),
-            Self::SortColumnAndIndices => write!(f, "{}", SortColumnAndIndices::get_static_name()),
+            Self::Sort => write!(f, "{}", Sort::get_static_name()),
             Self::HumanInTheLoop => write!(f, "{}", HumanInTheLoop::get_static_name()),
             Self::ChunkDocuments => write!(f, "{}", ChunkDocuments::get_static_name()),
-            Self::JoinInner => write!(f, "{}", JoinInner::get_static_name()),
-            Self::ExtractPDFText => write!(f, "{}", ExtractPDFText::get_static_name()),
-            Self::GroupByAndAggregate => write!(f, "{}", GroupByAndAggregate::get_static_name()),
-            Self::FilterColumnsAndIndices => {
-                write!(f, "{}", FilterColumnsAndIndices::get_static_name())
+            Self::Join => write!(f, "{}", Join::get_static_name()),
+            Self::ExtractPDFText => write!(f, "{}", ExtractPDF::get_static_name()),
+            Self::GroupBy => write!(f, "{}", GroupBy::get_static_name()),
+            Self::Filter => {
+                write!(f, "{}", Filter::get_static_name())
             }
-            Self::ExtractTabularData => write!(f, "{}", ExtractTabularData::get_static_name()),
-            Self::SelectAndCast => write!(f, "{}", SelectAndCast::get_static_name()),
+            Self::ExtractTabular => write!(f, "{}", ExtractTabular::get_static_name()),
+            Self::Select => write!(f, "{}", Select::get_static_name()),
             Self::ApplyTemplate => write!(f, "{}", ApplyTemplate::get_static_name()),
             Self::Pivot => write!(f, "{}", Pivot::get_static_name()),
-            Self::ExtractSetData => write!(f, "{}", ExtractSetData::get_static_name()),
+            Self::ExtractXML => write!(f, "{}", ExtractXML::get_static_name()),
             Self::Melt => write!(f, "{}", Melt::get_static_name()),
             Self::NormalizeTime => write!(f, "{}", NormalizeTime::get_static_name()),
             Self::FromTasksToParticipants => {
@@ -105,20 +105,20 @@ impl ToolTrait for AvailableCandleOperators {
     fn to_json_tool_schema(&self) -> String {
         match self {
             Self::VectorDistance => VectorDistance::default().to_json_tool_schema(),
-            Self::SortColumnAndIndices => SortColumnAndIndices::default().to_json_tool_schema(),
+            Self::Sort => Sort::default().to_json_tool_schema(),
             Self::HumanInTheLoop => HumanInTheLoop.to_json_tool_schema(),
             Self::ChunkDocuments => ChunkDocuments::default().to_json_tool_schema(),
-            Self::JoinInner => JoinInner::default().to_json_tool_schema(),
-            Self::ExtractPDFText => ExtractPDFText::default().to_json_tool_schema(),
-            Self::GroupByAndAggregate => GroupByAndAggregate::default().to_json_tool_schema(),
-            Self::FilterColumnsAndIndices => {
-                FilterColumnsAndIndices::default().to_json_tool_schema()
+            Self::Join => Join::default().to_json_tool_schema(),
+            Self::ExtractPDFText => ExtractPDF::default().to_json_tool_schema(),
+            Self::GroupBy => GroupBy::default().to_json_tool_schema(),
+            Self::Filter => {
+                Filter::default().to_json_tool_schema()
             }
-            Self::ExtractTabularData => ExtractTabularData::default().to_json_tool_schema(),
-            Self::SelectAndCast => SelectAndCast::default().to_json_tool_schema(),
+            Self::ExtractTabular => ExtractTabular::default().to_json_tool_schema(),
+            Self::Select => Select::default().to_json_tool_schema(),
             Self::ApplyTemplate => ApplyTemplate::default().to_json_tool_schema(),
             Self::Pivot => Pivot::default().to_json_tool_schema(),
-            Self::ExtractSetData => ExtractSetData::default().to_json_tool_schema(),
+            Self::ExtractXML => ExtractXML::default().to_json_tool_schema(),
             Self::Melt => Melt::default().to_json_tool_schema(),
             Self::NormalizeTime => NormalizeTime::default().to_json_tool_schema(),
             Self::FromTasksToParticipants => String::new(),
@@ -128,18 +128,18 @@ impl ToolTrait for AvailableCandleOperators {
     fn get_description(&self) -> String {
         match self {
             Self::VectorDistance => VectorDistance::default().get_description(),
-            Self::SortColumnAndIndices => SortColumnAndIndices::default().get_description(),
+            Self::Sort => Sort::default().get_description(),
             Self::HumanInTheLoop => HumanInTheLoop.get_description(),
             Self::ChunkDocuments => ChunkDocuments::default().get_description(),
-            Self::JoinInner => JoinInner::default().get_description(),
-            Self::ExtractPDFText => ExtractPDFText::default().get_description(),
-            Self::GroupByAndAggregate => GroupByAndAggregate::default().get_description(),
-            Self::FilterColumnsAndIndices => FilterColumnsAndIndices::default().get_description(),
-            Self::ExtractTabularData => ExtractTabularData::default().get_description(),
-            Self::SelectAndCast => SelectAndCast::default().get_description(),
+            Self::Join => Join::default().get_description(),
+            Self::ExtractPDFText => ExtractPDF::default().get_description(),
+            Self::GroupBy => GroupBy::default().get_description(),
+            Self::Filter => Filter::default().get_description(),
+            Self::ExtractTabular => ExtractTabular::default().get_description(),
+            Self::Select => Select::default().get_description(),
             Self::ApplyTemplate => ApplyTemplate::default().get_description(),
             Self::Pivot => Pivot::default().get_description(),
-            Self::ExtractSetData => ExtractSetData::default().get_description(),
+            Self::ExtractXML => ExtractXML::default().get_description(),
             Self::Melt => Melt::default().get_description(),
             Self::NormalizeTime => NormalizeTime::default().get_description(),
             Self::FromTasksToParticipants => String::new(),
@@ -152,17 +152,17 @@ impl AvailableCandleOperators {
     pub fn all_varient_names() -> Vec<String> {
         let processor_names = [
             Self::VectorDistance.to_string(),
-            Self::SortColumnAndIndices.to_string(),
+            Self::Sort.to_string(),
             Self::HumanInTheLoop.to_string(),
             Self::ChunkDocuments.to_string(),
-            Self::JoinInner.to_string(),
+            Self::Join.to_string(),
             Self::ExtractPDFText.to_string(),
-            Self::GroupByAndAggregate.to_string(),
-            Self::FilterColumnsAndIndices.to_string(),
-            Self::ExtractTabularData.to_string(),
-            Self::SelectAndCast.to_string(),
+            Self::GroupBy.to_string(),
+            Self::Filter.to_string(),
+            Self::ExtractTabular.to_string(),
+            Self::Select.to_string(),
             Self::Pivot.to_string(),
-            Self::ExtractSetData.to_string(),
+            Self::ExtractXML.to_string(),
             Self::Melt.to_string(),
             Self::NormalizeTime.to_string(),
         ];
@@ -175,18 +175,18 @@ impl AvailableCandleOperators {
     pub fn build(&self, config: &DataConfig) -> Result<Box<dyn DataOperatorTrait>> {
         match self {
             Self::VectorDistance => Ok(Box::new(VectorDistance::new(config)?)),
-            Self::SortColumnAndIndices => Ok(Box::new(SortColumnAndIndices::new(config)?)),
+            Self::Sort => Ok(Box::new(Sort::new(config)?)),
             Self::HumanInTheLoop => Ok(Box::new(HumanInTheLoop::new(config)?)),
             Self::ChunkDocuments => Ok(Box::new(ChunkDocuments::new(config)?)),
-            Self::JoinInner => Ok(Box::new(JoinInner::new(config)?)),
-            Self::ExtractPDFText => Ok(Box::new(ExtractPDFText::new(config)?)),
-            Self::GroupByAndAggregate => Ok(Box::new(GroupByAndAggregate::new(config)?)),
-            Self::FilterColumnsAndIndices => Ok(Box::new(FilterColumnsAndIndices::new(config)?)),
-            Self::ExtractTabularData => Ok(Box::new(ExtractTabularData::new(config)?)),
-            Self::SelectAndCast => Ok(Box::new(SelectAndCast::new(config)?)),
+            Self::Join => Ok(Box::new(Join::new(config)?)),
+            Self::ExtractPDFText => Ok(Box::new(ExtractPDF::new(config)?)),
+            Self::GroupBy => Ok(Box::new(GroupBy::new(config)?)),
+            Self::Filter => Ok(Box::new(Filter::new(config)?)),
+            Self::ExtractTabular => Ok(Box::new(ExtractTabular::new(config)?)),
+            Self::Select => Ok(Box::new(Select::new(config)?)),
             Self::ApplyTemplate => Ok(Box::new(ApplyTemplate::new(config)?)),
             Self::Pivot => Ok(Box::new(Pivot::new(config)?)),
-            Self::ExtractSetData => Ok(Box::new(ExtractSetData::new(config)?)),
+            Self::ExtractXML => Ok(Box::new(ExtractXML::new(config)?)),
             Self::Melt => Ok(Box::new(Melt::new(config)?)),
             Self::NormalizeTime => Ok(Box::new(NormalizeTime::new(config)?)),
             Self::FromTasksToParticipants => Ok(Box::new(FromTasksToParticipants::new(config)?)),

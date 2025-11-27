@@ -19,18 +19,18 @@ use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTr
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ExtractPDFText {
+pub struct ExtractPDF {
     lhs_pk: String,
     lhs_values: String,
 }
 
-impl MappableTrait for ExtractPDFText {
+impl MappableTrait for ExtractPDF {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for ExtractPDFText {
+impl ToolTrait for ExtractPDF {
     fn get_description(&self) -> String {
         "Extract text from PDF documents".to_string()
     }
@@ -85,7 +85,7 @@ impl ToolTrait for ExtractPDFText {
     }
 }
 
-impl DataOperatorTrait for ExtractPDFText {
+impl DataOperatorTrait for ExtractPDF {
     fn new(config: &DataConfig) -> Result<Self>
     where
         Self: Sized,
@@ -108,7 +108,7 @@ impl DataOperatorTrait for ExtractPDFText {
                 "`lhs_values` is empty for `{}`.",
                 Self::get_static_name()
             ))?;
-        Ok(ExtractPDFText { lhs_pk, lhs_values })
+        Ok(ExtractPDF { lhs_pk, lhs_values })
     }
     fn forward(
         &self,
@@ -117,7 +117,7 @@ impl DataOperatorTrait for ExtractPDFText {
         _device: &Device,
     ) -> Result<RecordBatch> {
         let docs = prepare_pdf_documents(&self.lhs_pk, &self.lhs_values, lhs_args);
-        extract_pdf_text(&docs)
+        extract_pdf(&docs)
     }
 }
 
@@ -138,7 +138,7 @@ type ParsedPage = (String, u32, Vec<String>);
 /// # Errors
 /// * Returns an error if text extraction fails for any page in the document
 #[instrument(skip(docs))]
-pub fn extract_pdf_text(docs: &[(String, Document)]) -> Result<RecordBatch> {
+pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     // Extract the page number and text along with any errors from the documents
     let pages: Vec<Result<ParsedPage, Error>> = docs
         .into_par_iter()
@@ -394,7 +394,7 @@ mod tests {
         let docs = [("doc_1".to_string(), doc_1), ("doc_2".to_string(), doc_2)];
 
         // Extract text from the PDF document
-        let batch = extract_pdf_text(&docs).unwrap();
+        let batch = extract_pdf(&docs).unwrap();
 
         // Check the results
         let table = Table::get_builder()
@@ -435,8 +435,8 @@ mod tests {
         let pdf_test = filter_pdf(load_pdf_document(&bytes).unwrap());
 
         // Check that the original and test PDF documents are the same
-        let batch = extract_pdf_text(&[("pdf".to_string(), pdf)]).unwrap();
-        let batch_test = extract_pdf_text(&[("pdf".to_string(), pdf_test)]).unwrap();
+        let batch = extract_pdf(&[("pdf".to_string(), pdf)]).unwrap();
+        let batch_test = extract_pdf(&[("pdf".to_string(), pdf_test)]).unwrap();
 
         assert_eq!(batch, batch_test);
     }

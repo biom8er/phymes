@@ -52,7 +52,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            operator: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::Sort,
             lhs_pk: Some("id".to_string()),
             lhs_fk: Some("title".to_string()),
             lhs_values: Some(vec!["score".to_string()]),
@@ -75,7 +75,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         //     ..Default::default()
         // },
         DataConfig {
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             lhs_pk: Some("title".to_string()),
             lhs_values: Some(vec!["score".to_string()]),
             rhs_pk: Some("title".to_string()),
@@ -83,7 +83,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            operator: AvailableCandleOperators::GroupByAndAggregate,
+            operator: AvailableCandleOperators::GroupBy,
             lhs_pk: Some("id".to_string()),
             lhs_values: Some(vec!["title".to_string(), "collection".to_string()]),
             agg_columns: Some(vec![
@@ -99,7 +99,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
             ..Default::default()
         },
         DataConfig {
-            operator: AvailableCandleOperators::FilterColumnsAndIndices,
+            operator: AvailableCandleOperators::Filter,
             lhs_pk: Some("id".to_string()),
             lhs_values: Some(vec!["title".to_string(), "id".to_string()]),
             cmp_columns: Some(vec!["title".to_string(), "id".to_string()]),

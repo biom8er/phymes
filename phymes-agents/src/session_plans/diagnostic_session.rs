@@ -744,7 +744,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::SelectAndCast,
+            operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
         let metrics_processors_traces_select_and_cast_to_gantt_config_json =
@@ -804,7 +804,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "0".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::SelectAndCast,
+            operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
         let metrics_elapsed_compute_select_and_cast_to_gantt_config_json =
@@ -864,7 +864,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "0".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::SelectAndCast,
+            operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
         let metrics_output_rows_select_and_cast_to_gantt_config_json =
@@ -1138,7 +1138,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "Low".to_string(),
             ]),
-            operator: AvailableCandleOperators::SelectAndCast,
+            operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
         let events_select_and_cast_to_kanban_config_json =
@@ -1172,7 +1172,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         let aggregator_config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
-            operator: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::Sort,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();

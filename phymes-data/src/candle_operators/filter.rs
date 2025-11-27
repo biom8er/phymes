@@ -25,28 +25,28 @@ use crate::{
     candle_data::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
     candle_operators::{
         data_operator::DataOperatorTrait,
-        group_by_and_aggregate::build_aggregator_column_list_primitive_v1,
-        sort_column_and_indices::take_columns_by_indices,
+        group_by::build_aggregator_column_list_primitive_v1,
+        sort::take_columns_by_indices,
     },
 };
 
 /// Filter the [RecordBatch]es against the `cmp_columns` based on the [DataComparatorOperator], merge the predicate arrays
 ///   according to the [DataComparatorPredicate]
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct FilterColumnsAndIndices {
+pub struct Filter {
     lhs_values: Vec<String>,
     cmp_columns: Vec<String>,
     cmp_operators: Vec<DataComparatorOperator>,
     cmp_predicate: DataComparatorPredicate,
 }
 
-impl MappableTrait for FilterColumnsAndIndices {
+impl MappableTrait for Filter {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for FilterColumnsAndIndices {
+impl ToolTrait for Filter {
     fn get_description(&self) -> String {
         "Filter by specified columns using a specified comparator operator over specified columns."
             .to_string()
@@ -102,7 +102,7 @@ impl ToolTrait for FilterColumnsAndIndices {
     }
 }
 
-impl DataOperatorTrait for FilterColumnsAndIndices {
+impl DataOperatorTrait for Filter {
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
@@ -119,7 +119,7 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        filter_columns_and_indices(
+        filter(
             &lhs_values,
             lhs_args,
             &cmp_columns,
@@ -161,7 +161,7 @@ impl DataOperatorTrait for FilterColumnsAndIndices {
             ));
         }
 
-        Ok(FilterColumnsAndIndices {
+        Ok(Filter {
             lhs_values,
             cmp_columns,
             cmp_operators,
@@ -231,7 +231,7 @@ where
     cmp_predicate,
     device
 ))]
-pub fn filter_columns_and_indices(
+pub fn filter(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
     cmp_columns: &[&str],
@@ -570,7 +570,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_filter_column_and_indices() -> Result<()> {
+    fn test_filter() -> Result<()> {
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
@@ -600,7 +600,7 @@ mod tests {
 
         // ------ String, UInt32, All ------
         // Group the text
-        let result = filter_columns_and_indices(
+        let result = filter(
             &["lhs_pk", "lhs_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["lhs_pk", "lhs_metadata"],
@@ -622,7 +622,7 @@ mod tests {
 
         // ------ String, UInt32, Any ------
         // Group the text
-        let result = filter_columns_and_indices(
+        let result = filter(
             &["lhs_pk", "lhs_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["lhs_pk", "lhs_metadata"],
@@ -647,7 +647,7 @@ mod tests {
 
         // ------ String, Any ------
         // Group the text
-        let result = filter_columns_and_indices(
+        let result = filter(
             &["lhs_pk"],
             &[lhs_batch_1, lhs_batch_2],
             &["lhs_text"],

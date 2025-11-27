@@ -28,25 +28,25 @@ use crate::{
     ToolTrait,
     candle_data::{DataAggregatorOperator, DataConfig},
     candle_operators::{
-        data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices,
+        data_operator::DataOperatorTrait, sort::sort,
     },
 };
 
 /// Group the [RecordBatch] according to the `lhs_values` columns and aggregate using a specified aggregation operator over specified columns
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct GroupByAndAggregate {
+pub struct GroupBy {
     lhs_values: Vec<String>,
     agg_columns: Vec<String>,
     agg_operators: Vec<DataAggregatorOperator>,
 }
 
-impl MappableTrait for GroupByAndAggregate {
+impl MappableTrait for GroupBy {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for GroupByAndAggregate {
+impl ToolTrait for GroupBy {
     fn get_description(&self) -> String {
         "Group by user specified columns and aggregate user specified aggregation columns using the user specified aggregation operators.".to_string()
     }
@@ -101,7 +101,7 @@ impl ToolTrait for GroupByAndAggregate {
     }
 }
 
-impl DataOperatorTrait for GroupByAndAggregate {
+impl DataOperatorTrait for GroupBy {
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
@@ -118,7 +118,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        let batches = group_by_and_aggregate(
+        let batches = group_by(
             &lhs_values,
             lhs_args,
             &agg_columns,
@@ -150,7 +150,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
             ));
         }
 
-        Ok(GroupByAndAggregate {
+        Ok(GroupBy {
             lhs_values,
             agg_columns,
             agg_operators,
@@ -433,7 +433,7 @@ pub(crate) fn create_agg_column_name(
 /// * `agg_operators` - Slice of [DataAggregatorOperator]s specifying the aggregator operator to apply to each agg_column
 /// * `device` - The compute device
 #[instrument(skip(lhs_values, lhs_args, agg_columns, agg_operators, device))]
-pub fn group_by_and_aggregate(
+pub fn group_by(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
     agg_columns: &[&str],
@@ -444,9 +444,9 @@ pub fn group_by_and_aggregate(
     let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
     for (iter, column_name) in lhs_values.iter().enumerate() {
         if iter > 0 {
-            lhs_sorted = sort_column_and_indices(column_name, &[lhs_sorted], true, device)?;
+            lhs_sorted = sort(column_name, &[lhs_sorted], true, device)?;
         } else {
-            lhs_sorted = sort_column_and_indices(column_name, lhs_args, true, device)?;
+            lhs_sorted = sort(column_name, lhs_args, true, device)?;
         }
     }
 
@@ -2543,7 +2543,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_group_by_and_aggregate() -> Result<()> {
+    fn test_group_by() -> Result<()> {
         // ------ lhs_values = String ------
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
@@ -2573,7 +2573,7 @@ mod tests {
         let device = device(false)?;
 
         // Group the text
-        let result = group_by_and_aggregate(
+        let result = group_by(
             &["lhs_text"],
             &[lhs_batch_1, lhs_batch_2],
             &[
@@ -2654,7 +2654,7 @@ mod tests {
         ])?;
 
         // Group the text
-        let result = group_by_and_aggregate(
+        let result = group_by(
             &["lhs_pk", "lhs_metadata"],
             &[lhs_batch_1, lhs_batch_2],
             &["lhs_text"],

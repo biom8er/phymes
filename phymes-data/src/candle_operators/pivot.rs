@@ -18,8 +18,8 @@ use crate::{
     candle_data::{DataAggregatorOperator, DataConfig},
     candle_operators::{
         data_operator::DataOperatorTrait,
-        group_by_and_aggregate::{create_agg_column_name, group_by_and_aggregate},
-        sort_column_and_indices::take_columns_by_indices,
+        group_by::{create_agg_column_name, group_by},
+        sort::take_columns_by_indices,
     },
 };
 
@@ -400,7 +400,7 @@ pub fn pivot(
         .copied()
         .collect::<Vec<&str>>();
     let pvt_values_group =
-        group_by_and_aggregate(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
+        group_by(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
     let pvt_values_table = Table::get_builder()
         .with_name("pivot")
         .with_record_batches(vec![pvt_values_group])?
@@ -429,9 +429,9 @@ pub fn pivot(
     let pvt_columns_batch = RecordBatch::try_from_iter(pvt_columns_vec)?;
     let pvt_values_batches = RecordBatch::try_from_iter(pvt_values_vec)?;
     let pvt_columns_group =
-        group_by_and_aggregate(pvt_columns, &[pvt_columns_batch], &[], &[], device)?;
+        group_by(pvt_columns, &[pvt_columns_batch], &[], &[], device)?;
     let pvt_rows_group =
-        group_by_and_aggregate(lhs_values, &[pvt_values_batches], &[], &[], device)?;
+        group_by(lhs_values, &[pvt_values_batches], &[], &[], device)?;
 
     // Wrap the all grouped batches into tables
     let pvt_columns_table = Table::get_builder()

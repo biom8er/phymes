@@ -9,12 +9,12 @@ pub use candle_data::{
     DataSummaryProcessor, collect_messages_by_schema,
 };
 pub use candle_operators::{
-    ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDFText,
-    ExtractSetData, ExtractTabularData, FilterColumnsAndIndices, FromTasksToParticipants,
-    FromTracesToMessages, GroupByAndAggregate, HumanInTheLoop, JoinInner, NormalizeTime, Pivot,
-    SelectAndCast, SortColumnAndIndices, ToolTrait, VectorDistance, convert_destinations_to_tools,
-    extract_set_data, filter_columns_and_indices, group_by_and_aggregate, make_pdf_document,
-    sort_column_and_indices, test_extract_tabular_data,
+    ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDF,
+    ExtractXML, ExtractTabular, Filter, FromTasksToParticipants,
+    FromTracesToMessages, GroupBy, HumanInTheLoop, Join, NormalizeTime, Pivot,
+    Select, Sort, ToolTrait, VectorDistance, convert_destinations_to_tools,
+    extract_xml, filter, group_by, make_pdf_document,
+    sort, test_extract_tabular_data,
 };
 pub use jinja2_templates::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,

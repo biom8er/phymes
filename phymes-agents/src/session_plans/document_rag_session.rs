@@ -629,7 +629,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let aggregator_config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
-            operator: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::Sort,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
@@ -662,7 +662,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             cast_operators: Some(vec![DataCastOperator::Cast, DataCastOperator::None]),
             cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
             cast_templates: Some(vec!["".to_string(), "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}".to_string()]),
-            operator: AvailableCandleOperators::SelectAndCast,
+            operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
         let message_to_query_config_json = serde_json::to_vec(&message_to_query_config).unwrap();
@@ -734,7 +734,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: Some("chunk_id".to_string()),
             lhs_fk: Some("chunk_id".to_string()),
             lhs_values: Some(vec!["score".to_string()]),
-            operator: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::Sort,
             ..Default::default()
         };
         let sort_scores_config_json = serde_json::to_vec(&sort_scores_config).unwrap();
@@ -755,7 +755,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some(vec!["text".to_string()]),
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             ..Default::default()
         };
         let join_chunks_config_json = serde_json::to_vec(&join_chunks_config).unwrap();
