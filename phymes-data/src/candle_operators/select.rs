@@ -416,7 +416,7 @@ pub fn select(
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
-        .with_name("select_and_cast")
+        .with_name("select")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
 

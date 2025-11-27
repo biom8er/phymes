@@ -218,7 +218,7 @@ pub fn sort(
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
     let lhs_table = Table::get_builder()
-        .with_name("sort_column_and_indices")
+        .with_name("sort")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
 

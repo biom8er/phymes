@@ -452,7 +452,7 @@ pub fn group_by(
 
     // Wrap the lhs and rhs into an ArrowTable
     let lhs_table = Table::get_builder()
-        .with_name("group_by_and_aggregate")
+        .with_name("group_by")
         .with_record_batches(vec![lhs_sorted])?
         .build()?;
 

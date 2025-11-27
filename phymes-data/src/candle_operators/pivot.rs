@@ -1,6 +1,6 @@
 use arrow::{
     array::{ArrayRef, RecordBatch, UInt32Array},
-    datatypes::{Field, Schema},
+    datatypes::{DataType, Field, Schema},
 };
 
 use anyhow::{Result, anyhow};
@@ -275,21 +275,39 @@ fn pivot_missing_values(
                     new_agg_columns.iter().zip(default_values.iter())
                 {
                     let new_column_name = format!("{column_name}-{agg_column_name}");
-                    let default_value = agg_default_value.parse::<i64>()?;
-                    map.insert(
-                        new_column_name.clone(),
-                        serde_json::Value::from(default_value),
-                    );
-                    let field = Field::new(
-                        new_column_name,
-                        pvt_values_table
-                            .get_schema()
-                            .field_with_name(agg_column_name)
-                            .unwrap()
-                            .data_type()
-                            .to_owned(),
-                        false,
-                    );
+                    let data_type = pvt_values_table
+                        .get_schema()
+                        .field_with_name(agg_column_name)
+                        .unwrap()
+                        .data_type()
+                        .to_owned();
+                    match data_type {
+                        DataType::UInt8 => {
+                            let default_value = agg_default_value.parse::<u8>()?;
+                            map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
+                        },
+                        DataType::UInt32 => {
+                            let default_value = agg_default_value.parse::<u32>()?;
+                            map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
+                        },
+                        DataType::Int64 => {
+                            let default_value = agg_default_value.parse::<i64>()?;
+                            map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
+                        },
+                        DataType::Float32 => {
+                            let default_value = agg_default_value.parse::<f32>()?;
+                            map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
+                        },
+                        DataType::Float64 => {
+                            let default_value = agg_default_value.parse::<f64>()?;
+                            map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
+                        },
+                        DataType::Utf8 => {
+                            map.insert(new_column_name.clone(), serde_json::Value::from(agg_default_value.to_string()));
+                        },
+                        _ => return Err(anyhow!("Unsupported data type {data_type} for default value {agg_default_value} and column {agg_column_name}.")),
+                    }
+                    let field = Field::new(new_column_name, data_type, false);
                     if !pvt_fields.contains(&field) {
                         pvt_fields.push(field);
                     }
