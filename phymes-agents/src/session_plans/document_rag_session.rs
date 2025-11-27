@@ -6,7 +6,7 @@ use phymes_core::{
     TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
 };
 use phymes_data::{
-    AvailableCandleOperators, DataCastOperator, DataConfig, DataDistanceOperator, DataSummaryConfig,
+    AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig, DataDistanceOperator, DataSummaryConfig
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -656,7 +656,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let message_to_query_config = DataConfig {
             lhs_name: Some(AvailableInterfaceSubjects::UserMessages.to_string()),
             lhs_values: Some(vec!["timestamp".to_string(),"content".to_string()]),
+            rhs_values: Some(vec!["".to_string(),"".to_string()]),
             as_columns: Some(vec!["query_id".to_string(), "text".to_string()]),
+            column_operators: Some(vec![DataColumnOperator::None, DataColumnOperator::None]),
             cast_operators: Some(vec![DataCastOperator::Cast, DataCastOperator::None]),
             cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
             cast_templates: Some(vec!["".to_string(), "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}".to_string()]),

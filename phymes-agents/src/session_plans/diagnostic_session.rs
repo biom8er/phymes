@@ -7,8 +7,7 @@ use phymes_core::{
     TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
-    DataConfig,
+    AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataConfig
 };
 use serde_json::json;
 
@@ -709,11 +708,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "start_timestamp-metric_value-Sum-normalized".to_string(),
                 "end_timestamp-metric_value-Sum-normalized".to_string(),
             ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
             as_columns: Some(vec![
                 "section".to_string(),
                 "task".to_string(),
                 "start".to_string(),
                 "end".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
             ]),
             cast_operators: Some(vec![
                 DataCastOperator::None,
@@ -757,11 +768,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "span_name".to_string(),
                 "elapsed_compute-metric_value-Sum".to_string(),
             ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
             as_columns: Some(vec![
                 "section".to_string(),
                 "task".to_string(),
                 "start".to_string(),
                 "end".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
             ]),
             cast_operators: Some(vec![
                 DataCastOperator::None,
@@ -805,11 +828,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "span_name".to_string(),
                 "output_rows-metric_value-Sum".to_string(),
             ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
             as_columns: Some(vec![
                 "section".to_string(),
                 "task".to_string(),
                 "start".to_string(),
                 "end".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
             ]),
             cast_operators: Some(vec![
                 DataCastOperator::None,
@@ -1049,6 +1084,15 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "id".to_string(),
                 "id".to_string(),
             ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
             as_columns: Some(vec![
                 "column_name".to_string(),
                 "column_label".to_string(),
@@ -1057,6 +1101,15 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "task_assigned".to_string(),
                 "task_ticket".to_string(),
                 "task_priority".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
             ]),
             cast_operators: Some(vec![
                 DataCastOperator::None,

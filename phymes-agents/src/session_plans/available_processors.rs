@@ -8,10 +8,7 @@ use phymes_core::{
     TablePublication, TableSubscribePolicyTrait, TableSubscription, test_processor::ProcessorMock,
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
-    CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataComparatorOperator,
-    DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager,
-    DataSummaryConfig, DataSummaryProcessor, ToolTrait,
+    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, ToolTrait
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
@@ -252,7 +249,9 @@ impl DataConfigTrait for AvailableProcessors {
             Self::SelectAndCast => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
+                rhs_values: Some(vec!["rhs_values".to_string()]),
                 as_columns: Some(vec!["as_columns".to_string()]),
+                column_operators: Some(vec![DataColumnOperator::None]),
                 cast_operators: Some(vec![DataCastOperator::None]),
                 cast_datatypes: Some(vec![DataType::Utf8.to_string()]),
                 cast_templates: Some(vec!["cast_template".to_string()]),
