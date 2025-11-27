@@ -78,9 +78,9 @@ impl Default for ToolAgentSession<'_> {
             extract_tabular_data_task_name: "extract_tabular_data_task_1",
             extract_tabular_data_processor_name: "extract_tabular_data_processor_1",
             // Needs to match the operator name
-            tool_task_name: "SortColumnAndIndices",
+            tool_task_name: "Sort",
             // Needs to match the operator name
-            tool_processor_name: "SortColumnAndIndices",
+            tool_processor_name: "Sort",
             tool_runtime_env_name: "tool_rt_1",
             tool_attachment_task_name: "tool_attachment_task_1",
             tool_attachment_processor_name: "tool_attachment_processor_1",
@@ -273,7 +273,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.tool_vis_renamecols_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::MermaidXYChart.to_string(),
@@ -366,7 +366,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::ExtractTabularData.build_arc(
+            AvailableProcessors::ExtractTabular.build_arc(
                 self.extract_tabular_data_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),

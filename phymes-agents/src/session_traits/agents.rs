@@ -432,7 +432,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                                 r#type
                             ));
                         } else if config.operator.to_string().as_str()
-                            != AvailableProcessors::SortColumnAndIndices
+                            != AvailableProcessors::Sort
                                 .to_string()
                                 .as_str()
                             && (r#type
@@ -449,7 +449,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                                 config.operator,
                                 table.get_name(),
                                 r#type,
-                                AvailableProcessors::SortColumnAndIndices,
+                                AvailableProcessors::Sort,
                                 AvailableProcessors::AttachmentAggregatorProcessor,
                                 AvailableProcessors::MessageAggregatorProcessor
                             ));
@@ -933,7 +933,7 @@ pub mod test_session_context_builder_agents {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::JoinInner.build_arc(
+            AvailableProcessors::Join.build_arc(
                 "session_1",
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
@@ -1287,7 +1287,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Schema for `DataSummaryConfig` from subject `session_1` for processor type `JoinInner` does not match the expected processor type DataSummaryProcessor."
+                "Schema for `DataSummaryConfig` from subject `session_1` for processor type `Join` does not match the expected processor type DataSummaryProcessor."
             ),
         }
 
@@ -1322,7 +1322,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Operator NormalizeTime for `DataConfig` from subject `session_1` does not match the expected for processor type `JoinInner`."
+                "Operator NormalizeTime for `DataConfig` from subject `session_1` does not match the expected for processor type `Join`."
             ),
         }
 
@@ -1357,7 +1357,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Failed to build `JoinInner` with DataConfig from subject `session_1`. Missing `lhs_pk` for `JoinInner`."
+                "Failed to build `Join` with DataConfig from subject `session_1`. Missing `lhs_pk` for `Join`."
             ),
         }
 

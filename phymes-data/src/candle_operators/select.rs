@@ -321,7 +321,7 @@ fn find_column(lhs_table: &Table, lhs_batches: &[(&&str, ArrayRef)], column_name
         if let Some(arr) = lhs_filtered.pop() {
             Ok(arr.clone())
         } else {
-            return Err(anyhow!("Unable to find column {column_name} in the provided lhs_args nor in the new lhs batches for `SelectAndCast` Operator."))
+            return Err(anyhow!("Unable to find column {column_name} in the provided lhs_args nor in the new lhs batches for `Select` Operator."))
         }
     }
 }

@@ -337,7 +337,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.metrics_processors_traces_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -356,7 +356,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.metrics_elapsed_compute_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -375,7 +375,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.metrics_output_rows_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -578,7 +578,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.events_select_and_cast_to_kanban_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),

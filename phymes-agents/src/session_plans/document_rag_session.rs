@@ -250,7 +250,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.message_to_query_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
@@ -301,7 +301,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::ExtractPDFText.build_arc(
+            AvailableProcessors::ExtractPDF.build_arc(
                 self.extract_pdf_processor_name,
                 &[TablePublication::Extend {
                     table_name: self.document_chunk_task_name.to_string(),
@@ -413,7 +413,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::SortColumnAndIndices.build_arc(
+            AvailableProcessors::Sort.build_arc(
                 self.sort_scores_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
@@ -428,7 +428,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::JoinInner.build_arc(
+            AvailableProcessors::Join.build_arc(
                 self.join_chunks_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_chunks_join_table_name.to_string(),
@@ -678,7 +678,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: Some(AvailableInterfaceSubjects::UserPdf.to_string()),
             lhs_pk: Some("filename".to_string()),
             lhs_values: Some(vec!["bytes".to_string()]),
-            operator: AvailableCandleOperators::ExtractPDFText,
+            operator: AvailableCandleOperators::ExtractPDF,
             ..Default::default()
         };
         let extract_pdf_config_json = serde_json::to_vec(&extract_pdf_config).unwrap();
