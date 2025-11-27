@@ -12,7 +12,7 @@ pub fn extension_to_icon_svg(extension: &str) -> String {
         "mp4" | "avi" => ms_video_icon_svg(),
         "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" => ms_search_icon_svg(),
         "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" | "svg"
-        | "html" => ms_code_icon_svg(),
+        | "html" | "xml" | "owl" => ms_code_icon_svg(),
         "csv" | "tsv" => aws_table_icon_svg(),
         _ => ms_attachment_icon_svg(),
     }
@@ -25,7 +25,7 @@ pub fn extension_to_subject(extension: &str) -> Result<AvailableInterfaceSubject
         "mp4" | "avi" => AvailableInterfaceSubjects::UserVideo,
         "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" => AvailableInterfaceSubjects::UserImage,
         "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go" | "rs" | "json" | "svg"
-        | "html" => AvailableInterfaceSubjects::UserScript,
+        | "html" | "xml" | "owl" => AvailableInterfaceSubjects::UserScript,
         "csv" | "tsv" => AvailableInterfaceSubjects::UserCsv,
         _ => {
             return Err(anyhow!(

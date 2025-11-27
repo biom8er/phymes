@@ -277,12 +277,8 @@ impl DataFormat {
             "ipc" => DataFormat::Ipc,
             "html" => DataFormat::Html,
             "txt" => DataFormat::Txt,
-            "Xml" => DataFormat::Xml,
-            "OwlDefault" => DataFormat::OwlDefault,
-            "OwlOntology" => DataFormat::OwlOntology,
-            "OwlClass" => DataFormat::OwlClass,
-            "OwlObjectProperty" => DataFormat::OwlObjectProperty,
-            "OwlNamedIndividual" => DataFormat::OwlNamedIndividual,
+            "xml" => DataFormat::Xml,
+            "owl" => DataFormat::OwlDefault,
             _ => {
                 return Err(anyhow!(
                     "File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, .txt, .xml,, .owl, and .html"
@@ -302,13 +298,13 @@ impl DataFormat {
             Self::Pdf => "pdf",
             Self::Html => "html",
             Self::Txt => "txt",
-            Self::Xml => "Xml",
+            Self::Xml => "xml",
             Self::Owl(_)
             | Self::OwlDefault
             | Self::OwlOntology
             | Self::OwlClass
             | Self::OwlObjectProperty
-            | Self::OwlNamedIndividual => "Owl",
+            | Self::OwlNamedIndividual => "owl",
             Self::None => "",
         }
     }

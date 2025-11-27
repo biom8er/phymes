@@ -40,12 +40,9 @@ pub fn sign_in_view() -> Element {
 #[component]
 pub fn sign_in_form() -> Element {
     // Sign-in signals
-    #[allow(clippy::redundant_closure)]
-    let mut email = use_signal(|| String::new());
-    #[allow(clippy::redundant_closure)]
-    let mut password = use_signal(|| String::new());
-    #[allow(clippy::redundant_closure)]
-    let mut content = use_signal(|| String::new());
+    let mut email =  use_signal(String::new);
+    let mut password = use_signal(String::new);
+    let mut content =  use_signal(String::new);
 
     // intialize state and coroutines
     use_coroutine(sync_jwt_state);
@@ -65,7 +62,7 @@ pub fn sign_in_form() -> Element {
     //  7. Send follow-up email notifying the user that their password was reset
     rsx! {
         form {
-            class: "p-4 rounded bg-gray-800 w-full sm:max-w-1/2",
+            class: "p-4 rounded bg-gray-800 w-full sm:max-w-1/2 md:max-w-1/4",
             div {
                 class: "flex flex-col gap-2",
                 label { "Email" }
@@ -90,7 +87,7 @@ pub fn sign_in_form() -> Element {
             }
         }
         button {
-            class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+            class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
             onclick: move |_| async move {
                 let route = "/app/v1/sign_in";
 
@@ -175,7 +172,7 @@ pub fn sign_in_form() -> Element {
             "sign-in"
         }
         button {
-            class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+            class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
             onclick: move |_| async move {
                 // TODO
             },
@@ -195,11 +192,11 @@ pub fn sign_out_form() -> Element {
 
     rsx! {
         p {
-            class: "block mx-auto mt-4 px-4 py-2",
+            class: "block mx-auto mt-2 px-4 py-2",
             "Signed in as {EMAIL.read().to_string()}."
         },
         button {
-            class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+            class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
             onclick: move |_| async move {
                 clear_jwt_state.send(ClearJWTState {});
                 clear_session_names_state.send(ClearSessionNamesState {});
@@ -236,11 +233,11 @@ pub fn application_mode() -> Element {
 
     rsx! {
         p {
-            class: "block mx-auto mt-4 px-4 py-2",
+            class: "block mx-auto mt-2 px-4 py-2",
             "Application modes"
         }
         button {
-            class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+            class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
             onclick: move |_evt| async move {
                 sync_builder_state.send(SyncBuilderState { show: !BUILDER()});
                 if BUILDER() {
@@ -253,7 +250,7 @@ pub fn application_mode() -> Element {
         // If we are enabling builder mode, disable debugger mode
         if !BUILDER() {
             button {
-                class: "block mx-auto mt-4 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
                 onclick: move |_evt| async move {
                     sync_debugger_state.send(SyncDebuggerState { show: !DEBUGGER()});
                 },

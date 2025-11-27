@@ -299,9 +299,9 @@ pub fn split_panel(
     };
 
     let (div_class, top_bottom_class, middle_class) = if horizontal {
-        ("flex flex-col h-full w-full overflow-hidden", "w-full overflow-auto", "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize")
+        ("flex flex-col h-full w-full", "w-full", "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize")
     } else {
-        ("flex flex-row h-full w-full overflow-hidden", "h-full overflow-auto", "h-full w-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
+        ("flex flex-row h-full w-full", "h-full", "h-full w-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
     };
 
     let height_or_width = if horizontal { "height" } else { "width" };

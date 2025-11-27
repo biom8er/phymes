@@ -11,13 +11,9 @@ use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
 
 use crate::state::{
-    filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name,
-    get_non_duplicated_sorted_subjects,
-    svg_icons::{
-        b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
-        ms_deploy_icon_svg, ms_edit_icon_svg, ms_sync_icon_svg,
-    },
-    sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES,
+    EMAIL, JWT, SESSION_NAMES, SyncSessionNamesState, filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, svg_icons::{
+        b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg, ms_deploy_icon_svg, ms_edit_icon_svg, ms_search_icon_svg, ms_sync_icon_svg
+    }, sync_session_names_state
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -122,7 +118,7 @@ pub fn builds_dropdown_view(
                     },
                     svg {
                         class: "max-w-[48px] max-h-[48px]",
-                        dangerous_inner_html: ms_edit_icon_svg()
+                        dangerous_inner_html: ms_search_icon_svg()
                     },
                 },
 
@@ -381,6 +377,7 @@ pub fn builds_dropdown_view(
                             let mut session_plans = vec![active_session_name().to_string()];
                             session_plans.extend(SESSION_NAMES.read().iter().filter(|s| *s!=&active_session_name()).cloned());
                             sync_session_names.send(SyncSessionNamesState { session_plans });
+                            build_errors.write().push_str(format!("Session name '{}' has been built successfully.", active_session_name()).as_str());
 
                         },
                         svg {
@@ -553,7 +550,7 @@ code.addEventListener('scroll', () => {
 
     rsx! {
         div {
-            class: "w-full h-full rounded-md shadow-sm py-2 p-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
+            class: "w-full h-full overflow-auto rounded-md shadow-sm py-2 p-2 snap-y grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
             div {
                 id: "gutter",
                 class: "h-full text-right flex flex-col whitespace-pre overflow-hidden",
@@ -569,8 +566,65 @@ code.addEventListener('scroll', () => {
                 id: "code",
                 value: "{code.to_string()}",
                 oninput: on_input,
-                class: "w-full h-full grow bg-gray-800 px-3 resize-none focus:outline-none whitespace-pre overflow-hidden"
+                class: "w-full h-full grow bg-gray-800 px-3 resize-none focus:outline-none whitespace-pre overflow-x-auto overflow-y-hidden"
             }
         }
     }
 }
+
+// /// View for modifying the session name
+// #[component]
+// pub fn session_name_editor(mut active_session_name: Signal<String>) -> Element {
+//     let is_editing = use_signal(false);
+    
+//     if !active_session_name().is_empty() {
+//         if is_editing() {
+//             rsx! {
+//                 div {
+//                     form {
+//                         class: "p-4 rounded bg-gray-800 w-full",
+//                         div {
+//                             class: "flex flex-col gap-2",
+//                             label { "Name" }
+//                             input {
+//                                 r#type: "text",
+//                                 placeholder: "{active_session_name}",
+//                                 oninput: move |event| active_session_name.set(event.value()),
+//                                 class: "w-full p-2 rounded bg-gray-700",
+//                             }
+//                         }
+//                     }
+//                     button {
+//                         class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+//                         onclick: move |_| async move {
+//                             is_editing.set(false)
+//                         },
+//                         svg {
+//                             class: "max-w-[48px] max-h-[48px]",
+//                             dangerous_inner_html: b8_save_icon_svg()
+//                         },
+//                     }
+//                 }                
+//             }
+//         } else {            
+//             rsx! {
+//                 p {
+//                     class: "w-full rounded p-2 items-center text-center text-gray-200 bg-gray-800",
+//                     "{active_session_name}"
+//                 }
+//                 button {
+//                     class: "block mx-auto mt-2 px-4 py-2 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+//                     onclick: move |_| async move {
+//                         is_editing.set(true)
+//                     },
+//                     svg {
+//                         class: "max-w-[48px] max-h-[48px]",
+//                         dangerous_inner_html: ms_edit_icon_svg()
+//                     },
+//                 }
+//             }
+//         }
+//     } else {
+//         rsx! { }
+//     }
+// }

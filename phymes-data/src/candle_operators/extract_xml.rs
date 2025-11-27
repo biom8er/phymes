@@ -410,9 +410,10 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                                 xml_type.replace(XMLType::Element);
                             }
                         } else {
-                            return Err(anyhow!(
-                                "Found a predicate tag `{tag}` when there is no current subject."
-                            ));
+                            // ignore
+                            // return Err(anyhow!(
+                            //     "Found a predicate tag `{tag}` when there is no current subject."
+                            // ));
                         }
                     } else {
                         // ignore recursive predicates for now
@@ -505,9 +506,10 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                             xml_type.replace(XMLType::Element);
                         }
                     } else {
-                        return Err(anyhow!(
-                            "Found a predicate tag `{tag}` when there is no current subject."
-                        ));
+                        // ignore
+                        // return Err(anyhow!(
+                        //     "Found a predicate tag `{tag}` when there is no current subject."
+                        // ));
                     }
                 }
             }

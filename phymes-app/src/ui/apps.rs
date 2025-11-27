@@ -324,6 +324,12 @@ pub fn apps_interface_view() -> Element {
                     bottom: rsx! {
                         div {
                             class: "h-full w-full p-2 flex flex-col items-center",
+                            if !active_session_name().is_empty() {
+                                p {
+                                    class: "w-full rounded p-2 items-center text-center text-gray-200 bg-gray-800",
+                                    "{active_session_name}"
+                                }
+                            }
                             mermaid_view { diagram_code, build_errors }
                         }
                     },
@@ -334,6 +340,12 @@ pub fn apps_interface_view() -> Element {
                 div {
                     class: "h-full w-full p-2 flex flex-col items-center",
                     apps_dropdown_view { is_flowchart_shown }
+                    if !active_session_name().is_empty() {
+                        p {
+                            class: "w-full rounded p-2 items-center text-center text-gray-200 bg-gray-800",
+                            "{active_session_name}"
+                        }
+                    }
                     mermaid_view { diagram_code, build_errors }
                 }
             }
@@ -360,13 +372,12 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                 .collect::<Vec<_>>(),
         )
     });
-    #[allow(clippy::redundant_closure)]
-    let mut subjects_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
+    let mut subjects_filtered: Signal<Vec<String>> = use_signal(Vec::new);
 
     rsx! {
         div {
             // input + 2 buttons of 64 px by 64 px
-            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_128px] w-full sm:max-w-3/4",
+            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_128px] w-full sm:max-w-3/4 md:max-w-1/2",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
@@ -529,6 +540,15 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>, mut build_erro
     });
 
     rsx! {
+        if !build_errors().is_empty() {
+            div {
+                class: "rounded p-2 items-center bg-gray-700",
+                p {
+                    class: "text-gray-200",
+                    "{build_errors}"
+                },
+            }
+        }
         if !error_mjs().is_empty() {
             div {
                 class: "rounded p-2 items-center text-gray-200 bg-gray-700",
@@ -544,15 +564,6 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>, mut build_erro
                 p {
                     class: "text-gray-200",
                     "{error_ctxb}"
-                },
-            }
-        }
-        if !build_errors().is_empty() {
-            div {
-                class: "rounded p-2 items-center bg-gray-700",
-                p {
-                    class: "text-gray-200",
-                    "{build_errors}"
                 },
             }
         }

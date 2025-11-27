@@ -308,16 +308,16 @@ pub fn attachments_interface_footer(
     });
 
     let styles = if extend_input() && add_input() {
-        "h-full grid grid-rows-[128px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+        "row-span-2 col-span-1 row-start-1 col-start-1 flex flex-col"
     } else {
-        "h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+        "row-span-1 col-span-1 row-start-1 col-start-1 flex flex-col"
     };
 
     rsx! {
         footer {
-            class: styles,
+            class: "h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2",
             div {
-                class: "row-span-1 col-span-1 row-start-1 col-start-1 flex flex-col",
+                class: styles,
                 if extend_input() {
                     div {
                         class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
@@ -345,7 +345,7 @@ pub fn attachments_interface_footer(
             }
 
             div {
-                class: "row-span-1 col-span-1 row-start-1 col-start-3",
+                class: "row-span-2 col-span-1 row-start-1 col-start-3",
                 if !files_uploaded.read().is_empty() {
                     upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
                     clear_upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
