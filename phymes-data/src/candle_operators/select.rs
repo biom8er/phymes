@@ -307,7 +307,7 @@ where
 }
 
 /// Helper function to choose the source of the column
-fn find_column(lhs_table: &Table, lhs_batches: &[(&&str, ArrayRef)], column_name: &str) -> Result<ArrayRef> {
+fn find_column(lhs_table: &Table, lhs_batches: &[&(&&str, ArrayRef)], column_name: &str) -> Result<ArrayRef> {
     if let Ok(_field) = lhs_table.get_schema().field_with_name(column_name) {
         Ok(lhs_table.get_column_as_array(column_name))
     } else {
@@ -327,7 +327,7 @@ fn find_column(lhs_table: &Table, lhs_batches: &[(&&str, ArrayRef)], column_name
 }
 
 /// Helper function to get the rhs
-fn rhs_helper(rhs_values: &[&str], lhs_table: &Table, lhs_batches: &[(&&str, ArrayRef)], index: usize) -> Result<(Option<String>, Option<ArrayRef>)>{
+fn rhs_helper(rhs_values: &[&str], lhs_table: &Table, lhs_batches: &[&(&&str, ArrayRef)], index: usize) -> Result<(Option<String>, Option<ArrayRef>)>{
     if let Some(rhs_column) = rhs_values.get(index) {
         if rhs_column.is_empty() {
             Ok((None, None))
@@ -422,40 +422,41 @@ pub fn select(
         .build()?;
 
     // Apply the cast and optional column renaming and template injection based on the lhs_values
-    let mut batch_vec = Vec::new();
+    let mut missing_vec: Vec<(&&str, ArrayRef)> = Vec::new();
+    let mut batch_vec: Vec<(&&str, ArrayRef)> = Vec::new();
     for (index, column_name) in lhs_values.iter().enumerate() {
         // Initialize missing columns with default values
-        if let Err(_err) = find_column(&lhs_table, &batch_vec, column_name) {
+        if let Err(_err) = find_column(&lhs_table, &batch_vec.iter().collect::<Vec<_>>(), column_name) {
             match cast_datatypes.get(index).unwrap() {
                 DataType::UInt8 => {
                     let default_vec = (0..lhs_table.count_rows()).map(|_| Default::default()).collect::<Vec<u8>>();
                     let arr: ArrayRef = Arc::new(UInt8Array::from_iter_values(default_vec));
-                    batch_vec.push((column_name, arr));
+                    missing_vec.push((column_name, arr));
                 }
                 DataType::UInt32 => {
                     let default_vec = (0..lhs_table.count_rows()).map(|_| Default::default()).collect::<Vec<u32>>();
                     let arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(default_vec));
-                    batch_vec.push((column_name, arr));
+                    missing_vec.push((column_name, arr));
                 }
                 DataType::Int64 => {
                     let default_vec = (0..lhs_table.count_rows()).map(|_| Default::default()).collect::<Vec<i64>>();
                     let arr: ArrayRef = Arc::new(Int64Array::from_iter_values(default_vec));
-                    batch_vec.push((column_name, arr));
+                    missing_vec.push((column_name, arr));
                 }
                 DataType::Float32 => {
                     let default_vec = (0..lhs_table.count_rows()).map(|_| Default::default()).collect::<Vec<f32>>();
                     let arr: ArrayRef = Arc::new(Float32Array::from_iter_values(default_vec));
-                    batch_vec.push((column_name, arr));
+                    missing_vec.push((column_name, arr));
                 }
                 DataType::Float64 => {
                     let default_vec = (0..lhs_table.count_rows()).map(|_| Default::default()).collect::<Vec<f64>>();
                     let arr: ArrayRef = Arc::new(Float64Array::from_iter_values(default_vec));
-                    batch_vec.push((column_name, arr));
+                    missing_vec.push((column_name, arr));
                 }
                 DataType::Utf8 => {
                     let default_vec = (0..lhs_table.count_rows()).map(|_| String::new()).collect::<Vec<String>>();
                     let arr: ArrayRef = Arc::new(StringArray::from(default_vec));
-                    batch_vec.push((column_name, arr));
+                    missing_vec.push((column_name, arr));
                 }
                 _ => {
                     return Err(anyhow!(
@@ -467,8 +468,11 @@ pub fn select(
             }
         }
 
+        // Combine the missing with the new columns
+        let batch_missing_vec = batch_vec.iter().chain(missing_vec.iter()).collect::<Vec<_>>();
+
         // Transform the column
-        let lhs_arr = find_column(&lhs_table, &batch_vec, column_name)?;
+        let lhs_arr = find_column(&lhs_table, &batch_missing_vec, column_name)?;
         let column_data_type = lhs_arr.data_type();
         let column_cast: ArrayRef = match column_operators.get(index).unwrap() {
             DataColumnOperator::Add 
@@ -478,56 +482,56 @@ pub fn select(
             | DataColumnOperator::Max
             | DataColumnOperator::Min => match column_data_type {
                 DataType::UInt8 => {
-                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_vec, index)?;
+                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
                     let tensor = column_operator_tensor::<u8>(
                         column_name,
                         rhs_column.as_ref().map(|x| x.as_str()),
                         column_operators.get(index).unwrap(),
-                        &find_column(&lhs_table, &batch_vec, column_name)?, 
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?, 
                         rhs_arr.as_ref(), 
                         &device)?;
                     Arc::new(UInt8Array::from_iter_values(tensor.to_vec1::<u8>()?))
                 }
                 DataType::UInt32 => {
-                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_vec, index)?;
+                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
                     let tensor = column_operator_tensor::<u32>(
                         column_name,
                         rhs_column.as_ref().map(|x| x.as_str()),
                         column_operators.get(index).unwrap(),
-                        &find_column(&lhs_table, &batch_vec, column_name)?, 
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?, 
                         rhs_arr.as_ref(), 
                         &device)?;
                     Arc::new(UInt32Array::from_iter_values(tensor.to_vec1::<u32>()?))
                 }
                 DataType::Int64 => {
-                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_vec, index)?;
+                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
                     let tensor = column_operator_tensor::<i64>(
                         column_name,
                         rhs_column.as_ref().map(|x| x.as_str()),
                         column_operators.get(index).unwrap(),
-                        &find_column(&lhs_table, &batch_vec, column_name)?, 
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?, 
                         rhs_arr.as_ref(), 
                         &device)?;
                     Arc::new(Int64Array::from_iter_values(tensor.to_vec1::<i64>()?))
                 }
                 DataType::Float32 => {
-                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_vec, index)?;
+                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
                     let tensor = column_operator_tensor::<f32>(
                         column_name,
                         rhs_column.as_ref().map(|x| x.as_str()),
                         column_operators.get(index).unwrap(),
-                        &find_column(&lhs_table, &batch_vec, column_name)?, 
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?, 
                         rhs_arr.as_ref(), 
                         &device)?;
                     Arc::new(Float32Array::from_iter_values(tensor.to_vec1::<f32>()?))
                 }
                 DataType::Float64 => {
-                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_vec, index)?;
+                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
                     let tensor = column_operator_tensor::<f64>(
                         column_name,
                         rhs_column.as_ref().map(|x| x.as_str()),
                         column_operators.get(index).unwrap(),
-                        &find_column(&lhs_table, &batch_vec, column_name)?, 
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?, 
                         rhs_arr.as_ref(), 
                         &device)?;
                     Arc::new(Float64Array::from_iter_values(tensor.to_vec1::<f64>()?))
@@ -540,14 +544,14 @@ pub fn select(
                 }
             },
             DataColumnOperator::Rem => {
-                let lhs_arr = find_column(&lhs_table, &batch_vec, column_name)?;
-                let rhs_arr = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?;
+                let lhs_arr = find_column(&lhs_table, &batch_missing_vec, column_name)?;
+                let rhs_arr = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?;
                 rem(&lhs_arr, &rhs_arr)?
             },
             DataColumnOperator::List => match column_data_type {
                 DataType::UInt8 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| vec![l, r])
@@ -557,8 +561,8 @@ pub fn select(
                         column_data_type.clone())
                 }
                 DataType::UInt32 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<u32>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_primitive::<u32>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| vec![l, r])
@@ -568,8 +572,8 @@ pub fn select(
                         column_data_type.clone())
                 }
                 DataType::Int64 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<i64>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_primitive::<i64>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| vec![l, r])
@@ -579,8 +583,8 @@ pub fn select(
                         column_data_type.clone())
                 }
                 DataType::Float32 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<f32>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<f32>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_primitive::<f32>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_primitive::<f32>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| vec![l, r])
@@ -590,8 +594,8 @@ pub fn select(
                         column_data_type.clone())
                 }
                 DataType::Float64 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<f64>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<f64>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_primitive::<f64>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_primitive::<f64>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| vec![l, r])
@@ -601,8 +605,8 @@ pub fn select(
                         column_data_type.clone())
                 }
                 DataType::Utf8 => {
-                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| vec![l, r])
@@ -613,7 +617,7 @@ pub fn select(
                 }
                 DataType::FixedSizeList(f, _) => match f.data_type() {
                     DataType::UInt8 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -625,7 +629,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -649,7 +653,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::UInt32 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -661,7 +665,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -685,7 +689,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Int64 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -697,7 +701,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -721,7 +725,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Float32 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -733,7 +737,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -757,7 +761,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Float64 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -769,7 +773,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -793,7 +797,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Utf8 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -805,7 +809,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -837,7 +841,7 @@ pub fn select(
                 }
                 DataType::List(f) => match f.data_type() {
                     DataType::UInt8 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -849,7 +853,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -873,7 +877,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::UInt32 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -885,7 +889,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -909,7 +913,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Int64 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -921,7 +925,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -945,7 +949,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Float32 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -957,7 +961,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -981,7 +985,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Float64 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -993,7 +997,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1017,7 +1021,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Utf8 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1029,7 +1033,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1068,8 +1072,8 @@ pub fn select(
             },
             DataColumnOperator::Set => match column_data_type {
                 DataType::UInt8 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_primitive::<u8>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| [l, r].into_iter().collect::<HashSet<_>>().into_iter().collect::<Vec<_>>())
@@ -1079,8 +1083,8 @@ pub fn select(
                         column_data_type.clone())
                 }
                 DataType::UInt32 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<u32>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_primitive::<u32>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| [l, r].into_iter().collect::<HashSet<_>>().into_iter().collect::<Vec<_>>())
@@ -1090,8 +1094,8 @@ pub fn select(
                         column_data_type.clone())
                 }
                 DataType::Int64 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<i64>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_primitive::<i64>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| [l, r].into_iter().collect::<HashSet<_>>().into_iter().collect::<Vec<_>>())
@@ -1101,8 +1105,8 @@ pub fn select(
                         column_data_type.clone())
                 }
                 DataType::Utf8 => {
-                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| [l, r].into_iter().collect::<HashSet<_>>().into_iter().collect::<Vec<_>>())
@@ -1113,7 +1117,7 @@ pub fn select(
                 }
                 DataType::FixedSizeList(f, _) => match f.data_type() {
                     DataType::UInt8 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -1125,7 +1129,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -1146,7 +1150,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::UInt32 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -1158,7 +1162,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -1179,7 +1183,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Int64 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -1191,7 +1195,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -1212,7 +1216,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Utf8 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -1224,7 +1228,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<FixedSizeListArray>()
                             .unwrap()
@@ -1253,7 +1257,7 @@ pub fn select(
                 }
                 DataType::List(f) => match f.data_type() {
                     DataType::UInt8 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1265,7 +1269,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1286,7 +1290,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::UInt32 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1298,7 +1302,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1319,7 +1323,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Int64 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1331,7 +1335,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1352,7 +1356,7 @@ pub fn select(
                             column_data_type.clone())
                     }
                     DataType::Utf8 => {
-                        let lhs_vec = find_column(&lhs_table, &batch_vec, column_name)?
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1364,7 +1368,7 @@ pub fn select(
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?
+                        let rhs_vec = find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?
                             .as_any()
                             .downcast_ref::<ListArray>()
                             .unwrap()
@@ -1400,8 +1404,8 @@ pub fn select(
             },
             DataColumnOperator::Concat => match column_data_type {
                 DataType::Utf8 => {
-                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, column_name)?, column_name)?;
-                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_vec, rhs_values.get(index).unwrap())?, column_name)?;
+                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_missing_vec, column_name)?, column_name)?;
+                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(&find_column(&lhs_table, &batch_missing_vec, rhs_values.get(index).unwrap())?, column_name)?;
                     let agg_values = lhs_vec.into_iter()
                         .zip(rhs_vec.into_iter())
                         .map(|(l,r)| [l, r].join(""))
@@ -1423,30 +1427,30 @@ pub fn select(
             | DataColumnOperator::LeftShift
             | DataColumnOperator::RightShift => match column_data_type {
                 DataType::UInt8 => {
-                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_vec, index)?;
+                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
                     column_operator_arrow::<u8, UInt8Type>(
                         column_name,
                         rhs_column.as_ref().map(|x| x.as_str()),
                         column_operators.get(index).unwrap(),
-                        &find_column(&lhs_table, &batch_vec, column_name)?, 
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?, 
                         rhs_arr.as_ref())?
                 },
                 DataType::UInt32 => {
-                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_vec, index)?;
+                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
                     column_operator_arrow::<u32, UInt32Type>(
                         column_name,
                         rhs_column.as_ref().map(|x| x.as_str()),
                         column_operators.get(index).unwrap(),
-                        &find_column(&lhs_table, &batch_vec, column_name)?, 
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?, 
                         rhs_arr.as_ref())?
                 },
                 DataType::Int64 => {
-                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_vec, index)?;
+                    let (rhs_column, rhs_arr) = rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
                     column_operator_arrow::<i64, Int64Type>(
                         column_name,
                         rhs_column.as_ref().map(|x| x.as_str()),
                         column_operators.get(index).unwrap(),
-                        &find_column(&lhs_table, &batch_vec, column_name)?, 
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?, 
                         rhs_arr.as_ref())?
                 },
                 _ => return Err(anyhow!(
@@ -1457,7 +1461,7 @@ pub fn select(
             DataColumnOperator::Len => {
                 todo!()
             },
-            DataColumnOperator::None => find_column(&lhs_table, &batch_vec, column_name)?
+            DataColumnOperator::None => find_column(&lhs_table, &batch_missing_vec, column_name)?
         };
 
         // Try casting if possible
@@ -1825,7 +1829,7 @@ mod tests {
             &["new_pk", "new_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["", ""],
-            &["", ""],
+            &["new_pk1", ""],
             &[DataColumnOperator::None, DataColumnOperator::None],
             &[DataCastOperator::None, DataCastOperator::None],
             &[DataType::Utf8, DataType::UInt32],
@@ -1837,13 +1841,15 @@ mod tests {
             .with_name("")
             .build()?;
 
-        let lhs_text = result_table.get_column_as_vec_str("new_pk");
+        let lhs_text = result_table.get_column_as_vec_str("new_pk1");
         assert_eq!(
             lhs_text,
             vec!["", "", "", ""]
         );
         let lhs_id = result_table.get_column_as_vec_primitive::<u32>("new_metadata")?;
         assert_eq!(lhs_id, vec![0, 0, 0, 0]);
+        let column_names = result_table.get_schema().fields().iter().map(|f|f.name().to_string()).collect::<Vec<_>>();
+        assert!(!column_names.contains(&"new_pk".to_string()));
 
         Ok(())
     }

@@ -71,9 +71,12 @@ impl OwlFormat {
             "dc:description",
             "dc:title",
             "terms:license",
+            "terms:description",
+            "terms:title",
             "oboInOwl:default-namespace",
             "oboInOwl:hasOBOFormatVersion",
             "owl:versionInfo",
+            "foaf:homepage"
         ]
         .into_iter()
         .map(|s| s.to_string())

@@ -648,6 +648,30 @@ pub fn group_by(
                     ));
                 }
             },
+            DataAggregatorOperator::ConcatSemicolonSeperator => match lhs_table.get_column_data_type(agg_column)? {
+                DataType::Utf8 => {
+                    let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
+                    let agg_vecs = agg_ranges
+                        .into_iter()
+                        .map(|arr| {
+                            arr.as_any()
+                                .downcast_ref::<StringArray>()
+                                .unwrap()
+                                .iter()
+                                .flatten()
+                                .collect::<Vec<_>>()
+                                .join("; ")
+                        })
+                        .collect::<Vec<_>>();
+                    Arc::new(StringArray::from(agg_vecs))
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {} and aggregator operator {agg_operator} for column {agg_column}",
+                        lhs_table.get_column_data_type(agg_column)?
+                    ));
+                }
+            },
             DataAggregatorOperator::Max
             | DataAggregatorOperator::Mean
             | DataAggregatorOperator::Min
