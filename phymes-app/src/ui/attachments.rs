@@ -315,7 +315,7 @@ pub fn attachments_interface_footer(
 
     rsx! {
         footer {
-            class: "h-full grid grid-rows-[auto_1fr] grid-cols-[auto_1fr_auto] items-center p-2",
+            class: "h-full grid grid-rows-[auto_auto_1fr] grid-cols-[auto_1fr_auto] items-center p-2",
             div {
                 class: styles,
                 if extend_input() {
@@ -333,7 +333,7 @@ pub fn attachments_interface_footer(
             }
 
             div {
-                class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
+                class: "w-full h-full flex row-span-3 col-span-1 row-start-1 col-start-2",
                 form {
                     class: "w-full h-full",
                     textarea {

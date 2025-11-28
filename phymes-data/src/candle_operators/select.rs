@@ -307,22 +307,23 @@ where
 }
 
 /// Helper function to choose the source of the column
+/// 
+/// # Notes
+/// * The lhs_batches (new columns) are searched first to enable chaining up column updates
 fn find_column(lhs_table: &Table, lhs_batches: &[&(&&str, ArrayRef)], column_name: &str) -> Result<ArrayRef> {
-    if let Ok(_field) = lhs_table.get_schema().field_with_name(column_name) {
+    let mut lhs_filtered = lhs_batches.iter()
+        .filter_map(|(name, arr)| if &&column_name == name {
+            Some(arr)
+        } else {
+            None
+        })
+        .collect::<Vec<_>>();
+    if let Some(arr) = lhs_filtered.pop() {
+        Ok(arr.clone())
+    } else if let Ok(_field) = lhs_table.get_schema().field_with_name(column_name) {
         Ok(lhs_table.get_column_as_array(column_name))
     } else {
-        let mut lhs_filtered = lhs_batches.iter()
-            .filter_map(|(name, arr)| if &&column_name == name {
-                Some(arr)
-            } else {
-                None
-            })
-            .collect::<Vec<_>>();
-        if let Some(arr) = lhs_filtered.pop() {
-            Ok(arr.clone())
-        } else {
-            return Err(anyhow!("Unable to find column {column_name} in the provided lhs_args nor in the new lhs batches for `Select` Operator."))
-        }
+        return Err(anyhow!("Unable to find column {column_name} in the provided lhs_args nor in the new lhs batches for `Select` Operator."))
     }
 }
 

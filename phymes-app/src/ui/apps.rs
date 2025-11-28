@@ -158,37 +158,26 @@ pub fn apps_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
-                    for row in json_rows.iter() {
-                        // Check for deleted sessions
-                        let session_context_name = row
-                            .get("session_context_name")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string();
-                        if !session_context_name.contains("__deleted__") {
-                            // Update the mermaid state
-                            let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
-                                val.as_u64().unwrap().try_into().unwrap()
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table.get_column_as_vec_nonprimitive::<String>("session_context_name").unwrap().into_iter()
+                            .zip(table.get_column_as_vec_nonprimitive::<String>("flowchart_diagram").unwrap().into_iter())
+                            .zip(table.get_column_as_vec_nonprimitive::<String>("er_diagram").unwrap().into_iter())
+                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                            .filter_map(|(((scn, fd), ed), t)| if scn.contains("__deleted__") {
+                                None
                             } else {
-                                0
-                            };
-                            mermaid_session_context_names.push(session_context_name);
-                            mermaid_flowchart_diagrams.push(
-                                row.get("flowchart_diagram")
-                                    .unwrap()
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string(),
-                            );
-                            mermaid_er_diagrams
-                                .push(row.get("er_diagram").unwrap().as_str().unwrap().to_string());
-                            mermaid_timestamps.push(timestamp);
+                                Some((scn, fd, ed, t))
+                            }).collect::<Vec<_>>();
+                        for (scn, fd, ed, t) in combined {
+                            mermaid_session_context_names.push(scn);
+                            mermaid_flowchart_diagrams.push(fd);
+                            mermaid_er_diagrams.push(ed);
+                            mermaid_timestamps.push(t);
                         }
-                    }
+                    },
+                    Err(err) => tracing::error!("{err:?}"),
                 }
             }
             Err(err) => tracing::error!("{err:?}"),

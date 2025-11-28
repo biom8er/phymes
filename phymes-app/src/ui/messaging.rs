@@ -116,7 +116,7 @@ pub fn messaging_interface_view() -> Element {
                             messaging_indices,
                             messaging_timestamps,
                             "assistant",
-                            "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊", 
+                            "Welcome to the Biom8er messaging interface. I am your assistant. Please ask me a question 😊", 
                             create_timestamp_micros());
                     } else {
                         // append the messages to the state

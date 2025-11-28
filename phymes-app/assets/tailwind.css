@@ -220,6 +220,9 @@
   .row-span-2 {
     grid-row: span 2 / span 2;
   }
+  .row-span-3 {
+    grid-row: span 3 / span 3;
+  }
   .row-start-1 {
     grid-row-start: 1;
   }
@@ -391,6 +394,9 @@
   }
   .grid-rows-\[auto_1fr\] {
     grid-template-rows: auto 1fr;
+  }
+  .grid-rows-\[auto_auto_1fr\] {
+    grid-template-rows: auto auto 1fr;
   }
   .flex-col {
     flex-direction: column;
