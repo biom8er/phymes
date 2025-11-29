@@ -518,12 +518,15 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                 if let Some(p) = predicate.take() {
                     if tag != p {
                         predicate.replace(p);
+                    } else {
+                        xml_type.replace(XMLType::Element);
                     }
                 } else if let Some(s) = s_tag.last()
                     && tag == s
                 {
                     subject.pop();
                     s_tag.pop();
+                    xml_type.replace(XMLType::Element);
                 }
             }
             Event::Eof => break,

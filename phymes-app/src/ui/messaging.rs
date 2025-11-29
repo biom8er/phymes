@@ -237,57 +237,60 @@ pub fn messaging_interface_view() -> Element {
         } else {
             split_panel {
                 top: rsx! {
-                    ul {
-                        class: "p-2 flex flex-col list-none",
-                        {(0..messaging_roles().len()).map(|i| {
-                            let role = messaging_roles.get(i).unwrap();
-                            let index = messaging_indices.get(i).unwrap();
-                            let timestamp = convert_timestamp_micros_to_str(*messaging_timestamps.get(i).unwrap());
-                            let content = messaging_contents.get(i).unwrap();
-                            let li_style = if role.as_str() == "assistant" {
-                                "flex flex-col flex-content-start gap-1 my-2"
-                            } else {
-                                "flex flex-col flex-content-end items-end gap-1 my-2"
-                            };
-                            rsx! {
-                                li {
-                                    key: "{index}",
-                                    class: li_style,
-                                    if role.as_str() == "assistant" {
-                                        div {
-                                            class: "flex items-center gap-2",
-                                            svg {
-                                                class: "max-w-[48px] max-h-[48px]",
-                                                dangerous_inner_html: aws_assistant_icon_svg()
+                    div {
+                        class: "h-full w-full overflow-auto",
+                        ul {
+                            class: "p-2 flex flex-col list-none",
+                            {(0..messaging_roles().len()).map(|i| {
+                                let role = messaging_roles.get(i).unwrap();
+                                let index = messaging_indices.get(i).unwrap();
+                                let timestamp = convert_timestamp_micros_to_str(*messaging_timestamps.get(i).unwrap());
+                                let content = messaging_contents.get(i).unwrap();
+                                let li_style = if role.as_str() == "assistant" {
+                                    "flex flex-col flex-content-start gap-1 my-2"
+                                } else {
+                                    "flex flex-col flex-content-end items-end gap-1 my-2"
+                                };
+                                rsx! {
+                                    li {
+                                        key: "{index}",
+                                        class: li_style,
+                                        if role.as_str() == "assistant" {
+                                            div {
+                                                class: "flex items-center gap-2",
+                                                svg {
+                                                    class: "max-w-[48px] max-h-[48px]",
+                                                    dangerous_inner_html: aws_assistant_icon_svg()
+                                                }
+                                                h2 {
+                                                    class: "font-bold",
+                                                    "AI Assistant"
+                                                }
+                                                h3 { "{timestamp}" }
                                             }
-                                            h2 {
-                                                class: "font-bold",
-                                                "AI Assistant"
+                                        } else {
+                                            div {
+                                                class: "flex items-center gap-2",
+                                                h3 { "{timestamp}" }
+                                                h2 {
+                                                    class: "font-bold",
+                                                    "User"
+                                                }
+                                                svg {
+                                                    class: "max-w-[48px] max-h-[48px]",
+                                                    dangerous_inner_html: aws_user_icon_svg()
+                                                }
                                             }
-                                            h3 { "{timestamp}" }
                                         }
-                                    } else {
                                         div {
-                                            class: "flex items-center gap-2",
-                                            h3 { "{timestamp}" }
-                                            h2 {
-                                                class: "font-bold",
-                                                "User"
-                                            }
-                                            svg {
-                                                class: "max-w-[48px] max-h-[48px]",
-                                                dangerous_inner_html: aws_user_icon_svg()
-                                            }
+                                            class: "p-4 leading-6 max-w-[90%] rounded bg-neutral-800",
+                                            dangerous_inner_html: "{content}"
+                                            // dangerous_inner_html: "<p>{content}</p>"
                                         }
-                                    }
-                                    div {
-                                        class: "p-4 leading-6 max-w-[90%] rounded bg-neutral-800",
-                                        dangerous_inner_html: "{content}"
-                                        // dangerous_inner_html: "<p>{content}</p>"
                                     }
                                 }
-                            }
-                        })}
+                            })}
+                        }
                     }
                 },
                 bottom: rsx! {

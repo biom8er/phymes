@@ -42,6 +42,8 @@ fn extension_to_mime_type(extension: &str) -> Result<&str> {
         "txt" => "text/plain",
         "svg" => "image/svg+xml",
         "html" => "text/html",
+        "xml" => "text/html",
+        "owl" => "text/html",
         "pdf" => "application/pdf",
         "mp3" => "audio/mpeg",
         "wav" => "audio/wav",
@@ -81,7 +83,7 @@ pub fn extension_and_file_to_data_href(extension: &str, bytes: &[u8]) -> Result<
     let mime_type = extension_to_mime_type(extension)?;
     let href = match extension {
         "txt" | "csv" | "tsv" | "js" | "ts" | "py" | "java" | "c" | "cpp" | "cs" | "rb" | "go"
-        | "rs" | "json" | "svg" | "html" => {
+        | "rs" | "json" | "svg" | "html" | "xml" | "owl" => {
             let data = String::from_utf8_lossy(bytes).into_owned();
             format! {"data:{mime_type},{data}"}
         }
