@@ -310,6 +310,15 @@ pub fn messaging_interface_footer(
 ) -> Element {
     let mut prompt = use_signal(String::new);
 
+    // Update the index in a different scope
+    let current_index: Memo<usize> = use_memo(move || {
+        if messaging_indices.len() == 0 {
+            0
+        } else {
+            *messaging_indices.last().unwrap()
+        }
+    });
+
     rsx! {
         footer {
             class: "h-full grid grid-rows-[auto_1fr] grid-cols-[auto_1fr_auto] items-center p-2",
@@ -369,12 +378,12 @@ pub fn messaging_interface_footer(
                                 .unwrap();
                             let data = SessionInterfaceMessage::get_builder()
                                 .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                                .with_format(&DataFormat::Bytes)
+                                .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                 .with_update(&TablePublication::Extend { table_name: AvailableInterfaceSubjects::UserMessages.to_string() })
                                 .with_stream(false)
                                 .with_subject(chat.get_name())
-                                .with_message(chat.to_bytes().unwrap().to_vec())
+                                .with_message(chat.to_ipc_stream().unwrap())
                                 .make_name()
                                 .unwrap()
                                 .build()
@@ -396,21 +405,43 @@ pub fn messaging_interface_footer(
                                 Ok(stream) => {
                                     update_message_content_state(messaging_contents, "", true);
                                     let mut stream = stream.bytes_stream();
-                                    while let Some(Ok(bytes)) = stream.next().await {
-                                        let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                                        let json_rows: Vec<Map<String, Value>> = serde_json::from_str(json_str.trim_end_matches(char::from(0)))
-                                            .unwrap_or_else(|e| {
-                                                let mut m = Map::new();
-                                                m.insert("content".to_string(), format!("{e:?} caused by {json_str}").into());
-                                                vec![m]
-                                            });
-                                        for row in json_rows.iter() {
-                                            if row.get("role").is_none() {
-                                                tracing::error!("Message response does not have key role: {:?}", row);
-                                            } else if row.get("role").unwrap().as_str().unwrap() == "assistant" {
-                                                update_message_content_state(messaging_contents, row.get("content").unwrap().as_str().unwrap(), false);
+                                    let mut bytes = Vec::new();
+                                    while let Some(Ok(b)) = stream.next().await {
+                                        bytes.extend(b);
+                                    }
+                                    match TableBuilder::new_from_ipc_stream(&bytes) {
+                                        Ok(builder) => {
+                                            let table = builder.with_name("").build().unwrap();
+                                            if table.get_schema().fields().iter().map(|f| f.name()).collect::<Vec<_>>().contains(&&"role".to_string()) {
+                                                let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
+                                                    .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
+                                                    .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                                                    .enumerate()
+                                                    .filter_map(|(i, ((r, c), t))| if r.is_empty() {
+                                                        None
+                                                    } else {
+                                                        let index = current_index() + i;
+                                                        Some((r, c, t, index))
+                                                    }).collect::<Vec<_>>();
+                                                for (r, c, t, index) in combined {
+                                                    messaging_roles.push(r);
+                                                    messaging_contents.push(c);
+                                                    messaging_timestamps.push(t);
+                                                    messaging_indices.push(index);
+                                                }
+                                            } else {
+                                                tracing::error!("Message response does not have key role.");
                                             }
-                                        }
+                                        },
+                                        Err(err) => {
+                                            update_message_state(messaging_roles,
+                                                messaging_contents,
+                                                messaging_indices,
+                                                messaging_timestamps,
+                                                "assistant",
+                                                format!("{err:?}").as_str(), 
+                                                create_timestamp_micros());
+                                        },
                                     }
                                 },
                                 Err(e) => update_message_content_state(messaging_contents, e.to_string().as_str(), true),
@@ -435,19 +466,39 @@ pub fn messaging_interface_footer(
                                         .try_collect()
                                         .await
                                         .unwrap();
-                                    for byte in bytes.iter() {
-                                        let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte).unwrap_or_else(|e| {
-                                            let mut m = Map::new();
-                                            m.insert("content".to_string(), format!("Error: {e:?}").into());
-                                            vec![m]
-                                        });
-                                        for row in json_rows.iter() {
-                                            if row.get("role").is_none() {
-                                                tracing::error!("Message response does not have key role: {:?}", row);
-                                            } else if row.get("role").unwrap().as_str().unwrap() == "assistant" {
-                                                update_message_content_state(messaging_contents, row.get("content").unwrap().as_str().unwrap(), false);
+                                    match TableBuilder::new_from_ipc_stream(&bytes) {
+                                        Ok(builder) => {
+                                            let table = builder.with_name("").build().unwrap();
+                                            if table.get_schema().fields().iter().map(|f| f.name()).collect::<Vec<_>>().contains(&&"role".to_string()) {
+                                                let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
+                                                    .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
+                                                    .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                                                    .enumerate()
+                                                    .filter_map(|(i, ((r, c), t))| if r.is_empty() {
+                                                        None
+                                                    } else {
+                                                        let index = current_index() + i;
+                                                        Some((r, c, t, index))
+                                                    }).collect::<Vec<_>>();
+                                                for (r, c, t, index) in combined {
+                                                    messaging_roles.push(r);
+                                                    messaging_contents.push(c);
+                                                    messaging_timestamps.push(t);
+                                                    messaging_indices.push(index);
+                                                }
+                                            } else {
+                                                tracing::error!("Message response does not have key role.");
                                             }
-                                        }
+                                        },
+                                        Err(err) => {
+                                            update_message_state(messaging_roles,
+                                                messaging_contents,
+                                                messaging_indices,
+                                                messaging_timestamps,
+                                                "assistant",
+                                                format!("{err:?}").as_str(), 
+                                                create_timestamp_micros());
+                                        },
                                     }
                                 },
                                 Err(e) => update_message_content_state(messaging_contents, e.to_string().as_str(), true),
