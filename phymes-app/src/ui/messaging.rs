@@ -13,7 +13,7 @@ use reqwest::{self, header::CONTENT_TYPE};
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat,
     MappableTrait, MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
-    SessionInterfaceMessageBuilderTrait, TablePublication, TableTrait,
+    SessionInterfaceMessageBuilderTrait, TablePublication, TableTrait, TableBuilder, TableBuilderTrait
 };
 use phymes_server::create_session_name;
 
@@ -45,10 +45,19 @@ use crate::{
 #[component]
 pub fn messaging_interface_view() -> Element {
     // Global signals
-    let messaging_roles = use_signal(Vec::<String>::new);
-    let messaging_contents = use_signal(Vec::<String>::new);
-    let messaging_indices = use_signal(Vec::<usize>::new);
-    let messaging_timestamps = use_signal(Vec::<i64>::new);
+    let mut messaging_roles = use_signal(Vec::<String>::new);
+    let mut messaging_contents = use_signal(Vec::<String>::new);
+    let mut messaging_indices = use_signal(Vec::<usize>::new);
+    let mut messaging_timestamps = use_signal(Vec::<i64>::new);
+
+    // Update the index in a different scope
+    let current_index: Memo<usize> = use_memo(move || {
+        if messaging_indices.len() == 0 {
+            0
+        } else {
+            *messaging_indices.last().unwrap()
+        }
+    });
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
@@ -57,7 +66,7 @@ pub fn messaging_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_format(&DataFormat::Bytes)
+            .with_format(&DataFormat::Ipc)
             .with_publisher(&create_session_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
@@ -100,17 +109,34 @@ pub fn messaging_interface_view() -> Element {
         {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
-                while let Some(Ok(bytes)) = stream.next().await {
-                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!("There was a error parsing messages {err}.");
-                            Vec::new()
-                        });
-                    if json_rows.is_empty() {
-                        // initialize the first message (if the are no messages for the session)
+                let mut bytes = Vec::new();
+                while let Some(Ok(b)) = stream.next().await {
+                    bytes.extend(b);
+                }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
+                            .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
+                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                            .enumerate()
+                            .filter_map(|(i, ((r, c), t))| if r.is_empty() {
+                                None
+                            } else {
+                                let index = current_index() + i;
+                                Some((r, c, t, index))
+                            }).collect::<Vec<_>>();
+                        for (r, c, t, index) in combined {
+                            messaging_roles.push(r);
+                            messaging_contents.push(c);
+                            messaging_timestamps.push(t);
+                            messaging_indices.push(index);
+                        }
+                    },
+                    Err(err) => {
+                        tracing::error!("{err:?}");
 
-                        use phymes_diagnostics::create_timestamp_micros;
+                        // initialize the first message
                         update_message_state(messaging_roles,
                             messaging_contents,
                             messaging_indices,
@@ -118,27 +144,10 @@ pub fn messaging_interface_view() -> Element {
                             "assistant",
                             "Welcome to the Biom8er messaging interface. I am your assistant. Please ask me a question 😊", 
                             create_timestamp_micros());
-                    } else {
-                        // append the messages to the state
-                        for row in json_rows.iter() {
-                            if row.get("role").is_some() {
-                                update_message_state(
-                                    messaging_roles,
-                                    messaging_contents,
-                                    messaging_indices,
-                                    messaging_timestamps,
-                                    row.get("role").unwrap().as_str().unwrap(),
-                                    row.get("content").unwrap().as_str().unwrap(),
-                                    row.get("timestamp").unwrap().as_i64().unwrap(),
-                                );
-                            }
-                        }
-                    }
+                    },
                 }
             }
             Err(err) => {
-                use phymes_diagnostics::create_timestamp_micros;
-
                 tracing::error!("{err:?}");
 
                 // initialize the first message
@@ -172,34 +181,27 @@ pub fn messaging_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
-                    if json_rows.is_empty() {
-                        // initialize the first message (if the are no messages for the session)
-                        update_message_state(messaging_roles,
-                            messaging_contents,
-                            messaging_indices,
-                            messaging_timestamps,
-                            "assistant", 
-                            "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊", 
-                            create_timestamp_micros());
-                    } else {
-                        // append the messages to the state
-                        for row in json_rows.iter() {
-                            if row.get("role").is_some() {
-                                update_message_state(
-                                    messaging_roles,
-                                    messaging_contents,
-                                    messaging_indices,
-                                    messaging_timestamps,
-                                    row.get("role").unwrap().as_str().unwrap(),
-                                    row.get("content").unwrap().as_str().unwrap(),
-                                    row.get("timestamp").unwrap().as_i64().unwrap(),
-                                );
-                            }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
+                            .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
+                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                            .enumerate()
+                            .filter_map(|(i, ((r, c), t))| if r.is_empty() {
+                                None
+                            } else {
+                                let index = current_index() + i;
+                                Some((r, c, t, index))
+                            }).collect::<Vec<_>>();
+                        for (r, c, t, index) in combined {
+                            messaging_roles.push(r);
+                            messaging_contents.push(c);
+                            messaging_timestamps.push(t);
+                            messaging_indices.push(index);
                         }
-                    }
+                    },
+                    Err(err) => tracing::error!("{err:?}"),
                 }
             }
             Err(err) => {

@@ -3,14 +3,13 @@ use dioxus::prelude::*;
 
 use phymes_agents::AvailableInterfaceSubjects;
 use phymes_diagnostics::convert_timestamp_micros_to_str;
-use serde_json::{self, Map, Value};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublication,
+    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublication, TableTrait, TableBuilder, TableBuilderTrait
 };
 use phymes_server::create_session_name;
 
@@ -35,7 +34,7 @@ use crate::{
             aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg,
             ms_arrow_download_icon_svg,
         },
-        update_attachments_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
+        ACTIVE_SESSION_NAME, EMAIL, JWT,
     },
     ui::{
         attach_files_input, clear_upload_files_button, main_window::split_panel,
@@ -47,12 +46,21 @@ use crate::{
 #[component]
 pub fn attachments_interface_view() -> Element {
     // Global signals
-    let attachments_roles = use_signal(Vec::<String>::new);
+    let mut attachments_roles = use_signal(Vec::<String>::new);
     let mut attachments_contents = use_signal(Vec::<Option<Vec<u8>>>::new);
-    let attachments_indices = use_signal(Vec::<usize>::new);
-    let attachments_timestamps = use_signal(Vec::<i64>::new);
-    let attachments_filenames = use_signal(Vec::<String>::new);
-    let attachments_extensions = use_signal(Vec::<String>::new);
+    let mut attachments_indices = use_signal(Vec::<usize>::new);
+    let mut attachments_timestamps = use_signal(Vec::<i64>::new);
+    let mut attachments_filenames = use_signal(Vec::<String>::new);
+    let mut attachments_extensions = use_signal(Vec::<String>::new);
+
+    // Update the index in a different scope
+    let current_index: Memo<usize> = use_memo(move || {
+        if attachments_indices.len() == 0 {
+            0
+        } else {
+            *attachments_indices.last().unwrap()
+        }
+    });
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
@@ -61,7 +69,7 @@ pub fn attachments_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_format(&DataFormat::Bytes)
+            .with_format(&DataFormat::Ipc)
             .with_publisher(&create_session_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
@@ -104,34 +112,35 @@ pub fn attachments_interface_view() -> Element {
         {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
-                while let Some(Ok(bytes)) = stream.next().await {
-                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(&bytes)
-                        .unwrap_or_else(|err| {
-                            tracing::error!(
-                                "There was a error parsing SyncCurrentAttachmentsState {err}."
-                            );
-                            Vec::new()
-                        });
-                    for row in json_rows.iter() {
-                        let bytes: Vec<u8> =
-                            serde_json::from_value(row.get("bytes").unwrap().to_owned()).unwrap();
-                        if row.get("metadata").is_some() {
-                            update_attachments_state(
-                                attachments_roles,
-                                attachments_contents,
-                                attachments_indices,
-                                attachments_timestamps,
-                                attachments_filenames,
-                                attachments_extensions,
-                                row.get("metadata").unwrap().as_str().unwrap(),
-                                Some(bytes),
-                                // None,
-                                row.get("timestamp").unwrap().as_i64().unwrap(),
-                                row.get("filename").unwrap().as_str().unwrap(),
-                                row.get("extension").unwrap().as_str().unwrap(),
-                            );
+                let mut bytes = Vec::new();
+                while let Some(Ok(b)) = stream.next().await {
+                    bytes.extend(b);
+                }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table.get_column_as_vec_nonprimitive::<String>("metadata").unwrap().into_iter()
+                            .zip(table.get_column_as_vec_nonprimitive::<String>("filename").unwrap().into_iter())
+                            .zip(table.get_column_as_vec_nonprimitive::<String>("extension").unwrap().into_iter())
+                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                            .zip(table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap().into_iter())
+                            .enumerate()
+                            .filter_map(|(i, ((((m, f), e), t), b))| if m.is_empty() {
+                                None
+                            } else {
+                                let index = current_index() + i;
+                                Some((m, f, e, t, b, index))
+                            }).collect::<Vec<_>>();
+                        for (m, f, e, t, b, index) in combined {
+                            attachments_roles.push(m);
+                            attachments_filenames.push(f);
+                            attachments_extensions.push(e);
+                            attachments_timestamps.push(t);
+                            attachments_contents.push(Some(b));
+                            attachments_indices.push(index);
                         }
-                    }
+                    },
+                    Err(err) => tracing::error!("{err:?}"),
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -155,26 +164,33 @@ pub fn attachments_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
-                    for row in json_rows.iter() {
-                        if row.get("metadata").is_some() {
-                            update_attachments_state(
-                                attachments_roles,
-                                attachments_contents,
-                                attachments_indices,
-                                attachments_timestamps,
-                                attachments_filenames,
-                                attachments_extensions,
-                                row.get("metadata").unwrap().as_str().unwrap(),
-                                None,
-                                row.get("timestamp").unwrap().as_i64().unwrap(),
-                                row.get("filename").unwrap().as_str().unwrap(),
-                                row.get("extension").unwrap().as_str().unwrap(),
-                            );
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        use phymes_core::TableTrait;
+
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table.get_column_as_vec_nonprimitive::<String>("metadata").unwrap().into_iter()
+                            .zip(table.get_column_as_vec_nonprimitive::<String>("filename").unwrap().into_iter())
+                            .zip(table.get_column_as_vec_nonprimitive::<String>("extension").unwrap().into_iter())
+                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                            .zip(table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap().into_iter())
+                            .enumerate()
+                            .filter_map(|(i, ((((m, f), e), t), b))| if m.is_empty() {
+                                None
+                            } else {
+                                let index = current_index() + i;
+                                Some((m, f, e, t, b, index))
+                            }).collect::<Vec<_>>();
+                        for (m, f, e, t, b, index) in combined {
+                            attachments_roles.push(m);
+                            attachments_filenames.push(f);
+                            attachments_extensions.push(e);
+                            attachments_timestamps.push(t);
+                            attachments_contents.push(Some(b));
+                            attachments_indices.push(index);
                         }
-                    }
+                    },
+                    Err(err) => tracing::error!("{err:?}"),
                 }
             }
             Err(err) => tracing::error!("{err:?}"),

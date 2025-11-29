@@ -2,10 +2,9 @@ use dioxus::prelude::*;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    TablePublication,
+    TablePublication, TableTrait, TableBuilder, TableBuilderTrait
 };
 use phymes_server::create_session_name;
-use serde_json::{Map, Value};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -57,7 +56,7 @@ pub fn subjects_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_format(&DataFormat::Bytes)
+            .with_format(&DataFormat::Ipc)
             .with_publisher(&create_session_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
@@ -98,33 +97,20 @@ pub fn subjects_interface_view() -> Element {
         {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
-                while let Some(Ok(bytes)) = stream.next().await {
-                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!(
-                                "There was a error parsing SyncCurrentSubjectSchemaState {err}."
-                            );
-                            Vec::new()
-                        });
-                    for row in json_rows.iter() {
-                        subject_schema_names.push(
-                            row.get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        subject_schema_columns.push(
-                            row.get("column_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        subject_schema_types
-                            .push(row.get("type_name").unwrap().as_str().unwrap().to_string());
-                    }
+                let mut bytes = Vec::new();
+                while let Some(Ok(b)) = stream.next().await {
+                    bytes.extend(b);
+                }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        subject_schema_names.set(table.get_column_as_vec_nonprimitive::<String>("subject_name").unwrap());
+                        subject_schema_columns.set(table.get_column_as_vec_nonprimitive::<String>("column_name").unwrap());
+                        subject_schema_types.set(table.get_column_as_vec_nonprimitive::<String>("type_name").unwrap());
+                    },
+                    Err(err) => {
+                        tracing::error!("{err:?}");
+                    },
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -148,27 +134,16 @@ pub fn subjects_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
-                    for row in json_rows.iter() {
-                        subject_schema_names.push(
-                            row.get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        subject_schema_columns.push(
-                            row.get("column_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        subject_schema_types
-                            .push(row.get("type_name").unwrap().as_str().unwrap().to_string());
-                    }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        subject_schema_names.set(table.get_column_as_vec_nonprimitive::<String>("subject_name").unwrap());
+                        subject_schema_columns.set(table.get_column_as_vec_nonprimitive::<String>("column_name").unwrap());
+                        subject_schema_types.set(table.get_column_as_vec_nonprimitive::<String>("type_name").unwrap());
+                    },
+                    Err(err) => {
+                        tracing::error!("{err:?}");
+                    },
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -205,29 +180,19 @@ pub fn subjects_interface_view() -> Element {
         {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
-                while let Some(Ok(bytes)) = stream.next().await {
-                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|_err| {
-                            // DM: find a better way to give feedback to the user
-                            // content.write().push_str(format!("There was a error parsing SyncCurrentSubjectInfoState {err}.").as_str());
-                            Vec::new()
-                        });
-                    for row in json_rows.iter() {
-                        let num_rows = if let Some(Value::Number(val)) = row.get("num_rows") {
-                            val.as_u64().unwrap().try_into().unwrap()
-                        } else {
-                            0
-                        };
-                        subject_names.push(
-                            row.get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        subject_num_rows.push(num_rows);
-                    }
+                let mut bytes = Vec::new();
+                while let Some(Ok(b)) = stream.next().await {
+                    bytes.extend(b);
+                }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        subject_names.set(table.get_column_as_vec_nonprimitive::<String>("subject_name").unwrap());
+                        subject_num_rows.set(table.get_column_as_vec_primitive::<u64>("num_rows").unwrap().into_iter().map(|n| n as usize).collect::<Vec<_>>());
+                    },
+                    Err(err) => {
+                        tracing::error!("{err:?}");
+                    },
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -251,24 +216,15 @@ pub fn subjects_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
-                    for row in json_rows.iter() {
-                        let num_rows = if let Some(Value::Number(val)) = row.get("num_rows") {
-                            val.as_u64().unwrap().try_into().unwrap()
-                        } else {
-                            0
-                        };
-                        subject_names.push(
-                            row.get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        subject_num_rows.push(num_rows);
-                    }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        subject_names.set(table.get_column_as_vec_nonprimitive::<String>("subject_name").unwrap());
+                        subject_num_rows.set(table.get_column_as_vec_primitive::<u64>("num_rows").unwrap().into_iter().map(|n| n as usize).collect::<Vec<_>>());
+                    },
+                    Err(err) => {
+                        tracing::error!("{err:?}");
+                    },
                 }
             }
             Err(err) => tracing::error!("{err:?}"),

@@ -2,10 +2,9 @@ use dioxus::prelude::*;
 use phymes_agents::AvailableInterfaceSubjects;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublication,
+    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublication, TableTrait, TableBuilder, TableBuilderTrait
 };
 use phymes_server::create_session_name;
-use serde_json::{Map, Value};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -25,30 +24,10 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 use crate::{
     state::{
-        get_non_duplicated_sorted_subjects, svg_icons::ms_search_icon_svg, ACTIVE_SESSION_NAME,
-        EMAIL, JWT,
+        ACTIVE_SESSION_NAME, EMAIL, JWT, get_metric_visualizations_by_metric_name, get_non_duplicated_sorted_subjects, svg_icons::ms_search_icon_svg
     },
     ui::mermaid_view,
 };
-
-pub fn get_metric_visualizations_by_metric_name(
-    active_subject: &str,
-    metric_names: &[&str],
-    metric_visualizations: &[&str],
-) -> Vec<String> {
-    let indices = metric_names
-        .iter()
-        .enumerate()
-        .filter(|(_i, s)| **s == active_subject)
-        .map(|(i, _s)| i)
-        .collect::<Vec<_>>();
-    metric_visualizations
-        .iter()
-        .enumerate()
-        .filter(|(i, _s)| indices.contains(i))
-        .map(|(_i, s)| s.to_string())
-        .collect::<Vec<_>>()
-}
 
 #[component]
 pub fn metrics_interface_view() -> Element {
@@ -64,7 +43,7 @@ pub fn metrics_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_format(&DataFormat::Bytes)
+            .with_format(&DataFormat::Ipc)
             .with_publisher(&create_session_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
@@ -80,9 +59,8 @@ pub fn metrics_interface_view() -> Element {
             return;
         }
 
-        let route = "/app/v1/get_state";
         // DM: https://github.com/biom8er/phymes/issues/111#issue-3492849457
-        // let route = "/app/v1/diagnostics";
+        let route = "/app/v1/diagnostics";
         let data_serialized = serde_json::to_string(
             &get_session_state()
                 .with_subject(
@@ -110,53 +88,24 @@ pub fn metrics_interface_view() -> Element {
         {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
-                while let Some(Ok(bytes)) = stream.next().await {
-                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(bytes.as_ref())
-                        .unwrap_or_else(|err| {
-                            tracing::error!(
-                                "There was a error getting the session diagnostics {err}."
-                            );
-                            Vec::new()
-                        });
-                    for row in json_rows.iter() {
-                        metric_names.push("processor_traces".to_string());
-                        metric_visualizations.push(
-                            row.get("processor_traces")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        metric_names.push("elapsed_compute".to_string());
-                        metric_visualizations.push(
-                            row.get("elapsed_compute")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        metric_names.push("output_rows".to_string());
-                        metric_visualizations.push(
-                            row.get("output_rows")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
+                let mut bytes = Vec::new();
+                while let Some(Ok(b)) = stream.next().await {
+                    bytes.extend(b);
+                }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
                         // DM: https://github.com/biom8er/phymes/issues/111#issue-3492849457
-                        // metric_names.push(row
-                        //     .get("filename")
-                        //     .unwrap()
-                        //     .as_str()
-                        //     .unwrap()
-                        //     .to_string());
-                        // let bytes = row.get("bytes").unwrap()
-                        //     .as_array().unwrap()
-                        //     .iter()
-                        //     .map(|v| v.as_u64().unwrap() as u8)
-                        //     .collect::<Vec<u8>>();
-                        // metric_visualizations.push(String::from_utf8_lossy(bytes.as_ref()).into_owned());
-                    }
+                        metric_names.set(table.get_column_as_vec_nonprimitive::<String>("filename").unwrap());
+                        let viz_str_vec = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap()
+                            .into_iter()
+                            .map(|bytes| String::from_utf8_lossy(bytes.as_ref()).into_owned())
+                            .collect::<Vec<_>>();
+                        metric_visualizations.set(viz_str_vec);
+                    },
+                    Err(err) => {
+                        tracing::error!("{err:?}");
+                    },
                 }
             }
             Err(err) => {
@@ -182,40 +131,20 @@ pub fn metrics_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte.as_ref())
-                        .unwrap_or_else(|err| {
-                            tracing::error!(
-                                "There was a error getting the session diagnostics {err}."
-                            );
-                            Vec::new()
-                        });
-                    for row in json_rows.iter() {
-                        metric_names.push("processor_traces".to_string());
-                        metric_visualizations.push(
-                            row.get("processor_traces")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        metric_names.push("elapsed_compute".to_string());
-                        metric_visualizations.push(
-                            row.get("elapsed_compute")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        metric_names.push("output_rows".to_string());
-                        metric_visualizations.push(
-                            row.get("output_rows")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                    }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        // DM: https://github.com/biom8er/phymes/issues/111#issue-3492849457
+                        metric_names.set(table.get_column_as_vec_nonprimitive::<String>("filename").unwrap());
+                        let viz_str_vec = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap()
+                            .into_iter()
+                            .map(|bytes| String::from_utf8_lossy(bytes.as_ref()).into_owned())
+                            .collect::<Vec<_>>();
+                        metric_visualizations.set(viz_str_vec);
+                    },
+                    Err(err) => {
+                        tracing::error!("{err:?}");
+                    },
                 }
             }
             Err(err) => tracing::error!("{err}"),
