@@ -128,7 +128,7 @@ pub fn attachments_interface_view() -> Element {
                             .filter_map(|(i, ((((m, f), e), t), b))| if m.is_empty() {
                                 None
                             } else {
-                                let index = current_index() + i;
+                                let index = current_index() + i + 1;
                                 Some((m, f, e, t, b, index))
                             }).collect::<Vec<_>>();
                         for (m, f, e, t, b, index) in combined {
@@ -178,7 +178,7 @@ pub fn attachments_interface_view() -> Element {
                             .filter_map(|(i, ((((m, f), e), t), b))| if m.is_empty() {
                                 None
                             } else {
-                                let index = current_index() + i;
+                                let index = current_index() + i + 1;
                                 Some((m, f, e, t, b, index))
                             }).collect::<Vec<_>>();
                         for (m, f, e, t, b, index) in combined {

@@ -123,7 +123,7 @@ pub fn messaging_interface_view() -> Element {
                             .filter_map(|(i, ((r, c), t))| if r.is_empty() {
                                 None
                             } else {
-                                let index = current_index() + i;
+                                let index = current_index() + i + 1;
                                 Some((r, c, t, index))
                             }).collect::<Vec<_>>();
                         for (r, c, t, index) in combined {
@@ -191,7 +191,7 @@ pub fn messaging_interface_view() -> Element {
                             .filter_map(|(i, ((r, c), t))| if r.is_empty() {
                                 None
                             } else {
-                                let index = current_index() + i;
+                                let index = current_index() + i + 1;
                                 Some((r, c, t, index))
                             }).collect::<Vec<_>>();
                         for (r, c, t, index) in combined {
@@ -420,7 +420,7 @@ pub fn messaging_interface_footer(
                                                     .filter_map(|(i, ((r, c), t))| if r.is_empty() {
                                                         None
                                                     } else {
-                                                        let index = current_index() + i;
+                                                        let index = current_index() + i + 1;
                                                         Some((r, c, t, index))
                                                     }).collect::<Vec<_>>();
                                                 for (r, c, t, index) in combined {
@@ -477,7 +477,7 @@ pub fn messaging_interface_footer(
                                                     .filter_map(|(i, ((r, c), t))| if r.is_empty() {
                                                         None
                                                     } else {
-                                                        let index = current_index() + i;
+                                                        let index = current_index() + i + 1;
                                                         Some((r, c, t, index))
                                                     }).collect::<Vec<_>>();
                                                 for (r, c, t, index) in combined {

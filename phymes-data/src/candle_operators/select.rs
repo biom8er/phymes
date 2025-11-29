@@ -1480,7 +1480,7 @@ pub fn select(
                     ));
                 }
                 match column_data_type {
-                    DataType::FixedSizeList(f, _) | DataType::List(f) => match f.data_type() {
+                    DataType::FixedSizeList(f, _) => match f.data_type() {
                         DataType::UInt8 => {
                             let lhs_vec = column_cast
                                 .as_any()
@@ -1526,6 +1526,76 @@ pub fn select(
                             let lhs_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                            .unwrap_or_default()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            let cast_vec = lhs_vec
+                                .into_iter()
+                                .map(|v| {
+                                    let bytes = v.into_iter().map(|i| i as u8).collect::<Vec<_>>();
+                                    String::from_utf8_lossy(&bytes).into_owned()
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(cast_vec))
+                        }
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {column_data_type} for casting from Bytes to String for column {column_name}. The supported data types are List-UInt8, List-UInt32, and List-Int64",
+                            ));
+                        }
+                    },
+                    DataType::List(f) => match f.data_type() {
+                        DataType::UInt8 => {
+                            let lhs_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<ListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                            .unwrap_or_default()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            let cast_vec = lhs_vec
+                                .into_iter()
+                                .map(|v| String::from_utf8_lossy(&v).into_owned())
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(cast_vec))
+                        }
+                        DataType::UInt32 => {
+                            let lhs_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<ListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                            .unwrap_or_default()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            let cast_vec = lhs_vec
+                                .into_iter()
+                                .map(|v| {
+                                    let bytes = v.into_iter().map(|i| i as u8).collect::<Vec<_>>();
+                                    String::from_utf8_lossy(&bytes).into_owned()
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(cast_vec))
+                        }
+                        DataType::Int64 => {
+                            let lhs_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<ListArray>()
                                 .unwrap()
                                 .iter()
                                 .filter_map(|s| {
