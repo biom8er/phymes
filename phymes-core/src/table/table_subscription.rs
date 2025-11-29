@@ -1,8 +1,9 @@
 use anyhow::{Result, anyhow};
+use arrow::datatypes::Schema;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
-use crate::session::MappableTrait;
+use crate::{RecordBatchStreamAdapter, session::MappableTrait};
 
 use super::{
     stream::SendableRecordBatchStream,
@@ -11,11 +12,13 @@ use super::{
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
 pub enum TableSubscription {
-    /// Only when the subject has been updated
+    /// Only when the subject has been updated, send the full table
     OnUpdateFullTable { table_name: String },
-    /// Only when the subject has been updated
-    /// and just the last RecordBatch
+    /// Only when the subject has been updated, and just the last RecordBatch
     OnUpdateLastRecordBatch { table_name: String },
+    /// Only when the subject has been updated, but don't send any data
+    ///   which is useful for ensuring a task is triggered after another task
+    OnUpdateEmpty { table_name: String },
     /// Always read the full table
     AlwaysFullTable { table_name: String },
     /// Always read just the last record batch
@@ -33,6 +36,7 @@ impl TableSubscription {
         match self {
             Self::OnUpdateFullTable { table_name: tn } => tn,
             Self::OnUpdateLastRecordBatch { table_name: tn } => tn,
+            Self::OnUpdateEmpty { table_name: tn } => tn,
             Self::AlwaysFullTable { table_name: tn } => tn,
             Self::AlwaysLastRecordBatch { table_name: tn } => tn,
             Self::None => "",
@@ -48,6 +52,7 @@ impl TableSubscription {
             Self::OnUpdateLastRecordBatch { table_name: tn } => {
                 format!("OnUpdateLastRecordBatch-{tn}")
             }
+            Self::OnUpdateEmpty { table_name: tn } => format!("OnUpdateEmpty-{tn}"),
             Self::AlwaysFullTable { table_name: tn } => format!("AlwaysFullTable-{tn}"),
             Self::AlwaysLastRecordBatch { table_name: tn } => format!("AlwaysLastRecordBatch-{tn}"),
             Self::None => "None".to_string(),
@@ -58,7 +63,8 @@ impl TableSubscription {
     pub fn is_update(&self) -> bool {
         match self {
             Self::OnUpdateFullTable { table_name: _tn }
-            | Self::OnUpdateLastRecordBatch { table_name: _tn } => true,
+            | Self::OnUpdateLastRecordBatch { table_name: _tn }
+            | Self::OnUpdateEmpty { table_name: _tn } => true,
             Self::AlwaysFullTable { table_name: _tn }
             | Self::AlwaysLastRecordBatch { table_name: _tn } => false,
             Self::None => false,
@@ -71,6 +77,7 @@ impl TableSubscription {
         match self {
             Self::OnUpdateFullTable { table_name: _tn } => "FullTable",
             Self::OnUpdateLastRecordBatch { table_name: _tn } => "LastRecordBatch",
+            Self::OnUpdateEmpty { table_name: _tn } => "Empty",
             Self::AlwaysFullTable { table_name: _tn } => "FullTable",
             Self::AlwaysLastRecordBatch { table_name: _tn } => "LastRecordBatch",
             Self::None => "None",
@@ -94,6 +101,10 @@ impl TableSubscription {
             }
         } else if name.contains("AlwaysLastRecordBatch") {
             TableSubscription::AlwaysLastRecordBatch {
+                table_name: subject.to_string(),
+            }
+        } else if name.contains("OnUpdateEmpty") {
+            TableSubscription::OnUpdateEmpty {
                 table_name: subject.to_string(),
             }
         } else if name.contains("None") {
@@ -125,6 +136,10 @@ impl TableSubscription {
             Ok(TableSubscription::AlwaysLastRecordBatch {
                 table_name: subject.to_string(),
             })
+        } else if line.contains("|") & line.contains("-.->") & line.contains("Empty") {
+            Ok(TableSubscription::OnUpdateEmpty {
+                table_name: subject.to_string(),
+            })
         } else if line.contains("None") {
             Ok(TableSubscription::None {})
         } else {
@@ -140,6 +155,7 @@ impl MappableTrait for TableSubscription {
         match self {
             Self::OnUpdateFullTable { table_name: _tn } => "OnUpdateFullTable",
             Self::OnUpdateLastRecordBatch { table_name: _tn } => "OnUpdateLastRecordBatch",
+            Self::OnUpdateEmpty { table_name: _tn } => "OnUpdateEmpty",
             Self::AlwaysFullTable { table_name: _tn } => "AlwaysFullTable",
             Self::AlwaysLastRecordBatch { table_name: _tn } => "AlwaysLastRecordBatch",
             Self::None => "None",
@@ -192,6 +208,18 @@ impl TableSubscriptionTrait for Table {
             TableSubscription::OnUpdateLastRecordBatch { table_name: _ } => {
                 if updated {
                     Some(self.to_record_batch_stream_last_record_batch())
+                } else {
+                    None
+                }
+            }
+            TableSubscription::OnUpdateEmpty { table_name: _ } => {
+                if updated {
+                    let schema = Schema::empty();
+                    let stream = futures::stream::iter(Vec::new().into_iter().map(Ok));
+                    Some(Box::pin(RecordBatchStreamAdapter::new(
+                        Arc::new(schema),
+                        stream,
+                    )))
                 } else {
                     None
                 }
